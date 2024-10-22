@@ -15,12 +15,17 @@ model User {
   type  UserType
 }
 
+model Server {
+  id     Int    @id
+  status Status
+}
+
 enum UserType {
   ADMIN
   USER
 }
 
-enum Stats {
+enum Status {
   ONLINE
   OFFLINE
 }

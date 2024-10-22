@@ -5,7 +5,7 @@ export const UserType = {
   USER: "USER",
 } as const;
 
-export const Stats = {
+export const Status = {
   ONLINE: "ONLINE",
   OFFLINE: "OFFLINE",
 } as const;
@@ -19,5 +19,9 @@ export interface PrismaIDBSchema extends DBSchema {
       name: string;
       type: (typeof UserType)[keyof typeof UserType];
     };
+  };
+  server: {
+    key: number;
+    value: { id: number; status: (typeof Status)[keyof typeof Status] };
   };
 }
