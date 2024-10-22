@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  prettier:
+  prettier-check:
     runs-on: ubuntu-latest
 
     steps:
@@ -18,3 +18,9 @@ jobs:
         uses: creyD/prettier_action@v4.3
         with:
           prettier_options: --check **/*.{ts,js,md}
+
+eslint:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v1
+    - uses: stefanoeb/eslint-action@1.0.2
