@@ -9,26 +9,18 @@ datasource db {
 }
 
 model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
+  id    Int      @id @default(autoincrement())
+  email String   @unique
   name  String?
+  type  UserType
 }
 
-enum NotificationType {
-  newPosts
-  newComments
-  newFollowers
-  reply
-  heartOnPost
-  heartOnComment
-  heartOnReply
+enum UserType {
+  ADMIN
+  USER
 }
 
-enum Language {
-  Typescript
-  Javascript
-  Rust
-  Go
-  Python
-  Cpp
+enum Stats {
+  ONLINE
+  OFFLINE
 }
