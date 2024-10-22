@@ -4,6 +4,12 @@ import path from "path";
 import prettier from "prettier";
 import { DMMF } from "@prisma/generator-helper";
 
+function toCamelCase(str: string): string {
+  return str
+    .replace(/[_\s-]+(.)?/g, (_, chr) => (chr ? chr.toUpperCase() : ""))
+    .replace(/^(.)/, (match) => match.toLowerCase());
+}
+
 export const formatFile = (content: string): Promise<string> => {
   return new Promise((res, rej) =>
     prettier.resolveConfig(process.cwd()).then((options) => {
@@ -31,38 +37,20 @@ export const prismaToIDBTypeMap = new Map([
   ["DateTime", "Date"],
 ]);
 
-export function convertToInterface(
-  schema: DBSchema,
-  enumText: string,
-  typeMapWithEnums: Map<string, string>,
-): string {
+export function convertToInterface(schema: DBSchema, enumText: string): string {
   let result = `import type { DBSchema } from "idb";\n\n`;
 
   result += `${enumText};\n\n`;
-  result += `export interface PrismaIDBSchema extends DBSchema {\n`;
 
-  for (const modelName in schema) {
+  const modelsText = Object.keys(schema).map((modelName) => {
     const model = schema[modelName];
-    result += `  ${modelName.toLowerCase()}: {\n`;
-    result += `    key: ${model.key};\n`;
+    const valuesText = Object.keys(model.value).map(
+      (field) => `${field}: ${model.value[field]}`,
+    );
+    return `${toCamelCase(modelName)}: { key: ${model.key}; value: { ${valuesText.join(", ")} } }`;
+  });
 
-    result += `    value: {\n`;
-    for (const field in model.value) {
-      let fieldType = model.value[field];
-      console.log(prismaToIDBTypeMap, typeMapWithEnums);
-      if (
-        !prismaToIDBTypeMap.get(fieldType) &&
-        typeMapWithEnums.get(fieldType)
-      ) {
-        fieldType = `typeof ${fieldType}[keyof typeof ${fieldType}]`;
-      }
-      result += `      ${field}: ${fieldType};\n`;
-    }
-    result += `    };\n`;
-  }
-  result += `  };\n`;
-
-  result += `}\n`;
+  result += `export interface PrismaIDBSchema extends DBSchema { ${modelsText.join(";")} }`;
   return result;
 }
 

@@ -22,10 +22,8 @@ generatorHandler({
     const schema: DBSchema = {};
     let enumText = "";
 
-    const enumNames = options.dmmf.datamodel.enums.map(({ name }) => name);
-    const prismaToIDBTypeMapWithEnums = new Map(prismaToIDBTypeMap);
-    enumNames.forEach((enumName) =>
-      prismaToIDBTypeMapWithEnums.set(enumName, enumName),
+    const enumMap = new Map(
+      options.dmmf.datamodel.enums.map(({ name }) => [name, name]),
     );
 
     options.dmmf.datamodel.enums.forEach(async (enumField) => {
@@ -50,29 +48,32 @@ generatorHandler({
       model.fields.forEach((field) => {
         if (field.kind === "object") return;
 
-        const mappedType = prismaToIDBTypeMapWithEnums.get(field.type);
-        if (!mappedType) {
-          throw new Error(
-            `Error during PrismaIDB: Prisma type ${field.type} is not yet supported`,
-          );
+        const enumType = enumMap.get(field.type);
+        if (enumType) {
+          value[field.name] = `typeof ${enumType}[keyof typeof ${enumType}]`;
+          return;
         }
 
-        value[field.name] = mappedType;
+        const mappedType = prismaToIDBTypeMap.get(field.type);
+        if (mappedType) {
+          value[field.name] = mappedType;
+          return;
+        }
+
+        throw new Error(
+          `Error during PrismaIDB: Prisma type ${field.type} is not yet supported`,
+        );
       });
 
       schema[model.name] = { key: mappedKeyType, value };
     });
 
-    const tsTypes = convertToInterface(
-      schema,
-      enumText,
-      prismaToIDBTypeMapWithEnums,
-    );
+    const fileOutput = convertToInterface(schema, enumText);
     const writeLocation = path.join(
       options.generator.output?.value!,
       `prisma-idb-types.ts`,
     );
 
-    await writeFileSafely(writeLocation, tsTypes);
+    await writeFileSafely(writeLocation, fileOutput);
   },
 });
