@@ -1,1 +1,1 @@
-export const GENERATOR_NAME = 'prisma-idb-generator'
+export const GENERATOR_NAME = "prisma-idb-generator";
