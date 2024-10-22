@@ -1,31 +1,58 @@
-import { generatorHandler, GeneratorOptions } from '@prisma/generator-helper'
-import { logger } from '@prisma/sdk'
-import path from 'path'
-import { GENERATOR_NAME } from './constants'
-import { genEnum } from './helpers/genEnum'
-import { writeFileSafely } from './utils/writeFileSafely'
+import { generatorHandler, GeneratorOptions } from "@prisma/generator-helper";
+import { logger } from "@prisma/internals";
+import { DBSchema } from "idb";
+import { GENERATOR_NAME } from "./constants";
+import {
+  convertToInterface,
+  prismaToIDBTypeMap,
+  writeFileSafely,
+} from "./utils";
+import path from "path";
 
-const { version } = require('../package.json')
+const { version } = require("../package.json");
 
 generatorHandler({
   onManifest() {
-    logger.info(`${GENERATOR_NAME}:Registered`)
+    logger.info(`${GENERATOR_NAME}:Registered`);
     return {
       version,
-      defaultOutput: '../generated',
+      defaultOutput: "../generated",
       prettyName: GENERATOR_NAME,
-    }
+    };
   },
   onGenerate: async (options: GeneratorOptions) => {
-    options.dmmf.datamodel.enums.forEach(async (enumInfo) => {
-      const tsEnum = genEnum(enumInfo)
+    const schema: DBSchema = {};
 
-      const writeLocation = path.join(
-        options.generator.output?.value!,
-        `${enumInfo.name}.ts`,
-      )
+    options.dmmf.datamodel.models.forEach(async (model) => {
+      const key = model.fields.find(({ isId }) => isId);
+      if (!key) throw new Error(`No id field found for model: ${model.name}`);
 
-      await writeFileSafely(writeLocation, tsEnum)
-    })
+      const mappedKeyType = prismaToIDBTypeMap.get(key.type);
+      if (!mappedKeyType) {
+        throw new Error(`Prisma type ${key.type} is not yet supported`);
+      }
+
+      const value: Record<string, string> = {};
+      model.fields.forEach((field) => {
+        if (field.kind === "object") return;
+
+        const mappedType = prismaToIDBTypeMap.get(field.type);
+        if (!mappedType) {
+          throw new Error(`Prisma type ${field.type} is not yet supported`);
+        }
+
+        value[field.name] = mappedType;
+      });
+
+      schema[model.name] = { key: mappedKeyType, value };
+    });
+
+    const tsTypes = convertToInterface(schema);
+    const writeLocation = path.join(
+      options.generator.output?.value!,
+      `prisma-idb-types.ts`
+    );
+
+    await writeFileSafely(writeLocation, tsTypes);
   },
-})
+});
