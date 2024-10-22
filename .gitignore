@@ -1,2 +1,6 @@
+dist
 node_modules
-.vscode
+yarn-error.log
+build
+pnpm-debug.log
+.env*
