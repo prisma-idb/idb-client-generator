@@ -1,7 +1,7 @@
 {
   "name": "prisma-idb-generator",
   "description": "Provide a description about your generator",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "main": "dist/generator.js",
   "license": "MIT",
   "bin": {
