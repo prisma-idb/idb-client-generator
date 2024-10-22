@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [main]
 
-
 jobs:
   prettier:
     runs-on: ubuntu-latest
@@ -19,5 +18,3 @@ jobs:
         uses: creyD/prettier_action@v4.3
         with:
           prettier_options: --check **/*.{ts,js,md}
-
-  
