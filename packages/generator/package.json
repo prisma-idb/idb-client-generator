@@ -1,6 +1,6 @@
 {
-  "name": "prisma-idb-generator",
-  "description": "Provide a description about your generator",
+  "name": "@prisma-idb/prisma-idb-generator",
+  "description": "Generate types for idb from prisma schema",
   "version": "0.0.1",
   "main": "dist/generator.js",
   "license": "MIT",
@@ -33,15 +33,17 @@
     "ts-jest": "27.1.4",
     "typescript": "4.6.2"
   },
-  "homepage": "Link to homepage or github readme here",
+  "homepage": "https://github.com/prisma-idb/prisma-idb-generator",
   "repository": {
     "type": "git",
-    "url": "Repo link here"
+    "url": "git+https://github.com/prisma-idb/prisma-idb-generator.git"
   },
   "author": "Your Name <Your Email>",
   "keywords": [
     "prisma",
-    "prisma2",
     "generator"
-  ]
+  ],
+  "bugs": {
+    "url": "https://github.com/prisma-idb/prisma-idb-generator/issues"
+  }
 }
