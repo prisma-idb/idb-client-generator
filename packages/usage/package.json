@@ -6,12 +6,12 @@
   "license": "MIT",
   "scripts": {},
   "dependencies": {
+    "@prisma-idb/prisma-idb-generator": "^0.0.1",
     "@prisma/client": "3.7.0"
   },
   "devDependencies": {
     "@types/node": "16.11.7",
     "prisma": "3.7.0",
-    "prisma-idb-generator": "0.0.1",
     "typescript": "4.5.2"
   }
 }
