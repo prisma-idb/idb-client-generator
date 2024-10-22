@@ -1,13 +1,12 @@
 import { generatorHandler, GeneratorOptions } from "@prisma/generator-helper";
-import { logger } from "@prisma/internals";
 import { DBSchema } from "idb";
-import { GENERATOR_NAME } from "./constants";
+import path from "path";
 import {
   convertToInterface,
+  generateEnumObject,
   prismaToIDBTypeMap,
   writeFileSafely,
 } from "./utils";
-import path from "path";
 
 const { version } = require("../package.json");
 
@@ -16,24 +15,34 @@ generatorHandler({
     return {
       version,
       defaultOutput: "../generated",
-      prettyName: GENERATOR_NAME,
     };
   },
 
   onGenerate: async (options: GeneratorOptions) => {
     const schema: DBSchema = {};
+    let enumText = "";
+
+    const enumNames = options.dmmf.datamodel.enums.map(({ name }) => name);
+    const prismaToIDBTypeMapWithEnums = new Map(prismaToIDBTypeMap);
+    enumNames.forEach((enumName) =>
+      prismaToIDBTypeMapWithEnums.set(enumName, enumName),
+    );
+
+    options.dmmf.datamodel.enums.forEach(async (enumField) => {
+      enumText += generateEnumObject(enumField);
+    });
 
     options.dmmf.datamodel.models.forEach((model) => {
       const key = model.fields.find(({ isId }) => isId);
       if (!key)
         throw new Error(
-          `Error during PrismaIDB: No id field found for model: ${model.name}`
+          `Error during PrismaIDB: No id field found for model: ${model.name}`,
         );
 
       const mappedKeyType = prismaToIDBTypeMap.get(key.type);
       if (!mappedKeyType) {
         throw new Error(
-          `Error during PrismaIDB: Prisma type ${key.type} is not yet supported`
+          `Error during PrismaIDB: Key of type ${key.type} is not yet supported`,
         );
       }
 
@@ -41,10 +50,10 @@ generatorHandler({
       model.fields.forEach((field) => {
         if (field.kind === "object") return;
 
-        const mappedType = prismaToIDBTypeMap.get(field.type);
+        const mappedType = prismaToIDBTypeMapWithEnums.get(field.type);
         if (!mappedType) {
           throw new Error(
-            `Error during PrismaIDB: Prisma type ${field.type} is not yet supported`
+            `Error during PrismaIDB: Prisma type ${field.type} is not yet supported`,
           );
         }
 
@@ -54,10 +63,14 @@ generatorHandler({
       schema[model.name] = { key: mappedKeyType, value };
     });
 
-    const tsTypes = convertToInterface(schema);
+    const tsTypes = convertToInterface(
+      schema,
+      enumText,
+      prismaToIDBTypeMapWithEnums,
+    );
     const writeLocation = path.join(
       options.generator.output?.value!,
-      `prisma-idb-types.ts`
+      `prisma-idb-types.ts`,
     );
 
     await writeFileSafely(writeLocation, tsTypes);
