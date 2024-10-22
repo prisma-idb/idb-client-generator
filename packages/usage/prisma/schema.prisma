@@ -1,5 +1,5 @@
 generator custom_generator {
-  provider = "node ../../node_modules/prisma-idb-generator"
+  provider = "prisma-idb-generator"
   output   = "../types"
 }
 
