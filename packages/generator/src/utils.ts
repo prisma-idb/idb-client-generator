@@ -32,7 +32,7 @@ export const prismaToIDBTypeMap = new Map([
 
 export function convertToInterface(schema: DBSchema): string {
   let result = `import type { DBSchema } from "idb";\n\n`;
-  result += `interface MyDB extends DBSchema {\n`;
+  result += `export interface PrismaIDBSchema extends DBSchema {\n`;
 
   for (const modelName in schema) {
     const model = schema[modelName];
@@ -45,6 +45,7 @@ export function convertToInterface(schema: DBSchema): string {
     }
     result += `    };\n`;
   }
+  result += `  };\n`;
 
   result += `}\n`;
   return result;
