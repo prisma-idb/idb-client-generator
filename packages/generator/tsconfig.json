@@ -16,8 +16,9 @@
     "moduleResolution": "Node",
     "outDir": "./dist",
     "rootDir": "./src",
-    "newLine": "lf"
+    "newLine": "lf",
+    "resolveJsonModule": true
   },
   "include": ["src/**/*"],
-  "exclude": ["**/node_modules", "**/*.test.ts","**/__tests__", "**/dest"]
+  "exclude": ["**/node_modules", "**/*.test.ts", "**/__tests__", "**/dest"]
 }
