@@ -1,13 +1,12 @@
 import { generatorHandler, GeneratorOptions } from "@prisma/generator-helper";
-import { logger } from "@prisma/internals";
 import { DBSchema } from "idb";
-import { GENERATOR_NAME } from "./constants";
+import path from "path";
 import {
   convertToInterface,
+  generateEnumObject,
   prismaToIDBTypeMap,
   writeFileSafely,
 } from "./utils";
-import path from "path";
 
 const { version } = require("../package.json");
 
@@ -16,24 +15,32 @@ generatorHandler({
     return {
       version,
       defaultOutput: "../generated",
-      prettyName: GENERATOR_NAME,
     };
   },
 
   onGenerate: async (options: GeneratorOptions) => {
     const schema: DBSchema = {};
+    let enumText = "";
+
+    const enumMap = new Map(
+      options.dmmf.datamodel.enums.map(({ name }) => [name, name]),
+    );
+
+    options.dmmf.datamodel.enums.forEach(async (enumField) => {
+      enumText += generateEnumObject(enumField);
+    });
 
     options.dmmf.datamodel.models.forEach((model) => {
       const key = model.fields.find(({ isId }) => isId);
       if (!key)
         throw new Error(
-          `Error during PrismaIDB: No id field found for model: ${model.name}`
+          `Error during PrismaIDB: No id field found for model: ${model.name}`,
         );
 
       const mappedKeyType = prismaToIDBTypeMap.get(key.type);
       if (!mappedKeyType) {
         throw new Error(
-          `Error during PrismaIDB: Prisma type ${key.type} is not yet supported`
+          `Error during PrismaIDB: Key of type ${key.type} is not yet supported`,
         );
       }
 
@@ -41,25 +48,32 @@ generatorHandler({
       model.fields.forEach((field) => {
         if (field.kind === "object") return;
 
-        const mappedType = prismaToIDBTypeMap.get(field.type);
-        if (!mappedType) {
-          throw new Error(
-            `Error during PrismaIDB: Prisma type ${field.type} is not yet supported`
-          );
+        const enumType = enumMap.get(field.type);
+        if (enumType) {
+          value[field.name] = `typeof ${enumType}[keyof typeof ${enumType}]`;
+          return;
         }
 
-        value[field.name] = mappedType;
+        const mappedType = prismaToIDBTypeMap.get(field.type);
+        if (mappedType) {
+          value[field.name] = mappedType;
+          return;
+        }
+
+        throw new Error(
+          `Error during PrismaIDB: Prisma type ${field.type} is not yet supported`,
+        );
       });
 
       schema[model.name] = { key: mappedKeyType, value };
     });
 
-    const tsTypes = convertToInterface(schema);
+    const fileOutput = convertToInterface(schema, enumText);
     const writeLocation = path.join(
       options.generator.output?.value!,
-      `prisma-idb-types.ts`
+      `prisma-idb-types.ts`,
     );
 
-    await writeFileSafely(writeLocation, tsTypes);
+    await writeFileSafely(writeLocation, fileOutput);
   },
 });
