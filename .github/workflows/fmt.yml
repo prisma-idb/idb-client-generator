@@ -6,12 +6,18 @@ on:
   pull_request:
     branches: [main]
 
+
 jobs:
-  Run-Format-Check:
+  prettier:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Prettify code
+        uses: creyD/prettier_action@v4.3
         with:
-          node-version: lts/*
-      # - run: "npx prettier --check ./packages/generator/src"
+          prettier_options: --write **/*.{ts,js,md}
+
+  
