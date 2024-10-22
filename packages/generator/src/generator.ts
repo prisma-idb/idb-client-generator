@@ -13,23 +13,28 @@ const { version } = require("../package.json");
 
 generatorHandler({
   onManifest() {
-    logger.info(`${GENERATOR_NAME}:Registered`);
     return {
       version,
       defaultOutput: "../generated",
       prettyName: GENERATOR_NAME,
     };
   },
+
   onGenerate: async (options: GeneratorOptions) => {
     const schema: DBSchema = {};
 
-    options.dmmf.datamodel.models.forEach(async (model) => {
+    options.dmmf.datamodel.models.forEach((model) => {
       const key = model.fields.find(({ isId }) => isId);
-      if (!key) throw new Error(`No id field found for model: ${model.name}`);
+      if (!key)
+        throw new Error(
+          `Error during PrismaIDB: No id field found for model: ${model.name}`
+        );
 
       const mappedKeyType = prismaToIDBTypeMap.get(key.type);
       if (!mappedKeyType) {
-        throw new Error(`Prisma type ${key.type} is not yet supported`);
+        throw new Error(
+          `Error during PrismaIDB: Prisma type ${key.type} is not yet supported`
+        );
       }
 
       const value: Record<string, string> = {};
@@ -38,7 +43,9 @@ generatorHandler({
 
         const mappedType = prismaToIDBTypeMap.get(field.type);
         if (!mappedType) {
-          throw new Error(`Prisma type ${field.type} is not yet supported`);
+          throw new Error(
+            `Error during PrismaIDB: Prisma type ${field.type} is not yet supported`
+          );
         }
 
         value[field.name] = mappedType;
