@@ -1,27 +1,49 @@
 import type { DBSchema } from "idb";
 
-export const UserType = {
-  ADMIN: "ADMIN",
-  USER: "USER",
-} as const;
-
-export const Status = {
-  ONLINE: "ONLINE",
-  OFFLINE: "OFFLINE",
-} as const;
-
 export interface PrismaIDBSchema extends DBSchema {
   user: {
-    key: number;
+    key: ["id"];
     value: {
-      id: number;
-      email: string;
+      id: string;
       name: string;
-      type: (typeof UserType)[keyof typeof UserType];
+      email: string;
+      emailVerified: Date;
+      image: string;
+      createdAt: Date;
+      updatedAt: Date;
+      migratedFromV2: boolean;
     };
   };
-  server: {
-    key: number;
-    value: { id: number; status: (typeof Status)[keyof typeof Status] };
+  account: {
+    key: ["provider", "providerAccountId"];
+    value: {
+      userId: string;
+      type: string;
+      provider: string;
+      providerAccountId: string;
+      refresh_token: string;
+      access_token: string;
+      expires_at: number;
+      token_type: string;
+      scope: string;
+      id_token: string;
+      session_state: string;
+      createdAt: Date;
+      updatedAt: Date;
+    };
+  };
+  session: {
+    key: ["sessionToken"];
+    value: {
+      sessionToken: string;
+      userId: string;
+      expires: Date;
+      createdAt: Date;
+      updatedAt: Date;
+    };
+  };
+  verificationToken: {
+    key: ["identifier", "token"];
+    value: { identifier: string; token: string; expires: Date };
   };
 }

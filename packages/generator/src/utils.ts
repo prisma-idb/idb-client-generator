@@ -59,6 +59,20 @@ export function generateEnumObject({ name, values }: DMMF.DatamodelEnum) {
   return `export const ${name} = { \n${enumValues}\n } as const;\n\n`;
 }
 
+export function generateIDBKey(model: DMMF.Datamodel["models"][number]) {
+  if (!model.primaryKey) {
+    const idField = model.fields.find(({ isId }) => isId);
+    if (!idField) {
+      const uniqueField = model.fields.find(({ isUnique }) => isUnique)!;
+      return JSON.stringify([uniqueField.name]);
+    }
+
+    return JSON.stringify([idField.name]);
+  }
+
+  return JSON.stringify(model.primaryKey.fields);
+}
+
 export const writeFileSafely = async (writeLocation: string, content: any) => {
   fs.mkdirSync(path.dirname(writeLocation), {
     recursive: true,
