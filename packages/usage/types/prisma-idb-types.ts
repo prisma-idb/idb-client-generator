@@ -2,7 +2,7 @@ import type { DBSchema } from "idb";
 
 export interface PrismaIDBSchema extends DBSchema {
   user: {
-    key: ["id"];
+    key: [id: string];
     value: {
       id: string;
       name: string;
@@ -15,7 +15,7 @@ export interface PrismaIDBSchema extends DBSchema {
     };
   };
   account: {
-    key: ["provider", "providerAccountId"];
+    key: [provider: string, providerAccountId: string];
     value: {
       userId: string;
       type: string;
@@ -33,7 +33,7 @@ export interface PrismaIDBSchema extends DBSchema {
     };
   };
   session: {
-    key: ["sessionToken"];
+    key: [sessionToken: string];
     value: {
       sessionToken: string;
       userId: string;
@@ -43,7 +43,7 @@ export interface PrismaIDBSchema extends DBSchema {
     };
   };
   verificationToken: {
-    key: ["identifier", "token"];
+    key: [identifier: string, token: string];
     value: { identifier: string; token: string; expires: Date };
   };
 }

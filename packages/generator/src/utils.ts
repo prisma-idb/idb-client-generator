@@ -10,6 +10,10 @@ function toCamelCase(str: string): string {
     .replace(/^(.)/, (match) => match.toLowerCase());
 }
 
+function toArrayString(arr: string[]): string {
+  return `[ ${arr.join(", ")} ]`;
+}
+
 export const formatFile = (content: string): Promise<string> => {
   return new Promise((res, rej) =>
     prettier.resolveConfig(process.cwd()).then((options) => {
@@ -64,13 +68,36 @@ export function generateIDBKey(model: DMMF.Datamodel["models"][number]) {
     const idField = model.fields.find(({ isId }) => isId);
     if (!idField) {
       const uniqueField = model.fields.find(({ isUnique }) => isUnique)!;
-      return JSON.stringify([uniqueField.name]);
+      const uniqueFieldType = prismaToIDBTypeMap.get(uniqueField.type);
+      if (!uniqueFieldType) {
+        throw new Error(
+          `prisma-idb error: Key type ${uniqueField.type} not yet supported`,
+        );
+      }
+      return toArrayString([`${uniqueField.name}: ${uniqueFieldType}`]);
     }
 
-    return JSON.stringify([idField.name]);
+    const idFieldType = prismaToIDBTypeMap.get(idField.type);
+    if (!idFieldType) {
+      throw new Error(
+        `prisma-idb error: Key type ${idField.type} not yet supported`,
+      );
+    }
+    return toArrayString([`${idField.name}: ${idFieldType}`]);
   }
 
-  return JSON.stringify(model.primaryKey.fields);
+  return toArrayString(
+    model.primaryKey.fields.map((fieldName) => {
+      const field = model.fields.find((field) => field.name === fieldName)!;
+      const fieldType = prismaToIDBTypeMap.get(field.type);
+      if (!fieldType) {
+        throw new Error(
+          `prisma-idb error: Key type ${field.type} not yet supported`,
+        );
+      }
+      return `${field.name}: ${fieldType}`;
+    }),
+  );
 }
 
 export const writeFileSafely = async (writeLocation: string, content: any) => {
