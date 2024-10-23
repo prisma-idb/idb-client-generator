@@ -18,9 +18,14 @@ jobs:
         uses: creyD/prettier_action@v4.3
         with:
           prettier_options: --check **/*.{ts,js,md}
+  
+  lint:
+    runs-on: ubuntu-latest
 
-eslint:
-  runs-on: ubuntu-latest
-  steps:
-    - uses: actions/checkout@v1
-    - uses: stefanoeb/eslint-action@1.0.2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/action
+      - name: Run lint 
+        run: npx eslint '**/*.{js,ts}'
+
+  
