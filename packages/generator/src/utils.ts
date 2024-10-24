@@ -10,6 +10,10 @@ function toCamelCase(str: string): string {
     .replace(/^(.)/, (match) => match.toLowerCase());
 }
 
+function toArrayString(arr: string[]): string {
+  return `[ ${arr.join(", ")} ]`;
+}
+
 export const formatFile = (content: string): Promise<string> => {
   return new Promise((res, rej) =>
     prettier.resolveConfig(process.cwd()).then((options) => {
@@ -57,6 +61,43 @@ export function convertToInterface(schema: DBSchema, enumText: string): string {
 export function generateEnumObject({ name, values }: DMMF.DatamodelEnum) {
   const enumValues = values.map(({ name }) => `${name}:"${name}"`).join(",\n");
   return `export const ${name} = { \n${enumValues}\n } as const;\n\n`;
+}
+
+export function generateIDBKey(model: DMMF.Datamodel["models"][number]) {
+  if (!model.primaryKey) {
+    const idField = model.fields.find(({ isId }) => isId);
+    if (!idField) {
+      const uniqueField = model.fields.find(({ isUnique }) => isUnique)!;
+      const uniqueFieldType = prismaToIDBTypeMap.get(uniqueField.type);
+      if (!uniqueFieldType) {
+        throw new Error(
+          `prisma-idb error: Key type ${uniqueField.type} not yet supported`,
+        );
+      }
+      return toArrayString([`${uniqueField.name}: ${uniqueFieldType}`]);
+    }
+
+    const idFieldType = prismaToIDBTypeMap.get(idField.type);
+    if (!idFieldType) {
+      throw new Error(
+        `prisma-idb error: Key type ${idField.type} not yet supported`,
+      );
+    }
+    return toArrayString([`${idField.name}: ${idFieldType}`]);
+  }
+
+  return toArrayString(
+    model.primaryKey.fields.map((fieldName) => {
+      const field = model.fields.find((field) => field.name === fieldName)!;
+      const fieldType = prismaToIDBTypeMap.get(field.type);
+      if (!fieldType) {
+        throw new Error(
+          `prisma-idb error: Key type ${field.type} not yet supported`,
+        );
+      }
+      return `${field.name}: ${fieldType}`;
+    }),
+  );
 }
 
 export const writeFileSafely = async (writeLocation: string, content: any) => {
