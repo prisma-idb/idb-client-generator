@@ -4,6 +4,7 @@ import path from "path";
 import {
   convertToInterface,
   generateEnumObject,
+  generateIDBKey,
   prismaToIDBTypeMap,
   writeFileSafely,
 } from "./utils";
@@ -31,19 +32,6 @@ generatorHandler({
     });
 
     options.dmmf.datamodel.models.forEach((model) => {
-      const key = model.fields.find(({ isId }) => isId);
-      if (!key)
-        throw new Error(
-          `Error during PrismaIDB: No id field found for model: ${model.name}`,
-        );
-
-      const mappedKeyType = prismaToIDBTypeMap.get(key.type);
-      if (!mappedKeyType) {
-        throw new Error(
-          `Error during PrismaIDB: Key of type ${key.type} is not yet supported`,
-        );
-      }
-
       const value: Record<string, string> = {};
       model.fields.forEach((field) => {
         if (field.kind === "object") return;
@@ -65,7 +53,7 @@ generatorHandler({
         );
       });
 
-      schema[model.name] = { key: mappedKeyType, value };
+      schema[model.name] = { key: generateIDBKey(model), value };
     });
 
     const fileOutput = convertToInterface(schema, enumText);
