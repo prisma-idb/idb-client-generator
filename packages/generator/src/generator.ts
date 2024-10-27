@@ -142,10 +142,24 @@ generatorHandler({
             isAsync: true,
             parameters: [{ name: "query", type: `Prisma.${model.name}FindUniqueArgs` }],
             statements: (writer) => {
-              // TODO: full prisma query mapping (@unique/@id modifier) (@@id composite keys)
-              writer.writeLine(
-                `return (await this.db.get("${toCamelCase(model.name)}", [query.where.id as number])) ?? null;`,
-              );
+              if (model.primaryKey) {
+                writer.writeLine(`const keyFieldName = "${model.primaryKey.fields.join("_")}"`);
+                writer.writeLine(
+                  `return (await this.db.get("${toCamelCase(model.name)}", Object.values(query.where[keyFieldName]!))) ?? null;`,
+                );
+              } else {
+                const identifierFieldName = JSON.parse(generateIDBKey(model))[0];
+                writer
+                  .writeLine(`if (query.where.${identifierFieldName}) {`)
+                  .indent(() =>
+                    writer.writeLine(
+                      `return (await this.db.get("${toCamelCase(model.name)}", [query.where.${identifierFieldName}])) ?? null;`,
+                    ),
+                  )
+                  .writeLine("}");
+                writer.writeLine(`throw new Error("@unique index has not been created");`);
+                // TODO: @unique indexes if needed
+              }
             },
           },
           {
@@ -153,13 +167,15 @@ generatorHandler({
             isAsync: true,
             parameters: [{ name: "query", type: `Prisma.${model.name}CreateArgs` }],
             statements: (writer) => {
-              // TODO: full prisma query mapping (@unique/@id modifier) (@@id composite keys)
+              // TODO: full prisma query mapping with modifiers (@autoincrement, @cuid, @default, etc.)
               writer.writeLine(`await this.db.add("${model.name}", query);`);
             },
           },
         ],
       });
     });
+
+    console.log(file.getText());
 
     const writeLocation = path.join(options.generator.output?.value!, file.getBaseName());
     await writeFileSafely(writeLocation, file.getText());

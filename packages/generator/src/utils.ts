@@ -1,6 +1,5 @@
 import { DMMF } from "@prisma/generator-helper";
 import fs from "fs";
-import { DBSchema } from "idb";
 import path from "path";
 import prettier from "prettier";
 

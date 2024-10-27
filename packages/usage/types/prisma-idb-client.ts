@@ -57,7 +57,10 @@ class IDBUser extends BaseIDBModelClass {
   }
 
   async findUnique(query: Prisma.UserFindUniqueArgs) {
-    return (await this.db.get("user", [query.where.id as number])) ?? null;
+    if (query.where.id) {
+      return (await this.db.get("user", [query.where.id])) ?? null;
+    }
+    throw new Error("@unique index has not been created");
   }
 
   async create(query: Prisma.UserCreateArgs) {
@@ -76,7 +79,8 @@ class IDBAccount extends BaseIDBModelClass {
   }
 
   async findUnique(query: Prisma.AccountFindUniqueArgs) {
-    return (await this.db.get("account", [query.where.id as number])) ?? null;
+    const keyFieldName = "provider_providerAccountId";
+    return (await this.db.get("account", Object.values(query.where[keyFieldName]!))) ?? null;
   }
 
   async create(query: Prisma.AccountCreateArgs) {
@@ -95,7 +99,10 @@ class IDBSession extends BaseIDBModelClass {
   }
 
   async findUnique(query: Prisma.SessionFindUniqueArgs) {
-    return (await this.db.get("session", [query.where.id as number])) ?? null;
+    if (query.where.sessionToken) {
+      return (await this.db.get("session", [query.where.sessionToken])) ?? null;
+    }
+    throw new Error("@unique index has not been created");
   }
 
   async create(query: Prisma.SessionCreateArgs) {
@@ -114,7 +121,8 @@ class IDBVerificationToken extends BaseIDBModelClass {
   }
 
   async findUnique(query: Prisma.VerificationTokenFindUniqueArgs) {
-    return (await this.db.get("verificationToken", [query.where?.id as number])) ?? null;
+    const keyFieldName = "identifier_token";
+    return (await this.db.get("verificationToken", Object.values(query.where[keyFieldName]!))) ?? null;
   }
 
   async create(query: Prisma.VerificationTokenCreateArgs) {
