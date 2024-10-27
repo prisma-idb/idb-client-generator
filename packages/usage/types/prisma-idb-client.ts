@@ -25,7 +25,8 @@ export class PrismaIDBClient {
   protected async createDatabase() {
     this.db = await openDB("prisma-idb", IDB_VERSION, {
       upgrade(db) {
-        db.createObjectStore("user", { keyPath: ["id"] });
+        const UserStore = db.createObjectStore("user", { keyPath: ["id"] });
+        UserStore.createIndex("emailIndex", "email", { unique: true });
         db.createObjectStore("account", { keyPath: ["provider", "providerAccountId"] });
         db.createObjectStore("session", { keyPath: ["sessionToken"] });
         db.createObjectStore("verificationToken", { keyPath: ["identifier", "token"] });
@@ -47,38 +48,47 @@ class BaseIDBModelClass {
 }
 
 class IDBUser extends BaseIDBModelClass {
-  async findFirst(query: Prisma.UserFindFirstArgs) {
+  async findFirst<T extends Prisma.UserFindFirstArgs>(query: T): Promise<Prisma.UserGetPayload<T> | null> {
     const records = await this.db.getAll("user");
-    return records;
+    return records[0] ?? null;
   }
 
-  async findMany(query: Prisma.UserFindManyArgs) {
+  async findMany<T extends Prisma.UserFindManyArgs>(query: T): Promise<Prisma.UserGetPayload<T>[]> {
     return await this.db.getAll("user");
   }
 
-  async findUnique(query: Prisma.UserFindUniqueArgs) {
+  async findUnique<T extends Prisma.UserFindUniqueArgs>(query: T): Promise<Prisma.UserGetPayload<T> | null> {
     if (query.where.id) {
       return (await this.db.get("user", [query.where.id])) ?? null;
     }
-    throw new Error("@unique index has not been created");
+    if (query.where.email) {
+      return (await this.db.getFromIndex("user", "emailIndex", query.where.email)) ?? null;
+    }
+    throw new Error("No unique field provided in the where clause");
   }
 
   async create(query: Prisma.UserCreateArgs) {
     await this.db.add("user", query.data);
   }
+
+  async createMany(query: Prisma.UserCreateManyArgs) {}
+
+  async delete(query: Prisma.UserDeleteArgs) {}
+
+  async deleteMany(query: Prisma.UserDeleteManyArgs) {}
 }
 
 class IDBAccount extends BaseIDBModelClass {
-  async findFirst(query: Prisma.AccountFindFirstArgs) {
+  async findFirst<T extends Prisma.AccountFindFirstArgs>(query: T): Promise<Prisma.AccountGetPayload<T> | null> {
     const records = await this.db.getAll("account");
-    return records;
+    return records[0] ?? null;
   }
 
-  async findMany(query: Prisma.AccountFindManyArgs) {
+  async findMany<T extends Prisma.AccountFindManyArgs>(query: T): Promise<Prisma.AccountGetPayload<T>[]> {
     return await this.db.getAll("account");
   }
 
-  async findUnique(query: Prisma.AccountFindUniqueArgs) {
+  async findUnique<T extends Prisma.AccountFindUniqueArgs>(query: T): Promise<Prisma.AccountGetPayload<T> | null> {
     const keyFieldName = "provider_providerAccountId";
     return (await this.db.get("account", Object.values(query.where[keyFieldName]!))) ?? null;
   }
@@ -86,41 +96,59 @@ class IDBAccount extends BaseIDBModelClass {
   async create(query: Prisma.AccountCreateArgs) {
     await this.db.add("account", query.data);
   }
+
+  async createMany(query: Prisma.AccountCreateManyArgs) {}
+
+  async delete(query: Prisma.AccountDeleteArgs) {}
+
+  async deleteMany(query: Prisma.AccountDeleteManyArgs) {}
 }
 
 class IDBSession extends BaseIDBModelClass {
-  async findFirst(query: Prisma.SessionFindFirstArgs) {
+  async findFirst<T extends Prisma.SessionFindFirstArgs>(query: T): Promise<Prisma.SessionGetPayload<T> | null> {
     const records = await this.db.getAll("session");
-    return records;
+    return records[0] ?? null;
   }
 
-  async findMany(query: Prisma.SessionFindManyArgs) {
+  async findMany<T extends Prisma.SessionFindManyArgs>(query: T): Promise<Prisma.SessionGetPayload<T>[]> {
     return await this.db.getAll("session");
   }
 
-  async findUnique(query: Prisma.SessionFindUniqueArgs) {
+  async findUnique<T extends Prisma.SessionFindUniqueArgs>(query: T): Promise<Prisma.SessionGetPayload<T> | null> {
     if (query.where.sessionToken) {
       return (await this.db.get("session", [query.where.sessionToken])) ?? null;
     }
-    throw new Error("@unique index has not been created");
+    throw new Error("No unique field provided in the where clause");
   }
 
   async create(query: Prisma.SessionCreateArgs) {
     await this.db.add("session", query.data);
   }
+
+  async createMany(query: Prisma.SessionCreateManyArgs) {}
+
+  async delete(query: Prisma.SessionDeleteArgs) {}
+
+  async deleteMany(query: Prisma.SessionDeleteManyArgs) {}
 }
 
 class IDBVerificationToken extends BaseIDBModelClass {
-  async findFirst(query: Prisma.VerificationTokenFindFirstArgs) {
+  async findFirst<T extends Prisma.VerificationTokenFindFirstArgs>(
+    query: T,
+  ): Promise<Prisma.VerificationTokenGetPayload<T> | null> {
     const records = await this.db.getAll("verificationToken");
-    return records;
+    return records[0] ?? null;
   }
 
-  async findMany(query: Prisma.VerificationTokenFindManyArgs) {
+  async findMany<T extends Prisma.VerificationTokenFindManyArgs>(
+    query: T,
+  ): Promise<Prisma.VerificationTokenGetPayload<T>[]> {
     return await this.db.getAll("verificationToken");
   }
 
-  async findUnique(query: Prisma.VerificationTokenFindUniqueArgs) {
+  async findUnique<T extends Prisma.VerificationTokenFindUniqueArgs>(
+    query: T,
+  ): Promise<Prisma.VerificationTokenGetPayload<T> | null> {
     const keyFieldName = "identifier_token";
     return (await this.db.get("verificationToken", Object.values(query.where[keyFieldName]!))) ?? null;
   }
@@ -128,4 +156,10 @@ class IDBVerificationToken extends BaseIDBModelClass {
   async create(query: Prisma.VerificationTokenCreateArgs) {
     await this.db.add("verificationToken", query.data);
   }
+
+  async createMany(query: Prisma.VerificationTokenCreateManyArgs) {}
+
+  async delete(query: Prisma.VerificationTokenDeleteArgs) {}
+
+  async deleteMany(query: Prisma.VerificationTokenDeleteManyArgs) {}
 }

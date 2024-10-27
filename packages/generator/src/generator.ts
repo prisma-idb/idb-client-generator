@@ -1,7 +1,7 @@
 import { generatorHandler, GeneratorOptions } from "@prisma/generator-helper";
 import path from "path";
 import { Project, Scope, StructureKind, VariableDeclarationKind } from "ts-morph";
-import { generateIDBKey, toCamelCase, writeFileSafely } from "./utils";
+import { generateIDBKey, getNonKeyUniqueFields, toCamelCase, writeFileSafely } from "./utils";
 
 const { version } = require("../package.json");
 
@@ -84,9 +84,19 @@ generatorHandler({
                   .writeLine("upgrade(db) {")
                   .indent(() => {
                     models.forEach((model) => {
-                      writer.writeLine(
-                        `db.createObjectStore('${toCamelCase(model.name)}', { keyPath: ${generateIDBKey(model)} });`,
-                      );
+                      const uniqueFields = getNonKeyUniqueFields(model);
+                      const keyPath = generateIDBKey(model);
+
+                      let declarationLine = uniqueFields.length ? `const ${model.name}Store = ` : ``;
+                      declarationLine += `db.createObjectStore('${toCamelCase(model.name)}', { keyPath: ${keyPath} });`;
+
+                      writer.writeLine(declarationLine);
+                      uniqueFields.forEach(({ name }) => {
+                        // TODO: perhaps an option to skip index creation on unique fields in the generator config?
+                        writer.writeLine(
+                          `${model.name}Store.createIndex("${name}Index", "${name}", { unique: true });`,
+                        );
+                      });
                     });
                   })
                   .writeLine("}");
@@ -120,18 +130,24 @@ generatorHandler({
           {
             name: "findFirst",
             isAsync: true,
-            parameters: [{ name: "query", type: `Prisma.${model.name}FindFirstArgs` }],
+            typeParameters: [{ name: "T", constraint: `Prisma.${model.name}FindFirstArgs` }],
+            parameters: [{ name: "query", type: "T" }],
+            returnType: `Promise<Prisma.${model.name}GetPayload<T> | null>`,
             statements: (writer) => {
               // TODO: full prisma query mapping, first perform get or getAll and filter based on query
+              // TODO: includes relations in here
               writer.writeLine(`const records = await this.db.getAll("${toCamelCase(model.name)}");`);
               // TODO: apply filters according to query
-              writer.writeLine("return records;");
+              // also consider performance overhead: use webWorkers, index utilization, compound indexes, batch processing, etc.
+              writer.writeLine("return records[0] ?? null;");
             },
           },
           {
             name: "findMany",
             isAsync: true,
-            parameters: [{ name: "query", type: `Prisma.${model.name}FindManyArgs` }],
+            typeParameters: [{ name: "T", constraint: `Prisma.${model.name}FindManyArgs` }],
+            parameters: [{ name: "query", type: "T" }],
+            returnType: `Promise<Prisma.${model.name}GetPayload<T>[]>`,
             statements: (writer) => {
               // TODO: full prisma query mapping
               writer.writeLine(`return await this.db.getAll("${toCamelCase(model.name)}");`);
@@ -140,7 +156,9 @@ generatorHandler({
           {
             name: "findUnique",
             isAsync: true,
-            parameters: [{ name: "query", type: `Prisma.${model.name}FindUniqueArgs` }],
+            typeParameters: [{ name: "T", constraint: `Prisma.${model.name}FindUniqueArgs` }],
+            parameters: [{ name: "query", type: "T" }],
+            returnType: `Promise<Prisma.${model.name}GetPayload<T> | null>`,
             statements: (writer) => {
               if (model.primaryKey) {
                 writer.writeLine(`const keyFieldName = "${model.primaryKey.fields.join("_")}"`);
@@ -157,8 +175,20 @@ generatorHandler({
                     ),
                   )
                   .writeLine("}");
-                writer.writeLine(`throw new Error("@unique index has not been created");`);
-                // TODO: @unique indexes if needed
+
+                const uniqueFields = getNonKeyUniqueFields(model).map(({ name }) => name);
+                uniqueFields.forEach((uniqueField) => {
+                  writer
+                    .writeLine(`if (query.where.${uniqueField}) {`)
+                    .indent(() => {
+                      writer.writeLine(
+                        `return (await this.db.getFromIndex("${toCamelCase(model.name)}", "${uniqueField}Index", query.where.${uniqueField})) ?? null;`,
+                      );
+                    })
+                    .writeLine("}");
+                });
+                // TODO: select, include, and where clauses
+                writer.writeLine(`throw new Error("No unique field provided in the where clause");`);
               }
             },
           },
@@ -168,14 +198,38 @@ generatorHandler({
             parameters: [{ name: "query", type: `Prisma.${model.name}CreateArgs` }],
             statements: (writer) => {
               // TODO: full prisma query mapping with modifiers (@autoincrement, @cuid, @default, etc.)
+              // TODO: also should return the created object
+              // TODO: nested creates, connects, and createMany
               writer.writeLine(`await this.db.add("${toCamelCase(model.name)}", query.data);`);
+            },
+          },
+          {
+            name: "createMany",
+            isAsync: true,
+            parameters: [{ name: "query", type: `Prisma.${model.name}CreateManyArgs` }],
+            statements: (writer) => {
+              // TODO
+            },
+          },
+          {
+            name: "delete",
+            isAsync: true,
+            parameters: [{ name: "query", type: `Prisma.${model.name}DeleteArgs` }],
+            statements: (writer) => {
+              // TODO: handle cascades
+            },
+          },
+          {
+            name: "deleteMany",
+            isAsync: true,
+            parameters: [{ name: "query", type: `Prisma.${model.name}DeleteManyArgs` }],
+            statements: (writer) => {
+              // TODO: handle cascades
             },
           },
         ],
       });
     });
-
-    console.log(file.getText());
 
     const writeLocation = path.join(options.generator.output?.value!, file.getBaseName());
     await writeFileSafely(writeLocation, file.getText());
