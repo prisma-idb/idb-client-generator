@@ -168,7 +168,7 @@ generatorHandler({
             parameters: [{ name: "query", type: `Prisma.${model.name}CreateArgs` }],
             statements: (writer) => {
               // TODO: full prisma query mapping with modifiers (@autoincrement, @cuid, @default, etc.)
-              writer.writeLine(`await this.db.add("${model.name}", query);`);
+              writer.writeLine(`await this.db.add("${toCamelCase(model.name)}", query.data);`);
             },
           },
         ],

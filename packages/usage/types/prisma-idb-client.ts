@@ -64,7 +64,7 @@ class IDBUser extends BaseIDBModelClass {
   }
 
   async create(query: Prisma.UserCreateArgs) {
-    await this.db.add("User", query);
+    await this.db.add("user", query.data);
   }
 }
 
@@ -84,7 +84,7 @@ class IDBAccount extends BaseIDBModelClass {
   }
 
   async create(query: Prisma.AccountCreateArgs) {
-    await this.db.add("Account", query);
+    await this.db.add("account", query.data);
   }
 }
 
@@ -106,7 +106,7 @@ class IDBSession extends BaseIDBModelClass {
   }
 
   async create(query: Prisma.SessionCreateArgs) {
-    await this.db.add("Session", query);
+    await this.db.add("session", query.data);
   }
 }
 
@@ -126,6 +126,6 @@ class IDBVerificationToken extends BaseIDBModelClass {
   }
 
   async create(query: Prisma.VerificationTokenCreateArgs) {
-    await this.db.add("VerificationToken", query);
+    await this.db.add("verificationToken", query.data);
   }
 }
