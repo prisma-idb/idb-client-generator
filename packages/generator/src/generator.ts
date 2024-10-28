@@ -148,17 +148,9 @@ generatorHandler({
             parameters: [{ name: "query", type: "T" }],
             returnType: `Promise<Prisma.${model.name}GetPayload<T> | null>`,
             statements: (writer) => {
-              // TODO: full prisma query mapping, first perform get or getAll and filter based on query
               // TODO: includes relations in here
-              writer
-                .writeLine(`const records = filterByWhereClause(`)
-                .indent(() => {
-                  writer.writeLine(`await this.db.getAll("${toCamelCase(model.name)}"), this.keyPath, query.where`);
-                })
-                .writeLine(`) as Prisma.${model.name}GetPayload<T>[];`);
-
               // also consider performance overhead: use webWorkers, index utilization, compound indexes, batch processing, etc.
-              writer.writeLine("return records[0] ?? null;");
+              writer.writeLine("return (await this.findMany(query))[0] ?? null;");
             },
           },
           {
@@ -168,8 +160,13 @@ generatorHandler({
             parameters: [{ name: "query", type: "T" }],
             returnType: `Promise<Prisma.${model.name}GetPayload<T>[]>`,
             statements: (writer) => {
-              // TODO: full prisma query mapping
-              writer.writeLine(`return await this.db.getAll("${toCamelCase(model.name)}");`);
+              // TODO: orderBy
+              writer
+                .writeLine(`return filterByWhereClause(`)
+                .indent(() => {
+                  writer.writeLine(`await this.db.getAll("${toCamelCase(model.name)}"), this.keyPath, query.where`);
+                })
+                .writeLine(`) as Prisma.${model.name}GetPayload<T>[];`);
             },
           },
           {
@@ -245,6 +242,23 @@ generatorHandler({
             parameters: [{ name: "query", type: `Prisma.${model.name}DeleteArgs` }],
             statements: (writer) => {
               // TODO: handle cascades
+              writer
+                .writeLine(`const records = filterByWhereClause(`)
+                .indent(() => {
+                  writer.writeLine(`await this.db.getAll("${toCamelCase(model.name)}"),`);
+                  writer.writeLine(`this.keyPath,`);
+                  writer.writeLine(`query.where,`);
+                })
+                .writeLine(`)`);
+              writer.writeLine(`if (records.length === 0) return;`);
+              writer.blankLine();
+              writer
+                .writeLine(`await this.db.delete(`)
+                .indent(() => {
+                  writer.writeLine(`"${toCamelCase(model.name)}",`);
+                  writer.writeLine(`this.keyPath.map((keyField) => records[0][keyField] as IDBValidKey),`);
+                })
+                .writeLine(`);`);
             },
           },
           {
@@ -253,6 +267,31 @@ generatorHandler({
             parameters: [{ name: "query", type: `Prisma.${model.name}DeleteManyArgs` }],
             statements: (writer) => {
               // TODO: handle cascades
+              writer
+                .writeLine(`const records = filterByWhereClause(`)
+                .indent(() => {
+                  writer.writeLine(`await this.db.getAll("${toCamelCase(model.name)}"),`);
+                  writer.writeLine(`this.keyPath,`);
+                  writer.writeLine(`query.where,`);
+                })
+                .writeLine(`)`);
+              writer.writeLine(`if (records.length === 0) return;`);
+              writer.blankLine();
+              writer.writeLine(`const tx = this.db.transaction("${toCamelCase(model.name)}", "readwrite");`);
+              writer
+                .writeLine(`await Promise.all([`)
+                .indent(() => {
+                  writer
+                    .writeLine(`...records.map((record) => `)
+                    .indent(() => {
+                      writer.writeLine(
+                        `tx.store.delete(this.keyPath.map((keyField) => record[keyField] as IDBValidKey))`,
+                      );
+                    })
+                    .writeLine(`),`);
+                  writer.writeLine(`tx.done,`);
+                })
+                .writeLine(`]);`);
             },
           },
         ],

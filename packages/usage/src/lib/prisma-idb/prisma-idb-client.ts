@@ -42,16 +42,11 @@ class BaseIDBModelClass {
 
 class IDBTodo extends BaseIDBModelClass {
   async findFirst<T extends Prisma.TodoFindFirstArgs>(query: T): Promise<Prisma.TodoGetPayload<T> | null> {
-    const records = filterByWhereClause(
-      await this.db.getAll("todo"),
-      this.keyPath,
-      query.where,
-    ) as Prisma.TodoGetPayload<T>[];
-    return records[0] ?? null;
+    return (await this.findMany(query))[0] ?? null;
   }
 
   async findMany<T extends Prisma.TodoFindManyArgs>(query: T): Promise<Prisma.TodoGetPayload<T>[]> {
-    return await this.db.getAll("todo");
+    return filterByWhereClause(await this.db.getAll("todo"), this.keyPath, query.where) as Prisma.TodoGetPayload<T>[];
   }
 
   async findUnique<T extends Prisma.TodoFindUniqueArgs>(query: T): Promise<Prisma.TodoGetPayload<T> | null> {
@@ -71,7 +66,24 @@ class IDBTodo extends BaseIDBModelClass {
     await Promise.all([...queryData.map((record) => tx.store.add(record)), tx.done]);
   }
 
-  async delete(query: Prisma.TodoDeleteArgs) {}
+  async delete(query: Prisma.TodoDeleteArgs) {
+    const records = filterByWhereClause(await this.db.getAll("todo"), this.keyPath, query.where);
+    if (records.length === 0) return;
 
-  async deleteMany(query: Prisma.TodoDeleteManyArgs) {}
+    await this.db.delete(
+      "todo",
+      this.keyPath.map((keyField) => records[0][keyField] as IDBValidKey),
+    );
+  }
+
+  async deleteMany(query: Prisma.TodoDeleteManyArgs) {
+    const records = filterByWhereClause(await this.db.getAll("todo"), this.keyPath, query.where);
+    if (records.length === 0) return;
+
+    const tx = this.db.transaction("todo", "readwrite");
+    await Promise.all([
+      ...records.map((record) => tx.store.delete(this.keyPath.map((keyField) => record[keyField] as IDBValidKey))),
+      tx.done,
+    ]);
+  }
 }
