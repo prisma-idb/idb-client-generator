@@ -12,13 +12,8 @@ generator prismaIDB {
   output   = "../lib/prisma-idb"
 }
 
-enum Status {
-  Pending
-  Completed
-}
-
 model Todo {
-  id     Int    @id
+  id     String    @id
   task   String
-  status Status
+  isCompleted Boolean 
 }
