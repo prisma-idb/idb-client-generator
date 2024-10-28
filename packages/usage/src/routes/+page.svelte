@@ -3,42 +3,50 @@
   import { v4 as uuidv4 } from "uuid";
   import { PrismaIDBClient } from "$lib/prisma-idb/prisma-idb-client";
   import { Input } from "$lib/components/ui/input/index.js";
-  import { Button } from "$lib/components/ui/button";
+  import { Button, Root } from "$lib/components/ui/button";
+  import * as Table from "$lib/components/ui/table";
 
   let client: PrismaIDBClient;
   let isCompleted = $state(false);
 
+  let allTodos = $state([{}]);
+
   const formData = {
     id: "",
     task: "",
-	isCompleted,
+    isCompleted,
   };
 
   let task = "";
 
   let id: String;
 
-
   function handleChange(event: Event) {
+    event.preventDefault();
     const target = event.target as HTMLSelectElement;
     task = target.value;
   }
 
-
-  function AddTask() {
+  async function AddTask() {
     let id = uuidv4();
     formData.task = task;
     formData.id = id;
-	formData.isCompleted = isCompleted;
+    formData.isCompleted = isCompleted;
     console.log(formData);
     client.todo.create({ data: formData });
-	console.log(client);
+    
+    allTodos = await client.todo.findMany([])
   }
+
+
 
   onMount(async () => {
     // Always instantiate on client-side (need IndexedDB)
     client = await PrismaIDBClient.getInstance();
+    allTodos = await client.todo.findMany([]);
   });
+
+  
 </script>
 
 <main class="prose max-w-full">
@@ -50,6 +58,26 @@
       on:input={handleChange}
     />
     <button onclick={AddTask}>Add Task</button>
-	<input type="checkbox" bind:checked={isCompleted}/>
+    <input type="checkbox" bind:checked={isCompleted} />is Completed
+
+    <!-- <button onclick={Read}>Fetch</button> -->
+    <Table.Root>
+      <Table.Header>
+        <Table.Row>
+          <Table.Head class="w-[100px]">Id</Table.Head>
+          <Table.Head>Task</Table.Head>
+          <Table.Head>Completed</Table.Head>
+        </Table.Row>
+      </Table.Header>
+      <Table.Body>
+        {#each allTodos as allTodo}
+          <Table.Row>
+            <Table.Cell>{allTodo.id}</Table.Cell>
+            <Table.Cell>{allTodo.task}</Table.Cell>
+            <Table.Cell>{allTodo.isCompleted}</Table.Cell>
+          </Table.Row>
+        {/each}
+      </Table.Body>
+    </Table.Root>
   </div>
 </main>
