@@ -1,9 +1,8 @@
 import { generatorHandler, GeneratorOptions } from "@prisma/generator-helper";
 import path from "path";
-import { Project, Scope, StructureKind, VariableDeclarationKind } from "ts-morph";
+import { Project, Scope, VariableDeclarationKind } from "ts-morph";
 import { generateIDBKey, getNonKeyUniqueFields, toCamelCase, writeFileSafely } from "./utils";
-
-const { version } = require("../package.json");
+import { version } from "../package.json";
 
 generatorHandler({
   onManifest() {
@@ -231,7 +230,7 @@ generatorHandler({
       });
     });
 
-    const writeLocation = path.join(options.generator.output?.value!, file.getBaseName());
+    const writeLocation = path.join(options.generator.output?.value as string, file.getBaseName());
     await writeFileSafely(writeLocation, file.getText());
   },
 });

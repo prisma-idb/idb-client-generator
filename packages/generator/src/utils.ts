@@ -43,7 +43,7 @@ export function getNonKeyUniqueFields(model: DMMF.Datamodel["models"][number]) {
   return model.fields.filter(({ isUnique, name }) => isUnique && !keyPath.includes(name));
 }
 
-export const writeFileSafely = async (writeLocation: string, content: any) => {
+export const writeFileSafely = async (writeLocation: string, content: string) => {
   fs.mkdirSync(path.dirname(writeLocation), {
     recursive: true,
   });
