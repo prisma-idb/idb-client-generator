@@ -13,8 +13,7 @@ generatorHandler({
   },
 
   onGenerate: async (options: GeneratorOptions) => {
-    // TODO: handle enums
-    const { models, enums } = options.dmmf.datamodel;
+    const { models } = options.dmmf.datamodel;
 
     const project = new Project();
     const file = project.createSourceFile(path.join("prisma-idb-client.ts"), "", { overwrite: true });
