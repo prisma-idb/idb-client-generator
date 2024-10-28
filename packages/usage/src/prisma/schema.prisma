@@ -12,13 +12,20 @@ generator prismaIDB {
   output   = "../lib/prisma-idb"
 }
 
+model User {
+  name  String @id
+  todos Todo[]
+}
+
 enum Status {
   Pending
   Completed
 }
 
 model Todo {
-  id     Int    @id
-  task   String
-  status Status
+  id       Int     @id
+  task     String
+  status   Status
+  user     User?   @relation(fields: [userName], references: [name])
+  userName String?
 }
