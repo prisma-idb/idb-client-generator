@@ -9,7 +9,7 @@ generator client {
 
 generator prismaIDB {
   provider = "prisma-idb-generator"
-  output   = "../types"
+  output   = "../src/lib/prisma-idb"
 }
 
 model User {
