@@ -1,46 +1,46 @@
 {
-  "name": "@prisma-idb/prisma-idb-generator",
-  "description": "Generate types for idb from prisma schema",
-  "version": "0.0.3",
-  "main": "dist/generator.js",
-  "license": "MIT",
-  "bin": {
-    "prisma-idb-generator": "dist/bin.js"
-  },
-  "engines": {
-    "node": ">=14.0"
-  },
-  "scripts": {
-    "start": "node dist/bin.js",
-    "dev": "npx tsc -w",
-    "build": "npx tsc",
-    "prepack": "yarn build"
-  },
-  "dependencies": {
-    "@prisma/client": "5.21.1",
-    "@prisma/generator-helper": "5.21.1",
-    "@prisma/internals": "5.21.1",
-    "idb": "8.0.0",
-    "prettier": "3.3.3",
-    "ts-morph": "^24.0.0"
-  },
-  "devDependencies": {
-    "@types/node": "22.7.8",
-    "@types/prettier": "2.7.3",
-    "prisma": "5.21.1",
-    "typescript": "5.6.3"
-  },
-  "homepage": "https://github.com/prisma-idb/prisma-idb-generator",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/prisma-idb/prisma-idb-generator.git"
-  },
-  "author": "Your Name <Your Email>",
-  "keywords": [
-    "prisma",
-    "generator"
-  ],
-  "bugs": {
-    "url": "https://github.com/prisma-idb/prisma-idb-generator/issues"
-  }
+	"name": "@prisma-idb/prisma-idb-generator",
+	"description": "Generate types for idb from prisma schema",
+	"version": "0.0.3",
+	"main": "dist/generator.js",
+	"license": "MIT",
+	"bin": {
+		"prisma-idb-generator": "dist/bin.js"
+	},
+	"engines": {
+		"node": ">=14.0"
+	},
+	"scripts": {
+		"start": "node dist/bin.js",
+		"dev": "npx tsc -w",
+		"build": "npx tsc",
+		"prepack": "yarn build"
+	},
+	"dependencies": {
+		"@prisma/client": "5.21.1",
+		"@prisma/generator-helper": "5.21.1",
+		"@prisma/internals": "5.21.1",
+		"idb": "8.0.0",
+		"prettier": "3.3.3",
+		"ts-morph": "^24.0.0"
+	},
+	"devDependencies": {
+		"@types/node": "22.7.8",
+		"@types/prettier": "2.7.3",
+		"prisma": "5.21.1",
+		"typescript": "5.6.3"
+	},
+	"homepage": "https://github.com/prisma-idb/prisma-idb-generator",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/prisma-idb/prisma-idb-generator.git"
+	},
+	"author": "Your Name <Your Email>",
+	"keywords": [
+		"prisma",
+		"generator"
+	],
+	"bugs": {
+		"url": "https://github.com/prisma-idb/prisma-idb-generator/issues"
+	}
 }
