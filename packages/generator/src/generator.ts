@@ -1,8 +1,9 @@
 import { generatorHandler, GeneratorOptions } from "@prisma/generator-helper";
 import path from "path";
 import { Project, Scope, VariableDeclarationKind } from "ts-morph";
-import { generateIDBKey, getNonKeyUniqueFields, toCamelCase, writeFileSafely } from "./utils";
 import { version } from "../package.json";
+import { outputUtilsText } from "./outputUtils";
+import { generateIDBKey, getNonKeyUniqueFields, toCamelCase, writeFileSafely } from "./utils";
 
 generatorHandler({
   onManifest() {
@@ -16,7 +17,7 @@ generatorHandler({
     const { models } = options.dmmf.datamodel;
 
     const project = new Project();
-    const file = project.createSourceFile(path.join("prisma-idb-client.ts"), "", { overwrite: true });
+    const file = project.createSourceFile("prisma-idb-client.ts", "", { overwrite: true });
 
     file.addImportDeclaration({
       moduleSpecifier: "idb",
@@ -31,6 +32,10 @@ generatorHandler({
       moduleSpecifier: "@prisma/client",
       namedImports: ["Prisma"],
       isTypeOnly: true,
+    });
+    file.addImportDeclaration({
+      moduleSpecifier: "./utils",
+      namedImports: ["filterByWhereClause"],
     });
 
     // TODO: update version numbers if schema changes
@@ -102,7 +107,9 @@ generatorHandler({
               .writeLine("});");
 
             models.forEach((model) => {
-              writer.writeLine(`this.${toCamelCase(model.name)} = new IDB${model.name}(this.db);`);
+              writer.writeLine(
+                `this.${toCamelCase(model.name)} = new IDB${model.name}(this.db, ${generateIDBKey(model)});`,
+              );
             });
           },
         },
@@ -111,11 +118,20 @@ generatorHandler({
 
     file.addClass({
       name: "BaseIDBModelClass",
-      properties: [{ name: "db", type: "IDBPDatabase" }],
+      properties: [
+        { name: "db", type: "IDBPDatabase" },
+        { name: "keyPath", type: "string[]" },
+      ],
       ctors: [
         {
-          parameters: [{ name: "db", type: "IDBPDatabase" }],
-          statements: (writer) => writer.writeLine("this.db = db"),
+          parameters: [
+            { name: "db", type: "IDBPDatabase" },
+            { name: "keyPath", type: "string[]" },
+          ],
+          statements: (writer) => {
+            writer.writeLine("this.db = db");
+            writer.writeLine("this.keyPath = keyPath");
+          },
         },
       ],
     });
@@ -134,8 +150,13 @@ generatorHandler({
             statements: (writer) => {
               // TODO: full prisma query mapping, first perform get or getAll and filter based on query
               // TODO: includes relations in here
-              writer.writeLine(`const records = await this.db.getAll("${toCamelCase(model.name)}");`);
-              // TODO: apply filters according to query
+              writer
+                .writeLine(`const records = filterByWhereClause(`)
+                .indent(() => {
+                  writer.writeLine(`await this.db.getAll("${toCamelCase(model.name)}"), this.keyPath, query.where`);
+                })
+                .writeLine(`) as Prisma.${model.name}GetPayload<T>[];`);
+
               // also consider performance overhead: use webWorkers, index utilization, compound indexes, batch processing, etc.
               writer.writeLine("return records[0] ?? null;");
             },
@@ -240,5 +261,7 @@ generatorHandler({
 
     const writeLocation = path.join(options.generator.output?.value as string, file.getBaseName());
     await writeFileSafely(writeLocation, file.getText());
+
+    await writeFileSafely(path.join(options.generator.output?.value as string, "utils.ts"), outputUtilsText);
   },
 });
