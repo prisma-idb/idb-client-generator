@@ -14,8 +14,7 @@
     "start": "node dist/bin.js",
     "dev": "npx tsc -w",
     "build": "npx tsc",
-    "prepack": "yarn build",
-    "test": "jest"
+    "prepack": "yarn build"
   },
   "dependencies": {
     "@prisma/client": "5.21.1",
@@ -26,7 +25,6 @@
     "ts-morph": "^24.0.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.48.2",
     "@types/node": "22.7.8",
     "@types/prettier": "2.7.3",
     "prisma": "5.21.1",

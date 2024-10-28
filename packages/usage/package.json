@@ -1,17 +1,32 @@
 {
-  "name": "usage",
-  "private": true,
-  "version": "0.0.1",
-  "main": "src/app.js",
-  "license": "MIT",
-  "scripts": {},
-  "dependencies": {
-    "@prisma-idb/prisma-idb-generator": "^0.0.3",
-    "@prisma/client": "5.21.1"
-  },
-  "devDependencies": {
-    "@types/node": "22.7.8",
-    "prisma": "5.21.1",
-    "typescript": "5.6.3"
-  }
+	"name": "usage",
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"format": "prettier --write .",
+		"lint": "prettier --check .",
+		"test:e2e": "playwright test",
+		"test": "npm run test:e2e"
+	},
+	"devDependencies": {
+		"@playwright/test": "^1.45.3",
+		"@sveltejs/adapter-auto": "^3.0.0",
+		"@sveltejs/kit": "^2.0.0",
+		"@sveltejs/vite-plugin-svelte": "^4.0.0",
+		"@tailwindcss/typography": "^0.5.15",
+		"autoprefixer": "^10.4.20",
+		"prettier": "^3.3.2",
+		"prettier-plugin-svelte": "^3.2.6",
+		"prettier-plugin-tailwindcss": "^0.6.5",
+		"svelte": "^5.0.0",
+		"svelte-check": "^4.0.0",
+		"tailwindcss": "^3.4.9",
+		"typescript": "^5.0.0",
+		"vite": "^5.0.3"
+	}
 }
