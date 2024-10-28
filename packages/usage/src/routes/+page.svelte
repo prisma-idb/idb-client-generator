@@ -16,6 +16,6 @@
 		<p>Database version: <span>{client.db.version}</span></p>
 	{:else}
 		<h1>Prisma-IDB-client couldn't load</h1>
-		<h2>Check console for more information</h2>
+		<p>Check console for more information</p>
 	{/if}
 </main>
