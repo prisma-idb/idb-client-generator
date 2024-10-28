@@ -7,24 +7,16 @@ on:
     branches: [main]
 
 jobs:
-  prettier-check:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Prettier check
-        run: npx prettier . --check
-
   lint:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/
-      - name: Run lint
-        run: npx eslint '**/*.{js,ts}'
+      - name: Lint generator
+        run: npm run lint --workspace=packages/generator
+      - name: Lint usage
+        run: npm run lint --workspace=packages/usage
 
   test:
     timeout-minutes: 60
@@ -40,7 +32,7 @@ jobs:
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
       - name: Run Playwright tests
-        run: npx playwright test -c ./packages/usage/playwright.config.ts
+        run: npm run test --workspace=packages/usage
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
