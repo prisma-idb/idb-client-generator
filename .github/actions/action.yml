@@ -1,0 +1,13 @@
+name: "Node and Dependency install"
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: lts/*
+        cache: 'npm'
+
+    - name: Install Node Dependencies
+      shell: bash
+      run: npm ci
