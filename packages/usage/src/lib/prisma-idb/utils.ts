@@ -1,12 +1,20 @@
 type RecordType = Record<string, unknown>;
 
-export function intersectArraysByNestedKey<T extends RecordType>(arrays: T[][], keyPath: string[]): T[] {
+export function intersectArraysByNestedKey<T extends RecordType>(
+  arrays: T[][],
+  keyPath: string[],
+): T[] {
   return arrays.reduce((acc, array) =>
-    acc.filter((item) => array.some((el) => keyPath.every((key) => el[key] === item[key]))),
+    acc.filter((item) =>
+      array.some((el) => keyPath.every((key) => el[key] === item[key])),
+    ),
   );
 }
 
-export function removeDuplicatesByKeyPath<T extends RecordType>(array: T[][], keyPath: string[]): T[] {
+export function removeDuplicatesByKeyPath<T extends RecordType>(
+  array: T[][],
+  keyPath: string[],
+): T[] {
   const seen = new Set<string>();
   return array
     .flatMap((el) => el)
@@ -34,29 +42,40 @@ export function filterByWhereClause(
     if (whereClause[param] === undefined) continue;
 
     if (isLogicalOperator(param)) {
-      const operands = Array.isArray(whereClause[param]) ? whereClause[param] : [whereClause[param]];
+      const operands = Array.isArray(whereClause[param])
+        ? whereClause[param]
+        : [whereClause[param]];
 
       if (param === "AND") {
         records = intersectArraysByNestedKey(
-          operands.map((operandClause) => filterByWhereClause(records, keyPath, operandClause)),
+          operands.map((operandClause) =>
+            filterByWhereClause(records, keyPath, operandClause),
+          ),
           keyPath,
         );
       }
 
       if (param === "OR") {
         records = removeDuplicatesByKeyPath(
-          operands.map((operandClause) => filterByWhereClause(records, keyPath, operandClause)),
+          operands.map((operandClause) =>
+            filterByWhereClause(records, keyPath, operandClause),
+          ),
           keyPath,
         );
       }
 
       if (param === "NOT") {
         const excludedRecords = removeDuplicatesByKeyPath(
-          operands.map((operandClause) => filterByWhereClause(records, keyPath, operandClause)),
+          operands.map((operandClause) =>
+            filterByWhereClause(records, keyPath, operandClause),
+          ),
           keyPath,
         );
         records = records.filter(
-          (item) => !excludedRecords.some((excluded) => keyPath.every((key) => excluded[key] === item[key])),
+          (item) =>
+            !excludedRecords.some((excluded) =>
+              keyPath.every((key) => excluded[key] === item[key]),
+            ),
         );
       }
     }
