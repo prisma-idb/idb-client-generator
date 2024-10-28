@@ -71,7 +71,11 @@ class IDBUser extends BaseIDBModelClass {
     await this.db.add("user", query.data);
   }
 
-  async createMany(query: Prisma.UserCreateManyArgs) {}
+  async createMany(query: Prisma.UserCreateManyArgs) {
+    const tx = this.db.transaction("user", "readwrite");
+    const queryData = Array.isArray(query.data) ? query.data : [query.data];
+    await Promise.all([...queryData.map((record) => tx.store.add(record)), tx.done]);
+  }
 
   async delete(query: Prisma.UserDeleteArgs) {}
 
@@ -97,7 +101,11 @@ class IDBAccount extends BaseIDBModelClass {
     await this.db.add("account", query.data);
   }
 
-  async createMany(query: Prisma.AccountCreateManyArgs) {}
+  async createMany(query: Prisma.AccountCreateManyArgs) {
+    const tx = this.db.transaction("account", "readwrite");
+    const queryData = Array.isArray(query.data) ? query.data : [query.data];
+    await Promise.all([...queryData.map((record) => tx.store.add(record)), tx.done]);
+  }
 
   async delete(query: Prisma.AccountDeleteArgs) {}
 
@@ -125,7 +133,11 @@ class IDBSession extends BaseIDBModelClass {
     await this.db.add("session", query.data);
   }
 
-  async createMany(query: Prisma.SessionCreateManyArgs) {}
+  async createMany(query: Prisma.SessionCreateManyArgs) {
+    const tx = this.db.transaction("session", "readwrite");
+    const queryData = Array.isArray(query.data) ? query.data : [query.data];
+    await Promise.all([...queryData.map((record) => tx.store.add(record)), tx.done]);
+  }
 
   async delete(query: Prisma.SessionDeleteArgs) {}
 
@@ -157,7 +169,11 @@ class IDBVerificationToken extends BaseIDBModelClass {
     await this.db.add("verificationToken", query.data);
   }
 
-  async createMany(query: Prisma.VerificationTokenCreateManyArgs) {}
+  async createMany(query: Prisma.VerificationTokenCreateManyArgs) {
+    const tx = this.db.transaction("verificationToken", "readwrite");
+    const queryData = Array.isArray(query.data) ? query.data : [query.data];
+    await Promise.all([...queryData.map((record) => tx.store.add(record)), tx.done]);
+  }
 
   async delete(query: Prisma.VerificationTokenDeleteArgs) {}
 

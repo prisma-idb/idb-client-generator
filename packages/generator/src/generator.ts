@@ -206,7 +206,16 @@ generatorHandler({
             isAsync: true,
             parameters: [{ name: "query", type: `Prisma.${model.name}CreateManyArgs` }],
             statements: (writer) => {
-              // TODO
+              writer.writeLine(`const tx = this.db.transaction('${toCamelCase(model.name)}', 'readwrite')`);
+              writer.writeLine(`const queryData = Array.isArray(query.data) ? query.data : [query.data];`);
+              writer
+                .writeLine(`await Promise.all([`)
+                .indent(() => {
+                  // TODO: full prisma query mapping with modifiers (@autoincrement, @cuid, @default, etc.)
+                  writer.writeLine(`...queryData.map((record) => tx.store.add(record)),`);
+                  writer.writeLine("tx.done");
+                })
+                .writeLine("])");
             },
           },
           {
