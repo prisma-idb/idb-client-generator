@@ -108,7 +108,7 @@ generatorHandler({
 
             models.forEach((model) => {
               writer.writeLine(
-                `this.${toCamelCase(model.name)} = new IDB${model.name}(this.db, ${generateIDBKey(model)});`,
+                `this.${toCamelCase(model.name)} = new IDB${model.name}(this, ${generateIDBKey(model)});`,
               );
             });
           },
@@ -119,17 +119,17 @@ generatorHandler({
     file.addClass({
       name: "BaseIDBModelClass",
       properties: [
-        { name: "db", type: "IDBPDatabase" },
+        { name: "client", type: "PrismaIDBClient" },
         { name: "keyPath", type: "string[]" },
       ],
       ctors: [
         {
           parameters: [
-            { name: "db", type: "IDBPDatabase" },
+            { name: "client", type: "PrismaIDBClient" },
             { name: "keyPath", type: "string[]" },
           ],
           statements: (writer) => {
-            writer.writeLine("this.db = db");
+            writer.writeLine("this.client = client");
             writer.writeLine("this.keyPath = keyPath");
           },
         },
@@ -148,17 +148,9 @@ generatorHandler({
             parameters: [{ name: "query", type: "T" }],
             returnType: `Promise<Prisma.${model.name}GetPayload<T> | null>`,
             statements: (writer) => {
-              // TODO: full prisma query mapping, first perform get or getAll and filter based on query
-              // TODO: includes relations in here
-              writer
-                .writeLine(`const records = filterByWhereClause(`)
-                .indent(() => {
-                  writer.writeLine(`await this.db.getAll("${toCamelCase(model.name)}"), this.keyPath, query.where`);
-                })
-                .writeLine(`) as Prisma.${model.name}GetPayload<T>[];`);
-
+              // TODO: includes relations in here, use indexes
               // also consider performance overhead: use webWorkers, index utilization, compound indexes, batch processing, etc.
-              writer.writeLine("return records[0] ?? null;");
+              writer.writeLine("return (await this.findMany(query))[0] ?? null;");
             },
           },
           {
@@ -168,8 +160,32 @@ generatorHandler({
             parameters: [{ name: "query", type: "T" }],
             returnType: `Promise<Prisma.${model.name}GetPayload<T>[]>`,
             statements: (writer) => {
-              // TODO: full prisma query mapping
-              writer.writeLine(`return await this.db.getAll("${toCamelCase(model.name)}");`);
+              // TODO: orderBy, indexes
+              writer.writeLine(`let records = await this.client.db.getAll("${toCamelCase(model.name)}");`);
+              // TODO: includes and nested select part
+              // const relationFields = model.fields.filter(({ kind }) => kind === "object");
+              // relationFields.forEach((field) => {
+              //   writer
+              //     .writeLine(
+              //       `if (query.include?.${toCamelCase(field.name)} || query.select?.${toCamelCase(field.name)}) {`,
+              //     )
+              //     .indent(() => {
+              //       writer
+              //         .writeLine(`records = records.map((record) => ({`)
+              //         .indent(() => {
+              //           writer.writeLine(`...record,`);
+              //           writer.writeLine(`${field.name}: `)
+              //         })
+              //         .writeLine(`}));`);
+              //     })
+              //     .writeLine(`}`);
+              // });
+              writer
+                .writeLine(`return filterByWhereClause(`)
+                .indent(() => {
+                  writer.writeLine(`records, this.keyPath, query.where`);
+                })
+                .writeLine(`) as Prisma.${model.name}GetPayload<T>[];`);
             },
           },
           {
@@ -182,7 +198,7 @@ generatorHandler({
               if (model.primaryKey) {
                 writer.writeLine(`const keyFieldName = "${model.primaryKey.fields.join("_")}"`);
                 writer.writeLine(
-                  `return (await this.db.get("${toCamelCase(model.name)}", Object.values(query.where[keyFieldName]!))) ?? null;`,
+                  `return (await this.client.db.get("${toCamelCase(model.name)}", Object.values(query.where[keyFieldName]!))) ?? null;`,
                 );
               } else {
                 const identifierFieldName = JSON.parse(generateIDBKey(model))[0];
@@ -190,7 +206,7 @@ generatorHandler({
                   .writeLine(`if (query.where.${identifierFieldName}) {`)
                   .indent(() =>
                     writer.writeLine(
-                      `return (await this.db.get("${toCamelCase(model.name)}", [query.where.${identifierFieldName}])) ?? null;`,
+                      `return (await this.client.db.get("${toCamelCase(model.name)}", [query.where.${identifierFieldName}])) ?? null;`,
                     ),
                   )
                   .writeLine("}");
@@ -201,7 +217,7 @@ generatorHandler({
                     .writeLine(`if (query.where.${uniqueField}) {`)
                     .indent(() => {
                       writer.writeLine(
-                        `return (await this.db.getFromIndex("${toCamelCase(model.name)}", "${uniqueField}Index", query.where.${uniqueField})) ?? null;`,
+                        `return (await this.client.db.getFromIndex("${toCamelCase(model.name)}", "${uniqueField}Index", query.where.${uniqueField})) ?? null;`,
                       );
                     })
                     .writeLine("}");
@@ -219,7 +235,7 @@ generatorHandler({
               // TODO: full prisma query mapping with modifiers (@autoincrement, @cuid, @default, etc.)
               // TODO: also should return the created object
               // TODO: nested creates, connects, and createMany
-              writer.writeLine(`await this.db.add("${toCamelCase(model.name)}", query.data);`);
+              writer.writeLine(`await this.client.db.add("${toCamelCase(model.name)}", query.data);`);
             },
           },
           {
@@ -227,7 +243,7 @@ generatorHandler({
             isAsync: true,
             parameters: [{ name: "query", type: `Prisma.${model.name}CreateManyArgs` }],
             statements: (writer) => {
-              writer.writeLine(`const tx = this.db.transaction('${toCamelCase(model.name)}', 'readwrite')`);
+              writer.writeLine(`const tx = this.client.db.transaction('${toCamelCase(model.name)}', 'readwrite')`);
               writer.writeLine(`const queryData = Array.isArray(query.data) ? query.data : [query.data];`);
               writer
                 .writeLine(`await Promise.all([`)
@@ -245,6 +261,24 @@ generatorHandler({
             parameters: [{ name: "query", type: `Prisma.${model.name}DeleteArgs` }],
             statements: (writer) => {
               // TODO: handle cascades
+              // TODO: use indexes
+              writer
+                .writeLine(`const records = filterByWhereClause(`)
+                .indent(() => {
+                  writer.writeLine(`await this.client.db.getAll("${toCamelCase(model.name)}"),`);
+                  writer.writeLine(`this.keyPath,`);
+                  writer.writeLine(`query.where,`);
+                })
+                .writeLine(`)`);
+              writer.writeLine(`if (records.length === 0) return;`);
+              writer.blankLine();
+              writer
+                .writeLine(`await this.client.db.delete(`)
+                .indent(() => {
+                  writer.writeLine(`"${toCamelCase(model.name)}",`);
+                  writer.writeLine(`this.keyPath.map((keyField) => records[0][keyField] as IDBValidKey),`);
+                })
+                .writeLine(`);`);
             },
           },
           {
@@ -252,7 +286,32 @@ generatorHandler({
             isAsync: true,
             parameters: [{ name: "query", type: `Prisma.${model.name}DeleteManyArgs` }],
             statements: (writer) => {
-              // TODO: handle cascades
+              // TODO: handle cascades, use indexes
+              writer
+                .writeLine(`const records = filterByWhereClause(`)
+                .indent(() => {
+                  writer.writeLine(`await this.client.db.getAll("${toCamelCase(model.name)}"),`);
+                  writer.writeLine(`this.keyPath,`);
+                  writer.writeLine(`query.where,`);
+                })
+                .writeLine(`)`);
+              writer.writeLine(`if (records.length === 0) return;`);
+              writer.blankLine();
+              writer.writeLine(`const tx = this.client.db.transaction("${toCamelCase(model.name)}", "readwrite");`);
+              writer
+                .writeLine(`await Promise.all([`)
+                .indent(() => {
+                  writer
+                    .writeLine(`...records.map((record) => `)
+                    .indent(() => {
+                      writer.writeLine(
+                        `tx.store.delete(this.keyPath.map((keyField) => record[keyField] as IDBValidKey))`,
+                      );
+                    })
+                    .writeLine(`),`);
+                  writer.writeLine(`tx.done,`);
+                })
+                .writeLine(`]);`);
             },
           },
         ],
