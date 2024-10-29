@@ -14,7 +14,8 @@
     "format": "prettier --write .",
     "lint": "prettier --check . && eslint .",
     "test:e2e": "playwright test",
-    "test": "npm run test:e2e"
+    "test": "npm run test:e2e",
+    "pretest": "npx prisma generate"
   },
   "devDependencies": {
     "@playwright/test": "^1.45.3",
