@@ -9,6 +9,7 @@ runs:
         cache: 'npm'
     
     - name: Build package
+      shell: bash
       run: npm ci --workspace=packages/generator && npm run build --workspace=packages/generator
 
     - name: Install Node Dependencies
