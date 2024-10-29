@@ -8,10 +8,11 @@ const IDB_VERSION: number = 1;
 export class PrismaIDBClient {
   private static instance: PrismaIDBClient;
   db!: IDBPDatabase;
-  user!: IDBUser;
-  todo!: IDBTodo;
 
   private constructor() {}
+
+  user!: IDBUser;
+  todo!: IDBTodo;
 
   public static async create(): Promise<PrismaIDBClient> {
     if (!PrismaIDBClient.instance) {
@@ -67,13 +68,27 @@ class BaseIDBModelClass {
 }
 
 class IDBUser extends BaseIDBModelClass {
-  async findFirst<T extends Prisma.UserFindFirstArgs>(query?: T): Promise<Prisma.UserGetPayload<T> | null> {
-    return (await this.findMany(query))[0] ?? null;
+  async fillDefaults(data: Prisma.XOR<Prisma.UserCreateInput, Prisma.UserUncheckedCreateInput>) {
+    if (data.id === undefined) {
+      const transaction = this.client.db.transaction("user", "readonly");
+      const store = transaction.objectStore("user");
+      const cursor = await store.openCursor(null, "prev");
+      if (cursor) {
+        data.id = Number(cursor.key) + 1;
+      } else {
+        data.id = 1;
+      }
+    }
+    return data;
   }
 
   async findMany<T extends Prisma.UserFindManyArgs>(query?: T): Promise<Prisma.UserGetPayload<T>[]> {
     const records = await this.client.db.getAll("user");
     return filterByWhereClause(records, this.keyPath, query?.where) as Prisma.UserGetPayload<T>[];
+  }
+
+  async findFirst<T extends Prisma.UserFindFirstArgs>(query?: T): Promise<Prisma.UserGetPayload<T> | null> {
+    return (await this.findMany(query))[0] ?? null;
   }
 
   async findUnique<T extends Prisma.UserFindUniqueArgs>(query: T): Promise<Prisma.UserGetPayload<T> | null> {
@@ -117,30 +132,23 @@ class IDBUser extends BaseIDBModelClass {
     ]);
     this.emit("delete");
   }
-
-  async fillDefaults(data: Prisma.XOR<Prisma.UserCreateInput, Prisma.UserUncheckedCreateInput>) {
-    if (data.id === undefined) {
-      const transaction = this.client.db.transaction("user", "readonly");
-      const store = transaction.objectStore("user");
-      const cursor = await store.openCursor(null, "prev");
-      if (cursor) {
-        data.id = Number(cursor.key) + 1;
-      } else {
-        data.id = 1;
-      }
-    }
-    return data;
-  }
 }
 
 class IDBTodo extends BaseIDBModelClass {
-  async findFirst<T extends Prisma.TodoFindFirstArgs>(query?: T): Promise<Prisma.TodoGetPayload<T> | null> {
-    return (await this.findMany(query))[0] ?? null;
+  async fillDefaults(data: Prisma.XOR<Prisma.TodoCreateInput, Prisma.TodoUncheckedCreateInput>) {
+    if (data.status === undefined) {
+      data.status = "Pending";
+    }
+    return data;
   }
 
   async findMany<T extends Prisma.TodoFindManyArgs>(query?: T): Promise<Prisma.TodoGetPayload<T>[]> {
     const records = await this.client.db.getAll("todo");
     return filterByWhereClause(records, this.keyPath, query?.where) as Prisma.TodoGetPayload<T>[];
+  }
+
+  async findFirst<T extends Prisma.TodoFindFirstArgs>(query?: T): Promise<Prisma.TodoGetPayload<T> | null> {
+    return (await this.findMany(query))[0] ?? null;
   }
 
   async findUnique<T extends Prisma.TodoFindUniqueArgs>(query: T): Promise<Prisma.TodoGetPayload<T> | null> {
@@ -183,12 +191,5 @@ class IDBTodo extends BaseIDBModelClass {
       tx.done,
     ]);
     this.emit("delete");
-  }
-
-  async fillDefaults(data: Prisma.XOR<Prisma.TodoCreateInput, Prisma.TodoUncheckedCreateInput>) {
-    if (data.status === undefined) {
-      data.status = "Pending";
-    }
-    return data;
   }
 }

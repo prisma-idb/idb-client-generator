@@ -1,5 +1,5 @@
 import { Model } from "src/types";
-import { generateIDBKey, getModelFieldData, toCamelCase } from "src/utils";
+import { generateIDBKey, getModelFieldData, toCamelCase } from "../utils";
 import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
 
 // TODO: select, include, and where clauses (also nested versions)

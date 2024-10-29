@@ -1,5 +1,5 @@
 import { Model } from "src/types";
-import { getModelFieldData, toCamelCase } from "src/utils";
+import { getModelFieldData, toCamelCase } from "../utils";
 import { ClassDeclaration } from "ts-morph";
 
 // TODO: also should return the created object

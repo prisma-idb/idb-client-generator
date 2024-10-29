@@ -1,5 +1,5 @@
 import { Model } from "src/types";
-import { toCamelCase } from "src/utils";
+import { toCamelCase } from "../utils";
 import { ClassDeclaration } from "ts-morph";
 
 // TODO: handle cascades
