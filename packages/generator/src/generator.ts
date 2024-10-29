@@ -19,6 +19,8 @@ generatorHandler({
     const project = new Project();
     const file = project.createSourceFile("prisma-idb-client.ts", "", { overwrite: true });
 
+    const extraGenerationImports = new Set<"uuid" | "cuid">();
+
     file.addImportDeclaration({
       moduleSpecifier: "idb",
       namedImports: ["openDB"],
@@ -139,14 +141,18 @@ generatorHandler({
     });
 
     models.forEach((model) => {
-      file.addClass({
+      const totalDefaultFields = model.fields.filter((field) => field.default !== undefined).length;
+      const allRequiredFieldsHaveDefaults =
+        totalDefaultFields === model.fields.filter(({ kind }) => kind !== "object").length;
+
+      const modelClass = file.addClass({
         name: `IDB${model.name}`,
         extends: "BaseIDBModelClass",
         methods: [
           {
             name: "findFirst",
             isAsync: true,
-            typeParameters: [{ name: "T", constraint: `Prisma.${model.name}FindFirstArgs | undefined` }],
+            typeParameters: [{ name: "T", constraint: `Prisma.${model.name}FindFirstArgs` }],
             parameters: [{ name: "query?", type: "T" }],
             returnType: `Promise<Prisma.${model.name}GetPayload<T> | null>`,
             statements: (writer) => {
@@ -158,7 +164,7 @@ generatorHandler({
           {
             name: "findMany",
             isAsync: true,
-            typeParameters: [{ name: "T", constraint: `Prisma.${model.name}FindManyArgs | undefined` }],
+            typeParameters: [{ name: "T", constraint: `Prisma.${model.name}FindManyArgs` }],
             parameters: [{ name: "query?", type: "T" }],
             returnType: `Promise<Prisma.${model.name}GetPayload<T>[]>`,
             statements: (writer) => {
@@ -232,12 +238,23 @@ generatorHandler({
           {
             name: "create",
             isAsync: true,
-            parameters: [{ name: "query", type: `Prisma.${model.name}CreateArgs` }],
+            parameters: [
+              {
+                name: allRequiredFieldsHaveDefaults ? `query?` : `query`,
+                type: `Prisma.${model.name}CreateArgs`,
+              },
+            ],
             statements: (writer) => {
-              // TODO: full prisma query mapping with modifiers (@autoincrement, @cuid, @default, etc.)
               // TODO: also should return the created object
               // TODO: nested creates, connects, and createMany
-              writer.writeLine(`await this.client.db.add("${toCamelCase(model.name)}", query.data);`);
+              const queryKeyword = allRequiredFieldsHaveDefaults ? "query?" : "query";
+              if (totalDefaultFields > 0) {
+                writer.writeLine(
+                  `await this.client.db.add("${toCamelCase(model.name)}", this.fillDefaults(${queryKeyword}.data));`,
+                );
+              } else {
+                writer.writeLine(`await this.client.db.add("${toCamelCase(model.name)}", ${queryKeyword}.data);`);
+              }
             },
           },
           {
@@ -251,7 +268,11 @@ generatorHandler({
                 .writeLine(`await Promise.all([`)
                 .indent(() => {
                   // TODO: full prisma query mapping with modifiers (@autoincrement, @cuid, @default, etc.)
-                  writer.writeLine(`...queryData.map((record) => tx.store.add(record)),`);
+                  if (totalDefaultFields > 0) {
+                    writer.writeLine(`...queryData.map((record) => tx.store.add(this.fillDefaults(record))),`);
+                  } else {
+                    writer.writeLine(`...queryData.map((record) => tx.store.add(record)),`);
+                  }
                   writer.writeLine("tx.done");
                 })
                 .writeLine("])");
@@ -286,7 +307,7 @@ generatorHandler({
           {
             name: "deleteMany",
             isAsync: true,
-            parameters: [{ name: "query?", type: `Prisma.${model.name}DeleteManyArgs | undefined` }],
+            parameters: [{ name: "query?", type: `Prisma.${model.name}DeleteManyArgs` }],
             statements: (writer) => {
               // TODO: handle cascades, use indexes
               writer
@@ -318,6 +339,75 @@ generatorHandler({
           },
         ],
       });
+
+      if (model.fields.filter((field) => field.default !== undefined).length === 0) return;
+
+      modelClass.addMethod({
+        name: "fillDefaults",
+        isAsync: true,
+        parameters: [
+          {
+            name: allRequiredFieldsHaveDefaults ? `data?` : `data`,
+            type: `Prisma.XOR<Prisma.${model.name}CreateInput, Prisma.${model.name}UncheckedCreateInput>`,
+          },
+        ],
+        statements: (writer) => {
+          writer.conditionalWrite(allRequiredFieldsHaveDefaults, `if (!data) data = {};`);
+
+          model.fields
+            .filter((field) => field.default !== undefined)
+            .forEach((field) => {
+              const defaultValue = field.default!;
+
+              writer
+                .writeLine(`if (data.${field.name} === undefined) {`)
+                .indent(() => {
+                  if (Array.isArray(defaultValue)) {
+                    writer.writeLine(`data.${field.name} = [${defaultValue.toString()}]`);
+                  } else if (typeof defaultValue === "object" && "name" in defaultValue) {
+                    if (defaultValue.name === "cuid") {
+                      extraGenerationImports.add("cuid");
+                      writer.writeLine(`data.${field.name} = createId()`);
+                    } else if (defaultValue.name === "uuid(4)") {
+                      writer.writeLine(`data.${field.name} = uuidv4()`);
+                      extraGenerationImports.add("uuid");
+                    } else if (defaultValue.name === "autoincrement") {
+                      writer
+                        .writeLine(
+                          `const transaction = this.client.db.transaction("${toCamelCase(model.name)}", 'readonly');`,
+                        )
+                        .writeLine(`const store = transaction.objectStore("${toCamelCase(model.name)}");`)
+                        .writeLine("const cursor = await store.openCursor(null, 'prev');")
+                        .writeLine("if (cursor) {")
+                        .indent(() => {
+                          writer.writeLine(`data.${field.name} = cursor.key as number + 1;`);
+                        })
+                        .writeLine("} else {")
+                        .indent(() => {
+                          writer.writeLine(`data.${field.name} = 1;`);
+                        })
+                        .writeLine("}");
+                    } else {
+                      throw new Error(`Default ${defaultValue.name} is not yet supported`);
+                    }
+                  } else if (typeof defaultValue === "string") {
+                    writer.writeLine(`data.${field.name} = "${defaultValue}"`);
+                  } else {
+                    writer.writeLine(`data.${field.name} = ${defaultValue}`);
+                  }
+                })
+                .writeLine("}");
+            });
+        },
+      });
+    });
+
+    extraGenerationImports.forEach((value) => {
+      if (value === "uuid")
+        file.addImportDeclaration({ moduleSpecifier: "uuid", namedImports: [{ name: "v4", alias: "uuidv4" }] });
+
+      if (value === "cuid")
+        file.addImportDeclaration({ moduleSpecifier: "@paralleldrive/cuid2", namedImports: [{ name: "createId" }] });
     });
 
     const writeLocation = path.join(options.generator.output?.value as string, file.getBaseName());

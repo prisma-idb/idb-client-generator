@@ -45,11 +45,11 @@ class BaseIDBModelClass {
 }
 
 class IDBUser extends BaseIDBModelClass {
-  async findFirst<T extends Prisma.UserFindFirstArgs | undefined>(query?: T): Promise<Prisma.UserGetPayload<T> | null> {
+  async findFirst<T extends Prisma.UserFindFirstArgs>(query?: T): Promise<Prisma.UserGetPayload<T> | null> {
     return (await this.findMany(query))[0] ?? null;
   }
 
-  async findMany<T extends Prisma.UserFindManyArgs | undefined>(query?: T): Promise<Prisma.UserGetPayload<T>[]> {
+  async findMany<T extends Prisma.UserFindManyArgs>(query?: T): Promise<Prisma.UserGetPayload<T>[]> {
     const records = await this.client.db.getAll("user");
     return filterByWhereClause(records, this.keyPath, query?.where) as Prisma.UserGetPayload<T>[];
   }
@@ -62,13 +62,13 @@ class IDBUser extends BaseIDBModelClass {
   }
 
   async create(query: Prisma.UserCreateArgs) {
-    await this.client.db.add("user", query.data);
+    await this.client.db.add("user", this.fillDefaults(query.data));
   }
 
   async createMany(query: Prisma.UserCreateManyArgs) {
     const tx = this.client.db.transaction("user", "readwrite");
     const queryData = Array.isArray(query.data) ? query.data : [query.data];
-    await Promise.all([...queryData.map((record) => tx.store.add(record)), tx.done]);
+    await Promise.all([...queryData.map((record) => tx.store.add(this.fillDefaults(record))), tx.done]);
   }
 
   async delete(query: Prisma.UserDeleteArgs) {
@@ -81,7 +81,7 @@ class IDBUser extends BaseIDBModelClass {
     );
   }
 
-  async deleteMany(query?: Prisma.UserDeleteManyArgs | undefined) {
+  async deleteMany(query?: Prisma.UserDeleteManyArgs) {
     const records = filterByWhereClause(await this.client.db.getAll("user"), this.keyPath, query?.where);
     if (records.length === 0) return;
 
@@ -91,14 +91,27 @@ class IDBUser extends BaseIDBModelClass {
       tx.done,
     ]);
   }
+
+  async fillDefaults(data: Prisma.XOR<Prisma.UserCreateInput, Prisma.UserUncheckedCreateInput>) {
+    if (data.id === undefined) {
+      const transaction = this.client.db.transaction("user", "readonly");
+      const store = transaction.objectStore("user");
+      const cursor = await store.openCursor(null, "prev");
+      if (cursor) {
+        data.id = (cursor.key as number) + 1;
+      } else {
+        data.id = 1;
+      }
+    }
+  }
 }
 
 class IDBTodo extends BaseIDBModelClass {
-  async findFirst<T extends Prisma.TodoFindFirstArgs | undefined>(query?: T): Promise<Prisma.TodoGetPayload<T> | null> {
+  async findFirst<T extends Prisma.TodoFindFirstArgs>(query?: T): Promise<Prisma.TodoGetPayload<T> | null> {
     return (await this.findMany(query))[0] ?? null;
   }
 
-  async findMany<T extends Prisma.TodoFindManyArgs | undefined>(query?: T): Promise<Prisma.TodoGetPayload<T>[]> {
+  async findMany<T extends Prisma.TodoFindManyArgs>(query?: T): Promise<Prisma.TodoGetPayload<T>[]> {
     const records = await this.client.db.getAll("todo");
     return filterByWhereClause(records, this.keyPath, query?.where) as Prisma.TodoGetPayload<T>[];
   }
@@ -111,13 +124,13 @@ class IDBTodo extends BaseIDBModelClass {
   }
 
   async create(query: Prisma.TodoCreateArgs) {
-    await this.client.db.add("todo", query.data);
+    await this.client.db.add("todo", this.fillDefaults(query.data));
   }
 
   async createMany(query: Prisma.TodoCreateManyArgs) {
     const tx = this.client.db.transaction("todo", "readwrite");
     const queryData = Array.isArray(query.data) ? query.data : [query.data];
-    await Promise.all([...queryData.map((record) => tx.store.add(record)), tx.done]);
+    await Promise.all([...queryData.map((record) => tx.store.add(this.fillDefaults(record))), tx.done]);
   }
 
   async delete(query: Prisma.TodoDeleteArgs) {
@@ -130,7 +143,7 @@ class IDBTodo extends BaseIDBModelClass {
     );
   }
 
-  async deleteMany(query?: Prisma.TodoDeleteManyArgs | undefined) {
+  async deleteMany(query?: Prisma.TodoDeleteManyArgs) {
     const records = filterByWhereClause(await this.client.db.getAll("todo"), this.keyPath, query?.where);
     if (records.length === 0) return;
 
@@ -139,5 +152,11 @@ class IDBTodo extends BaseIDBModelClass {
       ...records.map((record) => tx.store.delete(this.keyPath.map((keyField) => record[keyField] as IDBValidKey))),
       tx.done,
     ]);
+  }
+
+  async fillDefaults(data: Prisma.XOR<Prisma.TodoCreateInput, Prisma.TodoUncheckedCreateInput>) {
+    if (data.status === undefined) {
+      data.status = "Pending";
+    }
   }
 }
