@@ -12,7 +12,6 @@ export function toCamelCase(str: string): string {
 export const formatFile = (content: string, filepath: string): Promise<string> => {
   return new Promise((res, rej) =>
     prettier.resolveConfig(filepath).then((options) => {
-      console.log(options, filepath);
       if (!options) res(content);
 
       try {
