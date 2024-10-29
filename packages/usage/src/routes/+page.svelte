@@ -6,7 +6,7 @@
 
   onMount(async () => {
     // Always instantiate on client-side (need IndexedDB)
-    client = await PrismaIDBClient.getInstance();
+    client = await PrismaIDBClient.create();
   });
 </script>
 

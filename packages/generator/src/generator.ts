@@ -147,7 +147,7 @@ generatorHandler({
             name: "findFirst",
             isAsync: true,
             typeParameters: [{ name: "T", constraint: `Prisma.${model.name}FindFirstArgs | undefined` }],
-            parameters: [{ name: "query", type: "T" }],
+            parameters: [{ name: "query?", type: "T" }],
             returnType: `Promise<Prisma.${model.name}GetPayload<T> | null>`,
             statements: (writer) => {
               // TODO: includes relations in here, use indexes
@@ -159,7 +159,7 @@ generatorHandler({
             name: "findMany",
             isAsync: true,
             typeParameters: [{ name: "T", constraint: `Prisma.${model.name}FindManyArgs | undefined` }],
-            parameters: [{ name: "query", type: "T" }],
+            parameters: [{ name: "query?", type: "T" }],
             returnType: `Promise<Prisma.${model.name}GetPayload<T>[]>`,
             statements: (writer) => {
               // TODO: orderBy, indexes
@@ -286,7 +286,7 @@ generatorHandler({
           {
             name: "deleteMany",
             isAsync: true,
-            parameters: [{ name: "query", type: `Prisma.${model.name}DeleteManyArgs | undefined` }],
+            parameters: [{ name: "query?", type: `Prisma.${model.name}DeleteManyArgs | undefined` }],
             statements: (writer) => {
               // TODO: handle cascades, use indexes
               writer
