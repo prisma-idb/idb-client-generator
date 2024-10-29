@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "idb": "^8.0.0",
+    "mode-watcher": "^0.4.1",
     "prisma": "^5.21.1",
     "uuid": "^11.0.1"
   }
