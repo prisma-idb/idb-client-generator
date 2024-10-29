@@ -125,6 +125,7 @@ generatorHandler({
       properties: [
         { name: "client", type: "PrismaIDBClient" },
         { name: "keyPath", type: "string[]" },
+        { name: "eventEmitter", type: "EventTarget", scope: Scope.Private },
       ],
       ctors: [
         {
@@ -135,7 +136,49 @@ generatorHandler({
           statements: (writer) => {
             writer.writeLine("this.client = client");
             writer.writeLine("this.keyPath = keyPath");
+            writer.writeLine("this.eventEmitter = new EventTarget()");
           },
+        },
+      ],
+      methods: [
+        {
+          name: "subscribe",
+          parameters: [
+            { name: "event", type: `"create" | "update" | "delete" | ("create" | "update" | "delete")[]` },
+            { name: "callback", type: "() => void" },
+          ],
+          statements: (writer) =>
+            writer
+              .writeLine(`if (Array.isArray(event)) {`)
+              .indent(() =>
+                writer
+                  .writeLine(`event.forEach((event) => this.eventEmitter.addEventListener(event, callback));`)
+                  .writeLine(`return;`),
+              )
+              .writeLine("}")
+              .writeLine(`this.eventEmitter.addEventListener(event, callback);`),
+        },
+        {
+          name: "unsubscribe",
+          parameters: [
+            { name: "event", type: `"create" | "update" | "delete" | ("create" | "update" | "delete")[]` },
+            { name: "callback", type: "() => void" },
+          ],
+          statements: (writer) =>
+            writer
+              .writeLine(`if (Array.isArray(event)) {`)
+              .indent(() =>
+                writer
+                  .writeLine(`event.forEach((event) => this.eventEmitter.removeEventListener(event, callback));`)
+                  .writeLine(`return;`),
+              )
+              .writeLine("}")
+              .writeLine(`this.eventEmitter.removeEventListener(event, callback);`),
+        },
+        {
+          name: "emit",
+          parameters: [{ name: "event", type: `"create" | "update" | "delete"` }],
+          statements: (writer) => writer.writeLine(`this.eventEmitter.dispatchEvent(new Event(event));`),
         },
       ],
     });
@@ -255,6 +298,7 @@ generatorHandler({
               } else {
                 writer.writeLine(`await this.client.db.add("${toCamelCase(model.name)}", ${queryKeyword}.data);`);
               }
+              writer.writeLine(`this.emit("create")`);
             },
           },
           {
@@ -278,6 +322,7 @@ generatorHandler({
                   writer.writeLine("tx.done");
                 })
                 .writeLine("])");
+              writer.writeLine(`this.emit("create")`);
             },
           },
           {
@@ -304,6 +349,7 @@ generatorHandler({
                   writer.writeLine(`this.keyPath.map((keyField) => records[0][keyField] as IDBValidKey),`);
                 })
                 .writeLine(`);`);
+              writer.writeLine(`this.emit("delete")`);
             },
           },
           {
@@ -337,6 +383,7 @@ generatorHandler({
                   writer.writeLine(`tx.done,`);
                 })
                 .writeLine(`]);`);
+              writer.writeLine(`this.emit("delete")`);
             },
           },
         ],

@@ -37,10 +37,32 @@ export class PrismaIDBClient {
 class BaseIDBModelClass {
   client: PrismaIDBClient;
   keyPath: string[];
+  private eventEmitter: EventTarget;
 
   constructor(client: PrismaIDBClient, keyPath: string[]) {
     this.client = client;
     this.keyPath = keyPath;
+    this.eventEmitter = new EventTarget();
+  }
+
+  subscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: () => void) {
+    if (Array.isArray(event)) {
+      event.forEach((event) => this.eventEmitter.addEventListener(event, callback));
+      return;
+    }
+    this.eventEmitter.addEventListener(event, callback);
+  }
+
+  unsubscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: () => void) {
+    if (Array.isArray(event)) {
+      event.forEach((event) => this.eventEmitter.removeEventListener(event, callback));
+      return;
+    }
+    this.eventEmitter.removeEventListener(event, callback);
+  }
+
+  emit(event: "create" | "update" | "delete") {
+    this.eventEmitter.dispatchEvent(new Event(event));
   }
 }
 
@@ -63,12 +85,14 @@ class IDBUser extends BaseIDBModelClass {
 
   async create(query: Prisma.UserCreateArgs) {
     await this.client.db.add("user", await this.fillDefaults(query.data));
+    this.emit("create");
   }
 
   async createMany(query: Prisma.UserCreateManyArgs) {
     const tx = this.client.db.transaction("user", "readwrite");
     const queryData = Array.isArray(query.data) ? query.data : [query.data];
     await Promise.all([...queryData.map(async (record) => tx.store.add(await this.fillDefaults(record))), tx.done]);
+    this.emit("create");
   }
 
   async delete(query: Prisma.UserDeleteArgs) {
@@ -79,6 +103,7 @@ class IDBUser extends BaseIDBModelClass {
       "user",
       this.keyPath.map((keyField) => records[0][keyField] as IDBValidKey),
     );
+    this.emit("delete");
   }
 
   async deleteMany(query?: Prisma.UserDeleteManyArgs) {
@@ -90,6 +115,7 @@ class IDBUser extends BaseIDBModelClass {
       ...records.map((record) => tx.store.delete(this.keyPath.map((keyField) => record[keyField] as IDBValidKey))),
       tx.done,
     ]);
+    this.emit("delete");
   }
 
   async fillDefaults(data: Prisma.XOR<Prisma.UserCreateInput, Prisma.UserUncheckedCreateInput>) {
@@ -126,12 +152,14 @@ class IDBTodo extends BaseIDBModelClass {
 
   async create(query: Prisma.TodoCreateArgs) {
     await this.client.db.add("todo", await this.fillDefaults(query.data));
+    this.emit("create");
   }
 
   async createMany(query: Prisma.TodoCreateManyArgs) {
     const tx = this.client.db.transaction("todo", "readwrite");
     const queryData = Array.isArray(query.data) ? query.data : [query.data];
     await Promise.all([...queryData.map(async (record) => tx.store.add(await this.fillDefaults(record))), tx.done]);
+    this.emit("create");
   }
 
   async delete(query: Prisma.TodoDeleteArgs) {
@@ -142,6 +170,7 @@ class IDBTodo extends BaseIDBModelClass {
       "todo",
       this.keyPath.map((keyField) => records[0][keyField] as IDBValidKey),
     );
+    this.emit("delete");
   }
 
   async deleteMany(query?: Prisma.TodoDeleteManyArgs) {
@@ -153,6 +182,7 @@ class IDBTodo extends BaseIDBModelClass {
       ...records.map((record) => tx.store.delete(this.keyPath.map((keyField) => record[keyField] as IDBValidKey))),
       tx.done,
     ]);
+    this.emit("delete");
   }
 
   async fillDefaults(data: Prisma.XOR<Prisma.TodoCreateInput, Prisma.TodoUncheckedCreateInput>) {
