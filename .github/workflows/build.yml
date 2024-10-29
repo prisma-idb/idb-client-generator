@@ -17,14 +17,14 @@ jobs:
         run: npm run lint --workspace=packages/generator
       - name: Lint usage
         run: npm run lint --workspace=packages/usage
-  
+
   svelte-check:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/
-      - name: Lint usage
+      - name: Run svelte-check
         run: npm run check --workspace=packages/usage
 
   test:
