@@ -17,8 +17,10 @@ export function addUpdateMethod(modelClass: ClassDeclaration, model: Model) {
 
       model.fields.forEach((field) => handleFieldUpdate(writer, field));
 
-      writer.writeLine(`await this.client.db.put("${toCamelCase(model.name)}", record);`);
-      writer.writeLine(`return record;`);
+      writer
+        .writeLine(`await this.client.db.put("${toCamelCase(model.name)}", record);`)
+        .writeLine(`this.emit("update");`)
+        .writeLine(`return record;`);
     },
   });
 }

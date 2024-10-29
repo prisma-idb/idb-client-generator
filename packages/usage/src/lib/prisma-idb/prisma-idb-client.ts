@@ -154,6 +154,7 @@ class IDBUser extends BaseIDBModelClass {
       throw new Error("Object updates not yet supported");
     }
     await this.client.db.put("user", record);
+    this.emit("update");
     return record;
   }
 }
@@ -248,6 +249,7 @@ class IDBTodo extends BaseIDBModelClass {
       }
     }
     await this.client.db.put("todo", record);
+    this.emit("update");
     return record;
   }
 }
