@@ -45,20 +45,20 @@ class BaseIDBModelClass {
 }
 
 class IDBUser extends BaseIDBModelClass {
-  async findFirst<T extends Prisma.UserFindFirstArgs>(
+  async findFirst<T extends Prisma.UserFindFirstArgs | undefined>(
     query: T,
   ): Promise<Prisma.UserGetPayload<T> | null> {
     return (await this.findMany(query))[0] ?? null;
   }
 
-  async findMany<T extends Prisma.UserFindManyArgs>(
+  async findMany<T extends Prisma.UserFindManyArgs | undefined>(
     query: T,
   ): Promise<Prisma.UserGetPayload<T>[]> {
     let records = await this.client.db.getAll("user");
     return filterByWhereClause(
       records,
       this.keyPath,
-      query.where,
+      query?.where,
     ) as Prisma.UserGetPayload<T>[];
   }
 
@@ -98,11 +98,11 @@ class IDBUser extends BaseIDBModelClass {
     );
   }
 
-  async deleteMany(query: Prisma.UserDeleteManyArgs) {
+  async deleteMany(query: Prisma.UserDeleteManyArgs | undefined) {
     const records = filterByWhereClause(
       await this.client.db.getAll("user"),
       this.keyPath,
-      query.where,
+      query?.where,
     );
     if (records.length === 0) return;
 
@@ -119,20 +119,20 @@ class IDBUser extends BaseIDBModelClass {
 }
 
 class IDBTodo extends BaseIDBModelClass {
-  async findFirst<T extends Prisma.TodoFindFirstArgs>(
+  async findFirst<T extends Prisma.TodoFindFirstArgs | undefined>(
     query: T,
   ): Promise<Prisma.TodoGetPayload<T> | null> {
     return (await this.findMany(query))[0] ?? null;
   }
 
-  async findMany<T extends Prisma.TodoFindManyArgs>(
+  async findMany<T extends Prisma.TodoFindManyArgs | undefined>(
     query: T,
   ): Promise<Prisma.TodoGetPayload<T>[]> {
     let records = await this.client.db.getAll("todo");
     return filterByWhereClause(
       records,
       this.keyPath,
-      query.where,
+      query?.where,
     ) as Prisma.TodoGetPayload<T>[];
   }
 
@@ -172,11 +172,11 @@ class IDBTodo extends BaseIDBModelClass {
     );
   }
 
-  async deleteMany(query: Prisma.TodoDeleteManyArgs) {
+  async deleteMany(query: Prisma.TodoDeleteManyArgs | undefined) {
     const records = filterByWhereClause(
       await this.client.db.getAll("todo"),
       this.keyPath,
-      query.where,
+      query?.where,
     );
     if (records.length === 0) return;
 

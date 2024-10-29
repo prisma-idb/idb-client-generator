@@ -146,7 +146,7 @@ generatorHandler({
           {
             name: "findFirst",
             isAsync: true,
-            typeParameters: [{ name: "T", constraint: `Prisma.${model.name}FindFirstArgs` }],
+            typeParameters: [{ name: "T", constraint: `Prisma.${model.name}FindFirstArgs | undefined` }],
             parameters: [{ name: "query", type: "T" }],
             returnType: `Promise<Prisma.${model.name}GetPayload<T> | null>`,
             statements: (writer) => {
@@ -158,7 +158,7 @@ generatorHandler({
           {
             name: "findMany",
             isAsync: true,
-            typeParameters: [{ name: "T", constraint: `Prisma.${model.name}FindManyArgs` }],
+            typeParameters: [{ name: "T", constraint: `Prisma.${model.name}FindManyArgs | undefined` }],
             parameters: [{ name: "query", type: "T" }],
             returnType: `Promise<Prisma.${model.name}GetPayload<T>[]>`,
             statements: (writer) => {
@@ -185,7 +185,7 @@ generatorHandler({
               writer
                 .writeLine(`return filterByWhereClause(`)
                 .indent(() => {
-                  writer.writeLine(`records, this.keyPath, query.where`);
+                  writer.writeLine(`records, this.keyPath, query?.where`);
                 })
                 .writeLine(`) as Prisma.${model.name}GetPayload<T>[];`);
             },
@@ -286,7 +286,7 @@ generatorHandler({
           {
             name: "deleteMany",
             isAsync: true,
-            parameters: [{ name: "query", type: `Prisma.${model.name}DeleteManyArgs` }],
+            parameters: [{ name: "query", type: `Prisma.${model.name}DeleteManyArgs | undefined` }],
             statements: (writer) => {
               // TODO: handle cascades, use indexes
               writer
@@ -294,7 +294,7 @@ generatorHandler({
                 .indent(() => {
                   writer.writeLine(`await this.client.db.getAll("${toCamelCase(model.name)}"),`);
                   writer.writeLine(`this.keyPath,`);
-                  writer.writeLine(`query.where,`);
+                  writer.writeLine(`query?.where,`);
                 })
                 .writeLine(`)`);
               writer.writeLine(`if (records.length === 0) return;`);
