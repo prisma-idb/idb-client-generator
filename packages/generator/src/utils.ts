@@ -9,10 +9,7 @@ export function toCamelCase(str: string): string {
     .replace(/^(.)/, (match) => match.toLowerCase());
 }
 
-export const formatFile = (
-  content: string,
-  filepath: string
-): Promise<string> => {
+export const formatFile = (content: string, filepath: string): Promise<string> => {
   return new Promise((res, rej) =>
     prettier.resolveConfig(filepath).then((options) => {
       console.log(options, filepath);
@@ -28,7 +25,7 @@ export const formatFile = (
       } catch (error) {
         rej(error);
       }
-    })
+    }),
   );
 };
 
@@ -44,15 +41,10 @@ export function generateIDBKey(model: DMMF.Datamodel["models"][number]) {
 
 export function getNonKeyUniqueFields(model: DMMF.Datamodel["models"][number]) {
   const keyPath = JSON.parse(generateIDBKey(model));
-  return model.fields.filter(
-    ({ isUnique, name }) => isUnique && !keyPath.includes(name)
-  );
+  return model.fields.filter(({ isUnique, name }) => isUnique && !keyPath.includes(name));
 }
 
-export const writeFileSafely = async (
-  writeLocation: string,
-  content: string
-) => {
+export const writeFileSafely = async (writeLocation: string, content: string) => {
   fs.mkdirSync(path.dirname(writeLocation), {
     recursive: true,
   });

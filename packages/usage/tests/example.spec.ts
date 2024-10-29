@@ -5,10 +5,6 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("has title and version", async ({ page }) => {
-  await expect(page.getByRole("heading")).toContainText(
-    "Prisma-IDB usage page",
-  );
-  await expect(page.getByRole("paragraph")).toContainText(
-    "Database version: 1",
-  );
+  await expect(page.getByRole("heading")).toContainText("Prisma-IDB usage page");
+  await expect(page.getByRole("paragraph")).toContainText("Database version: 1");
 });
