@@ -5,20 +5,19 @@
   import { Input } from "$lib/components/ui/input/index.js";
   import { Button, Root } from "$lib/components/ui/button";
   import * as Table from "$lib/components/ui/table";
+  import { ModeWatcher } from "mode-watcher";
+  import TodosTable from "./(components)/TodosTable.svelte";
 
   let client: PrismaIDBClient;
-  let isCompleted = $state(false);
 
   let allTodos = $state([{}]);
 
   const formData = {
     id: "",
     task: "",
-    isCompleted,
   };
 
-  let task = "";
-
+  let task = $state("");
   let id: String;
 
   function handleChange(event: Event) {
@@ -31,11 +30,9 @@
     let id = uuidv4();
     formData.task = task;
     formData.id = id;
-    formData.isCompleted = isCompleted;
-    console.log(formData);
     await client.todo.create({ data: formData });
-
     allTodos = await client.todo.findMany([]);
+    task = "";
   }
 
   async function deleteTask(id: String) {
@@ -44,7 +41,7 @@
         id: id,
       },
     });
-    
+
     allTodos = await client.todo.findMany([]);
   }
 
@@ -55,31 +52,32 @@
   });
 </script>
 
-<main class="prose max-w-full">
-  <div class="space-y-2">
-    <Input type="text" placeholder="Enter task" class="max-w-xs" on:input={handleChange} />
-    <button onclick={AddTask}>Add Task</button>
-    <input type="checkbox" bind:checked={isCompleted} />Completed
-
-    <!-- <button onclick={Read}>Fetch</button> -->
+<div class="prose mt-5 flex max-w-full flex-col gap-5">
+  <h1 class="text-center font-bold">TODO</h1>
+  <div class="flex items-center justify-center space-x-2">
+    <Input type="text" placeholder="Enter Task" class="max-w-xs" bind:value={task} on:input={handleChange} />
+    <Button variant="secondary" onclick={AddTask}>Add Task</Button>
+  </div>
+  <div>
     <Table.Root>
       <Table.Header>
         <Table.Row>
-          <Table.Head class="w-[100px]">Id</Table.Head>
+          <Table.Head>Task Id</Table.Head>
           <Table.Head>Task</Table.Head>
-          <Table.Head>Completed</Table.Head>
         </Table.Row>
       </Table.Header>
       <Table.Body>
         {#each allTodos as allTodo}
-          <Table.Row>
+          <Table.Row class="w-fit">
             <Table.Cell>{allTodo.id}</Table.Cell>
             <Table.Cell>{allTodo.task}</Table.Cell>
-            <Table.Cell>{allTodo.isCompleted}</Table.Cell>
-            <Table.Cell><button onclick={() => deleteTask(allTodo.id)}>delete task</button></Table.Cell>
+            <Table.Cell class="w-fit text-right"
+              ><Button variant="destructive" onclick={() => deleteTask(allTodo.id)}>Delete Task</Button></Table.Cell
+            >
           </Table.Row>
         {/each}
       </Table.Body>
     </Table.Root>
   </div>
-</main>
+  <ModeWatcher />
+</div>
