@@ -8,6 +8,7 @@ import { addFindManyMethod } from "./CRUD/findMany";
 import { FunctionalDefaultValue, Model } from "./types";
 import { getModelFieldData, toCamelCase } from "./utils";
 import { addFindUniqueMethod } from "./CRUD/findUnique";
+import { addUpdateMethod } from "./CRUD/update";
 
 export function addModelClass(file: SourceFile, model: Model) {
   const modelClass = file.addClass({ name: `IDB${model.name}`, extends: "BaseIDBModelClass" });
@@ -25,6 +26,9 @@ export function addModelClass(file: SourceFile, model: Model) {
   // Delete methods
   addDeleteMethod(modelClass, model);
   addDeleteManyMethod(modelClass, model);
+
+  // Update methods
+  addUpdateMethod(modelClass, model);
 }
 
 function addFillDefaultsFunction(modelClass: ClassDeclaration, model: Model) {

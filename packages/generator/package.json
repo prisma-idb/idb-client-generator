@@ -1,7 +1,7 @@
 {
   "name": "@prisma-idb/prisma-idb-generator",
   "description": "Generate types for idb from prisma schema",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "main": "dist/generator.js",
   "license": "MIT",
   "bin": {
