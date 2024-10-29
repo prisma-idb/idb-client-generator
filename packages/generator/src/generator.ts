@@ -163,7 +163,7 @@ generatorHandler({
             returnType: `Promise<Prisma.${model.name}GetPayload<T>[]>`,
             statements: (writer) => {
               // TODO: orderBy, indexes
-              writer.writeLine(`let records = await this.client.db.getAll("${toCamelCase(model.name)}");`);
+              writer.writeLine(`const records = await this.client.db.getAll("${toCamelCase(model.name)}");`);
               // TODO: includes and nested select part
               // const relationFields = model.fields.filter(({ kind }) => kind === "object");
               // relationFields.forEach((field) => {

@@ -9,9 +9,10 @@ export function toCamelCase(str: string): string {
     .replace(/^(.)/, (match) => match.toLowerCase());
 }
 
-export const formatFile = (content: string): Promise<string> => {
+export const formatFile = (content: string, filepath: string): Promise<string> => {
   return new Promise((res, rej) =>
-    prettier.resolveConfig(process.cwd()).then((options) => {
+    prettier.resolveConfig(filepath).then((options) => {
+      console.log(options, filepath);
       if (!options) res(content);
 
       try {
@@ -48,5 +49,5 @@ export const writeFileSafely = async (writeLocation: string, content: string) =>
     recursive: true,
   });
 
-  fs.writeFileSync(writeLocation, await formatFile(content));
+  fs.writeFileSync(writeLocation, await formatFile(content, writeLocation));
 };

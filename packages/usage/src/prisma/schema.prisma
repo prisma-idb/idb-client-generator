@@ -13,7 +13,7 @@ generator prismaIDB {
 }
 
 model User {
-  name  String @id
+  id    Int    @id @default(autoincrement())
   todos Todo[]
 }
 
@@ -23,9 +23,9 @@ enum Status {
 }
 
 model Todo {
-  id       Int     @id
-  task     String
-  status   Status
-  user     User?   @relation(fields: [userName], references: [name])
-  userName String?
+  id     Int    @id
+  task   String
+  status Status
+  user   User   @relation(fields: [userId], references: [id])
+  userId Int
 }

@@ -1,9 +1,6 @@
 <script lang="ts" module>
   import type { WithElementRef } from "bits-ui";
-  import type {
-    HTMLAnchorAttributes,
-    HTMLButtonAttributes,
-  } from "svelte/elements";
+  import type { HTMLAnchorAttributes, HTMLButtonAttributes } from "svelte/elements";
   import { type VariantProps, tv } from "tailwind-variants";
 
   export const buttonVariants = tv({
@@ -11,12 +8,9 @@
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline:
-          "border-input bg-background hover:bg-accent hover:text-accent-foreground border",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        outline: "border-input bg-background hover:bg-accent hover:text-accent-foreground border",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
       },
@@ -59,21 +53,11 @@
 </script>
 
 {#if href}
-  <a
-    bind:this={ref}
-    class={cn(buttonVariants({ variant, size, className }))}
-    {href}
-    {...restProps}
-  >
+  <a bind:this={ref} class={cn(buttonVariants({ variant, size, className }))} {href} {...restProps}>
     {@render children?.()}
   </a>
 {:else}
-  <button
-    bind:this={ref}
-    class={cn(buttonVariants({ variant, size, className }))}
-    {type}
-    {...restProps}
-  >
+  <button bind:this={ref} class={cn(buttonVariants({ variant, size, className }))} {type} {...restProps}>
     {@render children?.()}
   </button>
 {/if}
