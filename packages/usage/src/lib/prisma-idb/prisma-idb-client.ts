@@ -98,11 +98,12 @@ class IDBUser extends BaseIDBModelClass {
       const store = transaction.objectStore("user");
       const cursor = await store.openCursor(null, "prev");
       if (cursor) {
-        data.id = (cursor.key as number) + 1;
+        data.id = Number(cursor.key) + 1;
       } else {
         data.id = 1;
       }
     }
+    return data;
   }
 }
 
@@ -158,5 +159,6 @@ class IDBTodo extends BaseIDBModelClass {
     if (data.status === undefined) {
       data.status = "Pending";
     }
+    return data;
   }
 }

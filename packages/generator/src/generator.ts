@@ -269,7 +269,9 @@ generatorHandler({
                 .indent(() => {
                   // TODO: full prisma query mapping with modifiers (@autoincrement, @cuid, @default, etc.)
                   if (totalDefaultFields > 0) {
-                    writer.writeLine(`...queryData.map(async (record) => tx.store.add(await this.fillDefaults(record))),`);
+                    writer.writeLine(
+                      `...queryData.map(async (record) => tx.store.add(await this.fillDefaults(record))),`,
+                    );
                   } else {
                     writer.writeLine(`...queryData.map((record) => tx.store.add(record)),`);
                   }
@@ -380,7 +382,7 @@ generatorHandler({
                         .writeLine("const cursor = await store.openCursor(null, 'prev');")
                         .writeLine("if (cursor) {")
                         .indent(() => {
-                          writer.writeLine(`data.${field.name} = cursor.key as number + 1;`);
+                          writer.writeLine(`data.${field.name} = Number(cursor.key) + 1;`);
                         })
                         .writeLine("} else {")
                         .indent(() => {
@@ -398,6 +400,8 @@ generatorHandler({
                 })
                 .writeLine("}");
             });
+
+          writer.writeLine("return data");
         },
       });
     });
