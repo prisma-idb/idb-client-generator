@@ -15,7 +15,7 @@ export class PrismaIDBClient {
 
   public static async create(): Promise<PrismaIDBClient> {
     if (!PrismaIDBClient.instance) {
-      const client = (PrismaIDBClient.instance = new PrismaIDBClient());
+      const client = new PrismaIDBClient();
       await client.initialize();
       PrismaIDBClient.instance = client;
     }

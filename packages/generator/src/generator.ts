@@ -69,7 +69,7 @@ generatorHandler({
               .writeLine("if (!PrismaIDBClient.instance) {")
               .indent(() => {
                 writer
-                  .writeLine("const client = PrismaIDBClient.instance = new PrismaIDBClient();")
+                  .writeLine("const client = new PrismaIDBClient();")
                   .writeLine("await client.initialize();")
                   .writeLine("PrismaIDBClient.instance = client;");
               })
