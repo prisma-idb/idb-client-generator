@@ -6,7 +6,6 @@
 	],
 	"devDependencies": {
 		"@eslint/js": "^9.13.0",
-		"@prisma-idb/prisma-idb-generator": "^0.0.12",
 		"eslint": "^9.13.0",
 		"eslint-plugin-import": "^2.31.0",
 		"eslint-plugin-n": "^17.11.1",
