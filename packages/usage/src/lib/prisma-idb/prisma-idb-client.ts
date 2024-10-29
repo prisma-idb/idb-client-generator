@@ -8,70 +8,187 @@ const IDB_VERSION: number = 1;
 export class PrismaIDBClient {
   private static instance: PrismaIDBClient;
   db!: IDBPDatabase;
+  user!: IDBUser;
   todo!: IDBTodo;
 
   private constructor() {}
 
-  static async getInstance(): Promise<PrismaIDBClient> {
+  public static async create(): Promise<PrismaIDBClient> {
     if (!PrismaIDBClient.instance) {
-      PrismaIDBClient.instance = new PrismaIDBClient();
-      await PrismaIDBClient.instance.createDatabase();
+      const client = new PrismaIDBClient();
+      await client.initialize();
+      PrismaIDBClient.instance = client;
     }
     return PrismaIDBClient.instance;
   }
 
-  protected async createDatabase() {
+  private async initialize() {
     this.db = await openDB("prisma-idb", IDB_VERSION, {
       upgrade(db) {
+        db.createObjectStore("user", { keyPath: ["id"] });
         db.createObjectStore("todo", { keyPath: ["id"] });
       },
     });
-    this.todo = new IDBTodo(this.db, ["id"]);
+    this.user = new IDBUser(this, ["id"]);
+    this.todo = new IDBTodo(this, ["id"]);
   }
 }
 
 class BaseIDBModelClass {
-  db: IDBPDatabase;
+  client: PrismaIDBClient;
   keyPath: string[];
+  private eventEmitter: EventTarget;
 
-  constructor(db: IDBPDatabase, keyPath: string[]) {
-    this.db = db;
+  constructor(client: PrismaIDBClient, keyPath: string[]) {
+    this.client = client;
     this.keyPath = keyPath;
+    this.eventEmitter = new EventTarget();
+  }
+
+  subscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: () => void) {
+    if (Array.isArray(event)) {
+      event.forEach((event) => this.eventEmitter.addEventListener(event, callback));
+      return;
+    }
+    this.eventEmitter.addEventListener(event, callback);
+  }
+
+  unsubscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: () => void) {
+    if (Array.isArray(event)) {
+      event.forEach((event) => this.eventEmitter.removeEventListener(event, callback));
+      return;
+    }
+    this.eventEmitter.removeEventListener(event, callback);
+  }
+
+  emit(event: "create" | "update" | "delete") {
+    this.eventEmitter.dispatchEvent(new Event(event));
+  }
+}
+
+class IDBUser extends BaseIDBModelClass {
+  async findFirst<T extends Prisma.UserFindFirstArgs>(query?: T): Promise<Prisma.UserGetPayload<T> | null> {
+    return (await this.findMany(query))[0] ?? null;
+  }
+
+  async findMany<T extends Prisma.UserFindManyArgs>(query?: T): Promise<Prisma.UserGetPayload<T>[]> {
+    const records = await this.client.db.getAll("user");
+    return filterByWhereClause(records, this.keyPath, query?.where) as Prisma.UserGetPayload<T>[];
+  }
+
+  async findUnique<T extends Prisma.UserFindUniqueArgs>(query: T): Promise<Prisma.UserGetPayload<T> | null> {
+    if (query.where.id) {
+      return (await this.client.db.get("user", [query.where.id])) ?? null;
+    }
+    throw new Error("No unique field provided in the where clause");
+  }
+
+  async create(query: Prisma.UserCreateArgs) {
+    await this.client.db.add("user", await this.fillDefaults(query.data));
+    this.emit("create");
+  }
+
+  async createMany(query: Prisma.UserCreateManyArgs) {
+    const tx = this.client.db.transaction("user", "readwrite");
+    const queryData = Array.isArray(query.data) ? query.data : [query.data];
+    await Promise.all([...queryData.map(async (record) => tx.store.add(await this.fillDefaults(record))), tx.done]);
+    this.emit("create");
+  }
+
+  async delete(query: Prisma.UserDeleteArgs) {
+    const records = filterByWhereClause(await this.client.db.getAll("user"), this.keyPath, query.where);
+    if (records.length === 0) return;
+
+    await this.client.db.delete(
+      "user",
+      this.keyPath.map((keyField) => records[0][keyField] as IDBValidKey),
+    );
+    this.emit("delete");
+  }
+
+  async deleteMany(query?: Prisma.UserDeleteManyArgs) {
+    const records = filterByWhereClause(await this.client.db.getAll("user"), this.keyPath, query?.where);
+    if (records.length === 0) return;
+
+    const tx = this.client.db.transaction("user", "readwrite");
+    await Promise.all([
+      ...records.map((record) => tx.store.delete(this.keyPath.map((keyField) => record[keyField] as IDBValidKey))),
+      tx.done,
+    ]);
+    this.emit("delete");
+  }
+
+  async fillDefaults(data: Prisma.XOR<Prisma.UserCreateInput, Prisma.UserUncheckedCreateInput>) {
+    if (data.id === undefined) {
+      const transaction = this.client.db.transaction("user", "readonly");
+      const store = transaction.objectStore("user");
+      const cursor = await store.openCursor(null, "prev");
+      if (cursor) {
+        data.id = Number(cursor.key) + 1;
+      } else {
+        data.id = 1;
+      }
+    }
+    return data;
   }
 }
 
 class IDBTodo extends BaseIDBModelClass {
-  async findFirst<T extends Prisma.TodoFindFirstArgs>(query: T): Promise<Prisma.TodoGetPayload<T> | null> {
-    const records = filterByWhereClause(
-      await this.db.getAll("todo"),
-      this.keyPath,
-      query.where,
-    ) as Prisma.TodoGetPayload<T>[];
-    return records[0] ?? null;
+  async findFirst<T extends Prisma.TodoFindFirstArgs>(query?: T): Promise<Prisma.TodoGetPayload<T> | null> {
+    return (await this.findMany(query))[0] ?? null;
   }
 
-  async findMany<T extends Prisma.TodoFindManyArgs>(query: T): Promise<Prisma.TodoGetPayload<T>[]> {
-    return await this.db.getAll("todo");
+  async findMany<T extends Prisma.TodoFindManyArgs>(query?: T): Promise<Prisma.TodoGetPayload<T>[]> {
+    const records = await this.client.db.getAll("todo");
+    return filterByWhereClause(records, this.keyPath, query?.where) as Prisma.TodoGetPayload<T>[];
   }
 
   async findUnique<T extends Prisma.TodoFindUniqueArgs>(query: T): Promise<Prisma.TodoGetPayload<T> | null> {
     if (query.where.id) {
-      return (await this.db.get("todo", [query.where.id])) ?? null;
+      return (await this.client.db.get("todo", [query.where.id])) ?? null;
     }
     throw new Error("No unique field provided in the where clause");
   }
 
   async create(query: Prisma.TodoCreateArgs) {
-    await this.db.add("todo", query.data);
+    await this.client.db.add("todo", await this.fillDefaults(query.data));
+    this.emit("create");
   }
 
   async createMany(query: Prisma.TodoCreateManyArgs) {
-    const tx = this.db.transaction("todo", "readwrite");
+    const tx = this.client.db.transaction("todo", "readwrite");
     const queryData = Array.isArray(query.data) ? query.data : [query.data];
-    await Promise.all([...queryData.map((record) => tx.store.add(record)), tx.done]);
+    await Promise.all([...queryData.map(async (record) => tx.store.add(await this.fillDefaults(record))), tx.done]);
+    this.emit("create");
   }
 
-  async delete(query: Prisma.TodoDeleteArgs) {}
+  async delete(query: Prisma.TodoDeleteArgs) {
+    const records = filterByWhereClause(await this.client.db.getAll("todo"), this.keyPath, query.where);
+    if (records.length === 0) return;
 
-  async deleteMany(query: Prisma.TodoDeleteManyArgs) {}
+    await this.client.db.delete(
+      "todo",
+      this.keyPath.map((keyField) => records[0][keyField] as IDBValidKey),
+    );
+    this.emit("delete");
+  }
+
+  async deleteMany(query?: Prisma.TodoDeleteManyArgs) {
+    const records = filterByWhereClause(await this.client.db.getAll("todo"), this.keyPath, query?.where);
+    if (records.length === 0) return;
+
+    const tx = this.client.db.transaction("todo", "readwrite");
+    await Promise.all([
+      ...records.map((record) => tx.store.delete(this.keyPath.map((keyField) => record[keyField] as IDBValidKey))),
+      tx.done,
+    ]);
+    this.emit("delete");
+  }
+
+  async fillDefaults(data: Prisma.XOR<Prisma.TodoCreateInput, Prisma.TodoUncheckedCreateInput>) {
+    if (data.status === undefined) {
+      data.status = "Pending";
+    }
+    return data;
+  }
 }

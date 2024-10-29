@@ -33,32 +33,33 @@
     formData.id = id;
     formData.isCompleted = isCompleted;
     console.log(formData);
-    client.todo.create({ data: formData });
-    
-    allTodos = await client.todo.findMany([])
+    await client.todo.create({ data: formData });
+
+    allTodos = await client.todo.findMany([]);
   }
 
-
+  async function deleteTask(id: String) {
+    await client.todo.delete({
+      where: {
+        id: id,
+      },
+    });
+    
+    allTodos = await client.todo.findMany([]);
+  }
 
   onMount(async () => {
     // Always instantiate on client-side (need IndexedDB)
-    client = await PrismaIDBClient.getInstance();
+    client = await PrismaIDBClient.create();
     allTodos = await client.todo.findMany([]);
   });
-
-  
 </script>
 
 <main class="prose max-w-full">
   <div class="space-y-2">
-    <Input
-      type="text"
-      placeholder="Enter task"
-      class="max-w-xs"
-      on:input={handleChange}
-    />
+    <Input type="text" placeholder="Enter task" class="max-w-xs" on:input={handleChange} />
     <button onclick={AddTask}>Add Task</button>
-    <input type="checkbox" bind:checked={isCompleted} />is Completed
+    <input type="checkbox" bind:checked={isCompleted} />Completed
 
     <!-- <button onclick={Read}>Fetch</button> -->
     <Table.Root>
@@ -75,6 +76,7 @@
             <Table.Cell>{allTodo.id}</Table.Cell>
             <Table.Cell>{allTodo.task}</Table.Cell>
             <Table.Cell>{allTodo.isCompleted}</Table.Cell>
+            <Table.Cell><button onclick={() => deleteTask(allTodo.id)}>delete task</button></Table.Cell>
           </Table.Row>
         {/each}
       </Table.Body>
