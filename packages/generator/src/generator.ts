@@ -250,7 +250,7 @@ generatorHandler({
               const queryKeyword = allRequiredFieldsHaveDefaults ? "query?" : "query";
               if (totalDefaultFields > 0) {
                 writer.writeLine(
-                  `await this.client.db.add("${toCamelCase(model.name)}", this.fillDefaults(${queryKeyword}.data));`,
+                  `await this.client.db.add("${toCamelCase(model.name)}", await this.fillDefaults(${queryKeyword}.data));`,
                 );
               } else {
                 writer.writeLine(`await this.client.db.add("${toCamelCase(model.name)}", ${queryKeyword}.data);`);
@@ -269,7 +269,7 @@ generatorHandler({
                 .indent(() => {
                   // TODO: full prisma query mapping with modifiers (@autoincrement, @cuid, @default, etc.)
                   if (totalDefaultFields > 0) {
-                    writer.writeLine(`...queryData.map((record) => tx.store.add(this.fillDefaults(record))),`);
+                    writer.writeLine(`...queryData.map(async (record) => tx.store.add(await this.fillDefaults(record))),`);
                   } else {
                     writer.writeLine(`...queryData.map((record) => tx.store.add(record)),`);
                   }

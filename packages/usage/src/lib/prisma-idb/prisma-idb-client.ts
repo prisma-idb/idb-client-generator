@@ -62,13 +62,13 @@ class IDBUser extends BaseIDBModelClass {
   }
 
   async create(query: Prisma.UserCreateArgs) {
-    await this.client.db.add("user", this.fillDefaults(query.data));
+    await this.client.db.add("user", await this.fillDefaults(query.data));
   }
 
   async createMany(query: Prisma.UserCreateManyArgs) {
     const tx = this.client.db.transaction("user", "readwrite");
     const queryData = Array.isArray(query.data) ? query.data : [query.data];
-    await Promise.all([...queryData.map((record) => tx.store.add(this.fillDefaults(record))), tx.done]);
+    await Promise.all([...queryData.map(async (record) => tx.store.add(await this.fillDefaults(record))), tx.done]);
   }
 
   async delete(query: Prisma.UserDeleteArgs) {
@@ -124,13 +124,13 @@ class IDBTodo extends BaseIDBModelClass {
   }
 
   async create(query: Prisma.TodoCreateArgs) {
-    await this.client.db.add("todo", this.fillDefaults(query.data));
+    await this.client.db.add("todo", await this.fillDefaults(query.data));
   }
 
   async createMany(query: Prisma.TodoCreateManyArgs) {
     const tx = this.client.db.transaction("todo", "readwrite");
     const queryData = Array.isArray(query.data) ? query.data : [query.data];
-    await Promise.all([...queryData.map((record) => tx.store.add(this.fillDefaults(record))), tx.done]);
+    await Promise.all([...queryData.map(async (record) => tx.store.add(await this.fillDefaults(record))), tx.done]);
   }
 
   async delete(query: Prisma.TodoDeleteArgs) {
