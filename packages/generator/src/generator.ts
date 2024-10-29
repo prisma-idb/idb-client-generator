@@ -59,25 +59,27 @@ generatorHandler({
       ],
       methods: [
         {
-          name: "getInstance",
+          name: "create",
           isStatic: true,
           isAsync: true,
+          scope: Scope.Public,
           returnType: "Promise<PrismaIDBClient>",
           statements: (writer) => {
             writer
               .writeLine("if (!PrismaIDBClient.instance) {")
               .indent(() => {
                 writer
-                  .writeLine("PrismaIDBClient.instance = new PrismaIDBClient();")
-                  .writeLine("await PrismaIDBClient.instance.createDatabase();");
+                  .writeLine("const client = PrismaIDBClient.instance = new PrismaIDBClient();")
+                  .writeLine("await client.initialize();")
+                  .writeLine("PrismaIDBClient.instance = client;");
               })
               .writeLine("}")
               .writeLine("return PrismaIDBClient.instance;");
           },
         },
         {
-          name: "createDatabase",
-          scope: Scope.Protected,
+          name: "initialize",
+          scope: Scope.Private,
           isAsync: true,
           statements: (writer) => {
             writer

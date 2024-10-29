@@ -13,15 +13,16 @@ export class PrismaIDBClient {
 
   private constructor() {}
 
-  static async getInstance(): Promise<PrismaIDBClient> {
+  public static async create(): Promise<PrismaIDBClient> {
     if (!PrismaIDBClient.instance) {
-      PrismaIDBClient.instance = new PrismaIDBClient();
-      await PrismaIDBClient.instance.createDatabase();
+      const client = (PrismaIDBClient.instance = new PrismaIDBClient());
+      await client.initialize();
+      PrismaIDBClient.instance = client;
     }
     return PrismaIDBClient.instance;
   }
 
-  protected async createDatabase() {
+  private async initialize() {
     this.db = await openDB("prisma-idb", IDB_VERSION, {
       upgrade(db) {
         db.createObjectStore("user", { keyPath: ["name"] });
