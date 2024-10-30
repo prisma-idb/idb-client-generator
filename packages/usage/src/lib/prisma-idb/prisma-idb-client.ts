@@ -127,21 +127,21 @@ class IDBTodo extends BaseIDBModelClass {
   async update<T extends Prisma.TodoUpdateArgs>(query: T): Promise<Prisma.TodoGetPayload<T> | null> {
     const record = await this.findFirst(query);
     if (record === null) return null;
-    if (query.data.id) {
+    if (query.data.id !== undefined) {
       if (typeof query.data.id === "string") {
         record.id = query.data.id;
       } else {
         throw new Error("Indirect updates not yet supported");
       }
     }
-    if (query.data.task) {
+    if (query.data.task !== undefined) {
       if (typeof query.data.task === "string") {
         record.task = query.data.task;
       } else {
         throw new Error("Indirect updates not yet supported");
       }
     }
-    if (query.data.isCompleted) {
+    if (query.data.isCompleted !== undefined) {
       if (typeof query.data.isCompleted === "boolean") {
         record.isCompleted = query.data.isCompleted;
       } else {
