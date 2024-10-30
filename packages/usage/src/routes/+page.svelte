@@ -62,6 +62,8 @@
         <Table.Row>
           <Table.Head>Task Id</Table.Head>
           <Table.Head>Task</Table.Head>
+          <Table.Head>Status</Table.Head>
+          <Table.Head>Actions</Table.Head>
         </Table.Row>
       </Table.Header>
       <Table.Body>
@@ -73,12 +75,10 @@
               <input
                 type="checkbox"
                 bind:checked={allTodo.isCompleted}
-                onchange={(event) => {
-                  updateStatus(allTodo.id, event);
-                }}
+                onchange={(event) => updateStatus(allTodo.id, event)}
               />
             </Table.Cell>
-            <Table.Cell class="w-fit text-right">
+            <Table.Cell class="w-fit">
               <Button variant="destructive" onclick={() => deleteTask(allTodo.id)}>Delete Task</Button>
             </Table.Cell>
           </Table.Row>
