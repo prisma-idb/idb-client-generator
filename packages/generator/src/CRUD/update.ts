@@ -27,7 +27,7 @@ export function addUpdateMethod(modelClass: ClassDeclaration, model: Model) {
 
 function handleFieldUpdate(writer: CodeBlockWriter, field: Field) {
   writer
-    .writeLine(`if (query.data.${field.name}) {`)
+    .writeLine(`if (query.data.${field.name} !== undefined) {`)
     .indent(() => {
       if (field.kind === "object") {
         handleObjectField(writer);

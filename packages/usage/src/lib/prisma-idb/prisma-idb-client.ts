@@ -136,21 +136,21 @@ class IDBUser extends BaseIDBModelClass {
   async update<T extends Prisma.UserUpdateArgs>(query: T): Promise<Prisma.UserGetPayload<T> | null> {
     const record = await this.findFirst(query);
     if (record === null) return null;
-    if (query.data.id) {
+    if (query.data.id !== undefined) {
       if (typeof query.data.id === "number") {
         record.id = query.data.id;
       } else {
         throw new Error("Indirect updates not yet supported");
       }
     }
-    if (query.data.name) {
+    if (query.data.name !== undefined) {
       if (typeof query.data.name === "string") {
         record.name = query.data.name;
       } else {
         throw new Error("Indirect updates not yet supported");
       }
     }
-    if (query.data.todos) {
+    if (query.data.todos !== undefined) {
       throw new Error("Object updates not yet supported");
     }
     await this.client.db.put("user", record);
@@ -221,27 +221,27 @@ class IDBTodo extends BaseIDBModelClass {
   async update<T extends Prisma.TodoUpdateArgs>(query: T): Promise<Prisma.TodoGetPayload<T> | null> {
     const record = await this.findFirst(query);
     if (record === null) return null;
-    if (query.data.id) {
+    if (query.data.id !== undefined) {
       if (typeof query.data.id === "number") {
         record.id = query.data.id;
       } else {
         throw new Error("Indirect updates not yet supported");
       }
     }
-    if (query.data.task) {
+    if (query.data.task !== undefined) {
       if (typeof query.data.task === "string") {
         record.task = query.data.task;
       } else {
         throw new Error("Indirect updates not yet supported");
       }
     }
-    if (query.data.status) {
+    if (query.data.status !== undefined) {
       throw new Error("Unsupported type: Status");
     }
-    if (query.data.user) {
+    if (query.data.user !== undefined) {
       throw new Error("Object updates not yet supported");
     }
-    if (query.data.userId) {
+    if (query.data.userId !== undefined) {
       if (typeof query.data.userId === "number") {
         record.userId = query.data.userId;
       } else {
