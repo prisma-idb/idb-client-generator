@@ -1,17 +1,17 @@
-name: 'Node and Dependency install'
+name: "Node and Dependency install"
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: lts/*
-        cache: 'npm'
-    
+        cache: "npm"
+
     - name: Install package dependencies
       shell: bash
       run: npm ci --workspace=packages/generator
-    
+
     - name: Build package
       shell: bash
       run: npm run build --workspace=packages/generator

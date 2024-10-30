@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.45.3",
+    "@prisma-idb/prisma-idb-generator": "*",
     "@prisma/client": "^5.21.1",
     "@sveltejs/adapter-auto": "^3.0.0",
     "@sveltejs/kit": "^2.0.0",
@@ -26,15 +27,17 @@
     "@tailwindcss/typography": "^0.5.15",
     "@types/eslint": "^9.6.0",
     "autoprefixer": "^10.4.20",
-    "bits-ui": "^1.0.0-next.30",
+    "bits-ui": "^1.0.0-next.33",
     "clsx": "^2.1.1",
     "eslint": "^9.7.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-svelte": "^2.36.0",
     "globals": "^15.0.0",
+    "lucide-svelte": "^0.454.0",
     "prettier": "^3.3.2",
     "prettier-plugin-svelte": "^3.2.6",
     "prettier-plugin-tailwindcss": "^0.6.5",
+    "prisma": "^5.21.1",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
     "tailwind-merge": "^2.5.4",
@@ -46,6 +49,8 @@
     "vite": "^5.0.3"
   },
   "dependencies": {
-    "@prisma-idb/prisma-idb-generator": "*"
+    "idb": "^8.0.0",
+    "mode-watcher": "^0.4.1",
+    "uuid": "^11.0.2"
   }
 }

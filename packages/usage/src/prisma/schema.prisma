@@ -12,21 +12,8 @@ generator prismaIDB {
   output   = "../lib/prisma-idb"
 }
 
-model User {
-  id    Int    @id @default(autoincrement())
-  name  String
-  todos Todo[]
-}
-
-enum Status {
-  Pending
-  Completed
-}
-
 model Todo {
-  id     Int    @id
-  task   String
-  status Status @default(Pending)
-  user   User   @relation(fields: [userId], references: [id])
-  userId Int
+  id          String  @id @default(uuid())
+  task        String
+  isCompleted Boolean
 }
