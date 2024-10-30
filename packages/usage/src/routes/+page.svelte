@@ -53,7 +53,7 @@
 <div class="prose mt-5 flex max-w-full flex-col gap-5">
   <h1 class="text-center font-bold">TODO</h1>
   <div class="flex items-center justify-center space-x-2">
-    <Input type="text" placeholder="Enter Task" class="max-w-xs" bind:value={task} on:input={handleChange} />
+    <Input type="text" placeholder="Enter Task" class="max-w-xs" bind:value={task} oninput={handleChange} />
     <Button variant="secondary" onclick={addTask}>Add Task</Button>
   </div>
   <div>
