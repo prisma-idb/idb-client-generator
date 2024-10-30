@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.45.3",
-    "@prisma-idb/prisma-idb-generator": "^0.0.14",
+    "@prisma-idb/prisma-idb-generator": "*",
     "@prisma/client": "^5.21.1",
     "@sveltejs/adapter-auto": "^3.0.0",
     "@sveltejs/kit": "^2.0.0",
@@ -37,6 +37,7 @@
     "prettier": "^3.3.2",
     "prettier-plugin-svelte": "^3.2.6",
     "prettier-plugin-tailwindcss": "^0.6.5",
+    "prisma": "^5.21.1",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
     "tailwind-merge": "^2.5.4",
@@ -50,7 +51,6 @@
   "dependencies": {
     "idb": "^8.0.0",
     "mode-watcher": "^0.4.1",
-    "prisma": "^5.21.1",
     "uuid": "^11.0.1"
   }
 }

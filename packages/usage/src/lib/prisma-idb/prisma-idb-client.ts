@@ -2,6 +2,7 @@ import { openDB } from "idb";
 import type { IDBPDatabase } from "idb";
 import type { Prisma } from "@prisma/client";
 import { filterByWhereClause } from "./utils";
+import { v4 as uuidv4 } from "uuid";
 
 const IDB_VERSION: number = 1;
 
@@ -65,6 +66,13 @@ class BaseIDBModelClass {
 }
 
 class IDBTodo extends BaseIDBModelClass {
+  async fillDefaults(data: Prisma.XOR<Prisma.TodoCreateInput, Prisma.TodoUncheckedCreateInput>) {
+    if (data.id === undefined) {
+      data.id = uuidv4();
+    }
+    return data;
+  }
+
   async findMany<T extends Prisma.TodoFindManyArgs>(query?: T): Promise<Prisma.TodoGetPayload<T>[]> {
     const records = await this.client.db.getAll("todo");
     return filterByWhereClause(records, this.keyPath, query?.where) as Prisma.TodoGetPayload<T>[];
@@ -82,14 +90,14 @@ class IDBTodo extends BaseIDBModelClass {
   }
 
   async create(query: Prisma.TodoCreateArgs) {
-    await this.client.db.add("todo", query.data);
+    await this.client.db.add("todo", await this.fillDefaults(query.data));
     this.emit("create");
   }
 
   async createMany(query: Prisma.TodoCreateManyArgs) {
     const tx = this.client.db.transaction("todo", "readwrite");
     const queryData = Array.isArray(query.data) ? query.data : [query.data];
-    await Promise.all([...queryData.map((record) => tx.store.add(record)), tx.done]);
+    await Promise.all([...queryData.map(async (record) => tx.store.add(await this.fillDefaults(record))), tx.done]);
     this.emit("create");
   }
 
