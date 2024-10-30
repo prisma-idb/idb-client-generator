@@ -15,4 +15,5 @@ generator prismaIDB {
 model Todo {
   id     String    @id
   task   String
+  isCompleted Boolean
 }
