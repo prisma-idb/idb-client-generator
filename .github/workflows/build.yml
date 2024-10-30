@@ -18,6 +18,15 @@ jobs:
       - name: Lint usage
         run: npm run lint --workspace=packages/usage
 
+  svelte-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/
+      - name: Run svelte-check
+        run: npm run check --workspace=packages/usage
+
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
@@ -27,8 +36,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
-      - name: Install dependencies
-        run: npm ci
+      - uses: ./.github/actions/
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
       - name: Run Playwright tests

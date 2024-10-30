@@ -7,7 +7,15 @@ runs:
       with:
         node-version: lts/*
         cache: 'npm'
+    
+    - name: Install package dependencies
+      shell: bash
+      run: npm ci --workspace=packages/generator
+    
+    - name: Build package
+      shell: bash
+      run: npm run build --workspace=packages/generator
 
     - name: Install Node Dependencies
       shell: bash
-      run: npm ci
+      run: npm ci --workspace=packages/usage

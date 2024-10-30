@@ -1,7 +1,7 @@
-import { DMMF } from "@prisma/generator-helper";
 import fs from "fs";
 import path from "path";
 import prettier from "prettier";
+import { Model } from "./types";
 
 export function toCamelCase(str: string): string {
   return str
@@ -28,7 +28,7 @@ export const formatFile = (content: string, filepath: string): Promise<string> =
   );
 };
 
-export function generateIDBKey(model: DMMF.Datamodel["models"][number]) {
+export function generateIDBKey(model: Model) {
   if (model.primaryKey) return JSON.stringify(model.primaryKey.fields);
 
   const idField = model.fields.find(({ isId }) => isId);
@@ -38,9 +38,16 @@ export function generateIDBKey(model: DMMF.Datamodel["models"][number]) {
   return JSON.stringify([uniqueField.name]);
 }
 
-export function getNonKeyUniqueFields(model: DMMF.Datamodel["models"][number]) {
+export function getModelFieldData(model: Model) {
   const keyPath = JSON.parse(generateIDBKey(model));
-  return model.fields.filter(({ isUnique, name }) => isUnique && !keyPath.includes(name));
+  const nonKeyUniqueFields = model.fields.filter(({ isUnique, name }) => isUnique && !keyPath.includes(name));
+  const storeName = toCamelCase(model.name);
+
+  const optionalFields = model.fields.filter((field) => !field.isRequired);
+  const fieldsWithDefaultValue = model.fields.filter((field) => field.hasDefaultValue);
+  const allRequiredFieldsHaveDefaults = fieldsWithDefaultValue.length === model.fields.length - optionalFields.length;
+
+  return { optionalFields, fieldsWithDefaultValue, allRequiredFieldsHaveDefaults, nonKeyUniqueFields, storeName };
 }
 
 export const writeFileSafely = async (writeLocation: string, content: string) => {
