@@ -12,29 +12,50 @@
 
   let allTodos = $state([{}]);
 
+  let isCompleted = $state(false);
+
   const formData = {
     id: "",
     task: "",
+    isCompleted: false,
   };
 
   let task = $state("");
   let id: String;
 
   function handleChange(event: Event) {
-    event.preventDefault();
     const target = event.target as HTMLSelectElement;
     task = target.value;
   }
+  
 
   async function AddTask() {
     let id = uuidv4();
     formData.task = task;
     formData.id = id;
+    console.log(formData);
     await client.todo.create({ data: formData });
     allTodos = await client.todo.findMany([]);
     task = "";
   }
 
+
+  async function updateStatus(id: string, event: Event) {
+    const target = event.target as HTMLInputElement;
+    let checked = target.checked;
+    console.log(checked);
+    let data = await client.todo.update({
+      where: {
+        id: id,
+      },
+      data: {
+        isCompleted: checked,
+      }
+    });
+    console.log(data);
+    allTodos = await client.todo.findMany({});
+    // console.log(allTodos);
+  }
   async function deleteTask(id: String) {
     await client.todo.delete({
       where: {
@@ -71,6 +92,7 @@
           <Table.Row class="w-fit">
             <Table.Cell>{allTodo.id}</Table.Cell>
             <Table.Cell>{allTodo.task}</Table.Cell>
+            <Table.Cell><input type="checkbox" bind:checked={allTodo.isCompleted} onchange={(event) => {updateStatus(allTodo.id, event)}}/></Table.Cell>
             <Table.Cell class="w-fit text-right"
               ><Button variant="destructive" onclick={() => deleteTask(allTodo.id)}>Delete Task</Button></Table.Cell
             >
