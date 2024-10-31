@@ -97,3 +97,16 @@ export function filterByWhereClause(
 
   return records;
 }
+
+export const prismaToJsTypes = new Map([
+  ["String", "string"],
+  ["Boolean", "boolean"],
+  ["Int", "number"],
+  ["BigInt", "bigint"],
+  ["Float", "number"],
+  ["Decimal", "string"],
+  ["DateTime", "Date"],
+  ["Json", "object"],
+  ["Bytes", "Buffer"],
+  ["Unsupported", "unknown"],
+]);

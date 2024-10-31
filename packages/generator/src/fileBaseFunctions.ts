@@ -9,6 +9,7 @@ import { addFillDefaultsFunction } from "./fillDefaultsFunction";
 import { Model } from "./types";
 import { generateIDBKey, getModelFieldData, toCamelCase } from "./utils";
 import { addDeleteManyMethod } from "./CRUD/deleteMany";
+import { addUpdateMethod } from "./CRUD/update";
 
 export function addImports(file: SourceFile) {
   file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["openDB"] });
@@ -16,7 +17,7 @@ export function addImports(file: SourceFile) {
   file.addImportDeclaration({ moduleSpecifier: "@prisma/client", namedImports: ["Prisma"], isTypeOnly: true });
   file.addImportDeclaration({
     moduleSpecifier: "./utils",
-    namedImports: ["filterByWhereClause", "toCamelCase", "generateIDBKey", "getModelFieldData"],
+    namedImports: ["filterByWhereClause", "toCamelCase", "generateIDBKey", "getModelFieldData", "prismaToJsTypes"],
   });
   file.addImportDeclaration({
     moduleSpecifier: "./utils",
@@ -169,8 +170,8 @@ export function addBaseModelClass(file: SourceFile) {
   addDeleteMethod(baseModelClass);
   addDeleteManyMethod(baseModelClass);
 
-  // // Update methods
-  // addUpdateMethod(baseModelClass);
+  // Update methods
+  addUpdateMethod(baseModelClass);
 }
 
 export function addEventEmitters(baseModelClass: ClassDeclaration) {

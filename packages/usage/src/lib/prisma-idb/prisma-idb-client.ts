@@ -1,7 +1,7 @@
 import { openDB } from "idb";
 import type { IDBPDatabase } from "idb";
 import type { Prisma } from "@prisma/client";
-import { filterByWhereClause, toCamelCase, generateIDBKey, getModelFieldData } from "./utils";
+import { filterByWhereClause, toCamelCase, generateIDBKey, getModelFieldData, prismaToJsTypes } from "./utils";
 import type { Model } from "./utils";
 
 const IDB_VERSION: number = 1;
@@ -242,5 +242,32 @@ class BaseIDBModelClass<T extends ModelDelegate> {
     ]);
     this.emit("delete");
     return { count: records.length } as Prisma.Result<T, Q, "deleteMany">;
+  }
+
+  async update<Q extends Prisma.Args<T, "create">>(query: Q): Promise<Prisma.Result<T, Q, "create">> {
+    const record = (await this.findFirst(query)) as Record<string, unknown>;
+    if (record === null) throw new Error("Record not found");
+    this.model.fields.forEach((field) => {
+      const fieldName = field.name as keyof Q["data"] & string;
+      const queryData = query.data as Record<string, unknown>;
+      if (queryData[fieldName] !== undefined) {
+        if (field.kind === "object") {
+          throw new Error("Object updates not yet supported");
+        } else if (field.isList) {
+          throw new Error("List updates not yet supported");
+        } else {
+          const jsType = prismaToJsTypes.get(field.type);
+          if (!jsType) throw new Error(`Unsupported type: ${field.type}`);
+          if (typeof queryData[fieldName] === jsType) {
+            record[fieldName] = queryData[fieldName];
+          } else {
+            throw new Error("Indirect updates not yet supported");
+          }
+        }
+      }
+    });
+    await this.client.db.put(toCamelCase(this.model.name), record);
+    this.emit("update");
+    return record as Prisma.Result<T, Q, "create">;
   }
 }
