@@ -31,7 +31,7 @@ export function addFillDefaultsFunction(modelClass: ClassDeclaration) {
     statements: (writer) => {
       writer
         .writeLine("if (data === undefined) data = {} as D;")
-        .writeLine("await Promise.all([")
+        .writeLine("await Promise.all(")
         .indent(() => {
           writer.write("this.model.fields").indent(() =>
             writer
@@ -66,7 +66,7 @@ export function addFillDefaultsFunction(modelClass: ClassDeclaration) {
               .write("})"),
           );
         })
-        .writeLine("])")
+        .writeLine(")")
         .writeLine("return data;");
     },
   });

@@ -119,7 +119,7 @@ class BaseIDBModelClass<T extends ModelDelegate> {
 
   async fillDefaults<D extends Prisma.Args<T, "create">["data"]>(data: D) {
     if (data === undefined) data = {} as D;
-    await Promise.all([
+    await Promise.all(
       this.model.fields
         .filter(({ hasDefaultValue }) => hasDefaultValue)
         .map(async (field) => {
@@ -145,7 +145,7 @@ class BaseIDBModelClass<T extends ModelDelegate> {
           }
           data = dataField as D;
         }),
-    ]);
+    );
     return data;
   }
 
