@@ -210,4 +210,20 @@ class BaseIDBModelClass<T extends ModelDelegate> {
     this.emit("create");
     return { count: queryData.length } as Prisma.Result<T, Q, "createMany">;
   }
+
+  async delete<Q extends Prisma.Args<T, "delete">>(query: Q): Promise<Prisma.Result<T, Q, "delete">> {
+    const records = filterByWhereClause(
+      await this.client.db.getAll(toCamelCase(this.model.name)),
+      this.keyPath,
+      query.where,
+    );
+    if (records.length === 0) throw new Error("Record not found");
+
+    await this.client.db.delete(
+      toCamelCase(this.model.name),
+      this.keyPath.map((keyField) => records[0][keyField] as IDBValidKey),
+    );
+    this.emit("delete");
+    return records[0] as Prisma.Result<T, Q, "delete">;
+  }
 }

@@ -1,6 +1,7 @@
 import { ClassDeclaration, CodeBlockWriter, Scope, SourceFile } from "ts-morph";
 import { addCreateMethod } from "./CRUD/create";
 import { addCreateManyMethod } from "./CRUD/createMany";
+import { addDeleteMethod } from "./CRUD/delete";
 import { addFindFirstMethod } from "./CRUD/findFirst";
 import { addFindManyMethod } from "./CRUD/findMany";
 import { addFindUniqueMethod } from "./CRUD/findUnique";
@@ -163,8 +164,8 @@ export function addBaseModelClass(file: SourceFile) {
   addCreateMethod(baseModelClass);
   addCreateManyMethod(baseModelClass);
 
-  // // Delete methods
-  // addDeleteMethod(baseModelClass);
+  // Delete methods
+  addDeleteMethod(baseModelClass);
   // addDeleteManyMethod(baseModelClass);
 
   // // Update methods
