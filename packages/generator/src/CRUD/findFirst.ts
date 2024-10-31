@@ -1,17 +1,16 @@
-import { Model } from "src/types";
 import { ClassDeclaration } from "ts-morph";
 
-export function addFindFirstMethod(modelClass: ClassDeclaration, model: Model) {
+export function addFindFirstMethod(modelClass: ClassDeclaration) {
   modelClass.addMethod({
     name: "findFirst",
     isAsync: true,
-    typeParameters: [{ name: "T", constraint: `Prisma.${model.name}FindFirstArgs` }],
-    parameters: [{ name: "query?", type: "T" }],
-    returnType: `Promise<Prisma.${model.name}GetPayload<T> | null>`,
+    typeParameters: [{ name: "Q", constraint: `Prisma.Args<T, "findFirst">` }],
+    parameters: [{ name: "query?", type: "Q" }],
+    returnType: `Promise<Prisma.Result<T, Q, "findFirst"> | null>`,
     statements: (writer) => {
-      // TODO: includes relations in here, use indexes
-      // also consider performance overhead: use webWorkers, index utilization, compound indexes, batch processing, etc.
-      writer.writeLine("return (await this.findMany(query))[0] ?? null;");
+      writer.writeLine(
+        'return ((await this.findMany(query))[0] as Prisma.Result<T, Q, "findFirst"> | undefined) ?? null;',
+      );
     },
   });
 }

@@ -1,60 +1,73 @@
-import { Model } from "src/types";
-import { generateIDBKey, getModelFieldData, toCamelCase } from "../utils";
 import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
 
 // TODO: select, include, and where clauses (also nested versions)
 
-export function addFindUniqueMethod(modelClass: ClassDeclaration, model: Model) {
-  const findUniqueMethod = modelClass.addMethod({
+export function addFindUniqueMethod(modelClass: ClassDeclaration) {
+  modelClass.addMethod({
     name: "findUnique",
     isAsync: true,
-    typeParameters: [{ name: "T", constraint: `Prisma.${model.name}FindUniqueArgs` }],
-    parameters: [{ name: "query", type: "T" }],
-    returnType: `Promise<Prisma.${model.name}GetPayload<T> | null>`,
+    typeParameters: [{ name: "Q", constraint: `Prisma.Args<T, "findUnique">` }],
+    parameters: [{ name: "query", type: "Q" }],
+    returnType: `Promise<Prisma.Result<T, Q, "findUnique"> | null>`,
+    statements: (writer) => writeFindUniqueFunction(writer),
   });
-
-  findUniqueMethod.addStatements((writer) => addKeyResolver(writer, model));
-  findUniqueMethod.addStatements((writer) => addUniqueFieldResolvers(writer, model));
-
-  findUniqueMethod.addStatements((writer) =>
-    writer.writeLine(`throw new Error("No unique field provided in the where clause");`),
-  );
 }
 
-function addKeyResolver(writer: CodeBlockWriter, model: Model) {
-  if (model.primaryKey) {
-    const pk = model.primaryKey;
-    writer
-      .writeLine(`const keyFieldName = "${pk.fields.join("_")}"`)
-      .write(`return (await this.client.db.get("${toCamelCase(model.name)}",`)
-      .write(`Object.values(query.where[keyFieldName]!))) ?? null;`)
-      .newLine();
-  } else {
-    const identifierFieldName = JSON.parse(generateIDBKey(model))[0];
-    writer
-      .writeLine(`if (query.where.${identifierFieldName}) {`)
-      .indent(() => {
-        writer
-          .write(`return (await this.client.db.get("${toCamelCase(model.name)}",`)
-          .write(` [query.where.${identifierFieldName}])) ?? null;`)
-          .newLine();
-      })
-      .writeLine("}");
-  }
+function writeFindUniqueFunction(writer: CodeBlockWriter) {
+  writer.writeLine("const queryWhere = query.where as Record<string, unknown>;");
+
+  writePrimaryKeyCheck(writer);
+  writeIdentifierFieldCheck(writer);
+  writeNonKeyUniqueFieldsLoop(writer);
+
+  writer.writeLine("throw new Error('No unique field provided for findUnique');");
 }
 
-function addUniqueFieldResolvers(writer: CodeBlockWriter, model: Model) {
-  const uniqueFieldNames = getModelFieldData(model).nonKeyUniqueFields.map(({ name }) => name);
+function writePrimaryKeyCheck(writer: CodeBlockWriter) {
+  writer.writeLine("if (this.model.primaryKey)").block(() => {
+    writer.writeLine("const pk = this.model.primaryKey;");
+    writer.writeLine("const keyFieldName = pk.fields.join('_');");
 
-  uniqueFieldNames.forEach((uniqueField) => {
     writer
-      .writeLine(`if (query.where.${uniqueField}) {`)
-      .indent(() => {
-        writer
-          .write(`return (await this.client.db.getFromIndex("${toCamelCase(model.name)}",`)
-          .write(`"${uniqueField}Index", query.where.${uniqueField})) ?? null;`)
-          .newLine();
-      })
-      .writeLine("}");
+      .writeLine("return (")
+      .write("filterByWhereClause(")
+      .writeLine(
+        "[await this.client.db.get(toCamelCase(this.model.name), Object.values(queryWhere[keyFieldName]!) ?? null)],",
+      )
+      .writeLine("this.keyPath,")
+      .writeLine("query.where,")
+      .write(")[0] as Prisma.Args<T, 'findUnique'>) ?? null;");
   });
+}
+
+function writeIdentifierFieldCheck(writer: CodeBlockWriter) {
+  writer.writeLine("else").block(() => {
+    writer.writeLine("const identifierFieldName = JSON.parse(generateIDBKey(this.model))[0];");
+
+    writer.writeLine("if (queryWhere[identifierFieldName])").block(() => {
+      writer
+        .write("return (await this.client.db.get(")
+        .write("toCamelCase(this.model.name), [queryWhere[identifierFieldName]] as IDBValidKey")
+        .write(")) ?? null;")
+        .newLine();
+    });
+  });
+}
+
+function writeNonKeyUniqueFieldsLoop(writer: CodeBlockWriter) {
+  writer
+    .writeLine("getModelFieldData(this.model)")
+    .write(".nonKeyUniqueFields.map(({ name }) => name)")
+    .write(".forEach(async (uniqueField) => {")
+    .block(() => {
+      writer.writeLine("if (!queryWhere[uniqueField]) return;");
+      writer
+        .write("return (await this.client.db.getFromIndex(")
+        .write("toCamelCase(this.model.name), ")
+        .write("`${uniqueField}Index`, ")
+        .write("queryWhere[uniqueField] as IDBValidKey")
+        .write(")) ?? null;")
+        .newLine();
+    })
+    .writeLine("});");
 }

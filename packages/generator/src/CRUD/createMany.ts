@@ -1,29 +1,21 @@
-import { Model } from "src/types";
-import { getModelFieldData, toCamelCase } from "../utils";
 import { ClassDeclaration } from "ts-morph";
 
-export function addCreateManyMethod(modelClass: ClassDeclaration, model: Model) {
-  const { fieldsWithDefaultValue } = getModelFieldData(model);
-
+export function addCreateManyMethod(modelClass: ClassDeclaration) {
   modelClass.addMethod({
     name: "createMany",
     isAsync: true,
-    parameters: [{ name: "query", type: `Prisma.${model.name}CreateManyArgs` }],
+    typeParameters: [{ name: "Q", constraint: 'Prisma.Args<T, "createMany">' }],
+    parameters: [{ name: "query", type: `Q` }],
+    returnType: 'Promise<Prisma.Result<T, Q, "createMany">>',
     statements: (writer) => {
       writer
-        .writeLine(`const tx = this.client.db.transaction('${toCamelCase(model.name)}', 'readwrite')`)
-        .writeLine(`const queryData = Array.isArray(query.data) ? query.data : [query.data];`)
-        .writeLine(`await Promise.all([`)
-        .indent(() => {
-          if (fieldsWithDefaultValue.length > 0) {
-            writer.writeLine(`...queryData.map(async (record) => tx.store.add(await this.fillDefaults(record))),`);
-          } else {
-            writer.writeLine(`...queryData.map((record) => tx.store.add(record)),`);
-          }
-          writer.writeLine("tx.done");
-        })
-        .writeLine("])")
-        .writeLine(`this.emit("create")`);
+        .writeLine('const tx = this.client.db.transaction(toCamelCase(this.model.name), "readwrite");')
+        .writeLine("const queryData = Array.isArray(query.data) ? query.data : [query.data];")
+        .writeLine(
+          "await Promise.all([...queryData.map(async (record) => tx.store.add(await this.fillDefaults(record))), tx.done]);",
+        )
+        .writeLine('this.emit("create");')
+        .writeLine('return { count: queryData.length } as Prisma.Result<T, Q, "createMany">;');
     },
   });
 }

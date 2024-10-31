@@ -1,28 +1,29 @@
-import { CodeBlockWriter, Scope, SourceFile } from "ts-morph";
+import { ClassDeclaration, CodeBlockWriter, Scope, SourceFile } from "ts-morph";
+import { addCreateMethod } from "./CRUD/create";
+import { addCreateManyMethod } from "./CRUD/createMany";
+import { addDeleteMethod } from "./CRUD/delete";
+import { addFindFirstMethod } from "./CRUD/findFirst";
+import { addFindManyMethod } from "./CRUD/findMany";
+import { addFindUniqueMethod } from "./CRUD/findUnique";
+import { addFillDefaultsFunction } from "./fillDefaultsFunction";
+import { Model } from "./types";
 import { generateIDBKey, getModelFieldData, toCamelCase } from "./utils";
-import { Model, FunctionalDefaultValue } from "./types";
+import { addDeleteManyMethod } from "./CRUD/deleteMany";
+import { addUpdateMethod } from "./CRUD/update";
 
-export function addImports(file: SourceFile, models: readonly Model[]) {
+export function addImports(file: SourceFile) {
   file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["openDB"] });
   file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["IDBPDatabase"], isTypeOnly: true });
   file.addImportDeclaration({ moduleSpecifier: "@prisma/client", namedImports: ["Prisma"], isTypeOnly: true });
-  file.addImportDeclaration({ moduleSpecifier: "./utils", namedImports: ["filterByWhereClause"] });
-
-  const defaultFieldValues = models.flatMap(({ fields }) =>
-    fields
-      .filter(({ default: defaultValue }) => typeof defaultValue === "object" && "name" in defaultValue)
-      .map(({ default: defaultValue }) => defaultValue as FunctionalDefaultValue),
-  );
-
-  const needUUID = defaultFieldValues.some((defaultValue) => defaultValue.name === "uuid(4)");
-  if (needUUID) {
-    file.addImportDeclaration({ moduleSpecifier: "uuid", namedImports: [{ name: "v4", alias: "uuidv4" }] });
-  }
-
-  const needCUID = defaultFieldValues.some((defaultValue) => defaultValue.name === "cuid");
-  if (needCUID) {
-    file.addImportDeclaration({ moduleSpecifier: "@paralleldrive/cuid2", namedImports: [{ name: "createId" }] });
-  }
+  file.addImportDeclaration({
+    moduleSpecifier: "./utils",
+    namedImports: ["filterByWhereClause", "toCamelCase", "generateIDBKey", "getModelFieldData", "prismaToJsTypes"],
+  });
+  file.addImportDeclaration({
+    moduleSpecifier: "./utils",
+    namedImports: ["Model"],
+    isTypeOnly: true,
+  });
 }
 
 function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter) {
@@ -39,6 +40,22 @@ function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter) {
   });
 }
 
+export function addTypes(file: SourceFile, models: readonly Model[]) {
+  file.addTypeAliases([
+    {
+      name: "ModelDelegate",
+      type: (writer) => {
+        models.forEach((model, idx) => {
+          writer.write(`Prisma.${model.name}Delegate`);
+          if (idx < models.length - 1) {
+            writer.write(" | ");
+          }
+        });
+      },
+    },
+  ]);
+}
+
 export function addClientClass(file: SourceFile, models: readonly Model[]) {
   // Basic class structure
   const clientClass = file.addClass({
@@ -53,7 +70,11 @@ export function addClientClass(file: SourceFile, models: readonly Model[]) {
 
   // Add model properties
   models.forEach((model) =>
-    clientClass.addProperty({ name: toCamelCase(model.name), type: `IDB${model.name}`, hasExclamationToken: true }),
+    clientClass.addProperty({
+      name: toCamelCase(model.name),
+      type: `BaseIDBModelClass<Prisma.${model.name}Delegate>`,
+      hasExclamationToken: true,
+    }),
   );
 
   // Add the create() method
@@ -97,18 +118,22 @@ export function addClientClass(file: SourceFile, models: readonly Model[]) {
 
       // Set members as object references of model classes
       models.forEach((model) => {
-        writer.writeLine(`this.${toCamelCase(model.name)} = new IDB${model.name}(this, ${generateIDBKey(model)});`);
+        writer.writeLine(
+          `this.${toCamelCase(model.name)} = new BaseIDBModelClass<Prisma.${model.name}Delegate>(this, ${generateIDBKey(model)}, ${JSON.stringify(model)});`,
+        );
       });
     },
   });
 }
 
 export function addBaseModelClass(file: SourceFile) {
-  file.addClass({
+  const baseModelClass = file.addClass({
     name: "BaseIDBModelClass",
+    typeParameters: [{ name: "T", constraint: "ModelDelegate" }],
     properties: [
       { name: "client", type: "PrismaIDBClient" },
       { name: "keyPath", type: "string[]" },
+      { name: "model", type: "Model", scope: Scope.Private },
       { name: "eventEmitter", type: "EventTarget", scope: Scope.Private },
     ],
     ctors: [
@@ -116,57 +141,81 @@ export function addBaseModelClass(file: SourceFile) {
         parameters: [
           { name: "client", type: "PrismaIDBClient" },
           { name: "keyPath", type: "string[]" },
+          { name: "model", type: "Model" },
         ],
         statements: (writer) => {
           writer
             .writeLine("this.client = client")
             .writeLine("this.keyPath = keyPath")
+            .writeLine("this.model = model")
             .writeLine("this.eventEmitter = new EventTarget()");
         },
       },
     ],
-    methods: [
-      {
-        name: "subscribe",
-        parameters: [
-          { name: "event", type: `"create" | "update" | "delete" | ("create" | "update" | "delete")[]` },
-          { name: "callback", type: "() => void" },
-        ],
-        statements: (writer) => {
-          writer
-            .writeLine(`if (Array.isArray(event)) {`)
-            .indent(() => {
-              writer
-                .writeLine(`event.forEach((event) => this.eventEmitter.addEventListener(event, callback));`)
-                .writeLine(`return;`);
-            })
-            .writeLine("}")
-            .writeLine(`this.eventEmitter.addEventListener(event, callback);`);
-        },
-      },
-      {
-        name: "unsubscribe",
-        parameters: [
-          { name: "event", type: `"create" | "update" | "delete" | ("create" | "update" | "delete")[]` },
-          { name: "callback", type: "() => void" },
-        ],
-        statements: (writer) => {
-          writer
-            .writeLine(`if (Array.isArray(event)) {`)
-            .indent(() =>
-              writer
-                .writeLine(`event.forEach((event) => this.eventEmitter.removeEventListener(event, callback));`)
-                .writeLine(`return;`),
-            )
-            .writeLine("}")
-            .writeLine(`this.eventEmitter.removeEventListener(event, callback);`);
-        },
-      },
-      {
-        name: "emit",
-        parameters: [{ name: "event", type: `"create" | "update" | "delete"` }],
-        statements: (writer) => writer.writeLine(`this.eventEmitter.dispatchEvent(new Event(event));`),
-      },
-    ],
   });
+
+  addEventEmitters(baseModelClass);
+  addFillDefaultsFunction(baseModelClass);
+
+  // Find methods
+  addFindManyMethod(baseModelClass);
+  addFindFirstMethod(baseModelClass);
+  addFindUniqueMethod(baseModelClass);
+
+  // Create methods
+  addCreateMethod(baseModelClass);
+  addCreateManyMethod(baseModelClass);
+
+  // Delete methods
+  addDeleteMethod(baseModelClass);
+  addDeleteManyMethod(baseModelClass);
+
+  // Update methods
+  addUpdateMethod(baseModelClass);
+}
+
+export function addEventEmitters(baseModelClass: ClassDeclaration) {
+  baseModelClass.addMethods([
+    {
+      name: "subscribe",
+      parameters: [
+        { name: "event", type: `"create" | "update" | "delete" | ("create" | "update" | "delete")[]` },
+        { name: "callback", type: "() => void" },
+      ],
+      statements: (writer) => {
+        writer
+          .writeLine(`if (Array.isArray(event)) {`)
+          .indent(() => {
+            writer
+              .writeLine(`event.forEach((event) => this.eventEmitter.addEventListener(event, callback));`)
+              .writeLine(`return;`);
+          })
+          .writeLine("}")
+          .writeLine(`this.eventEmitter.addEventListener(event, callback);`);
+      },
+    },
+    {
+      name: "unsubscribe",
+      parameters: [
+        { name: "event", type: `"create" | "update" | "delete" | ("create" | "update" | "delete")[]` },
+        { name: "callback", type: "() => void" },
+      ],
+      statements: (writer) => {
+        writer
+          .writeLine(`if (Array.isArray(event)) {`)
+          .indent(() =>
+            writer
+              .writeLine(`event.forEach((event) => this.eventEmitter.removeEventListener(event, callback));`)
+              .writeLine(`return;`),
+          )
+          .writeLine("}")
+          .writeLine(`this.eventEmitter.removeEventListener(event, callback);`);
+      },
+    },
+    {
+      name: "emit",
+      parameters: [{ name: "event", type: `"create" | "update" | "delete"` }],
+      statements: (writer) => writer.writeLine(`this.eventEmitter.dispatchEvent(new Event(event));`),
+    },
+  ]);
 }

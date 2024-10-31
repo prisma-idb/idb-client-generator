@@ -1,33 +1,20 @@
-import { Model } from "src/types";
-import { getModelFieldData, toCamelCase } from "../utils";
 import { ClassDeclaration } from "ts-morph";
 
-// TODO: also should return the created object
 // TODO: nested creates, connects, and createMany
 
-export function addCreateMethod(modelClass: ClassDeclaration, model: Model) {
-  const { allRequiredFieldsHaveDefaults, fieldsWithDefaultValue } = getModelFieldData(model);
-
+export function addCreateMethod(modelClass: ClassDeclaration) {
   modelClass.addMethod({
     name: "create",
     isAsync: true,
-    parameters: [
-      {
-        name: allRequiredFieldsHaveDefaults ? `query?` : `query`,
-        type: `Prisma.${model.name}CreateArgs`,
-      },
-    ],
+    typeParameters: [{ name: "Q", constraint: 'Prisma.Args<T, "create">' }],
+    returnType: 'Promise<Prisma.Result<T, Q, "create">>',
+    parameters: [{ name: "query", type: "Q" }],
     statements: (writer) => {
-      const queryKeyword = allRequiredFieldsHaveDefaults ? "query?" : "query";
-      if (fieldsWithDefaultValue.length > 0) {
-        writer
-          .write(`await this.client.db.add("${toCamelCase(model.name)}",`)
-          .write(`await this.fillDefaults(${queryKeyword}.data));`)
-          .newLine();
-      } else {
-        writer.writeLine(`await this.client.db.add("${toCamelCase(model.name)}", ${queryKeyword}.data);`);
-      }
-      writer.writeLine(`this.emit("create")`);
+      writer
+        .writeLine("const record = await this.fillDefaults(query.data);")
+        .writeLine("await this.client.db.add(toCamelCase(this.model.name), record);")
+        .writeLine(`this.emit("create");`)
+        .writeLine(`return record as Prisma.Result<T, Q, "create">;`);
     },
   });
 }

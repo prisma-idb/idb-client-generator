@@ -2,8 +2,7 @@ import { generatorHandler, GeneratorOptions } from "@prisma/generator-helper";
 import path from "path";
 import { Project, VariableDeclarationKind } from "ts-morph";
 import { version } from "../package.json";
-import { addBaseModelClass, addClientClass, addImports } from "./fileBaseFunctions";
-import { addModelClass } from "./fileModelFunctions";
+import { addBaseModelClass, addClientClass, addImports, addTypes } from "./fileBaseFunctions";
 import { outputUtilsText } from "./outputUtils";
 import { writeFileSafely } from "./utils";
 
@@ -27,11 +26,10 @@ generatorHandler({
       declarations: [{ name: "IDB_VERSION", type: "number", initializer: "1" }],
     });
 
-    addImports(file, models);
+    addImports(file);
+    addTypes(file, models);
     addClientClass(file, models);
     addBaseModelClass(file);
-
-    models.forEach((model) => addModelClass(file, model));
 
     const writeLocation = path.join(options.generator.output?.value as string, file.getBaseName());
     await writeFileSafely(writeLocation, file.getText());
