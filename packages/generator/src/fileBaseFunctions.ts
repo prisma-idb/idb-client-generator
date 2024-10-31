@@ -3,6 +3,7 @@ import { addFillDefaultsFunction } from "./fillDefaultsFunction";
 import { Model } from "./types";
 import { generateIDBKey, getModelFieldData, toCamelCase } from "./utils";
 import { addFindManyMethod } from "./CRUD/findMany";
+import { addFindFirstMethod } from "./CRUD/findFirst";
 
 export function addImports(file: SourceFile) {
   file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["openDB"] });
@@ -153,7 +154,7 @@ export function addBaseModelClass(file: SourceFile) {
 
   // Find methods
   addFindManyMethod(baseModelClass);
-  // addFindFirstMethod(modelClass);
+  addFindFirstMethod(baseModelClass);
   // addFindUniqueMethod(modelClass);
 
   // // Create methods

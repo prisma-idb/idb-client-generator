@@ -149,4 +149,8 @@ class BaseIDBModelClass<T extends ModelDelegate> {
     const records = await this.client.db.getAll(`${toCamelCase(this.model.name)}`);
     return filterByWhereClause(records, this.keyPath, query?.where) as Prisma.Result<T, Q, "findMany">;
   }
+
+  async findFirst<Q extends Prisma.Args<T, "findFirst">>(query?: Q): Promise<Prisma.Result<T, Q, "findFirst"> | null> {
+    return ((await this.findMany(query))[0] as Prisma.Result<T, Q, "findFirst"> | undefined) ?? null;
+  }
 }
