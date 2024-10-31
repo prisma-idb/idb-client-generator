@@ -4,15 +4,16 @@ import { Model } from "./types";
 import { generateIDBKey, getModelFieldData, toCamelCase } from "./utils";
 import { addFindManyMethod } from "./CRUD/findMany";
 import { addFindFirstMethod } from "./CRUD/findFirst";
+import { addFindUniqueMethod } from "./CRUD/findUnique";
 
 export function addImports(file: SourceFile) {
   file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["openDB"] });
   file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["IDBPDatabase"], isTypeOnly: true });
   file.addImportDeclaration({ moduleSpecifier: "@prisma/client", namedImports: ["Prisma"], isTypeOnly: true });
-  file.addImportDeclaration({ moduleSpecifier: "./utils", namedImports: ["filterByWhereClause", "toCamelCase"] });
+  file.addImportDeclaration({ moduleSpecifier: "./utils", namedImports: ["filterByWhereClause", "toCamelCase", "generateIDBKey", "getModelFieldData"] });
   file.addImportDeclaration({
-    moduleSpecifier: "@prisma/client/runtime/library",
-    namedImports: ["DMMF"],
+    moduleSpecifier: "./utils",
+    namedImports: ["Model"],
     isTypeOnly: true,
   });
 }
@@ -43,10 +44,6 @@ export function addTypes(file: SourceFile, models: readonly Model[]) {
           }
         });
       },
-    },
-    {
-      name: "Model",
-      type: 'DMMF.Datamodel["models"][number]',
     },
   ]);
 }
@@ -155,7 +152,7 @@ export function addBaseModelClass(file: SourceFile) {
   // Find methods
   addFindManyMethod(baseModelClass);
   addFindFirstMethod(baseModelClass);
-  // addFindUniqueMethod(modelClass);
+  addFindUniqueMethod(baseModelClass);
 
   // // Create methods
   // addCreateMethod(modelClass);

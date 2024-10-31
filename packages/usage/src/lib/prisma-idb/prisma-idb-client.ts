@@ -1,13 +1,12 @@
 import { openDB } from "idb";
 import type { IDBPDatabase } from "idb";
 import type { Prisma } from "@prisma/client";
-import { filterByWhereClause, toCamelCase } from "./utils";
-import type { DMMF } from "@prisma/client/runtime/library";
+import { filterByWhereClause, toCamelCase, generateIDBKey, getModelFieldData } from "./utils";
+import type { Model } from "./utils";
 
 const IDB_VERSION: number = 1;
 
 type ModelDelegate = Prisma.TodoDelegate;
-type Model = DMMF.Datamodel["models"][number];
 
 export class PrismaIDBClient {
   private static instance: PrismaIDBClient;
@@ -152,5 +151,45 @@ class BaseIDBModelClass<T extends ModelDelegate> {
 
   async findFirst<Q extends Prisma.Args<T, "findFirst">>(query?: Q): Promise<Prisma.Result<T, Q, "findFirst"> | null> {
     return ((await this.findMany(query))[0] as Prisma.Result<T, Q, "findFirst"> | undefined) ?? null;
+  }
+
+  async findUnique<Q extends Prisma.Args<T, "findUnique">>(
+    query: Q,
+  ): Promise<Prisma.Result<T, Q, "findUnique"> | null> {
+    const queryWhere = query.where as Record<string, unknown>;
+    if (this.model.primaryKey) {
+      const pk = this.model.primaryKey;
+      const keyFieldName = pk.fields.join("_");
+      return (
+        (filterByWhereClause(
+          [await this.client.db.get(toCamelCase(this.model.name), Object.values(queryWhere[keyFieldName]!) ?? null)],
+          this.keyPath,
+          query.where,
+        )[0] as Prisma.Args<T, "findUnique">) ?? null
+      );
+    } else {
+      const identifierFieldName = JSON.parse(generateIDBKey(this.model))[0];
+      if (queryWhere[identifierFieldName]) {
+        return (
+          (await this.client.db.get(toCamelCase(this.model.name), [queryWhere[identifierFieldName]] as IDBValidKey)) ??
+          null
+        );
+      }
+    }
+    getModelFieldData(this.model)
+      .nonKeyUniqueFields.map(({ name }) => name)
+      .forEach(async (uniqueField) => {
+        {
+          if (!queryWhere[uniqueField]) return;
+          return (
+            (await this.client.db.getFromIndex(
+              toCamelCase(this.model.name),
+              `${uniqueField}Index`,
+              queryWhere[uniqueField] as IDBValidKey,
+            )) ?? null
+          );
+        }
+      });
+    throw new Error("No unique field provided for findUnique");
   }
 }
