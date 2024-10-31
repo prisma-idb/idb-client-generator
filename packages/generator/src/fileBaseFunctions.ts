@@ -1,16 +1,20 @@
 import { ClassDeclaration, CodeBlockWriter, Scope, SourceFile } from "ts-morph";
+import { addFindFirstMethod } from "./CRUD/findFirst";
+import { addFindManyMethod } from "./CRUD/findMany";
+import { addFindUniqueMethod } from "./CRUD/findUnique";
 import { addFillDefaultsFunction } from "./fillDefaultsFunction";
 import { Model } from "./types";
 import { generateIDBKey, getModelFieldData, toCamelCase } from "./utils";
-import { addFindManyMethod } from "./CRUD/findMany";
-import { addFindFirstMethod } from "./CRUD/findFirst";
-import { addFindUniqueMethod } from "./CRUD/findUnique";
+import { addCreateMethod } from "./CRUD/create";
 
 export function addImports(file: SourceFile) {
   file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["openDB"] });
   file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["IDBPDatabase"], isTypeOnly: true });
   file.addImportDeclaration({ moduleSpecifier: "@prisma/client", namedImports: ["Prisma"], isTypeOnly: true });
-  file.addImportDeclaration({ moduleSpecifier: "./utils", namedImports: ["filterByWhereClause", "toCamelCase", "generateIDBKey", "getModelFieldData"] });
+  file.addImportDeclaration({
+    moduleSpecifier: "./utils",
+    namedImports: ["filterByWhereClause", "toCamelCase", "generateIDBKey", "getModelFieldData"],
+  });
   file.addImportDeclaration({
     moduleSpecifier: "./utils",
     namedImports: ["Model"],
@@ -154,16 +158,16 @@ export function addBaseModelClass(file: SourceFile) {
   addFindFirstMethod(baseModelClass);
   addFindUniqueMethod(baseModelClass);
 
-  // // Create methods
-  // addCreateMethod(modelClass);
-  // addCreateManyMethod(modelClass);
+  // Create methods
+  addCreateMethod(baseModelClass);
+  // addCreateManyMethod(baseModelClass);
 
   // // Delete methods
-  // addDeleteMethod(modelClass);
-  // addDeleteManyMethod(modelClass);
+  // addDeleteMethod(baseModelClass);
+  // addDeleteManyMethod(baseModelClass);
 
   // // Update methods
-  // addUpdateMethod(modelClass);
+  // addUpdateMethod(baseModelClass);
 }
 
 export function addEventEmitters(baseModelClass: ClassDeclaration) {

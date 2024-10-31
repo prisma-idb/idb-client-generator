@@ -195,4 +195,11 @@ class BaseIDBModelClass<T extends ModelDelegate> {
       });
     throw new Error("No unique field provided for findUnique");
   }
+
+  async create<Q extends Prisma.Args<T, "create">>(query: Q): Promise<Prisma.Result<T, Q, "create">> {
+    const record = await this.fillDefaults(query.data);
+    await this.client.db.add(toCamelCase(this.model.name), record);
+    this.emit("create");
+    return record as Prisma.Result<T, Q, "create">;
+  }
 }
