@@ -36,7 +36,7 @@ function writePrimaryKeyCheck(writer: CodeBlockWriter) {
       )
       .writeLine("this.keyPath,")
       .writeLine("query.where,")
-      .write(")[0] as Prisma.Args<T, 'findUnique'>) ?? null;");
+      .write(")[0] as Prisma.Result<T, Q, 'findUnique'>) ?? null;");
   });
 }
 
