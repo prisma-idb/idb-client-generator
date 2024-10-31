@@ -7,6 +7,12 @@ export function intersectArraysByNestedKey<T extends RecordType>(arrays: T[][], 
   );
 }
 
+export function toCamelCase(str: string): string {
+  return str
+    .replace(/[_\\s-]+(.)?/g, (_, chr) => (chr ? chr.toUpperCase() : ""))
+    .replace(/^(.)/, (match) => match.toLowerCase());
+}
+
 export function removeDuplicatesByKeyPath<T extends RecordType>(array: T[][], keyPath: string[]): T[] {
   const seen = new Set<string>();
   return array
