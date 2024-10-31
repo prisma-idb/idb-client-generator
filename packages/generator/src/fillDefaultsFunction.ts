@@ -31,39 +31,42 @@ export function addFillDefaultsFunction(modelClass: ClassDeclaration) {
     statements: (writer) => {
       writer
         .writeLine("if (data === undefined) data = {} as D;")
-        .write("this.model.fields")
-        .indent(() =>
-          writer
-            .write(".filter(({ hasDefaultValue }) => hasDefaultValue)")
-            .write(".forEach(async (field) => {")
-            .indent(() =>
-              writer
-                .write("const fieldName = field.name as keyof D & string;")
-                .write("const dataField = data as Record<string, unknown>;")
-                .write("const defaultValue = field.default!;")
-                .write("if (dataField[fieldName] === undefined) {")
-                .indent(() =>
-                  writer
-                    .write("if (typeof defaultValue === 'object' && 'name' in defaultValue) {")
-                    .indent(() =>
-                      writer
-                        .write("if (defaultValue.name === 'uuid(4)') {")
-                        .indent(() => addUuidDefault(writer))
-                        .write("} else if (defaultValue.name === 'cuid') {")
-                        .indent(() => addCuidDefault(writer))
-                        .write("} else if (defaultValue.name === 'autoincrement') {")
-                        .indent(() => addAutoincrementDefault(writer))
-                        .write("}"),
-                    )
-                    .write("} else {")
-                    .indent(() => addDefaultValue(writer))
-                    .write("}"),
-                )
-                .write("}")
-                .write("data = dataField as D;"),
-            )
-            .write("});"),
-        )
+        .writeLine("await Promise.all([")
+        .indent(() => {
+          writer.write("this.model.fields").indent(() =>
+            writer
+              .write(".filter(({ hasDefaultValue }) => hasDefaultValue)")
+              .write(".map(async (field) => {")
+              .indent(() =>
+                writer
+                  .write("const fieldName = field.name as keyof D & string;")
+                  .write("const dataField = data as Record<string, unknown>;")
+                  .write("const defaultValue = field.default!;")
+                  .write("if (dataField[fieldName] === undefined) {")
+                  .indent(() =>
+                    writer
+                      .write("if (typeof defaultValue === 'object' && 'name' in defaultValue) {")
+                      .indent(() =>
+                        writer
+                          .write("if (defaultValue.name === 'uuid(4)') {")
+                          .indent(() => addUuidDefault(writer))
+                          .write("} else if (defaultValue.name === 'cuid') {")
+                          .indent(() => addCuidDefault(writer))
+                          .write("} else if (defaultValue.name === 'autoincrement') {")
+                          .indent(() => addAutoincrementDefault(writer))
+                          .write("}"),
+                      )
+                      .write("} else {")
+                      .indent(() => addDefaultValue(writer))
+                      .write("}"),
+                  )
+                  .write("}")
+                  .write("data = dataField as D;"),
+              )
+              .write("})"),
+          );
+        })
+        .writeLine("])")
         .writeLine("return data;");
     },
   });

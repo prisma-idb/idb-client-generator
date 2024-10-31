@@ -119,31 +119,33 @@ class BaseIDBModelClass<T extends ModelDelegate> {
 
   async fillDefaults<D extends Prisma.Args<T, "create">["data"]>(data: D) {
     if (data === undefined) data = {} as D;
-    this.model.fields
-      .filter(({ hasDefaultValue }) => hasDefaultValue)
-      .forEach(async (field) => {
-        const fieldName = field.name as keyof D & string;
-        const dataField = data as Record<string, unknown>;
-        const defaultValue = field.default!;
-        if (dataField[fieldName] === undefined) {
-          if (typeof defaultValue === "object" && "name" in defaultValue) {
-            if (defaultValue.name === "uuid(4)") {
-              dataField[fieldName] = crypto.randomUUID() as (typeof data)[typeof fieldName];
-            } else if (defaultValue.name === "cuid") {
-              const { createId } = await import("@paralleldrive/cuid2");
-              dataField[fieldName] = createId() as (typeof data)[typeof fieldName];
-            } else if (defaultValue.name === "autoincrement") {
-              const transaction = this.client.db.transaction(toCamelCase(this.model.name), "readonly");
-              const store = transaction.objectStore(toCamelCase(this.model.name));
-              const cursor = await store.openCursor(null, "prev");
-              dataField[fieldName] = (cursor ? Number(cursor.key) + 1 : 1) as (typeof data)[typeof fieldName];
+    await Promise.all([
+      this.model.fields
+        .filter(({ hasDefaultValue }) => hasDefaultValue)
+        .map(async (field) => {
+          const fieldName = field.name as keyof D & string;
+          const dataField = data as Record<string, unknown>;
+          const defaultValue = field.default!;
+          if (dataField[fieldName] === undefined) {
+            if (typeof defaultValue === "object" && "name" in defaultValue) {
+              if (defaultValue.name === "uuid(4)") {
+                dataField[fieldName] = crypto.randomUUID() as (typeof data)[typeof fieldName];
+              } else if (defaultValue.name === "cuid") {
+                const { createId } = await import("@paralleldrive/cuid2");
+                dataField[fieldName] = createId() as (typeof data)[typeof fieldName];
+              } else if (defaultValue.name === "autoincrement") {
+                const transaction = this.client.db.transaction(toCamelCase(this.model.name), "readonly");
+                const store = transaction.objectStore(toCamelCase(this.model.name));
+                const cursor = await store.openCursor(null, "prev");
+                dataField[fieldName] = (cursor ? Number(cursor.key) + 1 : 1) as (typeof data)[typeof fieldName];
+              }
+            } else {
+              dataField[fieldName] = defaultValue as (typeof data)[typeof fieldName];
             }
-          } else {
-            dataField[fieldName] = defaultValue as (typeof data)[typeof fieldName];
           }
-        }
-        data = dataField as D;
-      });
+          data = dataField as D;
+        }),
+    ]);
     return data;
   }
 
