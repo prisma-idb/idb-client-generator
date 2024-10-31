@@ -244,7 +244,7 @@ class BaseIDBModelClass<T extends ModelDelegate> {
     return { count: records.length } as Prisma.Result<T, Q, "deleteMany">;
   }
 
-  async update<Q extends Prisma.Args<T, "create">>(query: Q): Promise<Prisma.Result<T, Q, "create">> {
+  async update<Q extends Prisma.Args<T, "update">>(query: Q): Promise<Prisma.Result<T, Q, "update">> {
     const record = (await this.findFirst(query)) as Record<string, unknown>;
     if (record === null) throw new Error("Record not found");
     this.model.fields.forEach((field) => {
@@ -268,6 +268,6 @@ class BaseIDBModelClass<T extends ModelDelegate> {
     });
     await this.client.db.put(toCamelCase(this.model.name), record);
     this.emit("update");
-    return record as Prisma.Result<T, Q, "create">;
+    return record as Prisma.Result<T, Q, "update">;
   }
 }

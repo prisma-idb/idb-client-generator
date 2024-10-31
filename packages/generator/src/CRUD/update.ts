@@ -6,9 +6,9 @@ export function addUpdateMethod(modelClass: ClassDeclaration) {
   modelClass.addMethod({
     name: "update",
     isAsync: true,
-    typeParameters: [{ name: "Q", constraint: `Prisma.Args<T, "create">` }],
+    typeParameters: [{ name: "Q", constraint: `Prisma.Args<T, "update">` }],
     parameters: [{ name: "query", type: "Q" }],
-    returnType: `Promise<Prisma.Result<T, Q, "create">>`,
+    returnType: `Promise<Prisma.Result<T, Q, "update">>`,
     statements: (writer) => {
       writer
         .writeLine("const record = (await this.findFirst(query)) as Record<string, unknown>;")
@@ -27,7 +27,7 @@ export function addUpdateMethod(modelClass: ClassDeclaration) {
         .writeLine("});")
         .writeLine("await this.client.db.put(toCamelCase(this.model.name), record);")
         .writeLine("this.emit('update');")
-        .writeLine("return record as Prisma.Result<T, Q, 'create'>;");
+        .writeLine("return record as Prisma.Result<T, Q, 'update'>;");
     },
   });
 }
