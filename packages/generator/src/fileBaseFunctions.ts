@@ -2,6 +2,7 @@ import { ClassDeclaration, CodeBlockWriter, Scope, SourceFile } from "ts-morph";
 import { addFillDefaultsFunction } from "./fillDefaultsFunction";
 import { Model } from "./types";
 import { generateIDBKey, getModelFieldData, toCamelCase } from "./utils";
+import { addFindManyMethod } from "./CRUD/findMany";
 
 export function addImports(file: SourceFile) {
   file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["openDB"] });
@@ -150,8 +151,8 @@ export function addBaseModelClass(file: SourceFile) {
   addEventEmitters(baseModelClass);
   addFillDefaultsFunction(baseModelClass);
 
-  // // Find methods
-  // addFindManyMethod(modelClass);
+  // Find methods
+  addFindManyMethod(baseModelClass);
   // addFindFirstMethod(modelClass);
   // addFindUniqueMethod(modelClass);
 

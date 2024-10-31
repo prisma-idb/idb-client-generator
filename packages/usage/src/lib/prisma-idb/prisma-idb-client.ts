@@ -144,4 +144,9 @@ class BaseIDBModelClass<T extends ModelDelegate> {
       });
     return data;
   }
+
+  async findMany<Q extends Prisma.Args<T, "findMany">>(query?: Q): Promise<Prisma.Result<T, Q, "findMany">> {
+    const records = await this.client.db.getAll(`${toCamelCase(this.model.name)}`);
+    return filterByWhereClause(records, this.keyPath, query?.where) as Prisma.Result<T, Q, "findMany">;
+  }
 }
