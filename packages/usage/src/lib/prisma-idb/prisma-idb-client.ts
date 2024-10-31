@@ -202,4 +202,12 @@ class BaseIDBModelClass<T extends ModelDelegate> {
     this.emit("create");
     return record as Prisma.Result<T, Q, "create">;
   }
+
+  async createMany<Q extends Prisma.Args<T, "createMany">>(query: Q): Promise<Prisma.Result<T, Q, "createMany">> {
+    const tx = this.client.db.transaction(toCamelCase(this.model.name), "readwrite");
+    const queryData = Array.isArray(query.data) ? query.data : [query.data];
+    await Promise.all([...queryData.map(async (record) => tx.store.add(await this.fillDefaults(record))), tx.done]);
+    this.emit("create");
+    return { count: queryData.length } as Prisma.Result<T, Q, "createMany">;
+  }
 }

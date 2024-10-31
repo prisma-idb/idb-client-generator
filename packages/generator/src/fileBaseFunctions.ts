@@ -1,11 +1,12 @@
 import { ClassDeclaration, CodeBlockWriter, Scope, SourceFile } from "ts-morph";
+import { addCreateMethod } from "./CRUD/create";
+import { addCreateManyMethod } from "./CRUD/createMany";
 import { addFindFirstMethod } from "./CRUD/findFirst";
 import { addFindManyMethod } from "./CRUD/findMany";
 import { addFindUniqueMethod } from "./CRUD/findUnique";
 import { addFillDefaultsFunction } from "./fillDefaultsFunction";
 import { Model } from "./types";
 import { generateIDBKey, getModelFieldData, toCamelCase } from "./utils";
-import { addCreateMethod } from "./CRUD/create";
 
 export function addImports(file: SourceFile) {
   file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["openDB"] });
@@ -160,7 +161,7 @@ export function addBaseModelClass(file: SourceFile) {
 
   // Create methods
   addCreateMethod(baseModelClass);
-  // addCreateManyMethod(baseModelClass);
+  addCreateManyMethod(baseModelClass);
 
   // // Delete methods
   // addDeleteMethod(baseModelClass);
