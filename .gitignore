@@ -4,3 +4,7 @@ yarn-error.log
 build
 pnpm-debug.log
 .env*
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
