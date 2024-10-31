@@ -226,4 +226,21 @@ class BaseIDBModelClass<T extends ModelDelegate> {
     this.emit("delete");
     return records[0] as Prisma.Result<T, Q, "delete">;
   }
+
+  async deleteMany<Q extends Prisma.Args<T, "deleteMany">>(query: Q) {
+    const records = filterByWhereClause(
+      await this.client.db.getAll(toCamelCase(this.model.name)),
+      this.keyPath,
+      query?.where,
+    );
+    if (records.length === 0) return { count: 0 } as Prisma.Result<T, Q, "deleteMany">;
+
+    const tx = this.client.db.transaction(toCamelCase(this.model.name), "readwrite");
+    await Promise.all([
+      ...records.map((record) => tx.store.delete(this.keyPath.map((keyField) => record[keyField] as IDBValidKey))),
+      tx.done,
+    ]);
+    this.emit("delete");
+    return { count: records.length } as Prisma.Result<T, Q, "deleteMany">;
+  }
 }

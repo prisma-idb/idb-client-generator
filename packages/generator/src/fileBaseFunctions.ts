@@ -8,6 +8,7 @@ import { addFindUniqueMethod } from "./CRUD/findUnique";
 import { addFillDefaultsFunction } from "./fillDefaultsFunction";
 import { Model } from "./types";
 import { generateIDBKey, getModelFieldData, toCamelCase } from "./utils";
+import { addDeleteManyMethod } from "./CRUD/deleteMany";
 
 export function addImports(file: SourceFile) {
   file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["openDB"] });
@@ -166,7 +167,7 @@ export function addBaseModelClass(file: SourceFile) {
 
   // Delete methods
   addDeleteMethod(baseModelClass);
-  // addDeleteManyMethod(baseModelClass);
+  addDeleteManyMethod(baseModelClass);
 
   // // Update methods
   // addUpdateMethod(baseModelClass);
