@@ -37,13 +37,14 @@
       },
     });
   }
+
   async function updateStatus(id: string, event: Event) {
     const target = event.target as HTMLInputElement;
     await client.todo.update({
       where: { id: id },
       data: { isCompleted: target.checked },
     });
-    countCompletedTodos();
+    client.todo.subscribe("update", countCompletedTodos); // use update event listener
     allTodos = await client.todo.findMany();
   }
 
@@ -56,7 +57,7 @@
     // Always instantiate on client-side (need IndexedDB)
     client = await PrismaIDBClient.create();
     allTodos = await client.todo.findMany();
-    countCompletedTodos();
+    client.todo.subscribe("update", countCompletedTodos);
   });
 </script>
 
