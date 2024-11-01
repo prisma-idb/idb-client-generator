@@ -10,12 +10,6 @@
   let client: PrismaIDBClient;
   let allTodos = $state<Todo[]>([]);
   let totalCompletedTodos = $state<number>(0);
-
-  const formData = {
-    task: "",
-    isCompleted: false,
-  };
-
   let task = $state("");
 
   function handleChange(event: Event) {
@@ -24,8 +18,7 @@
   }
 
   async function addTask() {
-    formData.task = task;
-    await client.todo.create({ data: formData });
+    await client.todo.create({ data: { isCompleted: false, task } });
     allTodos = await client.todo.findMany();
     task = "";
   }
