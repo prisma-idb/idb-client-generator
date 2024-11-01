@@ -6,6 +6,7 @@ export function addCountMethod(modelClass: ClassDeclaration) {
     isAsync: true,
     typeParameters: [{ name: "Q", constraint: "Prisma.Args<T, 'count'>" }],
     parameters: [{ name: "query", type: `Q` }],
+    returnType: `Promise<Prisma.Result<T, Q, "count">>`,
     statements: (writer) => {
       writer
         .writeLine(`const records = filterByWhereClause(`)
