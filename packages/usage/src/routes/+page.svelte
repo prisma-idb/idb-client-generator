@@ -44,7 +44,6 @@
       where: { id: id },
       data: { isCompleted: target.checked },
     });
-    client.todo.subscribe("update", countCompletedTodos); // use update event listener
     allTodos = await client.todo.findMany();
   }
 
@@ -57,7 +56,7 @@
     // Always instantiate on client-side (need IndexedDB)
     client = await PrismaIDBClient.create();
     allTodos = await client.todo.findMany();
-    countCompletedTodos();
+    client.todo.subscribe("update", countCompletedTodos); // use update event listener
   });
 </script>
 
