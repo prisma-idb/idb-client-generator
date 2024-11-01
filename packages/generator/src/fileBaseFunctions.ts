@@ -10,6 +10,7 @@ import { Model } from "./types";
 import { generateIDBKey, getModelFieldData, toCamelCase } from "./utils";
 import { addDeleteManyMethod } from "./CRUD/deleteMany";
 import { addUpdateMethod } from "./CRUD/update";
+import { addCountMethod } from "./Aggregate Functions/count";
 
 export function addImports(file: SourceFile) {
   file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["openDB"] });
@@ -172,6 +173,10 @@ export function addBaseModelClass(file: SourceFile) {
 
   // Update methods
   addUpdateMethod(baseModelClass);
+
+
+  // Aggregate function methods
+  addCountMethod(baseModelClass);
 }
 
 export function addEventEmitters(baseModelClass: ClassDeclaration) {
