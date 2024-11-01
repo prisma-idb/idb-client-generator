@@ -31,13 +31,13 @@ test("Test Update", async ({ page }) => {
   await expect(page.getByRole("checkbox")).toBeVisible();
 });
 
-test("Test Delete", async ({ page }) => {
-  await page.goto("/");
-  await page.getByPlaceholder("Enter Task").click();
-  await page.getByPlaceholder("Enter Task").fill("delete test");
-  await page.getByRole("button", { name: "Add Task" }).click();
-  await expect(page.locator("tbody")).toContainText("delete test");
-  await expect(page.locator("tbody")).toContainText("Delete Task");
-  await page.getByRole("button", { name: "Delete Task" }).click();
-  await expect(page.locator("html")).toContainText("Prisma-IDB usage page Add Task Task Id Task Status Actions");
+test('test', async ({ page }) => {
+  await page.goto('http://localhost:5173/');
+  await page.getByPlaceholder('Enter Task').click();
+  await page.getByPlaceholder('Enter Task').fill('test update');
+  await page.getByRole('button', { name: 'Add Task' }).click();
+  await page.getByRole('cell', { name: 'test update' }).click();
+  await page.locator('td').nth(2).click();
+  await page.getByRole('button', { name: 'Delete Task' }).click();
+  await expect(page.locator('body')).toContainText('Prisma-IDB usage page Add Task Completed Tasks: 0 Task Id Task Status Actions');
 });
