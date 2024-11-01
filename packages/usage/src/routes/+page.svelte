@@ -57,7 +57,7 @@
     // Always instantiate on client-side (need IndexedDB)
     client = await PrismaIDBClient.create();
     allTodos = await client.todo.findMany();
-    client.todo.subscribe("update", countCompletedTodos);
+    countCompletedTodos();
   });
 </script>
 
