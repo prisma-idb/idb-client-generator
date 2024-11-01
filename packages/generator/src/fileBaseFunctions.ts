@@ -174,7 +174,6 @@ export function addBaseModelClass(file: SourceFile) {
   // Update methods
   addUpdateMethod(baseModelClass);
 
-
   // Aggregate function methods
   addCountMethod(baseModelClass);
 }

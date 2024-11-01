@@ -34,7 +34,7 @@
     totalCompletedTodos = await client.todo.count({
       where: {
         isCompleted: true,
-      }
+      },
     });
   }
   async function updateStatus(id: string, event: Event) {
@@ -61,7 +61,7 @@
 </script>
 
 <div class="prose mt-5 flex max-w-full flex-col gap-5">
-  <h1 class="text-center font-bold text-xl">Prisma-IDB usage page</h1>
+  <h1 class="text-center text-xl font-bold">Prisma-IDB usage page</h1>
   <div class="flex flex-col items-center space-y-4">
     <div class="flex items-center justify-center space-x-2">
       <Input type="text" placeholder="Enter Task" class="max-w-xs" bind:value={task} oninput={handleChange} />
