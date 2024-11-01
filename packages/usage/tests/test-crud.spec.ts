@@ -32,12 +32,12 @@ test("should update added todo", async ({ page }) => {
 });
 
 test("should show total todos", async ({ page }) => {
-  await page.goto('/');
-  await page.getByPlaceholder('Enter Task').click();
-  await page.getByPlaceholder('Enter Task').fill('1');
-  await page.getByRole('button', { name: 'Add Task' }).click();
-  await page.getByRole('checkbox').check();
-  await expect(page.locator('body')).toContainText('Completed Tasks: 1');
-  await page.getByRole('checkbox').uncheck();
-  await expect(page.locator('body')).toContainText('Completed Tasks: 0');
+  await page.goto("/");
+  await page.getByPlaceholder("Enter Task").click();
+  await page.getByPlaceholder("Enter Task").fill("1");
+  await page.getByRole("button", { name: "Add Task" }).click();
+  await page.getByRole("checkbox").check();
+  await expect(page.locator("body")).toContainText("Completed Tasks: 1");
+  await page.getByRole("checkbox").uncheck();
+  await expect(page.locator("body")).toContainText("Completed Tasks: 0");
 });
