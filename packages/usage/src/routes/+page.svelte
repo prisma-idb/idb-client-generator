@@ -9,6 +9,7 @@
 
   let client: PrismaIDBClient;
   let allTodos = $state<Todo[]>([]);
+  let totalCompletedTodos = $state<number>(0);
 
   const formData = {
     task: "",
@@ -29,6 +30,14 @@
     task = "";
   }
 
+  async function countCompletedTodos() {
+    totalCompletedTodos = await client.todo.count({
+      where: {
+        isCompleted: true,
+      },
+    });
+  }
+
   async function updateStatus(id: string, event: Event) {
     const target = event.target as HTMLInputElement;
     await client.todo.update({
@@ -47,14 +56,18 @@
     // Always instantiate on client-side (need IndexedDB)
     client = await PrismaIDBClient.create();
     allTodos = await client.todo.findMany();
+    client.todo.subscribe("update", countCompletedTodos); // use update event listener
   });
 </script>
 
 <div class="prose mt-5 flex max-w-full flex-col gap-5">
-  <h1 class="text-center font-bold">Prisma-IDB usage page</h1>
-  <div class="flex items-center justify-center space-x-2">
-    <Input type="text" placeholder="Enter Task" class="max-w-xs" bind:value={task} oninput={handleChange} />
-    <Button variant="secondary" onclick={addTask}>Add Task</Button>
+  <h1 class="text-center text-xl font-bold">Prisma-IDB usage page</h1>
+  <div class="flex flex-col items-center space-y-4">
+    <div class="flex items-center justify-center space-x-2">
+      <Input type="text" placeholder="Enter Task" class="max-w-xs" bind:value={task} oninput={handleChange} />
+      <Button variant="secondary" onclick={addTask}>Add Task</Button>
+    </div>
+    <div><h1 class="font-bold">Completed Tasks: {totalCompletedTodos}</h1></div>
   </div>
   <div>
     <Table.Root>
