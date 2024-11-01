@@ -273,7 +273,7 @@ class BaseIDBModelClass<T extends ModelDelegate> {
     return record as Prisma.Result<T, Q, "update">;
   }
 
-  async count<Q extends Prisma.Args<T, "count">>(query: Q) {
+  async count<Q extends Prisma.Args<T, "count">>(query: Q): Promise<Prisma.Result<T, Q, "count">> {
     const records = filterByWhereClause(
       await this.client.db.getAll(toCamelCase(this.model.name)),
       this.keyPath,
