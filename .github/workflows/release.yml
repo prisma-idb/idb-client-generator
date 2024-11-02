@@ -10,20 +10,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Nodejs
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Build the Package
-        run: npm run build
-        working-directory: ./packages/generator
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/
 
       - name: Publish
         working-directory: ./packages/generator
