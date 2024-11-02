@@ -32,10 +32,10 @@
     "prisma": "5.21.1",
     "typescript": "5.6.3"
   },
-  "homepage": "https://github.com/prisma-idb/prisma-idb-generator",
+  "homepage": "https://www.github.com/prisma-idb/prisma-idb-generator",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/prisma-idb/prisma-idb-generator.git"
+    "url": "git+https://www.github.com/prisma-idb/prisma-idb-generator.git"
   },
   "author": "Your Name <Your Email>",
   "keywords": [
@@ -43,6 +43,6 @@
     "generator"
   ],
   "bugs": {
-    "url": "https://github.com/prisma-idb/prisma-idb-generator/issues"
+    "url": "https://www.github.com/prisma-idb/prisma-idb-generator/issues"
   }
 }
