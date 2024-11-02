@@ -35,7 +35,7 @@
   "homepage": "https://www.github.com/prisma-idb/prisma-idb-generator",
   "repository": {
     "type": "git",
-    "url": "git+https://www.github.com/prisma-idb/prisma-idb-generator.git"
+    "url": "https://www.github.com/prisma-idb/prisma-idb-generator.git"
   },
   "author": "Your Name <Your Email>",
   "keywords": [
