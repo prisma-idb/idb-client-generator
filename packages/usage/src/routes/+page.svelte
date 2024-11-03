@@ -18,7 +18,7 @@
   }
 
   async function addTask() {
-    await client.todo.create({ data: { isCompleted: false, task } });
+    await client.todo.create({ data: { isCompleted: false, task, testSum: 13 } });
     allTodos = await client.todo.findMany();
     task = "";
   }
@@ -45,6 +45,24 @@
     allTodos = await client.todo.findMany();
   }
 
+  async function testAggregate() {
+    let data = await client.todo.aggregate({
+      _max: {
+        testSum: true,
+      },
+      _min: {
+        testSum: true,
+      },
+      _count: {
+        isCompleted: true,
+      },
+      _sum: {
+        testSum: true,
+      },
+    });
+    console.log(data);
+  }
+
   onMount(async () => {
     // Always instantiate on client-side (need IndexedDB)
     client = await PrismaIDBClient.create();
@@ -60,6 +78,7 @@
       <Input type="text" placeholder="Enter Task" class="max-w-xs" bind:value={task} oninput={handleChange} />
       <Button variant="secondary" onclick={addTask}>Add Task</Button>
     </div>
+    <button onclick={testAggregate}>Aggregate</button>
     <div><h1 class="font-bold">Completed Tasks: {totalCompletedTodos}</h1></div>
   </div>
   <div>
