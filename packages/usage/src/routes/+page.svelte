@@ -47,6 +47,9 @@
 
   async function testAggregate() {
     let data = await client.todo.aggregate({
+      where: {
+        task: "g",
+      },
       _max: {
         testSum: true,
       },
