@@ -296,8 +296,14 @@ class BaseIDBModelClass<T extends ModelDelegate> {
   }
 
   async aggregate<Q extends Prisma.Args<T, "aggregate">>(query: Q): Promise<Prisma.Result<T, Q, "aggregate">> {
-    const records = await this.client.db.getAll(`${toCamelCase(this.model.name)}`);
-
+    let records = await this.client.db.getAll(`${toCamelCase(this.model.name)}`);
+    if (query.where) {
+      records = filterByWhereClause(
+        await this.client.db.getAll(toCamelCase(this.model.name)),
+        this.keyPath,
+        query?.where,
+      );
+    }
     const results = {};
 
     const calculateCount = (records, countQuery) => {
