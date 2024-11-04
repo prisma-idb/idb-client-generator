@@ -1,7 +1,7 @@
 import { ClassDeclaration } from "ts-morph";
 
 export function addAggregateMethod(modelClass: ClassDeclaration) {
-  // TODO Implement Average 
+  // TODO Implement Average
   modelClass.addMethod({
     name: "aggregate",
     isAsync: true,
@@ -10,8 +10,12 @@ export function addAggregateMethod(modelClass: ClassDeclaration) {
     returnType: `Promise<Prisma.Result<T, Q, "aggregate">>`,
     statements: (writer) => {
       writer
-        .writeLine("const records = await this.client.db.getAll(`${toCamelCase(this.model.name)}`);")
-        .blankLine()
+        .writeLine("let records = await this.client.db.getAll(`${toCamelCase(this.model.name)}`);")
+        .writeLine("if (query.where) {")
+        .writeLine(
+          "records = filterByWhereClause(await this.client.db.getAll(toCamelCase(this.model.name)),this.keyPath,query?.where,);",
+        )
+        .writeLine("}")
         .writeLine("const results = {};")
         .blankLine()
         .writeLine("const calculateCount = (records, countQuery) => {")
