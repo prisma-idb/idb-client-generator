@@ -76,7 +76,7 @@ export class PrismaIDBClient {
           isUpdatedAt: false,
         },
         {
-          name: "testSum",
+          name: "timeToComplete",
           kind: "scalar",
           isList: false,
           isRequired: true,
