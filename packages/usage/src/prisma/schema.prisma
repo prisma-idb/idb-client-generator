@@ -16,5 +16,5 @@ model Todo {
   id          String  @id @default(uuid())
   task        String
   isCompleted Boolean
-  testSum Int
+  timeToComplete Int
 }
