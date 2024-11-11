@@ -11,14 +11,21 @@
   let allTodos = $state<Todo[]>([]);
   let totalCompletedTodos = $state<number>(0);
   let task = $state("");
+  let timeToComplete = $state<number>(0);
+  let totalTimeToComplete = $state<number>(0);
 
   function handleChange(event: Event) {
     const target = event.target as HTMLSelectElement;
     task = target.value;
   }
 
+  function handleInputNumber(event: Event) {
+    const target = event.target as HTMLInputElement;
+    timeToComplete = Number(target.value);
+  }
+
   async function addTask() {
-    await client.todo.create({ data: { isCompleted: false, task } });
+    await client.todo.create({ data: { isCompleted: false, task, timeToComplete } });
     allTodos = await client.todo.findMany();
     task = "";
   }
@@ -29,6 +36,18 @@
         isCompleted: true,
       },
     });
+  }
+
+  async function totalTimeToCompleteTasks() {
+    let data = await client.todo.aggregate({
+      where: {
+        isCompleted: false,
+      },
+      _sum: {
+        timeToComplete: true,
+      },
+    });
+    totalTimeToComplete = Number(data._sum);
   }
 
   async function updateStatus(id: string, event: Event) {
@@ -50,6 +69,9 @@
     client = await PrismaIDBClient.create();
     allTodos = await client.todo.findMany();
     client.todo.subscribe("update", countCompletedTodos); // use update event listener
+    client.todo.subscribe("create", totalTimeToCompleteTasks);
+    client.todo.subscribe("delete", totalTimeToCompleteTasks);
+    client.todo.subscribe("update", totalTimeToCompleteTasks);
   });
 </script>
 
@@ -58,9 +80,11 @@
   <div class="flex flex-col items-center space-y-4">
     <div class="flex items-center justify-center space-x-2">
       <Input type="text" placeholder="Enter Task" class="max-w-xs" bind:value={task} oninput={handleChange} />
+      <Input type="number" class="w-16" bind:value={timeToComplete} oninput={handleInputNumber} />
       <Button variant="secondary" onclick={addTask}>Add Task</Button>
     </div>
     <div><h1 class="font-bold">Completed Tasks: {totalCompletedTodos}</h1></div>
+    <div><h1 class="font-bold">Total Time To Complete Task: {totalTimeToComplete}</h1></div>
   </div>
   <div>
     <Table.Root>
@@ -68,6 +92,7 @@
         <Table.Row>
           <Table.Head>Task Id</Table.Head>
           <Table.Head>Task</Table.Head>
+          <Table.Head>Time To Complete</Table.Head>
           <Table.Head>Status</Table.Head>
           <Table.Head>Actions</Table.Head>
         </Table.Row>
@@ -77,6 +102,7 @@
           <Table.Row class="w-fit">
             <Table.Cell>{allTodo.id}</Table.Cell>
             <Table.Cell>{allTodo.task}</Table.Cell>
+            <Table.Cell>{allTodo.timeToComplete}</Table.Cell>
             <Table.Cell>
               <input
                 type="checkbox"

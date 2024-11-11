@@ -75,6 +75,19 @@ export class PrismaIDBClient {
           isGenerated: false,
           isUpdatedAt: false,
         },
+        {
+          name: "timeToComplete",
+          kind: "scalar",
+          isList: false,
+          isRequired: true,
+          isUnique: false,
+          isId: false,
+          isReadOnly: false,
+          hasDefaultValue: false,
+          type: "Int",
+          isGenerated: false,
+          isUpdatedAt: false,
+        },
       ],
       primaryKey: null,
       uniqueFields: [],
@@ -280,5 +293,60 @@ class BaseIDBModelClass<T extends ModelDelegate> {
       query?.where,
     );
     return records.length as Prisma.Result<T, Q, "count">;
+  }
+
+  async aggregate<Q extends Prisma.Args<T, "aggregate">>(query: Q): Promise<Prisma.Result<T, Q, "aggregate">> {
+    let records = await this.client.db.getAll(`${toCamelCase(this.model.name)}`);
+    if (query.where) {
+      records = filterByWhereClause(records, this.keyPath, query.where);
+    }
+
+    const results: Partial<Prisma.Result<T, Q, "aggregate">> = {};
+
+    let count = 0;
+    let sum = 0;
+    let min: number | null = null;
+    let max: number | null = null;
+
+    records.forEach((record) => {
+      if (query._count) {
+        const key = Object.keys(query._count)[0];
+        console.log(query._count[key]);
+        if (record[key] === query._count[key]) {
+          count += 1;
+        }
+      }
+
+      if (query._sum) {
+        const key = Object.keys(query._sum)[0];
+        const value = record[key];
+        if (typeof value === "number") {
+          sum += value;
+        }
+      }
+
+      if (query._min) {
+        const key = Object.keys(query._min)[0];
+        const value = record[key];
+        if (typeof value === "number") {
+          min = min === null ? value : Math.min(min, value);
+        }
+      }
+
+      if (query._max) {
+        const key = Object.keys(query._max)[0];
+        const value = record[key];
+        if (typeof value === "number") {
+          max = max === null ? value : Math.max(max, value);
+        }
+      }
+    });
+
+    if (query._count) results._count = count as Prisma.Result<T, Q, "aggregate">["_count"];
+    if (query._sum) results._sum = sum as Prisma.Result<T, Q, "aggregate">["_sum"];
+    if (query._min) results._min = min;
+    if (query._max) results._max = max;
+
+    return results as unknown as Prisma.Result<T, Q, "aggregate">;
   }
 }
