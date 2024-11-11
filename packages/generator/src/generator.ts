@@ -29,7 +29,7 @@ generatorHandler({
 
   onGenerate: async (options: GeneratorOptions) => {
     const project = new Project();
-    const { models, enums } = options.dmmf.datamodel;
+    const { models } = options.dmmf.datamodel;
 
     const outputPath = options.generator.output?.value as string;
 
@@ -48,7 +48,7 @@ generatorHandler({
     });
 
     createAndWriteSourceFile(project, "idb-interface.ts", outputPath, (file) => {
-      createInterfaceFile(file, models, enums);
+      createInterfaceFile(file, models);
     });
 
     createAndWriteSourceFile(project, "datamodel.ts", outputPath, (file) => {

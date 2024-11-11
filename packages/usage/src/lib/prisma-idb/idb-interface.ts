@@ -1,12 +1,9 @@
 import type { DBSchema } from "idb";
+import * as Prisma from "@prisma/client";
 
 export interface PrismaIDBSchema extends DBSchema {
   Todo: {
-    key: ["string"];
-    value: {
-      id: string;
-      task: string;
-      isCompleted: boolean;
-    };
+    key: [string];
+    value: Prisma.Todo;
   };
 }

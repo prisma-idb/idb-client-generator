@@ -3,19 +3,9 @@ import { SourceFile } from "ts-morph";
 import { prismaToJsTypes } from "./types";
 import { generateIDBKey } from "./utils";
 
-export function createInterfaceFile(
-  idbInterfaceFile: SourceFile,
-  models: DMMF.Datamodel["models"],
-  enums: DMMF.Datamodel["enums"],
-) {
+export function createInterfaceFile(idbInterfaceFile: SourceFile, models: DMMF.Datamodel["models"]) {
   idbInterfaceFile.addImportDeclaration({ isTypeOnly: true, namedImports: ["DBSchema"], moduleSpecifier: "idb" });
-  if (enums.length > 0) {
-    idbInterfaceFile.addImportDeclaration({
-      isTypeOnly: true,
-      namedImports: enums.map(({ name }) => name),
-      moduleSpecifier: "@prisma/client",
-    });
-  }
+  idbInterfaceFile.addImportDeclaration({ namespaceImport: "Prisma", moduleSpecifier: "@prisma/client" });
 
   idbInterfaceFile.addInterface({
     name: "PrismaIDBSchema",
@@ -32,19 +22,10 @@ export function createInterfaceFile(
             if (!keyFieldJsType) throw new Error(`Key field type: ${keyField.type} is not supported`);
             return keyFieldJsType;
           }),
-        );
+        ).replaceAll('"', "");
 
         writer.block(() => {
-          writer.writeLine(`key: ${idbKeyPath}`).writeLine("value: ");
-          writer.block(() => {
-            model.fields.forEach((field) => {
-              if (field.kind === "enum") {
-                writer.writeLine(`${field.name}: typeof ${field.type}[keyof typeof ${field.type}]`);
-              } else if (field.kind === "scalar") {
-                writer.writeLine(`${field.name}: ${prismaToJsTypes.get(field.type)}`);
-              }
-            });
-          });
+          writer.writeLine(`key: ${idbKeyPath}`).writeLine(`value: Prisma.${model.name}`);
         });
       },
     })),
