@@ -1,4 +1,5 @@
-name: "Node and Dependency install"
+name: "Reusable setup"
+description: "Install Node and dependencies"
 runs:
   using: "composite"
   steps:
