@@ -17,6 +17,15 @@ export function addImports(file: SourceFile) {
   file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["IDBPDatabase"], isTypeOnly: true });
   file.addImportDeclaration({ moduleSpecifier: "@prisma/client", namedImports: ["Prisma"], isTypeOnly: true });
   file.addImportDeclaration({
+    moduleSpecifier: "./datamodel",
+    namespaceImport: "models",
+  });
+  file.addImportDeclaration({
+    moduleSpecifier: "./idb-interface",
+    namedImports: ["PrismaIDBSchema"],
+    isTypeOnly: true,
+  });
+  file.addImportDeclaration({
     moduleSpecifier: "./utils",
     namedImports: ["filterByWhereClause", "toCamelCase", "generateIDBKey", "getModelFieldData", "prismaToJsTypes"],
   });
@@ -65,7 +74,7 @@ export function addClientClass(file: SourceFile, models: readonly Model[]) {
     ctors: [{ scope: Scope.Private }],
     properties: [
       { name: "instance", isStatic: true, type: "PrismaIDBClient", scope: Scope.Private },
-      { name: "db", type: "IDBPDatabase", hasExclamationToken: true },
+      { name: "db", type: "IDBPDatabase<PrismaIDBSchema>", hasExclamationToken: true },
     ],
   });
 
@@ -106,7 +115,7 @@ export function addClientClass(file: SourceFile, models: readonly Model[]) {
     isAsync: true,
     statements: (writer) => {
       writer
-        .writeLine("this.db = await openDB('prisma-idb', IDB_VERSION, {")
+        .writeLine("this.db = await openDB<PrismaIDBSchema>('prisma-idb', IDB_VERSION, {")
         .indent(() => {
           writer
             .writeLine("upgrade(db) {")
@@ -120,7 +129,7 @@ export function addClientClass(file: SourceFile, models: readonly Model[]) {
       // Set members as object references of model classes
       models.forEach((model) => {
         writer.writeLine(
-          `this.${toCamelCase(model.name)} = new BaseIDBModelClass<Prisma.${model.name}Delegate>(this, ${generateIDBKey(model)}, ${JSON.stringify(model)});`,
+          `this.${toCamelCase(model.name)} = new BaseIDBModelClass<Prisma.${model.name}Delegate>(this, ${generateIDBKey(model)}, models.${model.name});`,
         );
       });
     },

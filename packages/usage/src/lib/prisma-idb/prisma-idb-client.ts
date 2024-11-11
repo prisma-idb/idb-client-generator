@@ -1,8 +1,10 @@
-import { openDB } from "idb";
-import type { IDBPDatabase } from "idb";
 import type { Prisma } from "@prisma/client";
-import { filterByWhereClause, toCamelCase, generateIDBKey, getModelFieldData, prismaToJsTypes } from "./utils";
+import type { IDBPDatabase } from "idb";
+import { openDB } from "idb";
+import * as models from "./datamodel";
+import type { PrismaIDBSchema } from "./idb-interface";
 import type { Model } from "./utils";
+import { filterByWhereClause, generateIDBKey, getModelFieldData, prismaToJsTypes, toCamelCase } from "./utils";
 
 const IDB_VERSION: number = 1;
 
@@ -10,7 +12,7 @@ type ModelDelegate = Prisma.TodoDelegate;
 
 export class PrismaIDBClient {
   private static instance: PrismaIDBClient;
-  db!: IDBPDatabase;
+  db!: IDBPDatabase<PrismaIDBSchema>;
 
   private constructor() {}
 
@@ -26,61 +28,12 @@ export class PrismaIDBClient {
   }
 
   private async initialize() {
-    this.db = await openDB("prisma-idb", IDB_VERSION, {
+    this.db = await openDB<PrismaIDBSchema>("prisma-idb", IDB_VERSION, {
       upgrade(db) {
         db.createObjectStore("todo", { keyPath: ["id"] });
       },
     });
-    this.todo = new BaseIDBModelClass<Prisma.TodoDelegate>(this, ["id"], {
-      name: "Todo",
-      dbName: null,
-      fields: [
-        {
-          name: "id",
-          kind: "scalar",
-          isList: false,
-          isRequired: true,
-          isUnique: false,
-          isId: true,
-          isReadOnly: false,
-          hasDefaultValue: true,
-          type: "String",
-          default: { name: "uuid(4)", args: [] },
-          isGenerated: false,
-          isUpdatedAt: false,
-        },
-        {
-          name: "task",
-          kind: "scalar",
-          isList: false,
-          isRequired: true,
-          isUnique: false,
-          isId: false,
-          isReadOnly: false,
-          hasDefaultValue: false,
-          type: "String",
-          isGenerated: false,
-          isUpdatedAt: false,
-        },
-        {
-          name: "isCompleted",
-          kind: "scalar",
-          isList: false,
-          isRequired: true,
-          isUnique: false,
-          isId: false,
-          isReadOnly: false,
-          hasDefaultValue: false,
-          type: "Boolean",
-          isGenerated: false,
-          isUpdatedAt: false,
-        },
-      ],
-      primaryKey: null,
-      uniqueFields: [],
-      uniqueIndexes: [],
-      isGenerated: false,
-    });
+    this.todo = new BaseIDBModelClass<Prisma.TodoDelegate>(this, ["id"], models.Todo);
   }
 }
 
