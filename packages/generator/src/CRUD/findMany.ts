@@ -11,7 +11,7 @@ export function addFindManyMethod(modelClass: ClassDeclaration) {
     returnType: `Promise<Prisma.Result<T, Q, "findMany">>`,
     statements: (writer) => {
       writer
-        .writeLine("const records = await this.client.db.getAll(`${toCamelCase(this.model.name)}`);")
+        .writeLine("const records = await this.client.db.getAll(`${this.model.name}`);")
         .writeLine(`return filterByWhereClause(`)
         .indent(() => {
           writer.writeLine(`records, this.keyPath, query?.where`);

@@ -14,14 +14,14 @@ export function addDeleteManyMethod(modelClass: ClassDeclaration) {
         .writeLine(`const records = filterByWhereClause(`)
         .indent(() => {
           writer
-            .writeLine(`await this.client.db.getAll(toCamelCase(this.model.name)),`)
+            .writeLine(`await this.client.db.getAll(this.model.name),`)
             .writeLine(`this.keyPath,`)
             .writeLine(`query?.where,`);
         })
         .writeLine(`)`)
         .writeLine(`if (records.length === 0) return { count: 0 } as Prisma.Result<T, Q, "deleteMany">;`)
         .blankLine()
-        .writeLine(`const tx = this.client.db.transaction(toCamelCase(this.model.name), "readwrite");`)
+        .writeLine(`const tx = this.client.db.transaction(this.model.name, "readwrite");`)
         .writeLine(`await Promise.all([`)
         .indent(() => {
           writer

@@ -9,7 +9,7 @@ export function addCreateManyMethod(modelClass: ClassDeclaration) {
     returnType: 'Promise<Prisma.Result<T, Q, "createMany">>',
     statements: (writer) => {
       writer
-        .writeLine('const tx = this.client.db.transaction(toCamelCase(this.model.name), "readwrite");')
+        .writeLine('const tx = this.client.db.transaction(this.model.name, "readwrite");')
         .writeLine("const queryData = Array.isArray(query.data) ? query.data : [query.data];")
         .writeLine(
           "await Promise.all([...queryData.map(async (record) => tx.store.add(await this.fillDefaults(record))), tx.done]);",

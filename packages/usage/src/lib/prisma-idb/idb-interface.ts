@@ -1,7 +1,7 @@
 import type { DBSchema } from "idb";
 
 export interface PrismaIDBSchema extends DBSchema {
-  todo: {
+  Todo: {
     key: ["string"];
     value: {
       id: string;

@@ -27,7 +27,7 @@ export function addImports(file: SourceFile) {
   });
   file.addImportDeclaration({
     moduleSpecifier: "./utils",
-    namedImports: ["filterByWhereClause", "toCamelCase", "generateIDBKey", "getModelFieldData", "prismaToJsTypes"],
+    namedImports: ["filterByWhereClause", "generateIDBKey", "getModelFieldData", "prismaToJsTypes"],
   });
   file.addImportDeclaration({
     moduleSpecifier: "./utils",
@@ -41,7 +41,7 @@ function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter) {
   const keyPath = generateIDBKey(model);
 
   let declarationLine = nonKeyUniqueFields.length ? `const ${model.name}Store = ` : ``;
-  declarationLine += `db.createObjectStore('${toCamelCase(model.name)}', { keyPath: ${keyPath} });`;
+  declarationLine += `db.createObjectStore('${model.name}', { keyPath: ${keyPath} });`;
 
   writer.writeLine(declarationLine);
   nonKeyUniqueFields.forEach(({ name }) => {
@@ -63,11 +63,14 @@ export function addTypes(file: SourceFile, models: readonly Model[]) {
         });
       },
     },
+    {
+      name: "ObjectStoreName",
+      type: (writer) => writer.writeLine("(typeof PrismaIDBClient.prototype.db.objectStoreNames)[number]"),
+    },
   ]);
 }
 
 export function addClientClass(file: SourceFile, models: readonly Model[]) {
-  // Basic class structure
   const clientClass = file.addClass({
     name: "PrismaIDBClient",
     isExported: true,
@@ -143,7 +146,7 @@ export function addBaseModelClass(file: SourceFile) {
     properties: [
       { name: "client", type: "PrismaIDBClient", scope: Scope.Private },
       { name: "keyPath", type: "string[]", scope: Scope.Private },
-      { name: "model", type: "Model", scope: Scope.Private },
+      { name: "model", type: "Omit<Model, 'name'> & { name: ObjectStoreName }", scope: Scope.Private },
       { name: "eventEmitter", type: "EventTarget", scope: Scope.Private },
     ],
     ctors: [
@@ -157,7 +160,7 @@ export function addBaseModelClass(file: SourceFile) {
           writer
             .writeLine("this.client = client")
             .writeLine("this.keyPath = keyPath")
-            .writeLine("this.model = model")
+            .writeLine("this.model = model as Omit<Model, 'name'> & { name: ObjectStoreName }")
             .writeLine("this.eventEmitter = new EventTarget()");
         },
       },

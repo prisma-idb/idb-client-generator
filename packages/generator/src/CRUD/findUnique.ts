@@ -32,7 +32,7 @@ function writePrimaryKeyCheck(writer: CodeBlockWriter) {
       .writeLine("return (")
       .write("filterByWhereClause(")
       .writeLine(
-        "[await this.client.db.get(toCamelCase(this.model.name), Object.values(queryWhere[keyFieldName]!) ?? null)],",
+        "[await this.client.db.get(this.model.name, Object.values(queryWhere[keyFieldName]!) ?? null)],",
       )
       .writeLine("this.keyPath,")
       .writeLine("query.where,")
@@ -47,7 +47,7 @@ function writeIdentifierFieldCheck(writer: CodeBlockWriter) {
     writer.writeLine("if (queryWhere[identifierFieldName])").block(() => {
       writer
         .write("return (await this.client.db.get(")
-        .write("toCamelCase(this.model.name), [queryWhere[identifierFieldName]] as IDBValidKey")
+        .write("this.model.name, [queryWhere[identifierFieldName]] as IDBValidKey")
         .write(")) ?? null;")
         .newLine();
     });
@@ -63,7 +63,7 @@ function writeNonKeyUniqueFieldsLoop(writer: CodeBlockWriter) {
       writer.writeLine("if (!queryWhere[uniqueField]) return;");
       writer
         .write("return (await this.client.db.getFromIndex(")
-        .write("toCamelCase(this.model.name), ")
+        .write("this.model.name, ")
         .write("`${uniqueField}Index`, ")
         .write("queryWhere[uniqueField] as IDBValidKey")
         .write(")) ?? null;")

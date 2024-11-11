@@ -12,8 +12,8 @@ function addCuidDefault(writer: CodeBlockWriter) {
 
 function addAutoincrementDefault(writer: CodeBlockWriter) {
   writer
-    .write("const transaction = this.client.db.transaction(toCamelCase(this.model.name), 'readonly');")
-    .write("const store = transaction.objectStore(toCamelCase(this.model.name));")
+    .write("const transaction = this.client.db.transaction(this.model.name, 'readonly');")
+    .write("const store = transaction.objectStore(this.model.name);")
     .write("const cursor = await store.openCursor(null, 'prev');")
     .write("dataField[fieldName] = (cursor ? Number(cursor.key) + 1 : 1) as (typeof data)[typeof fieldName];");
 }

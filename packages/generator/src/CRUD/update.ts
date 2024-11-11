@@ -25,7 +25,7 @@ export function addUpdateMethod(modelClass: ClassDeclaration) {
             .writeLine("}");
         })
         .writeLine("});")
-        .writeLine("await this.client.db.put(toCamelCase(this.model.name), record);")
+        .writeLine("await this.client.db.put(this.model.name, record);")
         .writeLine("this.emit('update');")
         .writeLine("return record as Prisma.Result<T, Q, 'update'>;");
     },

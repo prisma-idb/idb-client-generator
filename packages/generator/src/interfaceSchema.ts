@@ -1,7 +1,7 @@
 import { DMMF } from "@prisma/generator-helper";
 import { SourceFile } from "ts-morph";
 import { prismaToJsTypes } from "./types";
-import { toCamelCase, generateIDBKey } from "./utils";
+import { generateIDBKey } from "./utils";
 
 export function createInterfaceFile(
   idbInterfaceFile: SourceFile,
@@ -22,7 +22,7 @@ export function createInterfaceFile(
     extends: ["DBSchema"],
     isExported: true,
     properties: models.map((model) => ({
-      name: toCamelCase(model.name),
+      name: model.name,
       type: (writer) => {
         const keyPath = JSON.parse(generateIDBKey(model)) as string[];
         const idbKeyPath = JSON.stringify(
