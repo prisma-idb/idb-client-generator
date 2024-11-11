@@ -29,6 +29,7 @@ export function addFillDefaultsFunction(modelClass: ClassDeclaration) {
     scope: Scope.Private,
     typeParameters: [{ name: "D", constraint: 'Prisma.Args<T, "create">["data"]' }],
     parameters: [{ name: "data", type: "D" }],
+    returnType: "Promise<Required<D>>",
     statements: (writer) => {
       writer
         .writeLine("if (data === undefined) data = {} as D;")
@@ -68,7 +69,7 @@ export function addFillDefaultsFunction(modelClass: ClassDeclaration) {
           );
         })
         .writeLine(")")
-        .writeLine("return data;");
+        .writeLine("return data as Required<D>;");
     },
   });
 }

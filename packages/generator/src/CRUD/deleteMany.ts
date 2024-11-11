@@ -9,6 +9,7 @@ export function addDeleteManyMethod(modelClass: ClassDeclaration) {
     isAsync: true,
     typeParameters: [{ name: "Q", constraint: 'Prisma.Args<T, "deleteMany">' }],
     parameters: [{ name: "query", type: `Q` }],
+    returnType: "Promise<Prisma.Result<T, Q, 'deleteMany'>>",
     statements: (writer) => {
       writer
         .writeLine(`const records = filterByWhereClause(`)
