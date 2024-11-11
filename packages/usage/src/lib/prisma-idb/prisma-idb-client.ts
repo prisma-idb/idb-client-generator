@@ -38,8 +38,8 @@ export class PrismaIDBClient {
 }
 
 class BaseIDBModelClass<T extends ModelDelegate> {
-  client: PrismaIDBClient;
-  keyPath: string[];
+  private client: PrismaIDBClient;
+  private keyPath: string[];
   private model: Model;
   private eventEmitter: EventTarget;
 

@@ -1,4 +1,4 @@
-import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
+import { ClassDeclaration, CodeBlockWriter, Scope } from "ts-morph";
 
 function addUuidDefault(writer: CodeBlockWriter) {
   writer.write("dataField[fieldName] = crypto.randomUUID() as (typeof data)[typeof fieldName];");
@@ -26,6 +26,7 @@ export function addFillDefaultsFunction(modelClass: ClassDeclaration) {
   modelClass.addMethod({
     name: "fillDefaults",
     isAsync: true,
+    scope: Scope.Private,
     typeParameters: [{ name: "D", constraint: 'Prisma.Args<T, "create">["data"]' }],
     parameters: [{ name: "data", type: "D" }],
     statements: (writer) => {

@@ -141,8 +141,8 @@ export function addBaseModelClass(file: SourceFile) {
     name: "BaseIDBModelClass",
     typeParameters: [{ name: "T", constraint: "ModelDelegate" }],
     properties: [
-      { name: "client", type: "PrismaIDBClient" },
-      { name: "keyPath", type: "string[]" },
+      { name: "client", type: "PrismaIDBClient", scope: Scope.Private },
+      { name: "keyPath", type: "string[]", scope: Scope.Private },
       { name: "model", type: "Model", scope: Scope.Private },
       { name: "eventEmitter", type: "EventTarget", scope: Scope.Private },
     ],
@@ -229,6 +229,7 @@ export function addEventEmitters(baseModelClass: ClassDeclaration) {
       name: "emit",
       parameters: [{ name: "event", type: `"create" | "update" | "delete"` }],
       statements: (writer) => writer.writeLine(`this.eventEmitter.dispatchEvent(new Event(event));`),
+      scope: Scope.Private,
     },
   ]);
 }
