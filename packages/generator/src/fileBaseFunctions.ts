@@ -55,6 +55,7 @@ export function addTypes(file: SourceFile, models: readonly Model[]) {
   file.addTypeAliases([
     {
       name: "ModelDelegate",
+      isExported: true,
       type: (writer) => {
         models.forEach((model, idx) => {
           writer.write(`Prisma.${model.name}Delegate`);
