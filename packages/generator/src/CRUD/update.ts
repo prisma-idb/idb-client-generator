@@ -11,14 +11,14 @@ export function addUpdateMethod(modelClass: ClassDeclaration) {
     returnType: `Promise<Prisma.Result<T, Q, "update">>`,
     statements: (writer) => {
       writer
-        .writeLine("const record = (await this.findFirst(query)) as Record<string, unknown>;")
+        .writeLine("const record = await this.findFirst(query);")
         .writeLine("if (record === null) throw new Error('Record not found');")
+        .blankLine()
         .writeLine("this.model.fields.forEach((field) => {")
         .indent(() => {
           writer
-            .writeLine("const fieldName = field.name as keyof Q['data'] & string;")
-            .writeLine("const queryData = query.data as Record<string, unknown>;")
-            .writeLine("if (queryData[fieldName] !== undefined) {")
+            .writeLine("const fieldName = field.name as keyof typeof record & keyof typeof query.data;")
+            .writeLine("if (query.data[fieldName] !== undefined) {")
             .indent(() => {
               handleFieldUpdates(writer);
             })
@@ -47,10 +47,12 @@ function handleFieldUpdates(writer: CodeBlockWriter) {
 
 function handlePrimitiveFieldUpdates(writer: CodeBlockWriter) {
   writer
-    .writeLine("const jsType = prismaToJsTypes.get(field.type);")
-    .writeLine("if (!jsType) throw new Error(`Unsupported type: ${field.type}`);")
-    .writeLine("if (typeof queryData[fieldName] === jsType) {")
-    .indent(() => writer.writeLine("record[fieldName] = queryData[fieldName];"))
+    .writeLine("const fieldType = field.type as typeof prismaToJsTypes extends Map<infer K, unknown> ? K : never;")
+    .writeLine("const jsType = prismaToJsTypes.get(fieldType);")
+    .writeLine("if (!jsType || jsType === 'unknown') throw new Error(`Unsupported type: ${field.type}`);")
+    .blankLine()
+    .writeLine("if (typeof query.data[fieldName] === jsType) {")
+    .indent(() => writer.writeLine("record[fieldName] = query.data[fieldName];"))
     .writeLine("} else {")
     .indent(() => writer.writeLine("throw new Error('Indirect updates not yet supported');"))
     .writeLine("}");
