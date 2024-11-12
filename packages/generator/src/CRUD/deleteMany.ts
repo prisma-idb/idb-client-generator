@@ -28,7 +28,9 @@ export function addDeleteManyMethod(modelClass: ClassDeclaration) {
           writer
             .writeLine(`...records.map((record) => `)
             .indent(() => {
-              writer.writeLine(`tx.store.delete(this.keyPath.map((keyField) => record[keyField] as IDBValidKey))`);
+              writer
+                .write(`tx.store.delete(this.keyPath.map((keyField) => record[keyField] as IDBValidKey) `)
+                .write('as PrismaIDBSchema[typeof this.model.name]["key"])');
             })
             .writeLine(`),`)
             .writeLine(`tx.done,`);
