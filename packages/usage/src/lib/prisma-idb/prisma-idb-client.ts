@@ -171,7 +171,7 @@ class BaseIDBModelClass<T extends ModelDelegate> {
     await this.client.db.delete(
       this.model.name,
       this.keyPath.map(
-        (keyField) => records[0][keyField] as IDBValidKey,
+        (keyField) => records[0][keyField as keyof (typeof records)[number]] as IDBValidKey,
       ) as PrismaIDBSchema[typeof this.model.name]["key"],
     );
     this.emit("delete");
@@ -187,7 +187,7 @@ class BaseIDBModelClass<T extends ModelDelegate> {
       ...records.map((record) =>
         tx.store.delete(
           this.keyPath.map(
-            (keyField) => record[keyField] as IDBValidKey,
+            (keyField) => record[keyField as keyof typeof record] as IDBValidKey,
           ) as PrismaIDBSchema[typeof this.model.name]["key"],
         ),
       ),

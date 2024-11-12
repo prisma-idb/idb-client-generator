@@ -29,7 +29,7 @@ export function addDeleteManyMethod(modelClass: ClassDeclaration) {
             .writeLine(`...records.map((record) => `)
             .indent(() => {
               writer
-                .write(`tx.store.delete(this.keyPath.map((keyField) => record[keyField] as IDBValidKey) `)
+                .write(`tx.store.delete(this.keyPath.map((keyField) => record[keyField as keyof typeof record] as IDBValidKey) `)
                 .write('as PrismaIDBSchema[typeof this.model.name]["key"])');
             })
             .writeLine(`),`)
