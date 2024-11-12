@@ -8,7 +8,7 @@ import { filterByWhereClause, generateIDBKey, getModelFieldData, prismaToJsTypes
 
 const IDB_VERSION: number = 1;
 
-type ModelDelegate = Prisma.TodoDelegate;
+export type ModelDelegate = Prisma.TodoDelegate;
 type ObjectStoreName = (typeof PrismaIDBClient.prototype.db.objectStoreNames)[number];
 
 export class PrismaIDBClient {
@@ -71,7 +71,7 @@ class BaseIDBModelClass<T extends ModelDelegate> {
     this.eventEmitter.dispatchEvent(new Event(event));
   }
 
-  private async fillDefaults<D extends Prisma.Args<T, "create">["data"]>(data: D) {
+  private async fillDefaults<D extends Prisma.Args<T, "create">["data"]>(data: D): Promise<Required<D>> {
     if (data === undefined) data = {} as D;
     await Promise.all(
       this.model.fields
@@ -100,11 +100,11 @@ class BaseIDBModelClass<T extends ModelDelegate> {
           data = dataField as D;
         }),
     );
-    return data;
+    return data as Required<D>;
   }
 
   async findMany<Q extends Prisma.Args<T, "findMany">>(query?: Q): Promise<Prisma.Result<T, Q, "findMany">> {
-    const records = await this.client.db.getAll(`${this.model.name}`);
+    const records = await this.client.db.getAll(this.model.name);
     return filterByWhereClause(records, this.keyPath, query?.where) as Prisma.Result<T, Q, "findMany">;
   }
 
@@ -116,20 +116,20 @@ class BaseIDBModelClass<T extends ModelDelegate> {
     query: Q,
   ): Promise<Prisma.Result<T, Q, "findUnique"> | null> {
     const queryWhere = query.where as Record<string, unknown>;
-    if (this.model.primaryKey) {
-      const pk = this.model.primaryKey;
-      const keyFieldName = pk.fields.join("_");
+    if (this.model.primaryKey && this.model.primaryKey.fields.length > 1) {
+      const keyFieldValue = queryWhere[this.model.primaryKey.fields.join("_")] as Record<string, unknown>;
+      const tupleKey = this.keyPath.map((key) => keyFieldValue[key]) as PrismaIDBSchema[typeof this.model.name]["key"];
+      const foundRecord = await this.client.db.get(this.model.name, tupleKey);
+      if (!foundRecord) return null;
       return (
-        (filterByWhereClause(
-          [await this.client.db.get(this.model.name, Object.values(queryWhere[keyFieldName]!) ?? null)],
-          this.keyPath,
-          query.where,
-        )[0] as Prisma.Result<T, Q, "findUnique">) ?? null
+        (filterByWhereClause([foundRecord], this.keyPath, query.where)[0] as Prisma.Result<T, Q, "findUnique">) ?? null
       );
     } else {
       const identifierFieldName = JSON.parse(generateIDBKey(this.model))[0];
       if (queryWhere[identifierFieldName]) {
-        return (await this.client.db.get(this.model.name, [queryWhere[identifierFieldName]] as IDBValidKey)) ?? null;
+        return ((await this.client.db.get(this.model.name, [
+          queryWhere[identifierFieldName],
+        ] as unknown as PrismaIDBSchema[typeof this.model.name]["key"])) ?? null) as Prisma.Result<T, Q, "findUnique">;
       }
     }
     getModelFieldData(this.model)
@@ -170,19 +170,27 @@ class BaseIDBModelClass<T extends ModelDelegate> {
 
     await this.client.db.delete(
       this.model.name,
-      this.keyPath.map((keyField) => records[0][keyField] as IDBValidKey),
+      this.keyPath.map(
+        (keyField) => records[0][keyField] as IDBValidKey,
+      ) as PrismaIDBSchema[typeof this.model.name]["key"],
     );
     this.emit("delete");
     return records[0] as Prisma.Result<T, Q, "delete">;
   }
 
-  async deleteMany<Q extends Prisma.Args<T, "deleteMany">>(query: Q) {
+  async deleteMany<Q extends Prisma.Args<T, "deleteMany">>(query: Q): Promise<Prisma.Result<T, Q, "deleteMany">> {
     const records = filterByWhereClause(await this.client.db.getAll(this.model.name), this.keyPath, query?.where);
     if (records.length === 0) return { count: 0 } as Prisma.Result<T, Q, "deleteMany">;
 
     const tx = this.client.db.transaction(this.model.name, "readwrite");
     await Promise.all([
-      ...records.map((record) => tx.store.delete(this.keyPath.map((keyField) => record[keyField] as IDBValidKey))),
+      ...records.map((record) =>
+        tx.store.delete(
+          this.keyPath.map(
+            (keyField) => record[keyField] as IDBValidKey,
+          ) as PrismaIDBSchema[typeof this.model.name]["key"],
+        ),
+      ),
       tx.done,
     ]);
     this.emit("delete");
@@ -190,21 +198,23 @@ class BaseIDBModelClass<T extends ModelDelegate> {
   }
 
   async update<Q extends Prisma.Args<T, "update">>(query: Q): Promise<Prisma.Result<T, Q, "update">> {
-    const record = (await this.findFirst(query)) as Record<string, unknown>;
+    const record = await this.findFirst(query);
     if (record === null) throw new Error("Record not found");
+
     this.model.fields.forEach((field) => {
-      const fieldName = field.name as keyof Q["data"] & string;
-      const queryData = query.data as Record<string, unknown>;
-      if (queryData[fieldName] !== undefined) {
+      const fieldName = field.name as keyof typeof record & keyof typeof query.data;
+      if (query.data[fieldName] !== undefined) {
         if (field.kind === "object") {
           throw new Error("Object updates not yet supported");
         } else if (field.isList) {
           throw new Error("List updates not yet supported");
         } else {
-          const jsType = prismaToJsTypes.get(field.type);
-          if (!jsType) throw new Error(`Unsupported type: ${field.type}`);
-          if (typeof queryData[fieldName] === jsType) {
-            record[fieldName] = queryData[fieldName];
+          const fieldType = field.type as typeof prismaToJsTypes extends Map<infer K, unknown> ? K : never;
+          const jsType = prismaToJsTypes.get(fieldType);
+          if (!jsType || jsType === "unknown") throw new Error(`Unsupported type: ${field.type}`);
+
+          if (typeof query.data[fieldName] === jsType) {
+            record[fieldName] = query.data[fieldName];
           } else {
             throw new Error("Indirect updates not yet supported");
           }
@@ -222,57 +232,55 @@ class BaseIDBModelClass<T extends ModelDelegate> {
   }
 
   async aggregate<Q extends Prisma.Args<T, "aggregate">>(query: Q): Promise<Prisma.Result<T, Q, "aggregate">> {
-    let records = await this.client.db.getAll(`${toCamelCase(this.model.name)}`);
+    let records = await this.client.db.getAll(this.model.name);
+
     if (query.where) {
-      records = filterByWhereClause(records, this.keyPath, query.where);
+      records = filterByWhereClause(await this.client.db.getAll(this.model.name), this.keyPath, query.where);
     }
 
-    const results: Partial<Prisma.Result<T, Q, "aggregate">> = {};
+    const results = {};
 
-    let count = 0;
-    let sum = 0;
-    let min: number | null = null;
-    let max: number | null = null;
+    if (query._count) {
+      const calculateCount = (records, countQuery) => {
+        const [key] = Object.keys(countQuery);
+        return records.filter((record) => key in record && record[key] === countQuery[key]).length;
+      };
+      results._count = calculateCount(records, query._count);
+    }
 
-    records.forEach((record) => {
-      if (query._count) {
-        const key = Object.keys(query._count)[0];
-        console.log(query._count[key]);
-        if (record[key] === query._count[key]) {
-          count += 1;
-        }
-      }
+    if (query._sum) {
+      const calculateSum = (records, sumQuery) => {
+        const [key] = Object.keys(sumQuery);
+        const numericValues = records
+          .map((record) => (typeof record[key] === "number" ? record[key] : null))
+          .filter((value) => value !== null);
+        return numericValues.length ? numericValues.reduce((acc, val) => acc + val, 0) : 0;
+      };
+      results._sum = calculateSum(records, query._sum);
+    }
 
-      if (query._sum) {
-        const key = Object.keys(query._sum)[0];
-        const value = record[key];
-        if (typeof value === "number") {
-          sum += value;
-        }
-      }
+    if (query._min) {
+      const calculateMin = (records, minQuery) => {
+        const [key] = Object.keys(minQuery);
+        const numericValues = records
+          .map((record) => (typeof record[key] === "number" ? record[key] : null))
+          .filter((value) => value !== null);
+        return numericValues.length ? Math.min(...numericValues) : null;
+      };
+      results._min = calculateMin(records, query._min);
+    }
 
-      if (query._min) {
-        const key = Object.keys(query._min)[0];
-        const value = record[key];
-        if (typeof value === "number") {
-          min = min === null ? value : Math.min(min, value);
-        }
-      }
+    if (query._max) {
+      const calculateMax = (records, maxQuery) => {
+        const [key] = Object.keys(maxQuery);
+        const numericValues = records
+          .map((record) => (typeof record[key] === "number" ? record[key] : null))
+          .filter((value) => value !== null);
+        return numericValues.length ? Math.max(...numericValues) : null;
+      };
+      results._max = calculateMax(records, query._max);
+    }
 
-      if (query._max) {
-        const key = Object.keys(query._max)[0];
-        const value = record[key];
-        if (typeof value === "number") {
-          max = max === null ? value : Math.max(max, value);
-        }
-      }
-    });
-
-    if (query._count) results._count = count as Prisma.Result<T, Q, "aggregate">["_count"];
-    if (query._sum) results._sum = sum as Prisma.Result<T, Q, "aggregate">["_sum"];
-    if (query._min) results._min = min;
-    if (query._max) results._max = max;
-
-    return results as unknown as Prisma.Result<T, Q, "aggregate">;
+    return results as Prisma.Result<T, Q, "aggregate">;
   }
 }
