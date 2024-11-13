@@ -112,9 +112,14 @@ export function filterByWhereClause<T extends ModelDelegate, Q extends Prisma.Ar
             ),
         );
       }
-
-      records = records.filter((record) => record[param] === whereClause[param]);
     }
+
+    records = records.filter((record) => {
+      // TODO: really hacky way to avoid checking for complex filters like gte and lte for now
+      const typedWhereClause = whereClause as Record<string, unknown>;
+      const typedParam = param as string;
+      return record[param] === typedWhereClause[typedParam];
+    });
   }
 
   return records;
