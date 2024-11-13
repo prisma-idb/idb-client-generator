@@ -11,6 +11,7 @@ export async function writeSourceFile(
 ) {
   const file = project.createSourceFile(filename, "", { overwrite: true });
   callback(file);
+  file.organizeImports();
   const writeLocation = path.join(outputPath, file.getBaseName());
   await writeFileSafely(writeLocation, file.getText());
 }

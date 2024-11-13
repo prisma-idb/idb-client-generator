@@ -1,0 +1,13 @@
+import type { DBSchema } from "idb";
+import * as Prisma from "@prisma/client";
+
+export interface PrismaIDBSchema extends DBSchema {
+  User: {
+    key: [id: Prisma.User["id"]];
+    value: Prisma.User;
+  };
+  Todo: {
+    key: [id: Prisma.Todo["id"]];
+    value: Prisma.Todo;
+  };
+}

@@ -61,7 +61,7 @@ export function addClientClass(file: SourceFile, models: readonly Model[]) {
       writer
         .writeLine("this.db = await openDB<PrismaIDBSchema>('prisma-idb', IDB_VERSION, ")
         .block(() => {
-          writer.writeLine("upgrade(db) {").block(() => {
+          writer.writeLine("upgrade(db)").block(() => {
             models.forEach((model) => addObjectStoreInitialization(model, writer));
           });
         })
