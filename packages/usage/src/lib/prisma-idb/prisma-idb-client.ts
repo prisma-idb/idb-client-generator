@@ -8,7 +8,12 @@ import { filterByWhereClause, generateIDBKey, getModelFieldData, prismaToJsTypes
 
 const IDB_VERSION: number = 1;
 
-export type ModelDelegate = Prisma.TodoDelegate;
+export type ModelDelegate =
+  | Prisma.TodoDelegate
+  | Prisma.UserDelegate
+  | Prisma.AccountDelegate
+  | Prisma.SessionDelegate
+  | Prisma.VerificationTokenDelegate;
 type ObjectStoreName = (typeof PrismaIDBClient.prototype.db.objectStoreNames)[number];
 
 export class PrismaIDBClient {
@@ -18,6 +23,10 @@ export class PrismaIDBClient {
   private constructor() {}
 
   todo!: BaseIDBModelClass<Prisma.TodoDelegate>;
+  user!: BaseIDBModelClass<Prisma.UserDelegate>;
+  account!: BaseIDBModelClass<Prisma.AccountDelegate>;
+  session!: BaseIDBModelClass<Prisma.SessionDelegate>;
+  verificationToken!: BaseIDBModelClass<Prisma.VerificationTokenDelegate>;
 
   public static async create(): Promise<PrismaIDBClient> {
     if (!PrismaIDBClient.instance) {
@@ -32,9 +41,26 @@ export class PrismaIDBClient {
     this.db = await openDB<PrismaIDBSchema>("prisma-idb", IDB_VERSION, {
       upgrade(db) {
         db.createObjectStore("Todo", { keyPath: ["id"] });
+        const UserStore = db.createObjectStore("User", { keyPath: ["id"] });
+        UserStore.createIndex("emailIndex", "email", { unique: true });
+        db.createObjectStore("Account", { keyPath: ["provider", "providerAccountId"] });
+        db.createObjectStore("Session", { keyPath: ["sessionToken"] });
+        db.createObjectStore("VerificationToken", { keyPath: ["identifier", "token"] });
       },
     });
     this.todo = new BaseIDBModelClass<Prisma.TodoDelegate>(this, ["id"], models.Todo);
+    this.user = new BaseIDBModelClass<Prisma.UserDelegate>(this, ["id"], models.User);
+    this.account = new BaseIDBModelClass<Prisma.AccountDelegate>(
+      this,
+      ["provider", "providerAccountId"],
+      models.Account,
+    );
+    this.session = new BaseIDBModelClass<Prisma.SessionDelegate>(this, ["sessionToken"], models.Session);
+    this.verificationToken = new BaseIDBModelClass<Prisma.VerificationTokenDelegate>(
+      this,
+      ["identifier", "token"],
+      models.VerificationToken,
+    );
   }
 }
 
@@ -71,41 +97,49 @@ class BaseIDBModelClass<T extends ModelDelegate> {
     this.eventEmitter.dispatchEvent(new Event(event));
   }
 
-  private async fillDefaults<D extends Prisma.Args<T, "create">["data"]>(data: D): Promise<Required<D>> {
+  private async fillDefaults<Q extends Prisma.Args<T, "findFirstOrThrow">, D = Prisma.Args<T, "create">["data"]>(
+    data: D,
+  ): Promise<Prisma.Result<T, Q, "findFirstOrThrow">> {
     if (data === undefined) data = {} as D;
     await Promise.all(
       this.model.fields
         .filter(({ hasDefaultValue }) => hasDefaultValue)
         .map(async (field) => {
-          const fieldName = field.name as keyof D & string;
-          const dataField = data as Record<string, unknown>;
+          const fieldName = field.name as keyof D;
           const defaultValue = field.default!;
-          if (dataField[fieldName] === undefined) {
+          if (data[fieldName] === undefined) {
             if (typeof defaultValue === "object" && "name" in defaultValue) {
               if (defaultValue.name === "uuid(4)") {
-                dataField[fieldName] = crypto.randomUUID() as (typeof data)[typeof fieldName];
+                data[fieldName] = crypto.randomUUID() as (typeof data)[typeof fieldName];
               } else if (defaultValue.name === "cuid") {
                 const { createId } = await import("@paralleldrive/cuid2");
-                dataField[fieldName] = createId() as (typeof data)[typeof fieldName];
+                data[fieldName] = createId() as (typeof data)[typeof fieldName];
               } else if (defaultValue.name === "autoincrement") {
                 const transaction = this.client.db.transaction(this.model.name, "readonly");
                 const store = transaction.objectStore(this.model.name);
                 const cursor = await store.openCursor(null, "prev");
-                dataField[fieldName] = (cursor ? Number(cursor.key) + 1 : 1) as (typeof data)[typeof fieldName];
+                data[fieldName] = (cursor ? Number(cursor.key) + 1 : 1) as (typeof data)[typeof fieldName];
               }
             } else {
-              dataField[fieldName] = defaultValue as (typeof data)[typeof fieldName];
+              data[fieldName] = defaultValue as (typeof data)[typeof fieldName];
             }
           }
-          data = dataField as D;
         }),
     );
-    return data as Required<D>;
+    this.model.fields
+      .filter((field) => field.type === "DateTime")
+      .forEach((field) => {
+        const fieldName = field.name as keyof D;
+        if (typeof data[fieldName] === "string") {
+          data[fieldName] = new Date(data[fieldName]) as D[keyof D];
+        }
+      });
+    return data as unknown as Prisma.Result<T, Q, "findFirstOrThrow">;
   }
 
   async findMany<Q extends Prisma.Args<T, "findMany">>(query?: Q): Promise<Prisma.Result<T, Q, "findMany">> {
-    const records = await this.client.db.getAll(this.model.name);
-    return filterByWhereClause(records, this.keyPath, query?.where) as Prisma.Result<T, Q, "findMany">;
+    const records = (await this.client.db.getAll(this.model.name)) as Prisma.Result<T, Q, "findFirstOrThrow">[];
+    return filterByWhereClause<T, Q>(records, this.keyPath, query?.where) as Prisma.Result<T, Q, "findMany">;
   }
 
   async findFirst<Q extends Prisma.Args<T, "findFirst">>(query?: Q): Promise<Prisma.Result<T, Q, "findFirst"> | null> {
@@ -150,7 +184,7 @@ class BaseIDBModelClass<T extends ModelDelegate> {
   }
 
   async create<Q extends Prisma.Args<T, "create">>(query: Q): Promise<Prisma.Result<T, Q, "create">> {
-    const record = await this.fillDefaults(query.data);
+    const record = await this.fillDefaults<Q>(query.data);
     await this.client.db.add(this.model.name, record);
     this.emit("create");
     return record as Prisma.Result<T, Q, "create">;
@@ -159,7 +193,7 @@ class BaseIDBModelClass<T extends ModelDelegate> {
   async createMany<Q extends Prisma.Args<T, "createMany">>(query: Q): Promise<Prisma.Result<T, Q, "createMany">> {
     const tx = this.client.db.transaction(this.model.name, "readwrite");
     const queryData = Array.isArray(query.data) ? query.data : [query.data];
-    await Promise.all([...queryData.map(async (record) => tx.store.add(await this.fillDefaults(record))), tx.done]);
+    await Promise.all([...queryData.map(async (record) => tx.store.add(await this.fillDefaults<Q>(record))), tx.done]);
     this.emit("create");
     return { count: queryData.length } as Prisma.Result<T, Q, "createMany">;
   }
@@ -229,58 +263,5 @@ class BaseIDBModelClass<T extends ModelDelegate> {
   async count<Q extends Prisma.Args<T, "count">>(query: Q): Promise<Prisma.Result<T, Q, "count">> {
     const records = filterByWhereClause(await this.client.db.getAll(this.model.name), this.keyPath, query?.where);
     return records.length as Prisma.Result<T, Q, "count">;
-  }
-
-  async aggregate<Q extends Prisma.Args<T, "aggregate">>(query: Q): Promise<Prisma.Result<T, Q, "aggregate">> {
-    let records = await this.client.db.getAll(this.model.name);
-
-    if (query.where) {
-      records = filterByWhereClause(await this.client.db.getAll(this.model.name), this.keyPath, query.where);
-    }
-
-    const results = {};
-
-    if (query._count) {
-      const calculateCount = (records, countQuery) => {
-        const [key] = Object.keys(countQuery);
-        return records.filter((record) => key in record && record[key] === countQuery[key]).length;
-      };
-      results._count = calculateCount(records, query._count);
-    }
-
-    if (query._sum) {
-      const calculateSum = (records, sumQuery) => {
-        const [key] = Object.keys(sumQuery);
-        const numericValues = records
-          .map((record) => (typeof record[key] === "number" ? record[key] : null))
-          .filter((value) => value !== null);
-        return numericValues.length ? numericValues.reduce((acc, val) => acc + val, 0) : 0;
-      };
-      results._sum = calculateSum(records, query._sum);
-    }
-
-    if (query._min) {
-      const calculateMin = (records, minQuery) => {
-        const [key] = Object.keys(minQuery);
-        const numericValues = records
-          .map((record) => (typeof record[key] === "number" ? record[key] : null))
-          .filter((value) => value !== null);
-        return numericValues.length ? Math.min(...numericValues) : null;
-      };
-      results._min = calculateMin(records, query._min);
-    }
-
-    if (query._max) {
-      const calculateMax = (records, maxQuery) => {
-        const [key] = Object.keys(maxQuery);
-        const numericValues = records
-          .map((record) => (typeof record[key] === "number" ? record[key] : null))
-          .filter((value) => value !== null);
-        return numericValues.length ? Math.max(...numericValues) : null;
-      };
-      results._max = calculateMax(records, query._max);
-    }
-
-    return results as Prisma.Result<T, Q, "aggregate">;
   }
 }
