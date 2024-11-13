@@ -5,5 +5,6 @@ export interface PrismaIDBSchema extends DBSchema {
   Todo: {
     key: [string];
     value: Prisma.Todo;
+    indexes: { [s: string]: IDBValidKey };
   };
 }

@@ -1,17 +1,16 @@
 import { ClassDeclaration, CodeBlockWriter, Scope, SourceFile } from "ts-morph";
+import { addCountMethod } from "./Aggregate Functions/count";
 import { addCreateMethod } from "./CRUD/create";
 import { addCreateManyMethod } from "./CRUD/createMany";
 import { addDeleteMethod } from "./CRUD/delete";
+import { addDeleteManyMethod } from "./CRUD/deleteMany";
 import { addFindFirstMethod } from "./CRUD/findFirst";
 import { addFindManyMethod } from "./CRUD/findMany";
 import { addFindUniqueMethod } from "./CRUD/findUnique";
+import { addUpdateMethod } from "./CRUD/update";
 import { addFillDefaultsFunction } from "./fillDefaultsFunction";
 import { Model } from "./types";
 import { generateIDBKey, getModelFieldData, toCamelCase } from "./utils";
-import { addDeleteManyMethod } from "./CRUD/deleteMany";
-import { addUpdateMethod } from "./CRUD/update";
-import { addCountMethod } from "./Aggregate Functions/count";
-import { addAggregateMethod } from "./Aggregate Functions/aggregate";
 
 export function addImports(file: SourceFile) {
   file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["openDB"] });
@@ -190,7 +189,9 @@ export function addBaseModelClass(file: SourceFile) {
 
   // Aggregate function methods
   addCountMethod(baseModelClass);
-  addAggregateMethod(baseModelClass);
+
+  // Need a refactor
+  // addAggregateMethod(baseModelClass);
 }
 
 export function addEventEmitters(baseModelClass: ClassDeclaration) {

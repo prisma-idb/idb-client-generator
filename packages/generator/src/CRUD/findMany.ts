@@ -11,8 +11,10 @@ export function addFindManyMethod(modelClass: ClassDeclaration) {
     returnType: `Promise<Prisma.Result<T, Q, "findMany">>`,
     statements: (writer) => {
       writer
-        .writeLine("const records = await this.client.db.getAll(this.model.name);")
-        .writeLine(`return filterByWhereClause(`)
+        .writeLine(
+          'const records = (await this.client.db.getAll(this.model.name)) as Prisma.Result<T, Q, "findFirstOrThrow">[];',
+        )
+        .writeLine(`return filterByWhereClause<T, Q>(`)
         .indent(() => {
           writer.writeLine(`records, this.keyPath, query?.where`);
         })
