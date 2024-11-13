@@ -25,7 +25,10 @@ export function createInterfaceFile(idbInterfaceFile: SourceFile, models: DMMF.D
         ).replaceAll('"', "");
 
         writer.block(() => {
-          writer.writeLine(`key: ${idbKeyPath}`).writeLine(`value: Prisma.${model.name}`);
+          writer
+            .writeLine(`key: ${idbKeyPath}`)
+            .writeLine(`value: Prisma.${model.name}`)
+            .writeLine("indexes: { [s: string]: IDBValidKey }");
         });
       },
     })),
