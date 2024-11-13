@@ -12,9 +12,17 @@ generator prismaIDB {
   output   = "../lib/prisma-idb"
 }
 
+model User {
+  id    String @id @default(cuid())
+  name  String
+  todos Todo[]
+}
+
 model Todo {
-  id          String  @id @default(uuid())
-  task        String
-  isCompleted Boolean
-  timeToComplete Int
+  id             String  @id @default(cuid())
+  task           String
+  isCompleted    Boolean
+  timeToComplete Float
+  user           User    @relation(fields: [userId], references: [id])
+  userId         String
 }
