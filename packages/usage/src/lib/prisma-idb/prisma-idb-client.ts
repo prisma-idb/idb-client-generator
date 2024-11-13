@@ -8,7 +8,7 @@ import { filterByWhereClause, generateIDBKey, getModelFieldData, prismaToJsTypes
 
 const IDB_VERSION: number = 1;
 
-export type ModelDelegate = Prisma.UserDelegate | Prisma.TodoDelegate;
+export type ModelDelegate = Prisma.TodoDelegate;
 type ObjectStoreName = (typeof PrismaIDBClient.prototype.db.objectStoreNames)[number];
 
 export class PrismaIDBClient {
@@ -17,7 +17,6 @@ export class PrismaIDBClient {
 
   private constructor() {}
 
-  user!: BaseIDBModelClass<Prisma.UserDelegate>;
   todo!: BaseIDBModelClass<Prisma.TodoDelegate>;
 
   public static async create(): Promise<PrismaIDBClient> {
@@ -32,11 +31,9 @@ export class PrismaIDBClient {
   private async initialize() {
     this.db = await openDB<PrismaIDBSchema>("prisma-idb", IDB_VERSION, {
       upgrade(db) {
-        db.createObjectStore("User", { keyPath: ["id"] });
         db.createObjectStore("Todo", { keyPath: ["id"] });
       },
     });
-    this.user = new BaseIDBModelClass<Prisma.UserDelegate>(this, ["id"], models.User);
     this.todo = new BaseIDBModelClass<Prisma.TodoDelegate>(this, ["id"], models.Todo);
   }
 }
