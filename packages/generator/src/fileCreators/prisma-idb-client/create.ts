@@ -1,6 +1,7 @@
 import { DMMF } from "@prisma/generator-helper";
 import { SourceFile, VariableDeclarationKind } from "ts-morph";
 import { addClientClass } from "./classes/PrismaIDBClient";
+import { addBaseModelClass } from "./classes/BaseIDBModelClass";
 
 function addImports(file: SourceFile) {
   file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["openDB"] });
@@ -24,4 +25,5 @@ export function createPrismaIDBClientFile(idbClientFile: SourceFile, models: DMM
   addImports(idbClientFile);
   addVersionDeclaration(idbClientFile);
   addClientClass(idbClientFile, models);
+  addBaseModelClass(idbClientFile);
 }

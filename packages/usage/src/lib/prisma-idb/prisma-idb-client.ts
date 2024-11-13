@@ -33,3 +33,35 @@ export class PrismaIDBClient {
     this.todo = new TodoIDBClass(this, ["id"]);
   }
 }
+
+class BaseIDBModelClass {
+  protected client: PrismaIDBClient;
+  protected keyPath: string[];
+  private eventEmitter: EventTarget;
+
+  constructor(client: PrismaIDBClient, keyPath: string[]) {
+    this.client = client;
+    this.keyPath = keyPath;
+    this.eventEmitter = new EventTarget();
+  }
+
+  subscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: () => void) {
+    if (Array.isArray(event)) {
+      event.forEach((event) => this.eventEmitter.addEventListener(event, callback));
+      return;
+    }
+    this.eventEmitter.addEventListener(event, callback);
+  }
+
+  unsubscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: () => void) {
+    if (Array.isArray(event)) {
+      event.forEach((event) => this.eventEmitter.removeEventListener(event, callback));
+      return;
+    }
+    this.eventEmitter.removeEventListener(event, callback);
+  }
+
+  protected emit(event: "create" | "update" | "delete") {
+    this.eventEmitter.dispatchEvent(new Event(event));
+  }
+}

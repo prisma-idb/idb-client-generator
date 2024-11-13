@@ -1,8 +1,8 @@
 import { generatorHandler, GeneratorOptions } from "@prisma/generator-helper";
 import { Project } from "ts-morph";
 import { version } from "../package.json";
-import { createIDBInterfaceFile } from "./fileCreators/idb-interface/idb-interface";
-import { createPrismaIDBClientFile } from "./fileCreators/prisma-idb-client/prisma-idb-client";
+import { createIDBInterfaceFile } from "./fileCreators/idb-interface/create";
+import { createPrismaIDBClientFile } from "./fileCreators/prisma-idb-client/create";
 import { writeSourceFile } from "./helpers/fileWriting";
 
 generatorHandler({

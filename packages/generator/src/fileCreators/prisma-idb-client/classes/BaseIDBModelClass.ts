@@ -16,9 +16,9 @@ export function addBaseModelClass(file: SourceFile) {
         ],
         statements: (writer) => {
           writer
-            .writeLine("this.client = client")
-            .writeLine("this.keyPath = keyPath")
-            .writeLine("this.eventEmitter = new EventTarget()");
+            .writeLine("this.client = client;")
+            .writeLine("this.keyPath = keyPath;")
+            .writeLine("this.eventEmitter = new EventTarget();");
         },
       },
     ],
@@ -27,7 +27,7 @@ export function addBaseModelClass(file: SourceFile) {
   addEventEmitters(baseModelClass);
 }
 
-export function addEventEmitters(baseModelClass: ClassDeclaration) {
+function addEventEmitters(baseModelClass: ClassDeclaration) {
   baseModelClass.addMethods([
     {
       name: "subscribe",
@@ -37,13 +37,12 @@ export function addEventEmitters(baseModelClass: ClassDeclaration) {
       ],
       statements: (writer) => {
         writer
-          .writeLine(`if (Array.isArray(event)) {`)
-          .indent(() => {
+          .writeLine(`if (Array.isArray(event))`)
+          .block(() => {
             writer
               .writeLine(`event.forEach((event) => this.eventEmitter.addEventListener(event, callback));`)
               .writeLine(`return;`);
           })
-          .writeLine("}")
           .writeLine(`this.eventEmitter.addEventListener(event, callback);`);
       },
     },
@@ -55,13 +54,12 @@ export function addEventEmitters(baseModelClass: ClassDeclaration) {
       ],
       statements: (writer) => {
         writer
-          .writeLine(`if (Array.isArray(event)) {`)
-          .indent(() =>
+          .writeLine(`if (Array.isArray(event))`)
+          .block(() =>
             writer
               .writeLine(`event.forEach((event) => this.eventEmitter.removeEventListener(event, callback));`)
               .writeLine(`return;`),
           )
-          .writeLine("}")
           .writeLine(`this.eventEmitter.removeEventListener(event, callback);`);
       },
     },
