@@ -1,13 +1,13 @@
 import { ClassDeclaration, CodeBlockWriter, Scope } from "ts-morph";
 
 function addUuidDefault(writer: CodeBlockWriter) {
-  writer.write("dataField[fieldName] = crypto.randomUUID() as (typeof data)[typeof fieldName];");
+  writer.write("data[fieldName] = crypto.randomUUID() as (typeof data)[typeof fieldName];");
 }
 
 function addCuidDefault(writer: CodeBlockWriter) {
   writer
     .write("const { createId } = await import('@paralleldrive/cuid2');")
-    .write("dataField[fieldName] = createId() as (typeof data)[typeof fieldName];");
+    .write("data[fieldName] = createId() as (typeof data)[typeof fieldName];");
 }
 
 function addAutoincrementDefault(writer: CodeBlockWriter) {
@@ -15,11 +15,11 @@ function addAutoincrementDefault(writer: CodeBlockWriter) {
     .write("const transaction = this.client.db.transaction(this.model.name, 'readonly');")
     .write("const store = transaction.objectStore(this.model.name);")
     .write("const cursor = await store.openCursor(null, 'prev');")
-    .write("dataField[fieldName] = (cursor ? Number(cursor.key) + 1 : 1) as (typeof data)[typeof fieldName];");
+    .write("data[fieldName] = (cursor ? Number(cursor.key) + 1 : 1) as (typeof data)[typeof fieldName];");
 }
 
 function addDefaultValue(writer: CodeBlockWriter) {
-  writer.write("dataField[fieldName] = defaultValue as (typeof data)[typeof fieldName];");
+  writer.write("data[fieldName] = defaultValue as (typeof data)[typeof fieldName];");
 }
 
 export function addFillDefaultsFunction(modelClass: ClassDeclaration) {
@@ -41,10 +41,9 @@ export function addFillDefaultsFunction(modelClass: ClassDeclaration) {
               .write(".map(async (field) => {")
               .indent(() =>
                 writer
-                  .write("const fieldName = field.name as keyof D & string;")
-                  .write("const dataField = data as Record<string, unknown>;")
+                  .write("const fieldName = field.name as keyof D;")
                   .write("const defaultValue = field.default!;")
-                  .write("if (dataField[fieldName] === undefined) {")
+                  .write("if (data[fieldName] === undefined) {")
                   .indent(() =>
                     writer
                       .write("if (typeof defaultValue === 'object' && 'name' in defaultValue) {")
@@ -63,7 +62,6 @@ export function addFillDefaultsFunction(modelClass: ClassDeclaration) {
                       .write("}"),
                   )
                   .write("}")
-                  .write("data = dataField as D;"),
               )
               .write("})"),
           );
