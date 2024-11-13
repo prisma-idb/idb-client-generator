@@ -12,7 +12,7 @@ export function addCreateManyMethod(modelClass: ClassDeclaration) {
         .writeLine('const tx = this.client.db.transaction(this.model.name, "readwrite");')
         .writeLine("const queryData = Array.isArray(query.data) ? query.data : [query.data];")
         .writeLine(
-          "await Promise.all([...queryData.map(async (record) => tx.store.add(await this.fillDefaults(record))), tx.done]);",
+          "await Promise.all([...queryData.map(async (record) => tx.store.add(await this.fillDefaults<Q>(record))), tx.done]);",
         )
         .writeLine('this.emit("create");')
         .writeLine('return { count: queryData.length } as Prisma.Result<T, Q, "createMany">;');
