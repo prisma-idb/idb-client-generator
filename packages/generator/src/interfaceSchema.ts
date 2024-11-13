@@ -1,7 +1,7 @@
 import { DMMF } from "@prisma/generator-helper";
 import { SourceFile } from "ts-morph";
 import { prismaToJsTypes } from "./types";
-import { generateIDBKey } from "./utils";
+import { generateIDBKey } from "./helpers/utils";
 
 export function createInterfaceFile(idbInterfaceFile: SourceFile, models: DMMF.Datamodel["models"]) {
   idbInterfaceFile.addImportDeclaration({ isTypeOnly: true, namedImports: ["DBSchema"], moduleSpecifier: "idb" });
