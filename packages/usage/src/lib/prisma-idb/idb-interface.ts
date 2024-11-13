@@ -3,11 +3,11 @@ import type { DBSchema } from "idb";
 
 export interface PrismaIDBSchema extends DBSchema {
   User: {
-    key: [id: Prisma.User["id"]];
+    key: [userId: Prisma.User["userId"]];
     value: Prisma.User;
   };
   Todo: {
-    key: [id: Prisma.Todo["id"]];
+    key: [todoId: Prisma.Todo["todoId"]];
     value: Prisma.Todo;
   };
 }

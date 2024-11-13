@@ -13,16 +13,16 @@ generator prismaIDB {
 }
 
 model User {
-  id            String @id @default(cuid())
+  userId        String @id @default(cuid())
   name          String
   assignedTodos Todo[]
 }
 
 model Todo {
-  id             String  @id @default(cuid())
+  todoId         String  @id @default(cuid())
   task           String
   isCompleted    Boolean
   timeToComplete Int
-  assignedUser   User?   @relation(fields: [assignedUserId], references: [id])
+  assignedUser   User?   @relation(fields: [assignedUserId], references: [userId])
   assignedUserId String?
 }

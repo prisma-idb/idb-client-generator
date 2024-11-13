@@ -18,6 +18,8 @@ generatorHandler({
     const { models } = options.dmmf.datamodel;
     const outputPath = options.generator.output?.value as string;
 
+    console.log(models.map(({ fields }) => fields));
+
     await writeSourceFile(project, "prisma-idb-client.ts", outputPath, (file) => {
       createPrismaIDBClientFile(file, models);
     });
