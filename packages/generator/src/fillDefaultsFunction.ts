@@ -22,14 +22,32 @@ function addDefaultValue(writer: CodeBlockWriter) {
   writer.write("data[fieldName] = defaultValue as (typeof data)[typeof fieldName];");
 }
 
+function convertStringDatesToDates(writer: CodeBlockWriter) {
+  writer
+    .writeLine('this.model.fields.filter((field) => field.type === "DateTime")')
+    .writeLine(".forEach((field) => ")
+    .block(() => {
+      writer
+        .writeLine("const fieldName = field.name as keyof D;")
+        .writeLine('if (typeof data[fieldName] === "string")')
+        .block(() => {
+          writer.writeLine("data[fieldName] = new Date(data[fieldName]) as D[keyof D];");
+        });
+    })
+    .writeLine(")");
+}
+
 export function addFillDefaultsFunction(modelClass: ClassDeclaration) {
   modelClass.addMethod({
     name: "fillDefaults",
     isAsync: true,
     scope: Scope.Private,
-    typeParameters: [{ name: "D", constraint: 'Prisma.Args<T, "create">["data"]' }],
+    typeParameters: [
+      { name: "Q", constraint: 'Prisma.Args<T, "findFirstOrThrow">' },
+      { name: "D", default: 'Prisma.Args<T, "create">["data"]' },
+    ],
     parameters: [{ name: "data", type: "D" }],
-    returnType: "Promise<Required<D>>",
+    returnType: "Promise<Prisma.Result<T, Q, 'findFirstOrThrow'>>",
     statements: (writer) => {
       writer
         .writeLine("if (data === undefined) data = {} as D;")
@@ -61,13 +79,14 @@ export function addFillDefaultsFunction(modelClass: ClassDeclaration) {
                       .indent(() => addDefaultValue(writer))
                       .write("}"),
                   )
-                  .write("}")
+                  .write("}"),
               )
               .write("})"),
           );
         })
-        .writeLine(")")
-        .writeLine("return data as Required<D>;");
+        .writeLine(")");
+      convertStringDatesToDates(writer);
+      writer.writeLine("return data as unknown as Prisma.Result<T, Q, 'findFirstOrThrow'>;");
     },
   });
 }
