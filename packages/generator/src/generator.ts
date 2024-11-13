@@ -1,9 +1,9 @@
 import { generatorHandler, GeneratorOptions } from "@prisma/generator-helper";
-import { Project, VariableDeclarationKind } from "ts-morph";
+import { Project } from "ts-morph";
 import { version } from "../package.json";
-import { addBaseModelClass, addClientClass, addImports } from "./fileBaseFunctions";
-import { createInterfaceFile } from "./interfaceSchema";
-import { createAndWriteSourceFile } from "./helpers/fileWriting";
+import { createIDBInterfaceFile } from "./fileCreators/idb-interface/idb-interface";
+import { createPrismaIDBClientFile } from "./fileCreators/prisma-idb-client/prisma-idb-client";
+import { writeSourceFile } from "./helpers/fileWriting";
 
 generatorHandler({
   onManifest() {
@@ -18,21 +18,12 @@ generatorHandler({
     const { models } = options.dmmf.datamodel;
     const outputPath = options.generator.output?.value as string;
 
-    createAndWriteSourceFile(project, "prisma-idb-client.ts", outputPath, (file) => {
-      // TODO: update version numbers if schema changes
-      file.addVariableStatement({
-        declarationKind: VariableDeclarationKind.Const,
-        declarations: [{ name: "IDB_VERSION", type: "number", initializer: "1" }],
-      });
-
-      addImports(file);
-      addClientClass(file, models);
-      addBaseModelClass(file);
-      file.organizeImports();
+    writeSourceFile(project, "prisma-idb-client.ts", outputPath, (file) => {
+      createPrismaIDBClientFile(file, models);
     });
 
-    createAndWriteSourceFile(project, "idb-interface.ts", outputPath, (file) => {
-      createInterfaceFile(file, models);
+    writeSourceFile(project, "idb-interface.ts", outputPath, (file) => {
+      createIDBInterfaceFile(file, models);
     });
   },
 });

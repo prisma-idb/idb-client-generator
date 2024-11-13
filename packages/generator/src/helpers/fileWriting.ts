@@ -3,7 +3,7 @@ import path from "path";
 import prettier from "prettier";
 import { Project, SourceFile } from "ts-morph";
 
-export async function createAndWriteSourceFile(
+export async function writeSourceFile(
   project: Project,
   filename: string,
   outputPath: string,

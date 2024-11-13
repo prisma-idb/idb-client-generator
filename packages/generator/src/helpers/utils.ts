@@ -1,4 +1,4 @@
-import { Model } from "../types";
+import { Model } from "../fileCreators/types";
 
 export function toCamelCase(str: string): string {
   return str
