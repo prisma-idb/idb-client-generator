@@ -15,7 +15,7 @@ export function addDeleteMethod(modelClass: ClassDeclaration) {
         .writeLine(`const records = filterByWhereClause(`)
         .indent(() => {
           writer
-            .writeLine(`await this.client.db.getAll(toCamelCase(this.model.name)),`)
+            .writeLine(`await this.client.db.getAll(this.model.name),`)
             .writeLine(`this.keyPath,`)
             .writeLine(`query.where,`);
         })
@@ -25,8 +25,11 @@ export function addDeleteMethod(modelClass: ClassDeclaration) {
         .writeLine(`await this.client.db.delete(`)
         .indent(() => {
           writer
-            .writeLine(`toCamelCase(this.model.name),`)
-            .writeLine(`this.keyPath.map((keyField) => records[0][keyField] as IDBValidKey),`);
+            .writeLine(`this.model.name,`)
+            .write(
+              `this.keyPath.map((keyField) => records[0][keyField as keyof typeof records[number]] as IDBValidKey) `,
+            )
+            .write('as PrismaIDBSchema[typeof this.model.name]["key"]');
         })
         .writeLine(`);`)
         .writeLine(`this.emit("delete");`)

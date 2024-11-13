@@ -1,25 +1,33 @@
 import { ClassDeclaration, CodeBlockWriter, Scope, SourceFile } from "ts-morph";
+import { addCountMethod } from "./Aggregate Functions/count";
 import { addCreateMethod } from "./CRUD/create";
 import { addCreateManyMethod } from "./CRUD/createMany";
 import { addDeleteMethod } from "./CRUD/delete";
+import { addDeleteManyMethod } from "./CRUD/deleteMany";
 import { addFindFirstMethod } from "./CRUD/findFirst";
 import { addFindManyMethod } from "./CRUD/findMany";
 import { addFindUniqueMethod } from "./CRUD/findUnique";
+import { addUpdateMethod } from "./CRUD/update";
 import { addFillDefaultsFunction } from "./fillDefaultsFunction";
 import { Model } from "./types";
 import { generateIDBKey, getModelFieldData, toCamelCase } from "./utils";
-import { addDeleteManyMethod } from "./CRUD/deleteMany";
-import { addUpdateMethod } from "./CRUD/update";
-import { addCountMethod } from "./Aggregate Functions/count";
-import { addAggregateMethod } from "./Aggregate Functions/aggregate";
 
 export function addImports(file: SourceFile) {
   file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["openDB"] });
   file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["IDBPDatabase"], isTypeOnly: true });
   file.addImportDeclaration({ moduleSpecifier: "@prisma/client", namedImports: ["Prisma"], isTypeOnly: true });
   file.addImportDeclaration({
+    moduleSpecifier: "./datamodel",
+    namespaceImport: "models",
+  });
+  file.addImportDeclaration({
+    moduleSpecifier: "./idb-interface",
+    namedImports: ["PrismaIDBSchema"],
+    isTypeOnly: true,
+  });
+  file.addImportDeclaration({
     moduleSpecifier: "./utils",
-    namedImports: ["filterByWhereClause", "toCamelCase", "generateIDBKey", "getModelFieldData", "prismaToJsTypes"],
+    namedImports: ["filterByWhereClause", "generateIDBKey", "getModelFieldData", "prismaToJsTypes"],
   });
   file.addImportDeclaration({
     moduleSpecifier: "./utils",
@@ -33,7 +41,7 @@ function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter) {
   const keyPath = generateIDBKey(model);
 
   let declarationLine = nonKeyUniqueFields.length ? `const ${model.name}Store = ` : ``;
-  declarationLine += `db.createObjectStore('${toCamelCase(model.name)}', { keyPath: ${keyPath} });`;
+  declarationLine += `db.createObjectStore('${model.name}', { keyPath: ${keyPath} });`;
 
   writer.writeLine(declarationLine);
   nonKeyUniqueFields.forEach(({ name }) => {
@@ -46,6 +54,7 @@ export function addTypes(file: SourceFile, models: readonly Model[]) {
   file.addTypeAliases([
     {
       name: "ModelDelegate",
+      isExported: true,
       type: (writer) => {
         models.forEach((model, idx) => {
           writer.write(`Prisma.${model.name}Delegate`);
@@ -55,18 +64,21 @@ export function addTypes(file: SourceFile, models: readonly Model[]) {
         });
       },
     },
+    {
+      name: "ObjectStoreName",
+      type: (writer) => writer.writeLine("(typeof PrismaIDBClient.prototype.db.objectStoreNames)[number]"),
+    },
   ]);
 }
 
 export function addClientClass(file: SourceFile, models: readonly Model[]) {
-  // Basic class structure
   const clientClass = file.addClass({
     name: "PrismaIDBClient",
     isExported: true,
     ctors: [{ scope: Scope.Private }],
     properties: [
       { name: "instance", isStatic: true, type: "PrismaIDBClient", scope: Scope.Private },
-      { name: "db", type: "IDBPDatabase", hasExclamationToken: true },
+      { name: "db", type: "IDBPDatabase<PrismaIDBSchema>", hasExclamationToken: true },
     ],
   });
 
@@ -107,7 +119,7 @@ export function addClientClass(file: SourceFile, models: readonly Model[]) {
     isAsync: true,
     statements: (writer) => {
       writer
-        .writeLine("this.db = await openDB('prisma-idb', IDB_VERSION, {")
+        .writeLine("this.db = await openDB<PrismaIDBSchema>('prisma-idb', IDB_VERSION, {")
         .indent(() => {
           writer
             .writeLine("upgrade(db) {")
@@ -121,7 +133,7 @@ export function addClientClass(file: SourceFile, models: readonly Model[]) {
       // Set members as object references of model classes
       models.forEach((model) => {
         writer.writeLine(
-          `this.${toCamelCase(model.name)} = new BaseIDBModelClass<Prisma.${model.name}Delegate>(this, ${generateIDBKey(model)}, ${JSON.stringify(model)});`,
+          `this.${toCamelCase(model.name)} = new BaseIDBModelClass<Prisma.${model.name}Delegate>(this, ${generateIDBKey(model)}, models.${model.name});`,
         );
       });
     },
@@ -133,9 +145,9 @@ export function addBaseModelClass(file: SourceFile) {
     name: "BaseIDBModelClass",
     typeParameters: [{ name: "T", constraint: "ModelDelegate" }],
     properties: [
-      { name: "client", type: "PrismaIDBClient" },
-      { name: "keyPath", type: "string[]" },
-      { name: "model", type: "Model", scope: Scope.Private },
+      { name: "client", type: "PrismaIDBClient", scope: Scope.Private },
+      { name: "keyPath", type: "string[]", scope: Scope.Private },
+      { name: "model", type: "Omit<Model, 'name'> & { name: ObjectStoreName }", scope: Scope.Private },
       { name: "eventEmitter", type: "EventTarget", scope: Scope.Private },
     ],
     ctors: [
@@ -149,7 +161,7 @@ export function addBaseModelClass(file: SourceFile) {
           writer
             .writeLine("this.client = client")
             .writeLine("this.keyPath = keyPath")
-            .writeLine("this.model = model")
+            .writeLine("this.model = model as Omit<Model, 'name'> & { name: ObjectStoreName }")
             .writeLine("this.eventEmitter = new EventTarget()");
         },
       },
@@ -177,7 +189,9 @@ export function addBaseModelClass(file: SourceFile) {
 
   // Aggregate function methods
   addCountMethod(baseModelClass);
-  addAggregateMethod(baseModelClass);
+
+  // Need a refactor
+  // addAggregateMethod(baseModelClass);
 }
 
 export function addEventEmitters(baseModelClass: ClassDeclaration) {
@@ -222,6 +236,7 @@ export function addEventEmitters(baseModelClass: ClassDeclaration) {
       name: "emit",
       parameters: [{ name: "event", type: `"create" | "update" | "delete"` }],
       statements: (writer) => writer.writeLine(`this.eventEmitter.dispatchEvent(new Event(event));`),
+      scope: Scope.Private,
     },
   ]);
 }

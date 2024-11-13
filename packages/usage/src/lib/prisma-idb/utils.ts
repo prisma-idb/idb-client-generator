@@ -1,11 +1,23 @@
+import type { Prisma } from "@prisma/client";
 import type { DMMF } from "@prisma/client/runtime/library";
+import type { ModelDelegate } from "./prisma-idb-client";
 
 export type Model = DMMF.Datamodel["models"][number];
-type RecordType = Record<string, unknown>;
 
-export function intersectArraysByNestedKey<T extends RecordType>(arrays: T[][], keyPath: string[]): T[] {
+export function intersectArraysByNestedKey<T extends ModelDelegate, Q extends Prisma.Args<T, "findFirstOrThrow">>(
+  arrays: Prisma.Result<T, Q, "findFirstOrThrow">[][],
+  keyPath: string[],
+): Prisma.Result<T, Q, "findFirstOrThrow">[] {
   return arrays.reduce((acc, array) =>
-    acc.filter((item) => array.some((el) => keyPath.every((key) => el[key] === item[key]))),
+    acc.filter((item) =>
+      array.some((el) =>
+        keyPath.every(
+          (key) =>
+            el[key as keyof Prisma.Result<T, Q, "findFirstOrThrow">] ===
+            item[key as keyof Prisma.Result<T, Q, "findFirstOrThrow">],
+        ),
+      ),
+    ),
   );
 }
 
@@ -23,7 +35,7 @@ export function getModelFieldData(model: Model) {
 
 export function toCamelCase(str: string): string {
   return str
-    .replace(/[_\s-]+(.)?/g, (_, chr) => (chr ? chr.toUpperCase() : ""))
+    .replace(/[_s-]+(.)?/g, (_, chr) => (chr ? chr.toUpperCase() : ""))
     .replace(/^(.)/, (match) => match.toLowerCase());
 }
 
@@ -37,32 +49,35 @@ export function generateIDBKey(model: Model) {
   return JSON.stringify([uniqueField.name]);
 }
 
-export function removeDuplicatesByKeyPath<T extends RecordType>(array: T[][], keyPath: string[]): T[] {
+export function removeDuplicatesByKeyPath<T extends ModelDelegate, Q extends Prisma.Args<T, "findFirstOrThrow">>(
+  array: Prisma.Result<T, Q, "findFirstOrThrow">[][],
+  keyPath: string[],
+): Prisma.Result<T, Q, "findFirstOrThrow">[] {
   const seen = new Set<string>();
   return array
     .flatMap((el) => el)
     .filter((item) => {
-      const key = JSON.stringify(keyPath.map((key) => item[key]));
+      const key = JSON.stringify(keyPath.map((key) => item[key as keyof Prisma.Result<T, Q, "findFirstOrThrow">]));
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
 }
 
-export function isLogicalOperator(param: string) {
+export function isLogicalOperator(param: unknown) {
   return param === "AND" || param === "OR" || param === "NOT";
 }
 
-export function filterByWhereClause(
-  records: RecordType[],
+export function filterByWhereClause<T extends ModelDelegate, Q extends Prisma.Args<T, "findFirstOrThrow">>(
+  records: Prisma.Result<T, Q, "findFirstOrThrow">[],
   keyPath: string[],
-  whereClause: undefined | RecordType,
-): RecordType[] {
+  whereClause: Prisma.Args<T, "findFirstOrThrow">["where"],
+): Prisma.Result<T, Q, "findFirstOrThrow">[] {
   if (whereClause === undefined) return records;
 
-  for (const untypedParam in whereClause) {
-    const param = untypedParam as keyof typeof whereClause;
-    if (whereClause[param] === undefined) continue;
+  for (const [unsafeParam, value] of Object.entries(whereClause)) {
+    const param = unsafeParam as keyof Prisma.Result<T, Q, "findFirstOrThrow">;
+    if (value === undefined) continue;
 
     if (isLogicalOperator(param)) {
       const operands = Array.isArray(whereClause[param]) ? whereClause[param] : [whereClause[param]];
@@ -87,12 +102,24 @@ export function filterByWhereClause(
           keyPath,
         );
         records = records.filter(
-          (item) => !excludedRecords.some((excluded) => keyPath.every((key) => excluded[key] === item[key])),
+          (item) =>
+            !excludedRecords.some((excluded) =>
+              keyPath.every(
+                (key) =>
+                  excluded[key as keyof Prisma.Result<T, Q, "findFirstOrThrow">] ===
+                  item[key as keyof Prisma.Result<T, Q, "findFirstOrThrow">],
+              ),
+            ),
         );
       }
     }
 
-    records = records.filter((record) => record[param] === whereClause[param]);
+    records = records.filter((record) => {
+      // TODO: really hacky way to avoid checking for complex filters like gte and lte for now
+      const typedWhereClause = whereClause as Record<string, unknown>;
+      const typedParam = param as string;
+      return record[param] === typedWhereClause[typedParam];
+    });
   }
 
   return records;
@@ -109,4 +136,4 @@ export const prismaToJsTypes = new Map([
   ["Json", "object"],
   ["Bytes", "Buffer"],
   ["Unsupported", "unknown"],
-]);
+] as const);

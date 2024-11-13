@@ -24,16 +24,20 @@ function writeFindUniqueFunction(writer: CodeBlockWriter) {
 }
 
 function writePrimaryKeyCheck(writer: CodeBlockWriter) {
-  writer.writeLine("if (this.model.primaryKey)").block(() => {
-    writer.writeLine("const pk = this.model.primaryKey;");
-    writer.writeLine("const keyFieldName = pk.fields.join('_');");
+  writer.writeLine("if (this.model.primaryKey && this.model.primaryKey.fields.length > 1)").block(() => {
+    writer.writeLine(
+      'const keyFieldValue = queryWhere[this.model.primaryKey.fields.join("_")] as Record<string, unknown>;',
+    );
+    writer.writeLine(
+      'const tupleKey = this.keyPath.map((key) => keyFieldValue[key]) as PrismaIDBSchema[typeof this.model.name]["key"];',
+    );
+    writer.writeLine("const foundRecord = await this.client.db.get(this.model.name, tupleKey);");
+    writer.writeLine("if (!foundRecord) return null;");
 
     writer
       .writeLine("return (")
       .write("filterByWhereClause(")
-      .writeLine(
-        "[await this.client.db.get(toCamelCase(this.model.name), Object.values(queryWhere[keyFieldName]!) ?? null)],",
-      )
+      .writeLine("[foundRecord],")
       .writeLine("this.keyPath,")
       .writeLine("query.where,")
       .write(")[0] as Prisma.Result<T, Q, 'findUnique'>) ?? null;");
@@ -46,9 +50,11 @@ function writeIdentifierFieldCheck(writer: CodeBlockWriter) {
 
     writer.writeLine("if (queryWhere[identifierFieldName])").block(() => {
       writer
-        .write("return (await this.client.db.get(")
-        .write("toCamelCase(this.model.name), [queryWhere[identifierFieldName]] as IDBValidKey")
-        .write(")) ?? null;")
+        .write("return ((await this.client.db.get(")
+        .write(
+          'this.model.name, [queryWhere[identifierFieldName]] as unknown as PrismaIDBSchema[typeof this.model.name]["key"])) ?? null) ',
+        )
+        .write('as Prisma.Result<T, Q, "findUnique">;')
         .newLine();
     });
   });
@@ -63,7 +69,7 @@ function writeNonKeyUniqueFieldsLoop(writer: CodeBlockWriter) {
       writer.writeLine("if (!queryWhere[uniqueField]) return;");
       writer
         .write("return (await this.client.db.getFromIndex(")
-        .write("toCamelCase(this.model.name), ")
+        .write("this.model.name, ")
         .write("`${uniqueField}Index`, ")
         .write("queryWhere[uniqueField] as IDBValidKey")
         .write(")) ?? null;")

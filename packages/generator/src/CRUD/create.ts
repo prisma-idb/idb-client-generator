@@ -11,8 +11,8 @@ export function addCreateMethod(modelClass: ClassDeclaration) {
     parameters: [{ name: "query", type: "Q" }],
     statements: (writer) => {
       writer
-        .writeLine("const record = await this.fillDefaults(query.data);")
-        .writeLine("await this.client.db.add(toCamelCase(this.model.name), record);")
+        .writeLine("const record = await this.fillDefaults<Q>(query.data);")
+        .writeLine("await this.client.db.add(this.model.name, record);")
         .writeLine(`this.emit("create");`)
         .writeLine(`return record as Prisma.Result<T, Q, "create">;`);
     },

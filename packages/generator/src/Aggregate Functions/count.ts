@@ -12,7 +12,7 @@ export function addCountMethod(modelClass: ClassDeclaration) {
         .writeLine(`const records = filterByWhereClause(`)
         .indent(() => {
           writer
-            .writeLine(`await this.client.db.getAll(toCamelCase(this.model.name)),`)
+            .writeLine(`await this.client.db.getAll(this.model.name),`)
             .writeLine(`this.keyPath,`)
             .writeLine(`query?.where,`);
         }) // filter by where clause

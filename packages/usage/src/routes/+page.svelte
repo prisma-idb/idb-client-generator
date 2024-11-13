@@ -38,17 +38,17 @@
     });
   }
 
-  async function totalTimeToCompleteTasks() {
-    let data = await client.todo.aggregate({
-      where: {
-        isCompleted: false,
-      },
-      _sum: {
-        timeToComplete: true,
-      },
-    });
-    totalTimeToComplete = Number(data._sum);
-  }
+  // async function totalTimeToCompleteTasks() {
+  //   let data = await client.todo.aggregate({
+  //     where: {
+  //       isCompleted: false,
+  //     },
+  //     _sum: {
+  //       timeToComplete: true,
+  //     },
+  //   });
+  //   totalTimeToComplete = Number(data._sum);
+  // }
 
   async function updateStatus(id: string, event: Event) {
     const target = event.target as HTMLInputElement;
@@ -69,9 +69,9 @@
     client = await PrismaIDBClient.create();
     allTodos = await client.todo.findMany();
     client.todo.subscribe("update", countCompletedTodos); // use update event listener
-    client.todo.subscribe("create", totalTimeToCompleteTasks);
-    client.todo.subscribe("delete", totalTimeToCompleteTasks);
-    client.todo.subscribe("update", totalTimeToCompleteTasks);
+    // client.todo.subscribe("create", totalTimeToCompleteTasks);
+    // client.todo.subscribe("delete", totalTimeToCompleteTasks);
+    // client.todo.subscribe("update", totalTimeToCompleteTasks);
   });
 </script>
 
