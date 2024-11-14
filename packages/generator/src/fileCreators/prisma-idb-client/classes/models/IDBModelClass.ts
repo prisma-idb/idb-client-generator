@@ -6,6 +6,7 @@ import { addFindManyMethod } from "./api/findMany";
 import { addFindFirstMethod } from "./api/findFirst";
 import { addFillDefaultsFunction } from "./utils/fillDefaults";
 import { addCreateMethod } from "./api/create";
+import { addFindUniqueMethod } from "./api/findUnique";
 
 export function addIDBModelClass(file: SourceFile, model: Model, models: readonly Model[]) {
   const modelClass = file.addClass({
@@ -19,6 +20,7 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
 
   addFindManyMethod(modelClass, model);
   addFindFirstMethod(modelClass, model);
+  addFindUniqueMethod(modelClass, model);
 
   addCreateMethod(modelClass, model);
 }
