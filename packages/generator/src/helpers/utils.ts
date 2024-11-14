@@ -12,8 +12,13 @@ export function generateIDBKey(model: Model) {
   const idField = model.fields.find(({ isId }) => isId);
   if (idField) return JSON.stringify([idField.name]);
 
-  const uniqueField = model.fields.find(({ isUnique }) => isUnique)!;
-  return JSON.stringify([uniqueField.name]);
+  const uniqueField = model.fields.find(({ isUnique }) => isUnique);
+  if (uniqueField) JSON.stringify([uniqueField.name]);
+
+  const uniqueFields = model.uniqueFields.at(0);
+  if (uniqueFields) return JSON.stringify(uniqueFields);
+
+  throw new Error(`Unable to generate valid IDB key for ${model.name}`);
 }
 
 export function getModelFieldData(model: Model) {
