@@ -4,6 +4,8 @@ import { addApplyRelations } from "./utils/applyRelation";
 import { addApplySelectClause } from "./utils/applySelectClause";
 import { addFindManyMethod } from "./api/findMany";
 import { addFindFirstMethod } from "./api/findFirst";
+import { addFillDefaultsFunction } from "./utils/fillDefaults";
+import { addCreateMethod } from "./api/create";
 
 export function addIDBModelClass(file: SourceFile, model: Model, models: readonly Model[]) {
   const modelClass = file.addClass({
@@ -13,7 +15,10 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
 
   addApplySelectClause(modelClass, model);
   addApplyRelations(modelClass, model, models);
+  addFillDefaultsFunction(modelClass, model);
 
   addFindManyMethod(modelClass, model);
   addFindFirstMethod(modelClass, model);
+
+  addCreateMethod(modelClass, model);
 }

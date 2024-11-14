@@ -10,4 +10,8 @@ export interface PrismaIDBSchema extends DBSchema {
     key: [todoId: Prisma.Todo["todoId"]];
     value: Prisma.Todo;
   };
+  OptionalFields: {
+    key: [uuid: Prisma.OptionalFields["uuid"]];
+    value: Prisma.OptionalFields;
+  };
 }
