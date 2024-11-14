@@ -18,7 +18,7 @@ export function addFindManyMethod(modelClass: ClassDeclaration, model: Model) {
 }
 
 function getRecords(writer: CodeBlockWriter, model: Model) {
-  writer.writeLine(`const records = await this.client.db.getAll('${model.name}');`);
+  writer.writeLine(`const records = await this.client._db.getAll('${model.name}');`);
 }
 
 function applyRelationsToRecords(writer: CodeBlockWriter, model: Model) {

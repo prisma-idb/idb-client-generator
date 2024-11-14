@@ -24,7 +24,7 @@ function fillDefaults(writer: CodeBlockWriter) {
 }
 
 function addRecordsToIDB(writer: CodeBlockWriter, model: Model) {
-  writer.writeLine(`await this.client.db.add("${model.name}", record);`);
+  writer.writeLine(`await this.client._db.add("${model.name}", record);`);
 }
 
 function applyClausesAndReturnRecords(writer: CodeBlockWriter, model: Model) {

@@ -1,5 +1,5 @@
 import { ClassDeclaration, CodeBlockWriter, Scope, SourceFile } from "ts-morph";
-import { getUniqueIdentifiers, getModelFieldData, toCamelCase } from "../../../helpers/utils";
+import { getUniqueIdentifiers, toCamelCase } from "../../../helpers/utils";
 import { Model } from "../../types";
 
 export function addClientClass(file: SourceFile, models: readonly Model[]) {
@@ -9,7 +9,7 @@ export function addClientClass(file: SourceFile, models: readonly Model[]) {
     ctors: [{ scope: Scope.Private }],
     properties: [
       { name: "instance", isStatic: true, type: "PrismaIDBClient", scope: Scope.Private },
-      { name: "db", type: "IDBPDatabase<PrismaIDBSchema>", hasExclamationToken: true },
+      { name: "_db", type: "IDBPDatabase<PrismaIDBSchema>", hasExclamationToken: true },
     ],
   });
 
@@ -56,7 +56,7 @@ function addInitializeMethod(clientClass: ClassDeclaration, models: readonly Mod
     isAsync: true,
     statements: (writer) => {
       writer
-        .writeLine("this.db = await openDB<PrismaIDBSchema>('prisma-idb', IDB_VERSION, ")
+        .writeLine("this._db = await openDB<PrismaIDBSchema>('prisma-idb', IDB_VERSION, ")
         .block(() => {
           writer.writeLine("upgrade(db)").block(() => {
             models.forEach((model) => addObjectStoreInitialization(model, writer));

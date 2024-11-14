@@ -38,7 +38,7 @@ function getFromKeyIdentifier(writer: CodeBlockWriter, model: Model) {
   fields = fields.replaceAll('"', "");
 
   writer.writeLine(`if (query.where.${keyUniqueIdentifier.name})`).block(() => {
-    writer.write(`record = await this.client.db.get('${model.name}', ${fields})`);
+    writer.write(`record = await this.client._db.get('${model.name}', ${fields})`);
   });
 }
 
@@ -57,7 +57,7 @@ function getFromNonKeyIdentifier(writer: CodeBlockWriter, model: Model) {
     fields = fields.replaceAll('"', "");
 
     writer.writeLine(`else if (query.where.${name})`).block(() => {
-      writer.write(`record = await this.client.db.getFromIndex`).write(`('${model.name}', '${name}Index', ${fields})`);
+      writer.write(`record = await this.client._db.getFromIndex`).write(`('${model.name}', '${name}Index', ${fields})`);
     });
   });
 }

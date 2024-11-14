@@ -53,7 +53,7 @@ function addCuidDefault(writer: CodeBlockWriter, field: Field) {
 
 function addAutoincrementDefault(writer: CodeBlockWriter, model: Model, field: Field) {
   writer
-    .write(`const transaction = this.client.db.transaction('${model.name}', 'readonly');`)
+    .write(`const transaction = this.client._db.transaction('${model.name}', 'readonly');`)
     .write(`const store = transaction.objectStore('${model.name}');`)
     .write("const cursor = await store.openCursor(null, 'prev');")
     .write(`data.${field.name} = (cursor ? Number(cursor.key) + 1 : 1);`);
