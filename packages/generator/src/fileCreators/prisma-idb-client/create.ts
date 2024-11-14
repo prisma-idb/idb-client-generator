@@ -6,8 +6,9 @@ import { addIDBModelClass } from "./classes/models/IDBModelClass";
 
 function addImports(file: SourceFile) {
   file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["openDB"] });
-  file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["IDBPDatabase"], isTypeOnly: true });
+  file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["IDBPDatabase", "StoreNames"], isTypeOnly: true });
   file.addImportDeclaration({ moduleSpecifier: "@prisma/client", namedImports: ["Prisma"], isTypeOnly: true });
+  file.addImportDeclaration({ moduleSpecifier: "./idb-utils", namedImports: ["convertToArray"] });
   file.addImportDeclaration({
     moduleSpecifier: "./idb-interface",
     namedImports: ["PrismaIDBSchema"],

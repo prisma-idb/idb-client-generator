@@ -1,12 +1,13 @@
 import { SourceFile } from "ts-morph";
 import { Model } from "../../../types";
+import { addCreateMethod } from "./api/create";
+import { addFindFirstMethod } from "./api/findFirst";
+import { addFindManyMethod } from "./api/findMany";
+import { addFindUniqueMethod } from "./api/findUnique";
 import { addApplyRelations } from "./utils/applyRelation";
 import { addApplySelectClause } from "./utils/applySelectClause";
-import { addFindManyMethod } from "./api/findMany";
-import { addFindFirstMethod } from "./api/findFirst";
 import { addFillDefaultsFunction } from "./utils/fillDefaults";
-import { addCreateMethod } from "./api/create";
-import { addFindUniqueMethod } from "./api/findUnique";
+import { addGetNeededStoresForCreate } from "./utils/getNeededStoresForCreate";
 
 export function addIDBModelClass(file: SourceFile, model: Model, models: readonly Model[]) {
   const modelClass = file.addClass({
@@ -17,6 +18,7 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
   addApplySelectClause(modelClass, model);
   addApplyRelations(modelClass, model, models);
   addFillDefaultsFunction(modelClass, model);
+  addGetNeededStoresForCreate(modelClass, model);
 
   addFindManyMethod(modelClass, model);
   addFindFirstMethod(modelClass, model);

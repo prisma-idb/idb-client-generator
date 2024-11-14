@@ -4,6 +4,7 @@ import { version } from "../package.json";
 import { createIDBInterfaceFile } from "./fileCreators/idb-interface/create";
 import { createPrismaIDBClientFile } from "./fileCreators/prisma-idb-client/create";
 import { writeSourceFile } from "./helpers/fileWriting";
+import { createUtilsFile } from "./fileCreators/utils/create";
 
 generatorHandler({
   onManifest() {
@@ -24,6 +25,10 @@ generatorHandler({
 
     await writeSourceFile(project, "idb-interface.ts", outputPath, (file) => {
       createIDBInterfaceFile(file, models);
+    });
+
+    await writeSourceFile(project, "idb-utils.ts", outputPath, (file) => {
+      createUtilsFile(file);
     });
   },
 });
