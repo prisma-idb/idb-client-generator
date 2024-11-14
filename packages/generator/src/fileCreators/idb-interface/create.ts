@@ -1,5 +1,5 @@
 import { DMMF } from "@prisma/generator-helper";
-import { SourceFile } from "ts-morph";
+import { CodeBlockWriter, SourceFile } from "ts-morph";
 import { generateIDBKey } from "../../helpers/utils";
 import { Model } from "../types";
 
@@ -16,6 +16,7 @@ export function createIDBInterfaceFile(idbInterfaceFile: SourceFile, models: DMM
       type: (writer) => {
         writer.block(() => {
           writer.writeLine(`key: ${getIDBKeyPath(model)};`).writeLine(`value: Prisma.${model.name};`);
+          createUniqueFieldIndexes(writer, model);
         });
       },
     })),
@@ -30,4 +31,15 @@ function getIDBKeyPath(model: Model) {
       return `${keyField.name}: Prisma.${model.name}['${keyField.name}']`;
     }),
   ).replaceAll('"', "");
+}
+
+function createUniqueFieldIndexes(writer: CodeBlockWriter, model: Model) {
+  const uniqueFields = model.fields.filter(({ isUnique }) => isUnique);
+  if (uniqueFields.length === 0) return;
+
+  writer.writeLine("indexes: ").block(() => {
+    uniqueFields.forEach((field) => {
+      writer.writeLine(`${field.name}Index: Prisma.${model.name}['${field.name}']`);
+    });
+  });
 }

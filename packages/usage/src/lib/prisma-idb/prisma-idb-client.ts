@@ -27,7 +27,8 @@ export class PrismaIDBClient {
   private async initialize() {
     this.db = await openDB<PrismaIDBSchema>("prisma-idb", IDB_VERSION, {
       upgrade(db) {
-        db.createObjectStore("User", { keyPath: ["userId"] });
+        const UserStore = db.createObjectStore("User", { keyPath: ["userId"] });
+        UserStore.createIndex("nameIndex", "name", { unique: true });
         db.createObjectStore("Todo", { keyPath: ["todoId"] });
         db.createObjectStore("OptionalFields", { keyPath: ["uuid"] });
       },
@@ -140,6 +141,12 @@ class UserIDBClass extends BaseIDBModelClass {
     return (await this.findMany(query))[0];
   }
 
+  async findUnique<Q extends Prisma.Args<Prisma.UserDelegate, "findUnique">>(
+    query?: Q,
+  ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findUnique">> {
+    return (await this.findMany(query))[0];
+  }
+
   async create<Q extends Prisma.Args<Prisma.UserDelegate, "create">>(
     query: Q,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "create">> {
@@ -224,6 +231,12 @@ class TodoIDBClass extends BaseIDBModelClass {
   async findFirst<Q extends Prisma.Args<Prisma.TodoDelegate, "findFirst">>(
     query?: Q,
   ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findFirst">> {
+    return (await this.findMany(query))[0];
+  }
+
+  async findUnique<Q extends Prisma.Args<Prisma.TodoDelegate, "findUnique">>(
+    query?: Q,
+  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findUnique">> {
     return (await this.findMany(query))[0];
   }
 
@@ -344,6 +357,12 @@ class OptionalFieldsIDBClass extends BaseIDBModelClass {
   async findFirst<Q extends Prisma.Args<Prisma.OptionalFieldsDelegate, "findFirst">>(
     query?: Q,
   ): Promise<Prisma.Result<Prisma.OptionalFieldsDelegate, Q, "findFirst">> {
+    return (await this.findMany(query))[0];
+  }
+
+  async findUnique<Q extends Prisma.Args<Prisma.OptionalFieldsDelegate, "findUnique">>(
+    query?: Q,
+  ): Promise<Prisma.Result<Prisma.OptionalFieldsDelegate, Q, "findUnique">> {
     return (await this.findMany(query))[0];
   }
 

@@ -14,7 +14,7 @@ generator prismaIDB {
 
 model User {
   userId        Int    @id @default(autoincrement())
-  name          String
+  name          String @unique
   assignedTodos Todo[]
 }
 
