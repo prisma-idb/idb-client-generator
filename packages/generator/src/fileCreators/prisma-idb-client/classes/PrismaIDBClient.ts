@@ -1,19 +1,6 @@
-import { CodeBlockWriter, Scope, SourceFile } from "ts-morph";
-import { generateIDBKey, getModelFieldData, toCamelCase } from "../../../helpers/utils";
+import { ClassDeclaration, CodeBlockWriter, Scope, SourceFile } from "ts-morph";
+import { getUniqueIdentifiers, getModelFieldData, toCamelCase } from "../../../helpers/utils";
 import { Model } from "../../types";
-
-function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter) {
-  const { nonKeyUniqueFields } = getModelFieldData(model);
-  const keyPath = generateIDBKey(model);
-
-  let declarationLine = nonKeyUniqueFields.length ? `const ${model.name}Store = ` : ``;
-  declarationLine += `db.createObjectStore('${model.name}', { keyPath: ${keyPath} });`;
-
-  writer.writeLine(declarationLine);
-  nonKeyUniqueFields.forEach(({ name }) =>
-    writer.writeLine(`${model.name}Store.createIndex("${name}Index", "${name}", { unique: true });`),
-  );
-}
 
 export function addClientClass(file: SourceFile, models: readonly Model[]) {
   const clientClass = file.addClass({
@@ -26,6 +13,12 @@ export function addClientClass(file: SourceFile, models: readonly Model[]) {
     ],
   });
 
+  addModelProperties(clientClass, models);
+  addCreateInstanceMethod(clientClass);
+  addInitializeMethod(clientClass, models);
+}
+
+function addModelProperties(clientClass: ClassDeclaration, models: readonly Model[]) {
   models.forEach((model) =>
     clientClass.addProperty({
       name: toCamelCase(model.name),
@@ -33,7 +26,9 @@ export function addClientClass(file: SourceFile, models: readonly Model[]) {
       hasExclamationToken: true,
     }),
   );
+}
 
+function addCreateInstanceMethod(clientClass: ClassDeclaration) {
   clientClass.addMethod({
     name: "create",
     isStatic: true,
@@ -52,7 +47,9 @@ export function addClientClass(file: SourceFile, models: readonly Model[]) {
         .writeLine("return PrismaIDBClient.instance;");
     },
   });
+}
 
+function addInitializeMethod(clientClass: ClassDeclaration, models: readonly Model[]) {
   clientClass.addMethod({
     name: "initialize",
     scope: Scope.Private,
@@ -69,9 +66,22 @@ export function addClientClass(file: SourceFile, models: readonly Model[]) {
 
       models.forEach((model) => {
         writer.writeLine(
-          `this.${toCamelCase(model.name)} = new ${model.name}IDBClass(this, ${generateIDBKey(model)});`,
+          `this.${toCamelCase(model.name)} = new ${model.name}IDBClass(this, ${getUniqueIdentifiers(model)[0].keyPath});`,
         );
       });
     },
   });
+}
+
+function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter) {
+  const nonKeyUniqueIdentifiers = getUniqueIdentifiers(model).slice(1);
+  const keyPath = getUniqueIdentifiers(model)[0].keyPath;
+
+  let declarationLine = nonKeyUniqueIdentifiers.length ? `const ${model.name}Store = ` : ``;
+  declarationLine += `db.createObjectStore('${model.name}', { keyPath: ${keyPath} });`;
+
+  writer.writeLine(declarationLine);
+  nonKeyUniqueIdentifiers.forEach(({ name, keyPath }) =>
+    writer.writeLine(`${model.name}Store.createIndex("${name}Index", ${keyPath}, { unique: true });`),
+  );
 }

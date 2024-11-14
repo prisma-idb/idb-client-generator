@@ -6,23 +6,61 @@ export function toCamelCase(str: string): string {
     .replace(/^(.)/, (match) => match.toLowerCase());
 }
 
-export function generateIDBKey(model: Model) {
-  if (model.primaryKey) return JSON.stringify(model.primaryKey.fields);
+function createIdentifierTuple(fieldNames: readonly string[], model: Model) {
+  return JSON.stringify(
+    fieldNames.map((keyFieldName) => {
+      const keyField = model.fields.find(({ name }) => keyFieldName === name)!;
+      return `${keyField.name}: Prisma.${model.name}['${keyField.name}']`;
+    }),
+  ).replaceAll('"', "");
+}
+
+export function getUniqueIdentifiers(model: Model) {
+  const uniqueIdentifiers: { name: string; keyPath: string; keyPathType: string }[] = [];
+
+  if (model.primaryKey) {
+    const name = model.primaryKey.name ?? model.primaryKey.fields.join("_");
+    uniqueIdentifiers.push({
+      name,
+      keyPath: JSON.stringify(model.primaryKey.fields),
+      keyPathType: createIdentifierTuple(model.primaryKey.fields, model),
+    });
+  }
 
   const idField = model.fields.find(({ isId }) => isId);
-  if (idField) return JSON.stringify([idField.name]);
+  if (idField) {
+    uniqueIdentifiers.push({
+      name: idField.name,
+      keyPath: JSON.stringify([idField.name]),
+      keyPathType: createIdentifierTuple([idField.name], model),
+    });
+  }
 
-  const uniqueField = model.fields.find(({ isUnique }) => isUnique);
-  if (uniqueField) JSON.stringify([uniqueField.name]);
+  const uniqueField = model.fields.filter(({ isUnique }) => isUnique);
+  uniqueField.forEach((uniqueField) => {
+    uniqueIdentifiers.push({
+      name: uniqueField.name,
+      keyPath: JSON.stringify([uniqueField.name]),
+      keyPathType: createIdentifierTuple([uniqueField.name], model),
+    });
+  });
 
-  const uniqueFields = model.uniqueFields.at(0);
-  if (uniqueFields) return JSON.stringify(uniqueFields);
+  const compositeUniqueFields = model.uniqueIndexes;
+  compositeUniqueFields.forEach(({ name, fields }) => {
+    name = name ?? fields.join("_");
+    uniqueIdentifiers.push({
+      name,
+      keyPath: JSON.stringify(fields),
+      keyPathType: createIdentifierTuple(fields, model),
+    });
+  });
 
-  throw new Error(`Unable to generate valid IDB key for ${model.name}`);
+  if (uniqueIdentifiers.length === 0) throw new Error(`Unable to generate valid IDB key for ${model.name}`);
+  return uniqueIdentifiers;
 }
 
 export function getModelFieldData(model: Model) {
-  const keyPath = JSON.parse(generateIDBKey(model));
+  const keyPath = JSON.parse(getUniqueIdentifiers(model)[0].keyPath);
   const nonKeyUniqueFields = model.fields.filter(({ isUnique, name }) => isUnique && !keyPath.includes(name));
   const storeName = toCamelCase(model.name);
 

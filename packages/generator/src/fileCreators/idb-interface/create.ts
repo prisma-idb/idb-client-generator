@@ -1,6 +1,6 @@
 import { DMMF } from "@prisma/generator-helper";
 import { CodeBlockWriter, SourceFile } from "ts-morph";
-import { generateIDBKey } from "../../helpers/utils";
+import { getUniqueIdentifiers } from "../../helpers/utils";
 import { Model } from "../types";
 
 export function createIDBInterfaceFile(idbInterfaceFile: SourceFile, models: DMMF.Datamodel["models"]) {
@@ -15,7 +15,9 @@ export function createIDBInterfaceFile(idbInterfaceFile: SourceFile, models: DMM
       name: model.name,
       type: (writer) => {
         writer.block(() => {
-          writer.writeLine(`key: ${getIDBKeyPath(model)};`).writeLine(`value: Prisma.${model.name};`);
+          writer
+            .writeLine(`key: ${getUniqueIdentifiers(model)[0].keyPathType};`)
+            .writeLine(`value: Prisma.${model.name};`);
           createUniqueFieldIndexes(writer, model);
         });
       },
@@ -23,23 +25,13 @@ export function createIDBInterfaceFile(idbInterfaceFile: SourceFile, models: DMM
   });
 }
 
-function getIDBKeyPath(model: Model) {
-  const keyPath = JSON.parse(generateIDBKey(model)) as string[];
-  return JSON.stringify(
-    keyPath.map((keyFieldName) => {
-      const keyField = model.fields.find(({ name }) => keyFieldName === name)!;
-      return `${keyField.name}: Prisma.${model.name}['${keyField.name}']`;
-    }),
-  ).replaceAll('"', "");
-}
-
 function createUniqueFieldIndexes(writer: CodeBlockWriter, model: Model) {
-  const uniqueFields = model.fields.filter(({ isUnique }) => isUnique);
-  if (uniqueFields.length === 0) return;
+  const nonKeyUniqueIdentifiers = getUniqueIdentifiers(model).slice(1);
+  if (nonKeyUniqueIdentifiers.length === 0) return;
 
   writer.writeLine("indexes: ").block(() => {
-    uniqueFields.forEach((field) => {
-      writer.writeLine(`${field.name}Index: Prisma.${model.name}['${field.name}']`);
+    nonKeyUniqueIdentifiers.forEach(({ name, keyPathType }) => {
+      writer.writeLine(`${name}Index: ${keyPathType}`);
     });
   });
 }

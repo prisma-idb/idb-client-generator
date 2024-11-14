@@ -27,7 +27,34 @@ model Todo {
   assignedUserId Int?
 }
 
-model OptionalFields {
+model UniqueUserModel {
+  firstName String
+  lastName  String
+
+  @@unique([firstName, lastName])
+}
+
+model IDUserModel {
+  firstName String
+  lastName  String
+
+  @@id([firstName, lastName])
+}
+
+model UniqueAndIdFieldsModel {
+  uniqueField       Int    @unique
+  uniqueStringField String @unique
+  firstName         String
+  lastName          String
+  emailProvider     String
+  emailDomain       String
+
+  @@id([firstName, lastName])
+  @@unique([emailProvider, emailDomain])
+  @@unique(fields: [firstName, lastName], name: "uniqueName")
+}
+
+model OptionalFieldsModel {
   uuid                     String    @id @default(uuid())
   cuid                     String    @default(cuid())
   autoincrement            Int       @default(autoincrement())
