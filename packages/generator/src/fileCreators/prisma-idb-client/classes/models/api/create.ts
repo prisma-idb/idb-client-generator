@@ -9,10 +9,18 @@ export function addCreateMethod(modelClass: ClassDeclaration, model: Model) {
     name: "create",
     isAsync: true,
     typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "create">` }],
-    parameters: [{ name: "query", type: "Q" }],
+    parameters: [
+      { name: "query", type: "Q" },
+      {
+        name: "tx",
+        hasQuestionToken: true,
+        type: 'IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readwrite">',
+      },
+    ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "create">>`,
     statements: (writer) => {
       fillDefaults(writer);
+      addTransactionalHandling(writer, model);
       addRecordsToIDB(writer, model);
       applyClausesAndReturnRecords(writer, model);
     },
@@ -33,4 +41,34 @@ function applyClausesAndReturnRecords(writer: CodeBlockWriter, model: Model) {
     .write(`(await this.applyRelations([record], query), query.select);`);
 
   writer.writeLine(`return recordsWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "create">;`);
+}
+
+function addTransactionalHandling(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine(`if (!tx)`)
+    .block(() => {
+      writer
+        .writeLine(`const storesNeeded = this._getNeededStoresForCreate(query.data);`)
+        .writeLine(`if (storesNeeded.size > 0)`)
+        .block(() => {
+          writer.writeLine(`await this.client._db.add("${model.name}", record);`);
+        })
+        .writeLine(`else`)
+        .block(() => {
+          writer
+            .writeLine(`const tx = this.client._db.transaction(`)
+            .writeLine(`Array.from(storesNeeded),`)
+            .writeLine(`"readwrite"`)
+            .writeLine(`);`)
+            .writeLine(`await this._performNestedCreates(query.data, tx);`)
+            .writeLine(`await tx.objectStore("${model.name}").add(record);`)
+            .writeLine(`tx.commit();`);
+        });
+    })
+    .writeLine(`else`)
+    .block(() => {
+      writer
+        .writeLine(`await this._performNestedCreates(query.data, tx);`)
+        .writeLine(`await tx.objectStore("${model.name}").add(record);`);
+    });
 }
