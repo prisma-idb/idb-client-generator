@@ -1,6 +1,9 @@
 import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
 import { Model } from "../../../../../fileCreators/types";
 
+// TODO: referential integrity?
+// TODO: nested creates, connect, connectOrCreate
+
 export function addCreateMethod(modelClass: ClassDeclaration, model: Model) {
   modelClass.addMethod({
     name: "create",
@@ -11,7 +14,7 @@ export function addCreateMethod(modelClass: ClassDeclaration, model: Model) {
     statements: (writer) => {
       fillDefaults(writer);
       addRecordsToIDB(writer, model);
-      returnRecords(writer, model);
+      applyClausesAndReturnRecords(writer, model);
     },
   });
 }
@@ -24,6 +27,10 @@ function addRecordsToIDB(writer: CodeBlockWriter, model: Model) {
   writer.writeLine(`await this.client.db.add("${model.name}", record);`);
 }
 
-function returnRecords(writer: CodeBlockWriter, model: Model) {
-  writer.writeLine(`return query.data as Prisma.Result<Prisma.${model.name}Delegate, Q, "create">;`);
+function applyClausesAndReturnRecords(writer: CodeBlockWriter, model: Model) {
+  writer
+    .write(`const recordsWithRelations = this.applySelectClause`)
+    .write(`(await this.applyRelations([record], query), query.select);`);
+
+  writer.writeLine(`return recordsWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "create">;`);
 }

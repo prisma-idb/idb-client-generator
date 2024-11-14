@@ -145,7 +145,8 @@ class UserIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "create">> {
     const record = await this.fillDefaults(query.data);
     await this.client.db.add("User", record);
-    return query.data as Prisma.Result<Prisma.UserDelegate, Q, "create">;
+    const recordsWithRelations = this.applySelectClause(await this.applyRelations([record], query), query.select);
+    return recordsWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "create">;
   }
 }
 
@@ -231,7 +232,8 @@ class TodoIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "create">> {
     const record = await this.fillDefaults(query.data);
     await this.client.db.add("Todo", record);
-    return query.data as Prisma.Result<Prisma.TodoDelegate, Q, "create">;
+    const recordsWithRelations = this.applySelectClause(await this.applyRelations([record], query), query.select);
+    return recordsWithRelations as Prisma.Result<Prisma.TodoDelegate, Q, "create">;
   }
 }
 
@@ -350,6 +352,7 @@ class OptionalFieldsIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.OptionalFieldsDelegate, Q, "create">> {
     const record = await this.fillDefaults(query.data);
     await this.client.db.add("OptionalFields", record);
-    return query.data as Prisma.Result<Prisma.OptionalFieldsDelegate, Q, "create">;
+    const recordsWithRelations = this.applySelectClause(await this.applyRelations([record], query), query.select);
+    return recordsWithRelations as Prisma.Result<Prisma.OptionalFieldsDelegate, Q, "create">;
   }
 }
