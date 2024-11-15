@@ -9,4 +9,10 @@ export function createUtilsFile(idbUtilsFile: SourceFile) {
     isExported: true,
     statements: (writer) => writer.writeLine("return Array.isArray(arg) ? arg : [arg];"),
   });
+
+  idbUtilsFile.addTypeAlias({
+    isExported: true,
+    name: "CreateTransactionType",
+    type: `IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readwrite">;`,
+  });
 }

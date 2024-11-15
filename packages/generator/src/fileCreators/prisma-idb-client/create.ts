@@ -14,6 +14,11 @@ function addImports(file: SourceFile) {
   file.addImportDeclaration({ moduleSpecifier: "@prisma/client", namedImports: ["Prisma"], isTypeOnly: true });
   file.addImportDeclaration({ moduleSpecifier: "./idb-utils", namedImports: ["convertToArray"] });
   file.addImportDeclaration({
+    moduleSpecifier: "./idb-utils",
+    namedImports: ["CreateTransactionType"],
+    isTypeOnly: true,
+  });
+  file.addImportDeclaration({
     moduleSpecifier: "./idb-interface",
     namedImports: ["PrismaIDBSchema"],
     isTypeOnly: true,

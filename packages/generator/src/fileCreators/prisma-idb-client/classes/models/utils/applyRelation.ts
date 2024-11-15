@@ -29,6 +29,7 @@ function addEarlyExit(writer: CodeBlockWriter, model: Model) {
 
 function addRelationProcessing(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   const relationFields = model.fields.filter(({ kind }) => kind === "object");
+  const allFields = models.flatMap(({ fields }) => fields);
 
   writer
     .writeLine("const recordsWithRelations = records.map(async (record) => ")
@@ -40,12 +41,10 @@ function addRelationProcessing(writer: CodeBlockWriter, model: Model, models: re
           .write(`query.select?.${toCamelCase(field.name)} || query.include?.${toCamelCase(field.name)};`)
           .writeLine(`if (attach_${field.name})`)
           .block(() => {
-            const queryOptions = `attach_${field.name} === true ? {} : attach_${field.name}`;
-            if (field.isList) {
-              addOneToManyRelation(writer, field, models, queryOptions);
-            } else {
-              addManyToOneRelation(writer, field, queryOptions);
-            }
+            const otherFieldOfRelation = allFields.find(
+              (_field) => _field.relationName === field.relationName && field !== _field,
+            )!;
+            handleVariousRelationships(writer, model, field, otherFieldOfRelation);
           });
       });
       writer.writeLine("return unsafeRecord;");
@@ -53,48 +52,46 @@ function addRelationProcessing(writer: CodeBlockWriter, model: Model, models: re
     .writeLine(");");
 }
 
-function addOneToManyRelation(writer: CodeBlockWriter, field: Field, models: readonly Model[], queryOptions: string) {
-  const oppositeRelation = models
-    .flatMap(({ fields }) => fields)
-    .find((_field) => _field.relationName === field.relationName && _field !== field)!;
-
-  writer
-    .writeLine(`unsafeRecord['${field.name}'] = await this.client.${toCamelCase(field.type)}.findMany(`)
-    .block(() => {
-      writer.writeLine(`...${queryOptions},`);
-      writer.writeLine(
-        `where: { ${oppositeRelation.relationFromFields?.at(0)}: record.${oppositeRelation.relationToFields?.at(0)} }`,
-      );
-    })
-    .writeLine(");");
+function handleVariousRelationships(writer: CodeBlockWriter, model: Model, field: Field, otherField: Field) {
+  const queryOptions = `attach_${field.name} === true ? {} : attach_${field.name}`;
+  if (!field.isList && !otherField.isList) {
+    if (field.isRequired) {
+      addOneToOneMetaOnFieldRelation(writer, field, queryOptions);
+    } else {
+      addOneToOneMetaOnOtherFieldRelation(writer, field, otherField, queryOptions);
+    }
+    // } else if (field.isList) {
+    //   relationshipType = "ManyToOne";
+    // } else {
+    //   relationshipType = "OneToMany";
+  }
 }
 
-function addManyToOneRelation(writer: CodeBlockWriter, field: Field, queryOptions: string) {
-  if (field.isRequired) {
-    writer
-      .writeLine(`unsafeRecord['${field.name}'] = await this.client.${toCamelCase(field.type)}.findFirst(`)
-      .block(() => {
-        writer.writeLine(`...${queryOptions},`);
-        writer.writeLine(`where: { ${field.relationToFields?.at(0)}: record.${field.relationFromFields?.at(0)} }`);
-      })
-      .writeLine(");");
-  } else {
-    writer
-      .writeLine(`if (record.${field.relationFromFields?.at(0)} !== null)`)
-      .block(() => {
-        writer
-          .writeLine(`unsafeRecord['${field.name}'] = await this.client.${toCamelCase(field.type)}.findFirst(`)
-          .block(() => {
-            writer.writeLine(`...${queryOptions},`);
-            writer.writeLine(`where: { ${field.relationToFields?.at(0)}: record.${field.relationFromFields?.at(0)} }`);
-          })
-          .writeLine(");");
-      })
-      .writeLine("else")
-      .block(() => {
-        writer.writeLine(`unsafeRecord['${field.name}'] = null;`);
-      });
-  }
+function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field, queryOptions: string) {
+  writer
+    .writeLine(`unsafeRecord['${toCamelCase(field.name)}'] = await this.client.${toCamelCase(field.type)}.findUnique(`)
+    .block(() => {
+      writer
+        .writeLine(`...(${queryOptions}),`)
+        .writeLine(`where: { ${field.relationToFields?.at(0)}: record.${field.relationFromFields?.at(0)} }`);
+    })
+    .writeLine(`)`);
+}
+
+function addOneToOneMetaOnOtherFieldRelation(
+  writer: CodeBlockWriter,
+  field: Field,
+  otherField: Field,
+  queryOptions: string,
+) {
+  writer
+    .writeLine(`unsafeRecord['${toCamelCase(field.name)}'] = await this.client.${toCamelCase(field.type)}.findUnique(`)
+    .block(() => {
+      writer
+        .writeLine(`...(${queryOptions}),`)
+        .writeLine(`where: { ${otherField.relationFromFields?.at(0)}: record.${otherField.relationToFields?.at(0)} }`);
+    })
+    .writeLine(`)`);
 }
 
 function addReturn(writer: CodeBlockWriter, model: Model) {
