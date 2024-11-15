@@ -29,7 +29,7 @@ function fillDefaults(writer: CodeBlockWriter) {
 function applyClausesAndReturnRecords(writer: CodeBlockWriter, model: Model) {
   writer
     .write(`const recordsWithRelations = this.applySelectClause`)
-    .write(`(await this.applyRelations([record], query), query.select);`);
+    .write(`(await this.applyRelations([record], query), query.select)[0];`);
 
   writer.writeLine(`return recordsWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "create">;`);
 }

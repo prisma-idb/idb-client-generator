@@ -202,7 +202,7 @@ class UserIDBClass extends BaseIDBModelClass {
       await this.performNestedCreates(query.data, tx);
       await tx.objectStore("User").add(record);
     }
-    const recordsWithRelations = this.applySelectClause(await this.applyRelations([record], query), query.select);
+    const recordsWithRelations = this.applySelectClause(await this.applyRelations([record], query), query.select)[0];
     return recordsWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "create">;
   }
 }
@@ -339,7 +339,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
       await this.performNestedCreates(query.data, tx);
       await tx.objectStore("Profile").add(record);
     }
-    const recordsWithRelations = this.applySelectClause(await this.applyRelations([record], query), query.select);
+    const recordsWithRelations = this.applySelectClause(await this.applyRelations([record], query), query.select)[0];
     return recordsWithRelations as Prisma.Result<Prisma.ProfileDelegate, Q, "create">;
   }
 }
