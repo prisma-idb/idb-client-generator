@@ -15,21 +15,24 @@ export function addCreateMethod(modelClass: ClassDeclaration, model: Model) {
     ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "create">>`,
     statements: (writer) => {
-      fillDefaults(writer);
+      fillDefaults(writer, model);
       addTransactionalHandling(writer, model);
       applyClausesAndReturnRecords(writer, model);
     },
   });
 }
 
-function fillDefaults(writer: CodeBlockWriter) {
-  writer.writeLine("const record = await this.fillDefaults(query.data);");
+function fillDefaults(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine("const record = await this.fillDefaults(query.data);")
+    .writeLine(`let keyPath: PrismaIDBSchema['${model.name}']['key']`);
 }
 
 function applyClausesAndReturnRecords(writer: CodeBlockWriter, model: Model) {
   writer
+    .writeLine(`const data = (await this.client._db.get("${model.name}", keyPath))!;`)
     .write(`const recordsWithRelations = this.applySelectClause`)
-    .write(`(await this.applyRelations([record], query), query.select)[0];`);
+    .write(`(await this.applyRelations([data], query), query.select)[0];`);
 
   writer.writeLine(`return recordsWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "create">;`);
 }
@@ -39,10 +42,10 @@ function addTransactionalHandling(writer: CodeBlockWriter, model: Model) {
     .writeLine(`if (!tx)`)
     .block(() => {
       writer
-        .writeLine(`const storesNeeded = this._getNeededStoresForCreate(query.data);`)
+        .writeLine(`const storesNeeded = this._getNeededStoresForCreateAndRemoveNestedCreates(query.data);`)
         .writeLine(`if (storesNeeded.size === 0)`)
         .block(() => {
-          writer.writeLine(`await this.client._db.add("${model.name}", record);`);
+          writer.writeLine(`keyPath = await this.client._db.add("${model.name}", record);`);
         })
         .writeLine(`else`)
         .block(() => {
@@ -52,7 +55,7 @@ function addTransactionalHandling(writer: CodeBlockWriter, model: Model) {
             .writeLine(`"readwrite"`)
             .writeLine(`);`)
             .writeLine(`await this.performNestedCreates(query.data, tx);`)
-            .writeLine(`await tx.objectStore("${model.name}").add(record);`)
+            .writeLine(`keyPath = await tx.objectStore("${model.name}").add(record);`)
             .writeLine(`tx.commit();`);
         });
     })
@@ -60,6 +63,6 @@ function addTransactionalHandling(writer: CodeBlockWriter, model: Model) {
     .block(() => {
       writer
         .writeLine(`await this.performNestedCreates(query.data, tx);`)
-        .writeLine(`await tx.objectStore("${model.name}").add(record);`);
+        .writeLine(`keyPath = await tx.objectStore("${model.name}").add(record);`);
     });
 }
