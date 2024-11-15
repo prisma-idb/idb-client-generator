@@ -2,9 +2,9 @@ import { Model } from "src/fileCreators/types";
 import { toCamelCase } from "../../../../../helpers/utils";
 import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
 
-export function addGetNeededStoresForCreate(modelClass: ClassDeclaration, model: Model) {
+export function addGetNeededStoresForCreateAndRemoveNestedCreates(modelClass: ClassDeclaration, model: Model) {
   modelClass.addMethod({
-    name: "_getNeededStoresForCreate",
+    name: "_getNeededStoresForCreateAndRemoveNestedCreates",
     typeParameters: [{ name: "D", constraint: `Partial<Prisma.Args<Prisma.${model.name}Delegate, "create">['data']>` }],
     parameters: [{ name: "data", type: "D" }],
     returnType: "Set<StoreNames<PrismaIDBSchema>>",
@@ -25,25 +25,29 @@ function processRelationsInData(writer: CodeBlockWriter, model: Model) {
       writer.writeLine(`if (data.${field.name}.create)`).block(() => {
         writer
           .writeLine(`convertToArray(data.${field.name}.create).forEach((record) => `)
-          .write(`this.client.${toCamelCase(field.type)}._getNeededStoresForCreate(record)`)
+          .write(`this.client.${toCamelCase(field.type)}._getNeededStoresForCreateAndRemoveNestedCreates(record)`)
           .write(`.forEach((storeName) => neededStores.add(storeName))`)
           .writeLine(`);`);
       });
       writer.writeLine(`if (data.${field.name}.connectOrCreate)`).block(() => {
         writer
           .writeLine(`convertToArray(data.${field.name}.connectOrCreate).forEach((record) => `)
-          .write(`this.client.${toCamelCase(field.type)}._getNeededStoresForCreate(record.create)`)
+          .write(
+            `this.client.${toCamelCase(field.type)}._getNeededStoresForCreateAndRemoveNestedCreates(record.create)`,
+          )
           .write(`.forEach((storeName) => neededStores.add(storeName))`)
           .writeLine(`);`);
       });
-      if (!field.isList) return;
-      writer.writeLine(`if (data.${field.name}.createMany)`).block(() => {
-        writer
-          .writeLine(`convertToArray(data.${field.name}.createMany.data).forEach((record) => `)
-          .write(`this.client.${toCamelCase(field.type)}._getNeededStoresForCreate(record)`)
-          .write(`.forEach((storeName) => neededStores.add(storeName))`)
-          .writeLine(`);`);
-      });
+      if (field.isList) {
+        writer.writeLine(`if (data.${field.name}.createMany)`).block(() => {
+          writer
+            .writeLine(`convertToArray(data.${field.name}.createMany.data).forEach((record) => `)
+            .write(`this.client.${toCamelCase(field.type)}._getNeededStoresForCreateAndRemoveNestedCreates(record)`)
+            .write(`.forEach((storeName) => neededStores.add(storeName))`)
+            .writeLine(`);`);
+        });
+      }
+      writer.writeLine(`delete data.${field.name};`);
     });
   });
 }

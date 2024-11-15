@@ -7,7 +7,7 @@ import { addFindUniqueMethod } from "./api/findUnique";
 import { addApplyRelations } from "./utils/applyRelation";
 import { addApplySelectClause } from "./utils/applySelectClause";
 import { addFillDefaultsFunction } from "./utils/fillDefaults";
-import { addGetNeededStoresForCreate } from "./utils/getNeededStoresForCreate";
+import { addGetNeededStoresForCreateAndRemoveNestedCreates } from "./utils/getNeededStoresForCreateAndRemoveNestedCreates";
 import { addPerformNestedCreatesMethod } from "./utils/performNestedCreates";
 
 export function addIDBModelClass(file: SourceFile, model: Model, models: readonly Model[]) {
@@ -19,7 +19,7 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
   addApplySelectClause(modelClass, model);
   addApplyRelations(modelClass, model, models);
   addFillDefaultsFunction(modelClass, model);
-  addGetNeededStoresForCreate(modelClass, model);
+  addGetNeededStoresForCreateAndRemoveNestedCreates(modelClass, model);
   addPerformNestedCreatesMethod(modelClass, model);
 
   addFindManyMethod(modelClass, model);
