@@ -33,7 +33,13 @@
 
 <form class="flex w-full max-w-sm flex-col gap-1.5" onsubmit={executeQuery}>
   <Label for="query">Query</Label>
-  <Input id="query" placeholder={"user.create({ data: { name: 'John Doe' } })"} required bind:value={query} />
+  <Input
+    data-testid="query-input"
+    id="query"
+    placeholder={"user.create({ data: { name: 'John Doe' } })"}
+    required
+    bind:value={query}
+  />
   <Button type="submit">Run query</Button>
 </form>
 
