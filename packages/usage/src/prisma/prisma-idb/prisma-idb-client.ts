@@ -117,30 +117,30 @@ class UserIDBClass extends BaseIDBModelClass {
       const cursor = await store.openCursor(null, "prev");
       data.id = cursor ? Number(cursor.key) + 1 : 1;
     }
-    if (data.profileId === undefined) {
-      data.profileId = null;
-    }
     return data as Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">;
   }
 
-  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.UserDelegate, "create">["data"]>>(
-    data: D,
-  ): Set<StoreNames<PrismaIDBSchema>> {
+  _getNeededStoresForCreateAndRemoveNestedCreates<
+    D extends Partial<Prisma.Args<Prisma.UserDelegate, "create">["data"]>,
+  >(data: D): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     if (data.profile) {
       neededStores.add("Profile");
       if (data.profile.create) {
         convertToArray(data.profile.create).forEach((record) =>
-          this.client.profile._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+          this.client.profile
+            ._getNeededStoresForCreateAndRemoveNestedCreates(record)
+            .forEach((storeName) => neededStores.add(storeName)),
         );
       }
       if (data.profile.connectOrCreate) {
         convertToArray(data.profile.connectOrCreate).forEach((record) =>
           this.client.profile
-            ._getNeededStoresForCreate(record.create)
+            ._getNeededStoresForCreateAndRemoveNestedCreates(record.create)
             .forEach((storeName) => neededStores.add(storeName)),
         );
       }
+      delete data.profile;
     }
     return neededStores;
   }
@@ -188,21 +188,23 @@ class UserIDBClass extends BaseIDBModelClass {
     tx?: CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "create">> {
     const record = await this.fillDefaults(query.data);
+    let keyPath: PrismaIDBSchema["User"]["key"];
     if (!tx) {
-      const storesNeeded = this._getNeededStoresForCreate(query.data);
+      const storesNeeded = this._getNeededStoresForCreateAndRemoveNestedCreates(query.data);
       if (storesNeeded.size === 0) {
-        await this.client._db.add("User", record);
+        keyPath = await this.client._db.add("User", record);
       } else {
         const tx = this.client._db.transaction(["User", ...Array.from(storesNeeded)], "readwrite");
         await this.performNestedCreates(query.data, tx);
-        await tx.objectStore("User").add(record);
+        keyPath = await tx.objectStore("User").add(record);
         tx.commit();
       }
     } else {
       await this.performNestedCreates(query.data, tx);
-      await tx.objectStore("User").add(record);
+      keyPath = await tx.objectStore("User").add(record);
     }
-    const recordsWithRelations = this.applySelectClause(await this.applyRelations([record], query), query.select)[0];
+    const data = (await this.client._db.get("User", keyPath))!;
+    const recordsWithRelations = this.applySelectClause(await this.applyRelations([data], query), query.select)[0];
     return recordsWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "create">;
   }
 }
@@ -260,22 +262,27 @@ class ProfileIDBClass extends BaseIDBModelClass {
     return data as Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">;
   }
 
-  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>>(
-    data: D,
-  ): Set<StoreNames<PrismaIDBSchema>> {
+  _getNeededStoresForCreateAndRemoveNestedCreates<
+    D extends Partial<Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>,
+  >(data: D): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     if (data.user) {
       neededStores.add("User");
       if (data.user.create) {
         convertToArray(data.user.create).forEach((record) =>
-          this.client.user._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+          this.client.user
+            ._getNeededStoresForCreateAndRemoveNestedCreates(record)
+            .forEach((storeName) => neededStores.add(storeName)),
         );
       }
       if (data.user.connectOrCreate) {
         convertToArray(data.user.connectOrCreate).forEach((record) =>
-          this.client.user._getNeededStoresForCreate(record.create).forEach((storeName) => neededStores.add(storeName)),
+          this.client.user
+            ._getNeededStoresForCreateAndRemoveNestedCreates(record.create)
+            .forEach((storeName) => neededStores.add(storeName)),
         );
       }
+      delete data.user;
     }
     return neededStores;
   }
@@ -325,21 +332,23 @@ class ProfileIDBClass extends BaseIDBModelClass {
     tx?: CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "create">> {
     const record = await this.fillDefaults(query.data);
+    let keyPath: PrismaIDBSchema["Profile"]["key"];
     if (!tx) {
-      const storesNeeded = this._getNeededStoresForCreate(query.data);
+      const storesNeeded = this._getNeededStoresForCreateAndRemoveNestedCreates(query.data);
       if (storesNeeded.size === 0) {
-        await this.client._db.add("Profile", record);
+        keyPath = await this.client._db.add("Profile", record);
       } else {
         const tx = this.client._db.transaction(["Profile", ...Array.from(storesNeeded)], "readwrite");
         await this.performNestedCreates(query.data, tx);
-        await tx.objectStore("Profile").add(record);
+        keyPath = await tx.objectStore("Profile").add(record);
         tx.commit();
       }
     } else {
       await this.performNestedCreates(query.data, tx);
-      await tx.objectStore("Profile").add(record);
+      keyPath = await tx.objectStore("Profile").add(record);
     }
-    const recordsWithRelations = this.applySelectClause(await this.applyRelations([record], query), query.select)[0];
+    const data = (await this.client._db.get("Profile", keyPath))!;
+    const recordsWithRelations = this.applySelectClause(await this.applyRelations([data], query), query.select)[0];
     return recordsWithRelations as Prisma.Result<Prisma.ProfileDelegate, Q, "create">;
   }
 }
