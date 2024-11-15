@@ -17,7 +17,6 @@ export function addCreateMethod(modelClass: ClassDeclaration, model: Model) {
     statements: (writer) => {
       fillDefaults(writer);
       addTransactionalHandling(writer, model);
-      addRecordsToIDB(writer, model);
       applyClausesAndReturnRecords(writer, model);
     },
   });
@@ -25,10 +24,6 @@ export function addCreateMethod(modelClass: ClassDeclaration, model: Model) {
 
 function fillDefaults(writer: CodeBlockWriter) {
   writer.writeLine("const record = await this.fillDefaults(query.data);");
-}
-
-function addRecordsToIDB(writer: CodeBlockWriter, model: Model) {
-  writer.writeLine(`await this.client._db.add("${model.name}", record);`);
 }
 
 function applyClausesAndReturnRecords(writer: CodeBlockWriter, model: Model) {
@@ -45,7 +40,7 @@ function addTransactionalHandling(writer: CodeBlockWriter, model: Model) {
     .block(() => {
       writer
         .writeLine(`const storesNeeded = this._getNeededStoresForCreate(query.data);`)
-        .writeLine(`if (storesNeeded.size > 0)`)
+        .writeLine(`if (storesNeeded.size === 0)`)
         .block(() => {
           writer.writeLine(`await this.client._db.add("${model.name}", record);`);
         })
@@ -53,7 +48,7 @@ function addTransactionalHandling(writer: CodeBlockWriter, model: Model) {
         .block(() => {
           writer
             .writeLine(`const tx = this.client._db.transaction(`)
-            .writeLine(`Array.from(storesNeeded),`)
+            .writeLine(`["${model.name}", ...Array.from(storesNeeded)],`)
             .writeLine(`"readwrite"`)
             .writeLine(`);`)
             .writeLine(`await this.performNestedCreates(query.data, tx);`)

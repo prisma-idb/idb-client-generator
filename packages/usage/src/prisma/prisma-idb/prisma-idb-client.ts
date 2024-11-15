@@ -190,10 +190,10 @@ class UserIDBClass extends BaseIDBModelClass {
     const record = await this.fillDefaults(query.data);
     if (!tx) {
       const storesNeeded = this._getNeededStoresForCreate(query.data);
-      if (storesNeeded.size > 0) {
+      if (storesNeeded.size === 0) {
         await this.client._db.add("User", record);
       } else {
-        const tx = this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+        const tx = this.client._db.transaction(["User", ...Array.from(storesNeeded)], "readwrite");
         await this.performNestedCreates(query.data, tx);
         await tx.objectStore("User").add(record);
         tx.commit();
@@ -202,7 +202,6 @@ class UserIDBClass extends BaseIDBModelClass {
       await this.performNestedCreates(query.data, tx);
       await tx.objectStore("User").add(record);
     }
-    await this.client._db.add("User", record);
     const recordsWithRelations = this.applySelectClause(await this.applyRelations([record], query), query.select);
     return recordsWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "create">;
   }
@@ -328,10 +327,10 @@ class ProfileIDBClass extends BaseIDBModelClass {
     const record = await this.fillDefaults(query.data);
     if (!tx) {
       const storesNeeded = this._getNeededStoresForCreate(query.data);
-      if (storesNeeded.size > 0) {
+      if (storesNeeded.size === 0) {
         await this.client._db.add("Profile", record);
       } else {
-        const tx = this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+        const tx = this.client._db.transaction(["Profile", ...Array.from(storesNeeded)], "readwrite");
         await this.performNestedCreates(query.data, tx);
         await tx.objectStore("Profile").add(record);
         tx.commit();
@@ -340,7 +339,6 @@ class ProfileIDBClass extends BaseIDBModelClass {
       await this.performNestedCreates(query.data, tx);
       await tx.objectStore("Profile").add(record);
     }
-    await this.client._db.add("Profile", record);
     const recordsWithRelations = this.applySelectClause(await this.applyRelations([record], query), query.select);
     return recordsWithRelations as Prisma.Result<Prisma.ProfileDelegate, Q, "create">;
   }
