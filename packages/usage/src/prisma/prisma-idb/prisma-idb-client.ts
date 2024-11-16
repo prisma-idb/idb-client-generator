@@ -109,10 +109,11 @@ class UserIDBClass extends BaseIDBModelClass {
 
   private async fillDefaults<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(
     data: D,
+    tx?: CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">> {
     if (data === undefined) data = {} as NonNullable<D>;
     if (data.id === undefined) {
-      const transaction = this.client._db.transaction("User", "readonly");
+      const transaction = tx ?? this.client._db.transaction(["User"], "readwrite");
       const store = transaction.objectStore("User");
       const cursor = await store.openCursor(null, "prev");
       data.id = cursor ? Number(cursor.key) + 1 : 1;
@@ -120,35 +121,68 @@ class UserIDBClass extends BaseIDBModelClass {
     return data as Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">;
   }
 
-  _getNeededStoresForCreateAndRemoveNestedCreates<
-    D extends Partial<Prisma.Args<Prisma.UserDelegate, "create">["data"]>,
-  >(data: D): Set<StoreNames<PrismaIDBSchema>> {
+  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.UserDelegate, "create">["data"]>>(
+    data: D,
+  ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     if (data.profile) {
       neededStores.add("Profile");
       if (data.profile.create) {
         convertToArray(data.profile.create).forEach((record) =>
-          this.client.profile
-            ._getNeededStoresForCreateAndRemoveNestedCreates(record)
-            .forEach((storeName) => neededStores.add(storeName)),
+          this.client.profile._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
         );
       }
       if (data.profile.connectOrCreate) {
         convertToArray(data.profile.connectOrCreate).forEach((record) =>
           this.client.profile
-            ._getNeededStoresForCreateAndRemoveNestedCreates(record.create)
+            ._getNeededStoresForCreate(record.create)
             .forEach((storeName) => neededStores.add(storeName)),
         );
       }
-      delete data.profile;
     }
     return neededStores;
+  }
+
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(data: D) {
+    const recordWithoutNestedCreate = structuredClone(data);
+    delete recordWithoutNestedCreate.profile;
+    return recordWithoutNestedCreate;
   }
 
   private async performNestedCreates<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(
     data: D,
     tx: CreateTransactionType,
-  ) {}
+  ) {
+    if (data.profile) {
+      if (data.profile.create) {
+        await Promise.all(
+          convertToArray(data.profile.create).map(
+            async (record) =>
+              await this.client.profile._nestedCreate(
+                {
+                  data: { ...record, userId: data.id! },
+                },
+                tx,
+              ),
+          ),
+        );
+      }
+      if (data.profile.connectOrCreate) {
+        throw new Error("connectOrCreate not yet implemented");
+      }
+      delete data.profile;
+    }
+  }
+
+  async _nestedCreate<Q extends Prisma.Args<Prisma.UserDelegate, "create">>(
+    query: Q,
+    tx: CreateTransactionType,
+  ): Promise<PrismaIDBSchema["User"]["key"]> {
+    await this.performNestedCreates(query.data, tx);
+    const record = await this.fillDefaults(query.data, tx);
+    const keyPath = await tx.objectStore("User").add(record);
+    return keyPath;
+  }
 
   async findMany<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
     query?: Q,
@@ -185,23 +219,17 @@ class UserIDBClass extends BaseIDBModelClass {
 
   async create<Q extends Prisma.Args<Prisma.UserDelegate, "create">>(
     query: Q,
-    tx?: CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "create">> {
     const record = await this.fillDefaults(query.data);
     let keyPath: PrismaIDBSchema["User"]["key"];
-    if (!tx) {
-      const storesNeeded = this._getNeededStoresForCreateAndRemoveNestedCreates(query.data);
-      if (storesNeeded.size === 0) {
-        keyPath = await this.client._db.add("User", record);
-      } else {
-        const tx = this.client._db.transaction(["User", ...Array.from(storesNeeded)], "readwrite");
-        await this.performNestedCreates(query.data, tx);
-        keyPath = await tx.objectStore("User").add(record);
-        tx.commit();
-      }
+    const storesNeeded = this._getNeededStoresForCreate(query.data);
+    if (storesNeeded.size === 0) {
+      keyPath = await this.client._db.add("User", record);
     } else {
+      const tx = this.client._db.transaction(["User", ...Array.from(storesNeeded)], "readwrite");
       await this.performNestedCreates(query.data, tx);
-      keyPath = await tx.objectStore("User").add(record);
+      keyPath = await tx.objectStore("User").add(this._removeNestedCreateData(record));
+      tx.commit();
     }
     const data = (await this.client._db.get("User", keyPath))!;
     const recordsWithRelations = this.applySelectClause(await this.applyRelations([data], query), query.select)[0];
@@ -248,10 +276,11 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   private async fillDefaults<D extends Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>(
     data: D,
+    tx?: CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">> {
     if (data === undefined) data = {} as NonNullable<D>;
     if (data.id === undefined) {
-      const transaction = this.client._db.transaction("Profile", "readonly");
+      const transaction = tx ?? this.client._db.transaction(["Profile"], "readwrite");
       const store = transaction.objectStore("Profile");
       const cursor = await store.openCursor(null, "prev");
       data.id = cursor ? Number(cursor.key) + 1 : 1;
@@ -262,35 +291,49 @@ class ProfileIDBClass extends BaseIDBModelClass {
     return data as Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">;
   }
 
-  _getNeededStoresForCreateAndRemoveNestedCreates<
-    D extends Partial<Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>,
-  >(data: D): Set<StoreNames<PrismaIDBSchema>> {
+  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>>(
+    data: D,
+  ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     if (data.user) {
       neededStores.add("User");
       if (data.user.create) {
         convertToArray(data.user.create).forEach((record) =>
-          this.client.user
-            ._getNeededStoresForCreateAndRemoveNestedCreates(record)
-            .forEach((storeName) => neededStores.add(storeName)),
+          this.client.user._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
         );
       }
       if (data.user.connectOrCreate) {
         convertToArray(data.user.connectOrCreate).forEach((record) =>
-          this.client.user
-            ._getNeededStoresForCreateAndRemoveNestedCreates(record.create)
-            .forEach((storeName) => neededStores.add(storeName)),
+          this.client.user._getNeededStoresForCreate(record.create).forEach((storeName) => neededStores.add(storeName)),
         );
       }
-      delete data.user;
     }
     return neededStores;
+  }
+
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>(data: D) {
+    const recordWithoutNestedCreate = structuredClone(data);
+    delete recordWithoutNestedCreate.user;
+    return recordWithoutNestedCreate;
   }
 
   private async performNestedCreates<D extends Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>(
     data: D,
     tx: CreateTransactionType,
-  ) {}
+  ) {
+    if (data.user) {
+    }
+  }
+
+  async _nestedCreate<Q extends Prisma.Args<Prisma.ProfileDelegate, "create">>(
+    query: Q,
+    tx: CreateTransactionType,
+  ): Promise<PrismaIDBSchema["Profile"]["key"]> {
+    await this.performNestedCreates(query.data, tx);
+    const record = await this.fillDefaults(query.data, tx);
+    const keyPath = await tx.objectStore("Profile").add(record);
+    return keyPath;
+  }
 
   async findMany<Q extends Prisma.Args<Prisma.ProfileDelegate, "findMany">>(
     query?: Q,
@@ -329,23 +372,17 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   async create<Q extends Prisma.Args<Prisma.ProfileDelegate, "create">>(
     query: Q,
-    tx?: CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "create">> {
     const record = await this.fillDefaults(query.data);
     let keyPath: PrismaIDBSchema["Profile"]["key"];
-    if (!tx) {
-      const storesNeeded = this._getNeededStoresForCreateAndRemoveNestedCreates(query.data);
-      if (storesNeeded.size === 0) {
-        keyPath = await this.client._db.add("Profile", record);
-      } else {
-        const tx = this.client._db.transaction(["Profile", ...Array.from(storesNeeded)], "readwrite");
-        await this.performNestedCreates(query.data, tx);
-        keyPath = await tx.objectStore("Profile").add(record);
-        tx.commit();
-      }
+    const storesNeeded = this._getNeededStoresForCreate(query.data);
+    if (storesNeeded.size === 0) {
+      keyPath = await this.client._db.add("Profile", record);
     } else {
+      const tx = this.client._db.transaction(["Profile", ...Array.from(storesNeeded)], "readwrite");
       await this.performNestedCreates(query.data, tx);
-      keyPath = await tx.objectStore("Profile").add(record);
+      keyPath = await tx.objectStore("Profile").add(this._removeNestedCreateData(record));
+      tx.commit();
     }
     const data = (await this.client._db.get("Profile", keyPath))!;
     const recordsWithRelations = this.applySelectClause(await this.applyRelations([data], query), query.select)[0];
