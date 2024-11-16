@@ -155,16 +155,11 @@ class UserIDBClass extends BaseIDBModelClass {
   ) {
     if (data.profile) {
       if (data.profile.create) {
-        await Promise.all(
-          convertToArray(data.profile.create).map(
-            async (record) =>
-              await this.client.profile._nestedCreate(
-                {
-                  data: { ...record, userId: data.id! },
-                },
-                tx,
-              ),
-          ),
+        await this.client.profile._nestedCreate(
+          {
+            data: { ...data.profile.create, userId: data.id! },
+          },
+          tx,
         );
       }
       if (data.profile.connectOrCreate) {
@@ -349,6 +344,16 @@ class ProfileIDBClass extends BaseIDBModelClass {
     tx: CreateTransactionType,
   ) {
     if (data.user) {
+      let fk;
+      if (data.user.create) {
+        fk = (await this.client.user._nestedCreate({ data: data.user.create }, tx))[0];
+      }
+      if (data.user.connectOrCreate) {
+        throw new Error("connectOrCreate not yet implemented");
+      }
+      const unsafeData = data as Record<string, unknown>;
+      unsafeData.userId = fk as NonNullable<typeof fk>;
+      delete unsafeData.user;
     }
   }
 

@@ -49,22 +49,37 @@ function handleVariousRelationships(writer: CodeBlockWriter, model: Model, field
 }
 
 function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
-  // TODO
+  writer
+    .writeLine(`let fk;`)
+    .writeLine(`if (data.${field.name}.create)`)
+    .block(() => {
+      // TODO: handle composite keyPaths
+      writer.writeLine(`fk = (await this.client.user._nestedCreate({ data: data.user.create }, tx))[0];`);
+    });
+  writer.writeLine(`if (data.${field.name}.connectOrCreate)`).block(() => {
+    writer.writeLine(`throw new Error('connectOrCreate not yet implemented')`);
+  });
+  if (field.isList) {
+    writer.writeLine(`if (data.${field.name}.createMany)`).block(() => {
+      writer.writeLine(`throw new Error('createMany not yet implemented')`);
+    });
+  }
+  writer
+    .writeLine(`const unsafeData = data as Record<string, unknown>;`)
+    .writeLine(`unsafeData.userId = fk as NonNullable<typeof fk>;`)
+    .writeLine(`delete unsafeData.${field.name};`);
 }
 
 function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Field, otherField: Field) {
   writer.writeLine(`if (data.${field.name}.create)`).block(() => {
     writer
-      .writeLine(`await Promise.all(`)
-      .writeLine(`convertToArray(data.${field.name}.create).map(async (record) => `)
       .write(`await this.client.${toCamelCase(field.type)}._nestedCreate(`)
       .block(() => {
         writer.writeLine(
-          `data: { ...record, ${otherField.relationFromFields?.at(0)}: data.${otherField.relationToFields?.at(0)}! }`,
+          `data: { ...data.profile.create, ${otherField.relationFromFields?.at(0)}: data.${otherField.relationToFields?.at(0)}! }`,
         );
       })
-      .writeLine(`, tx)),`)
-      .writeLine(")");
+      .writeLine(`, tx)`);
   });
   writer.writeLine(`if (data.${field.name}.connectOrCreate)`).block(() => {
     writer.writeLine(`throw new Error('connectOrCreate not yet implemented')`);
