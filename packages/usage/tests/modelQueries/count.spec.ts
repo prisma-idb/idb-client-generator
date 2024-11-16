@@ -2,7 +2,7 @@ import { prisma } from "$lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { test, expect } from "../fixtures";
 
-test("test count function", async ({ page }) => {
+test("count_WithoutFilters_ReturnsTotalCount", async ({ page }) => {
   const output = await prisma.user.count();
   expect(output).toBe(0);
   await page.getByTestId("query-input").fill(`user.count()`);
@@ -25,6 +25,6 @@ test("test count function", async ({ page }) => {
   expect(JSON.parse(idbClientOutput2)).toEqual(output2);
 });
 
-test("test count function with select", async ({ page }) => {
+test("count_WithSelect_ReturnsSelectedFieldsOnly", async ({ page }) => {
   // TODO
 });

@@ -2,7 +2,7 @@ import { prisma } from "$lib/prisma";
 import { test, expect } from "../fixtures";
 import type { Prisma } from "@prisma/client";
 
-test("fail nested create transaction if something goes wrong", async ({ page }) => {
+test("create_NestedCreateTransactionFailsOnError_RollsBackChanges", async ({ page }) => {
   const query: Prisma.UserCreateArgs = {
     data: { id: 1, name: "Alice with bio", profile: { create: { bio: "generic bio" } } },
   };
@@ -44,7 +44,7 @@ test("fail nested create transaction if something goes wrong", async ({ page }) 
   expect(JSON.parse(idbClientOutput2)).toEqual(profileCount);
 });
 
-test("create user with profile (one-to-one, meta on other field)", async ({ page }) => {
+test("create_WithOneToOneRelationMetaOnNested_SuccessfullyCreatesBothEntities", async ({ page }) => {
   const query: Prisma.UserCreateArgs = {
     data: { name: "Alice with bio", profile: { create: { bio: "generic bio" } } },
   };
@@ -68,18 +68,18 @@ test("create user with profile (one-to-one, meta on other field)", async ({ page
   expect(JSON.parse(idbClientOutput2)).toEqual(result2);
 });
 
-test("create profile with user (one-to-one, meta on current field)", async ({ page }) => {
+test("create_WithOneToOneRelationMetaOnParent_SuccessfullyCreatesBothEntities", async ({ page }) => {
   // TODO
 });
 
-test("create user with posts (one-to-many)", async ({ page }) => {
+test("create_WithOneToManyRelation_CreatesParentAndChildRecords", async ({ page }) => {
   // TODO
 });
 
-test("create users with groups (many-to-many)", async ({ page }) => {
+test("create_WithManyToManyRelation_CreatesJoinRecords", async ({ page }) => {
   // TODO
 });
 
-test("create user with posts with comments ((one-to-many)-to-many)", async ({ page }) => {
+test("create_WithDeeplyNestedRelations_PersistsAllEntities", async ({ page }) => {
   // TODO
 });
