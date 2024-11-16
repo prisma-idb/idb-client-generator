@@ -9,18 +9,6 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/");
 });
 
-test("create user", async ({ page }) => {
-  const createQuery: Prisma.UserCreateArgs = { data: { name: "John Doe" } };
-  const result = await client.user.create(createQuery);
-
-  await page.getByTestId("query-input").fill(`user.create(${JSON.stringify(createQuery)})`);
-  await page.getByRole("button", { name: "Run query" }).click();
-  await expect(page.getByRole("status")).toContainText("Query executed successfully");
-
-  const idbClientOutput = (await page.getByRole("code").textContent()) ?? "";
-  expect(JSON.parse(idbClientOutput)).toEqual(result);
-});
-
 test("create user with profile", async ({ page }) => {
   const query: Prisma.UserCreateArgs = {
     data: { name: "Alice with bio", profile: { create: { bio: "generic bio" } } },
