@@ -43,6 +43,8 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+        ports:
+          - 5433:5432
 
     steps:
       - uses: actions/checkout@v4
@@ -50,10 +52,8 @@ jobs:
         with:
           node-version: lts/*
       - name: Set DATABASE_URL environment variable
-        run: echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres" >> $GITHUB_ENV
+        run: echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5433/postgres" >> $GITHUB_ENV
       - uses: ./.github/actions/
-      - name: Init DB
-        run: cd packages/usage && npx prisma db push
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
       - name: Run Playwright tests
