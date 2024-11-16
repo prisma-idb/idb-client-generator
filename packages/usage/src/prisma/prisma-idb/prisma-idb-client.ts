@@ -204,6 +204,14 @@ class UserIDBClass extends BaseIDBModelClass {
     return (await this.findMany(query))[0];
   }
 
+  async findFirstOrThrow<Q extends Prisma.Args<Prisma.UserDelegate, "findFirstOrThrow">>(
+    query?: Q,
+  ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">> {
+    const record = await this.findFirst(query);
+    if (!record) throw new Error("Record not found");
+    return record;
+  }
+
   async findUnique<Q extends Prisma.Args<Prisma.UserDelegate, "findUnique">>(
     query: Q,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findUnique">> {
@@ -372,6 +380,14 @@ class ProfileIDBClass extends BaseIDBModelClass {
     query?: Q,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findFirst">> {
     return (await this.findMany(query))[0];
+  }
+
+  async findFirstOrThrow<Q extends Prisma.Args<Prisma.ProfileDelegate, "findFirstOrThrow">>(
+    query?: Q,
+  ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">> {
+    const record = await this.findFirst(query);
+    if (!record) throw new Error("Record not found");
+    return record;
   }
 
   async findUnique<Q extends Prisma.Args<Prisma.ProfileDelegate, "findUnique">>(

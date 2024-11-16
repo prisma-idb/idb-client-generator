@@ -12,6 +12,7 @@ import { addGetNeededStoresForCreate } from "./utils/_getNeededStoresForCreate";
 import { addNestedCreateMethod } from "./utils/_nestedCreate";
 import { addPerformNestedCreatesMethod } from "./utils/_performNestedCreates";
 import { addRemoveNestedCreateDataMethod } from "./utils/_removeNestedCreateData";
+import { addFindFirstOrThrow } from "./api/findFirstOrThrow";
 
 export function addIDBModelClass(file: SourceFile, model: Model, models: readonly Model[]) {
   const modelClass = file.addClass({
@@ -29,6 +30,7 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
 
   addFindManyMethod(modelClass, model);
   addFindFirstMethod(modelClass, model);
+  addFindFirstOrThrow(modelClass, model);
   addFindUniqueMethod(modelClass, model);
   addCountMethod(modelClass, model);
 
