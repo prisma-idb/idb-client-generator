@@ -43,7 +43,7 @@ jobs:
         with:
           node-version: lts/*
       - name: Set DATABASE_URL
-        run: echo "DATABASE_URL=postgresql://root:postgres@localhost:26257/defaultdb?sslmode=disable" >> $GITHUB_ENV
+        run: echo "DATABASE_URL=postgresql://postgres:postgres@postgres:5432/defaultdb?sslmode=disable" >> $GITHUB_ENV
       - uses: ./.github/actions/
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
