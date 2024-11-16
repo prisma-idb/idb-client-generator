@@ -31,11 +31,19 @@ jobs:
     timeout-minutes: 60
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
+      - name: Set DATABASE_URL
+        run: echo "DATABASE_URL=postgresql://root:postgres@localhost:26257/defaultdb?sslmode=disable" >> $GITHUB_ENV
       - uses: ./.github/actions/
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
