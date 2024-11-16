@@ -14,6 +14,6 @@ test("create_ValidData_SuccessfullyCreatesRecord", async ({ page }) => {
   expect(JSON.parse(idbClientOutput)).toEqual(result);
 });
 
-test("create_WithGeneratedId_AssignsDefaultId", async ({ page }) => {
+test("create_WithGeneratedId_AssignsDefaultId", async () => {
   // TODO, also test out other fillDefaults
 });

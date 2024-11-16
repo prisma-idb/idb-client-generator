@@ -25,6 +25,6 @@ test("count_WithoutFilters_ReturnsTotalCount", async ({ page }) => {
   expect(JSON.parse(idbClientOutput2)).toEqual(output2);
 });
 
-test("count_WithSelect_ReturnsSelectedFieldsOnly", async ({ page }) => {
+test("count_WithSelect_ReturnsSelectedFieldsOnly", async () => {
   // TODO
 });

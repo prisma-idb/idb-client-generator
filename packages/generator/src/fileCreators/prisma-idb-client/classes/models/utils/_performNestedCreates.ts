@@ -2,6 +2,9 @@ import { ClassDeclaration, CodeBlockWriter, Scope } from "ts-morph";
 import { Field, Model } from "../../../../types";
 import { toCamelCase } from "../../../../../helpers/utils";
 
+// TODO: handle composite keyPaths, oneToMany, createMany
+// TODO: connect and then, connectOrCreate
+
 export function addPerformNestedCreatesMethod(modelClass: ClassDeclaration, model: Model, models: readonly Model[]) {
   modelClass.addMethod({
     scope: Scope.Private,
@@ -35,16 +38,14 @@ function addRelationProcessing(writer: CodeBlockWriter, model: Model, models: re
 }
 
 function handleVariousRelationships(writer: CodeBlockWriter, model: Model, field: Field, otherField: Field) {
-  if (!field.isList && !otherField.isList) {
+  if (!field.isList) {
     if (field.isRequired) {
       addOneToOneMetaOnFieldRelation(writer, field);
     } else {
       addOneToOneMetaOnOtherFieldRelation(writer, field, otherField);
     }
-    // } else if (field.isList) {
-    //   relationshipType = "ManyToOne";
-    // } else {
-    //   relationshipType = "OneToMany";
+  } else {
+    // one-to-many
   }
 }
 
@@ -53,7 +54,6 @@ function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
     .writeLine(`let fk;`)
     .writeLine(`if (data.${field.name}.create)`)
     .block(() => {
-      // TODO: handle composite keyPaths
       writer.writeLine(`fk = (await this.client.user._nestedCreate({ data: data.user.create }, tx))[0];`);
     });
   writer.writeLine(`if (data.${field.name}.connectOrCreate)`).block(() => {
