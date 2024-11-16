@@ -4,7 +4,7 @@ import { ClassDeclaration, CodeBlockWriter, Scope } from "ts-morph";
 
 export function addApplyRelations(modelClass: ClassDeclaration, model: Model, models: readonly Model[]) {
   modelClass.addMethod({
-    name: "applyRelations",
+    name: "_applyRelations",
     isAsync: true,
     scope: Scope.Private,
     typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, 'findMany'>` }],

@@ -23,14 +23,14 @@ function getRecords(writer: CodeBlockWriter, model: Model) {
 
 function applyRelationsToRecords(writer: CodeBlockWriter, model: Model) {
   writer
-    .write(`const relationAppliedRecords = (await this.applyRelations(records, query)) `)
+    .write(`const relationAppliedRecords = (await this._applyRelations(records, query)) `)
     .write(`as Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>[];`);
 }
 
 function applySelectClauseToRecords(writer: CodeBlockWriter) {
   writer
     .writeLine("const selectClause = query?.select;")
-    .writeLine("const selectAppliedRecords = this.applySelectClause(relationAppliedRecords, selectClause);");
+    .writeLine("const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);");
 }
 
 function returnRecords(writer: CodeBlockWriter, model: Model) {

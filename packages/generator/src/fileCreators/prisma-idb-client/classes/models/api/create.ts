@@ -21,15 +21,15 @@ export function addCreateMethod(modelClass: ClassDeclaration, model: Model) {
 
 function fillDefaults(writer: CodeBlockWriter, model: Model) {
   writer
-    .writeLine("const record = await this.fillDefaults(query.data);")
+    .writeLine("const record = await this._fillDefaults(query.data);")
     .writeLine(`let keyPath: PrismaIDBSchema['${model.name}']['key']`);
 }
 
 function applyClausesAndReturnRecords(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`const data = (await this.client._db.get("${model.name}", keyPath))!;`)
-    .write(`const recordsWithRelations = this.applySelectClause`)
-    .write(`(await this.applyRelations([data], query), query.select)[0];`);
+    .write(`const recordsWithRelations = this._applySelectClause`)
+    .write(`(await this._applyRelations([data], query), query.select)[0];`);
 
   writer.writeLine(`return recordsWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "create">;`);
 }
@@ -48,7 +48,7 @@ function addTransactionalHandling(writer: CodeBlockWriter, model: Model) {
         .writeLine(`["${model.name}", ...Array.from(storesNeeded)],`)
         .writeLine(`"readwrite"`)
         .writeLine(`);`)
-        .writeLine(`await this.performNestedCreates(query.data, tx);`)
+        .writeLine(`await this._performNestedCreates(query.data, tx);`)
         .writeLine(`keyPath = await tx.objectStore("${model.name}").add(this._removeNestedCreateData(record));`)
         .writeLine(`tx.commit();`);
     });

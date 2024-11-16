@@ -17,7 +17,7 @@ export function addFindUniqueMethod(modelClass: ClassDeclaration, model: Model) 
         .writeLine("if (!record) return null;")
         .blankLine()
         .write(`const recordWithRelations = `)
-        .write(`this.applySelectClause(await this.applyRelations([record], query), query.select)[0];`)
+        .write(`this._applySelectClause(await this._applyRelations([record], query), query.select)[0];`)
         .writeLine(`return recordWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "findUnique">;`);
     },
   });

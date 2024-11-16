@@ -1,4 +1,4 @@
-import { Model } from "../../../../../fileCreators/types";
+import { Model } from "../../../../types";
 import { ClassDeclaration } from "ts-morph";
 
 export function addNestedCreateMethod(modelClass: ClassDeclaration, model: Model) {
@@ -13,8 +13,8 @@ export function addNestedCreateMethod(modelClass: ClassDeclaration, model: Model
     returnType: `Promise<PrismaIDBSchema['${model.name}']['key']>`,
     statements: (writer) => {
       writer
-        .writeLine(`await this.performNestedCreates(query.data, tx);`)
-        .writeLine(`const record = await this.fillDefaults(query.data, tx);`)
+        .writeLine(`await this._performNestedCreates(query.data, tx);`)
+        .writeLine(`const record = await this._fillDefaults(query.data, tx);`)
         .writeLine(`const keyPath = await tx.objectStore("${model.name}").add(record);`)
         .writeLine(`return keyPath;`);
     },

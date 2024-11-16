@@ -1,11 +1,11 @@
 import { ClassDeclaration, CodeBlockWriter, Scope } from "ts-morph";
-import { Field, Model } from "../../../../../fileCreators/types";
+import { Field, Model } from "../../../../types";
 import { toCamelCase } from "../../../../../helpers/utils";
 
 export function addPerformNestedCreatesMethod(modelClass: ClassDeclaration, model: Model, models: readonly Model[]) {
   modelClass.addMethod({
     scope: Scope.Private,
-    name: "performNestedCreates",
+    name: "_performNestedCreates",
     isAsync: true,
     typeParameters: [{ name: "D", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]` }],
     parameters: [

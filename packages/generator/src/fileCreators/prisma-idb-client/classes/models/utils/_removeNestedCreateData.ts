@@ -1,5 +1,5 @@
 import { ClassDeclaration, CodeBlockWriter, Scope } from "ts-morph";
-import { Model } from "../../../../../fileCreators/types";
+import { Model } from "../../../../types";
 
 export function addRemoveNestedCreateDataMethod(modelClass: ClassDeclaration, model: Model) {
   modelClass.addMethod({

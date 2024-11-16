@@ -71,7 +71,7 @@ class BaseIDBModelClass {
 }
 
 class UserIDBClass extends BaseIDBModelClass {
-  private applySelectClause<S extends Prisma.Args<Prisma.UserDelegate, "findMany">["select"]>(
+  private _applySelectClause<S extends Prisma.Args<Prisma.UserDelegate, "findMany">["select"]>(
     records: Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">[],
     selectClause: S,
   ): Prisma.Result<Prisma.UserDelegate, { select: S }, "findFirstOrThrow">[] {
@@ -88,7 +88,7 @@ class UserIDBClass extends BaseIDBModelClass {
     }) as Prisma.Result<Prisma.UserDelegate, { select: S }, "findFirstOrThrow">[];
   }
 
-  private async applyRelations<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
+  private async _applyRelations<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
     records: Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">[],
     query?: Q,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[]> {
@@ -107,7 +107,7 @@ class UserIDBClass extends BaseIDBModelClass {
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[];
   }
 
-  private async fillDefaults<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(
+  private async _fillDefaults<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(
     data: D,
     tx?: CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">> {
@@ -149,7 +149,7 @@ class UserIDBClass extends BaseIDBModelClass {
     return recordWithoutNestedCreate;
   }
 
-  private async performNestedCreates<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(
+  private async _performNestedCreates<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(
     data: D,
     tx: CreateTransactionType,
   ) {
@@ -178,8 +178,8 @@ class UserIDBClass extends BaseIDBModelClass {
     query: Q,
     tx: CreateTransactionType,
   ): Promise<PrismaIDBSchema["User"]["key"]> {
-    await this.performNestedCreates(query.data, tx);
-    const record = await this.fillDefaults(query.data, tx);
+    await this._performNestedCreates(query.data, tx);
+    const record = await this._fillDefaults(query.data, tx);
     const keyPath = await tx.objectStore("User").add(record);
     return keyPath;
   }
@@ -188,13 +188,13 @@ class UserIDBClass extends BaseIDBModelClass {
     query?: Q,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findMany">> {
     const records = await this.client._db.getAll("User");
-    const relationAppliedRecords = (await this.applyRelations(records, query)) as Prisma.Result<
+    const relationAppliedRecords = (await this._applyRelations(records, query)) as Prisma.Result<
       Prisma.UserDelegate,
       object,
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    const selectAppliedRecords = this.applySelectClause(relationAppliedRecords, selectClause);
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     return selectAppliedRecords as Prisma.Result<Prisma.UserDelegate, Q, "findMany">;
   }
 
@@ -213,7 +213,7 @@ class UserIDBClass extends BaseIDBModelClass {
     }
     if (!record) return null;
 
-    const recordWithRelations = this.applySelectClause(await this.applyRelations([record], query), query.select)[0];
+    const recordWithRelations = this._applySelectClause(await this._applyRelations([record], query), query.select)[0];
     return recordWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "findUnique">;
   }
 
@@ -239,25 +239,25 @@ class UserIDBClass extends BaseIDBModelClass {
   async create<Q extends Prisma.Args<Prisma.UserDelegate, "create">>(
     query: Q,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "create">> {
-    const record = await this.fillDefaults(query.data);
+    const record = await this._fillDefaults(query.data);
     let keyPath: PrismaIDBSchema["User"]["key"];
     const storesNeeded = this._getNeededStoresForCreate(query.data);
     if (storesNeeded.size === 0) {
       keyPath = await this.client._db.add("User", record);
     } else {
       const tx = this.client._db.transaction(["User", ...Array.from(storesNeeded)], "readwrite");
-      await this.performNestedCreates(query.data, tx);
+      await this._performNestedCreates(query.data, tx);
       keyPath = await tx.objectStore("User").add(this._removeNestedCreateData(record));
       tx.commit();
     }
     const data = (await this.client._db.get("User", keyPath))!;
-    const recordsWithRelations = this.applySelectClause(await this.applyRelations([data], query), query.select)[0];
+    const recordsWithRelations = this._applySelectClause(await this._applyRelations([data], query), query.select)[0];
     return recordsWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "create">;
   }
 }
 
 class ProfileIDBClass extends BaseIDBModelClass {
-  private applySelectClause<S extends Prisma.Args<Prisma.ProfileDelegate, "findMany">["select"]>(
+  private _applySelectClause<S extends Prisma.Args<Prisma.ProfileDelegate, "findMany">["select"]>(
     records: Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">[],
     selectClause: S,
   ): Prisma.Result<Prisma.ProfileDelegate, { select: S }, "findFirstOrThrow">[] {
@@ -274,7 +274,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
     }) as Prisma.Result<Prisma.ProfileDelegate, { select: S }, "findFirstOrThrow">[];
   }
 
-  private async applyRelations<Q extends Prisma.Args<Prisma.ProfileDelegate, "findMany">>(
+  private async _applyRelations<Q extends Prisma.Args<Prisma.ProfileDelegate, "findMany">>(
     records: Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">[],
     query?: Q,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">[]> {
@@ -293,7 +293,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">[];
   }
 
-  private async fillDefaults<D extends Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>(
+  private async _fillDefaults<D extends Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>(
     data: D,
     tx?: CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">> {
@@ -336,7 +336,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
     return recordWithoutNestedCreate;
   }
 
-  private async performNestedCreates<D extends Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>(
+  private async _performNestedCreates<D extends Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>(
     data: D,
     tx: CreateTransactionType,
   ) {
@@ -348,8 +348,8 @@ class ProfileIDBClass extends BaseIDBModelClass {
     query: Q,
     tx: CreateTransactionType,
   ): Promise<PrismaIDBSchema["Profile"]["key"]> {
-    await this.performNestedCreates(query.data, tx);
-    const record = await this.fillDefaults(query.data, tx);
+    await this._performNestedCreates(query.data, tx);
+    const record = await this._fillDefaults(query.data, tx);
     const keyPath = await tx.objectStore("Profile").add(record);
     return keyPath;
   }
@@ -358,13 +358,13 @@ class ProfileIDBClass extends BaseIDBModelClass {
     query?: Q,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findMany">> {
     const records = await this.client._db.getAll("Profile");
-    const relationAppliedRecords = (await this.applyRelations(records, query)) as Prisma.Result<
+    const relationAppliedRecords = (await this._applyRelations(records, query)) as Prisma.Result<
       Prisma.ProfileDelegate,
       object,
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    const selectAppliedRecords = this.applySelectClause(relationAppliedRecords, selectClause);
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     return selectAppliedRecords as Prisma.Result<Prisma.ProfileDelegate, Q, "findMany">;
   }
 
@@ -385,7 +385,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
     }
     if (!record) return null;
 
-    const recordWithRelations = this.applySelectClause(await this.applyRelations([record], query), query.select)[0];
+    const recordWithRelations = this._applySelectClause(await this._applyRelations([record], query), query.select)[0];
     return recordWithRelations as Prisma.Result<Prisma.ProfileDelegate, Q, "findUnique">;
   }
 
@@ -411,19 +411,19 @@ class ProfileIDBClass extends BaseIDBModelClass {
   async create<Q extends Prisma.Args<Prisma.ProfileDelegate, "create">>(
     query: Q,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "create">> {
-    const record = await this.fillDefaults(query.data);
+    const record = await this._fillDefaults(query.data);
     let keyPath: PrismaIDBSchema["Profile"]["key"];
     const storesNeeded = this._getNeededStoresForCreate(query.data);
     if (storesNeeded.size === 0) {
       keyPath = await this.client._db.add("Profile", record);
     } else {
       const tx = this.client._db.transaction(["Profile", ...Array.from(storesNeeded)], "readwrite");
-      await this.performNestedCreates(query.data, tx);
+      await this._performNestedCreates(query.data, tx);
       keyPath = await tx.objectStore("Profile").add(this._removeNestedCreateData(record));
       tx.commit();
     }
     const data = (await this.client._db.get("Profile", keyPath))!;
-    const recordsWithRelations = this.applySelectClause(await this.applyRelations([data], query), query.select)[0];
+    const recordsWithRelations = this._applySelectClause(await this._applyRelations([data], query), query.select)[0];
     return recordsWithRelations as Prisma.Result<Prisma.ProfileDelegate, Q, "create">;
   }
 }

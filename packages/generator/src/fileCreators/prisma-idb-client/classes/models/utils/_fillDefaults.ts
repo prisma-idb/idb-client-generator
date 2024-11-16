@@ -3,7 +3,7 @@ import { ClassDeclaration, CodeBlockWriter, Scope } from "ts-morph";
 
 export function addFillDefaultsFunction(modelClass: ClassDeclaration, model: Model) {
   modelClass.addMethod({
-    name: "fillDefaults",
+    name: "_fillDefaults",
     isAsync: true,
     scope: Scope.Private,
     typeParameters: [{ name: "D", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]` }],

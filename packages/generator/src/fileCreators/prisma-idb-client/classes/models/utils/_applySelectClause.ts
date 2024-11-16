@@ -3,7 +3,7 @@ import { ClassDeclaration, CodeBlockWriter, Scope } from "ts-morph";
 
 export function addApplySelectClause(modelClass: ClassDeclaration, model: Model) {
   modelClass.addMethod({
-    name: "applySelectClause",
+    name: "_applySelectClause",
     scope: Scope.Private,
     typeParameters: [{ name: "S", constraint: `Prisma.Args<Prisma.${model.name}Delegate, 'findMany'>['select']` }],
     parameters: [
