@@ -35,7 +35,11 @@ jobs:
       postgres:
         image: postgres
         env:
+          POSTGRES_DB: postgres        
           POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
 
     steps:
       - uses: actions/checkout@v4
@@ -43,7 +47,7 @@ jobs:
         with:
           node-version: lts/*
       - name: Set DATABASE_URL
-        run: echo "DATABASE_URL=postgresql://postgres:postgres@postgres:5432/defaultdb?sslmode=disable" >> $GITHUB_ENV
+        run: echo "DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres" >> $GITHUB_ENV
       - uses: ./.github/actions/
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
