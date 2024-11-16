@@ -1,8 +1,8 @@
 import { ClassDeclaration, CodeBlockWriter, Scope } from "ts-morph";
-import { Model } from "../../../../../fileCreators/types";
+import { Field, Model } from "../../../../../fileCreators/types";
 import { toCamelCase } from "../../../../../helpers/utils";
 
-export function addPerformNestedCreatesMethod(modelClass: ClassDeclaration, model: Model) {
+export function addPerformNestedCreatesMethod(modelClass: ClassDeclaration, model: Model, models: readonly Model[]) {
   modelClass.addMethod({
     scope: Scope.Private,
     name: "performNestedCreates",
@@ -14,56 +14,65 @@ export function addPerformNestedCreatesMethod(modelClass: ClassDeclaration, mode
     ],
     returnType: ``,
     statements: (writer) => {
-      // addRelationMap(writer, model);
-      // addRelationProcessing(writer);
-      
-      // TODO: can't use relationMap
-      // TODO: each relation's attaching fieldName can be anything
-      // TODO: so we need to handle each relation separately
+      addRelationProcessing(writer, model, models);
     },
   });
 }
 
-// function addRelationMap(writer: CodeBlockWriter, model: Model) {
-//   const relationFields = model.fields.filter(({ kind }) => kind === "object");
-//   writer.writeLine("const relationMap = new Map([");
-//   relationFields.forEach((field) => {
-//     writer.writeLine(`['${field.name}', this.client.${toCamelCase(field.type)}],`);
-//   });
-//   writer.writeLine("] as const)");
-// }
+function addRelationProcessing(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+  const relationFields = model.fields.filter(({ kind }) => kind === "object");
+  const allFields = models.flatMap(({ fields }) => fields);
 
-// function addRelationProcessing(writer: CodeBlockWriter) {
-//   writer.writeLine(`for (const [key, value] of relationMap.entries())`).block(() => {
-//     writer.writeLine(`if (data[key])`).block(() => {
-//       handleConnectOrCreate(writer);
-//       handleCreate(writer);
-//       handleCreateMany(writer);
-//     });
-//   });
-// }
+  relationFields.forEach((field) => {
+    const otherFieldOfRelation = allFields.find(
+      (_field) => _field.relationName === field.relationName && field !== _field,
+    )!;
 
-// function handleConnectOrCreate(writer: CodeBlockWriter) {
-//   writer
-//     .writeLine(`if (data[key].connectOrCreate)`)
-//     .block(() => writer.writeLine(`throw new Error("connectOrCreate not yet implemented");`));
-// }
+    writer.writeLine(`if (data.${field.name})`).block(() => {
+      handleVariousRelationships(writer, model, field, otherFieldOfRelation);
+    });
+  });
+}
 
-// function handleCreate(writer: CodeBlockWriter) {
-//   writer.writeLine(`else if (data[key].create)`).block(() =>
-//     writer
-//       .writeLine(`await Promise.all(`)
-//       .writeLine(`convertToArray(data[key].create).map(async (record) =>`)
-//       .block(() => {
-//         writer.writeLine(`await value.create( { data: { ...record, assignedUserId: data.userId } }, tx);`);
-//       })
-//       .writeLine(`)`)
-//       .writeLine(`)`),
-//   );
-// }
+function handleVariousRelationships(writer: CodeBlockWriter, model: Model, field: Field, otherField: Field) {
+  if (!field.isList && !otherField.isList) {
+    if (field.isRequired) {
+      addOneToOneMetaOnFieldRelation(writer, field);
+    } else {
+      addOneToOneMetaOnOtherFieldRelation(writer, field, otherField);
+    }
+    // } else if (field.isList) {
+    //   relationshipType = "ManyToOne";
+    // } else {
+    //   relationshipType = "OneToMany";
+  }
+}
 
-// function handleCreateMany(writer: CodeBlockWriter) {
-//   writer
-//     .writeLine(`else if ('createMany' in data[key])`)
-//     .block(() => writer.writeLine(`throw new Error("Nested createMany not yet implemented");`));
-// }
+function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
+  // TODO
+}
+
+function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Field, otherField: Field) {
+  writer.writeLine(`if (data.${field.name}.create)`).block(() => {
+    writer
+      .writeLine(`await Promise.all(`)
+      .writeLine(`convertToArray(data.${field.name}.create).map(async (record) => `)
+      .write(`await this.client.${toCamelCase(field.type)}._nestedCreate(`)
+      .block(() => {
+        writer.writeLine(
+          `data: { ...record, ${otherField.relationFromFields?.at(0)}: data.${otherField.relationToFields?.at(0)}! }`,
+        );
+      })
+      .writeLine(`, tx)),`)
+      .writeLine(")");
+  });
+  writer.writeLine(`if (data.${field.name}.connectOrCreate)`).block(() => {
+    writer.writeLine(`throw new Error('connectOrCreate not yet implemented')`);
+  });
+  if (field.isList) {
+    writer.writeLine(`if (data.${field.name}.createMany)`).block(() => {
+      writer.writeLine(`throw new Error('createMany not yet implemented')`);
+    });
+  }
+  writer.writeLine(`delete data.${field.name};`);
+}

@@ -7,7 +7,10 @@ export function addFillDefaultsFunction(modelClass: ClassDeclaration, model: Mod
     isAsync: true,
     scope: Scope.Private,
     typeParameters: [{ name: "D", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]` }],
-    parameters: [{ name: "data", type: "D" }],
+    parameters: [
+      { name: "data", type: "D" },
+      { name: "tx", hasQuestionToken: true, type: "CreateTransactionType" },
+    ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>>`,
     statements: (writer) => {
       writer.writeLine("if (data === undefined) data = {} as NonNullable<D>;");
@@ -53,7 +56,7 @@ function addCuidDefault(writer: CodeBlockWriter, field: Field) {
 
 function addAutoincrementDefault(writer: CodeBlockWriter, model: Model, field: Field) {
   writer
-    .write(`const transaction = this.client._db.transaction('${model.name}', 'readonly');`)
+    .write(`const transaction = tx ?? this.client._db.transaction(["${model.name}"], "readwrite");`)
     .write(`const store = transaction.objectStore('${model.name}');`)
     .write("const cursor = await store.openCursor(null, 'prev');")
     .write(`data.${field.name} = (cursor ? Number(cursor.key) + 1 : 1);`);

@@ -9,10 +9,7 @@ export function addCreateMethod(modelClass: ClassDeclaration, model: Model) {
     name: "create",
     isAsync: true,
     typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "create">` }],
-    parameters: [
-      { name: "query", type: "Q" },
-      { name: "tx", hasQuestionToken: true, type: "CreateTransactionType" },
-    ],
+    parameters: [{ name: "query", type: "Q" }],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "create">>`,
     statements: (writer) => {
       fillDefaults(writer, model);
@@ -39,30 +36,20 @@ function applyClausesAndReturnRecords(writer: CodeBlockWriter, model: Model) {
 
 function addTransactionalHandling(writer: CodeBlockWriter, model: Model) {
   writer
-    .writeLine(`if (!tx)`)
+    .writeLine(`const storesNeeded = this._getNeededStoresForCreate(query.data);`)
+    .writeLine(`if (storesNeeded.size === 0)`)
     .block(() => {
-      writer
-        .writeLine(`const storesNeeded = this._getNeededStoresForCreateAndRemoveNestedCreates(query.data);`)
-        .writeLine(`if (storesNeeded.size === 0)`)
-        .block(() => {
-          writer.writeLine(`keyPath = await this.client._db.add("${model.name}", record);`);
-        })
-        .writeLine(`else`)
-        .block(() => {
-          writer
-            .writeLine(`const tx = this.client._db.transaction(`)
-            .writeLine(`["${model.name}", ...Array.from(storesNeeded)],`)
-            .writeLine(`"readwrite"`)
-            .writeLine(`);`)
-            .writeLine(`await this.performNestedCreates(query.data, tx);`)
-            .writeLine(`keyPath = await tx.objectStore("${model.name}").add(record);`)
-            .writeLine(`tx.commit();`);
-        });
+      writer.writeLine(`keyPath = await this.client._db.add("${model.name}", record);`);
     })
     .writeLine(`else`)
     .block(() => {
       writer
+        .writeLine(`const tx = this.client._db.transaction(`)
+        .writeLine(`["${model.name}", ...Array.from(storesNeeded)],`)
+        .writeLine(`"readwrite"`)
+        .writeLine(`);`)
         .writeLine(`await this.performNestedCreates(query.data, tx);`)
-        .writeLine(`keyPath = await tx.objectStore("${model.name}").add(record);`);
+        .writeLine(`keyPath = await tx.objectStore("${model.name}").add(this._removeNestedCreateData(record));`)
+        .writeLine(`tx.commit();`);
     });
 }
