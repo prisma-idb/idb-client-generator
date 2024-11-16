@@ -217,6 +217,25 @@ class UserIDBClass extends BaseIDBModelClass {
     return recordWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "findUnique">;
   }
 
+  async count<Q extends Prisma.Args<Prisma.UserDelegate, "count">>(
+    query?: Q,
+  ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "count">> {
+    if (!query?.select || query.select === true) {
+      const records = await this.findMany({ where: query?.where });
+      return records.length as Prisma.Result<Prisma.UserDelegate, Q, "count">;
+    }
+    const result: Partial<Record<keyof Prisma.UserCountAggregateInputType, number>> = {};
+    for (const key of Object.keys(query.select)) {
+      const typedKey = key as keyof typeof query.select;
+      if (typedKey === "_all") {
+        result[typedKey] = (await this.findMany({ where: query.where })).length;
+        continue;
+      }
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } })).length;
+    }
+    return result as Prisma.Result<Prisma.UserDelegate, Q, "count">;
+  }
+
   async create<Q extends Prisma.Args<Prisma.UserDelegate, "create">>(
     query: Q,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "create">> {
@@ -368,6 +387,25 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
     const recordWithRelations = this.applySelectClause(await this.applyRelations([record], query), query.select)[0];
     return recordWithRelations as Prisma.Result<Prisma.ProfileDelegate, Q, "findUnique">;
+  }
+
+  async count<Q extends Prisma.Args<Prisma.ProfileDelegate, "count">>(
+    query?: Q,
+  ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "count">> {
+    if (!query?.select || query.select === true) {
+      const records = await this.findMany({ where: query?.where });
+      return records.length as Prisma.Result<Prisma.ProfileDelegate, Q, "count">;
+    }
+    const result: Partial<Record<keyof Prisma.ProfileCountAggregateInputType, number>> = {};
+    for (const key of Object.keys(query.select)) {
+      const typedKey = key as keyof typeof query.select;
+      if (typedKey === "_all") {
+        result[typedKey] = (await this.findMany({ where: query.where })).length;
+        continue;
+      }
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } })).length;
+    }
+    return result as Prisma.Result<Prisma.UserDelegate, Q, "count">;
   }
 
   async create<Q extends Prisma.Args<Prisma.ProfileDelegate, "create">>(

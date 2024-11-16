@@ -13,14 +13,14 @@ generator prismaIDB {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  profile   Profile?
+  id      Int      @id @default(autoincrement())
+  name    String
+  profile Profile?
 }
 
 model Profile {
   id     Int     @id @default(autoincrement())
   bio    String?
-  user   User    @relation(fields: [userId], references: [id])
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId Int     @unique
 }
