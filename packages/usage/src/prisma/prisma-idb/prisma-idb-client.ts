@@ -80,7 +80,7 @@ class UserIDBClass extends BaseIDBModelClass {
     }
     return records.map((record) => {
       const partialRecord: Partial<typeof record> = record;
-      for (const untypedKey in Object.keys(record)) {
+      for (const untypedKey of ["id", "name", "profile"]) {
         const key = untypedKey as keyof typeof record & keyof S;
         if (!selectClause[key]) delete partialRecord[key];
       }
@@ -269,7 +269,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
     }
     return records.map((record) => {
       const partialRecord: Partial<typeof record> = record;
-      for (const untypedKey in Object.keys(record)) {
+      for (const untypedKey of ["id", "bio", "user", "userId"]) {
         const key = untypedKey as keyof typeof record & keyof S;
         if (!selectClause[key]) delete partialRecord[key];
       }

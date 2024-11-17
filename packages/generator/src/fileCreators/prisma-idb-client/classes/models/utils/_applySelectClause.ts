@@ -32,7 +32,7 @@ function addSelectProcessing(writer: CodeBlockWriter, model: Model) {
     .block(() => {
       writer
         .writeLine("const partialRecord: Partial<typeof record> = record;")
-        .writeLine("for (const untypedKey in Object.keys(record)) ")
+        .writeLine(`for (const untypedKey of ${JSON.stringify(model.fields.map(({ name }) => name))}) `)
         .block(() => {
           writer
             .writeLine("const key = untypedKey as keyof typeof record & keyof S;")
