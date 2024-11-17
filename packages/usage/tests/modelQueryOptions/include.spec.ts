@@ -22,4 +22,4 @@ test("include_WithOneToOneRelation_ReturnsRelatedData", async ({ page }) => {
   expect(JSON.parse(idbFindWithIncludeOutput)).toEqual(findWithIncludeOutput);
 });
 
-// TODO: test for other relation types (one-to-many, one-to-oneMetaOnCurrent)
+// TODO: test for other relation types (one-to-many, one-to-oneMetaOnCurrent, nested includes)
