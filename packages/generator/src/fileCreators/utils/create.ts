@@ -1,9 +1,11 @@
 import { SourceFile } from "ts-morph";
+import { addStringFilter } from "./filters/StringFilter";
 
 export function createUtilsFile(idbUtilsFile: SourceFile) {
   idbUtilsFile.addImportDeclarations([
     { moduleSpecifier: "idb", isTypeOnly: true, namedImports: ["IDBPTransaction", "StoreNames"] },
     { moduleSpecifier: "./idb-interface", isTypeOnly: true, namedImports: ["PrismaIDBSchema"] },
+    { moduleSpecifier: "@prisma/client", isTypeOnly: true, namedImports: ["Prisma"] },
   ]);
 
   idbUtilsFile.addFunction({
@@ -20,4 +22,6 @@ export function createUtilsFile(idbUtilsFile: SourceFile) {
     name: "CreateTransactionType",
     type: `IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readwrite">;`,
   });
+
+  addStringFilter(idbUtilsFile);
 }
