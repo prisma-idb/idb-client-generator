@@ -16,9 +16,11 @@ export function addFindUniqueMethod(modelClass: ClassDeclaration, model: Model) 
       writer
         .writeLine("if (!record) return null;")
         .blankLine()
-        .write(`const recordWithRelations = `)
-        .write(`this._applySelectClause(await this._applyRelations([record], query), query.select)[0];`)
-        .writeLine(`return recordWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "findUnique">;`);
+        .write(`const recordWithRelations = (await `)
+        .write(`this._applyWhereClause(this._applySelectClause(await this._applyRelations([record], query), query.select), query.where))[0];`)
+        .writeLine(
+          `return recordWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "findUnique">;`,
+        );
     },
   });
 }

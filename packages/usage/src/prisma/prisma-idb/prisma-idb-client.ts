@@ -3,7 +3,7 @@ import type { IDBPDatabase, StoreNames } from "idb";
 import { openDB } from "idb";
 import type { PrismaIDBSchema } from "./idb-interface";
 import type { CreateTransactionType } from "./idb-utils";
-import { convertToArray } from "./idb-utils";
+import { convertToArray, whereStringFilter } from "./idb-utils";
 
 const IDB_VERSION = 1;
 
@@ -71,6 +71,19 @@ class BaseIDBModelClass {
 }
 
 class UserIDBClass extends BaseIDBModelClass {
+  private async _applyWhereClause<
+    W extends Prisma.Args<Prisma.UserDelegate, "findFirstOrThrow">["where"],
+    R extends Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">,
+  >(records: R[], whereClause: W): Promise<R[]> {
+    if (!whereClause) return records;
+    return records.filter((record) => {
+      const stringFields = ["name"] as const;
+      for (const field of stringFields) {
+        if (!whereStringFilter(record, field, whereClause[field])) return false;
+      }
+    });
+  }
+
   private _applySelectClause<S extends Prisma.Args<Prisma.UserDelegate, "findMany">["select"]>(
     records: Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">[],
     selectClause: S,
@@ -182,7 +195,7 @@ class UserIDBClass extends BaseIDBModelClass {
   async findMany<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
     query?: Q,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findMany">> {
-    const records = await this.client._db.getAll("User");
+    const records = await this._applyWhereClause(await this.client._db.getAll("User"), query?.where);
     const relationAppliedRecords = (await this._applyRelations(records, query)) as Prisma.Result<
       Prisma.UserDelegate,
       object,
@@ -216,7 +229,12 @@ class UserIDBClass extends BaseIDBModelClass {
     }
     if (!record) return null;
 
-    const recordWithRelations = this._applySelectClause(await this._applyRelations([record], query), query.select)[0];
+    const recordWithRelations = (
+      await this._applyWhereClause(
+        this._applySelectClause(await this._applyRelations([record], query), query.select),
+        query.where,
+      )
+    )[0];
     return recordWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "findUnique">;
   }
 
@@ -260,6 +278,19 @@ class UserIDBClass extends BaseIDBModelClass {
 }
 
 class ProfileIDBClass extends BaseIDBModelClass {
+  private async _applyWhereClause<
+    W extends Prisma.Args<Prisma.ProfileDelegate, "findFirstOrThrow">["where"],
+    R extends Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">,
+  >(records: R[], whereClause: W): Promise<R[]> {
+    if (!whereClause) return records;
+    return records.filter((record) => {
+      const stringFields = ["bio"] as const;
+      for (const field of stringFields) {
+        if (!whereStringFilter(record, field, whereClause[field])) return false;
+      }
+    });
+  }
+
   private _applySelectClause<S extends Prisma.Args<Prisma.ProfileDelegate, "findMany">["select"]>(
     records: Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">[],
     selectClause: S,
@@ -370,7 +401,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
   async findMany<Q extends Prisma.Args<Prisma.ProfileDelegate, "findMany">>(
     query?: Q,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findMany">> {
-    const records = await this.client._db.getAll("Profile");
+    const records = await this._applyWhereClause(await this.client._db.getAll("Profile"), query?.where);
     const relationAppliedRecords = (await this._applyRelations(records, query)) as Prisma.Result<
       Prisma.ProfileDelegate,
       object,
@@ -406,7 +437,12 @@ class ProfileIDBClass extends BaseIDBModelClass {
     }
     if (!record) return null;
 
-    const recordWithRelations = this._applySelectClause(await this._applyRelations([record], query), query.select)[0];
+    const recordWithRelations = (
+      await this._applyWhereClause(
+        this._applySelectClause(await this._applyRelations([record], query), query.select),
+        query.where,
+      )
+    )[0];
     return recordWithRelations as Prisma.Result<Prisma.ProfileDelegate, Q, "findUnique">;
   }
 

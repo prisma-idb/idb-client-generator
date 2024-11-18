@@ -13,6 +13,7 @@ import { addNestedCreateMethod } from "./utils/_nestedCreate";
 import { addPerformNestedCreatesMethod } from "./utils/_performNestedCreates";
 import { addRemoveNestedCreateDataMethod } from "./utils/_removeNestedCreateData";
 import { addFindFirstOrThrow } from "./api/findFirstOrThrow";
+import { addApplyWhereClause } from "./utils/_applyWhereClause";
 
 export function addIDBModelClass(file: SourceFile, model: Model, models: readonly Model[]) {
   const modelClass = file.addClass({
@@ -20,6 +21,7 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
     extends: "BaseIDBModelClass",
   });
 
+  addApplyWhereClause(modelClass, model);
   addApplySelectClause(modelClass, model);
   addApplyRelations(modelClass, model, models);
   addFillDefaultsFunction(modelClass, model);
