@@ -234,11 +234,9 @@ class UserIDBClass extends BaseIDBModelClass {
     }
     if (!record) return null;
 
-    const recordWithRelations = (
-      await this._applyWhereClause(
-        this._applySelectClause(await this._applyRelations([record], query), query.select),
-        query.where,
-      )
+    const recordWithRelations = this._applySelectClause(
+      await this._applyRelations(await this._applyWhereClause([record], query.where), query),
+      query.select,
     )[0];
     return recordWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "findUnique">;
   }
@@ -447,11 +445,9 @@ class ProfileIDBClass extends BaseIDBModelClass {
     }
     if (!record) return null;
 
-    const recordWithRelations = (
-      await this._applyWhereClause(
-        this._applySelectClause(await this._applyRelations([record], query), query.select),
-        query.where,
-      )
+    const recordWithRelations = this._applySelectClause(
+      await this._applyRelations(await this._applyWhereClause([record], query.where), query),
+      query.select,
     )[0];
     return recordWithRelations as Prisma.Result<Prisma.ProfileDelegate, Q, "findUnique">;
   }

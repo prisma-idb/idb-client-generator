@@ -16,7 +16,7 @@ export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFir
   if (stringFilter === undefined) return true;
 
   const value = record[fieldName] as string | null;
-  if (stringFilter === null || value === null) return value === null;
+  if (stringFilter === null) return value === null;
 
   if (typeof stringFilter === "string") {
     if (value !== stringFilter) return false;
@@ -25,6 +25,7 @@ export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFir
       if (value !== null) return false;
     }
     if (typeof stringFilter.equals === "string") {
+      if (value === null) return false;
       if (stringFilter.mode === "insensitive") {
         if (stringFilter.equals.toLowerCase() !== value.toLowerCase()) return false;
       } else {
@@ -35,6 +36,7 @@ export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFir
       if (value === null) return false;
     }
     if (typeof stringFilter.not === "string") {
+      if (value === null) return false;
       if (stringFilter.mode === "insensitive") {
         if (stringFilter.not.toLowerCase() === value.toLowerCase()) return false;
       } else {
@@ -42,6 +44,7 @@ export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFir
       }
     }
     if (Array.isArray(stringFilter.in)) {
+      if (value === null) return false;
       if (stringFilter.mode === "insensitive") {
         if (!stringFilter.in.map((s) => s.toLowerCase()).includes(value.toLowerCase())) return false;
       } else {
@@ -49,6 +52,7 @@ export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFir
       }
     }
     if (Array.isArray(stringFilter.notIn)) {
+      if (value === null) return false;
       if (stringFilter.mode === "insensitive") {
         if (stringFilter.notIn.map((s) => s.toLowerCase()).includes(value.toLowerCase())) return false;
       } else {
@@ -56,18 +60,23 @@ export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFir
       }
     }
     if (typeof stringFilter.lt === "string") {
+      if (value === null) return false;
       if (!(value < stringFilter.lt)) return false;
     }
     if (typeof stringFilter.lte === "string") {
+      if (value === null) return false;
       if (!(value <= stringFilter.lte)) return false;
     }
     if (typeof stringFilter.gt === "string") {
+      if (value === null) return false;
       if (!(value > stringFilter.gt)) return false;
     }
     if (typeof stringFilter.gte === "string") {
+      if (value === null) return false;
       if (!(value >= stringFilter.gte)) return false;
     }
     if (typeof stringFilter.contains === "string") {
+      if (value === null) return false;
       if (stringFilter.mode === "insensitive") {
         if (!value.toLowerCase().includes(stringFilter.contains.toLowerCase())) return false;
       } else {
@@ -75,6 +84,7 @@ export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFir
       }
     }
     if (typeof stringFilter.startsWith === "string") {
+      if (value === null) return false;
       if (stringFilter.mode === "insensitive") {
         if (!value.toLowerCase().startsWith(stringFilter.startsWith.toLowerCase())) return false;
       } else {
@@ -82,6 +92,7 @@ export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFir
       }
     }
     if (typeof stringFilter.endsWith === "string") {
+      if (value === null) return false;
       if (stringFilter.mode === "insensitive") {
         if (!value.toLowerCase().endsWith(stringFilter.endsWith.toLowerCase())) return false;
       } else {
@@ -100,7 +111,7 @@ export function whereIntFilter<T, R extends Prisma.Result<T, object, "findFirstO
   if (intFilter === undefined) return true;
 
   const value = record[fieldName] as number | null;
-  if (intFilter === null || value === null) return value === null;
+  if (intFilter === null) return value === null;
 
   if (typeof intFilter === "number") {
     if (value !== intFilter) return false;
@@ -117,22 +128,28 @@ export function whereIntFilter<T, R extends Prisma.Result<T, object, "findFirstO
     if (typeof intFilter.not === "number") {
       if (intFilter.not === value) return false;
     }
-    if (Array.isArray(intFilter.in)) {
+    if (Array.isArray(intFilter.in) && value !== null) {
+      if (value === null) return false;
       if (!intFilter.in.includes(value)) return false;
     }
     if (Array.isArray(intFilter.notIn)) {
+      if (value === null) return false;
       if (intFilter.notIn.includes(value)) return false;
     }
     if (typeof intFilter.lt === "number") {
+      if (value === null) return false;
       if (!(value < intFilter.lt)) return false;
     }
     if (typeof intFilter.lte === "number") {
+      if (value === null) return false;
       if (!(value <= intFilter.lte)) return false;
     }
     if (typeof intFilter.gt === "number") {
+      if (value === null) return false;
       if (!(value > intFilter.gt)) return false;
     }
     if (typeof intFilter.gte === "number") {
+      if (value === null) return false;
       if (!(value >= intFilter.gte)) return false;
     }
   }

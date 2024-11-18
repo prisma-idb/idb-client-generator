@@ -19,7 +19,7 @@ export function addIntFilter(utilsFile: SourceFile) {
         .writeLine(`if (intFilter === undefined) return true;`)
         .blankLine()
         .writeLine(`const value = record[fieldName] as number | null;`)
-        .writeLine(`if (intFilter === null || value === null) return value === null;`)
+        .writeLine(`if (intFilter === null) return value === null;`)
         .blankLine()
         .writeLine(`if (typeof intFilter === 'number')`)
         .block(() => {
@@ -66,37 +66,39 @@ function addNotHandler(writer: CodeBlockWriter) {
 }
 
 function addInHandler(writer: CodeBlockWriter) {
-  writer.writeLine(`if (Array.isArray(intFilter.in))`).block(() => {
-    writer.writeLine(`if (!intFilter.in.includes(value)) return false;`);
+  writer.writeLine(`if (Array.isArray(intFilter.in) && value !== null)`).block(() => {
+    writer.writeLine(`if (value === null) return false;`).writeLine(`if (!intFilter.in.includes(value)) return false;`);
   });
 }
 
 function addNotInHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (Array.isArray(intFilter.notIn))`).block(() => {
-    writer.writeLine(`if (intFilter.notIn.includes(value)) return false;`);
+    writer
+      .writeLine(`if (value === null) return false;`)
+      .writeLine(`if (intFilter.notIn.includes(value)) return false;`);
   });
 }
 
 function addLtHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (typeof intFilter.lt === "number")`).block(() => {
-    writer.writeLine(`if (!(value < intFilter.lt)) return false;`);
+    writer.writeLine(`if (value === null) return false;`).writeLine(`if (!(value < intFilter.lt)) return false;`);
   });
 }
 
 function addLteHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (typeof intFilter.lte === "number")`).block(() => {
-    writer.writeLine(`if (!(value <= intFilter.lte)) return false;`);
+    writer.writeLine(`if (value === null) return false;`).writeLine(`if (!(value <= intFilter.lte)) return false;`);
   });
 }
 
 function addGtHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (typeof intFilter.gt === "number")`).block(() => {
-    writer.writeLine(`if (!(value > intFilter.gt)) return false;`);
+    writer.writeLine(`if (value === null) return false;`).writeLine(`if (!(value > intFilter.gt)) return false;`);
   });
 }
 
 function addGteHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (typeof intFilter.gte === "number")`).block(() => {
-    writer.writeLine(`if (!(value >= intFilter.gte)) return false;`);
+    writer.writeLine(`if (value === null) return false;`).writeLine(`if (!(value >= intFilter.gte)) return false;`);
   });
 }

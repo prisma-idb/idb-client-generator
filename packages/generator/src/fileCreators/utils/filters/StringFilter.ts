@@ -19,7 +19,7 @@ export function addStringFilter(utilsFile: SourceFile) {
         .writeLine(`if (stringFilter === undefined) return true;`)
         .blankLine()
         .writeLine(`const value = record[fieldName] as string | null;`)
-        .writeLine(`if (stringFilter === null || value === null) return value === null;`)
+        .writeLine(`if (stringFilter === null) return value === null;`)
         .blankLine()
         .writeLine(`if (typeof stringFilter === 'string')`)
         .block(() => {
@@ -53,6 +53,7 @@ function addEqualsHandler(writer: CodeBlockWriter) {
     .writeLine(`if (typeof stringFilter.equals === "string")`)
     .block(() => {
       writer
+        .writeLine(`if (value === null) return false;`)
         .writeLine(`if (stringFilter.mode === 'insensitive')`)
         .block(() => {
           writer.writeLine(`if (stringFilter.equals.toLowerCase() !== value.toLowerCase()) return false;`);
@@ -73,6 +74,7 @@ function addNotHandler(writer: CodeBlockWriter) {
     .writeLine(`if (typeof stringFilter.not === "string")`)
     .block(() => {
       writer
+        .writeLine(`if (value === null) return false;`)
         .writeLine(`if (stringFilter.mode === 'insensitive')`)
         .block(() => {
           writer.writeLine(`if (stringFilter.not.toLowerCase() === value.toLowerCase()) return false;`);
@@ -87,6 +89,7 @@ function addNotHandler(writer: CodeBlockWriter) {
 function addInHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (Array.isArray(stringFilter.in))`).block(() => {
     writer
+      .writeLine(`if (value === null) return false;`)
       .writeLine(`if (stringFilter.mode === 'insensitive')`)
       .block(() => {
         writer.writeLine(
@@ -103,6 +106,7 @@ function addInHandler(writer: CodeBlockWriter) {
 function addNotInHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (Array.isArray(stringFilter.notIn))`).block(() => {
     writer
+      .writeLine(`if (value === null) return false;`)
       .writeLine(`if (stringFilter.mode === 'insensitive')`)
       .block(() => {
         writer.writeLine(
@@ -118,24 +122,28 @@ function addNotInHandler(writer: CodeBlockWriter) {
 
 function addLtHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (typeof stringFilter.lt === "string")`).block(() => {
+    writer.writeLine(`if (value === null) return false;`);
     writer.writeLine(`if (!(value < stringFilter.lt)) return false;`);
   });
 }
 
 function addLteHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (typeof stringFilter.lte === "string")`).block(() => {
+    writer.writeLine(`if (value === null) return false;`);
     writer.writeLine(`if (!(value <= stringFilter.lte)) return false;`);
   });
 }
 
 function addGtHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (typeof stringFilter.gt === "string")`).block(() => {
+    writer.writeLine(`if (value === null) return false;`);
     writer.writeLine(`if (!(value > stringFilter.gt)) return false;`);
   });
 }
 
 function addGteHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (typeof stringFilter.gte === "string")`).block(() => {
+    writer.writeLine(`if (value === null) return false;`);
     writer.writeLine(`if (!(value >= stringFilter.gte)) return false;`);
   });
 }
@@ -143,6 +151,7 @@ function addGteHandler(writer: CodeBlockWriter) {
 function addContainsHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (typeof stringFilter.contains === "string")`).block(() => {
     writer
+      .writeLine(`if (value === null) return false;`)
       .writeLine(`if (stringFilter.mode === 'insensitive')`)
       .block(() => {
         writer.writeLine(`if (!value.toLowerCase().includes(stringFilter.contains.toLowerCase())) return false;`);
@@ -157,6 +166,7 @@ function addContainsHandler(writer: CodeBlockWriter) {
 function addStartsWithHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (typeof stringFilter.startsWith === "string")`).block(() => {
     writer
+      .writeLine(`if (value === null) return false;`)
       .writeLine(`if (stringFilter.mode === 'insensitive')`)
       .block(() => {
         writer.writeLine(`if (!value.toLowerCase().startsWith(stringFilter.startsWith.toLowerCase())) return false;`);
@@ -171,6 +181,7 @@ function addStartsWithHandler(writer: CodeBlockWriter) {
 function addEndsWithHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (typeof stringFilter.endsWith === "string")`).block(() => {
     writer
+      .writeLine(`if (value === null) return false;`)
       .writeLine(`if (stringFilter.mode === 'insensitive')`)
       .block(() => {
         writer.writeLine(`if (!value.toLowerCase().endsWith(stringFilter.endsWith.toLowerCase())) return false;`);
