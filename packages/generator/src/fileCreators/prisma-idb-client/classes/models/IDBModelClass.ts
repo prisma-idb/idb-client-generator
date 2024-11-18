@@ -5,7 +5,7 @@ import { addCreateMethod } from "./api/create";
 import { addFindFirstMethod } from "./api/findFirst";
 import { addFindManyMethod } from "./api/findMany";
 import { addFindUniqueMethod } from "./api/findUnique";
-import { addApplyRelations } from "./utils/_applyRelation";
+import { addApplyRelations } from "./utils/_applyRelations";
 import { addApplySelectClause } from "./utils/_applySelectClause";
 import { addFillDefaultsFunction } from "./utils/_fillDefaults";
 import { addGetNeededStoresForCreate } from "./utils/_getNeededStoresForCreate";
