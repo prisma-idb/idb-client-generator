@@ -1,5 +1,6 @@
 import { SourceFile } from "ts-morph";
 import { addStringFilter } from "./filters/StringFilter";
+import { addIntFilter } from "./filters/IntFilter";
 
 export function createUtilsFile(idbUtilsFile: SourceFile) {
   idbUtilsFile.addImportDeclarations([
@@ -24,4 +25,5 @@ export function createUtilsFile(idbUtilsFile: SourceFile) {
   });
 
   addStringFilter(idbUtilsFile);
+  addIntFilter(idbUtilsFile);
 }

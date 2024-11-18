@@ -3,7 +3,7 @@ import type { IDBPDatabase, StoreNames } from "idb";
 import { openDB } from "idb";
 import type { PrismaIDBSchema } from "./idb-interface";
 import type { CreateTransactionType } from "./idb-utils";
-import { convertToArray, whereStringFilter } from "./idb-utils";
+import { convertToArray, whereIntFilter, whereStringFilter } from "./idb-utils";
 
 const IDB_VERSION = 1;
 
@@ -81,6 +81,11 @@ class UserIDBClass extends BaseIDBModelClass {
       for (const field of stringFields) {
         if (!whereStringFilter(record, field, whereClause[field])) return false;
       }
+      const intFields = ["id"] as const;
+      for (const field of intFields) {
+        if (!whereIntFilter(record, field, whereClause[field])) return false;
+      }
+      return true;
     });
   }
 
@@ -288,6 +293,11 @@ class ProfileIDBClass extends BaseIDBModelClass {
       for (const field of stringFields) {
         if (!whereStringFilter(record, field, whereClause[field])) return false;
       }
+      const intFields = ["id", "userId"] as const;
+      for (const field of intFields) {
+        if (!whereIntFilter(record, field, whereClause[field])) return false;
+      }
+      return true;
     });
   }
 

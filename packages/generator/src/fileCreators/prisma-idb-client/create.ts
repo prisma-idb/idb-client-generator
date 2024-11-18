@@ -12,7 +12,10 @@ function addImports(file: SourceFile) {
     isTypeOnly: true,
   });
   file.addImportDeclaration({ moduleSpecifier: "@prisma/client", namedImports: ["Prisma"], isTypeOnly: true });
-  file.addImportDeclaration({ moduleSpecifier: "./idb-utils", namedImports: ["convertToArray", "whereStringFilter"] });
+  file.addImportDeclaration({
+    moduleSpecifier: "./idb-utils",
+    namedImports: ["convertToArray", "whereStringFilter", "whereIntFilter"],
+  });
   file.addImportDeclaration({
     moduleSpecifier: "./idb-utils",
     namedImports: ["CreateTransactionType"],

@@ -91,3 +91,50 @@ export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFir
   }
   return true;
 }
+
+export function whereIntFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
+  record: R,
+  fieldName: keyof R,
+  intFilter: Prisma.NestedIntNullableFilter<unknown> | number | undefined | null,
+): boolean {
+  if (intFilter === undefined) return true;
+
+  const value = record[fieldName] as number | null;
+  if (intFilter === null || value === null) return value === null;
+
+  if (typeof intFilter === "number") {
+    if (value !== intFilter) return false;
+  } else {
+    if (intFilter.equals === null) {
+      if (value !== null) return false;
+    }
+    if (typeof intFilter.equals === "number") {
+      if (intFilter.equals !== value) return false;
+    }
+    if (intFilter.not === null) {
+      if (value === null) return false;
+    }
+    if (typeof intFilter.not === "number") {
+      if (intFilter.not === value) return false;
+    }
+    if (Array.isArray(intFilter.in)) {
+      if (!intFilter.in.includes(value)) return false;
+    }
+    if (Array.isArray(intFilter.notIn)) {
+      if (intFilter.notIn.includes(value)) return false;
+    }
+    if (typeof intFilter.lt === "number") {
+      if (!(value < intFilter.lt)) return false;
+    }
+    if (typeof intFilter.lte === "number") {
+      if (!(value <= intFilter.lte)) return false;
+    }
+    if (typeof intFilter.gt === "number") {
+      if (!(value > intFilter.gt)) return false;
+    }
+    if (typeof intFilter.gte === "number") {
+      if (!(value >= intFilter.gte)) return false;
+    }
+  }
+  return true;
+}

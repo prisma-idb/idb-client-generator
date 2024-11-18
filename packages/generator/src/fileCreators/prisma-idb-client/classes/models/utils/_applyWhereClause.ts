@@ -21,6 +21,8 @@ export function addApplyWhereClause(modelClass: ClassDeclaration, model: Model) 
         .writeLine(`return records.filter((record) => `)
         .block(() => {
           addStringFiltering(writer, model);
+          addIntFiltering(writer, model);
+          writer.writeLine(`return true;`);
         })
         .writeLine(`);`);
     },
@@ -29,10 +31,22 @@ export function addApplyWhereClause(modelClass: ClassDeclaration, model: Model) 
 
 function addStringFiltering(writer: CodeBlockWriter, model: Model) {
   const stringFields = model.fields.filter((field) => field.type === "String").map(({ name }) => name);
+  if (stringFields.length === 0) return;
   writer
     .writeLine(`const stringFields = ${JSON.stringify(stringFields)} as const;`)
     .writeLine(`for (const field of stringFields)`)
     .block(() => {
       writer.writeLine(`if (!whereStringFilter(record, field, whereClause[field])) return false;`);
+    });
+}
+
+function addIntFiltering(writer: CodeBlockWriter, model: Model) {
+  const intFields = model.fields.filter((field) => field.type === "Int").map(({ name }) => name);
+  if (intFields.length === 0) return;
+  writer
+    .writeLine(`const intFields = ${JSON.stringify(intFields)} as const;`)
+    .writeLine(`for (const field of intFields)`)
+    .block(() => {
+      writer.writeLine(`if (!whereIntFilter(record, field, whereClause[field])) return false;`);
     });
 }
