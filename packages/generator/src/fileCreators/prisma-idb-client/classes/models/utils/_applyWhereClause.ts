@@ -21,7 +21,7 @@ export function addApplyWhereClause(modelClass: ClassDeclaration, model: Model) 
         .writeLine(`return records.filter((record) => `)
         .block(() => {
           addStringFiltering(writer, model);
-          addIntFiltering(writer, model);
+          addNumberFiltering(writer, model);
           writer.writeLine(`return true;`);
         })
         .writeLine(`);`);
@@ -40,13 +40,16 @@ function addStringFiltering(writer: CodeBlockWriter, model: Model) {
     });
 }
 
-function addIntFiltering(writer: CodeBlockWriter, model: Model) {
-  const intFields = model.fields.filter((field) => field.type === "Int").map(({ name }) => name);
-  if (intFields.length === 0) return;
+function addNumberFiltering(writer: CodeBlockWriter, model: Model) {
+  const numberFields = model.fields
+    .filter((field) => field.type === "Int" || field.type === "Float")
+    .map(({ name }) => name);
+
+  if (numberFields.length === 0) return;
   writer
-    .writeLine(`const intFields = ${JSON.stringify(intFields)} as const;`)
-    .writeLine(`for (const field of intFields)`)
+    .writeLine(`const numberFields = ${JSON.stringify(numberFields)} as const;`)
+    .writeLine(`for (const field of numberFields)`)
     .block(() => {
-      writer.writeLine(`if (!whereIntFilter(record, field, whereClause[field])) return false;`);
+      writer.writeLine(`if (!whereNumberFilter(record, field, whereClause[field])) return false;`);
     });
 }

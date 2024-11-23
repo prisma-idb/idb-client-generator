@@ -7,11 +7,13 @@ export function addRemoveNestedCreateDataMethod(modelClass: ClassDeclaration, mo
     name: "_removeNestedCreateData",
     typeParameters: [{ name: "D", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]` }],
     parameters: [{ name: "data", type: "D" }],
-    returnType: ``,
+    returnType: `Prisma.Result<Prisma.${model.name}Delegate, object, "findFirstOrThrow">`,
     statements: (writer) => {
       writer.writeLine(`const recordWithoutNestedCreate = structuredClone(data);`);
       addRelationProcessing(writer, model);
-      writer.writeLine(`return recordWithoutNestedCreate;`);
+      writer.writeLine(
+        `return recordWithoutNestedCreate as Prisma.Result<Prisma.${model.name}Delegate, object, "findFirstOrThrow">;`,
+      );
     },
   });
 }
