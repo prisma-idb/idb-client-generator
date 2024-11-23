@@ -312,9 +312,10 @@ class UserIDBClass extends BaseIDBModelClass {
 
   async createMany<Q extends Prisma.Args<Prisma.UserDelegate, "createMany">>(
     query: Q,
+    tx?: CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "createMany">> {
     const createManyData = convertToArray(query.data);
-    const tx = this.client._db.transaction(["User"], "readwrite");
+    tx = tx ?? this.client._db.transaction(["User"], "readwrite");
     for (const createData of createManyData) {
       const record = await this._fillDefaults(createData, tx);
       await tx.objectStore("User").add(record);
@@ -535,9 +536,10 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   async createMany<Q extends Prisma.Args<Prisma.ProfileDelegate, "createMany">>(
     query: Q,
+    tx?: CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "createMany">> {
     const createManyData = convertToArray(query.data);
-    const tx = this.client._db.transaction(["Profile"], "readwrite");
+    tx = tx ?? this.client._db.transaction(["Profile"], "readwrite");
     for (const createData of createManyData) {
       const record = await this._fillDefaults(createData, tx);
       await tx.objectStore("Profile").add(record);
@@ -753,9 +755,10 @@ class PostIDBClass extends BaseIDBModelClass {
 
   async createMany<Q extends Prisma.Args<Prisma.PostDelegate, "createMany">>(
     query: Q,
+    tx?: CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "createMany">> {
     const createManyData = convertToArray(query.data);
-    const tx = this.client._db.transaction(["Post"], "readwrite");
+    tx = tx ?? this.client._db.transaction(["Post"], "readwrite");
     for (const createData of createManyData) {
       const record = await this._fillDefaults(createData, tx);
       await tx.objectStore("Post").add(record);
