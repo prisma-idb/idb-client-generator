@@ -14,6 +14,7 @@ import { addPerformNestedCreatesMethod } from "./utils/_performNestedCreates";
 import { addRemoveNestedCreateDataMethod } from "./utils/_removeNestedCreateData";
 import { addFindFirstOrThrow } from "./api/findFirstOrThrow";
 import { addApplyWhereClause } from "./utils/_applyWhereClause";
+import { addCreateManyMethod } from "./api/createMany";
 
 export function addIDBModelClass(file: SourceFile, model: Model, models: readonly Model[]) {
   const modelClass = file.addClass({
@@ -37,4 +38,5 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
   addCountMethod(modelClass, model);
 
   addCreateMethod(modelClass, model);
+  addCreateManyMethod(modelClass, model);
 }

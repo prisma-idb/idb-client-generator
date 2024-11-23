@@ -309,6 +309,18 @@ class UserIDBClass extends BaseIDBModelClass {
     const recordsWithRelations = this._applySelectClause(await this._applyRelations([data], query), query.select)[0];
     return recordsWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "create">;
   }
+
+  async createMany<Q extends Prisma.Args<Prisma.UserDelegate, "createMany">>(
+    query: Q,
+  ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "createMany">> {
+    const createManyData = convertToArray(query.data);
+    const tx = this.client._db.transaction(["User"], "readwrite");
+    for (const createData of createManyData) {
+      const record = await this._fillDefaults(createData, tx);
+      await tx.objectStore("User").add(record);
+    }
+    return { count: createManyData.length };
+  }
 }
 
 class ProfileIDBClass extends BaseIDBModelClass {
@@ -520,6 +532,18 @@ class ProfileIDBClass extends BaseIDBModelClass {
     const recordsWithRelations = this._applySelectClause(await this._applyRelations([data], query), query.select)[0];
     return recordsWithRelations as Prisma.Result<Prisma.ProfileDelegate, Q, "create">;
   }
+
+  async createMany<Q extends Prisma.Args<Prisma.ProfileDelegate, "createMany">>(
+    query: Q,
+  ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "createMany">> {
+    const createManyData = convertToArray(query.data);
+    const tx = this.client._db.transaction(["Profile"], "readwrite");
+    for (const createData of createManyData) {
+      const record = await this._fillDefaults(createData, tx);
+      await tx.objectStore("Profile").add(record);
+    }
+    return { count: createManyData.length };
+  }
 }
 
 class PostIDBClass extends BaseIDBModelClass {
@@ -725,5 +749,17 @@ class PostIDBClass extends BaseIDBModelClass {
     const data = (await this.client._db.get("Post", keyPath))!;
     const recordsWithRelations = this._applySelectClause(await this._applyRelations([data], query), query.select)[0];
     return recordsWithRelations as Prisma.Result<Prisma.PostDelegate, Q, "create">;
+  }
+
+  async createMany<Q extends Prisma.Args<Prisma.PostDelegate, "createMany">>(
+    query: Q,
+  ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "createMany">> {
+    const createManyData = convertToArray(query.data);
+    const tx = this.client._db.transaction(["Post"], "readwrite");
+    for (const createData of createManyData) {
+      const record = await this._fillDefaults(createData, tx);
+      await tx.objectStore("Post").add(record);
+    }
+    return { count: createManyData.length };
   }
 }
