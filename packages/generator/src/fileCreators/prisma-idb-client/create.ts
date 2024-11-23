@@ -21,6 +21,7 @@ function addImports(file: SourceFile) {
       "whereBigIntFilter",
       "whereBoolFilter",
       "whereBytesFilter",
+      "whereDateTimeFilter",
     ],
   });
   file.addImportDeclaration({

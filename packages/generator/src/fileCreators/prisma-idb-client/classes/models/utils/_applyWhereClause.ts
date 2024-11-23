@@ -25,6 +25,7 @@ export function addApplyWhereClause(modelClass: ClassDeclaration, model: Model) 
           addBigIntFiltering(writer, model);
           addBoolFiltering(writer, model);
           addBytesFiltering(writer, model);
+          addDateTimeFiltering(writer, model);
           writer.writeLine(`return true;`);
         })
         .writeLine(`);`);
@@ -90,5 +91,17 @@ function addBytesFiltering(writer: CodeBlockWriter, model: Model) {
     .writeLine(`for (const field of bytesFields)`)
     .block(() => {
       writer.writeLine(`if (!whereBytesFilter(record, field, whereClause[field])) return false;`);
+    });
+}
+
+function addDateTimeFiltering(writer: CodeBlockWriter, model: Model) {
+  const dateTimeFields = model.fields.filter((field) => field.type === "DateTime").map(({ name }) => name);
+
+  if (dateTimeFields.length === 0) return;
+  writer
+    .writeLine(`const dateTimeFields = ${JSON.stringify(dateTimeFields)} as const;`)
+    .writeLine(`for (const field of dateTimeFields)`)
+    .block(() => {
+      writer.writeLine(`if (!whereDateTimeFilter(record, field, whereClause[field])) return false;`);
     });
 }

@@ -4,6 +4,7 @@ import { addNumberFilter } from "./filters/NumberFilter";
 import { addBigIntFilter } from "./filters/BigIntFilter";
 import { addBoolFilter } from "./filters/BoolFilter";
 import { addBytesFilter } from "./filters/BytesFilter";
+import { addDateTimeFilter } from "./filters/DateTimeFilter";
 
 export function createUtilsFile(idbUtilsFile: SourceFile) {
   idbUtilsFile.addImportDeclarations([
@@ -32,4 +33,5 @@ export function createUtilsFile(idbUtilsFile: SourceFile) {
   addBigIntFilter(idbUtilsFile);
   addBoolFilter(idbUtilsFile);
   addBytesFilter(idbUtilsFile);
+  addDateTimeFilter(idbUtilsFile);
 }
