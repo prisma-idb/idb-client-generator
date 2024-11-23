@@ -35,10 +35,15 @@ export function addFillDefaultsFunction(modelClass: ClassDeclaration, model: Mod
               addNullAssignment(writer, field);
             }
           });
-          if (field.type === "DateTime") {
-            addDateStringToDateConverter(writer, field);
-          }
         });
+      model.fields.forEach((field) => {
+        if (field.type === "DateTime") {
+          addDateStringToDateConverter(writer, field);
+        }
+        if (field.type === "BigInt") {
+          addBigIntConverter(writer, field);
+        }
+      });
       writer.writeLine(`return data as Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>;`);
     },
   });
@@ -83,5 +88,11 @@ function addNowDefault(writer: CodeBlockWriter, field: Field) {
 function addDateStringToDateConverter(writer: CodeBlockWriter, field: Field) {
   writer.writeLine(`if (typeof data.${field.name} === 'string')`).block(() => {
     writer.writeLine(`data.${field.name} = new Date(data.${field.name})`);
+  });
+}
+
+function addBigIntConverter(writer: CodeBlockWriter, field: Field) {
+  writer.writeLine(`if (typeof data.${field.name} === 'number')`).block(() => {
+    writer.writeLine(`data.${field.name} = BigInt(data.${field.name})`);
   });
 }
