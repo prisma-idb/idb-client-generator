@@ -92,8 +92,52 @@ test("create_WithOneToOneRelationMetaOnParent_SuccessfullyCreatesBothEntities", 
   expect(JSON.parse(idbClientOutput2)).toEqual(result2);
 });
 
-test("create_WithOneToManyRelation_CreatesParentAndChildRecords", async () => {
-  // TODO
+test("create_WithOneToManyRelation_CreatesParentAndOneChildRecord", async ({ page }) => {
+  const query: Prisma.UserCreateArgs = {
+    data: { name: "Alice", posts: { create: { title: "Post1" } } },
+  };
+  const result = await prisma.user.create(query);
+
+  await page.getByTestId("query-input").fill(`user.create(${JSON.stringify(query)})`);
+  await page.getByRole("button", { name: "Run query" }).click();
+  await expect(page.getByRole("status")).toContainText("Query executed successfully");
+
+  const idbClientOutput = (await page.getByRole("code").textContent()) ?? "";
+  expect(JSON.parse(idbClientOutput)).toEqual(result);
+
+  const query2: Prisma.PostFindManyArgs = { where: { id: 1 } };
+  const result2 = await prisma.post.findMany(query2);
+
+  await page.getByTestId("query-input").fill(`post.findMany(${JSON.stringify(query2)})`);
+  await page.getByRole("button", { name: "Run query" }).click();
+  await expect(page.getByRole("status").nth(1)).toContainText("Query executed successfully");
+
+  const idbClientOutput2 = (await page.getByRole("code").textContent()) ?? "";
+  expect(JSON.parse(idbClientOutput2)).toEqual(result2);
+});
+
+test("create_WithOneToManyRelation_CreatesParentAndManyChildRecords", async ({ page }) => {
+  const query: Prisma.UserCreateArgs = {
+    data: { name: "Alice", posts: { create: [{ title: "Post1" }, { title: "Post2" }] } },
+  };
+  const result = await prisma.user.create(query);
+
+  await page.getByTestId("query-input").fill(`user.create(${JSON.stringify(query)})`);
+  await page.getByRole("button", { name: "Run query" }).click();
+  await expect(page.getByRole("status")).toContainText("Query executed successfully");
+
+  const idbClientOutput = (await page.getByRole("code").textContent()) ?? "";
+  expect(JSON.parse(idbClientOutput)).toEqual(result);
+
+  const query2: Prisma.PostFindManyArgs = { where: { id: 1 } };
+  const result2 = await prisma.post.findMany(query2);
+
+  await page.getByTestId("query-input").fill(`post.findMany(${JSON.stringify(query2)})`);
+  await page.getByRole("button", { name: "Run query" }).click();
+  await expect(page.getByRole("status").nth(1)).toContainText("Query executed successfully");
+
+  const idbClientOutput2 = (await page.getByRole("code").textContent()) ?? "";
+  expect(JSON.parse(idbClientOutput2)).toEqual(result2);
 });
 
 test("create_WithManyToManyRelation_CreatesJoinRecords", async () => {
