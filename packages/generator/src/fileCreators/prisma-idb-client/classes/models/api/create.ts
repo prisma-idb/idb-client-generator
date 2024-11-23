@@ -49,7 +49,7 @@ function addTransactionalHandling(writer: CodeBlockWriter, model: Model) {
         .writeLine(`"readwrite"`)
         .writeLine(`);`)
         .writeLine(`await this._performNestedCreates(query.data, tx);`)
-        .writeLine(`keyPath = await tx.objectStore("${model.name}").add(this._removeNestedCreateData(record));`)
+        .writeLine(`keyPath = await tx.objectStore("${model.name}").add(this._removeNestedCreateData(query.data));`)
         .writeLine(`tx.commit();`);
     });
 }
