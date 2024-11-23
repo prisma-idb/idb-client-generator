@@ -54,7 +54,9 @@ function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
     .writeLine(`let fk;`)
     .writeLine(`if (data.${field.name}.create)`)
     .block(() => {
-      writer.writeLine(`fk = (await this.client.user._nestedCreate({ data: data.user.create }, tx))[0];`);
+      writer.writeLine(
+        `fk = (await this.client.${toCamelCase(field.type)}._nestedCreate({ data: data.${field.name}.create }, tx))[0];`,
+      );
     });
   writer.writeLine(`if (data.${field.name}.connectOrCreate)`).block(() => {
     writer.writeLine(`throw new Error('connectOrCreate not yet implemented')`);

@@ -624,7 +624,7 @@ class PostIDBClass extends BaseIDBModelClass {
     if (data.author) {
       let fk;
       if (data.author.create) {
-        fk = (await this.client.user._nestedCreate({ data: data.user.create }, tx))[0];
+        fk = (await this.client.user._nestedCreate({ data: data.author.create }, tx))[0];
       }
       if (data.author.connectOrCreate) {
         throw new Error("connectOrCreate not yet implemented");
