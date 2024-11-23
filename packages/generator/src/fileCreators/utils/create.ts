@@ -3,6 +3,7 @@ import { addStringFilter } from "./filters/StringFilter";
 import { addNumberFilter } from "./filters/NumberFilter";
 import { addBigIntFilter } from "./filters/BigIntFilter";
 import { addBoolFilter } from "./filters/BoolFilter";
+import { addBytesFilter } from "./filters/BytesFilter";
 
 export function createUtilsFile(idbUtilsFile: SourceFile) {
   idbUtilsFile.addImportDeclarations([
@@ -30,4 +31,5 @@ export function createUtilsFile(idbUtilsFile: SourceFile) {
   addNumberFilter(idbUtilsFile);
   addBigIntFilter(idbUtilsFile);
   addBoolFilter(idbUtilsFile);
+  addBytesFilter(idbUtilsFile);
 }
