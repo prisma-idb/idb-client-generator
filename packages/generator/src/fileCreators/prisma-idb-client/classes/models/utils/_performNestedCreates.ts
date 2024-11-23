@@ -45,7 +45,7 @@ function handleVariousRelationships(writer: CodeBlockWriter, model: Model, field
       addOneToOneMetaOnOtherFieldRelation(writer, field, otherField);
     }
   } else {
-    // one-to-many
+    addOneToManyRelation(writer, field, otherField);
   }
 }
 
@@ -61,11 +61,6 @@ function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
   writer.writeLine(`if (data.${field.name}.connectOrCreate)`).block(() => {
     writer.writeLine(`throw new Error('connectOrCreate not yet implemented')`);
   });
-  if (field.isList) {
-    writer.writeLine(`if (data.${field.name}.createMany)`).block(() => {
-      writer.writeLine(`throw new Error('createMany not yet implemented')`);
-    });
-  }
   writer
     .writeLine(`const unsafeData = data as Record<string, unknown>;`)
     .writeLine(`unsafeData.userId = fk as NonNullable<typeof fk>;`)
@@ -78,7 +73,7 @@ function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Fie
       .write(`await this.client.${toCamelCase(field.type)}._nestedCreate(`)
       .block(() => {
         writer.writeLine(
-          `data: { ...data.profile.create, ${otherField.relationFromFields?.at(0)}: data.${otherField.relationToFields?.at(0)}! }`,
+          `data: { ...data.${field.name}.create, ${otherField.relationFromFields?.at(0)}: data.${otherField.relationToFields?.at(0)}! }`,
         );
       })
       .writeLine(`, tx)`);
@@ -86,10 +81,42 @@ function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Fie
   writer.writeLine(`if (data.${field.name}.connectOrCreate)`).block(() => {
     writer.writeLine(`throw new Error('connectOrCreate not yet implemented')`);
   });
-  if (field.isList) {
-    writer.writeLine(`if (data.${field.name}.createMany)`).block(() => {
-      writer.writeLine(`throw new Error('createMany not yet implemented')`);
-    });
-  }
+  writer.writeLine(`delete data.${field.name};`);
+}
+
+function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField: Field) {
+  writer.writeLine(`if (data.${field.name}.create)`).block(() => {
+    writer
+      .write(`await this.client.${toCamelCase(field.type)}.createMany(`)
+      .block(() => {
+        writer
+          .writeLine(`data: convertToArray(data.${field.name}.create).map((createData) => (`)
+          .block(() => {
+            writer.writeLine(
+              `...createData, ${otherField.relationFromFields?.at(0)}: data.${otherField.relationToFields?.at(0)}!`,
+            );
+          })
+          .writeLine(`)),`);
+      })
+      .writeLine(`, tx)`);
+  });
+  writer.writeLine(`if (data.${field.name}.connectOrCreate)`).block(() => {
+    writer.writeLine(`throw new Error('connectOrCreate not yet implemented')`);
+  });
+  writer.writeLine(`if (data.${field.name}.createMany)`).block(() => {
+    writer
+      .write(`await this.client.${toCamelCase(field.type)}.createMany(`)
+      .block(() => {
+        writer
+          .writeLine(`data: convertToArray(data.${field.name}.createMany.data).map((createData) => (`)
+          .block(() => {
+            writer.writeLine(
+              `...createData, ${otherField.relationFromFields?.at(0)}: data.${otherField.relationToFields?.at(0)}!`,
+            );
+          })
+          .writeLine(`)),`);
+      })
+      .writeLine(`, tx)`);
+  });
   writer.writeLine(`delete data.${field.name};`);
 }

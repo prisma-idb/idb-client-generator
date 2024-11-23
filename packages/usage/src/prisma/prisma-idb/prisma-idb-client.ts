@@ -215,6 +215,32 @@ class UserIDBClass extends BaseIDBModelClass {
       delete data.profile;
     }
     if (data.posts) {
+      if (data.posts.create) {
+        await this.client.post.createMany(
+          {
+            data: convertToArray(data.posts.create).map((createData) => ({
+              ...createData,
+              authorId: data.id!,
+            })),
+          },
+          tx,
+        );
+      }
+      if (data.posts.connectOrCreate) {
+        throw new Error("connectOrCreate not yet implemented");
+      }
+      if (data.posts.createMany) {
+        await this.client.post.createMany(
+          {
+            data: convertToArray(data.posts.createMany.data).map((createData) => ({
+              ...createData,
+              authorId: data.id!,
+            })),
+          },
+          tx,
+        );
+      }
+      delete data.posts;
     }
   }
 
