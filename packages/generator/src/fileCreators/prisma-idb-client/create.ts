@@ -14,7 +14,7 @@ function addImports(file: SourceFile) {
   file.addImportDeclaration({ moduleSpecifier: "@prisma/client", namedImports: ["Prisma"], isTypeOnly: true });
   file.addImportDeclaration({
     moduleSpecifier: "./idb-utils",
-    namedImports: ["convertToArray", "whereStringFilter", "whereNumberFilter"],
+    namedImports: ["convertToArray", "whereStringFilter", "whereNumberFilter", "whereBigIntFilter"],
   });
   file.addImportDeclaration({
     moduleSpecifier: "./idb-utils",

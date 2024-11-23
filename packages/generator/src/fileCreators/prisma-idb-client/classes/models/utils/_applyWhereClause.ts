@@ -22,6 +22,7 @@ export function addApplyWhereClause(modelClass: ClassDeclaration, model: Model) 
         .block(() => {
           addStringFiltering(writer, model);
           addNumberFiltering(writer, model);
+          addBigIntFiltering(writer, model);
           writer.writeLine(`return true;`);
         })
         .writeLine(`);`);
@@ -51,5 +52,17 @@ function addNumberFiltering(writer: CodeBlockWriter, model: Model) {
     .writeLine(`for (const field of numberFields)`)
     .block(() => {
       writer.writeLine(`if (!whereNumberFilter(record, field, whereClause[field])) return false;`);
+    });
+}
+
+function addBigIntFiltering(writer: CodeBlockWriter, model: Model) {
+  const numberFields = model.fields.filter((field) => field.type === "BigInt").map(({ name }) => name);
+
+  if (numberFields.length === 0) return;
+  writer
+    .writeLine(`const bigIntFields = ${JSON.stringify(numberFields)} as const;`)
+    .writeLine(`for (const field of bigIntFields)`)
+    .block(() => {
+      writer.writeLine(`if (!whereBigIntFilter(record, field, whereClause[field])) return false;`);
     });
 }
