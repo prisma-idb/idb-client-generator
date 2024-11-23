@@ -2,6 +2,7 @@ import { SourceFile } from "ts-morph";
 import { addStringFilter } from "./filters/StringFilter";
 import { addNumberFilter } from "./filters/NumberFilter";
 import { addBigIntFilter } from "./filters/BigIntFilter";
+import { addBoolFilter } from "./filters/BoolFilter";
 
 export function createUtilsFile(idbUtilsFile: SourceFile) {
   idbUtilsFile.addImportDeclarations([
@@ -28,4 +29,5 @@ export function createUtilsFile(idbUtilsFile: SourceFile) {
   addStringFilter(idbUtilsFile);
   addNumberFilter(idbUtilsFile);
   addBigIntFilter(idbUtilsFile);
+  addBoolFilter(idbUtilsFile);
 }

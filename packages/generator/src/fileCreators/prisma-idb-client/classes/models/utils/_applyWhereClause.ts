@@ -23,6 +23,7 @@ export function addApplyWhereClause(modelClass: ClassDeclaration, model: Model) 
           addStringFiltering(writer, model);
           addNumberFiltering(writer, model);
           addBigIntFiltering(writer, model);
+          addBoolFiltering(writer, model);
           writer.writeLine(`return true;`);
         })
         .writeLine(`);`);
@@ -64,5 +65,17 @@ function addBigIntFiltering(writer: CodeBlockWriter, model: Model) {
     .writeLine(`for (const field of bigIntFields)`)
     .block(() => {
       writer.writeLine(`if (!whereBigIntFilter(record, field, whereClause[field])) return false;`);
+    });
+}
+
+function addBoolFiltering(writer: CodeBlockWriter, model: Model) {
+  const booleanFields = model.fields.filter((field) => field.type === "Boolean").map(({ name }) => name);
+
+  if (booleanFields.length === 0) return;
+  writer
+    .writeLine(`const booleanFields = ${JSON.stringify(booleanFields)} as const;`)
+    .writeLine(`for (const field of booleanFields)`)
+    .block(() => {
+      writer.writeLine(`if (!whereBoolFilter(record, field, whereClause[field])) return false;`);
     });
 }
