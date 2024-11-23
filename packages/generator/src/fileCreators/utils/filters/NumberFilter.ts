@@ -66,7 +66,7 @@ function addNotHandler(writer: CodeBlockWriter) {
 }
 
 function addInHandler(writer: CodeBlockWriter) {
-  writer.writeLine(`if (Array.isArray(numberFilter.in) && value !== null)`).block(() => {
+  writer.writeLine(`if (Array.isArray(numberFilter.in))`).block(() => {
     writer
       .writeLine(`if (value === null) return false;`)
       .writeLine(`if (!numberFilter.in.includes(value)) return false;`);

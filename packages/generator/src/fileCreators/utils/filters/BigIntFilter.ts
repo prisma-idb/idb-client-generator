@@ -66,7 +66,7 @@ function addNotHandler(writer: CodeBlockWriter) {
 }
 
 function addInHandler(writer: CodeBlockWriter) {
-  writer.writeLine(`if (Array.isArray(bigIntFilter.in) && value !== null)`).block(() => {
+  writer.writeLine(`if (Array.isArray(bigIntFilter.in))`).block(() => {
     writer
       .writeLine(`if (value === null) return false;`)
       .writeLine(`if (!bigIntFilter.in.map((n) => BigInt(n)).includes(BigInt(value))) return false;`);
