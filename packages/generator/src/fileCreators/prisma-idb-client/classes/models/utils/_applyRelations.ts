@@ -38,7 +38,7 @@ function addRelationProcessing(writer: CodeBlockWriter, model: Model, models: re
       relationFields.forEach((field) => {
         writer
           .write(`const attach_${field.name} = `)
-          .write(`query.select?.${toCamelCase(field.name)} || query.include?.${toCamelCase(field.name)};`)
+          .write(`query.select?.${field.name} || query.include?.${field.name};`)
           .writeLine(`if (attach_${field.name})`)
           .block(() => {
             const otherFieldOfRelation = allFields.find(
@@ -53,42 +53,45 @@ function addRelationProcessing(writer: CodeBlockWriter, model: Model, models: re
 }
 
 function handleVariousRelationships(writer: CodeBlockWriter, model: Model, field: Field, otherField: Field) {
-  const queryOptions = `attach_${field.name} === true ? {} : attach_${field.name}`;
-  if (!field.isList && !otherField.isList) {
+  if (!field.isList) {
     if (field.isRequired) {
-      addOneToOneMetaOnFieldRelation(writer, field, queryOptions);
+      addOneToOneMetaOnFieldRelation(writer, field);
     } else {
-      addOneToOneMetaOnOtherFieldRelation(writer, field, otherField, queryOptions);
+      addOneToOneMetaOnOtherFieldRelation(writer, field, otherField);
     }
-    // } else if (field.isList) {
-    //   relationshipType = "ManyToOne";
-    // } else {
-    //   relationshipType = "OneToMany";
+  } else {
+    addOneToManyRelation(writer, field, otherField);
   }
 }
 
-function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field, queryOptions: string) {
+function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
   writer
-    .writeLine(`unsafeRecord['${toCamelCase(field.name)}'] = await this.client.${toCamelCase(field.type)}.findUnique(`)
+    .writeLine(`unsafeRecord['${field.name}'] = await this.client.${toCamelCase(field.type)}.findUnique(`)
     .block(() => {
       writer
-        .writeLine(`...(${queryOptions}),`)
+        .writeLine(`...(attach_${field.name} === true ? {} : attach_${field.name}),`)
         .writeLine(`where: { ${field.relationToFields?.at(0)}: record.${field.relationFromFields?.at(0)} }`);
     })
     .writeLine(`)`);
 }
 
-function addOneToOneMetaOnOtherFieldRelation(
-  writer: CodeBlockWriter,
-  field: Field,
-  otherField: Field,
-  queryOptions: string,
-) {
+function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Field, otherField: Field) {
   writer
-    .writeLine(`unsafeRecord['${toCamelCase(field.name)}'] = await this.client.${toCamelCase(field.type)}.findUnique(`)
+    .writeLine(`unsafeRecord['${field.name}'] = await this.client.${toCamelCase(field.type)}.findUnique(`)
     .block(() => {
       writer
-        .writeLine(`...(${queryOptions}),`)
+        .writeLine(`...(attach_${field.name} === true ? {} : attach_${field.name}),`)
+        .writeLine(`where: { ${otherField.relationFromFields?.at(0)}: record.${otherField.relationToFields?.at(0)} }`);
+    })
+    .writeLine(`)`);
+}
+
+function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField: Field) {
+  writer
+    .writeLine(`unsafeRecord['${field.name}'] = await this.client.${toCamelCase(field.type)}.findMany(`)
+    .block(() => {
+      writer
+        .writeLine(`...(attach_${field.name} === true ? {} : attach_${field.name}),`)
         .writeLine(`where: { ${otherField.relationFromFields?.at(0)}: record.${otherField.relationToFields?.at(0)} }`);
     })
     .writeLine(`)`);

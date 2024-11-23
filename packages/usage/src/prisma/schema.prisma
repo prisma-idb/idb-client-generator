@@ -16,6 +16,7 @@ model User {
   id      Int      @id @default(autoincrement())
   name    String
   profile Profile?
+  posts   Post[]
 }
 
 model Profile {
@@ -23,4 +24,11 @@ model Profile {
   bio    String?
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId Int     @unique
+}
+
+model Post {
+  id       Int    @id @default(autoincrement())
+  title    String
+  author   User   @relation(fields: [authorId], references: [id])
+  authorId Int
 }

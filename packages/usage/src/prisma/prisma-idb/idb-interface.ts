@@ -13,4 +13,8 @@ export interface PrismaIDBSchema extends DBSchema {
       userIdIndex: [userId: Prisma.Profile["userId"]];
     };
   };
+  Post: {
+    key: [id: Prisma.Post["id"]];
+    value: Prisma.Post;
+  };
 }
