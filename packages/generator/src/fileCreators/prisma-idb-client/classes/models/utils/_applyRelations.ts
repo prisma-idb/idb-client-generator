@@ -54,7 +54,7 @@ function addRelationProcessing(writer: CodeBlockWriter, model: Model, models: re
 
 function handleVariousRelationships(writer: CodeBlockWriter, model: Model, field: Field, otherField: Field) {
   if (!field.isList) {
-    if (field.isRequired) {
+    if (field.relationFromFields?.length) {
       addOneToOneMetaOnFieldRelation(writer, field);
     } else {
       addOneToOneMetaOnOtherFieldRelation(writer, field, otherField);

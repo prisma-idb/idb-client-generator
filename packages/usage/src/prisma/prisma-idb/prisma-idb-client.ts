@@ -494,7 +494,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
       delete unsafeData.user;
     }
     if (validateFKs && (data.userId !== undefined || data.user?.connect?.id !== undefined)) {
-      const fk = data.userId ?? (data.user.connect?.id as number);
+      const fk = data.userId ?? (data.user?.connect?.id as number);
       const record = await tx.objectStore("User").getKey([fk]);
       if (record === undefined) {
         throw new Error(`Foreign key (${data.userId}) for model (User) does not exist`);
@@ -684,6 +684,9 @@ class PostIDBClass extends BaseIDBModelClass {
       const cursor = await store.openCursor(null, "prev");
       data.id = cursor ? Number(cursor.key) + 1 : 1;
     }
+    if (data.authorId === undefined) {
+      data.authorId = null;
+    }
     return data as Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">;
   }
 
@@ -736,7 +739,7 @@ class PostIDBClass extends BaseIDBModelClass {
       delete unsafeData.author;
     }
     if (validateFKs && (data.authorId !== undefined || data.author?.connect?.id !== undefined)) {
-      const fk = data.authorId ?? (data.author.connect?.id as number);
+      const fk = data.authorId ?? (data.author?.connect?.id as number);
       const record = await tx.objectStore("User").getKey([fk]);
       if (record === undefined) {
         throw new Error(`Foreign key (${data.authorId}) for model (User) does not exist`);

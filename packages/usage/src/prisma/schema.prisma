@@ -29,19 +29,19 @@ model Profile {
 model Post {
   id       Int    @id @default(autoincrement())
   title    String
-  author   User   @relation(fields: [authorId], references: [id])
-  authorId Int
+  author   User?  @relation(fields: [authorId], references: [id])
+  authorId Int?
 }
 
 model AllFieldScalarTypes {
-  id          Int             @id @default(autoincrement())
-  string      String
-  boolean     Boolean
-  int         Int
-  bigInt      BigInt
-  float       Float
-  decimal     Decimal
-  dateTime    DateTime
-  json        Json
-  bytes       Bytes
+  id       Int      @id @default(autoincrement())
+  string   String
+  boolean  Boolean
+  int      Int
+  bigInt   BigInt
+  float    Float
+  decimal  Decimal
+  dateTime DateTime
+  json     Json
+  bytes    Bytes
 }

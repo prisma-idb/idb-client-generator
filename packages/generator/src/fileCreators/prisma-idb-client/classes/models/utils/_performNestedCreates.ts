@@ -44,7 +44,7 @@ function addRelationProcessing(writer: CodeBlockWriter, model: Model, models: re
 
 function handleVariousRelationships(writer: CodeBlockWriter, field: Field, otherField: Field) {
   if (!field.isList) {
-    if (field.isRequired) {
+    if (field.relationFromFields?.length) {
       addOneToOneMetaOnFieldRelation(writer, field);
     } else {
       addOneToOneMetaOnOtherFieldRelation(writer, field, otherField);
@@ -62,7 +62,7 @@ function handleForeignKeyValidation(writer: CodeBlockWriter, field: Field, fkFie
     .block(() => {
       writer
         // TODO: composite FKs
-        .writeLine(`const fk = data.${fkField.name} ?? data.${field.name}.connect?.id as number;`)
+        .writeLine(`const fk = data.${fkField.name} ?? data.${field.name}?.connect?.id as number;`)
         .writeLine(`const record = await tx.objectStore("${field.type}").getKey([fk]);`)
         .writeLine(`if (record === undefined)`)
         .block(() => {
