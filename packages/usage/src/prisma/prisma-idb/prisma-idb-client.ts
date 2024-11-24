@@ -371,6 +371,21 @@ class UserIDBClass extends BaseIDBModelClass {
     }
     return { count: createManyData.length };
   }
+
+  async createManyAndReturn<Q extends Prisma.Args<Prisma.UserDelegate, "createManyAndReturn">>(
+    query: Q,
+    tx?: CreateTransactionType,
+  ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "createManyAndReturn">> {
+    const createManyData = convertToArray(query.data);
+    const records: unknown[] = [];
+    tx = tx ?? this.client._db.transaction(["User"], "readwrite");
+    for (const createData of createManyData) {
+      const record = await this._fillDefaults(createData, tx);
+      await tx.objectStore("User").add(record);
+      records.push(this._applySelectClause([record], query.select)[0]);
+    }
+    return records as Prisma.Result<Prisma.UserDelegate, Q, "createManyAndReturn">;
+  }
 }
 
 class ProfileIDBClass extends BaseIDBModelClass {
@@ -615,6 +630,21 @@ class ProfileIDBClass extends BaseIDBModelClass {
       await tx.objectStore("Profile").add(record);
     }
     return { count: createManyData.length };
+  }
+
+  async createManyAndReturn<Q extends Prisma.Args<Prisma.ProfileDelegate, "createManyAndReturn">>(
+    query: Q,
+    tx?: CreateTransactionType,
+  ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "createManyAndReturn">> {
+    const createManyData = convertToArray(query.data);
+    const records: unknown[] = [];
+    tx = tx ?? this.client._db.transaction(["Profile"], "readwrite");
+    for (const createData of createManyData) {
+      const record = await this._fillDefaults(createData, tx);
+      await tx.objectStore("Profile").add(record);
+      records.push(this._applySelectClause([record], query.select)[0]);
+    }
+    return records as Prisma.Result<Prisma.ProfileDelegate, Q, "createManyAndReturn">;
   }
 }
 
@@ -862,6 +892,21 @@ class PostIDBClass extends BaseIDBModelClass {
     }
     return { count: createManyData.length };
   }
+
+  async createManyAndReturn<Q extends Prisma.Args<Prisma.PostDelegate, "createManyAndReturn">>(
+    query: Q,
+    tx?: CreateTransactionType,
+  ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "createManyAndReturn">> {
+    const createManyData = convertToArray(query.data);
+    const records: unknown[] = [];
+    tx = tx ?? this.client._db.transaction(["Post"], "readwrite");
+    for (const createData of createManyData) {
+      const record = await this._fillDefaults(createData, tx);
+      await tx.objectStore("Post").add(record);
+      records.push(this._applySelectClause([record], query.select)[0]);
+    }
+    return records as Prisma.Result<Prisma.PostDelegate, Q, "createManyAndReturn">;
+  }
 }
 
 class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
@@ -1094,5 +1139,20 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
       await tx.objectStore("AllFieldScalarTypes").add(record);
     }
     return { count: createManyData.length };
+  }
+
+  async createManyAndReturn<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "createManyAndReturn">>(
+    query: Q,
+    tx?: CreateTransactionType,
+  ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "createManyAndReturn">> {
+    const createManyData = convertToArray(query.data);
+    const records: unknown[] = [];
+    tx = tx ?? this.client._db.transaction(["AllFieldScalarTypes"], "readwrite");
+    for (const createData of createManyData) {
+      const record = await this._fillDefaults(createData, tx);
+      await tx.objectStore("AllFieldScalarTypes").add(record);
+      records.push(this._applySelectClause([record], query.select)[0]);
+    }
+    return records as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "createManyAndReturn">;
   }
 }
