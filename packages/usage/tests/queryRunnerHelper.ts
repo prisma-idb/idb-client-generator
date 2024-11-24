@@ -18,6 +18,7 @@ export async function expectQueryToSucceed<
 
   const idbClientResult = (await page.getByRole("code").textContent()) ?? "";
   expect(JSON.parse(idbClientResult)).toEqual(prismaClientResult);
+  return prismaClientResult;
 }
 
 export async function expectQueryToFail<
