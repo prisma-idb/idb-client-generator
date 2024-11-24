@@ -663,10 +663,13 @@ class PostIDBClass extends BaseIDBModelClass {
       const unsafeRecord = record as Record<string, unknown>;
       const attach_author = query.select?.author || query.include?.author;
       if (attach_author) {
-        unsafeRecord["author"] = await this.client.user.findUnique({
-          ...(attach_author === true ? {} : attach_author),
-          where: { id: record.authorId },
-        });
+        unsafeRecord["author"] =
+          record.authorId === null
+            ? null
+            : await this.client.user.findUnique({
+                ...(attach_author === true ? {} : attach_author),
+                where: { id: record.authorId },
+              });
       }
       return unsafeRecord;
     });

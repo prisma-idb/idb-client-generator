@@ -44,7 +44,7 @@ function addRelationProcessing(writer: CodeBlockWriter, model: Model, models: re
             const otherFieldOfRelation = allFields.find(
               (_field) => _field.relationName === field.relationName && field !== _field,
             )!;
-            handleVariousRelationships(writer, model, field, otherFieldOfRelation);
+            handleVariousRelationships(writer, field, otherFieldOfRelation);
           });
       });
       writer.writeLine("return unsafeRecord;");
@@ -52,7 +52,7 @@ function addRelationProcessing(writer: CodeBlockWriter, model: Model, models: re
     .writeLine(");");
 }
 
-function handleVariousRelationships(writer: CodeBlockWriter, model: Model, field: Field, otherField: Field) {
+function handleVariousRelationships(writer: CodeBlockWriter, field: Field, otherField: Field) {
   if (!field.isList) {
     if (field.relationFromFields?.length) {
       addOneToOneMetaOnFieldRelation(writer, field);
@@ -66,7 +66,9 @@ function handleVariousRelationships(writer: CodeBlockWriter, model: Model, field
 
 function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
   writer
-    .writeLine(`unsafeRecord['${field.name}'] = await this.client.${toCamelCase(field.type)}.findUnique(`)
+    .write(`unsafeRecord['${field.name}'] = `)
+    .conditionalWrite(!field.isRequired, () => `record.${field.relationFromFields?.at(0)} === null ? null :`)
+    .writeLine(`await this.client.${toCamelCase(field.type)}.findUnique(`)
     .block(() => {
       writer
         .writeLine(`...(attach_${field.name} === true ? {} : attach_${field.name}),`)
