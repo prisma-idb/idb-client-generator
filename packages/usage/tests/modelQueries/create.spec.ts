@@ -10,6 +10,22 @@ test("create_ValidData_SuccessfullyCreatesRecord", async ({ page }) => {
   });
 });
 
-test("create_WithGeneratedId_AssignsDefaultId", async () => {
-  // TODO, also test out other fillDefaults
+test("create_WithGeneratedId_AssignsDefaultId", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "create",
+    query: { data: { name: "John Doe" } },
+  });
 });
+
+test("create_WithNullableField_AssignsNullAsDefault", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "profile",
+    operation: "create",
+    query: { data: { user: { create: { name: "John" } } } },
+  });
+});
+
+// TODO: all possible default functions
