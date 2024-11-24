@@ -15,6 +15,7 @@ import { addRemoveNestedCreateDataMethod } from "./utils/_removeNestedCreateData
 import { addFindFirstOrThrow } from "./api/findFirstOrThrow";
 import { addApplyWhereClause } from "./utils/_applyWhereClause";
 import { addCreateManyMethod } from "./api/createMany";
+import { addFindUniqueOrThrow } from "./api/findUniqueOrThrow";
 
 export function addIDBModelClass(file: SourceFile, model: Model, models: readonly Model[]) {
   const modelClass = file.addClass({
@@ -35,6 +36,7 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
   addFindFirstMethod(modelClass, model);
   addFindFirstOrThrow(modelClass, model);
   addFindUniqueMethod(modelClass, model);
+  addFindUniqueOrThrow(modelClass, model);
   addCountMethod(modelClass, model);
 
   addCreateMethod(modelClass, model);

@@ -312,6 +312,14 @@ class UserIDBClass extends BaseIDBModelClass {
     return recordWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "findUnique">;
   }
 
+  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.UserDelegate, "findUniqueOrThrow">>(
+    query: Q,
+  ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findUniqueOrThrow">> {
+    const record = await this.findUnique(query);
+    if (!record) throw new Error("Record not found");
+    return record;
+  }
+
   async count<Q extends Prisma.Args<Prisma.UserDelegate, "count">>(
     query?: Q,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "count">> {
@@ -538,6 +546,14 @@ class ProfileIDBClass extends BaseIDBModelClass {
     return recordWithRelations as Prisma.Result<Prisma.ProfileDelegate, Q, "findUnique">;
   }
 
+  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.ProfileDelegate, "findUniqueOrThrow">>(
+    query: Q,
+  ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findUniqueOrThrow">> {
+    const record = await this.findUnique(query);
+    if (!record) throw new Error("Record not found");
+    return record;
+  }
+
   async count<Q extends Prisma.Args<Prisma.ProfileDelegate, "count">>(
     query?: Q,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "count">> {
@@ -757,6 +773,14 @@ class PostIDBClass extends BaseIDBModelClass {
       query.select,
     )[0];
     return recordWithRelations as Prisma.Result<Prisma.PostDelegate, Q, "findUnique">;
+  }
+
+  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.PostDelegate, "findUniqueOrThrow">>(
+    query: Q,
+  ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findUniqueOrThrow">> {
+    const record = await this.findUnique(query);
+    if (!record) throw new Error("Record not found");
+    return record;
   }
 
   async count<Q extends Prisma.Args<Prisma.PostDelegate, "count">>(
@@ -981,6 +1005,14 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
       query.select,
     )[0];
     return recordWithRelations as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findUnique">;
+  }
+
+  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findUniqueOrThrow">>(
+    query: Q,
+  ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findUniqueOrThrow">> {
+    const record = await this.findUnique(query);
+    if (!record) throw new Error("Record not found");
+    return record;
   }
 
   async count<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "count">>(
