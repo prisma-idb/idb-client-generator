@@ -3,8 +3,17 @@ import type { IDBPDatabase, StoreNames } from "idb";
 import { openDB } from "idb";
 import type { PrismaIDBSchema } from "./idb-interface";
 import type { CreateTransactionType } from "./idb-utils";
-import { convertToArray, whereIntFilter, whereStringFilter } from "./idb-utils";
+import {
+  convertToArray,
+  whereBigIntFilter,
+  whereBoolFilter,
+  whereBytesFilter,
+  whereDateTimeFilter,
+  whereNumberFilter,
+  whereStringFilter,
+} from "./idb-utils";
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
 const IDB_VERSION = 1;
 
 export class PrismaIDBClient {
@@ -16,6 +25,7 @@ export class PrismaIDBClient {
   user!: UserIDBClass;
   profile!: ProfileIDBClass;
   post!: PostIDBClass;
+  allFieldScalarTypes!: AllFieldScalarTypesIDBClass;
 
   public static async create(): Promise<PrismaIDBClient> {
     if (!PrismaIDBClient.instance) {
@@ -33,11 +43,13 @@ export class PrismaIDBClient {
         const ProfileStore = db.createObjectStore("Profile", { keyPath: ["id"] });
         ProfileStore.createIndex("userIdIndex", ["userId"], { unique: true });
         db.createObjectStore("Post", { keyPath: ["id"] });
+        db.createObjectStore("AllFieldScalarTypes", { keyPath: ["id"] });
       },
     });
     this.user = new UserIDBClass(this, ["id"]);
     this.profile = new ProfileIDBClass(this, ["id"]);
     this.post = new PostIDBClass(this, ["id"]);
+    this.allFieldScalarTypes = new AllFieldScalarTypesIDBClass(this, ["id"]);
   }
 }
 
@@ -84,9 +96,9 @@ class UserIDBClass extends BaseIDBModelClass {
       for (const field of stringFields) {
         if (!whereStringFilter(record, field, whereClause[field])) return false;
       }
-      const intFields = ["id"] as const;
-      for (const field of intFields) {
-        if (!whereIntFilter(record, field, whereClause[field])) return false;
+      const numberFields = ["id"] as const;
+      for (const field of numberFields) {
+        if (!whereNumberFilter(record, field, whereClause[field])) return false;
       }
       return true;
     });
@@ -189,11 +201,13 @@ class UserIDBClass extends BaseIDBModelClass {
     return neededStores;
   }
 
-  private _removeNestedCreateData<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(data: D) {
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(
+    data: D,
+  ): Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow"> {
     const recordWithoutNestedCreate = structuredClone(data);
     delete recordWithoutNestedCreate.profile;
     delete recordWithoutNestedCreate.posts;
-    return recordWithoutNestedCreate;
+    return recordWithoutNestedCreate as Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">;
   }
 
   private async _performNestedCreates<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(
@@ -328,7 +342,7 @@ class UserIDBClass extends BaseIDBModelClass {
     } else {
       const tx = this.client._db.transaction(["User", ...Array.from(storesNeeded)], "readwrite");
       await this._performNestedCreates(query.data, tx);
-      keyPath = await tx.objectStore("User").add(this._removeNestedCreateData(record));
+      keyPath = await tx.objectStore("User").add(this._removeNestedCreateData(query.data));
       tx.commit();
     }
     const data = (await this.client._db.get("User", keyPath))!;
@@ -361,9 +375,9 @@ class ProfileIDBClass extends BaseIDBModelClass {
       for (const field of stringFields) {
         if (!whereStringFilter(record, field, whereClause[field])) return false;
       }
-      const intFields = ["id", "userId"] as const;
-      for (const field of intFields) {
-        if (!whereIntFilter(record, field, whereClause[field])) return false;
+      const numberFields = ["id", "userId"] as const;
+      for (const field of numberFields) {
+        if (!whereNumberFilter(record, field, whereClause[field])) return false;
       }
       return true;
     });
@@ -442,10 +456,12 @@ class ProfileIDBClass extends BaseIDBModelClass {
     return neededStores;
   }
 
-  private _removeNestedCreateData<D extends Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>(data: D) {
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>(
+    data: D,
+  ): Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow"> {
     const recordWithoutNestedCreate = structuredClone(data);
     delete recordWithoutNestedCreate.user;
-    return recordWithoutNestedCreate;
+    return recordWithoutNestedCreate as Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">;
   }
 
   private async _performNestedCreates<D extends Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>(
@@ -552,7 +568,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
     } else {
       const tx = this.client._db.transaction(["Profile", ...Array.from(storesNeeded)], "readwrite");
       await this._performNestedCreates(query.data, tx);
-      keyPath = await tx.objectStore("Profile").add(this._removeNestedCreateData(record));
+      keyPath = await tx.objectStore("Profile").add(this._removeNestedCreateData(query.data));
       tx.commit();
     }
     const data = (await this.client._db.get("Profile", keyPath))!;
@@ -585,9 +601,9 @@ class PostIDBClass extends BaseIDBModelClass {
       for (const field of stringFields) {
         if (!whereStringFilter(record, field, whereClause[field])) return false;
       }
-      const intFields = ["id", "authorId"] as const;
-      for (const field of intFields) {
-        if (!whereIntFilter(record, field, whereClause[field])) return false;
+      const numberFields = ["id", "authorId"] as const;
+      for (const field of numberFields) {
+        if (!whereNumberFilter(record, field, whereClause[field])) return false;
       }
       return true;
     });
@@ -663,10 +679,12 @@ class PostIDBClass extends BaseIDBModelClass {
     return neededStores;
   }
 
-  private _removeNestedCreateData<D extends Prisma.Args<Prisma.PostDelegate, "create">["data"]>(data: D) {
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.PostDelegate, "create">["data"]>(
+    data: D,
+  ): Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow"> {
     const recordWithoutNestedCreate = structuredClone(data);
     delete recordWithoutNestedCreate.author;
-    return recordWithoutNestedCreate;
+    return recordWithoutNestedCreate as Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">;
   }
 
   private async _performNestedCreates<D extends Prisma.Args<Prisma.PostDelegate, "create">["data"]>(
@@ -771,7 +789,7 @@ class PostIDBClass extends BaseIDBModelClass {
     } else {
       const tx = this.client._db.transaction(["Post", ...Array.from(storesNeeded)], "readwrite");
       await this._performNestedCreates(query.data, tx);
-      keyPath = await tx.objectStore("Post").add(this._removeNestedCreateData(record));
+      keyPath = await tx.objectStore("Post").add(this._removeNestedCreateData(query.data));
       tx.commit();
     }
     const data = (await this.client._db.get("Post", keyPath))!;
@@ -788,6 +806,230 @@ class PostIDBClass extends BaseIDBModelClass {
     for (const createData of createManyData) {
       const record = await this._fillDefaults(createData, tx);
       await tx.objectStore("Post").add(record);
+    }
+    return { count: createManyData.length };
+  }
+}
+
+class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
+  private async _applyWhereClause<
+    W extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findFirstOrThrow">["where"],
+    R extends Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">,
+  >(records: R[], whereClause: W): Promise<R[]> {
+    if (!whereClause) return records;
+    return records.filter((record) => {
+      const stringFields = ["string"] as const;
+      for (const field of stringFields) {
+        if (!whereStringFilter(record, field, whereClause[field])) return false;
+      }
+      const numberFields = ["id", "int", "float"] as const;
+      for (const field of numberFields) {
+        if (!whereNumberFilter(record, field, whereClause[field])) return false;
+      }
+      const bigIntFields = ["bigInt"] as const;
+      for (const field of bigIntFields) {
+        if (!whereBigIntFilter(record, field, whereClause[field])) return false;
+      }
+      const booleanFields = ["boolean"] as const;
+      for (const field of booleanFields) {
+        if (!whereBoolFilter(record, field, whereClause[field])) return false;
+      }
+      const bytesFields = ["bytes"] as const;
+      for (const field of bytesFields) {
+        if (!whereBytesFilter(record, field, whereClause[field])) return false;
+      }
+      const dateTimeFields = ["dateTime"] as const;
+      for (const field of dateTimeFields) {
+        if (!whereDateTimeFilter(record, field, whereClause[field])) return false;
+      }
+      return true;
+    });
+  }
+
+  private _applySelectClause<S extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">["select"]>(
+    records: Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">[],
+    selectClause: S,
+  ): Prisma.Result<Prisma.AllFieldScalarTypesDelegate, { select: S }, "findFirstOrThrow">[] {
+    if (!selectClause) {
+      return records as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, { select: S }, "findFirstOrThrow">[];
+    }
+    return records.map((record) => {
+      const partialRecord: Partial<typeof record> = record;
+      for (const untypedKey of [
+        "id",
+        "string",
+        "boolean",
+        "int",
+        "bigInt",
+        "float",
+        "decimal",
+        "dateTime",
+        "json",
+        "bytes",
+      ]) {
+        const key = untypedKey as keyof typeof record & keyof S;
+        if (!selectClause[key]) delete partialRecord[key];
+      }
+      return partialRecord;
+    }) as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, { select: S }, "findFirstOrThrow">[];
+  }
+
+  private async _applyRelations<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">>(
+    records: Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">[],
+    query?: Q,
+  ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirstOrThrow">[]> {
+    if (!query) return records as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirstOrThrow">[];
+    const recordsWithRelations = records.map(async (record) => {
+      const unsafeRecord = record as Record<string, unknown>;
+      return unsafeRecord;
+    });
+    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
+      Prisma.AllFieldScalarTypesDelegate,
+      Q,
+      "findFirstOrThrow"
+    >[];
+  }
+
+  private async _fillDefaults<D extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">["data"]>(
+    data: D,
+    tx?: CreateTransactionType,
+  ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">> {
+    if (data === undefined) data = {} as NonNullable<D>;
+    if (data.id === undefined) {
+      const transaction = tx ?? this.client._db.transaction(["AllFieldScalarTypes"], "readwrite");
+      const store = transaction.objectStore("AllFieldScalarTypes");
+      const cursor = await store.openCursor(null, "prev");
+      data.id = cursor ? Number(cursor.key) + 1 : 1;
+    }
+    if (typeof data.bigInt === "number") {
+      data.bigInt = BigInt(data.bigInt);
+    }
+    if (typeof data.dateTime === "string") {
+      data.dateTime = new Date(data.dateTime);
+    }
+    return data as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">;
+  }
+
+  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">["data"]>>(
+    data: D,
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    return neededStores;
+  }
+
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">["data"]>(
+    data: D,
+  ): Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow"> {
+    const recordWithoutNestedCreate = structuredClone(data);
+    return recordWithoutNestedCreate as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">;
+  }
+
+  private async _performNestedCreates<D extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">["data"]>(
+    data: D,
+    tx: CreateTransactionType,
+  ) {}
+
+  async _nestedCreate<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">>(
+    query: Q,
+    tx: CreateTransactionType,
+  ): Promise<PrismaIDBSchema["AllFieldScalarTypes"]["key"]> {
+    await this._performNestedCreates(query.data, tx);
+    const record = await this._fillDefaults(query.data, tx);
+    const keyPath = await tx.objectStore("AllFieldScalarTypes").add(record);
+    return keyPath;
+  }
+
+  async findMany<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">>(
+    query?: Q,
+  ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findMany">> {
+    const records = await this._applyWhereClause(await this.client._db.getAll("AllFieldScalarTypes"), query?.where);
+    const relationAppliedRecords = (await this._applyRelations(records, query)) as Prisma.Result<
+      Prisma.AllFieldScalarTypesDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
+    const selectClause = query?.select;
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    return selectAppliedRecords as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findMany">;
+  }
+
+  async findFirst<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findFirst">>(
+    query?: Q,
+  ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirst">> {
+    return (await this.findMany(query))[0];
+  }
+
+  async findFirstOrThrow<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findFirstOrThrow">>(
+    query?: Q,
+  ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirstOrThrow">> {
+    const record = await this.findFirst(query);
+    if (!record) throw new Error("Record not found");
+    return record;
+  }
+
+  async findUnique<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findUnique">>(
+    query: Q,
+  ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findUnique">> {
+    let record;
+    if (query.where.id) {
+      record = await this.client._db.get("AllFieldScalarTypes", [query.where.id]);
+    }
+    if (!record) return null;
+
+    const recordWithRelations = this._applySelectClause(
+      await this._applyRelations(await this._applyWhereClause([record], query.where), query),
+      query.select,
+    )[0];
+    return recordWithRelations as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findUnique">;
+  }
+
+  async count<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "count">>(
+    query?: Q,
+  ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "count">> {
+    if (!query?.select || query.select === true) {
+      const records = await this.findMany({ where: query?.where });
+      return records.length as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "count">;
+    }
+    const result: Partial<Record<keyof Prisma.AllFieldScalarTypesCountAggregateInputType, number>> = {};
+    for (const key of Object.keys(query.select)) {
+      const typedKey = key as keyof typeof query.select;
+      if (typedKey === "_all") {
+        result[typedKey] = (await this.findMany({ where: query.where })).length;
+        continue;
+      }
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } })).length;
+    }
+    return result as Prisma.Result<Prisma.UserDelegate, Q, "count">;
+  }
+
+  async create<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">>(
+    query: Q,
+  ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "create">> {
+    const record = await this._fillDefaults(query.data);
+    let keyPath: PrismaIDBSchema["AllFieldScalarTypes"]["key"];
+    const storesNeeded = this._getNeededStoresForCreate(query.data);
+    if (storesNeeded.size === 0) {
+      keyPath = await this.client._db.add("AllFieldScalarTypes", record);
+    } else {
+      const tx = this.client._db.transaction(["AllFieldScalarTypes", ...Array.from(storesNeeded)], "readwrite");
+      await this._performNestedCreates(query.data, tx);
+      keyPath = await tx.objectStore("AllFieldScalarTypes").add(this._removeNestedCreateData(query.data));
+      tx.commit();
+    }
+    const data = (await this.client._db.get("AllFieldScalarTypes", keyPath))!;
+    const recordsWithRelations = this._applySelectClause(await this._applyRelations([data], query), query.select)[0];
+    return recordsWithRelations as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "create">;
+  }
+
+  async createMany<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "createMany">>(
+    query: Q,
+    tx?: CreateTransactionType,
+  ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "createMany">> {
+    const createManyData = convertToArray(query.data);
+    tx = tx ?? this.client._db.transaction(["AllFieldScalarTypes"], "readwrite");
+    for (const createData of createManyData) {
+      const record = await this._fillDefaults(createData, tx);
+      await tx.objectStore("AllFieldScalarTypes").add(record);
     }
     return { count: createManyData.length };
   }

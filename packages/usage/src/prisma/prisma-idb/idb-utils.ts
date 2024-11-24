@@ -103,54 +103,232 @@ export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFir
   return true;
 }
 
-export function whereIntFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
+export function whereNumberFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  intFilter: Prisma.NestedIntNullableFilter<unknown> | number | undefined | null,
+  numberFilter: Prisma.IntFilter<unknown> | Prisma.FloatFilter<unknown> | number | undefined | null,
 ): boolean {
-  if (intFilter === undefined) return true;
+  if (numberFilter === undefined) return true;
 
   const value = record[fieldName] as number | null;
-  if (intFilter === null) return value === null;
+  if (numberFilter === null) return value === null;
 
-  if (typeof intFilter === "number") {
-    if (value !== intFilter) return false;
+  if (typeof numberFilter === "number") {
+    if (value !== numberFilter) return false;
   } else {
-    if (intFilter.equals === null) {
+    if (numberFilter.equals === null) {
       if (value !== null) return false;
     }
-    if (typeof intFilter.equals === "number") {
-      if (intFilter.equals !== value) return false;
+    if (typeof numberFilter.equals === "number") {
+      if (numberFilter.equals !== value) return false;
     }
-    if (intFilter.not === null) {
+    if (numberFilter.not === null) {
       if (value === null) return false;
     }
-    if (typeof intFilter.not === "number") {
-      if (intFilter.not === value) return false;
+    if (typeof numberFilter.not === "number") {
+      if (numberFilter.not === value) return false;
     }
-    if (Array.isArray(intFilter.in) && value !== null) {
+    if (Array.isArray(numberFilter.in)) {
       if (value === null) return false;
-      if (!intFilter.in.includes(value)) return false;
+      if (!numberFilter.in.includes(value)) return false;
     }
-    if (Array.isArray(intFilter.notIn)) {
+    if (Array.isArray(numberFilter.notIn)) {
       if (value === null) return false;
-      if (intFilter.notIn.includes(value)) return false;
+      if (numberFilter.notIn.includes(value)) return false;
     }
-    if (typeof intFilter.lt === "number") {
+    if (typeof numberFilter.lt === "number") {
       if (value === null) return false;
-      if (!(value < intFilter.lt)) return false;
+      if (!(value < numberFilter.lt)) return false;
     }
-    if (typeof intFilter.lte === "number") {
+    if (typeof numberFilter.lte === "number") {
       if (value === null) return false;
-      if (!(value <= intFilter.lte)) return false;
+      if (!(value <= numberFilter.lte)) return false;
     }
-    if (typeof intFilter.gt === "number") {
+    if (typeof numberFilter.gt === "number") {
       if (value === null) return false;
-      if (!(value > intFilter.gt)) return false;
+      if (!(value > numberFilter.gt)) return false;
     }
-    if (typeof intFilter.gte === "number") {
+    if (typeof numberFilter.gte === "number") {
       if (value === null) return false;
-      if (!(value >= intFilter.gte)) return false;
+      if (!(value >= numberFilter.gte)) return false;
+    }
+  }
+  return true;
+}
+
+export function whereBigIntFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
+  record: R,
+  fieldName: keyof R,
+  bigIntFilter: Prisma.BigIntFilter<unknown> | number | bigint | undefined | null,
+): boolean {
+  if (bigIntFilter === undefined) return true;
+
+  const value = record[fieldName] as number | null;
+  if (bigIntFilter === null) return value === null;
+
+  if (typeof bigIntFilter === "number" || typeof bigIntFilter === "bigint") {
+    if (value !== bigIntFilter) return false;
+  } else {
+    if (bigIntFilter.equals === null) {
+      if (value !== null) return false;
+    }
+    if (typeof bigIntFilter.equals === "number" || typeof bigIntFilter.equals === "bigint") {
+      if (bigIntFilter.equals != value) return false;
+    }
+    if (bigIntFilter.not === null) {
+      if (value === null) return false;
+    }
+    if (typeof bigIntFilter.not === "number" || typeof bigIntFilter.not === "bigint") {
+      if (bigIntFilter.not == value) return false;
+    }
+    if (Array.isArray(bigIntFilter.in)) {
+      if (value === null) return false;
+      if (!bigIntFilter.in.map((n) => BigInt(n)).includes(BigInt(value))) return false;
+    }
+    if (Array.isArray(bigIntFilter.notIn)) {
+      if (value === null) return false;
+      if (bigIntFilter.notIn.map((n) => BigInt(n)).includes(BigInt(value))) return false;
+    }
+    if (typeof bigIntFilter.lt === "number" || typeof bigIntFilter.lt === "bigint") {
+      if (value === null) return false;
+      if (!(value < bigIntFilter.lt)) return false;
+    }
+    if (typeof bigIntFilter.lte === "number" || typeof bigIntFilter.lte === "bigint") {
+      if (value === null) return false;
+      if (!(value <= bigIntFilter.lte)) return false;
+    }
+    if (typeof bigIntFilter.gt === "number" || typeof bigIntFilter.gt === "bigint") {
+      if (value === null) return false;
+      if (!(value > bigIntFilter.gt)) return false;
+    }
+    if (typeof bigIntFilter.gte === "number" || typeof bigIntFilter.gte === "bigint") {
+      if (value === null) return false;
+      if (!(value >= bigIntFilter.gte)) return false;
+    }
+  }
+  return true;
+}
+
+export function whereBoolFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
+  record: R,
+  fieldName: keyof R,
+  boolFilter: Prisma.BoolFilter<unknown> | boolean | undefined | null,
+): boolean {
+  if (boolFilter === undefined) return true;
+
+  const value = record[fieldName] as boolean | null;
+  if (boolFilter === null) return value === null;
+
+  if (typeof boolFilter === "boolean") {
+    if (value !== boolFilter) return false;
+  } else {
+    if (boolFilter.equals === null) {
+      if (value !== null) return false;
+    }
+    if (typeof boolFilter.equals === "boolean") {
+      if (boolFilter.equals != value) return false;
+    }
+    if (boolFilter.not === null) {
+      if (value === null) return false;
+    }
+    if (typeof boolFilter.not === "boolean") {
+      if (boolFilter.not == value) return false;
+    }
+  }
+  return true;
+}
+
+export function whereBytesFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
+  record: R,
+  fieldName: keyof R,
+  bytesFilter: Prisma.BytesFilter<unknown> | Buffer | undefined | null,
+): boolean {
+  if (bytesFilter === undefined) return true;
+
+  const value = record[fieldName] as Buffer | null;
+  if (bytesFilter === null) return value === null;
+
+  if (Buffer.isBuffer(bytesFilter)) {
+    if (value === null) return false;
+    if (!bytesFilter.equals(value)) return false;
+  } else {
+    if (bytesFilter.equals === null) {
+      if (value !== null) return false;
+    }
+    if (Buffer.isBuffer(bytesFilter.equals)) {
+      if (value === null) return false;
+      if (!bytesFilter.equals.equals(value)) return false;
+    }
+    if (bytesFilter.not === null) {
+      if (value === null) return false;
+    }
+    if (Buffer.isBuffer(bytesFilter.not)) {
+      if (value === null) return false;
+      if (bytesFilter.not.equals(value)) return false;
+    }
+    if (Array.isArray(bytesFilter.in)) {
+      if (value === null) return false;
+      if (!bytesFilter.in.some((buffer) => buffer.equals(value))) return false;
+    }
+    if (Array.isArray(bytesFilter.notIn)) {
+      if (value === null) return false;
+      if (bytesFilter.notIn.some((buffer) => buffer.equals(value))) return false;
+    }
+  }
+  return true;
+}
+
+export function whereDateTimeFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
+  record: R,
+  fieldName: keyof R,
+  dateTimeFilter: string | Prisma.DateTimeFilter<unknown> | Date | undefined,
+): boolean {
+  if (dateTimeFilter === undefined) return true;
+
+  const value = record[fieldName] as Date | null;
+  if (dateTimeFilter === null) return value === null;
+
+  if (typeof dateTimeFilter === "string" || dateTimeFilter instanceof Date) {
+    if (value === null) return false;
+    if (new Date(dateTimeFilter).getTime() !== value.getTime()) return false;
+  } else {
+    if (dateTimeFilter.equals === null) {
+      if (value !== null) return false;
+    }
+    if (typeof dateTimeFilter.equals === "string" || dateTimeFilter.equals instanceof Date) {
+      if (value === null) return false;
+      if (new Date(dateTimeFilter.equals).getTime() !== value.getTime()) return false;
+    }
+    if (dateTimeFilter.not === null) {
+      if (value === null) return false;
+    }
+    if (typeof dateTimeFilter.equals === "string" || dateTimeFilter.equals instanceof Date) {
+      if (value === null) return false;
+      if (new Date(dateTimeFilter.equals).getTime() === value.getTime()) return false;
+    }
+    if (Array.isArray(dateTimeFilter.in)) {
+      if (value === null) return false;
+      if (!dateTimeFilter.in.map((d) => new Date(d)).some((d) => d.getTime() === value.getTime())) return false;
+    }
+    if (Array.isArray(dateTimeFilter.notIn)) {
+      if (value === null) return false;
+      if (dateTimeFilter.notIn.map((d) => new Date(d)).some((d) => d.getTime() === value.getTime())) return false;
+    }
+    if (typeof dateTimeFilter.lt === "string" || dateTimeFilter.lt instanceof Date) {
+      if (value === null) return false;
+      if (!(value.getTime() < new Date(dateTimeFilter.lt).getTime())) return false;
+    }
+    if (typeof dateTimeFilter.lte === "string" || dateTimeFilter.lte instanceof Date) {
+      if (value === null) return false;
+      if (!(value.getTime() <= new Date(dateTimeFilter.lte).getTime())) return false;
+    }
+    if (typeof dateTimeFilter.gt === "string" || dateTimeFilter.gt instanceof Date) {
+      if (value === null) return false;
+      if (!(value.getTime() > new Date(dateTimeFilter.gt).getTime())) return false;
+    }
+    if (typeof dateTimeFilter.gte === "string" || dateTimeFilter.gte instanceof Date) {
+      if (value === null) return false;
+      if (!(value.getTime() >= new Date(dateTimeFilter.gte).getTime())) return false;
     }
   }
   return true;
