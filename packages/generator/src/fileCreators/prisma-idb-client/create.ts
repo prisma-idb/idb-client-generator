@@ -5,7 +5,11 @@ import { addBaseModelClass } from "./classes/BaseIDBModelClass";
 import { addIDBModelClass } from "./classes/models/IDBModelClass";
 
 function addImports(file: SourceFile) {
-  file.addImportDeclaration({ moduleSpecifier: "idb", namedImports: ["openDB"] });
+  file.addImportDeclaration({
+    moduleSpecifier: "idb",
+    namedImports: ["openDB"],
+    trailingTrivia: (writer) => writer.writeLine("/* eslint-disable @typescript-eslint/no-unused-vars */"),
+  });
   file.addImportDeclaration({
     moduleSpecifier: "idb",
     namedImports: ["IDBPDatabase", "IDBPTransaction", "StoreNames"],
