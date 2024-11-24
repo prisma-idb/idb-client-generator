@@ -14,6 +14,7 @@ export function addPerformNestedCreatesMethod(modelClass: ClassDeclaration, mode
     parameters: [
       { name: "data", type: "D" },
       { name: "tx", type: "CreateTransactionType" },
+      { name: "validateFKs", initializer: "true" },
     ],
     returnType: ``,
     statements: (writer) => {
@@ -30,14 +31,18 @@ function addRelationProcessing(writer: CodeBlockWriter, model: Model, models: re
     const otherFieldOfRelation = allFields.find(
       (_field) => _field.relationName === field.relationName && field !== _field,
     )!;
+    const foreignKeyField = model.fields.find((fkField) => fkField.name === field.relationFromFields?.at(0));
 
     writer.writeLine(`if (data.${field.name})`).block(() => {
-      handleVariousRelationships(writer, model, field, otherFieldOfRelation);
+      handleVariousRelationships(writer, field, otherFieldOfRelation);
     });
+    if (foreignKeyField) {
+      handleForeignKeyValidation(writer, field, foreignKeyField);
+    }
   });
 }
 
-function handleVariousRelationships(writer: CodeBlockWriter, model: Model, field: Field, otherField: Field) {
+function handleVariousRelationships(writer: CodeBlockWriter, field: Field, otherField: Field) {
   if (!field.isList) {
     if (field.isRequired) {
       addOneToOneMetaOnFieldRelation(writer, field);
@@ -47,6 +52,25 @@ function handleVariousRelationships(writer: CodeBlockWriter, model: Model, field
   } else {
     addOneToManyRelation(writer, field, otherField);
   }
+}
+
+function handleForeignKeyValidation(writer: CodeBlockWriter, field: Field, fkField: Field) {
+  writer
+    .writeLine(
+      `if (validateFKs && (data.${fkField.name} !== undefined || data.${field.name}?.connect?.id !== undefined))`,
+    )
+    .block(() => {
+      writer
+        // TODO: composite FKs
+        .writeLine(`const fk = data.${fkField.name} ?? data.${field.name}.connect?.id as number;`)
+        .writeLine(`const record = await tx.objectStore("${field.type}").getKey([fk]);`)
+        .writeLine(`if (record === undefined)`)
+        .block(() => {
+          writer.writeLine(
+            `throw new Error(\`Foreign key (\${data.${fkField.name}}) for model (${field.type}) does not exist\`);`,
+          );
+        });
+    });
 }
 
 function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {

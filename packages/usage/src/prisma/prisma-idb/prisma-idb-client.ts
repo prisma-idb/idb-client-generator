@@ -213,6 +213,7 @@ class UserIDBClass extends BaseIDBModelClass {
   private async _performNestedCreates<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(
     data: D,
     tx: CreateTransactionType,
+    validateFKs = true,
   ) {
     if (data.profile) {
       if (data.profile.create) {
@@ -262,7 +263,7 @@ class UserIDBClass extends BaseIDBModelClass {
     query: Q,
     tx: CreateTransactionType,
   ): Promise<PrismaIDBSchema["User"]["key"]> {
-    await this._performNestedCreates(query.data, tx);
+    await this._performNestedCreates(query.data, tx, false);
     const record = await this._fillDefaults(query.data, tx);
     const keyPath = await tx.objectStore("User").add(record);
     return keyPath;
@@ -461,6 +462,9 @@ class ProfileIDBClass extends BaseIDBModelClass {
         );
       }
     }
+    if (data.userId !== undefined) {
+      neededStores.add("User");
+    }
     return neededStores;
   }
 
@@ -475,6 +479,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
   private async _performNestedCreates<D extends Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>(
     data: D,
     tx: CreateTransactionType,
+    validateFKs = true,
   ) {
     if (data.user) {
       let fk;
@@ -488,13 +493,20 @@ class ProfileIDBClass extends BaseIDBModelClass {
       unsafeData.userId = fk as NonNullable<typeof fk>;
       delete unsafeData.user;
     }
+    if (validateFKs && (data.userId !== undefined || data.user?.connect?.id !== undefined)) {
+      const fk = data.userId ?? (data.user.connect?.id as number);
+      const record = await tx.objectStore("User").getKey([fk]);
+      if (record === undefined) {
+        throw new Error(`Foreign key (${data.userId}) for model (User) does not exist`);
+      }
+    }
   }
 
   async _nestedCreate<Q extends Prisma.Args<Prisma.ProfileDelegate, "create">>(
     query: Q,
     tx: CreateTransactionType,
   ): Promise<PrismaIDBSchema["Profile"]["key"]> {
-    await this._performNestedCreates(query.data, tx);
+    await this._performNestedCreates(query.data, tx, false);
     const record = await this._fillDefaults(query.data, tx);
     const keyPath = await tx.objectStore("Profile").add(record);
     return keyPath;
@@ -692,6 +704,9 @@ class PostIDBClass extends BaseIDBModelClass {
         );
       }
     }
+    if (data.authorId !== undefined) {
+      neededStores.add("User");
+    }
     return neededStores;
   }
 
@@ -706,6 +721,7 @@ class PostIDBClass extends BaseIDBModelClass {
   private async _performNestedCreates<D extends Prisma.Args<Prisma.PostDelegate, "create">["data"]>(
     data: D,
     tx: CreateTransactionType,
+    validateFKs = true,
   ) {
     if (data.author) {
       let fk;
@@ -719,13 +735,20 @@ class PostIDBClass extends BaseIDBModelClass {
       unsafeData.userId = fk as NonNullable<typeof fk>;
       delete unsafeData.author;
     }
+    if (validateFKs && (data.authorId !== undefined || data.author?.connect?.id !== undefined)) {
+      const fk = data.authorId ?? (data.author.connect?.id as number);
+      const record = await tx.objectStore("User").getKey([fk]);
+      if (record === undefined) {
+        throw new Error(`Foreign key (${data.authorId}) for model (User) does not exist`);
+      }
+    }
   }
 
   async _nestedCreate<Q extends Prisma.Args<Prisma.PostDelegate, "create">>(
     query: Q,
     tx: CreateTransactionType,
   ): Promise<PrismaIDBSchema["Post"]["key"]> {
-    await this._performNestedCreates(query.data, tx);
+    await this._performNestedCreates(query.data, tx, false);
     const record = await this._fillDefaults(query.data, tx);
     const keyPath = await tx.objectStore("Post").add(record);
     return keyPath;
@@ -951,13 +974,14 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
   private async _performNestedCreates<D extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">["data"]>(
     data: D,
     tx: CreateTransactionType,
+    validateFKs = true,
   ) {}
 
   async _nestedCreate<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">>(
     query: Q,
     tx: CreateTransactionType,
   ): Promise<PrismaIDBSchema["AllFieldScalarTypes"]["key"]> {
-    await this._performNestedCreates(query.data, tx);
+    await this._performNestedCreates(query.data, tx, false);
     const record = await this._fillDefaults(query.data, tx);
     const keyPath = await tx.objectStore("AllFieldScalarTypes").add(record);
     return keyPath;

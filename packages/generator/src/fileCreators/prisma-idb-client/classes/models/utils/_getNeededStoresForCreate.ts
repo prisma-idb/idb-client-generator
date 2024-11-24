@@ -45,5 +45,11 @@ function processRelationsInData(writer: CodeBlockWriter, model: Model) {
         });
       }
     });
+    const fkField = model.fields.find((fkField) => fkField.name === field.relationFromFields?.at(0));
+    if (fkField) {
+      writer.writeLine(`if (data.${fkField.name} !== undefined)`).block(() => {
+        writer.writeLine(`neededStores.add("${field.type}")`);
+      });
+    }
   });
 }
