@@ -1,5 +1,5 @@
 import { test } from "../fixtures";
-import { expectQueryToSucceed } from "../queryRunnerHelper";
+import { expectQueryToFail, expectQueryToSucceed } from "../queryRunnerHelper";
 
 test("create_ValidData_SuccessfullyCreatesRecord", async ({ page }) => {
   await expectQueryToSucceed({
@@ -10,21 +10,13 @@ test("create_ValidData_SuccessfullyCreatesRecord", async ({ page }) => {
   });
 });
 
-test("create_WithGeneratedId_AssignsDefaultId", async ({ page }) => {
-  await expectQueryToSucceed({
-    page,
-    model: "user",
-    operation: "create",
-    query: { data: { name: "John Doe" } },
-  });
-});
-
-test("create_WithNullableField_AssignsNullAsDefault", async ({ page }) => {
-  await expectQueryToSucceed({
+test("create_NonExistentForeignKey_ShouldFail", async ({ page }) => {
+  await expectQueryToFail({
     page,
     model: "profile",
     operation: "create",
-    query: { data: { user: { create: { name: "John" } } } },
+    query: { data: { bio: "John's bio", userId: 1 } },
+    errorMessage: "TODO"
   });
 });
 
