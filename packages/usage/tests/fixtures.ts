@@ -9,8 +9,8 @@ async function resetDatabase() {
   await prisma.$executeRaw`ALTER SEQUENCE "Post_id_seq" RESTART WITH 1`;
 }
 
-export const test = base.extend<{ saveLogs: void }>({
-  saveLogs: [
+export const test = base.extend<{ prepareTest: void }>({
+  prepareTest: [
     async ({ page }, use) => {
       await resetDatabase();
       await page.goto("/");
