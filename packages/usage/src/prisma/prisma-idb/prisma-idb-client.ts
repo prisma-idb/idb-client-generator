@@ -3,15 +3,8 @@ import type { IDBPDatabase, StoreNames } from "idb";
 import { openDB } from "idb";
 import type { PrismaIDBSchema } from "./idb-interface";
 import type { CreateTransactionType } from "./idb-utils";
-import {
-  convertToArray,
-  whereBigIntFilter,
-  whereBoolFilter,
-  whereBytesFilter,
-  whereDateTimeFilter,
-  whereNumberFilter,
-  whereStringFilter,
-} from "./idb-utils";
+import * as IDBUtils from "./idb-utils";
+import { convertToArray } from "./idb-utils";
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 const IDB_VERSION = 1;
@@ -94,11 +87,11 @@ class UserIDBClass extends BaseIDBModelClass {
     return records.filter((record) => {
       const stringFields = ["name"] as const;
       for (const field of stringFields) {
-        if (!whereStringFilter(record, field, whereClause[field])) return false;
+        if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return false;
       }
       const numberFields = ["id"] as const;
       for (const field of numberFields) {
-        if (!whereNumberFilter(record, field, whereClause[field])) return false;
+        if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return false;
       }
       return true;
     });
@@ -381,11 +374,11 @@ class ProfileIDBClass extends BaseIDBModelClass {
     return records.filter((record) => {
       const stringFields = ["bio"] as const;
       for (const field of stringFields) {
-        if (!whereStringFilter(record, field, whereClause[field])) return false;
+        if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return false;
       }
       const numberFields = ["id", "userId"] as const;
       for (const field of numberFields) {
-        if (!whereNumberFilter(record, field, whereClause[field])) return false;
+        if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return false;
       }
       return true;
     });
@@ -615,11 +608,11 @@ class PostIDBClass extends BaseIDBModelClass {
     return records.filter((record) => {
       const stringFields = ["title"] as const;
       for (const field of stringFields) {
-        if (!whereStringFilter(record, field, whereClause[field])) return false;
+        if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return false;
       }
       const numberFields = ["id", "authorId"] as const;
       for (const field of numberFields) {
-        if (!whereNumberFilter(record, field, whereClause[field])) return false;
+        if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return false;
       }
       return true;
     });
@@ -844,27 +837,27 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     return records.filter((record) => {
       const stringFields = ["string"] as const;
       for (const field of stringFields) {
-        if (!whereStringFilter(record, field, whereClause[field])) return false;
+        if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return false;
       }
       const numberFields = ["id", "int", "float"] as const;
       for (const field of numberFields) {
-        if (!whereNumberFilter(record, field, whereClause[field])) return false;
+        if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return false;
       }
       const bigIntFields = ["bigInt"] as const;
       for (const field of bigIntFields) {
-        if (!whereBigIntFilter(record, field, whereClause[field])) return false;
+        if (!IDBUtils.whereBigIntFilter(record, field, whereClause[field])) return false;
       }
       const booleanFields = ["boolean"] as const;
       for (const field of booleanFields) {
-        if (!whereBoolFilter(record, field, whereClause[field])) return false;
+        if (!IDBUtils.whereBoolFilter(record, field, whereClause[field])) return false;
       }
       const bytesFields = ["bytes"] as const;
       for (const field of bytesFields) {
-        if (!whereBytesFilter(record, field, whereClause[field])) return false;
+        if (!IDBUtils.whereBytesFilter(record, field, whereClause[field])) return false;
       }
       const dateTimeFields = ["dateTime"] as const;
       for (const field of dateTimeFields) {
-        if (!whereDateTimeFilter(record, field, whereClause[field])) return false;
+        if (!IDBUtils.whereDateTimeFilter(record, field, whereClause[field])) return false;
       }
       return true;
     });

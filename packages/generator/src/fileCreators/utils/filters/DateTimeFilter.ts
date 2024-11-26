@@ -1,6 +1,16 @@
+import type { Model } from "src/fileCreators/types";
 import type { CodeBlockWriter, SourceFile } from "ts-morph";
 
-export function addDateTimeFilter(utilsFile: SourceFile) {
+export function addDateTimeFilter(utilsFile: SourceFile, models: readonly Model[]) {
+  const dateTimeFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "DateTime");
+  if (dateTimeFields.length === 0) return;
+
+  const nullableDateTimeFieldPresent = dateTimeFields.some(({ isRequired }) => !isRequired);
+  let filterType = "undefined | Date | string | Prisma.DateTimeFilter<unknown>";
+  if (nullableDateTimeFieldPresent) {
+    filterType += " | null | Prisma.DateTimeNullableFilter<unknown>";
+  }
+
   utilsFile.addFunction({
     name: "whereDateTimeFilter",
     isExported: true,
@@ -10,7 +20,7 @@ export function addDateTimeFilter(utilsFile: SourceFile) {
       { name: "fieldName", type: "keyof R" },
       {
         name: "dateTimeFilter",
-        type: "string | Prisma.DateTimeFilter<unknown> | Date | undefined",
+        type: filterType,
       },
     ],
     returnType: "boolean",

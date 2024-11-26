@@ -16,17 +16,11 @@ function addImports(file: SourceFile) {
     isTypeOnly: true,
   });
   file.addImportDeclaration({ moduleSpecifier: "@prisma/client", namedImports: ["Prisma"], isTypeOnly: true });
+  
+  file.addImportDeclaration({ moduleSpecifier: "./idb-utils", namespaceImport: "IDBUtils" });
   file.addImportDeclaration({
     moduleSpecifier: "./idb-utils",
-    namedImports: [
-      "convertToArray",
-      "whereStringFilter",
-      "whereNumberFilter",
-      "whereBigIntFilter",
-      "whereBoolFilter",
-      "whereBytesFilter",
-      "whereDateTimeFilter",
-    ],
+    namedImports: ["convertToArray"],
   });
   file.addImportDeclaration({
     moduleSpecifier: "./idb-utils",

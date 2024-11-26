@@ -11,7 +11,7 @@ export type CreateTransactionType = IDBPTransaction<PrismaIDBSchema, StoreNames<
 export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  stringFilter: Prisma.StringFilter<unknown> | Prisma.StringNullableFilter<unknown> | string | undefined | null,
+  stringFilter: undefined | string | Prisma.StringFilter<unknown> | null | Prisma.StringNullableFilter<unknown>,
 ): boolean {
   if (stringFilter === undefined) return true;
 
@@ -106,7 +106,7 @@ export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFir
 export function whereNumberFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  numberFilter: Prisma.IntFilter<unknown> | Prisma.FloatFilter<unknown> | number | undefined | null,
+  numberFilter: undefined | number | Prisma.IntFilter<unknown> | Prisma.FloatFilter<unknown>,
 ): boolean {
   if (numberFilter === undefined) return true;
 
@@ -159,7 +159,7 @@ export function whereNumberFilter<T, R extends Prisma.Result<T, object, "findFir
 export function whereBigIntFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  bigIntFilter: Prisma.BigIntFilter<unknown> | number | bigint | undefined | null,
+  bigIntFilter: undefined | number | bigint | Prisma.BigIntFilter<unknown>,
 ): boolean {
   if (bigIntFilter === undefined) return true;
 
@@ -212,7 +212,7 @@ export function whereBigIntFilter<T, R extends Prisma.Result<T, object, "findFir
 export function whereBoolFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  boolFilter: Prisma.BoolFilter<unknown> | boolean | undefined | null,
+  boolFilter: undefined | boolean | Prisma.BoolFilter<unknown>,
 ): boolean {
   if (boolFilter === undefined) return true;
 
@@ -241,7 +241,7 @@ export function whereBoolFilter<T, R extends Prisma.Result<T, object, "findFirst
 export function whereBytesFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  bytesFilter: Prisma.BytesFilter<unknown> | Buffer | undefined | null,
+  bytesFilter: undefined | Buffer | Prisma.BytesFilter<unknown>,
 ): boolean {
   if (bytesFilter === undefined) return true;
 
@@ -281,7 +281,7 @@ export function whereBytesFilter<T, R extends Prisma.Result<T, object, "findFirs
 export function whereDateTimeFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  dateTimeFilter: string | Prisma.DateTimeFilter<unknown> | Date | undefined,
+  dateTimeFilter: undefined | Date | string | Prisma.DateTimeFilter<unknown>,
 ): boolean {
   if (dateTimeFilter === undefined) return true;
 

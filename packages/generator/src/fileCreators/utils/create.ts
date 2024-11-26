@@ -5,8 +5,9 @@ import { addBigIntFilter } from "./filters/BigIntFilter";
 import { addBoolFilter } from "./filters/BoolFilter";
 import { addBytesFilter } from "./filters/BytesFilter";
 import { addDateTimeFilter } from "./filters/DateTimeFilter";
+import { Model } from "../types";
 
-export function createUtilsFile(idbUtilsFile: SourceFile) {
+export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model[]) {
   idbUtilsFile.addImportDeclarations([
     { moduleSpecifier: "idb", isTypeOnly: true, namedImports: ["IDBPTransaction", "StoreNames"] },
     { moduleSpecifier: "./idb-interface", isTypeOnly: true, namedImports: ["PrismaIDBSchema"] },
@@ -28,10 +29,10 @@ export function createUtilsFile(idbUtilsFile: SourceFile) {
     type: `IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readwrite">;`,
   });
 
-  addStringFilter(idbUtilsFile);
-  addNumberFilter(idbUtilsFile);
-  addBigIntFilter(idbUtilsFile);
-  addBoolFilter(idbUtilsFile);
-  addBytesFilter(idbUtilsFile);
-  addDateTimeFilter(idbUtilsFile);
+  addStringFilter(idbUtilsFile, models);
+  addNumberFilter(idbUtilsFile, models);
+  addBigIntFilter(idbUtilsFile, models);
+  addBoolFilter(idbUtilsFile, models);
+  addBytesFilter(idbUtilsFile, models);
+  addDateTimeFilter(idbUtilsFile, models);
 }

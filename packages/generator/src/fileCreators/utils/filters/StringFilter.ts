@@ -1,6 +1,16 @@
+import { Model } from "src/fileCreators/types";
 import type { CodeBlockWriter, SourceFile } from "ts-morph";
 
-export function addStringFilter(utilsFile: SourceFile) {
+export function addStringFilter(utilsFile: SourceFile, models: readonly Model[]) {
+  const stringFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "String");
+  if (stringFields.length === 0) return;
+
+  const nullableStringFieldPresent = stringFields.some(({ isRequired }) => !isRequired);
+  let filterType = "undefined | string | Prisma.StringFilter<unknown>";
+  if (nullableStringFieldPresent) {
+    filterType += " | null | Prisma.StringNullableFilter<unknown>";
+  }
+
   utilsFile.addFunction({
     name: "whereStringFilter",
     isExported: true,
@@ -10,7 +20,7 @@ export function addStringFilter(utilsFile: SourceFile) {
       { name: "fieldName", type: "keyof R" },
       {
         name: "stringFilter",
-        type: "Prisma.StringFilter<unknown> | Prisma.StringNullableFilter<unknown> | string | undefined | null",
+        type: filterType,
       },
     ],
     returnType: "boolean",
