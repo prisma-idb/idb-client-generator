@@ -379,6 +379,25 @@ class UserIDBClass extends BaseIDBModelClass {
     }
     return records as Prisma.Result<Prisma.UserDelegate, Q, "createManyAndReturn">;
   }
+
+  async update<Q extends Prisma.Args<Prisma.UserDelegate, "update">>(
+    query: Q,
+  ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "update">> {
+    const record = await this.findUnique({ where: query.where });
+    if (record === null) {
+      throw new Error("Record not found");
+    }
+    const stringFields = ["name"] as const;
+    for (const field of stringFields) {
+      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const keyPath = await this.client._db.put("User", record);
+    const recordWithRelations = (await this.findUnique({
+      ...query,
+      where: { id: keyPath[0] },
+    }))!;
+    return recordWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "update">;
+  }
 }
 
 class ProfileIDBClass extends BaseIDBModelClass {
@@ -638,6 +657,25 @@ class ProfileIDBClass extends BaseIDBModelClass {
       records.push(this._applySelectClause([record], query.select)[0]);
     }
     return records as Prisma.Result<Prisma.ProfileDelegate, Q, "createManyAndReturn">;
+  }
+
+  async update<Q extends Prisma.Args<Prisma.ProfileDelegate, "update">>(
+    query: Q,
+  ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "update">> {
+    const record = await this.findUnique({ where: query.where });
+    if (record === null) {
+      throw new Error("Record not found");
+    }
+    const stringFields = ["bio"] as const;
+    for (const field of stringFields) {
+      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const keyPath = await this.client._db.put("Profile", record);
+    const recordWithRelations = (await this.findUnique({
+      ...query,
+      where: { id: keyPath[0] },
+    }))!;
+    return recordWithRelations as Prisma.Result<Prisma.ProfileDelegate, Q, "update">;
   }
 }
 
@@ -900,6 +938,25 @@ class PostIDBClass extends BaseIDBModelClass {
     }
     return records as Prisma.Result<Prisma.PostDelegate, Q, "createManyAndReturn">;
   }
+
+  async update<Q extends Prisma.Args<Prisma.PostDelegate, "update">>(
+    query: Q,
+  ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "update">> {
+    const record = await this.findUnique({ where: query.where });
+    if (record === null) {
+      throw new Error("Record not found");
+    }
+    const stringFields = ["title"] as const;
+    for (const field of stringFields) {
+      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const keyPath = await this.client._db.put("Post", record);
+    const recordWithRelations = (await this.findUnique({
+      ...query,
+      where: { id: keyPath[0] },
+    }))!;
+    return recordWithRelations as Prisma.Result<Prisma.PostDelegate, Q, "update">;
+  }
 }
 
 class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
@@ -1147,5 +1204,36 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
       records.push(this._applySelectClause([record], query.select)[0]);
     }
     return records as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "createManyAndReturn">;
+  }
+
+  async update<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "update">>(
+    query: Q,
+  ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "update">> {
+    const record = await this.findUnique({ where: query.where });
+    if (record === null) {
+      throw new Error("Record not found");
+    }
+    const stringFields = ["string"] as const;
+    for (const field of stringFields) {
+      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const dateTimeFields = ["dateTime"] as const;
+    for (const field of dateTimeFields) {
+      IDBUtils.handleDateTimeUpdateField(record, field, query.data[field]);
+    }
+    const booleanFields = ["boolean"] as const;
+    for (const field of booleanFields) {
+      IDBUtils.handleBooleanUpdateField(record, field, query.data[field]);
+    }
+    const bytesFields = ["bytes"] as const;
+    for (const field of bytesFields) {
+      IDBUtils.handleBytesUpdateField(record, field, query.data[field]);
+    }
+    const keyPath = await this.client._db.put("AllFieldScalarTypes", record);
+    const recordWithRelations = (await this.findUnique({
+      ...query,
+      where: { id: keyPath[0] },
+    }))!;
+    return recordWithRelations as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "update">;
   }
 }
