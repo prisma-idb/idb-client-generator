@@ -1,11 +1,15 @@
 import { SourceFile } from "ts-morph";
-import { addStringFilter } from "./filters/StringFilter";
-import { addNumberFilter } from "./filters/NumberFilter";
+import { Model } from "../types";
 import { addBigIntFilter } from "./filters/BigIntFilter";
 import { addBoolFilter } from "./filters/BoolFilter";
 import { addBytesFilter } from "./filters/BytesFilter";
 import { addDateTimeFilter } from "./filters/DateTimeFilter";
-import { Model } from "../types";
+import { addNumberFilter } from "./filters/NumberFilter";
+import { addStringFilter } from "./filters/StringFilter";
+import { addBooleanUpdateHandler } from "./updateHandlers/BooleanHandler";
+import { addBytesUpdateHandler } from "./updateHandlers/BytesHandler";
+import { addDateTimeUpdateHandler } from "./updateHandlers/DateTimeHandler";
+import { addStringUpdateHandler } from "./updateHandlers/StringHandler";
 
 export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model[]) {
   idbUtilsFile.addImportDeclarations([
@@ -35,4 +39,9 @@ export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model
   addBoolFilter(idbUtilsFile, models);
   addBytesFilter(idbUtilsFile, models);
   addDateTimeFilter(idbUtilsFile, models);
+
+  addStringUpdateHandler(idbUtilsFile, models);
+  addBooleanUpdateHandler(idbUtilsFile, models);
+  addDateTimeUpdateHandler(idbUtilsFile, models);
+  addBytesUpdateHandler(idbUtilsFile, models);
 }

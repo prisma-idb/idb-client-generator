@@ -106,7 +106,13 @@ export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFir
 export function whereNumberFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  numberFilter: undefined | number | Prisma.IntFilter<unknown> | Prisma.FloatFilter<unknown>,
+  numberFilter:
+    | undefined
+    | number
+    | Prisma.IntFilter<unknown>
+    | Prisma.FloatFilter<unknown>
+    | Prisma.IntNullableFilter<unknown>
+    | null,
 ): boolean {
   if (numberFilter === undefined) return true;
 
@@ -330,6 +336,67 @@ export function whereDateTimeFilter<T, R extends Prisma.Result<T, object, "findF
       if (value === null) return false;
       if (!(value.getTime() >= new Date(dateTimeFilter.gte).getTime())) return false;
     }
+  }
+  return true;
+}
+
+export function handleStringUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
+  record: R,
+  fieldName: keyof R,
+  stringUpdate:
+    | undefined
+    | string
+    | Prisma.StringFieldUpdateOperationsInput
+    | null
+    | Prisma.NullableStringFieldUpdateOperationsInput,
+) {
+  if (stringUpdate === undefined) return;
+  if (typeof stringUpdate === "string" || stringUpdate === null) {
+    (record[fieldName] as string | null) = stringUpdate;
+  } else if (stringUpdate.set !== undefined) {
+    (record[fieldName] as string | null) = stringUpdate.set;
+  }
+  return true;
+}
+
+export function handleBooleanUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
+  record: R,
+  fieldName: keyof R,
+  booleanUpdate: undefined | boolean | Prisma.BoolFieldUpdateOperationsInput,
+) {
+  if (booleanUpdate === undefined) return;
+  if (typeof booleanUpdate === "boolean") {
+    (record[fieldName] as boolean) = booleanUpdate;
+  } else if (booleanUpdate.set !== undefined) {
+    (record[fieldName] as boolean) = booleanUpdate.set;
+  }
+  return true;
+}
+
+export function handleDateTimeUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
+  record: R,
+  fieldName: keyof R,
+  dateTimeUpdate: undefined | Date | string | Prisma.DateTimeFieldUpdateOperationsInput,
+) {
+  if (dateTimeUpdate === undefined) return;
+  if (typeof dateTimeUpdate === "string" || dateTimeUpdate instanceof Date) {
+    (record[fieldName] as Date) = new Date(dateTimeUpdate);
+  } else if (dateTimeUpdate.set !== undefined) {
+    (record[fieldName] as Date) = new Date(dateTimeUpdate.set);
+  }
+  return true;
+}
+
+export function handleBytesUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
+  record: R,
+  fieldName: keyof R,
+  bytesUpdate: undefined | Buffer | Prisma.BytesFieldUpdateOperationsInput,
+) {
+  if (bytesUpdate === undefined) return;
+  if (Buffer.isBuffer(bytesUpdate)) {
+    (record[fieldName] as Buffer) = bytesUpdate;
+  } else if (bytesUpdate.set !== undefined) {
+    (record[fieldName] as Buffer) = bytesUpdate.set;
   }
   return true;
 }
