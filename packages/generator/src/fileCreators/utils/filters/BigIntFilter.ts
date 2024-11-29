@@ -1,6 +1,16 @@
+import type { Model } from "src/fileCreators/types";
 import type { CodeBlockWriter, SourceFile } from "ts-morph";
 
-export function addBigIntFilter(utilsFile: SourceFile) {
+export function addBigIntFilter(utilsFile: SourceFile, models: readonly Model[]) {
+  const bigIntFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "BigInt");
+  if (bigIntFields.length === 0) return;
+
+  const nullableBigIntFieldPresent = bigIntFields.some(({ isRequired }) => !isRequired);
+  let filterType = "undefined | number | bigint | Prisma.BigIntFilter<unknown>";
+  if (nullableBigIntFieldPresent) {
+    filterType += " | null | Prisma.BigIntNullableFilter<unknown>";
+  }
+
   utilsFile.addFunction({
     name: "whereBigIntFilter",
     isExported: true,
@@ -10,7 +20,7 @@ export function addBigIntFilter(utilsFile: SourceFile) {
       { name: "fieldName", type: "keyof R" },
       {
         name: "bigIntFilter",
-        type: "Prisma.BigIntFilter<unknown> | number | bigint | undefined | null",
+        type: filterType,
       },
     ],
     returnType: "boolean",

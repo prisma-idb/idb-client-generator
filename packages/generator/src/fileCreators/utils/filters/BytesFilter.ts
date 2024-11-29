@@ -1,6 +1,16 @@
+import type { Model } from "src/fileCreators/types";
 import type { CodeBlockWriter, SourceFile } from "ts-morph";
 
-export function addBytesFilter(utilsFile: SourceFile) {
+export function addBytesFilter(utilsFile: SourceFile, models: readonly Model[]) {
+  const bytesFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "Bytes");
+  if (bytesFields.length === 0) return;
+
+  const nullableBytesFieldPresent = bytesFields.some(({ isRequired }) => !isRequired);
+  let filterType = "undefined | Buffer | Prisma.BytesFilter<unknown>";
+  if (nullableBytesFieldPresent) {
+    filterType += " | null | Prisma.BytesNullableFilter<unknown>";
+  }
+
   utilsFile.addFunction({
     name: "whereBytesFilter",
     isExported: true,
@@ -10,7 +20,7 @@ export function addBytesFilter(utilsFile: SourceFile) {
       { name: "fieldName", type: "keyof R" },
       {
         name: "bytesFilter",
-        type: "Prisma.BytesFilter<unknown> | Buffer | undefined | null",
+        type: filterType,
       },
     ],
     returnType: "boolean",

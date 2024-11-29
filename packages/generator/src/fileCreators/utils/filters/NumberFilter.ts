@@ -1,6 +1,23 @@
+import type { Model } from "src/fileCreators/types";
 import type { CodeBlockWriter, SourceFile } from "ts-morph";
 
-export function addNumberFilter(utilsFile: SourceFile) {
+export function addNumberFilter(utilsFile: SourceFile, models: readonly Model[]) {
+  const allFields = models.flatMap(({ fields }) => fields);
+  const intFields = allFields.filter((field) => field.type === "Int");
+  const floatFields = allFields.filter((field) => field.type === "Float");
+
+  if (intFields.length + floatFields.length === 0) return;
+  let filterType = "undefined | number";
+
+  if (intFields.length) filterType += "| Prisma.IntFilter<unknown>";
+  if (floatFields.length) filterType += "| Prisma.FloatFilter<unknown>";
+
+  if (intFields.some(({ isRequired }) => !isRequired)) filterType += "| Prisma.IntNullableFilter<unknown>";
+  if (floatFields.some(({ isRequired }) => !isRequired)) filterType += "| Prisma.FloatNullableFilter<unknown>";
+  if (intFields.some(({ isRequired }) => !isRequired) || floatFields.some(({ isRequired }) => !isRequired)) {
+    filterType += " | null";
+  }
+
   utilsFile.addFunction({
     name: "whereNumberFilter",
     isExported: true,
@@ -10,7 +27,7 @@ export function addNumberFilter(utilsFile: SourceFile) {
       { name: "fieldName", type: "keyof R" },
       {
         name: "numberFilter",
-        type: "Prisma.IntFilter<unknown> | Prisma.FloatFilter<unknown> | number | undefined | null",
+        type: filterType,
       },
     ],
     returnType: "boolean",

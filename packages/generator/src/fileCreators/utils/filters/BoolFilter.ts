@@ -1,6 +1,16 @@
+import type { Model } from "src/fileCreators/types";
 import type { CodeBlockWriter, SourceFile } from "ts-morph";
 
-export function addBoolFilter(utilsFile: SourceFile) {
+export function addBoolFilter(utilsFile: SourceFile, models: readonly Model[]) {
+  const booleanFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "Boolean");
+  if (booleanFields.length === 0) return;
+
+  const nullableBooleanFieldPresent = booleanFields.some(({ isRequired }) => !isRequired);
+  let filterType = "undefined | boolean | Prisma.BoolFilter<unknown>";
+  if (nullableBooleanFieldPresent) {
+    filterType += " | null | Prisma.BoolNullableFilter<unknown>";
+  }
+
   utilsFile.addFunction({
     name: "whereBoolFilter",
     isExported: true,
@@ -10,7 +20,7 @@ export function addBoolFilter(utilsFile: SourceFile) {
       { name: "fieldName", type: "keyof R" },
       {
         name: "boolFilter",
-        type: "Prisma.BoolFilter<unknown> | boolean | undefined | null",
+        type: filterType,
       },
     ],
     returnType: "boolean",

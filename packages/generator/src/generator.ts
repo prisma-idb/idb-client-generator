@@ -28,7 +28,7 @@ generatorHandler({
     });
 
     await writeSourceFile(project, "idb-utils.ts", outputPath, (file) => {
-      createUtilsFile(file);
+      createUtilsFile(file, models);
     });
   },
 });
