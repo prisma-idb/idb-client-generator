@@ -273,8 +273,9 @@ class UserIDBClass extends BaseIDBModelClass {
 
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.UserDelegate, "findUniqueOrThrow">>(
     query: Q,
+    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findUniqueOrThrow">> {
-    const record = await this.findUnique(query);
+    const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
     return record;
   }
@@ -314,6 +315,9 @@ class UserIDBClass extends BaseIDBModelClass {
         tx,
       );
     }
+    if (query.data.profile?.connect) {
+      await this.client.profile.update({ where: query.data.profile.connect, data: { userId: keyPath[0] } }, tx);
+    }
     if (query.data.profile?.connectOrCreate) {
       throw new Error("connectOrCreate not yet implemented");
     }
@@ -326,6 +330,13 @@ class UserIDBClass extends BaseIDBModelClass {
           })),
         },
         tx,
+      );
+    }
+    if (query.data.posts?.connect) {
+      await Promise.all(
+        IDBUtils.convertToArray(query.data.posts.connect).map(async (connectWhere) => {
+          await this.client.post.update({ where: connectWhere, data: { authorId: keyPath[0] } }, tx);
+        }),
       );
     }
     if (query.data.posts?.connectOrCreate) {
@@ -390,6 +401,10 @@ class UserIDBClass extends BaseIDBModelClass {
     const stringFields = ["name"] as const;
     for (const field of stringFields) {
       IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const intFields = ["id"] as const;
+    for (const field of intFields) {
+      IDBUtils.handleIntUpdateField(record, field, query.data[field]);
     }
     const keyPath = await tx.objectStore("User").put(record);
     const recordWithRelations = (await this.findUnique(
@@ -574,8 +589,9 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.ProfileDelegate, "findUniqueOrThrow">>(
     query: Q,
+    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findUniqueOrThrow">> {
-    const record = await this.findUnique(query);
+    const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
     return record;
   }
@@ -610,19 +626,24 @@ class ProfileIDBClass extends BaseIDBModelClass {
       if (query.data.user?.create) {
         fk = (await this.client.user.create({ data: query.data.user.create }, tx)).id;
       }
+      if (query.data.user?.connect) {
+        const record = await this.client.user.findUniqueOrThrow({ where: query.data.user.connect }, tx);
+        delete query.data.user.connect;
+        (query.data.userId as unknown) = record.id;
+      }
       if (query.data.user?.connectOrCreate) {
         throw new Error("connectOrCreate not yet implemented");
       }
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.userId = fk as NonNullable<typeof fk>;
       delete unsafeData.user;
-    }
-    if (query.data.userId !== undefined || query.data.user?.connect?.id !== undefined) {
-      const fk = query.data.userId ?? (query.data.user?.connect?.id as number);
-      const record = await tx.objectStore("User").getKey([fk]);
-      if (record === undefined) {
-        throw new Error(`Foreign key (${query.data.userId}) for model (User) does not exist`);
-      }
+    } else if (query.data.userId !== undefined && query.data.userId !== null) {
+      await this.client.user.findUniqueOrThrow(
+        {
+          where: { id: query.data.userId },
+        },
+        tx,
+      );
     }
     const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
     const keyPath = await tx.objectStore("Profile").add(record);
@@ -674,6 +695,10 @@ class ProfileIDBClass extends BaseIDBModelClass {
     const stringFields = ["bio"] as const;
     for (const field of stringFields) {
       IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const intFields = ["id", "userId"] as const;
+    for (const field of intFields) {
+      IDBUtils.handleIntUpdateField(record, field, query.data[field]);
     }
     const keyPath = await tx.objectStore("Profile").put(record);
     const recordWithRelations = (await this.findUnique(
@@ -859,8 +884,9 @@ class PostIDBClass extends BaseIDBModelClass {
 
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.PostDelegate, "findUniqueOrThrow">>(
     query: Q,
+    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findUniqueOrThrow">> {
-    const record = await this.findUnique(query);
+    const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
     return record;
   }
@@ -895,19 +921,24 @@ class PostIDBClass extends BaseIDBModelClass {
       if (query.data.author?.create) {
         fk = (await this.client.user.create({ data: query.data.author.create }, tx)).id;
       }
+      if (query.data.author?.connect) {
+        const record = await this.client.user.findUniqueOrThrow({ where: query.data.author.connect }, tx);
+        delete query.data.author.connect;
+        (query.data.authorId as unknown) = record.id;
+      }
       if (query.data.author?.connectOrCreate) {
         throw new Error("connectOrCreate not yet implemented");
       }
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.authorId = fk as NonNullable<typeof fk>;
       delete unsafeData.author;
-    }
-    if (query.data.authorId !== undefined || query.data.author?.connect?.id !== undefined) {
-      const fk = query.data.authorId ?? (query.data.author?.connect?.id as number);
-      const record = await tx.objectStore("User").getKey([fk]);
-      if (record === undefined) {
-        throw new Error(`Foreign key (${query.data.authorId}) for model (User) does not exist`);
-      }
+    } else if (query.data.authorId !== undefined && query.data.authorId !== null) {
+      await this.client.user.findUniqueOrThrow(
+        {
+          where: { id: query.data.authorId },
+        },
+        tx,
+      );
     }
     const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
     const keyPath = await tx.objectStore("Post").add(record);
@@ -959,6 +990,10 @@ class PostIDBClass extends BaseIDBModelClass {
     const stringFields = ["title"] as const;
     for (const field of stringFields) {
       IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const intFields = ["id", "authorId"] as const;
+    for (const field of intFields) {
+      IDBUtils.handleIntUpdateField(record, field, query.data[field]);
     }
     const keyPath = await tx.objectStore("Post").put(record);
     const recordWithRelations = (await this.findUnique(
@@ -1145,8 +1180,9 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
 
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findUniqueOrThrow">>(
     query: Q,
+    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findUniqueOrThrow">> {
-    const record = await this.findUnique(query);
+    const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
     return record;
   }
@@ -1238,6 +1274,10 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     const bytesFields = ["bytes"] as const;
     for (const field of bytesFields) {
       IDBUtils.handleBytesUpdateField(record, field, query.data[field]);
+    }
+    const intFields = ["id", "int"] as const;
+    for (const field of intFields) {
+      IDBUtils.handleIntUpdateField(record, field, query.data[field]);
     }
     const keyPath = await tx.objectStore("AllFieldScalarTypes").put(record);
     const recordWithRelations = (await this.findUnique(

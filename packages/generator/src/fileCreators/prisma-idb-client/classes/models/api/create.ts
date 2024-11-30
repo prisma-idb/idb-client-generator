@@ -85,6 +85,18 @@ function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
         `fk = (await this.client.${toCamelCase(field.type)}.create({ data: query.data.${field.name}.create }, tx)).${field.relationToFields?.at(0)};`,
       );
     });
+
+  writer.writeLine(`if (query.data.${field.name}?.connect)`).block(() => {
+    writer
+      .writeLine(
+        `const record = await this.client.${toCamelCase(field.type)}.findUniqueOrThrow({ where: query.data.${field.name}.connect }, tx);`,
+      )
+      .writeLine(`delete query.data.${field.name}.connect;`)
+      .writeLine(
+        `(query.data.${field.relationFromFields?.at(0)} as unknown) = record.${field.relationToFields?.at(0)};`,
+      );
+  });
+
   writer.writeLine(`if (query.data.${field.name}?.connectOrCreate)`).block(() => {
     writer.writeLine(`throw new Error('connectOrCreate not yet implemented')`);
   });
@@ -106,6 +118,11 @@ function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Fie
       })
       .writeLine(`, tx)`);
   });
+  writer.writeLine(`if (query.data.${field.name}?.connect)`).block(() => {
+    writer.writeLine(
+      `await this.client.${toCamelCase(field.type)}.update({ where: query.data.${field.name}.connect, data: { ${otherField.relationFromFields?.at(0)}: keyPath[0] } }, tx);`,
+    );
+  });
   writer.writeLine(`if (query.data.${field.name}?.connectOrCreate)`).block(() => {
     writer.writeLine(`throw new Error('connectOrCreate not yet implemented')`);
   });
@@ -124,6 +141,21 @@ function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField:
           .writeLine(`)),`);
       })
       .writeLine(`, tx)`);
+  });
+  writer.writeLine(`if (query.data.${field.name}?.connect)`).block(() => {
+    writer
+      .writeLine(`await Promise.all(`)
+      .indent(() => {
+        writer
+          .writeLine(`IDBUtils.convertToArray(query.data.posts.connect).map(async (connectWhere) => `)
+          .block(() => {
+            writer.writeLine(
+              `await this.client.post.update({ where: connectWhere, data: { authorId: keyPath[0] } }, tx);`,
+            );
+          })
+          .writeLine(`),`);
+      })
+      .writeLine(");");
   });
   writer.writeLine(`if (query.data.${field.name}?.connectOrCreate)`).block(() => {
     writer.writeLine(`throw new Error('connectOrCreate not yet implemented')`);
@@ -145,17 +177,16 @@ function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField:
 
 function handleForeignKeyValidation(writer: CodeBlockWriter, field: Field, fkField: Field) {
   writer
-    .writeLine(`if (query.data.${fkField.name} !== undefined || query.data.${field.name}?.connect?.id !== undefined)`)
+    .writeLine(`else if (query.data.${fkField.name} !== undefined && query.data.${fkField.name} !== null)`)
     .block(() => {
+      // TODO: composite FKs
       writer
-        // TODO: composite FKs
-        .writeLine(`const fk = query.data.${fkField.name} ?? query.data.${field.name}?.connect?.id as number;`)
-        .writeLine(`const record = await tx.objectStore("${field.type}").getKey([fk]);`)
-        .writeLine(`if (record === undefined)`)
+        .writeLine(`await this.client.${toCamelCase(field.type)}.findUniqueOrThrow(`)
         .block(() => {
           writer.writeLine(
-            `throw new Error(\`Foreign key (\${query.data.${fkField.name}}) for model (${field.type}) does not exist\`);`,
+            `where: { ${field.relationToFields?.at(0)}: query.data.${field.relationFromFields?.at(0)} }`,
           );
-        });
+        })
+        .writeLine(`, tx);`);
     });
 }
