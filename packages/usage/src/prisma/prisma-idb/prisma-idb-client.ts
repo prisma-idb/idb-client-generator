@@ -629,7 +629,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
       if (query.data.user?.connect) {
         const record = await this.client.user.findUniqueOrThrow({ where: query.data.user.connect }, tx);
         delete query.data.user.connect;
-        (query.data.userId as unknown) = record.id;
+        fk = record.id;
       }
       if (query.data.user?.connectOrCreate) {
         throw new Error("connectOrCreate not yet implemented");
@@ -924,7 +924,7 @@ class PostIDBClass extends BaseIDBModelClass {
       if (query.data.author?.connect) {
         const record = await this.client.user.findUniqueOrThrow({ where: query.data.author.connect }, tx);
         delete query.data.author.connect;
-        (query.data.authorId as unknown) = record.id;
+        fk = record.id;
       }
       if (query.data.author?.connectOrCreate) {
         throw new Error("connectOrCreate not yet implemented");

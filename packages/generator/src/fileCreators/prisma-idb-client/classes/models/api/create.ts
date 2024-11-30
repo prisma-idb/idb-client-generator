@@ -92,9 +92,7 @@ function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
         `const record = await this.client.${toCamelCase(field.type)}.findUniqueOrThrow({ where: query.data.${field.name}.connect }, tx);`,
       )
       .writeLine(`delete query.data.${field.name}.connect;`)
-      .writeLine(
-        `(query.data.${field.relationFromFields?.at(0)} as unknown) = record.${field.relationToFields?.at(0)};`,
-      );
+      .writeLine(`fk = record.${field.relationToFields?.at(0)};`);
   });
 
   writer.writeLine(`if (query.data.${field.name}?.connectOrCreate)`).block(() => {
