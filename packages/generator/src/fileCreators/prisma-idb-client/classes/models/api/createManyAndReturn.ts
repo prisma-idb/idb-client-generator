@@ -8,7 +8,7 @@ export function addCreateManyAndReturn(modelClass: ClassDeclaration, model: Mode
     typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "createManyAndReturn">` }],
     parameters: [
       { name: "query", type: "Q" },
-      { name: "tx", type: "IDBUtils.CreateTransactionType", hasQuestionToken: true },
+      { name: "tx", type: "IDBUtils.ReadwriteTransactionType", hasQuestionToken: true },
     ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "createManyAndReturn">>`,
     statements: (writer) => {

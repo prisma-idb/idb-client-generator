@@ -13,7 +13,7 @@ export function addPerformNestedCreatesMethod(modelClass: ClassDeclaration, mode
     typeParameters: [{ name: "D", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]` }],
     parameters: [
       { name: "data", type: "D" },
-      { name: "tx", type: "IDBUtils.CreateTransactionType" },
+      { name: "tx", type: "IDBUtils.ReadwriteTransactionType" },
       { name: "validateFKs", initializer: "true" },
     ],
     returnType: ``,

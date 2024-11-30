@@ -10,7 +10,7 @@ export function addCreateManyMethod(modelClass: ClassDeclaration, model: Model) 
     typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "createMany">` }],
     parameters: [
       { name: "query", type: "Q" },
-      { name: "tx", hasQuestionToken: true, type: "IDBUtils.CreateTransactionType" },
+      { name: "tx", hasQuestionToken: true, type: "IDBUtils.ReadwriteTransactionType" },
     ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "createMany">>`,
     statements: (writer) => {

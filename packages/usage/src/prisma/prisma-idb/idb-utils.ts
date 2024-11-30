@@ -6,7 +6,9 @@ export function convertToArray<T>(arg: T | T[]): T[] {
   return Array.isArray(arg) ? arg : [arg];
 }
 
-export type CreateTransactionType = IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readwrite">;
+export type ReadwriteTransactionType = IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readwrite">;
+
+export type ReadonlyTransactionType = IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readonly">;
 
 export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,

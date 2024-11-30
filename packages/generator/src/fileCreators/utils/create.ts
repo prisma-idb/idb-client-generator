@@ -29,8 +29,13 @@ export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model
 
   idbUtilsFile.addTypeAlias({
     isExported: true,
-    name: "CreateTransactionType",
+    name: "ReadwriteTransactionType",
     type: `IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readwrite">;`,
+  });
+  idbUtilsFile.addTypeAlias({
+    isExported: true,
+    name: "ReadonlyTransactionType",
+    type: `IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readonly">;`,
   });
 
   addStringFilter(idbUtilsFile, models);
