@@ -9,16 +9,15 @@ import { addFindFirstOrThrow } from "./api/findFirstOrThrow";
 import { addFindManyMethod } from "./api/findMany";
 import { addFindUniqueMethod } from "./api/findUnique";
 import { addFindUniqueOrThrow } from "./api/findUniqueOrThrow";
+import { addUpdateMethod } from "./api/update";
 import { addApplyRelations } from "./utils/_applyRelations";
 import { addApplySelectClause } from "./utils/_applySelectClause";
 import { addApplyWhereClause } from "./utils/_applyWhereClause";
 import { addFillDefaultsFunction } from "./utils/_fillDefaults";
 import { addGetNeededStoresForCreate } from "./utils/_getNeededStoresForCreate";
-import { addNestedCreateMethod } from "./utils/_nestedCreate";
+import { addGetNeededStoresForFind } from "./utils/_getStoresNeededForFind";
 import { addPerformNestedCreatesMethod } from "./utils/_performNestedCreates";
 import { addRemoveNestedCreateDataMethod } from "./utils/_removeNestedCreateData";
-import { addUpdateMethod } from "./api/update";
-import { addGetNeededStoresForFind } from "./utils/_getStoresNeededForFind";
 
 export function addIDBModelClass(file: SourceFile, model: Model, models: readonly Model[]) {
   const modelClass = file.addClass({
@@ -34,7 +33,6 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
   addGetNeededStoresForCreate(modelClass, model);
   addRemoveNestedCreateDataMethod(modelClass, model);
   addPerformNestedCreatesMethod(modelClass, model, models);
-  addNestedCreateMethod(modelClass, model);
 
   addFindManyMethod(modelClass, model);
   addFindFirstMethod(modelClass, model);

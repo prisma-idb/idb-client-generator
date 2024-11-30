@@ -15,9 +15,8 @@ test("create_NestedCreateTransactionFailsOnError_RollsBackChanges", async ({ pag
     page,
     model: "user",
     operation: "create",
-    query: { data: { id: 1, name: "Alice with bio", profile: { create: { bio: "generic bio" } } } },
-    errorMessage:
-      "Unable to add key to index 'userIdIndex': at least one key does not satisfy the uniqueness requirements.",
+    query: { data: { name: "Alice with bio", profile: { create: { id: 1, bio: "generic bio" } } } },
+    errorMessage: "Key already exists in the object store",
   });
 
   await expectQueryToSucceed({ page, model: "user", operation: "count" });

@@ -230,7 +230,7 @@ class UserIDBClass extends BaseIDBModelClass {
   ) {
     if (data.profile) {
       if (data.profile.create) {
-        await this.client.profile._nestedCreate(
+        await this.client.profile.create(
           {
             data: { ...data.profile.create, userId: data.id! },
           },
@@ -270,16 +270,6 @@ class UserIDBClass extends BaseIDBModelClass {
       }
       delete data.posts;
     }
-  }
-
-  async _nestedCreate<Q extends Prisma.Args<Prisma.UserDelegate, "create">>(
-    query: Q,
-    tx: IDBUtils.ReadwriteTransactionType,
-  ): Promise<PrismaIDBSchema["User"]["key"]> {
-    await this._performNestedCreates(query.data, tx, false);
-    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
-    const keyPath = await tx.objectStore("User").add(record);
-    return keyPath;
   }
 
   async findMany<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
@@ -364,9 +354,8 @@ class UserIDBClass extends BaseIDBModelClass {
     const storesNeeded = this._getNeededStoresForCreate(query.data);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this._fillDefaults(query.data, tx);
-    await this._performNestedCreates(record, tx);
     const keyPath = await tx.objectStore("User").add(this._removeNestedCreateData(query.data));
-
+    await this._performNestedCreates(record, tx);
     const data = (await tx.objectStore("User").get(keyPath))!;
     const recordsWithRelations = this._applySelectClause(
       await this._applyRelations([data], tx, query),
@@ -405,8 +394,10 @@ class UserIDBClass extends BaseIDBModelClass {
 
   async update<Q extends Prisma.Args<Prisma.UserDelegate, "update">>(
     query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "update">> {
-    const record = await this.findUnique({ where: query.where });
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       throw new Error("Record not found");
     }
@@ -414,11 +405,14 @@ class UserIDBClass extends BaseIDBModelClass {
     for (const field of stringFields) {
       IDBUtils.handleStringUpdateField(record, field, query.data[field]);
     }
-    const keyPath = await this.client._db.put("User", record);
-    const recordWithRelations = (await this.findUnique({
-      ...query,
-      where: { id: keyPath[0] },
-    }))!;
+    const keyPath = await tx.objectStore("User").put(record);
+    const recordWithRelations = (await this.findUnique(
+      {
+        ...query,
+        where: { id: keyPath[0] },
+      },
+      tx,
+    ))!;
     return recordWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "update">;
   }
 }
@@ -550,7 +544,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
     if (data.user) {
       let fk;
       if (data.user.create) {
-        fk = (await this.client.user._nestedCreate({ data: data.user.create }, tx))[0];
+        fk = (await this.client.user.create({ data: data.user.create }, tx)).id;
       }
       if (data.user.connectOrCreate) {
         throw new Error("connectOrCreate not yet implemented");
@@ -563,19 +557,9 @@ class ProfileIDBClass extends BaseIDBModelClass {
       const fk = data.userId ?? (data.user?.connect?.id as number);
       const record = await tx.objectStore("User").getKey([fk]);
       if (record === undefined) {
-        throw new Error(`Foreign key (${data.userId}) for model (User) does not exist`);
+        throw new Error(`Foreign key (${fk}) for model (User) does not exist`);
       }
     }
-  }
-
-  async _nestedCreate<Q extends Prisma.Args<Prisma.ProfileDelegate, "create">>(
-    query: Q,
-    tx: IDBUtils.ReadwriteTransactionType,
-  ): Promise<PrismaIDBSchema["Profile"]["key"]> {
-    await this._performNestedCreates(query.data, tx, false);
-    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
-    const keyPath = await tx.objectStore("Profile").add(record);
-    return keyPath;
   }
 
   async findMany<Q extends Prisma.Args<Prisma.ProfileDelegate, "findMany">>(
@@ -662,9 +646,8 @@ class ProfileIDBClass extends BaseIDBModelClass {
     const storesNeeded = this._getNeededStoresForCreate(query.data);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this._fillDefaults(query.data, tx);
-    await this._performNestedCreates(record, tx);
     const keyPath = await tx.objectStore("Profile").add(this._removeNestedCreateData(query.data));
-
+    await this._performNestedCreates(record, tx);
     const data = (await tx.objectStore("Profile").get(keyPath))!;
     const recordsWithRelations = this._applySelectClause(
       await this._applyRelations([data], tx, query),
@@ -703,8 +686,10 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   async update<Q extends Prisma.Args<Prisma.ProfileDelegate, "update">>(
     query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "update">> {
-    const record = await this.findUnique({ where: query.where });
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       throw new Error("Record not found");
     }
@@ -712,11 +697,14 @@ class ProfileIDBClass extends BaseIDBModelClass {
     for (const field of stringFields) {
       IDBUtils.handleStringUpdateField(record, field, query.data[field]);
     }
-    const keyPath = await this.client._db.put("Profile", record);
-    const recordWithRelations = (await this.findUnique({
-      ...query,
-      where: { id: keyPath[0] },
-    }))!;
+    const keyPath = await tx.objectStore("Profile").put(record);
+    const recordWithRelations = (await this.findUnique(
+      {
+        ...query,
+        where: { id: keyPath[0] },
+      },
+      tx,
+    ))!;
     return recordWithRelations as Prisma.Result<Prisma.ProfileDelegate, Q, "update">;
   }
 }
@@ -851,7 +839,7 @@ class PostIDBClass extends BaseIDBModelClass {
     if (data.author) {
       let fk;
       if (data.author.create) {
-        fk = (await this.client.user._nestedCreate({ data: data.author.create }, tx))[0];
+        fk = (await this.client.user.create({ data: data.author.create }, tx)).id;
       }
       if (data.author.connectOrCreate) {
         throw new Error("connectOrCreate not yet implemented");
@@ -864,19 +852,9 @@ class PostIDBClass extends BaseIDBModelClass {
       const fk = data.authorId ?? (data.author?.connect?.id as number);
       const record = await tx.objectStore("User").getKey([fk]);
       if (record === undefined) {
-        throw new Error(`Foreign key (${data.authorId}) for model (User) does not exist`);
+        throw new Error(`Foreign key (${fk}) for model (User) does not exist`);
       }
     }
-  }
-
-  async _nestedCreate<Q extends Prisma.Args<Prisma.PostDelegate, "create">>(
-    query: Q,
-    tx: IDBUtils.ReadwriteTransactionType,
-  ): Promise<PrismaIDBSchema["Post"]["key"]> {
-    await this._performNestedCreates(query.data, tx, false);
-    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
-    const keyPath = await tx.objectStore("Post").add(record);
-    return keyPath;
   }
 
   async findMany<Q extends Prisma.Args<Prisma.PostDelegate, "findMany">>(
@@ -961,9 +939,8 @@ class PostIDBClass extends BaseIDBModelClass {
     const storesNeeded = this._getNeededStoresForCreate(query.data);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this._fillDefaults(query.data, tx);
-    await this._performNestedCreates(record, tx);
     const keyPath = await tx.objectStore("Post").add(this._removeNestedCreateData(query.data));
-
+    await this._performNestedCreates(record, tx);
     const data = (await tx.objectStore("Post").get(keyPath))!;
     const recordsWithRelations = this._applySelectClause(
       await this._applyRelations([data], tx, query),
@@ -1002,8 +979,10 @@ class PostIDBClass extends BaseIDBModelClass {
 
   async update<Q extends Prisma.Args<Prisma.PostDelegate, "update">>(
     query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "update">> {
-    const record = await this.findUnique({ where: query.where });
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       throw new Error("Record not found");
     }
@@ -1011,11 +990,14 @@ class PostIDBClass extends BaseIDBModelClass {
     for (const field of stringFields) {
       IDBUtils.handleStringUpdateField(record, field, query.data[field]);
     }
-    const keyPath = await this.client._db.put("Post", record);
-    const recordWithRelations = (await this.findUnique({
-      ...query,
-      where: { id: keyPath[0] },
-    }))!;
+    const keyPath = await tx.objectStore("Post").put(record);
+    const recordWithRelations = (await this.findUnique(
+      {
+        ...query,
+        where: { id: keyPath[0] },
+      },
+      tx,
+    ))!;
     return recordWithRelations as Prisma.Result<Prisma.PostDelegate, Q, "update">;
   }
 }
@@ -1149,16 +1131,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     validateFKs = true,
   ) {}
 
-  async _nestedCreate<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">>(
-    query: Q,
-    tx: IDBUtils.ReadwriteTransactionType,
-  ): Promise<PrismaIDBSchema["AllFieldScalarTypes"]["key"]> {
-    await this._performNestedCreates(query.data, tx, false);
-    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
-    const keyPath = await tx.objectStore("AllFieldScalarTypes").add(record);
-    return keyPath;
-  }
-
   async findMany<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">>(
     query?: Q,
     tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
@@ -1241,9 +1213,8 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     const storesNeeded = this._getNeededStoresForCreate(query.data);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this._fillDefaults(query.data, tx);
-    await this._performNestedCreates(record, tx);
     const keyPath = await tx.objectStore("AllFieldScalarTypes").add(this._removeNestedCreateData(query.data));
-
+    await this._performNestedCreates(record, tx);
     const data = (await tx.objectStore("AllFieldScalarTypes").get(keyPath))!;
     const recordsWithRelations = this._applySelectClause(
       await this._applyRelations([data], tx, query),
@@ -1282,8 +1253,10 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
 
   async update<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "update">>(
     query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "update">> {
-    const record = await this.findUnique({ where: query.where });
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       throw new Error("Record not found");
     }
@@ -1303,11 +1276,14 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     for (const field of bytesFields) {
       IDBUtils.handleBytesUpdateField(record, field, query.data[field]);
     }
-    const keyPath = await this.client._db.put("AllFieldScalarTypes", record);
-    const recordWithRelations = (await this.findUnique({
-      ...query,
-      where: { id: keyPath[0] },
-    }))!;
+    const keyPath = await tx.objectStore("AllFieldScalarTypes").put(record);
+    const recordWithRelations = (await this.findUnique(
+      {
+        ...query,
+        where: { id: keyPath[0] },
+      },
+      tx,
+    ))!;
     return recordWithRelations as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "update">;
   }
 }

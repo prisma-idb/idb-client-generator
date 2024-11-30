@@ -7,7 +7,10 @@ export function addUpdateMethod(modelClass: ClassDeclaration, model: Model) {
     name: "update",
     isAsync: true,
     typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, 'update'>` }],
-    parameters: [{ name: "query", type: "Q" }],
+    parameters: [
+      { name: "query", type: "Q" },
+      { name: "tx", hasQuestionToken: true, type: "IDBUtils.ReadwriteTransactionType" },
+    ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'update'>>`,
     statements: (writer) => {
       addGetRecord(writer);
@@ -23,7 +26,8 @@ export function addUpdateMethod(modelClass: ClassDeclaration, model: Model) {
 
 function addGetRecord(writer: CodeBlockWriter) {
   writer
-    .writeLine(`const record = await this.findUnique({ where: query.where });`)
+    .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");`)
+    .writeLine(`const record = await this.findUnique({ where: query.where }, tx);`)
     .writeLine(`if (record === null)`)
     .block(() => {
       writer.writeLine(`throw new Error("Record not found");`);
@@ -33,12 +37,12 @@ function addGetRecord(writer: CodeBlockWriter) {
 function addPutAndReturn(writer: CodeBlockWriter, model: Model) {
   const pk = getUniqueIdentifiers(model)[0];
   writer
-    .writeLine(`const keyPath = await this.client._db.put("${model.name}", record);`)
+    .writeLine(`const keyPath = await tx.objectStore("${model.name}").put(record);`)
     .writeLine(`const recordWithRelations = (await this.findUnique(`)
     .block(() => {
       writer.writeLine(`...query, where: { ${JSON.parse(pk.keyPath)[0]}: keyPath[0] },`);
     })
-    .writeLine(`))!;`)
+    .writeLine(`, tx))!;`)
     .writeLine(`return recordWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "update">;`);
 }
 
