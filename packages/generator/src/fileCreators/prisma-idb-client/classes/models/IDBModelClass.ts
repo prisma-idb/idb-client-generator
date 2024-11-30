@@ -18,6 +18,7 @@ import { addNestedCreateMethod } from "./utils/_nestedCreate";
 import { addPerformNestedCreatesMethod } from "./utils/_performNestedCreates";
 import { addRemoveNestedCreateDataMethod } from "./utils/_removeNestedCreateData";
 import { addUpdateMethod } from "./api/update";
+import { addGetNeededStoresForFind } from "./utils/_getStoresNeededForFind";
 
 export function addIDBModelClass(file: SourceFile, model: Model, models: readonly Model[]) {
   const modelClass = file.addClass({
@@ -29,6 +30,7 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
   addApplySelectClause(modelClass, model);
   addApplyRelations(modelClass, model, models);
   addFillDefaultsFunction(modelClass, model);
+  addGetNeededStoresForFind(modelClass, model);
   addGetNeededStoresForCreate(modelClass, model);
   addRemoveNestedCreateDataMethod(modelClass, model);
   addPerformNestedCreatesMethod(modelClass, model, models);
