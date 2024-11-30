@@ -11,9 +11,9 @@ export function addFillDefaultsFunction(modelClass: ClassDeclaration, model: Mod
       { name: "data", type: "D" },
       { name: "tx", hasQuestionToken: true, type: "IDBUtils.ReadwriteTransactionType" },
     ],
-    returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>>`,
+    returnType: `Promise<D>`,
     statements: (writer) => {
-      writer.writeLine("if (data === undefined) data = {} as NonNullable<D>;");
+      writer.writeLine("if (data === undefined) data = {} as D;");
       model.fields
         .filter(({ kind }) => kind !== "object")
         .filter(({ hasDefaultValue, isRequired }) => hasDefaultValue || !isRequired)
@@ -44,7 +44,7 @@ export function addFillDefaultsFunction(modelClass: ClassDeclaration, model: Mod
           addBigIntConverter(writer, field);
         }
       });
-      writer.writeLine(`return data as Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>;`);
+      writer.writeLine(`return data;`);
     },
   });
 }
