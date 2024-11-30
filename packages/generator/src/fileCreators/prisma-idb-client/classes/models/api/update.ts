@@ -18,6 +18,7 @@ export function addUpdateMethod(modelClass: ClassDeclaration, model: Model) {
       addDateTimeUpdateHandling(writer, model);
       addBooleanUpdateHandling(writer, model);
       addBytesUpdateHandling(writer, model);
+      addIntUpdateHandling(writer, model);
       // TODO: the numeric types
       addPutAndReturn(writer, model);
     },
@@ -55,6 +56,18 @@ function addStringUpdateHandling(writer: CodeBlockWriter, model: Model) {
     .writeLine(`for (const field of stringFields)`)
     .block(() => {
       writer.writeLine(`IDBUtils.handleStringUpdateField(record, field, query.data[field]);`);
+    });
+}
+
+function addIntUpdateHandling(writer: CodeBlockWriter, model: Model) {
+  const intFields = model.fields.filter((field) => field.type === "Int").map(({ name }) => name);
+  if (intFields.length === 0) return;
+
+  writer
+    .writeLine(`const intFields = ${JSON.stringify(intFields)} as const;`)
+    .writeLine(`for (const field of intFields)`)
+    .block(() => {
+      writer.writeLine(`IDBUtils.handleIntUpdateField(record, field, query.data[field]);`);
     });
 }
 

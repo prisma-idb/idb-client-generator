@@ -9,6 +9,7 @@ import { addStringFilter } from "./filters/StringFilter";
 import { addBooleanUpdateHandler } from "./updateHandlers/BooleanHandler";
 import { addBytesUpdateHandler } from "./updateHandlers/BytesHandler";
 import { addDateTimeUpdateHandler } from "./updateHandlers/DateTimeHandler";
+import { addIntUpdateHandler } from "./updateHandlers/IntHandler";
 import { addStringUpdateHandler } from "./updateHandlers/StringHandler";
 
 export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model[]) {
@@ -49,4 +50,5 @@ export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model
   addBooleanUpdateHandler(idbUtilsFile, models);
   addDateTimeUpdateHandler(idbUtilsFile, models);
   addBytesUpdateHandler(idbUtilsFile, models);
+  addIntUpdateHandler(idbUtilsFile, models);
 }

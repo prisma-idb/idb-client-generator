@@ -402,3 +402,22 @@ export function handleBytesUpdateField<T, R extends Prisma.Result<T, object, "fi
   }
   return true;
 }
+
+export function handleIntUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
+  record: R,
+  fieldName: keyof R,
+  intUpdate:
+    | undefined
+    | number
+    | Prisma.IntFieldUpdateOperationsInput
+    | null
+    | Prisma.NullableIntFieldUpdateOperationsInput,
+) {
+  if (intUpdate === undefined) return;
+  if (typeof intUpdate === "number" || intUpdate === null) {
+    (record[fieldName] as number | null) = intUpdate;
+  } else if (intUpdate.set !== undefined) {
+    (record[fieldName] as number | null) = intUpdate.set;
+  }
+  return true;
+}
