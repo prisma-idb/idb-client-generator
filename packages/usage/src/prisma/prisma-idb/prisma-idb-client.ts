@@ -223,55 +223,6 @@ class UserIDBClass extends BaseIDBModelClass {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">;
   }
 
-  private async _performNestedCreates<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(
-    data: D,
-    tx: IDBUtils.ReadwriteTransactionType,
-    validateFKs = true,
-  ) {
-    if (data.profile) {
-      if (data.profile.create) {
-        await this.client.profile.create(
-          {
-            data: { ...data.profile.create, userId: data.id! },
-          },
-          tx,
-        );
-      }
-      if (data.profile.connectOrCreate) {
-        throw new Error("connectOrCreate not yet implemented");
-      }
-      delete data.profile;
-    }
-    if (data.posts) {
-      if (data.posts.create) {
-        await this.client.post.createMany(
-          {
-            data: IDBUtils.convertToArray(data.posts.create).map((createData) => ({
-              ...createData,
-              authorId: data.id!,
-            })),
-          },
-          tx,
-        );
-      }
-      if (data.posts.connectOrCreate) {
-        throw new Error("connectOrCreate not yet implemented");
-      }
-      if (data.posts.createMany) {
-        await this.client.post.createMany(
-          {
-            data: IDBUtils.convertToArray(data.posts.createMany.data).map((createData) => ({
-              ...createData,
-              authorId: data.id!,
-            })),
-          },
-          tx,
-        );
-      }
-      delete data.posts;
-    }
-  }
-
   async findMany<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
     query?: Q,
     tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
@@ -353,9 +304,44 @@ class UserIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "create">> {
     const storesNeeded = this._getNeededStoresForCreate(query.data);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    const record = await this._fillDefaults(query.data, tx);
-    const keyPath = await tx.objectStore("User").add(this._removeNestedCreateData(query.data));
-    await this._performNestedCreates(record, tx);
+    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
+    const keyPath = await tx.objectStore("User").add(record);
+    if (query.data.profile?.create) {
+      await this.client.profile.create(
+        {
+          data: { ...query.data.profile.create, userId: keyPath[0] },
+        },
+        tx,
+      );
+    }
+    if (query.data.profile?.connectOrCreate) {
+      throw new Error("connectOrCreate not yet implemented");
+    }
+    if (query.data.posts?.create) {
+      await this.client.post.createMany(
+        {
+          data: IDBUtils.convertToArray(query.data.posts.create).map((createData) => ({
+            ...createData,
+            authorId: keyPath[0],
+          })),
+        },
+        tx,
+      );
+    }
+    if (query.data.posts?.connectOrCreate) {
+      throw new Error("connectOrCreate not yet implemented");
+    }
+    if (query.data.posts?.createMany) {
+      await this.client.post.createMany(
+        {
+          data: IDBUtils.convertToArray(query.data.posts.createMany.data).map((createData) => ({
+            ...createData,
+            authorId: keyPath[0],
+          })),
+        },
+        tx,
+      );
+    }
     const data = (await tx.objectStore("User").get(keyPath))!;
     const recordsWithRelations = this._applySelectClause(
       await this._applyRelations([data], tx, query),
@@ -536,32 +522,6 @@ class ProfileIDBClass extends BaseIDBModelClass {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">;
   }
 
-  private async _performNestedCreates<D extends Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>(
-    data: D,
-    tx: IDBUtils.ReadwriteTransactionType,
-    validateFKs = true,
-  ) {
-    if (data.user) {
-      let fk;
-      if (data.user.create) {
-        fk = (await this.client.user.create({ data: data.user.create }, tx)).id;
-      }
-      if (data.user.connectOrCreate) {
-        throw new Error("connectOrCreate not yet implemented");
-      }
-      const unsafeData = data as Record<string, unknown>;
-      unsafeData.userId = fk as NonNullable<typeof fk>;
-      delete unsafeData.user;
-    }
-    if (validateFKs && (data.userId !== undefined || data.user?.connect?.id !== undefined)) {
-      const fk = data.userId ?? (data.user?.connect?.id as number);
-      const record = await tx.objectStore("User").getKey([fk]);
-      if (record === undefined) {
-        throw new Error(`Foreign key (${fk}) for model (User) does not exist`);
-      }
-    }
-  }
-
   async findMany<Q extends Prisma.Args<Prisma.ProfileDelegate, "findMany">>(
     query?: Q,
     tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
@@ -645,9 +605,27 @@ class ProfileIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "create">> {
     const storesNeeded = this._getNeededStoresForCreate(query.data);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    const record = await this._fillDefaults(query.data, tx);
-    const keyPath = await tx.objectStore("Profile").add(this._removeNestedCreateData(query.data));
-    await this._performNestedCreates(record, tx);
+    if (query.data.user) {
+      let fk;
+      if (query.data.user?.create) {
+        fk = (await this.client.user.create({ data: query.data.user.create }, tx)).id;
+      }
+      if (query.data.user?.connectOrCreate) {
+        throw new Error("connectOrCreate not yet implemented");
+      }
+      const unsafeData = query.data as Record<string, unknown>;
+      unsafeData.userId = fk as NonNullable<typeof fk>;
+      delete unsafeData.user;
+    }
+    if (query.data.userId !== undefined || query.data.user?.connect?.id !== undefined) {
+      const fk = query.data.userId ?? (query.data.user?.connect?.id as number);
+      const record = await tx.objectStore("User").getKey([fk]);
+      if (record === undefined) {
+        throw new Error(`Foreign key (${query.data.userId}) for model (User) does not exist`);
+      }
+    }
+    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
+    const keyPath = await tx.objectStore("Profile").add(record);
     const data = (await tx.objectStore("Profile").get(keyPath))!;
     const recordsWithRelations = this._applySelectClause(
       await this._applyRelations([data], tx, query),
@@ -831,32 +809,6 @@ class PostIDBClass extends BaseIDBModelClass {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">;
   }
 
-  private async _performNestedCreates<D extends Prisma.Args<Prisma.PostDelegate, "create">["data"]>(
-    data: D,
-    tx: IDBUtils.ReadwriteTransactionType,
-    validateFKs = true,
-  ) {
-    if (data.author) {
-      let fk;
-      if (data.author.create) {
-        fk = (await this.client.user.create({ data: data.author.create }, tx)).id;
-      }
-      if (data.author.connectOrCreate) {
-        throw new Error("connectOrCreate not yet implemented");
-      }
-      const unsafeData = data as Record<string, unknown>;
-      unsafeData.userId = fk as NonNullable<typeof fk>;
-      delete unsafeData.author;
-    }
-    if (validateFKs && (data.authorId !== undefined || data.author?.connect?.id !== undefined)) {
-      const fk = data.authorId ?? (data.author?.connect?.id as number);
-      const record = await tx.objectStore("User").getKey([fk]);
-      if (record === undefined) {
-        throw new Error(`Foreign key (${fk}) for model (User) does not exist`);
-      }
-    }
-  }
-
   async findMany<Q extends Prisma.Args<Prisma.PostDelegate, "findMany">>(
     query?: Q,
     tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
@@ -938,9 +890,27 @@ class PostIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "create">> {
     const storesNeeded = this._getNeededStoresForCreate(query.data);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    const record = await this._fillDefaults(query.data, tx);
-    const keyPath = await tx.objectStore("Post").add(this._removeNestedCreateData(query.data));
-    await this._performNestedCreates(record, tx);
+    if (query.data.author) {
+      let fk;
+      if (query.data.author?.create) {
+        fk = (await this.client.user.create({ data: query.data.author.create }, tx)).id;
+      }
+      if (query.data.author?.connectOrCreate) {
+        throw new Error("connectOrCreate not yet implemented");
+      }
+      const unsafeData = query.data as Record<string, unknown>;
+      unsafeData.authorId = fk as NonNullable<typeof fk>;
+      delete unsafeData.author;
+    }
+    if (query.data.authorId !== undefined || query.data.author?.connect?.id !== undefined) {
+      const fk = query.data.authorId ?? (query.data.author?.connect?.id as number);
+      const record = await tx.objectStore("User").getKey([fk]);
+      if (record === undefined) {
+        throw new Error(`Foreign key (${query.data.authorId}) for model (User) does not exist`);
+      }
+    }
+    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
+    const keyPath = await tx.objectStore("Post").add(record);
     const data = (await tx.objectStore("Post").get(keyPath))!;
     const recordsWithRelations = this._applySelectClause(
       await this._applyRelations([data], tx, query),
@@ -1125,12 +1095,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">;
   }
 
-  private async _performNestedCreates<D extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">["data"]>(
-    data: D,
-    tx: IDBUtils.ReadwriteTransactionType,
-    validateFKs = true,
-  ) {}
-
   async findMany<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">>(
     query?: Q,
     tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
@@ -1212,9 +1176,8 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "create">> {
     const storesNeeded = this._getNeededStoresForCreate(query.data);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    const record = await this._fillDefaults(query.data, tx);
-    const keyPath = await tx.objectStore("AllFieldScalarTypes").add(this._removeNestedCreateData(query.data));
-    await this._performNestedCreates(record, tx);
+    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
+    const keyPath = await tx.objectStore("AllFieldScalarTypes").add(record);
     const data = (await tx.objectStore("AllFieldScalarTypes").get(keyPath))!;
     const recordsWithRelations = this._applySelectClause(
       await this._applyRelations([data], tx, query),

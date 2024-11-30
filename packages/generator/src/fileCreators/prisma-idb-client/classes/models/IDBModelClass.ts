@@ -16,7 +16,6 @@ import { addApplyWhereClause } from "./utils/_applyWhereClause";
 import { addFillDefaultsFunction } from "./utils/_fillDefaults";
 import { addGetNeededStoresForCreate } from "./utils/_getNeededStoresForCreate";
 import { addGetNeededStoresForFind } from "./utils/_getStoresNeededForFind";
-import { addPerformNestedCreatesMethod } from "./utils/_performNestedCreates";
 import { addRemoveNestedCreateDataMethod } from "./utils/_removeNestedCreateData";
 
 export function addIDBModelClass(file: SourceFile, model: Model, models: readonly Model[]) {
@@ -32,7 +31,6 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
   addGetNeededStoresForFind(modelClass, model);
   addGetNeededStoresForCreate(modelClass, model);
   addRemoveNestedCreateDataMethod(modelClass, model);
-  addPerformNestedCreatesMethod(modelClass, model, models);
 
   addFindManyMethod(modelClass, model);
   addFindFirstMethod(modelClass, model);
@@ -41,7 +39,7 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
   addFindUniqueOrThrow(modelClass, model);
   addCountMethod(modelClass, model);
 
-  addCreateMethod(modelClass, model);
+  addCreateMethod(modelClass, model, models);
   addCreateManyMethod(modelClass, model);
   addCreateManyAndReturn(modelClass, model);
 
