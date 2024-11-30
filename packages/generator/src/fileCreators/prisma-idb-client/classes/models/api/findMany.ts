@@ -19,7 +19,7 @@ export function addFindManyMethod(modelClass: ClassDeclaration, model: Model) {
 
 function getRecords(writer: CodeBlockWriter, model: Model) {
   writer.writeLine(
-    `const records = await this._applyWhereClause(await this.client._db.getAll("${model.name}"), query?.where)`,
+    `const records = this._applyWhereClause(await this.client._db.getAll("${model.name}"), query?.where)`,
   );
 }
 

@@ -4,7 +4,6 @@ import { ClassDeclaration, CodeBlockWriter, Scope } from "ts-morph";
 export function addApplyWhereClause(modelClass: ClassDeclaration, model: Model) {
   modelClass.addMethod({
     name: "_applyWhereClause",
-    isAsync: true,
     scope: Scope.Private,
     typeParameters: [
       { name: "W", constraint: `Prisma.Args<Prisma.${model.name}Delegate, 'findFirstOrThrow'>['where']` },
@@ -14,7 +13,7 @@ export function addApplyWhereClause(modelClass: ClassDeclaration, model: Model) 
       { name: "records", type: `R[]` },
       { name: "whereClause", type: "W" },
     ],
-    returnType: `Promise<R[]>`,
+    returnType: `R[]`,
     statements: (writer) => {
       writer.writeLine(`if (!whereClause) return records;`);
       writer
