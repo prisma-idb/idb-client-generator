@@ -7,10 +7,19 @@ export function addFindUniqueMethod(modelClass: ClassDeclaration, model: Model) 
     name: "findUnique",
     isAsync: true,
     typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, 'findUnique'>` }],
-    parameters: [{ name: "query", type: "Q" }],
+    parameters: [
+      { name: "query", type: "Q" },
+      {
+        name: "tx",
+        hasQuestionToken: true,
+        type: "IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType",
+      },
+    ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'findUnique'>>`,
     statements: (writer) => {
-      writer.writeLine("let record;");
+      writer
+        .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`)
+        .writeLine("let record;");
       getFromKeyIdentifier(writer, model);
       getFromNonKeyIdentifier(writer, model);
       writer
@@ -18,7 +27,7 @@ export function addFindUniqueMethod(modelClass: ClassDeclaration, model: Model) 
         .blankLine()
         .write(`const recordWithRelations = `)
         .write(
-          `this._applySelectClause(await this._applyRelations(this._applyWhereClause([record], query.where), query), query.select)[0];`,
+          `this._applySelectClause(await this._applyRelations(this._applyWhereClause([record], query.where), tx, query), query.select)[0];`,
         )
         .writeLine(`return recordWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "findUnique">;`);
     },
@@ -40,7 +49,7 @@ function getFromKeyIdentifier(writer: CodeBlockWriter, model: Model) {
   fields = fields.replaceAll('"', "");
 
   writer.writeLine(`if (query.where.${keyUniqueIdentifier.name})`).block(() => {
-    writer.write(`record = await this.client._db.get('${model.name}', ${fields})`);
+    writer.writeLine(`record = await tx.objectStore("${model.name}").get(${fields});`);
   });
 }
 
@@ -59,7 +68,7 @@ function getFromNonKeyIdentifier(writer: CodeBlockWriter, model: Model) {
     fields = fields.replaceAll('"', "");
 
     writer.writeLine(`else if (query.where.${name})`).block(() => {
-      writer.write(`record = await this.client._db.getFromIndex`).write(`('${model.name}', '${name}Index', ${fields})`);
+      writer.writeLine(`record = await tx.objectStore("${model.name}").index("${name}Index").get(${fields});`);
     });
   });
 }

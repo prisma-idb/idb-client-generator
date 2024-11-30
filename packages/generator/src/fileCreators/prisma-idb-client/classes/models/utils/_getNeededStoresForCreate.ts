@@ -9,7 +9,9 @@ export function addGetNeededStoresForCreate(modelClass: ClassDeclaration, model:
     parameters: [{ name: "data", type: "D" }],
     returnType: "Set<StoreNames<PrismaIDBSchema>>",
     statements: (writer) => {
-      writer.writeLine("const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();");
+      writer
+        .writeLine(`const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();`)
+        .writeLine(`neededStores.add("${model.name}");`);
       processRelationsInData(writer, model);
       writer.writeLine("return neededStores;");
     },

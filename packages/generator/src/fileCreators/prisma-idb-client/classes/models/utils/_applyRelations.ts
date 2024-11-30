@@ -10,6 +10,10 @@ export function addApplyRelations(modelClass: ClassDeclaration, model: Model, mo
     typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, 'findMany'>` }],
     parameters: [
       { name: "records", type: `Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>[]` },
+      {
+        name: "tx",
+        type: "IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType",
+      },
       { name: "query", type: "Q", hasQuestionToken: true },
     ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'findFirstOrThrow'>[]>`,
@@ -74,7 +78,7 @@ function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
         .writeLine(`...(attach_${field.name} === true ? {} : attach_${field.name}),`)
         .writeLine(`where: { ${field.relationToFields?.at(0)}: record.${field.relationFromFields?.at(0)} }`);
     })
-    .writeLine(`)`);
+    .writeLine(`, tx)`);
 }
 
 function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Field, otherField: Field) {
@@ -85,7 +89,7 @@ function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Fie
         .writeLine(`...(attach_${field.name} === true ? {} : attach_${field.name}),`)
         .writeLine(`where: { ${otherField.relationFromFields?.at(0)}: record.${otherField.relationToFields?.at(0)} }`);
     })
-    .writeLine(`)`);
+    .writeLine(`, tx)`);
 }
 
 function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField: Field) {
@@ -96,7 +100,7 @@ function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField:
         .writeLine(`...(attach_${field.name} === true ? {} : attach_${field.name}),`)
         .writeLine(`where: { ${otherField.relationFromFields?.at(0)}: record.${otherField.relationToFields?.at(0)} }`);
     })
-    .writeLine(`)`);
+    .writeLine(`, tx)`);
 }
 
 function addReturn(writer: CodeBlockWriter, model: Model) {

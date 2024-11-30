@@ -19,7 +19,7 @@ export function addCreateManyAndReturn(modelClass: ClassDeclaration, model: Mode
         .writeLine(`for (const createData of createManyData)`)
         .block(() => {
           writer
-            .writeLine(`const record = await this._fillDefaults(createData, tx);`)
+            .writeLine(`const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));`)
             .writeLine(`await tx.objectStore("${model.name}").add(record);`)
             .writeLine(`records.push(this._applySelectClause([record], query.select)[0]);`);
         })

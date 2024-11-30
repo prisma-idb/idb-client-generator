@@ -6,7 +6,14 @@ export function addFindManyMethod(modelClass: ClassDeclaration, model: Model) {
     name: "findMany",
     isAsync: true,
     typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, 'findMany'>` }],
-    parameters: [{ name: "query", hasQuestionToken: true, type: "Q" }],
+    parameters: [
+      { name: "query", hasQuestionToken: true, type: "Q" },
+      {
+        name: "tx",
+        hasQuestionToken: true,
+        type: "IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType",
+      },
+    ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'findMany'>>`,
     statements: (writer) => {
       getRecords(writer, model);
@@ -18,14 +25,14 @@ export function addFindManyMethod(modelClass: ClassDeclaration, model: Model) {
 }
 
 function getRecords(writer: CodeBlockWriter, model: Model) {
-  writer.writeLine(
-    `const records = this._applyWhereClause(await this.client._db.getAll("${model.name}"), query?.where)`,
-  );
+  writer
+    .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`)
+    .writeLine(`const records = this._applyWhereClause(await tx.objectStore("${model.name}").getAll(), query?.where);`);
 }
 
 function applyRelationsToRecords(writer: CodeBlockWriter, model: Model) {
   writer
-    .write(`const relationAppliedRecords = (await this._applyRelations(records, query)) `)
+    .write(`const relationAppliedRecords = (await this._applyRelations(records, tx, query)) `)
     .write(`as Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>[];`);
 }
 

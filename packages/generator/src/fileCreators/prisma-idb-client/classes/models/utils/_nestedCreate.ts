@@ -14,7 +14,7 @@ export function addNestedCreateMethod(modelClass: ClassDeclaration, model: Model
     statements: (writer) => {
       writer
         .writeLine(`await this._performNestedCreates(query.data, tx, false);`)
-        .writeLine(`const record = await this._fillDefaults(query.data, tx);`)
+        .writeLine(`const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));`)
         .writeLine(`const keyPath = await tx.objectStore("${model.name}").add(record);`)
         .writeLine(`return keyPath;`);
     },
