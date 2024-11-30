@@ -16,7 +16,7 @@ test("create_NonExistentForeignKey_ShouldFail", async ({ page }) => {
     model: "profile",
     operation: "create",
     query: { data: { bio: "John's bio", userId: 7 } },
-    errorMessage: "Foreign key (7) for model (User) does not exist"
+    errorMessage: "Record not found",
   });
 });
 

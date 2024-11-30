@@ -21,11 +21,10 @@ test("connect_ConnectValidPostsToUser_AddsForeignKeysToPosts", async ({ page }) 
     query: { data: { name: "John", posts: { connect: [{ id: 1 }, { id: 2 /* conditions in connect */ }] } } },
   });
 
-  const result = await expectQueryToSucceed({
+  await expectQueryToSucceed({
     page,
     model: "post",
     operation: "findMany",
     query: { include: { author: true } },
   });
-  console.log(result);
 });
