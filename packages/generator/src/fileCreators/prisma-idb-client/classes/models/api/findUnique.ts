@@ -18,7 +18,9 @@ export function addFindUniqueMethod(modelClass: ClassDeclaration, model: Model) 
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'findUnique'>>`,
     statements: (writer) => {
       writer
-        .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`)
+        .writeLine(
+          `tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`,
+        )
         .writeLine("let record;");
       getFromKeyIdentifier(writer, model);
       getFromNonKeyIdentifier(writer, model);
