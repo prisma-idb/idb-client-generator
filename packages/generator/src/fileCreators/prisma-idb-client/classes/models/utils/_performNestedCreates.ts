@@ -13,7 +13,7 @@ export function addPerformNestedCreatesMethod(modelClass: ClassDeclaration, mode
     typeParameters: [{ name: "D", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]` }],
     parameters: [
       { name: "data", type: "D" },
-      { name: "tx", type: "CreateTransactionType" },
+      { name: "tx", type: "IDBUtils.CreateTransactionType" },
       { name: "validateFKs", initializer: "true" },
     ],
     returnType: ``,
@@ -114,7 +114,7 @@ function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField:
       .write(`await this.client.${toCamelCase(field.type)}.createMany(`)
       .block(() => {
         writer
-          .writeLine(`data: convertToArray(data.${field.name}.create).map((createData) => (`)
+          .writeLine(`data: IDBUtils.convertToArray(data.${field.name}.create).map((createData) => (`)
           .block(() => {
             writer.writeLine(
               `...createData, ${otherField.relationFromFields?.at(0)}: data.${otherField.relationToFields?.at(0)}!`,
@@ -132,7 +132,7 @@ function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField:
       .write(`await this.client.${toCamelCase(field.type)}.createMany(`)
       .block(() => {
         writer
-          .writeLine(`data: convertToArray(data.${field.name}.createMany.data).map((createData) => (`)
+          .writeLine(`data: IDBUtils.convertToArray(data.${field.name}.createMany.data).map((createData) => (`)
           .block(() => {
             writer.writeLine(
               `...createData, ${otherField.relationFromFields?.at(0)}: data.${otherField.relationToFields?.at(0)}!`,

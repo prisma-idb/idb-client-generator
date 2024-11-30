@@ -9,7 +9,7 @@ export function addFillDefaultsFunction(modelClass: ClassDeclaration, model: Mod
     typeParameters: [{ name: "D", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]` }],
     parameters: [
       { name: "data", type: "D" },
-      { name: "tx", hasQuestionToken: true, type: "CreateTransactionType" },
+      { name: "tx", hasQuestionToken: true, type: "IDBUtils.CreateTransactionType" },
     ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>>`,
     statements: (writer) => {

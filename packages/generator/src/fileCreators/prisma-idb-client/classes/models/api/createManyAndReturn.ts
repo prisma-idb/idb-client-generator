@@ -8,12 +8,12 @@ export function addCreateManyAndReturn(modelClass: ClassDeclaration, model: Mode
     typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "createManyAndReturn">` }],
     parameters: [
       { name: "query", type: "Q" },
-      { name: "tx", type: "CreateTransactionType", hasQuestionToken: true },
+      { name: "tx", type: "IDBUtils.CreateTransactionType", hasQuestionToken: true },
     ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "createManyAndReturn">>`,
     statements: (writer) => {
       writer
-        .writeLine(`const createManyData = convertToArray(query.data);`)
+        .writeLine(`const createManyData = IDBUtils.convertToArray(query.data);`)
         .writeLine(`const records: unknown[] = [];`)
         .writeLine(`tx = tx ?? this.client._db.transaction(["${model.name}"], "readwrite");`)
         .writeLine(`for (const createData of createManyData)`)

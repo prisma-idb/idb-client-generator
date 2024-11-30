@@ -8,7 +8,7 @@ export function addNestedCreateMethod(modelClass: ClassDeclaration, model: Model
     typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "create">` }],
     parameters: [
       { name: "query", type: "Q" },
-      { name: "tx", type: "CreateTransactionType" },
+      { name: "tx", type: "IDBUtils.CreateTransactionType" },
     ],
     returnType: `Promise<PrismaIDBSchema['${model.name}']['key']>`,
     statements: (writer) => {

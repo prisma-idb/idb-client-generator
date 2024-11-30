@@ -2,9 +2,7 @@ import type { Prisma } from "@prisma/client";
 import type { IDBPDatabase, StoreNames } from "idb";
 import { openDB } from "idb";
 import type { PrismaIDBSchema } from "./idb-interface";
-import type { CreateTransactionType } from "./idb-utils";
 import * as IDBUtils from "./idb-utils";
-import { convertToArray } from "./idb-utils";
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 const IDB_VERSION = 1;
@@ -142,7 +140,7 @@ class UserIDBClass extends BaseIDBModelClass {
 
   private async _fillDefaults<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(
     data: D,
-    tx?: CreateTransactionType,
+    tx?: IDBUtils.CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">> {
     if (data === undefined) data = {} as NonNullable<D>;
     if (data.id === undefined) {
@@ -161,12 +159,12 @@ class UserIDBClass extends BaseIDBModelClass {
     if (data.profile) {
       neededStores.add("Profile");
       if (data.profile.create) {
-        convertToArray(data.profile.create).forEach((record) =>
+        IDBUtils.convertToArray(data.profile.create).forEach((record) =>
           this.client.profile._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
         );
       }
       if (data.profile.connectOrCreate) {
-        convertToArray(data.profile.connectOrCreate).forEach((record) =>
+        IDBUtils.convertToArray(data.profile.connectOrCreate).forEach((record) =>
           this.client.profile
             ._getNeededStoresForCreate(record.create)
             .forEach((storeName) => neededStores.add(storeName)),
@@ -176,17 +174,17 @@ class UserIDBClass extends BaseIDBModelClass {
     if (data.posts) {
       neededStores.add("Post");
       if (data.posts.create) {
-        convertToArray(data.posts.create).forEach((record) =>
+        IDBUtils.convertToArray(data.posts.create).forEach((record) =>
           this.client.post._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
         );
       }
       if (data.posts.connectOrCreate) {
-        convertToArray(data.posts.connectOrCreate).forEach((record) =>
+        IDBUtils.convertToArray(data.posts.connectOrCreate).forEach((record) =>
           this.client.post._getNeededStoresForCreate(record.create).forEach((storeName) => neededStores.add(storeName)),
         );
       }
       if (data.posts.createMany) {
-        convertToArray(data.posts.createMany.data).forEach((record) =>
+        IDBUtils.convertToArray(data.posts.createMany.data).forEach((record) =>
           this.client.post._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
         );
       }
@@ -205,7 +203,7 @@ class UserIDBClass extends BaseIDBModelClass {
 
   private async _performNestedCreates<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(
     data: D,
-    tx: CreateTransactionType,
+    tx: IDBUtils.CreateTransactionType,
     validateFKs = true,
   ) {
     if (data.profile) {
@@ -226,7 +224,7 @@ class UserIDBClass extends BaseIDBModelClass {
       if (data.posts.create) {
         await this.client.post.createMany(
           {
-            data: convertToArray(data.posts.create).map((createData) => ({
+            data: IDBUtils.convertToArray(data.posts.create).map((createData) => ({
               ...createData,
               authorId: data.id!,
             })),
@@ -240,7 +238,7 @@ class UserIDBClass extends BaseIDBModelClass {
       if (data.posts.createMany) {
         await this.client.post.createMany(
           {
-            data: convertToArray(data.posts.createMany.data).map((createData) => ({
+            data: IDBUtils.convertToArray(data.posts.createMany.data).map((createData) => ({
               ...createData,
               authorId: data.id!,
             })),
@@ -254,7 +252,7 @@ class UserIDBClass extends BaseIDBModelClass {
 
   async _nestedCreate<Q extends Prisma.Args<Prisma.UserDelegate, "create">>(
     query: Q,
-    tx: CreateTransactionType,
+    tx: IDBUtils.CreateTransactionType,
   ): Promise<PrismaIDBSchema["User"]["key"]> {
     await this._performNestedCreates(query.data, tx, false);
     const record = await this._fillDefaults(query.data, tx);
@@ -354,9 +352,9 @@ class UserIDBClass extends BaseIDBModelClass {
 
   async createMany<Q extends Prisma.Args<Prisma.UserDelegate, "createMany">>(
     query: Q,
-    tx?: CreateTransactionType,
+    tx?: IDBUtils.CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "createMany">> {
-    const createManyData = convertToArray(query.data);
+    const createManyData = IDBUtils.convertToArray(query.data);
     tx = tx ?? this.client._db.transaction(["User"], "readwrite");
     for (const createData of createManyData) {
       const record = await this._fillDefaults(createData, tx);
@@ -367,9 +365,9 @@ class UserIDBClass extends BaseIDBModelClass {
 
   async createManyAndReturn<Q extends Prisma.Args<Prisma.UserDelegate, "createManyAndReturn">>(
     query: Q,
-    tx?: CreateTransactionType,
+    tx?: IDBUtils.CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "createManyAndReturn">> {
-    const createManyData = convertToArray(query.data);
+    const createManyData = IDBUtils.convertToArray(query.data);
     const records: unknown[] = [];
     tx = tx ?? this.client._db.transaction(["User"], "readwrite");
     for (const createData of createManyData) {
@@ -457,7 +455,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   private async _fillDefaults<D extends Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>(
     data: D,
-    tx?: CreateTransactionType,
+    tx?: IDBUtils.CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">> {
     if (data === undefined) data = {} as NonNullable<D>;
     if (data.id === undefined) {
@@ -479,12 +477,12 @@ class ProfileIDBClass extends BaseIDBModelClass {
     if (data.user) {
       neededStores.add("User");
       if (data.user.create) {
-        convertToArray(data.user.create).forEach((record) =>
+        IDBUtils.convertToArray(data.user.create).forEach((record) =>
           this.client.user._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
         );
       }
       if (data.user.connectOrCreate) {
-        convertToArray(data.user.connectOrCreate).forEach((record) =>
+        IDBUtils.convertToArray(data.user.connectOrCreate).forEach((record) =>
           this.client.user._getNeededStoresForCreate(record.create).forEach((storeName) => neededStores.add(storeName)),
         );
       }
@@ -505,7 +503,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   private async _performNestedCreates<D extends Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>(
     data: D,
-    tx: CreateTransactionType,
+    tx: IDBUtils.CreateTransactionType,
     validateFKs = true,
   ) {
     if (data.user) {
@@ -531,7 +529,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   async _nestedCreate<Q extends Prisma.Args<Prisma.ProfileDelegate, "create">>(
     query: Q,
-    tx: CreateTransactionType,
+    tx: IDBUtils.CreateTransactionType,
   ): Promise<PrismaIDBSchema["Profile"]["key"]> {
     await this._performNestedCreates(query.data, tx, false);
     const record = await this._fillDefaults(query.data, tx);
@@ -633,9 +631,9 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   async createMany<Q extends Prisma.Args<Prisma.ProfileDelegate, "createMany">>(
     query: Q,
-    tx?: CreateTransactionType,
+    tx?: IDBUtils.CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "createMany">> {
-    const createManyData = convertToArray(query.data);
+    const createManyData = IDBUtils.convertToArray(query.data);
     tx = tx ?? this.client._db.transaction(["Profile"], "readwrite");
     for (const createData of createManyData) {
       const record = await this._fillDefaults(createData, tx);
@@ -646,9 +644,9 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   async createManyAndReturn<Q extends Prisma.Args<Prisma.ProfileDelegate, "createManyAndReturn">>(
     query: Q,
-    tx?: CreateTransactionType,
+    tx?: IDBUtils.CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "createManyAndReturn">> {
-    const createManyData = convertToArray(query.data);
+    const createManyData = IDBUtils.convertToArray(query.data);
     const records: unknown[] = [];
     tx = tx ?? this.client._db.transaction(["Profile"], "readwrite");
     for (const createData of createManyData) {
@@ -739,7 +737,7 @@ class PostIDBClass extends BaseIDBModelClass {
 
   private async _fillDefaults<D extends Prisma.Args<Prisma.PostDelegate, "create">["data"]>(
     data: D,
-    tx?: CreateTransactionType,
+    tx?: IDBUtils.CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">> {
     if (data === undefined) data = {} as NonNullable<D>;
     if (data.id === undefined) {
@@ -761,12 +759,12 @@ class PostIDBClass extends BaseIDBModelClass {
     if (data.author) {
       neededStores.add("User");
       if (data.author.create) {
-        convertToArray(data.author.create).forEach((record) =>
+        IDBUtils.convertToArray(data.author.create).forEach((record) =>
           this.client.user._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
         );
       }
       if (data.author.connectOrCreate) {
-        convertToArray(data.author.connectOrCreate).forEach((record) =>
+        IDBUtils.convertToArray(data.author.connectOrCreate).forEach((record) =>
           this.client.user._getNeededStoresForCreate(record.create).forEach((storeName) => neededStores.add(storeName)),
         );
       }
@@ -787,7 +785,7 @@ class PostIDBClass extends BaseIDBModelClass {
 
   private async _performNestedCreates<D extends Prisma.Args<Prisma.PostDelegate, "create">["data"]>(
     data: D,
-    tx: CreateTransactionType,
+    tx: IDBUtils.CreateTransactionType,
     validateFKs = true,
   ) {
     if (data.author) {
@@ -813,7 +811,7 @@ class PostIDBClass extends BaseIDBModelClass {
 
   async _nestedCreate<Q extends Prisma.Args<Prisma.PostDelegate, "create">>(
     query: Q,
-    tx: CreateTransactionType,
+    tx: IDBUtils.CreateTransactionType,
   ): Promise<PrismaIDBSchema["Post"]["key"]> {
     await this._performNestedCreates(query.data, tx, false);
     const record = await this._fillDefaults(query.data, tx);
@@ -913,9 +911,9 @@ class PostIDBClass extends BaseIDBModelClass {
 
   async createMany<Q extends Prisma.Args<Prisma.PostDelegate, "createMany">>(
     query: Q,
-    tx?: CreateTransactionType,
+    tx?: IDBUtils.CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "createMany">> {
-    const createManyData = convertToArray(query.data);
+    const createManyData = IDBUtils.convertToArray(query.data);
     tx = tx ?? this.client._db.transaction(["Post"], "readwrite");
     for (const createData of createManyData) {
       const record = await this._fillDefaults(createData, tx);
@@ -926,9 +924,9 @@ class PostIDBClass extends BaseIDBModelClass {
 
   async createManyAndReturn<Q extends Prisma.Args<Prisma.PostDelegate, "createManyAndReturn">>(
     query: Q,
-    tx?: CreateTransactionType,
+    tx?: IDBUtils.CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "createManyAndReturn">> {
-    const createManyData = convertToArray(query.data);
+    const createManyData = IDBUtils.convertToArray(query.data);
     const records: unknown[] = [];
     tx = tx ?? this.client._db.transaction(["Post"], "readwrite");
     for (const createData of createManyData) {
@@ -1040,7 +1038,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
 
   private async _fillDefaults<D extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">["data"]>(
     data: D,
-    tx?: CreateTransactionType,
+    tx?: IDBUtils.CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">> {
     if (data === undefined) data = {} as NonNullable<D>;
     if (data.id === undefined) {
@@ -1074,13 +1072,13 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
 
   private async _performNestedCreates<D extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">["data"]>(
     data: D,
-    tx: CreateTransactionType,
+    tx: IDBUtils.CreateTransactionType,
     validateFKs = true,
   ) {}
 
   async _nestedCreate<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">>(
     query: Q,
-    tx: CreateTransactionType,
+    tx: IDBUtils.CreateTransactionType,
   ): Promise<PrismaIDBSchema["AllFieldScalarTypes"]["key"]> {
     await this._performNestedCreates(query.data, tx, false);
     const record = await this._fillDefaults(query.data, tx);
@@ -1180,9 +1178,9 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
 
   async createMany<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "createMany">>(
     query: Q,
-    tx?: CreateTransactionType,
+    tx?: IDBUtils.CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "createMany">> {
-    const createManyData = convertToArray(query.data);
+    const createManyData = IDBUtils.convertToArray(query.data);
     tx = tx ?? this.client._db.transaction(["AllFieldScalarTypes"], "readwrite");
     for (const createData of createManyData) {
       const record = await this._fillDefaults(createData, tx);
@@ -1193,9 +1191,9 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
 
   async createManyAndReturn<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "createManyAndReturn">>(
     query: Q,
-    tx?: CreateTransactionType,
+    tx?: IDBUtils.CreateTransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "createManyAndReturn">> {
-    const createManyData = convertToArray(query.data);
+    const createManyData = IDBUtils.convertToArray(query.data);
     const records: unknown[] = [];
     tx = tx ?? this.client._db.transaction(["AllFieldScalarTypes"], "readwrite");
     for (const createData of createManyData) {

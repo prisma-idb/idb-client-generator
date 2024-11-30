@@ -23,14 +23,14 @@ function processRelationsInData(writer: CodeBlockWriter, model: Model) {
       writer.writeLine(`neededStores.add('${field.type}')`);
       writer.writeLine(`if (data.${field.name}.create)`).block(() => {
         writer
-          .writeLine(`convertToArray(data.${field.name}.create).forEach((record) => `)
+          .writeLine(`IDBUtils.convertToArray(data.${field.name}.create).forEach((record) => `)
           .write(`this.client.${toCamelCase(field.type)}._getNeededStoresForCreate(record)`)
           .write(`.forEach((storeName) => neededStores.add(storeName))`)
           .writeLine(`);`);
       });
       writer.writeLine(`if (data.${field.name}.connectOrCreate)`).block(() => {
         writer
-          .writeLine(`convertToArray(data.${field.name}.connectOrCreate).forEach((record) => `)
+          .writeLine(`IDBUtils.convertToArray(data.${field.name}.connectOrCreate).forEach((record) => `)
           .write(`this.client.${toCamelCase(field.type)}._getNeededStoresForCreate(record.create)`)
           .write(`.forEach((storeName) => neededStores.add(storeName))`)
           .writeLine(`);`);
@@ -38,7 +38,7 @@ function processRelationsInData(writer: CodeBlockWriter, model: Model) {
       if (field.isList) {
         writer.writeLine(`if (data.${field.name}.createMany)`).block(() => {
           writer
-            .writeLine(`convertToArray(data.${field.name}.createMany.data).forEach((record) => `)
+            .writeLine(`IDBUtils.convertToArray(data.${field.name}.createMany.data).forEach((record) => `)
             .write(`this.client.${toCamelCase(field.type)}._getNeededStoresForCreate(record)`)
             .write(`.forEach((storeName) => neededStores.add(storeName))`)
             .writeLine(`);`);

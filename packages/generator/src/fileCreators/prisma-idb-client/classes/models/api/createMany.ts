@@ -10,7 +10,7 @@ export function addCreateManyMethod(modelClass: ClassDeclaration, model: Model) 
     typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "createMany">` }],
     parameters: [
       { name: "query", type: "Q" },
-      { name: "tx", hasQuestionToken: true, type: "CreateTransactionType" },
+      { name: "tx", hasQuestionToken: true, type: "IDBUtils.CreateTransactionType" },
     ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "createMany">>`,
     statements: (writer) => {
@@ -23,7 +23,7 @@ export function addCreateManyMethod(modelClass: ClassDeclaration, model: Model) 
 
 function setupDataAndTx(writer: CodeBlockWriter, model: Model) {
   writer
-    .writeLine("const createManyData = convertToArray(query.data);")
+    .writeLine("const createManyData = IDBUtils.convertToArray(query.data);")
     .writeLine(`tx = tx ?? this.client._db.transaction(["${model.name}"], "readwrite");`);
 }
 
