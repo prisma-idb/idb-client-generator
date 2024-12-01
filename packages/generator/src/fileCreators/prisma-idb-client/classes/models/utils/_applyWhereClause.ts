@@ -33,7 +33,7 @@ export function addApplyWhereClause(modelClass: ClassDeclaration, model: Model) 
 }
 
 function addStringFiltering(writer: CodeBlockWriter, model: Model) {
-  const stringFields = model.fields.filter((field) => field.type === "String").map(({ name }) => name);
+  const stringFields = model.fields.filter((field) => field.type === "String" && !field.isList).map(({ name }) => name);
   if (stringFields.length === 0) return;
   writer
     .writeLine(`const stringFields = ${JSON.stringify(stringFields)} as const;`)
@@ -45,7 +45,7 @@ function addStringFiltering(writer: CodeBlockWriter, model: Model) {
 
 function addNumberFiltering(writer: CodeBlockWriter, model: Model) {
   const numberFields = model.fields
-    .filter((field) => field.type === "Int" || field.type === "Float")
+    .filter((field) => (field.type === "Int" || field.type === "Float") && !field.isList)
     .map(({ name }) => name);
 
   if (numberFields.length === 0) return;
@@ -58,7 +58,7 @@ function addNumberFiltering(writer: CodeBlockWriter, model: Model) {
 }
 
 function addBigIntFiltering(writer: CodeBlockWriter, model: Model) {
-  const numberFields = model.fields.filter((field) => field.type === "BigInt").map(({ name }) => name);
+  const numberFields = model.fields.filter((field) => field.type === "BigInt" && !field.isList).map(({ name }) => name);
 
   if (numberFields.length === 0) return;
   writer
@@ -70,7 +70,9 @@ function addBigIntFiltering(writer: CodeBlockWriter, model: Model) {
 }
 
 function addBoolFiltering(writer: CodeBlockWriter, model: Model) {
-  const booleanFields = model.fields.filter((field) => field.type === "Boolean").map(({ name }) => name);
+  const booleanFields = model.fields
+    .filter((field) => field.type === "Boolean" && !field.isList)
+    .map(({ name }) => name);
 
   if (booleanFields.length === 0) return;
   writer
@@ -82,7 +84,7 @@ function addBoolFiltering(writer: CodeBlockWriter, model: Model) {
 }
 
 function addBytesFiltering(writer: CodeBlockWriter, model: Model) {
-  const bytesFields = model.fields.filter((field) => field.type === "Bytes").map(({ name }) => name);
+  const bytesFields = model.fields.filter((field) => field.type === "Bytes" && !field.isList).map(({ name }) => name);
 
   if (bytesFields.length === 0) return;
   writer
@@ -94,7 +96,9 @@ function addBytesFiltering(writer: CodeBlockWriter, model: Model) {
 }
 
 function addDateTimeFiltering(writer: CodeBlockWriter, model: Model) {
-  const dateTimeFields = model.fields.filter((field) => field.type === "DateTime").map(({ name }) => name);
+  const dateTimeFields = model.fields
+    .filter((field) => field.type === "DateTime" && !field.isList)
+    .map(({ name }) => name);
 
   if (dateTimeFields.length === 0) return;
   writer

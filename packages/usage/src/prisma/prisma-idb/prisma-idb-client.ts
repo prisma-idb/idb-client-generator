@@ -873,7 +873,7 @@ class PostIDBClass extends BaseIDBModelClass {
     }
     return records.map((record) => {
       const partialRecord: Partial<typeof record> = record;
-      for (const untypedKey of ["id", "title", "author", "authorId", "comments"]) {
+      for (const untypedKey of ["id", "title", "author", "authorId", "comments", "tags"]) {
         const key = untypedKey as keyof typeof record & keyof S;
         if (!selectClause[key]) delete partialRecord[key];
       }

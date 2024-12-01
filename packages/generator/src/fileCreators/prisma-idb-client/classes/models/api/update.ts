@@ -48,7 +48,7 @@ function addPutAndReturn(writer: CodeBlockWriter, model: Model) {
 }
 
 function addStringUpdateHandling(writer: CodeBlockWriter, model: Model) {
-  const stringFields = model.fields.filter((field) => field.type === "String").map(({ name }) => name);
+  const stringFields = model.fields.filter((field) => field.type === "String" && !field.isList).map(({ name }) => name);
   if (stringFields.length === 0) return;
 
   writer
@@ -60,7 +60,7 @@ function addStringUpdateHandling(writer: CodeBlockWriter, model: Model) {
 }
 
 function addIntUpdateHandling(writer: CodeBlockWriter, model: Model) {
-  const intFields = model.fields.filter((field) => field.type === "Int").map(({ name }) => name);
+  const intFields = model.fields.filter((field) => field.type === "Int" && !field.isList).map(({ name }) => name);
   if (intFields.length === 0) return;
 
   writer
@@ -72,7 +72,9 @@ function addIntUpdateHandling(writer: CodeBlockWriter, model: Model) {
 }
 
 function addDateTimeUpdateHandling(writer: CodeBlockWriter, model: Model) {
-  const dateTimeFields = model.fields.filter((field) => field.type === "DateTime").map(({ name }) => name);
+  const dateTimeFields = model.fields
+    .filter((field) => field.type === "DateTime" && !field.isList)
+    .map(({ name }) => name);
   if (dateTimeFields.length === 0) return;
 
   writer
@@ -84,7 +86,9 @@ function addDateTimeUpdateHandling(writer: CodeBlockWriter, model: Model) {
 }
 
 function addBooleanUpdateHandling(writer: CodeBlockWriter, model: Model) {
-  const booleanFields = model.fields.filter((field) => field.type === "Boolean").map(({ name }) => name);
+  const booleanFields = model.fields
+    .filter((field) => field.type === "Boolean" && !field.isList)
+    .map(({ name }) => name);
   if (booleanFields.length === 0) return;
 
   writer
@@ -96,7 +100,7 @@ function addBooleanUpdateHandling(writer: CodeBlockWriter, model: Model) {
 }
 
 function addBytesUpdateHandling(writer: CodeBlockWriter, model: Model) {
-  const bytesFields = model.fields.filter((field) => field.type === "Bytes").map(({ name }) => name);
+  const bytesFields = model.fields.filter((field) => field.type === "Bytes" && !field.isList).map(({ name }) => name);
   if (bytesFields.length === 0) return;
 
   writer
