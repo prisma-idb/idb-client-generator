@@ -3,8 +3,9 @@ import { SourceFile, VariableDeclarationKind } from "ts-morph";
 import { addClientClass } from "./classes/PrismaIDBClient";
 import { addBaseModelClass } from "./classes/BaseIDBModelClass";
 import { addIDBModelClass } from "./classes/models/IDBModelClass";
+import type { Model } from "../types";
 
-function addImports(file: SourceFile) {
+function addImports(file: SourceFile, models: readonly Model[]) {
   file.addImportDeclaration({
     moduleSpecifier: "idb",
     namedImports: ["openDB"],
@@ -23,6 +24,16 @@ function addImports(file: SourceFile) {
     namedImports: ["PrismaIDBSchema"],
     isTypeOnly: true,
   });
+
+  const cuidFieldExists = models
+    .flatMap((model) => model.fields)
+    .some((field) => typeof field.default === "object" && "name" in field.default && field.default.name == "cuid");
+  if (cuidFieldExists) {
+    file.addImportDeclaration({
+      moduleSpecifier: "@paralleldrive/cuid2",
+      namedImports: ["createId"],
+    });
+  }
 }
 
 function addVersionDeclaration(file: SourceFile) {
@@ -33,7 +44,7 @@ function addVersionDeclaration(file: SourceFile) {
 }
 
 export function createPrismaIDBClientFile(idbClientFile: SourceFile, models: DMMF.Datamodel["models"]) {
-  addImports(idbClientFile);
+  addImports(idbClientFile, models);
   addVersionDeclaration(idbClientFile);
   addClientClass(idbClientFile, models);
   addBaseModelClass(idbClientFile);

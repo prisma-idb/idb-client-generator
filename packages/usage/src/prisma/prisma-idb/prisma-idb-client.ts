@@ -1,3 +1,4 @@
+import { createId } from "@paralleldrive/cuid2";
 import type { Prisma } from "@prisma/client";
 import type { IDBPDatabase, StoreNames } from "idb";
 import { openDB } from "idb";
@@ -1229,7 +1230,6 @@ class CommentIDBClass extends BaseIDBModelClass {
   ): Promise<D> {
     if (data === undefined) data = {} as D;
     if (data.id === undefined) {
-      const { createId } = await import("@paralleldrive/cuid2");
       data.id = createId();
     }
     return data;

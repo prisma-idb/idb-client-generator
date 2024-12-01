@@ -54,9 +54,7 @@ function addUuidDefault(writer: CodeBlockWriter, field: Field) {
 }
 
 function addCuidDefault(writer: CodeBlockWriter, field: Field) {
-  writer
-    .writeLine("const { createId } = await import('@paralleldrive/cuid2');")
-    .writeLine(`data.${field.name} = createId();`);
+  writer.writeLine(`data.${field.name} = createId();`);
 }
 
 function addAutoincrementDefault(writer: CodeBlockWriter, model: Model, field: Field) {
