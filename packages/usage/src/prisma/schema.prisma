@@ -8,7 +8,7 @@ generator client {
 }
 
 generator prismaIDB {
-  provider = "prisma-idb-generator"
+  provider = "idb-client-generator"
   output   = "./prisma-idb"
 }
 
