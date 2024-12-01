@@ -40,7 +40,6 @@ export function addBytesUpdateHandler(utilsFile: SourceFile, models: readonly Mo
         .block(() => {
           writer.writeLine(`(record[fieldName] as ${fieldType}) = bytesUpdate.set;`);
         })
-        .writeLine(`return true;`);
     },
   });
 }

@@ -42,7 +42,6 @@ export function addIntUpdateHandler(utilsFile: SourceFile, models: readonly Mode
         .block(() => {
           writer.writeLine(`(record[fieldName] as ${fieldType}) = intUpdate.set;`);
         })
-        .writeLine(`return true;`);
     },
   });
 }

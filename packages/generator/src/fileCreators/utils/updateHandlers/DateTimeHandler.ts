@@ -40,7 +40,6 @@ export function addDateTimeUpdateHandler(utilsFile: SourceFile, models: readonly
         .block(() => {
           writer.writeLine(`(record[fieldName] as ${fieldType}) = new Date(dateTimeUpdate.set);`);
         })
-        .writeLine(`return true;`);
     },
   });
 }

@@ -35,12 +35,9 @@ export function addBooleanUpdateHandler(utilsFile: SourceFile, models: readonly 
         .block(() => {
           writer.writeLine(`(record[fieldName] as ${fieldType}) = booleanUpdate;`);
         });
-      writer
-        .writeLine(`else if (booleanUpdate.set !== undefined)`)
-        .block(() => {
-          writer.writeLine(`(record[fieldName] as ${fieldType}) = booleanUpdate.set;`);
-        })
-        .writeLine(`return true;`);
+      writer.writeLine(`else if (booleanUpdate.set !== undefined)`).block(() => {
+        writer.writeLine(`(record[fieldName] as ${fieldType}) = booleanUpdate.set;`);
+      });
     },
   });
 }

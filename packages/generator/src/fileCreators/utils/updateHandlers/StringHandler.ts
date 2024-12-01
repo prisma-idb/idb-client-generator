@@ -35,12 +35,9 @@ export function addStringUpdateHandler(utilsFile: SourceFile, models: readonly M
         .block(() => {
           writer.writeLine(`(record[fieldName] as ${fieldType}) = stringUpdate;`);
         });
-      writer
-        .writeLine(`else if (stringUpdate.set !== undefined)`)
-        .block(() => {
-          writer.writeLine(`(record[fieldName] as ${fieldType}) = stringUpdate.set;`);
-        })
-        .writeLine(`return true;`);
+      writer.writeLine(`else if (stringUpdate.set !== undefined)`).block(() => {
+        writer.writeLine(`(record[fieldName] as ${fieldType}) = stringUpdate.set;`);
+      });
     },
   });
 }
