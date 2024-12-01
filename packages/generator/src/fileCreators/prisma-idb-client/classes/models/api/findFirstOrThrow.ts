@@ -1,8 +1,6 @@
 import { Model } from "../../../../../fileCreators/types";
 import { ClassDeclaration } from "ts-morph";
 
-// TODO: tx support
-
 export function addFindFirstOrThrow(modelClass: ClassDeclaration, model: Model) {
   modelClass.addMethod({
     name: "findFirstOrThrow",

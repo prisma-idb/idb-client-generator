@@ -2,8 +2,7 @@ import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
 import { Field, Model } from "../../../../../fileCreators/types";
 import { toCamelCase } from "../../../../../helpers/utils";
 
-// TODO: referential integrity?
-// TODO: nested creates, connect, connectOrCreate
+// TODO: nested connectOrCreate
 
 export function addCreateMethod(modelClass: ClassDeclaration, model: Model, models: readonly Model[]) {
   modelClass.addMethod({
@@ -146,6 +145,10 @@ function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField:
         })
         .writeLine(`, tx)`);
     } else {
+      /* 
+        This is due to Prisma's create query's constraint of using either 
+        { connect: { pk: value } } OR { fk: value } for all the fields
+      */
       const otherFkField = fkFields.find(({ relationName }) => relationName !== field.relationName)!;
       writer
         .writeLine(`const createData = Array.isArray(query.data.${field.name}.create)`)
