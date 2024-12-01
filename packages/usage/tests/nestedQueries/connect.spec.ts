@@ -25,6 +25,11 @@ test("connect_ConnectProfileToInvalidUser_ThrowsError", async ({ page }) => {
     query: { data: { bio: "John's bio", user: { connect: { id: 1 } } } },
     errorMessage: "Record not found",
   });
+  await expectQueryToSucceed({
+    page,
+    model: "profile",
+    operation: "findMany",
+  });
 });
 
 test("connect_ConnectProfileToUserDirectly_AddsForeignKeyToProfile", async ({ page }) => {
@@ -50,6 +55,11 @@ test("connect_ConnectProfileToInvalidUserDirectly_ThrowsError", async ({ page })
     operation: "create",
     query: { data: { bio: "John's bio", userId: 1 } },
     errorMessage: "Record not found",
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "profile",
+    operation: "findMany",
   });
 });
 
@@ -113,7 +123,12 @@ test("connect_ConnectNonExistentProfile_ThrowsError", async ({ page }) => {
     query: {
       data: { name: "John", profile: { connect: { id: 1 } } },
     },
-    errorMessage: "",
+    errorMessage: "Record not found",
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "findMany",
   });
 });
 

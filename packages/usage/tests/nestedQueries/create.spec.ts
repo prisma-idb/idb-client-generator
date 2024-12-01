@@ -1,3 +1,4 @@
+import { createId } from "@paralleldrive/cuid2";
 import { test } from "../fixtures";
 import { expectQueryToFail, expectQueryToSucceed } from "../queryRunnerHelper";
 
@@ -89,8 +90,25 @@ test("create_WithOneToManyRelation_CreatesParentAndManyChildRecords", async ({ p
   });
 });
 
-test("create_WithManyToManyRelation_CreatesJoinRecords", async () => {
-  // TODO
+test("create_WithManyToManyRelation_CreatesJoinRecords", async ({ page }) => {
+  const randomCUID = createId();
+  await expectQueryToSucceed({
+    page,
+    model: "post",
+    operation: "create",
+    query: {
+      data: {
+        title: "post1",
+        comments: { create: { id: randomCUID, text: "hi", user: { create: { name: "John" } } } },
+      },
+    },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "post",
+    operation: "findMany",
+    query: { include: { author: true, comments: { include: { user: true } } } },
+  });
 });
 
 test("create_WithDeeplyNestedRelations_PersistsAllEntities", async () => {

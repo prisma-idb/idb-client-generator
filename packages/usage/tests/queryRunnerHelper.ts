@@ -14,7 +14,7 @@ export async function expectQueryToSucceed<
 
   await page.getByTestId("query-input").fill(`${model}.${operation}(${JSON.stringify(query)})`);
   await page.getByRole("button", { name: "Run query" }).click();
-  await expect(page.getByRole("status").last()).toContainText("Query executed successfully");
+  await expect(page.getByRole("status").first()).toContainText("Query executed successfully");
 
   const idbClientResult = (await page.getByRole("code").textContent()) ?? "";
   expect(JSON.parse(idbClientResult)).toEqual(prismaClientResult);
@@ -32,5 +32,5 @@ export async function expectQueryToFail<
 
   await page.getByTestId("query-input").fill(`${model}.${operation}(${JSON.stringify(query)})`);
   await page.getByRole("button", { name: "Run query" }).click();
-  await expect(page.getByRole("status").filter({ hasText: errorMessage })).toBeVisible();
+  await expect(page.getByRole("status").first()).toContainText(errorMessage);
 }
