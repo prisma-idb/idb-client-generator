@@ -134,16 +134,12 @@ function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField:
   writer.writeLine(`if (query.data.${field.name}?.create)`).block(() => {
     if (fkFields.length === 1) {
       writer
-        .write(`await this.client.${toCamelCase(field.type)}.createMany(`)
+        .writeLine(`for (const createData of IDBUtils.convertToArray(query.data.${field.name}.create))`)
         .block(() => {
-          writer
-            .writeLine(`data: IDBUtils.convertToArray(query.data.${field.name}.create).map((createData) => (`)
-            .block(() => {
-              writer.writeLine(`...createData, ${otherField.relationFromFields?.at(0)}: keyPath[0]`);
-            })
-            .writeLine(`)),`);
-        })
-        .writeLine(`, tx)`);
+          writer.writeLine(
+            `await this.client.${toCamelCase(field.type)}.create({ data: { ...createData, ${otherField.name}: { connect: { ${otherField.relationToFields?.at(0)}: keyPath[0] } } } }, tx);`,
+          );
+        });
     } else {
       /* 
         This is due to Prisma's create query's constraint of using either 

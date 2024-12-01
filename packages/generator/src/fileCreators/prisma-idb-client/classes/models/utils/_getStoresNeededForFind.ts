@@ -1,4 +1,5 @@
 import { Model } from "src/fileCreators/types";
+import { toCamelCase } from "../../../../../helpers/utils";
 import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
 
 export function addGetNeededStoresForFind(modelClass: ClassDeclaration, model: Model) {
@@ -21,7 +22,20 @@ function processRelationsInQuery(writer: CodeBlockWriter, model: Model) {
   const relationFields = model.fields.filter(({ kind }) => kind === "object");
   relationFields.forEach((field) => {
     writer.writeLine(`if (query?.select?.${field.name} || query?.include?.${field.name})`).block(() => {
-      writer.writeLine(`neededStores.add("${field.type}");`);
+      writer
+        .writeLine(`neededStores.add("${field.type}");`)
+        .writeLine(`if (typeof query.select?.${field.name} === "object")`)
+        .block(() => {
+          writer.writeLine(
+            `this.client.${toCamelCase(field.type)}._getNeededStoresForFind(query.select.${field.name}).forEach((storeName) => neededStores.add(storeName));`,
+          );
+        })
+        .writeLine(`if (typeof query.include?.${field.name} === "object")`)
+        .block(() => {
+          writer.writeLine(
+            `this.client.${toCamelCase(field.type)}._getNeededStoresForFind(query.include.${field.name}).forEach((storeName) => neededStores.add(storeName));`,
+          );
+        });
     });
   });
 }

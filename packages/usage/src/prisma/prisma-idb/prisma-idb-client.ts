@@ -180,12 +180,42 @@ class UserIDBClass extends BaseIDBModelClass {
     neededStores.add("User");
     if (query?.select?.profile || query?.include?.profile) {
       neededStores.add("Profile");
+      if (typeof query.select?.profile === "object") {
+        this.client.profile
+          ._getNeededStoresForFind(query.select.profile)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.profile === "object") {
+        this.client.profile
+          ._getNeededStoresForFind(query.include.profile)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
     }
     if (query?.select?.posts || query?.include?.posts) {
       neededStores.add("Post");
+      if (typeof query.select?.posts === "object") {
+        this.client.post
+          ._getNeededStoresForFind(query.select.posts)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.posts === "object") {
+        this.client.post
+          ._getNeededStoresForFind(query.include.posts)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
     }
     if (query?.select?.comments || query?.include?.comments) {
       neededStores.add("Comment");
+      if (typeof query.select?.comments === "object") {
+        this.client.comment
+          ._getNeededStoresForFind(query.select.comments)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.comments === "object") {
+        this.client.comment
+          ._getNeededStoresForFind(query.include.comments)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
     }
     return neededStores;
   }
@@ -374,15 +404,9 @@ class UserIDBClass extends BaseIDBModelClass {
       throw new Error("connectOrCreate not yet implemented");
     }
     if (query.data.posts?.create) {
-      await this.client.post.createMany(
-        {
-          data: IDBUtils.convertToArray(query.data.posts.create).map((createData) => ({
-            ...createData,
-            authorId: keyPath[0],
-          })),
-        },
-        tx,
-      );
+      for (const createData of IDBUtils.convertToArray(query.data.posts.create)) {
+        await this.client.post.create({ data: { ...createData, author: { connect: { id: keyPath[0] } } } }, tx);
+      }
     }
     if (query.data.posts?.connect) {
       await Promise.all(
@@ -589,6 +613,14 @@ class ProfileIDBClass extends BaseIDBModelClass {
     neededStores.add("Profile");
     if (query?.select?.user || query?.include?.user) {
       neededStores.add("User");
+      if (typeof query.select?.user === "object") {
+        this.client.user._getNeededStoresForFind(query.select.user).forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.user === "object") {
+        this.client.user
+          ._getNeededStoresForFind(query.include.user)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
     }
     return neededStores;
   }
@@ -909,9 +941,29 @@ class PostIDBClass extends BaseIDBModelClass {
     neededStores.add("Post");
     if (query?.select?.author || query?.include?.author) {
       neededStores.add("User");
+      if (typeof query.select?.author === "object") {
+        this.client.user
+          ._getNeededStoresForFind(query.select.author)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.author === "object") {
+        this.client.user
+          ._getNeededStoresForFind(query.include.author)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
     }
     if (query?.select?.comments || query?.include?.comments) {
       neededStores.add("Comment");
+      if (typeof query.select?.comments === "object") {
+        this.client.comment
+          ._getNeededStoresForFind(query.select.comments)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.comments === "object") {
+        this.client.comment
+          ._getNeededStoresForFind(query.include.comments)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
     }
     return neededStores;
   }
@@ -1278,9 +1330,25 @@ class CommentIDBClass extends BaseIDBModelClass {
     neededStores.add("Comment");
     if (query?.select?.post || query?.include?.post) {
       neededStores.add("Post");
+      if (typeof query.select?.post === "object") {
+        this.client.post._getNeededStoresForFind(query.select.post).forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.post === "object") {
+        this.client.post
+          ._getNeededStoresForFind(query.include.post)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
     }
     if (query?.select?.user || query?.include?.user) {
       neededStores.add("User");
+      if (typeof query.select?.user === "object") {
+        this.client.user._getNeededStoresForFind(query.select.user).forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.user === "object") {
+        this.client.user
+          ._getNeededStoresForFind(query.include.user)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
     }
     return neededStores;
   }
