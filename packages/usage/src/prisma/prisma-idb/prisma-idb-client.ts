@@ -315,7 +315,7 @@ class UserIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findFirst">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    return (await this.findMany(query))[0];
+    return (await this.findMany(query))[0] ?? null;
   }
 
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.UserDelegate, "findFirstOrThrow">>(
@@ -679,7 +679,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findFirst">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    return (await this.findMany(query))[0];
+    return (await this.findMany(query))[0] ?? null;
   }
 
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.ProfileDelegate, "findFirstOrThrow">>(
@@ -1050,7 +1050,7 @@ class PostIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findFirst">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    return (await this.findMany(query))[0];
+    return (await this.findMany(query))[0] ?? null;
   }
 
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.PostDelegate, "findFirstOrThrow">>(
@@ -1435,7 +1435,7 @@ class CommentIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findFirst">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    return (await this.findMany(query))[0];
+    return (await this.findMany(query))[0] ?? null;
   }
 
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.CommentDelegate, "findFirstOrThrow">>(
@@ -1783,7 +1783,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirst">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    return (await this.findMany(query))[0];
+    return (await this.findMany(query))[0] ?? null;
   }
 
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findFirstOrThrow">>(
