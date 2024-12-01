@@ -2,6 +2,7 @@ import { prisma } from "$lib/prisma";
 import { test as base } from "@playwright/test";
 
 async function resetDatabase() {
+  await prisma.comment.deleteMany();
   await prisma.post.deleteMany();
   await prisma.user.deleteMany();
   await prisma.$executeRaw`ALTER SEQUENCE "User_id_seq" RESTART WITH 1`;
