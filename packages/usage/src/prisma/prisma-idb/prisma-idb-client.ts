@@ -282,15 +282,22 @@ class UserIDBClass extends BaseIDBModelClass {
 
   async findFirst<Q extends Prisma.Args<Prisma.UserDelegate, "findFirst">>(
     query?: Q,
+    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findFirst">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query))[0];
   }
 
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.UserDelegate, "findFirstOrThrow">>(
     query?: Q,
+    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">> {
-    const record = await this.findFirst(query);
-    if (!record) throw new Error("Record not found");
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findFirst(query, tx);
+    if (!record) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
     return record;
   }
 
@@ -316,8 +323,12 @@ class UserIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findUniqueOrThrow">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findUnique(query, tx);
-    if (!record) throw new Error("Record not found");
+    if (!record) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
     return record;
   }
 
@@ -472,6 +483,7 @@ class UserIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
+      tx.abort();
       throw new Error("Record not found");
     }
     const stringFields = ["name"] as const;
@@ -632,15 +644,22 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   async findFirst<Q extends Prisma.Args<Prisma.ProfileDelegate, "findFirst">>(
     query?: Q,
+    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findFirst">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query))[0];
   }
 
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.ProfileDelegate, "findFirstOrThrow">>(
     query?: Q,
+    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">> {
-    const record = await this.findFirst(query);
-    if (!record) throw new Error("Record not found");
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findFirst(query, tx);
+    if (!record) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
     return record;
   }
 
@@ -668,8 +687,12 @@ class ProfileIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findUniqueOrThrow">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findUnique(query, tx);
-    if (!record) throw new Error("Record not found");
+    if (!record) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
     return record;
   }
 
@@ -767,6 +790,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
+      tx.abort();
       throw new Error("Record not found");
     }
     const stringFields = ["bio"] as const;
@@ -965,15 +989,22 @@ class PostIDBClass extends BaseIDBModelClass {
 
   async findFirst<Q extends Prisma.Args<Prisma.PostDelegate, "findFirst">>(
     query?: Q,
+    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findFirst">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query))[0];
   }
 
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.PostDelegate, "findFirstOrThrow">>(
     query?: Q,
+    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findFirstOrThrow">> {
-    const record = await this.findFirst(query);
-    if (!record) throw new Error("Record not found");
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findFirst(query, tx);
+    if (!record) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
     return record;
   }
 
@@ -999,8 +1030,12 @@ class PostIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findUniqueOrThrow">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findUnique(query, tx);
-    if (!record) throw new Error("Record not found");
+    if (!record) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
     return record;
   }
 
@@ -1133,6 +1168,7 @@ class PostIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
+      tx.abort();
       throw new Error("Record not found");
     }
     const stringFields = ["title"] as const;
@@ -1318,15 +1354,22 @@ class CommentIDBClass extends BaseIDBModelClass {
 
   async findFirst<Q extends Prisma.Args<Prisma.CommentDelegate, "findFirst">>(
     query?: Q,
+    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findFirst">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query))[0];
   }
 
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.CommentDelegate, "findFirstOrThrow">>(
     query?: Q,
+    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">> {
-    const record = await this.findFirst(query);
-    if (!record) throw new Error("Record not found");
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findFirst(query, tx);
+    if (!record) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
     return record;
   }
 
@@ -1352,8 +1395,12 @@ class CommentIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findUniqueOrThrow">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findUnique(query, tx);
-    if (!record) throw new Error("Record not found");
+    if (!record) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
     return record;
   }
 
@@ -1475,6 +1522,7 @@ class CommentIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
+      tx.abort();
       throw new Error("Record not found");
     }
     const stringFields = ["id", "text"] as const;
@@ -1638,15 +1686,22 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
 
   async findFirst<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findFirst">>(
     query?: Q,
+    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirst">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query))[0];
   }
 
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findFirstOrThrow">>(
     query?: Q,
+    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirstOrThrow">> {
-    const record = await this.findFirst(query);
-    if (!record) throw new Error("Record not found");
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findFirst(query, tx);
+    if (!record) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
     return record;
   }
 
@@ -1672,8 +1727,12 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findUniqueOrThrow">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findUnique(query, tx);
-    if (!record) throw new Error("Record not found");
+    if (!record) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
     return record;
   }
 
@@ -1747,6 +1806,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
+      tx.abort();
       throw new Error("Record not found");
     }
     const stringFields = ["string"] as const;

@@ -31,7 +31,7 @@ function addGetRecord(writer: CodeBlockWriter) {
     .writeLine(`const record = await this.findUnique({ where: query.where }, tx);`)
     .writeLine(`if (record === null)`)
     .block(() => {
-      writer.writeLine(`throw new Error("Record not found");`);
+      writer.writeLine(`tx.abort();`).writeLine(`throw new Error("Record not found");`);
     });
 }
 

@@ -17,8 +17,14 @@ export function addFindUniqueOrThrow(modelClass: ClassDeclaration, model: Model)
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "findUniqueOrThrow">>`,
     statements: (writer) => {
       writer
+        .writeLine(
+          `tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`,
+        )
         .writeLine(`const record = await this.findUnique(query, tx);`)
-        .writeLine(`if (!record) throw new Error("Record not found");`)
+        .writeLine(`if (!record)`)
+        .block(() => {
+          writer.writeLine(`tx.abort();`).writeLine(`throw new Error("Record not found");`);
+        })
         .writeLine(`return record;`);
     },
   });
