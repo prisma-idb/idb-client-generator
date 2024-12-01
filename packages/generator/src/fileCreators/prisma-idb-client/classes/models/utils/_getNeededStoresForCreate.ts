@@ -25,7 +25,10 @@ function processRelationsInData(writer: CodeBlockWriter, model: Model) {
       writer.writeLine(`neededStores.add('${field.type}')`);
       writer.writeLine(`if (data.${field.name}.create)`).block(() => {
         writer
-          .writeLine(`IDBUtils.convertToArray(data.${field.name}.create).forEach((record) => `)
+          .writeLine(
+            `const createData = Array.isArray(data.${field.name}.create) ? data.${field.name}.create : [data.${field.name}.create];`,
+          )
+          .writeLine(`createData.forEach((record) => `)
           .write(`this.client.${toCamelCase(field.type)}._getNeededStoresForCreate(record)`)
           .write(`.forEach((storeName) => neededStores.add(storeName))`)
           .writeLine(`);`);

@@ -17,6 +17,10 @@ export interface PrismaIDBSchema extends DBSchema {
     key: [id: Prisma.Post["id"]];
     value: Prisma.Post;
   };
+  Comment: {
+    key: [id: Prisma.Comment["id"]];
+    value: Prisma.Comment;
+  };
   AllFieldScalarTypes: {
     key: [id: Prisma.AllFieldScalarTypes["id"]];
     value: Prisma.AllFieldScalarTypes;

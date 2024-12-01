@@ -13,10 +13,11 @@ generator prismaIDB {
 }
 
 model User {
-  id      Int      @id @default(autoincrement())
-  name    String
-  profile Profile?
-  posts   Post[]
+  id       Int       @id @default(autoincrement())
+  name     String
+  profile  Profile?
+  posts    Post[]
+  comments Comment[]
 }
 
 model Profile {
@@ -27,10 +28,20 @@ model Profile {
 }
 
 model Post {
-  id       Int    @id @default(autoincrement())
+  id       Int       @id @default(autoincrement())
   title    String
-  author   User?  @relation(fields: [authorId], references: [id])
+  author   User?     @relation(fields: [authorId], references: [id])
   authorId Int?
+  comments Comment[]
+}
+
+model Comment {
+  id     String @id @default(cuid())
+  post   Post   @relation(fields: [postId], references: [id])
+  postId Int
+  user   User   @relation(fields: [userId], references: [id])
+  userId Int
+  text   String
 }
 
 model AllFieldScalarTypes {

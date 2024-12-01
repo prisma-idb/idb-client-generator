@@ -16,6 +16,7 @@ export class PrismaIDBClient {
   user!: UserIDBClass;
   profile!: ProfileIDBClass;
   post!: PostIDBClass;
+  comment!: CommentIDBClass;
   allFieldScalarTypes!: AllFieldScalarTypesIDBClass;
 
   public static async create(): Promise<PrismaIDBClient> {
@@ -34,12 +35,14 @@ export class PrismaIDBClient {
         const ProfileStore = db.createObjectStore("Profile", { keyPath: ["id"] });
         ProfileStore.createIndex("userIdIndex", ["userId"], { unique: true });
         db.createObjectStore("Post", { keyPath: ["id"] });
+        db.createObjectStore("Comment", { keyPath: ["id"] });
         db.createObjectStore("AllFieldScalarTypes", { keyPath: ["id"] });
       },
     });
     this.user = new UserIDBClass(this, ["id"]);
     this.profile = new ProfileIDBClass(this, ["id"]);
     this.post = new PostIDBClass(this, ["id"]);
+    this.comment = new CommentIDBClass(this, ["id"]);
     this.allFieldScalarTypes = new AllFieldScalarTypesIDBClass(this, ["id"]);
   }
 }
@@ -104,7 +107,7 @@ class UserIDBClass extends BaseIDBModelClass {
     }
     return records.map((record) => {
       const partialRecord: Partial<typeof record> = record;
-      for (const untypedKey of ["id", "name", "profile", "posts"]) {
+      for (const untypedKey of ["id", "name", "profile", "posts", "comments"]) {
         const key = untypedKey as keyof typeof record & keyof S;
         if (!selectClause[key]) delete partialRecord[key];
       }
@@ -140,6 +143,16 @@ class UserIDBClass extends BaseIDBModelClass {
           tx,
         );
       }
+      const attach_comments = query.select?.comments || query.include?.comments;
+      if (attach_comments) {
+        unsafeRecord["comments"] = await this.client.comment.findMany(
+          {
+            ...(attach_comments === true ? {} : attach_comments),
+            where: { userId: record.id },
+          },
+          tx,
+        );
+      }
       return unsafeRecord;
     });
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[];
@@ -170,6 +183,9 @@ class UserIDBClass extends BaseIDBModelClass {
     if (query?.select?.posts || query?.include?.posts) {
       neededStores.add("Post");
     }
+    if (query?.select?.comments || query?.include?.comments) {
+      neededStores.add("Comment");
+    }
     return neededStores;
   }
 
@@ -181,7 +197,8 @@ class UserIDBClass extends BaseIDBModelClass {
     if (data.profile) {
       neededStores.add("Profile");
       if (data.profile.create) {
-        IDBUtils.convertToArray(data.profile.create).forEach((record) =>
+        const createData = Array.isArray(data.profile.create) ? data.profile.create : [data.profile.create];
+        createData.forEach((record) =>
           this.client.profile._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
         );
       }
@@ -196,7 +213,8 @@ class UserIDBClass extends BaseIDBModelClass {
     if (data.posts) {
       neededStores.add("Post");
       if (data.posts.create) {
-        IDBUtils.convertToArray(data.posts.create).forEach((record) =>
+        const createData = Array.isArray(data.posts.create) ? data.posts.create : [data.posts.create];
+        createData.forEach((record) =>
           this.client.post._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
         );
       }
@@ -211,6 +229,27 @@ class UserIDBClass extends BaseIDBModelClass {
         );
       }
     }
+    if (data.comments) {
+      neededStores.add("Comment");
+      if (data.comments.create) {
+        const createData = Array.isArray(data.comments.create) ? data.comments.create : [data.comments.create];
+        createData.forEach((record) =>
+          this.client.comment._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.comments.connectOrCreate) {
+        IDBUtils.convertToArray(data.comments.connectOrCreate).forEach((record) =>
+          this.client.comment
+            ._getNeededStoresForCreate(record.create)
+            .forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.comments.createMany) {
+        IDBUtils.convertToArray(data.comments.createMany.data).forEach((record) =>
+          this.client.comment._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+    }
     return neededStores;
   }
 
@@ -220,6 +259,7 @@ class UserIDBClass extends BaseIDBModelClass {
     const recordWithoutNestedCreate = structuredClone(data);
     delete recordWithoutNestedCreate.profile;
     delete recordWithoutNestedCreate.posts;
+    delete recordWithoutNestedCreate.comments;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">;
   }
 
@@ -348,6 +388,41 @@ class UserIDBClass extends BaseIDBModelClass {
           data: IDBUtils.convertToArray(query.data.posts.createMany.data).map((createData) => ({
             ...createData,
             authorId: keyPath[0],
+          })),
+        },
+        tx,
+      );
+    }
+    if (query.data.comments?.create) {
+      const createData = Array.isArray(query.data.comments.create)
+        ? query.data.comments.create
+        : [query.data.comments.create];
+      await Promise.all(
+        createData.map(async (elem) => {
+          if ("post" in elem && !("postId" in elem)) {
+            await this.client.comment.create({ data: { ...elem, user: { connect: { id: keyPath[0] } } } }, tx);
+          } else if (elem.postId !== undefined) {
+            await this.client.comment.create({ data: { ...elem, userId: keyPath[0] } }, tx);
+          }
+        }),
+      );
+    }
+    if (query.data.comments?.connect) {
+      await Promise.all(
+        IDBUtils.convertToArray(query.data.comments.connect).map(async (connectWhere) => {
+          await this.client.comment.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx);
+        }),
+      );
+    }
+    if (query.data.comments?.connectOrCreate) {
+      throw new Error("connectOrCreate not yet implemented");
+    }
+    if (query.data.comments?.createMany) {
+      await this.client.comment.createMany(
+        {
+          data: IDBUtils.convertToArray(query.data.comments.createMany.data).map((createData) => ({
+            ...createData,
+            userId: keyPath[0],
           })),
         },
         tx,
@@ -513,7 +588,8 @@ class ProfileIDBClass extends BaseIDBModelClass {
     if (data.user) {
       neededStores.add("User");
       if (data.user.create) {
-        IDBUtils.convertToArray(data.user.create).forEach((record) =>
+        const createData = Array.isArray(data.user.create) ? data.user.create : [data.user.create];
+        createData.forEach((record) =>
           this.client.user._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
         );
       }
@@ -740,7 +816,7 @@ class PostIDBClass extends BaseIDBModelClass {
     }
     return records.map((record) => {
       const partialRecord: Partial<typeof record> = record;
-      for (const untypedKey of ["id", "title", "author", "authorId"]) {
+      for (const untypedKey of ["id", "title", "author", "authorId", "comments"]) {
         const key = untypedKey as keyof typeof record & keyof S;
         if (!selectClause[key]) delete partialRecord[key];
       }
@@ -768,6 +844,16 @@ class PostIDBClass extends BaseIDBModelClass {
                 },
                 tx,
               );
+      }
+      const attach_comments = query.select?.comments || query.include?.comments;
+      if (attach_comments) {
+        unsafeRecord["comments"] = await this.client.comment.findMany(
+          {
+            ...(attach_comments === true ? {} : attach_comments),
+            where: { postId: record.id },
+          },
+          tx,
+        );
       }
       return unsafeRecord;
     });
@@ -799,6 +885,9 @@ class PostIDBClass extends BaseIDBModelClass {
     if (query?.select?.author || query?.include?.author) {
       neededStores.add("User");
     }
+    if (query?.select?.comments || query?.include?.comments) {
+      neededStores.add("Comment");
+    }
     return neededStores;
   }
 
@@ -810,7 +899,8 @@ class PostIDBClass extends BaseIDBModelClass {
     if (data.author) {
       neededStores.add("User");
       if (data.author.create) {
-        IDBUtils.convertToArray(data.author.create).forEach((record) =>
+        const createData = Array.isArray(data.author.create) ? data.author.create : [data.author.create];
+        createData.forEach((record) =>
           this.client.user._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
         );
       }
@@ -823,6 +913,27 @@ class PostIDBClass extends BaseIDBModelClass {
     if (data.authorId !== undefined) {
       neededStores.add("User");
     }
+    if (data.comments) {
+      neededStores.add("Comment");
+      if (data.comments.create) {
+        const createData = Array.isArray(data.comments.create) ? data.comments.create : [data.comments.create];
+        createData.forEach((record) =>
+          this.client.comment._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.comments.connectOrCreate) {
+        IDBUtils.convertToArray(data.comments.connectOrCreate).forEach((record) =>
+          this.client.comment
+            ._getNeededStoresForCreate(record.create)
+            .forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.comments.createMany) {
+        IDBUtils.convertToArray(data.comments.createMany.data).forEach((record) =>
+          this.client.comment._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+    }
     return neededStores;
   }
 
@@ -831,6 +942,7 @@ class PostIDBClass extends BaseIDBModelClass {
   ): Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow"> {
     const recordWithoutNestedCreate = structuredClone(data);
     delete recordWithoutNestedCreate.author;
+    delete recordWithoutNestedCreate.comments;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">;
   }
 
@@ -942,6 +1054,41 @@ class PostIDBClass extends BaseIDBModelClass {
     }
     const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
     const keyPath = await tx.objectStore("Post").add(record);
+    if (query.data.comments?.create) {
+      const createData = Array.isArray(query.data.comments.create)
+        ? query.data.comments.create
+        : [query.data.comments.create];
+      await Promise.all(
+        createData.map(async (elem) => {
+          if ("user" in elem && !("userId" in elem)) {
+            await this.client.comment.create({ data: { ...elem, post: { connect: { id: keyPath[0] } } } }, tx);
+          } else if (elem.userId !== undefined) {
+            await this.client.comment.create({ data: { ...elem, postId: keyPath[0] } }, tx);
+          }
+        }),
+      );
+    }
+    if (query.data.comments?.connect) {
+      await Promise.all(
+        IDBUtils.convertToArray(query.data.comments.connect).map(async (connectWhere) => {
+          await this.client.comment.update({ where: connectWhere, data: { postId: keyPath[0] } }, tx);
+        }),
+      );
+    }
+    if (query.data.comments?.connectOrCreate) {
+      throw new Error("connectOrCreate not yet implemented");
+    }
+    if (query.data.comments?.createMany) {
+      await this.client.comment.createMany(
+        {
+          data: IDBUtils.convertToArray(query.data.comments.createMany.data).map((createData) => ({
+            ...createData,
+            postId: keyPath[0],
+          })),
+        },
+        tx,
+      );
+    }
     const data = (await tx.objectStore("Post").get(keyPath))!;
     const recordsWithRelations = this._applySelectClause(
       await this._applyRelations([data], tx, query),
@@ -1004,6 +1151,349 @@ class PostIDBClass extends BaseIDBModelClass {
       tx,
     ))!;
     return recordWithRelations as Prisma.Result<Prisma.PostDelegate, Q, "update">;
+  }
+}
+
+class CommentIDBClass extends BaseIDBModelClass {
+  private _applyWhereClause<
+    W extends Prisma.Args<Prisma.CommentDelegate, "findFirstOrThrow">["where"],
+    R extends Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">,
+  >(records: R[], whereClause: W): R[] {
+    if (!whereClause) return records;
+    return records.filter((record) => {
+      const stringFields = ["id", "text"] as const;
+      for (const field of stringFields) {
+        if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return false;
+      }
+      const numberFields = ["postId", "userId"] as const;
+      for (const field of numberFields) {
+        if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return false;
+      }
+      return true;
+    });
+  }
+
+  private _applySelectClause<S extends Prisma.Args<Prisma.CommentDelegate, "findMany">["select"]>(
+    records: Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">[],
+    selectClause: S,
+  ): Prisma.Result<Prisma.CommentDelegate, { select: S }, "findFirstOrThrow">[] {
+    if (!selectClause) {
+      return records as Prisma.Result<Prisma.CommentDelegate, { select: S }, "findFirstOrThrow">[];
+    }
+    return records.map((record) => {
+      const partialRecord: Partial<typeof record> = record;
+      for (const untypedKey of ["id", "post", "postId", "user", "userId", "text"]) {
+        const key = untypedKey as keyof typeof record & keyof S;
+        if (!selectClause[key]) delete partialRecord[key];
+      }
+      return partialRecord;
+    }) as Prisma.Result<Prisma.CommentDelegate, { select: S }, "findFirstOrThrow">[];
+  }
+
+  private async _applyRelations<Q extends Prisma.Args<Prisma.CommentDelegate, "findMany">>(
+    records: Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">[],
+    tx: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    query?: Q,
+  ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">[]> {
+    if (!query) return records as Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">[];
+    const recordsWithRelations = records.map(async (record) => {
+      const unsafeRecord = record as Record<string, unknown>;
+      const attach_post = query.select?.post || query.include?.post;
+      if (attach_post) {
+        unsafeRecord["post"] = await this.client.post.findUnique(
+          {
+            ...(attach_post === true ? {} : attach_post),
+            where: { id: record.postId },
+          },
+          tx,
+        );
+      }
+      const attach_user = query.select?.user || query.include?.user;
+      if (attach_user) {
+        unsafeRecord["user"] = await this.client.user.findUnique(
+          {
+            ...(attach_user === true ? {} : attach_user),
+            where: { id: record.userId },
+          },
+          tx,
+        );
+      }
+      return unsafeRecord;
+    });
+    return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">[];
+  }
+
+  private async _fillDefaults<D extends Prisma.Args<Prisma.CommentDelegate, "create">["data"]>(
+    data: D,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<D> {
+    if (data === undefined) data = {} as D;
+    if (data.id === undefined) {
+      const { createId } = await import("@paralleldrive/cuid2");
+      data.id = createId();
+    }
+    return data;
+  }
+
+  _getNeededStoresForFind<Q extends Prisma.Args<Prisma.CommentDelegate, "findMany">>(
+    query?: Q,
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("Comment");
+    if (query?.select?.post || query?.include?.post) {
+      neededStores.add("Post");
+    }
+    if (query?.select?.user || query?.include?.user) {
+      neededStores.add("User");
+    }
+    return neededStores;
+  }
+
+  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.CommentDelegate, "create">["data"]>>(
+    data: D,
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("Comment");
+    if (data.post) {
+      neededStores.add("Post");
+      if (data.post.create) {
+        const createData = Array.isArray(data.post.create) ? data.post.create : [data.post.create];
+        createData.forEach((record) =>
+          this.client.post._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.post.connectOrCreate) {
+        IDBUtils.convertToArray(data.post.connectOrCreate).forEach((record) =>
+          this.client.post._getNeededStoresForCreate(record.create).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+    }
+    if (data.postId !== undefined) {
+      neededStores.add("Post");
+    }
+    if (data.user) {
+      neededStores.add("User");
+      if (data.user.create) {
+        const createData = Array.isArray(data.user.create) ? data.user.create : [data.user.create];
+        createData.forEach((record) =>
+          this.client.user._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.user.connectOrCreate) {
+        IDBUtils.convertToArray(data.user.connectOrCreate).forEach((record) =>
+          this.client.user._getNeededStoresForCreate(record.create).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+    }
+    if (data.userId !== undefined) {
+      neededStores.add("User");
+    }
+    return neededStores;
+  }
+
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.CommentDelegate, "create">["data"]>(
+    data: D,
+  ): Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow"> {
+    const recordWithoutNestedCreate = structuredClone(data);
+    delete recordWithoutNestedCreate.post;
+    delete recordWithoutNestedCreate.user;
+    return recordWithoutNestedCreate as Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">;
+  }
+
+  async findMany<Q extends Prisma.Args<Prisma.CommentDelegate, "findMany">>(
+    query?: Q,
+    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findMany">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const records = this._applyWhereClause(await tx.objectStore("Comment").getAll(), query?.where);
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.CommentDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
+    const selectClause = query?.select;
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    return selectAppliedRecords as Prisma.Result<Prisma.CommentDelegate, Q, "findMany">;
+  }
+
+  async findFirst<Q extends Prisma.Args<Prisma.CommentDelegate, "findFirst">>(
+    query?: Q,
+  ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findFirst">> {
+    return (await this.findMany(query))[0];
+  }
+
+  async findFirstOrThrow<Q extends Prisma.Args<Prisma.CommentDelegate, "findFirstOrThrow">>(
+    query?: Q,
+  ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">> {
+    const record = await this.findFirst(query);
+    if (!record) throw new Error("Record not found");
+    return record;
+  }
+
+  async findUnique<Q extends Prisma.Args<Prisma.CommentDelegate, "findUnique">>(
+    query: Q,
+    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findUnique">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let record;
+    if (query.where.id) {
+      record = await tx.objectStore("Comment").get([query.where.id]);
+    }
+    if (!record) return null;
+
+    const recordWithRelations = this._applySelectClause(
+      await this._applyRelations(this._applyWhereClause([record], query.where), tx, query),
+      query.select,
+    )[0];
+    return recordWithRelations as Prisma.Result<Prisma.CommentDelegate, Q, "findUnique">;
+  }
+
+  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.CommentDelegate, "findUniqueOrThrow">>(
+    query: Q,
+    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findUniqueOrThrow">> {
+    const record = await this.findUnique(query, tx);
+    if (!record) throw new Error("Record not found");
+    return record;
+  }
+
+  async count<Q extends Prisma.Args<Prisma.CommentDelegate, "count">>(
+    query?: Q,
+  ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "count">> {
+    if (!query?.select || query.select === true) {
+      const records = await this.findMany({ where: query?.where });
+      return records.length as Prisma.Result<Prisma.CommentDelegate, Q, "count">;
+    }
+    const result: Partial<Record<keyof Prisma.CommentCountAggregateInputType, number>> = {};
+    for (const key of Object.keys(query.select)) {
+      const typedKey = key as keyof typeof query.select;
+      if (typedKey === "_all") {
+        result[typedKey] = (await this.findMany({ where: query.where })).length;
+        continue;
+      }
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } })).length;
+    }
+    return result as Prisma.Result<Prisma.UserDelegate, Q, "count">;
+  }
+
+  async create<Q extends Prisma.Args<Prisma.CommentDelegate, "create">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "create">> {
+    const storesNeeded = this._getNeededStoresForCreate(query.data);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    if (query.data.post) {
+      let fk;
+      if (query.data.post?.create) {
+        fk = (await this.client.post.create({ data: query.data.post.create }, tx)).id;
+      }
+      if (query.data.post?.connect) {
+        const record = await this.client.post.findUniqueOrThrow({ where: query.data.post.connect }, tx);
+        delete query.data.post.connect;
+        fk = record.id;
+      }
+      if (query.data.post?.connectOrCreate) {
+        throw new Error("connectOrCreate not yet implemented");
+      }
+      const unsafeData = query.data as Record<string, unknown>;
+      unsafeData.postId = fk as NonNullable<typeof fk>;
+      delete unsafeData.post;
+    } else if (query.data.postId !== undefined && query.data.postId !== null) {
+      await this.client.post.findUniqueOrThrow(
+        {
+          where: { id: query.data.postId },
+        },
+        tx,
+      );
+    }
+    if (query.data.user) {
+      let fk;
+      if (query.data.user?.create) {
+        fk = (await this.client.user.create({ data: query.data.user.create }, tx)).id;
+      }
+      if (query.data.user?.connect) {
+        const record = await this.client.user.findUniqueOrThrow({ where: query.data.user.connect }, tx);
+        delete query.data.user.connect;
+        fk = record.id;
+      }
+      if (query.data.user?.connectOrCreate) {
+        throw new Error("connectOrCreate not yet implemented");
+      }
+      const unsafeData = query.data as Record<string, unknown>;
+      unsafeData.userId = fk as NonNullable<typeof fk>;
+      delete unsafeData.user;
+    } else if (query.data.userId !== undefined && query.data.userId !== null) {
+      await this.client.user.findUniqueOrThrow(
+        {
+          where: { id: query.data.userId },
+        },
+        tx,
+      );
+    }
+    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
+    const keyPath = await tx.objectStore("Comment").add(record);
+    const data = (await tx.objectStore("Comment").get(keyPath))!;
+    const recordsWithRelations = this._applySelectClause(
+      await this._applyRelations([data], tx, query),
+      query.select,
+    )[0];
+    return recordsWithRelations as Prisma.Result<Prisma.CommentDelegate, Q, "create">;
+  }
+
+  async createMany<Q extends Prisma.Args<Prisma.CommentDelegate, "createMany">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "createMany">> {
+    const createManyData = IDBUtils.convertToArray(query.data);
+    tx = tx ?? this.client._db.transaction(["Comment"], "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      await tx.objectStore("Comment").add(record);
+    }
+    return { count: createManyData.length };
+  }
+
+  async createManyAndReturn<Q extends Prisma.Args<Prisma.CommentDelegate, "createManyAndReturn">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "createManyAndReturn">> {
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const records: unknown[] = [];
+    tx = tx ?? this.client._db.transaction(["Comment"], "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      await tx.objectStore("Comment").add(record);
+      records.push(this._applySelectClause([record], query.select)[0]);
+    }
+    return records as Prisma.Result<Prisma.CommentDelegate, Q, "createManyAndReturn">;
+  }
+
+  async update<Q extends Prisma.Args<Prisma.CommentDelegate, "update">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "update">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const record = await this.findUnique({ where: query.where }, tx);
+    if (record === null) {
+      throw new Error("Record not found");
+    }
+    const stringFields = ["id", "text"] as const;
+    for (const field of stringFields) {
+      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const intFields = ["postId", "userId"] as const;
+    for (const field of intFields) {
+      IDBUtils.handleIntUpdateField(record, field, query.data[field]);
+    }
+    const keyPath = await tx.objectStore("Comment").put(record);
+    const recordWithRelations = (await this.findUnique(
+      {
+        ...query,
+        where: { id: keyPath[0] },
+      },
+      tx,
+    ))!;
+    return recordWithRelations as Prisma.Result<Prisma.CommentDelegate, Q, "update">;
   }
 }
 

@@ -62,7 +62,12 @@ function createDependents(writer: CodeBlockWriter, model: Model, models: readonl
     if (!field.isList) {
       addOneToOneMetaOnOtherFieldRelation(writer, field, otherField);
     } else {
-      addOneToManyRelation(writer, field, otherField);
+      const dependentModel = models.find(({ name }) => name === field.type)!;
+      const fks = dependentModel.fields.filter(
+        (field) =>
+          dependentModel.fields.find((fkField) => fkField.name === field.relationFromFields?.at(0)) !== undefined,
+      );
+      addOneToManyRelation(writer, field, otherField, fks);
     }
   });
 }
@@ -126,29 +131,56 @@ function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Fie
   });
 }
 
-function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField: Field) {
+function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField: Field, fkFields: Field[]) {
   writer.writeLine(`if (query.data.${field.name}?.create)`).block(() => {
-    writer
-      .write(`await this.client.${toCamelCase(field.type)}.createMany(`)
-      .block(() => {
-        writer
-          .writeLine(`data: IDBUtils.convertToArray(query.data.${field.name}.create).map((createData) => (`)
-          .block(() => {
-            writer.writeLine(`...createData, ${otherField.relationFromFields?.at(0)}: keyPath[0]`);
-          })
-          .writeLine(`)),`);
-      })
-      .writeLine(`, tx)`);
+    if (fkFields.length === 1) {
+      writer
+        .write(`await this.client.${toCamelCase(field.type)}.createMany(`)
+        .block(() => {
+          writer
+            .writeLine(`data: IDBUtils.convertToArray(query.data.${field.name}.create).map((createData) => (`)
+            .block(() => {
+              writer.writeLine(`...createData, ${otherField.relationFromFields?.at(0)}: keyPath[0]`);
+            })
+            .writeLine(`)),`);
+        })
+        .writeLine(`, tx)`);
+    } else {
+      const otherFkField = fkFields.find(({ relationName }) => relationName !== field.relationName)!;
+      writer
+        .writeLine(`const createData = Array.isArray(query.data.${field.name}.create)`)
+        .writeLine(`? query.data.${field.name}.create`)
+        .writeLine(`: [query.data.${field.name}.create]`)
+        .writeLine(`await Promise.all(`)
+        .writeLine(`createData.map(async (elem) => `)
+        .block(() => {
+          writer
+            .writeLine(`if ("${otherFkField.name}" in elem && !("${otherFkField.relationFromFields?.at(0)}" in elem))`)
+            .block(() => {
+              writer.writeLine(
+                `await this.client.${toCamelCase(field.type)}.create({ data: { ...elem, ${otherField.name}: { connect: { ${otherField.relationToFields?.at(0)}: keyPath[0] } } } }, tx);`,
+              );
+            })
+            .writeLine(`else if (elem.${otherFkField.relationFromFields?.at(0)} !== undefined)`)
+            .block(() => {
+              writer.writeLine(
+                `await this.client.comment.create({ data: { ...elem, ${otherField.relationFromFields?.at(0)}: keyPath[0] } }, tx);`,
+              );
+            });
+        })
+        .writeLine(`))`);
+    }
   });
+
   writer.writeLine(`if (query.data.${field.name}?.connect)`).block(() => {
     writer
       .writeLine(`await Promise.all(`)
       .indent(() => {
         writer
-          .writeLine(`IDBUtils.convertToArray(query.data.posts.connect).map(async (connectWhere) => `)
+          .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.connect).map(async (connectWhere) => `)
           .block(() => {
             writer.writeLine(
-              `await this.client.post.update({ where: connectWhere, data: { authorId: keyPath[0] } }, tx);`,
+              `await this.client.${toCamelCase(field.type)}.update({ where: connectWhere, data: { ${otherField.relationFromFields?.at(0)}: keyPath[0] } }, tx);`,
             );
           })
           .writeLine(`),`);
