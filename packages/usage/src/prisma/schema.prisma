@@ -9,12 +9,54 @@ generator client {
 
 generator prismaIDB {
   provider = "prisma-idb-generator"
-  output   = "../lib/prisma-idb"
+  output   = "./prisma-idb"
 }
 
-model Todo {
-  id          String  @id @default(uuid())
-  task        String
-  isCompleted Boolean
-  timeToComplete Int
+model User {
+  id       Int       @id @default(autoincrement())
+  name     String
+  profile  Profile?
+  posts    Post[]
+  comments Comment[]
+}
+
+model Profile {
+  id     Int     @id @default(autoincrement())
+  bio    String?
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int     @unique
+}
+
+model Post {
+  id        Int       @id @default(autoincrement())
+  title     String
+  author    User?     @relation(fields: [authorId], references: [id])
+  authorId  Int?
+  comments  Comment[]
+  tags      String[]
+  numberArr Int[]
+}
+
+model Comment {
+  id     String @id @default(cuid())
+  post   Post   @relation(fields: [postId], references: [id])
+  postId Int
+  user   User   @relation(fields: [userId], references: [id])
+  userId Int
+  text   String
+}
+
+model AllFieldScalarTypes {
+  id          Int        @id @default(autoincrement())
+  string      String
+  boolean     Boolean
+  int         Int
+  bigInt      BigInt
+  bigIntegers BigInt[]
+  float       Float
+  decimal     Decimal
+  dateTime    DateTime
+  dateTimes   DateTime[]
+  json        Json
+  bytes       Bytes
 }
