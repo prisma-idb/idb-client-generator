@@ -64,7 +64,7 @@ test("connect_ConnectProfileToInvalidUserDirectly_ThrowsError", async ({ page })
 });
 
 // TODO
-test.fixme("connect_ConnectTwoProfilesToUser_ThrowsError", async ({ page }) => {
+test("connect_ConnectTwoProfilesToUser_ThrowsError", async ({ page }) => {
   await expectQueryToSucceed({
     page,
     model: "user",
@@ -79,11 +79,20 @@ test.fixme("connect_ConnectTwoProfilesToUser_ThrowsError", async ({ page }) => {
     query: { data: { bio: "John's bio 1", user: { connect: { id: 1 } } } },
   });
 
-  await expectQueryToSucceed({
+  await expectQueryToFail({
     page,
     model: "profile",
     operation: "create",
     query: { data: { bio: "John's bio 2", user: { connect: { id: 1 } } } },
+    errorMessage:
+      "Unable to add key to index 'userIdIndex': at least one key does not satisfy the uniqueness requirements.",
+  });
+
+  await expectQueryToSucceed({
+    page,
+    model: "profile",
+    operation: "findMany",
+    query: { include: { user: true } },
   });
 });
 
