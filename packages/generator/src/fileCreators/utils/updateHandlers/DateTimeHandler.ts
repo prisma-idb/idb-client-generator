@@ -35,11 +35,9 @@ export function addDateTimeUpdateHandler(utilsFile: SourceFile, models: readonly
         .block(() => {
           writer.writeLine(`(record[fieldName] as ${fieldType}) = new Date(dateTimeUpdate);`);
         });
-      writer
-        .writeLine(`else if (dateTimeUpdate.set !== undefined)`)
-        .block(() => {
-          writer.writeLine(`(record[fieldName] as ${fieldType}) = new Date(dateTimeUpdate.set);`);
-        })
+      writer.writeLine(`else if (dateTimeUpdate.set !== undefined)`).block(() => {
+        writer.writeLine(`(record[fieldName] as ${fieldType}) = new Date(dateTimeUpdate.set);`);
+      });
     },
   });
 }

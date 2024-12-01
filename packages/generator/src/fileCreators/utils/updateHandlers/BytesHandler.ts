@@ -35,11 +35,9 @@ export function addBytesUpdateHandler(utilsFile: SourceFile, models: readonly Mo
         .block(() => {
           writer.writeLine(`(record[fieldName] as ${fieldType}) = bytesUpdate;`);
         });
-      writer
-        .writeLine(`else if (bytesUpdate.set !== undefined)`)
-        .block(() => {
-          writer.writeLine(`(record[fieldName] as ${fieldType}) = bytesUpdate.set;`);
-        })
+      writer.writeLine(`else if (bytesUpdate.set !== undefined)`).block(() => {
+        writer.writeLine(`(record[fieldName] as ${fieldType}) = bytesUpdate.set;`);
+      });
     },
   });
 }

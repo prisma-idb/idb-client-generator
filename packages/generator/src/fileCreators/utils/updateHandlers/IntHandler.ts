@@ -37,11 +37,9 @@ export function addIntUpdateHandler(utilsFile: SourceFile, models: readonly Mode
         .block(() => {
           writer.writeLine(`(record[fieldName] as ${fieldType}) = intUpdate;`);
         });
-      writer
-        .writeLine(`else if (intUpdate.set !== undefined)`)
-        .block(() => {
-          writer.writeLine(`(record[fieldName] as ${fieldType}) = intUpdate.set;`);
-        })
+      writer.writeLine(`else if (intUpdate.set !== undefined)`).block(() => {
+        writer.writeLine(`(record[fieldName] as ${fieldType}) = intUpdate.set;`);
+      });
     },
   });
 }
