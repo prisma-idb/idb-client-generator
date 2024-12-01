@@ -358,7 +358,6 @@ export function handleStringUpdateField<T, R extends Prisma.Result<T, object, "f
   } else if (stringUpdate.set !== undefined) {
     (record[fieldName] as string | null) = stringUpdate.set;
   }
-  return true;
 }
 
 export function handleBooleanUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
@@ -372,7 +371,6 @@ export function handleBooleanUpdateField<T, R extends Prisma.Result<T, object, "
   } else if (booleanUpdate.set !== undefined) {
     (record[fieldName] as boolean) = booleanUpdate.set;
   }
-  return true;
 }
 
 export function handleDateTimeUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
@@ -386,7 +384,6 @@ export function handleDateTimeUpdateField<T, R extends Prisma.Result<T, object, 
   } else if (dateTimeUpdate.set !== undefined) {
     (record[fieldName] as Date) = new Date(dateTimeUpdate.set);
   }
-  return true;
 }
 
 export function handleBytesUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
@@ -400,7 +397,6 @@ export function handleBytesUpdateField<T, R extends Prisma.Result<T, object, "fi
   } else if (bytesUpdate.set !== undefined) {
     (record[fieldName] as Buffer) = bytesUpdate.set;
   }
-  return true;
 }
 
 export function handleIntUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
@@ -419,5 +415,19 @@ export function handleIntUpdateField<T, R extends Prisma.Result<T, object, "find
   } else if (intUpdate.set !== undefined) {
     (record[fieldName] as number | null) = intUpdate.set;
   }
-  return true;
+}
+
+export function handleScalarListUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
+  record: R,
+  fieldName: keyof R,
+  listUpdate: undefined | unknown[] | { set?: unknown[]; push?: unknown | unknown[] },
+) {
+  if (listUpdate === undefined) return;
+  if (Array.isArray(listUpdate)) {
+    (record[fieldName] as unknown[]) = listUpdate;
+  } else if (listUpdate.set !== undefined) {
+    (record[fieldName] as unknown[]) = listUpdate.set;
+  } else if (listUpdate.push !== undefined) {
+    (record[fieldName] as unknown[]).push(...convertToArray(listUpdate.push));
+  }
 }

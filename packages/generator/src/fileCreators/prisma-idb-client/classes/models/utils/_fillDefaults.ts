@@ -38,10 +38,19 @@ export function addFillDefaultsFunction(modelClass: ClassDeclaration, model: Mod
         });
       model.fields.forEach((field) => {
         if (field.type === "DateTime") {
-          addDateStringToDateConverter(writer, field);
-        }
-        if (field.type === "BigInt") {
-          addBigIntConverter(writer, field);
+          if (field.isList) {
+            addDateStringListToDateConverter(writer, field);
+          } else {
+            addDateStringToDateConverter(writer, field);
+          }
+        } else if (field.type === "BigInt") {
+          if (field.isList) {
+            addBigIntListConverter(writer, field);
+          } else {
+            addBigIntConverter(writer, field);
+          }
+        } else if (field.isList && field.kind !== "object") {
+          addScalarListProcessing(writer, field);
         }
       });
       writer.writeLine(`return data;`);
@@ -89,8 +98,46 @@ function addDateStringToDateConverter(writer: CodeBlockWriter, field: Field) {
   });
 }
 
+function addDateStringListToDateConverter(writer: CodeBlockWriter, field: Field) {
+  writer
+    .writeLine(`if (Array.isArray(data.${field.name}))`)
+    .block(() => {
+      writer.writeLine(`data.${field.name} = data.${field.name}.map((d) => new Date(d));`);
+    })
+    .writeLine(`else if (typeof data.${field.name} === 'object')`)
+    .block(() => {
+      writer.writeLine(`data.${field.name} = data.${field.name}.set.map((d) => new Date(d));`);
+    })
+    .writeLine(`else`)
+    .block(() => {
+      writer.writeLine(`data.${field.name} = []`);
+    });
+}
+
 function addBigIntConverter(writer: CodeBlockWriter, field: Field) {
   writer.writeLine(`if (typeof data.${field.name} === 'number')`).block(() => {
     writer.writeLine(`data.${field.name} = BigInt(data.${field.name})`);
+  });
+}
+
+function addBigIntListConverter(writer: CodeBlockWriter, field: Field) {
+  writer
+    .writeLine(`if (Array.isArray(data.${field.name}))`)
+    .block(() => {
+      writer.writeLine(`data.${field.name} = data.${field.name}.map((n) => BigInt(n));`);
+    })
+    .writeLine(`else if (typeof data.${field.name} === 'object')`)
+    .block(() => {
+      writer.writeLine(`data.${field.name} = data.${field.name}.set.map((n) => BigInt(n));`);
+    })
+    .writeLine(`else`)
+    .block(() => {
+      writer.writeLine(`data.${field.name} = []`);
+    });
+}
+
+function addScalarListProcessing(writer: CodeBlockWriter, field: Field) {
+  writer.writeLine(`if (!Array.isArray(data.${field.name}))`).block(() => {
+    writer.writeLine(`data.${field.name} = data.${field.name}?.set ?? [];`);
   });
 }

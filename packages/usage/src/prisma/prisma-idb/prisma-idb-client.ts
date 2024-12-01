@@ -873,7 +873,7 @@ class PostIDBClass extends BaseIDBModelClass {
     }
     return records.map((record) => {
       const partialRecord: Partial<typeof record> = record;
-      for (const untypedKey of ["id", "title", "author", "authorId", "comments", "tags"]) {
+      for (const untypedKey of ["id", "title", "author", "authorId", "comments", "tags", "numberArr"]) {
         const key = untypedKey as keyof typeof record & keyof S;
         if (!selectClause[key]) delete partialRecord[key];
       }
@@ -930,6 +930,12 @@ class PostIDBClass extends BaseIDBModelClass {
     }
     if (data.authorId === undefined) {
       data.authorId = null;
+    }
+    if (!Array.isArray(data.tags)) {
+      data.tags = data.tags?.set ?? [];
+    }
+    if (!Array.isArray(data.numberArr)) {
+      data.numberArr = data.numberArr?.set ?? [];
     }
     return data;
   }
@@ -1230,6 +1236,10 @@ class PostIDBClass extends BaseIDBModelClass {
     const intFields = ["id", "authorId"] as const;
     for (const field of intFields) {
       IDBUtils.handleIntUpdateField(record, field, query.data[field]);
+    }
+    const listFields = ["tags", "numberArr"] as const;
+    for (const field of listFields) {
+      IDBUtils.handleScalarListUpdateField(record, field, query.data[field]);
     }
     const keyPath = await tx.objectStore("Post").put(record);
     const recordWithRelations = (await this.findUnique(
@@ -1663,9 +1673,11 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
         "boolean",
         "int",
         "bigInt",
+        "bigIntegers",
         "float",
         "decimal",
         "dateTime",
+        "dateTimes",
         "json",
         "bytes",
       ]) {
@@ -1707,8 +1719,22 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     if (typeof data.bigInt === "number") {
       data.bigInt = BigInt(data.bigInt);
     }
+    if (Array.isArray(data.bigIntegers)) {
+      data.bigIntegers = data.bigIntegers.map((n) => BigInt(n));
+    } else if (typeof data.bigIntegers === "object") {
+      data.bigIntegers = data.bigIntegers.set.map((n) => BigInt(n));
+    } else {
+      data.bigIntegers = [];
+    }
     if (typeof data.dateTime === "string") {
       data.dateTime = new Date(data.dateTime);
+    }
+    if (Array.isArray(data.dateTimes)) {
+      data.dateTimes = data.dateTimes.map((d) => new Date(d));
+    } else if (typeof data.dateTimes === "object") {
+      data.dateTimes = data.dateTimes.set.map((d) => new Date(d));
+    } else {
+      data.dateTimes = [];
     }
     return data;
   }
@@ -1896,6 +1922,10 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     const intFields = ["id", "int"] as const;
     for (const field of intFields) {
       IDBUtils.handleIntUpdateField(record, field, query.data[field]);
+    }
+    const listFields = ["bigIntegers", "dateTimes"] as const;
+    for (const field of listFields) {
+      IDBUtils.handleScalarListUpdateField(record, field, query.data[field]);
     }
     const keyPath = await tx.objectStore("AllFieldScalarTypes").put(record);
     const recordWithRelations = (await this.findUnique(

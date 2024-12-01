@@ -11,6 +11,7 @@ import { addBytesUpdateHandler } from "./updateHandlers/BytesHandler";
 import { addDateTimeUpdateHandler } from "./updateHandlers/DateTimeHandler";
 import { addIntUpdateHandler } from "./updateHandlers/IntHandler";
 import { addStringUpdateHandler } from "./updateHandlers/StringHandler";
+import { addScalarListUpdateHandler } from "./updateHandlers/ScalarListHandler";
 
 export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model[]) {
   idbUtilsFile.addImportDeclarations([
@@ -51,4 +52,5 @@ export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model
   addDateTimeUpdateHandler(idbUtilsFile, models);
   addBytesUpdateHandler(idbUtilsFile, models);
   addIntUpdateHandler(idbUtilsFile, models);
+  addScalarListUpdateHandler(idbUtilsFile, models);
 }

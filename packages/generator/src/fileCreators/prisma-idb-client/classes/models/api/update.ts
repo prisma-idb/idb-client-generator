@@ -20,6 +20,7 @@ export function addUpdateMethod(modelClass: ClassDeclaration, model: Model) {
       addBytesUpdateHandling(writer, model);
       addIntUpdateHandling(writer, model);
       // TODO: the numeric types
+      addScalarListUpdateHandling(writer, model);
       addPutAndReturn(writer, model);
     },
   });
@@ -108,5 +109,17 @@ function addBytesUpdateHandling(writer: CodeBlockWriter, model: Model) {
     .writeLine(`for (const field of bytesFields)`)
     .block(() => {
       writer.writeLine(`IDBUtils.handleBytesUpdateField(record, field, query.data[field]);`);
+    });
+}
+
+function addScalarListUpdateHandling(writer: CodeBlockWriter, model: Model) {
+  const listFields = model.fields.filter((field) => field.isList && field.kind !== "object").map(({ name }) => name);
+  if (listFields.length === 0) return;
+
+  writer
+    .writeLine(`const listFields = ${JSON.stringify(listFields)} as const;`)
+    .writeLine(`for (const field of listFields)`)
+    .block(() => {
+      writer.writeLine(`IDBUtils.handleScalarListUpdateField(record, field, query.data[field]);`);
     });
 }
