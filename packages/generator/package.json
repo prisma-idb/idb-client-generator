@@ -47,5 +47,8 @@
   ],
   "bugs": {
     "url": "https://github.com/prisma-idb/idb-client-generator/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
