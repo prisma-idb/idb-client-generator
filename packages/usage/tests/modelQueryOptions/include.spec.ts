@@ -1,3 +1,4 @@
+import { createId } from "@paralleldrive/cuid2";
 import { test } from "../fixtures";
 import { expectQueryToSucceed } from "../queryRunnerHelper";
 
@@ -31,4 +32,37 @@ test("include_WithOneToManyRelation_ReturnsRelatedData", async ({ page }) => {
   await expectQueryToSucceed({ page, model: "user", operation: "findMany", query: { include: { posts: true } } });
 });
 
-// TODO: test for other relation types (nested includes)
+test("include_WithNestedRelationships_ReturnsAllData", async ({ page }) => {
+  const comment1Id = createId();
+  const comment2Id = createId();
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "create",
+    query: {
+      data: {
+        name: "John",
+        posts: {
+          create: [
+            {
+              title: "post1",
+              comments: {
+                create: [
+                  { text: "1st comment", userId: 1, id: comment1Id },
+                  { text: "2nd comment", userId: 1, id: comment2Id },
+                ],
+              },
+            },
+            { title: "post2" },
+          ],
+        },
+      },
+    },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "findMany",
+    query: { include: { posts: { include: { comments: true } } } },
+  });
+});
