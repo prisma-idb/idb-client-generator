@@ -24,7 +24,7 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
     extends: "BaseIDBModelClass",
   });
 
-  addApplyWhereClause(modelClass, model);
+  addApplyWhereClause(modelClass, model, models);
   addApplySelectClause(modelClass, model);
   addApplyRelations(modelClass, model, models);
   addFillDefaultsFunction(modelClass, model);

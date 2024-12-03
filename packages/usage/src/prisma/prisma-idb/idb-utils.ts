@@ -10,6 +10,66 @@ export type ReadwriteTransactionType = IDBPTransaction<PrismaIDBSchema, StoreNam
 
 export type ReadonlyTransactionType = IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readonly">;
 
+export type TransactionType = ReadonlyTransactionType | ReadwriteTransactionType;
+
+export function intersectArraysByNestedKey<T>(arrays: T[][], keyPath: string[]): T[] {
+  return arrays.reduce((acc, array) =>
+    acc.filter((item) => array.some((el) => keyPath.every((key) => el[key as keyof T] === item[key as keyof T]))),
+  );
+}
+
+export function removeDuplicatesByKeyPath<T>(arrays: T[][], keyPath: string[]): T[] {
+  const seen = new Set<string>();
+  return arrays
+    .flatMap((el) => el)
+    .filter((item) => {
+      const key = JSON.stringify(keyPath.map((key) => item[key as keyof T]));
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+export async function applyLogicalFilters<
+  T,
+  R extends Prisma.Result<T, object, "findFirstOrThrow">,
+  W extends Prisma.Args<T, "findFirstOrThrow">["where"],
+>(
+  records: R[],
+  whereClause: W,
+  tx: TransactionType,
+  keyPath: string[],
+  applyWhereFunction: (records: R[], clause: W, tx: TransactionType) => Promise<R[]>,
+): Promise<R[]> {
+  if (whereClause.AND) {
+    records = intersectArraysByNestedKey(
+      await Promise.all(
+        convertToArray(whereClause.AND).map(async (clause) => await applyWhereFunction(records, clause, tx)),
+      ),
+      keyPath,
+    );
+  }
+  if (whereClause.OR) {
+    records = removeDuplicatesByKeyPath(
+      await Promise.all(
+        convertToArray(whereClause.OR).map(async (clause) => await applyWhereFunction(records, clause, tx)),
+      ),
+      keyPath,
+    );
+  }
+  if (whereClause.NOT) {
+    const excludedRecords = removeDuplicatesByKeyPath(
+      await Promise.all(convertToArray(whereClause.NOT).map(async (clause) => applyWhereFunction(records, clause, tx))),
+      keyPath,
+    );
+    records = records.filter(
+      (item) =>
+        !excludedRecords.some((excluded) => keyPath.every((key) => excluded[key as keyof R] === item[key as keyof R])),
+    );
+  }
+  return records;
+}
+
 export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,

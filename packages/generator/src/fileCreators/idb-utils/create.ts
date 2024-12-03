@@ -6,12 +6,15 @@ import { addBytesFilter } from "./filters/BytesFilter";
 import { addDateTimeFilter } from "./filters/DateTimeFilter";
 import { addNumberFilter } from "./filters/NumberFilter";
 import { addStringFilter } from "./filters/StringFilter";
+import { addApplyLogicalFilters } from "./logicalFilters/applyLogicalFilters";
+import { addIntersectArraysByNestedKeyFunction } from "./logicalFilters/intersectArraysByNestedKey";
+import { addRemoveDuplicatesByKeyPath } from "./logicalFilters/removeDuplicatesByKeyPath";
 import { addBooleanUpdateHandler } from "./updateHandlers/BooleanHandler";
 import { addBytesUpdateHandler } from "./updateHandlers/BytesHandler";
 import { addDateTimeUpdateHandler } from "./updateHandlers/DateTimeHandler";
 import { addIntUpdateHandler } from "./updateHandlers/IntHandler";
-import { addStringUpdateHandler } from "./updateHandlers/StringHandler";
 import { addScalarListUpdateHandler } from "./updateHandlers/ScalarListHandler";
+import { addStringUpdateHandler } from "./updateHandlers/StringHandler";
 
 export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model[]) {
   idbUtilsFile.addImportDeclarations([
@@ -39,6 +42,15 @@ export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model
     name: "ReadonlyTransactionType",
     type: `IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readonly">;`,
   });
+  idbUtilsFile.addTypeAlias({
+    isExported: true,
+    name: "TransactionType",
+    type: `ReadonlyTransactionType | ReadwriteTransactionType;`,
+  });
+
+  addIntersectArraysByNestedKeyFunction(idbUtilsFile);
+  addRemoveDuplicatesByKeyPath(idbUtilsFile);
+  addApplyLogicalFilters(idbUtilsFile);
 
   addStringFilter(idbUtilsFile, models);
   addNumberFilter(idbUtilsFile, models);

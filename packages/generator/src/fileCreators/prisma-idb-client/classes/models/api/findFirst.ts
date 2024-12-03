@@ -11,7 +11,7 @@ export function addFindFirstMethod(modelClass: ClassDeclaration, model: Model) {
       {
         name: "tx",
         hasQuestionToken: true,
-        type: "IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType",
+        type: "IDBUtils.TransactionType",
       },
     ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'findFirst'>>`,
@@ -20,7 +20,7 @@ export function addFindFirstMethod(modelClass: ClassDeclaration, model: Model) {
         .writeLine(
           `tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`,
         )
-        .writeLine(`return (await this.findMany(query))[0] ?? null;`);
+        .writeLine(`return (await this.findMany(query, tx))[0] ?? null;`);
     },
   });
 }

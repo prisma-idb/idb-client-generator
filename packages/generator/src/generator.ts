@@ -3,7 +3,7 @@ import { Project } from "ts-morph";
 import { version } from "../package.json";
 import { createIDBInterfaceFile } from "./fileCreators/idb-interface/create";
 import { createPrismaIDBClientFile } from "./fileCreators/prisma-idb-client/create";
-import { createUtilsFile } from "./fileCreators/utils/create";
+import { createUtilsFile } from "./fileCreators/idb-utils/create";
 import { writeSourceFile } from "./helpers/fileWriting";
 
 generatorHandler({

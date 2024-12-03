@@ -12,7 +12,7 @@ export function addFindUniqueMethod(modelClass: ClassDeclaration, model: Model) 
       {
         name: "tx",
         hasQuestionToken: true,
-        type: "IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType",
+        type: "IDBUtils.TransactionType",
       },
     ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'findUnique'>>`,
@@ -29,7 +29,7 @@ export function addFindUniqueMethod(modelClass: ClassDeclaration, model: Model) 
         .blankLine()
         .write(`const recordWithRelations = `)
         .write(
-          `this._applySelectClause(await this._applyRelations(this._applyWhereClause([record], query.where), tx, query), query.select)[0];`,
+          `this._applySelectClause(await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query), query.select)[0];`,
         )
         .writeLine(`return recordWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "findUnique">;`);
     },
