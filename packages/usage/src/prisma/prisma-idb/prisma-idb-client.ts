@@ -116,6 +116,52 @@ class UserIDBClass extends BaseIDBModelClass {
               return null;
             }
           }
+          if (whereClause.posts) {
+            if (whereClause.posts.every) {
+              const violatingRecord = await this.client.post.findFirst({
+                where: { NOT: { ...whereClause.posts.every }, authorId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+            if (whereClause.posts.some) {
+              const relatedRecords = await this.client.post.findMany({
+                where: { ...whereClause.posts.some, authorId: record.id },
+                tx,
+              });
+              if (relatedRecords.length !== 0) return null;
+            }
+            if (whereClause.posts.none) {
+              const violatingRecord = await this.client.post.findFirst({
+                where: { ...whereClause.posts.none, authorId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+          }
+          if (whereClause.comments) {
+            if (whereClause.comments.every) {
+              const violatingRecord = await this.client.comment.findFirst({
+                where: { NOT: { ...whereClause.comments.every }, userId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+            if (whereClause.comments.some) {
+              const relatedRecords = await this.client.comment.findMany({
+                where: { ...whereClause.comments.some, userId: record.id },
+                tx,
+              });
+              if (relatedRecords.length !== 0) return null;
+            }
+            if (whereClause.comments.none) {
+              const violatingRecord = await this.client.comment.findFirst({
+                where: { ...whereClause.comments.none, userId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+          }
           return record;
         }),
       )
@@ -920,6 +966,29 @@ class PostIDBClass extends BaseIDBModelClass {
             const relatedRecord = await this.client.user.findFirst({ where: relationWhereClause }, tx);
             if ((whereClause.author.is && !relatedRecord) || (whereClause.author.isNot && relatedRecord)) {
               return null;
+            }
+          }
+          if (whereClause.comments) {
+            if (whereClause.comments.every) {
+              const violatingRecord = await this.client.comment.findFirst({
+                where: { NOT: { ...whereClause.comments.every }, postId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+            if (whereClause.comments.some) {
+              const relatedRecords = await this.client.comment.findMany({
+                where: { ...whereClause.comments.some, postId: record.id },
+                tx,
+              });
+              if (relatedRecords.length !== 0) return null;
+            }
+            if (whereClause.comments.none) {
+              const violatingRecord = await this.client.comment.findFirst({
+                where: { ...whereClause.comments.none, postId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
             }
           }
           return record;

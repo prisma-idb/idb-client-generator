@@ -189,5 +189,42 @@ function addOneToOneMetaOnOtherFieldFiltering(writer: CodeBlockWriter, field: Fi
 }
 
 function addOneToManyFiltering(writer: CodeBlockWriter, field: Field, otherField: Field) {
-  // TODO
+  const fkName = otherField.relationFromFields?.at(0);
+  const relationPk = otherField.relationToFields?.at(0);
+
+  writer.writeLine(`if (whereClause.${field.name})`).block(() => {
+    writer
+      .writeLine(`if (whereClause.${field.name}.every)`)
+      .block(() => {
+        writer
+          .writeLine(`const violatingRecord = await this.client.${toCamelCase(field.type)}.findFirst(`)
+          .block(() => {
+            writer.writeLine(
+              `where: { NOT: { ...whereClause.${field.name}.every }, ${fkName}: record.${relationPk} }, tx`,
+            );
+          })
+          .writeLine(`);`)
+          .writeLine(`if (violatingRecord !== null) return null;`);
+      })
+      .writeLine(`if (whereClause.${field.name}.some)`)
+      .block(() => {
+        writer
+          .writeLine(`const relatedRecords = await this.client.${toCamelCase(field.type)}.findMany(`)
+          .block(() => {
+            writer.writeLine(`where: { ...whereClause.${field.name}.some, ${fkName}: record.${relationPk} }, tx`);
+          })
+          .writeLine(`);`)
+          .writeLine(`if (relatedRecords.length !== 0) return null;`);
+      })
+      .writeLine(`if (whereClause.${field.name}.none)`)
+      .block(() => {
+        writer
+          .writeLine(`const violatingRecord = await this.client.${toCamelCase(field.type)}.findFirst(`)
+          .block(() => {
+            writer.writeLine(`where: { ...whereClause.${field.name}.none, ${fkName}: record.${relationPk} }, tx`);
+          })
+          .writeLine(`);`)
+          .writeLine(`if (violatingRecord !== null) return null;`);
+      });
+  });
 }
