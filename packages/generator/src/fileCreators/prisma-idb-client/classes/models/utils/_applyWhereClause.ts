@@ -270,7 +270,7 @@ function addOneToManyFiltering(writer: CodeBlockWriter, field: Field, otherField
             writer.writeLine(`where: { ...whereClause.${field.name}.some, ${fkName}: record.${relationPk} }, tx`);
           })
           .writeLine(`);`)
-          .writeLine(`if (relatedRecords.length !== 0) return null;`);
+          .writeLine(`if (relatedRecords.length === 0) return null;`);
       })
       .writeLine(`if (whereClause.${field.name}.none)`)
       .block(() => {

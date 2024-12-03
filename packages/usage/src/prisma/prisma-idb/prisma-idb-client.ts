@@ -145,7 +145,7 @@ class UserIDBClass extends BaseIDBModelClass {
                 where: { ...whereClause.posts.some, authorId: record.id },
                 tx,
               });
-              if (relatedRecords.length !== 0) return null;
+              if (relatedRecords.length === 0) return null;
             }
             if (whereClause.posts.none) {
               const violatingRecord = await this.client.post.findFirst({
@@ -168,7 +168,7 @@ class UserIDBClass extends BaseIDBModelClass {
                 where: { ...whereClause.comments.some, userId: record.id },
                 tx,
               });
-              if (relatedRecords.length !== 0) return null;
+              if (relatedRecords.length === 0) return null;
             }
             if (whereClause.comments.none) {
               const violatingRecord = await this.client.comment.findFirst({
@@ -1020,7 +1020,7 @@ class PostIDBClass extends BaseIDBModelClass {
                 where: { ...whereClause.comments.some, postId: record.id },
                 tx,
               });
-              if (relatedRecords.length !== 0) return null;
+              if (relatedRecords.length === 0) return null;
             }
             if (whereClause.comments.none) {
               const violatingRecord = await this.client.comment.findFirst({
