@@ -12,7 +12,7 @@ export function addFindUniqueMethod(modelClass: ClassDeclaration, model: Model) 
       {
         name: "tx",
         hasQuestionToken: true,
-        type: "IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType",
+        type: "IDBUtils.TransactionType",
       },
     ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'findUnique'>>`,

@@ -14,7 +14,7 @@ export function addApplyWhereClause(modelClass: ClassDeclaration, model: Model, 
     parameters: [
       { name: "records", type: `R[]` },
       { name: "whereClause", type: "W" },
-      { name: "tx", type: "IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType" },
+      { name: "tx", type: "IDBUtils.TransactionType" },
     ],
     returnType: `Promise<R[]>`,
     statements: (writer) => {

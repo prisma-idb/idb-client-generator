@@ -12,7 +12,7 @@ export function addApplyRelations(modelClass: ClassDeclaration, model: Model, mo
       { name: "records", type: `Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>[]` },
       {
         name: "tx",
-        type: "IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType",
+        type: "IDBUtils.TransactionType",
       },
       { name: "query", type: "Q", hasQuestionToken: true },
     ],
