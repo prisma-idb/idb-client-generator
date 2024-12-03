@@ -143,23 +143,43 @@ function addOneToOneMetaOnFieldFiltering(writer: CodeBlockWriter, field: Field) 
   }
 
   writer.writeLine(`if (whereClause.${field.name})`).block(() => {
-    writer
-      .writeLine(`const relationWhereClause = whereClause.${field.name}.is`)
-      .writeLine(`? { ...whereClause.${field.name}.is, ${relationPk}: record.${fkName}! }`)
-      .writeLine(`: whereClause.${field.name}.isNot`)
-      .writeLine(`? { ...whereClause.${field.name}.isNot, ${relationPk}: record.${fkName}! }`)
-      .writeLine(`: { ...whereClause.${field.name}, ${relationPk}: record.${fkName}! }`);
-
-    writer
-      .writeLine(
-        `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: relationWhereClause }, tx);`,
-      )
-      .writeLine(
-        `if ((whereClause.${field.name}.is && !relatedRecord) || (whereClause.${field.name}.isNot && relatedRecord))`,
-      )
-      .block(() => {
-        writer.writeLine(`return null;`);
+    writer.writeLine(`const { is, isNot, ...rest } = whereClause.${field.name}`);
+    if (!field.isRequired) {
+      writer.writeLine(`if (is === null)`).block(() => {
+        writer.writeLine(`if (record.${fkName} !== null) return null;`);
       });
+    }
+    writer.writeLine(`if (is !== null && is !== undefined)`).block(() => {
+      writer
+        .conditionalWriteLine(!field.isRequired, () => `if (record.${fkName} === null) return null;`)
+        .writeLine(
+          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ...is, ${relationPk}: record.${fkName} } }, tx)`,
+        )
+        .writeLine(`if (!relatedRecord) return null;`);
+    });
+
+    if (!field.isRequired) {
+      writer.writeLine(`if (isNot === null)`).block(() => {
+        writer.writeLine(`if (record.${fkName} === null) return null;`);
+      });
+    }
+    writer.writeLine(`if (isNot !== null && isNot !== undefined)`).block(() => {
+      writer
+        .conditionalWriteLine(!field.isRequired, () => `if (record.${fkName} === null) return null;`)
+        .writeLine(
+          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ...isNot, ${relationPk}: record.${fkName} } }, tx)`,
+        )
+        .writeLine(`if (relatedRecord) return null;`);
+    });
+
+    writer.writeLine(`if (Object.keys(rest).length)`).block(() => {
+      writer
+        .conditionalWriteLine(!field.isRequired, () => `if (record.${fkName} === null) return null;`)
+        .writeLine(
+          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ...whereClause.${field.name}, ${relationPk}: record.${fkName} } }, tx);`,
+        )
+        .writeLine(`if (!relatedRecord) return null;`);
+    });
   });
 }
 
@@ -167,24 +187,60 @@ function addOneToOneMetaOnOtherFieldFiltering(writer: CodeBlockWriter, field: Fi
   const fkName = otherField.relationFromFields?.at(0);
   const relationPk = otherField.relationToFields?.at(0);
 
-  writer.writeLine(`if (whereClause.${field.name})`).block(() => {
-    writer
-      .writeLine(`const relationWhereClause = whereClause.${field.name}.is`)
-      .writeLine(`? { ...whereClause.${field.name}.is, ${fkName}: record.${relationPk} }`)
-      .writeLine(`: whereClause.${field.name}.isNot`)
-      .writeLine(`? { ...whereClause.${field.name}.isNot, ${fkName}: record.${relationPk} }`)
-      .writeLine(`: { ...whereClause.${field.name}, ${fkName}: record.${relationPk} }`);
+  if (!field.isRequired) {
+    writer.writeLine(`if (whereClause.${field.name} === null)`).block(() => {
+      writer
+        .writeLine(
+          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ${fkName}: record.${relationPk} } }, tx)`,
+        )
+        .writeLine(`if (relatedRecord) return null;`);
+    });
+  }
 
-    writer
-      .writeLine(
-        `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: relationWhereClause }, tx);`,
-      )
-      .writeLine(
-        `if ((whereClause.${field.name}.is && !relatedRecord) || (whereClause.${field.name}.isNot && relatedRecord) || relatedRecord === null)`,
-      )
-      .block(() => {
-        writer.writeLine(`return null;`);
+  writer.writeLine(`if (whereClause.${field.name})`).block(() => {
+    writer.writeLine(`const { is, isNot, ...rest } = whereClause.${field.name}`);
+    if (!field.isRequired) {
+      writer.writeLine(`if (is === null)`).block(() => {
+        writer
+          .writeLine(
+            `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ${fkName}: record.${relationPk} } }, tx)`,
+          )
+          .writeLine(`if (relatedRecord) return null;`);
       });
+    }
+    writer.writeLine(`if (is !== null && is !== undefined)`).block(() => {
+      writer
+        .writeLine(
+          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ...is, ${fkName}: record.${relationPk} } }, tx)`,
+        )
+        .writeLine(`if (!relatedRecord) return null;`);
+    });
+
+    if (!field.isRequired) {
+      writer.writeLine(`if (isNot === null)`).block(() => {
+        writer
+          .writeLine(
+            `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ${fkName}: record.${relationPk} } }, tx)`,
+          )
+          .writeLine(`if (!relatedRecord) return null;`);
+      });
+    }
+    writer.writeLine(`if (isNot !== null && isNot !== undefined)`).block(() => {
+      writer
+        .writeLine(
+          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ...isNot, ${fkName}: record.${relationPk} } }, tx)`,
+        )
+        .writeLine(`if (relatedRecord) return null;`);
+    });
+
+    writer.writeLine(`if (Object.keys(rest).length)`).block(() => {
+      writer
+        .conditionalWriteLine(!field.isRequired, () => `if (record.${relationPk} === null) return null;`)
+        .writeLine(
+          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ...whereClause.${field.name}, ${fkName}: record.${relationPk} } }, tx);`,
+        )
+        .writeLine(`if (!relatedRecord) return null;`);
+    });
   });
 }
 

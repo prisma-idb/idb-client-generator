@@ -101,19 +101,35 @@ class UserIDBClass extends BaseIDBModelClass {
           for (const field of numberFields) {
             if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
           }
+          if (whereClause.profile === null) {
+            const relatedRecord = await this.client.profile.findFirst({ where: { userId: record.id } }, tx);
+            if (relatedRecord) return null;
+          }
           if (whereClause.profile) {
-            const relationWhereClause = whereClause.profile.is
-              ? { ...whereClause.profile.is, userId: record.id }
-              : whereClause.profile.isNot
-                ? { ...whereClause.profile.isNot, userId: record.id }
-                : { ...whereClause.profile, userId: record.id };
-            const relatedRecord = await this.client.profile.findFirst({ where: relationWhereClause }, tx);
-            if (
-              (whereClause.profile.is && !relatedRecord) ||
-              (whereClause.profile.isNot && relatedRecord) ||
-              relatedRecord === null
-            ) {
-              return null;
+            const { is, isNot, ...rest } = whereClause.profile;
+            if (is === null) {
+              const relatedRecord = await this.client.profile.findFirst({ where: { userId: record.id } }, tx);
+              if (relatedRecord) return null;
+            }
+            if (is !== null && is !== undefined) {
+              const relatedRecord = await this.client.profile.findFirst({ where: { ...is, userId: record.id } }, tx);
+              if (!relatedRecord) return null;
+            }
+            if (isNot === null) {
+              const relatedRecord = await this.client.profile.findFirst({ where: { userId: record.id } }, tx);
+              if (!relatedRecord) return null;
+            }
+            if (isNot !== null && isNot !== undefined) {
+              const relatedRecord = await this.client.profile.findFirst({ where: { ...isNot, userId: record.id } }, tx);
+              if (relatedRecord) return null;
+            }
+            if (Object.keys(rest).length) {
+              if (record.id === null) return null;
+              const relatedRecord = await this.client.profile.findFirst(
+                { where: { ...whereClause.profile, userId: record.id } },
+                tx,
+              );
+              if (!relatedRecord) return null;
             }
           }
           if (whereClause.posts) {
@@ -621,14 +637,21 @@ class ProfileIDBClass extends BaseIDBModelClass {
             if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
           }
           if (whereClause.user) {
-            const relationWhereClause = whereClause.user.is
-              ? { ...whereClause.user.is, id: record.userId! }
-              : whereClause.user.isNot
-                ? { ...whereClause.user.isNot, id: record.userId! }
-                : { ...whereClause.user, id: record.userId! };
-            const relatedRecord = await this.client.user.findFirst({ where: relationWhereClause }, tx);
-            if ((whereClause.user.is && !relatedRecord) || (whereClause.user.isNot && relatedRecord)) {
-              return null;
+            const { is, isNot, ...rest } = whereClause.user;
+            if (is !== null && is !== undefined) {
+              const relatedRecord = await this.client.user.findFirst({ where: { ...is, id: record.userId } }, tx);
+              if (!relatedRecord) return null;
+            }
+            if (isNot !== null && isNot !== undefined) {
+              const relatedRecord = await this.client.user.findFirst({ where: { ...isNot, id: record.userId } }, tx);
+              if (relatedRecord) return null;
+            }
+            if (Object.keys(rest).length) {
+              const relatedRecord = await this.client.user.findFirst(
+                { where: { ...whereClause.user, id: record.userId } },
+                tx,
+              );
+              if (!relatedRecord) return null;
             }
           }
           return record;
@@ -958,14 +981,30 @@ class PostIDBClass extends BaseIDBModelClass {
             if (record.authorId !== null) return null;
           }
           if (whereClause.author) {
-            const relationWhereClause = whereClause.author.is
-              ? { ...whereClause.author.is, id: record.authorId! }
-              : whereClause.author.isNot
-                ? { ...whereClause.author.isNot, id: record.authorId! }
-                : { ...whereClause.author, id: record.authorId! };
-            const relatedRecord = await this.client.user.findFirst({ where: relationWhereClause }, tx);
-            if ((whereClause.author.is && !relatedRecord) || (whereClause.author.isNot && relatedRecord)) {
-              return null;
+            const { is, isNot, ...rest } = whereClause.author;
+            if (is === null) {
+              if (record.authorId !== null) return null;
+            }
+            if (is !== null && is !== undefined) {
+              if (record.authorId === null) return null;
+              const relatedRecord = await this.client.user.findFirst({ where: { ...is, id: record.authorId } }, tx);
+              if (!relatedRecord) return null;
+            }
+            if (isNot === null) {
+              if (record.authorId === null) return null;
+            }
+            if (isNot !== null && isNot !== undefined) {
+              if (record.authorId === null) return null;
+              const relatedRecord = await this.client.user.findFirst({ where: { ...isNot, id: record.authorId } }, tx);
+              if (relatedRecord) return null;
+            }
+            if (Object.keys(rest).length) {
+              if (record.authorId === null) return null;
+              const relatedRecord = await this.client.user.findFirst(
+                { where: { ...whereClause.author, id: record.authorId } },
+                tx,
+              );
+              if (!relatedRecord) return null;
             }
           }
           if (whereClause.comments) {
@@ -1408,25 +1447,39 @@ class CommentIDBClass extends BaseIDBModelClass {
             if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
           }
           if (whereClause.post) {
-            const relationWhereClause = whereClause.post.is
-              ? { ...whereClause.post.is, id: record.postId! }
-              : whereClause.post.isNot
-                ? { ...whereClause.post.isNot, id: record.postId! }
-                : { ...whereClause.post, id: record.postId! };
-            const relatedRecord = await this.client.post.findFirst({ where: relationWhereClause }, tx);
-            if ((whereClause.post.is && !relatedRecord) || (whereClause.post.isNot && relatedRecord)) {
-              return null;
+            const { is, isNot, ...rest } = whereClause.post;
+            if (is !== null && is !== undefined) {
+              const relatedRecord = await this.client.post.findFirst({ where: { ...is, id: record.postId } }, tx);
+              if (!relatedRecord) return null;
+            }
+            if (isNot !== null && isNot !== undefined) {
+              const relatedRecord = await this.client.post.findFirst({ where: { ...isNot, id: record.postId } }, tx);
+              if (relatedRecord) return null;
+            }
+            if (Object.keys(rest).length) {
+              const relatedRecord = await this.client.post.findFirst(
+                { where: { ...whereClause.post, id: record.postId } },
+                tx,
+              );
+              if (!relatedRecord) return null;
             }
           }
           if (whereClause.user) {
-            const relationWhereClause = whereClause.user.is
-              ? { ...whereClause.user.is, id: record.userId! }
-              : whereClause.user.isNot
-                ? { ...whereClause.user.isNot, id: record.userId! }
-                : { ...whereClause.user, id: record.userId! };
-            const relatedRecord = await this.client.user.findFirst({ where: relationWhereClause }, tx);
-            if ((whereClause.user.is && !relatedRecord) || (whereClause.user.isNot && relatedRecord)) {
-              return null;
+            const { is, isNot, ...rest } = whereClause.user;
+            if (is !== null && is !== undefined) {
+              const relatedRecord = await this.client.user.findFirst({ where: { ...is, id: record.userId } }, tx);
+              if (!relatedRecord) return null;
+            }
+            if (isNot !== null && isNot !== undefined) {
+              const relatedRecord = await this.client.user.findFirst({ where: { ...isNot, id: record.userId } }, tx);
+              if (relatedRecord) return null;
+            }
+            if (Object.keys(rest).length) {
+              const relatedRecord = await this.client.user.findFirst(
+                { where: { ...whereClause.user, id: record.userId } },
+                tx,
+              );
+              if (!relatedRecord) return null;
             }
           }
           return record;
