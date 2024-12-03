@@ -19,10 +19,10 @@ export function addApplyWhereClause(modelClass: ClassDeclaration, model: Model, 
     returnType: `Promise<R[]>`,
     statements: (writer) => {
       writer.writeLine(`if (!whereClause) return records;`);
+      addLogicalFiltering(writer, model);
       writer
         .writeLine(`return (await Promise.all(records.map(async (record) =>`)
         .block(() => {
-          addLogicalFiltering(writer, model);
           addStringFiltering(writer, model);
           addNumberFiltering(writer, model);
           addBigIntFiltering(writer, model);
@@ -41,7 +41,7 @@ export function addApplyWhereClause(modelClass: ClassDeclaration, model: Model, 
 function addLogicalFiltering(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`records = await IDBUtils.applyLogicalFilters<Prisma.${model.name}Delegate, R, W>(`)
-    .writeLine(`records, whereClause, tx, this.keyPath, this._applyWhereClause,`)
+    .writeLine(`records, whereClause, tx, this.keyPath, this._applyWhereClause.bind(this),`)
     .writeLine(`)`);
 }
 

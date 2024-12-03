@@ -84,12 +84,15 @@ class UserIDBClass extends BaseIDBModelClass {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.UserDelegate, "findFirstOrThrow">["where"],
     R extends Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">,
-  >(
-    records: R[],
-    whereClause: W,
-    tx: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
-  ): Promise<R[]> {
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
     if (!whereClause) return records;
+    records = await IDBUtils.applyLogicalFilters<Prisma.UserDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this),
+    );
     return (
       await Promise.all(
         records.map(async (record) => {
@@ -203,7 +206,7 @@ class UserIDBClass extends BaseIDBModelClass {
 
   private async _applyRelations<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
     records: Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">[],
-    tx: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx: IDBUtils.TransactionType,
     query?: Q,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[];
@@ -381,7 +384,7 @@ class UserIDBClass extends BaseIDBModelClass {
 
   async findMany<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findMany">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const records = await this._applyWhereClause(await tx.objectStore("User").getAll(), query?.where, tx);
@@ -397,7 +400,7 @@ class UserIDBClass extends BaseIDBModelClass {
 
   async findFirst<Q extends Prisma.Args<Prisma.UserDelegate, "findFirst">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findFirst">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query))[0] ?? null;
@@ -405,7 +408,7 @@ class UserIDBClass extends BaseIDBModelClass {
 
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.UserDelegate, "findFirstOrThrow">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findFirst(query, tx);
@@ -418,7 +421,7 @@ class UserIDBClass extends BaseIDBModelClass {
 
   async findUnique<Q extends Prisma.Args<Prisma.UserDelegate, "findUnique">>(
     query: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findUnique">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
@@ -436,7 +439,7 @@ class UserIDBClass extends BaseIDBModelClass {
 
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.UserDelegate, "findUniqueOrThrow">>(
     query: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findUniqueOrThrow">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findUnique(query, tx);
@@ -619,12 +622,15 @@ class ProfileIDBClass extends BaseIDBModelClass {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.ProfileDelegate, "findFirstOrThrow">["where"],
     R extends Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">,
-  >(
-    records: R[],
-    whereClause: W,
-    tx: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
-  ): Promise<R[]> {
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
     if (!whereClause) return records;
+    records = await IDBUtils.applyLogicalFilters<Prisma.ProfileDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this),
+    );
     return (
       await Promise.all(
         records.map(async (record) => {
@@ -679,7 +685,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   private async _applyRelations<Q extends Prisma.Args<Prisma.ProfileDelegate, "findMany">>(
     records: Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">[],
-    tx: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx: IDBUtils.TransactionType,
     query?: Q,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">[];
@@ -771,7 +777,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   async findMany<Q extends Prisma.Args<Prisma.ProfileDelegate, "findMany">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findMany">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const records = await this._applyWhereClause(await tx.objectStore("Profile").getAll(), query?.where, tx);
@@ -787,7 +793,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   async findFirst<Q extends Prisma.Args<Prisma.ProfileDelegate, "findFirst">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findFirst">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query))[0] ?? null;
@@ -795,7 +801,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.ProfileDelegate, "findFirstOrThrow">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findFirst(query, tx);
@@ -808,7 +814,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   async findUnique<Q extends Prisma.Args<Prisma.ProfileDelegate, "findUnique">>(
     query: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findUnique">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
@@ -828,7 +834,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.ProfileDelegate, "findUniqueOrThrow">>(
     query: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findUniqueOrThrow">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findUnique(query, tx);
@@ -960,12 +966,15 @@ class PostIDBClass extends BaseIDBModelClass {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.PostDelegate, "findFirstOrThrow">["where"],
     R extends Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">,
-  >(
-    records: R[],
-    whereClause: W,
-    tx: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
-  ): Promise<R[]> {
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
     if (!whereClause) return records;
+    records = await IDBUtils.applyLogicalFilters<Prisma.PostDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this),
+    );
     return (
       await Promise.all(
         records.map(async (record) => {
@@ -1055,7 +1064,7 @@ class PostIDBClass extends BaseIDBModelClass {
 
   private async _applyRelations<Q extends Prisma.Args<Prisma.PostDelegate, "findMany">>(
     records: Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">[],
-    tx: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx: IDBUtils.TransactionType,
     query?: Q,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.PostDelegate, Q, "findFirstOrThrow">[];
@@ -1203,7 +1212,7 @@ class PostIDBClass extends BaseIDBModelClass {
 
   async findMany<Q extends Prisma.Args<Prisma.PostDelegate, "findMany">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findMany">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const records = await this._applyWhereClause(await tx.objectStore("Post").getAll(), query?.where, tx);
@@ -1219,7 +1228,7 @@ class PostIDBClass extends BaseIDBModelClass {
 
   async findFirst<Q extends Prisma.Args<Prisma.PostDelegate, "findFirst">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findFirst">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query))[0] ?? null;
@@ -1227,7 +1236,7 @@ class PostIDBClass extends BaseIDBModelClass {
 
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.PostDelegate, "findFirstOrThrow">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findFirstOrThrow">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findFirst(query, tx);
@@ -1240,7 +1249,7 @@ class PostIDBClass extends BaseIDBModelClass {
 
   async findUnique<Q extends Prisma.Args<Prisma.PostDelegate, "findUnique">>(
     query: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findUnique">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
@@ -1258,7 +1267,7 @@ class PostIDBClass extends BaseIDBModelClass {
 
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.PostDelegate, "findUniqueOrThrow">>(
     query: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findUniqueOrThrow">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findUnique(query, tx);
@@ -1429,12 +1438,15 @@ class CommentIDBClass extends BaseIDBModelClass {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.CommentDelegate, "findFirstOrThrow">["where"],
     R extends Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">,
-  >(
-    records: R[],
-    whereClause: W,
-    tx: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
-  ): Promise<R[]> {
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
     if (!whereClause) return records;
+    records = await IDBUtils.applyLogicalFilters<Prisma.CommentDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this),
+    );
     return (
       await Promise.all(
         records.map(async (record) => {
@@ -1507,7 +1519,7 @@ class CommentIDBClass extends BaseIDBModelClass {
 
   private async _applyRelations<Q extends Prisma.Args<Prisma.CommentDelegate, "findMany">>(
     records: Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">[],
-    tx: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx: IDBUtils.TransactionType,
     query?: Q,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">[];
@@ -1632,7 +1644,7 @@ class CommentIDBClass extends BaseIDBModelClass {
 
   async findMany<Q extends Prisma.Args<Prisma.CommentDelegate, "findMany">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findMany">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const records = await this._applyWhereClause(await tx.objectStore("Comment").getAll(), query?.where, tx);
@@ -1648,7 +1660,7 @@ class CommentIDBClass extends BaseIDBModelClass {
 
   async findFirst<Q extends Prisma.Args<Prisma.CommentDelegate, "findFirst">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findFirst">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query))[0] ?? null;
@@ -1656,7 +1668,7 @@ class CommentIDBClass extends BaseIDBModelClass {
 
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.CommentDelegate, "findFirstOrThrow">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findFirst(query, tx);
@@ -1669,7 +1681,7 @@ class CommentIDBClass extends BaseIDBModelClass {
 
   async findUnique<Q extends Prisma.Args<Prisma.CommentDelegate, "findUnique">>(
     query: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findUnique">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
@@ -1687,7 +1699,7 @@ class CommentIDBClass extends BaseIDBModelClass {
 
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.CommentDelegate, "findUniqueOrThrow">>(
     query: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findUniqueOrThrow">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findUnique(query, tx);
@@ -1843,12 +1855,15 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findFirstOrThrow">["where"],
     R extends Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">,
-  >(
-    records: R[],
-    whereClause: W,
-    tx: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
-  ): Promise<R[]> {
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
     if (!whereClause) return records;
+    records = await IDBUtils.applyLogicalFilters<Prisma.AllFieldScalarTypesDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this),
+    );
     return (
       await Promise.all(
         records.map(async (record) => {
@@ -1914,7 +1929,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
 
   private async _applyRelations<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">>(
     records: Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">[],
-    tx: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx: IDBUtils.TransactionType,
     query?: Q,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirstOrThrow">[];
@@ -1988,7 +2003,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
 
   async findMany<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findMany">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const records = await this._applyWhereClause(
@@ -2008,7 +2023,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
 
   async findFirst<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findFirst">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirst">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query))[0] ?? null;
@@ -2016,7 +2031,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
 
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findFirstOrThrow">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirstOrThrow">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findFirst(query, tx);
@@ -2029,7 +2044,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
 
   async findUnique<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findUnique">>(
     query: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findUnique">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
@@ -2047,7 +2062,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
 
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findUniqueOrThrow">>(
     query: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findUniqueOrThrow">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findUnique(query, tx);
