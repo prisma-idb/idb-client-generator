@@ -27,7 +27,9 @@ export function addFindManyMethod(modelClass: ClassDeclaration, model: Model) {
 function getRecords(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`)
-    .writeLine(`const records = this._applyWhereClause(await tx.objectStore("${model.name}").getAll(), query?.where);`);
+    .writeLine(
+      `const records = await this._applyWhereClause(await tx.objectStore("${model.name}").getAll(), query?.where, tx);`,
+    );
 }
 
 function applyRelationsToRecords(writer: CodeBlockWriter, model: Model) {
