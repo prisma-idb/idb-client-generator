@@ -10,5 +10,9 @@
   },
   "npm": {
     "ignoreVersion": true
+  },
+  "git": {
+    "commit": false,
+    "push": false
   }
 }
