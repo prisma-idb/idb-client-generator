@@ -20,7 +20,7 @@ export class PrismaIDBClient {
   comment!: CommentIDBClass;
   allFieldScalarTypes!: AllFieldScalarTypesIDBClass;
 
-  public static async create(): Promise<PrismaIDBClient> {
+  public static async createClient(): Promise<PrismaIDBClient> {
     if (!PrismaIDBClient.instance) {
       const client = new PrismaIDBClient();
       await client.initialize();

@@ -11,7 +11,7 @@
   let output = $state("");
 
   onMount(async () => {
-    client = await PrismaIDBClient.create();
+    client = await PrismaIDBClient.createClient();
   });
 
   async function executeQuery(e: SubmitEvent) {

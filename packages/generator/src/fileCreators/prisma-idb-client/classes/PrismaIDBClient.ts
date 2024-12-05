@@ -30,7 +30,7 @@ function addModelProperties(clientClass: ClassDeclaration, models: readonly Mode
 
 function addCreateInstanceMethod(clientClass: ClassDeclaration) {
   clientClass.addMethod({
-    name: "create",
+    name: "createClient",
     isStatic: true,
     isAsync: true,
     scope: Scope.Public,
