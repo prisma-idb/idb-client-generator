@@ -296,6 +296,7 @@ class UserIDBClass extends BaseIDBModelClass {
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("User");
+    this._getNeededStoresForWhere(query?.where, neededStores);
     if (query?.select?.profile || query?.include?.profile) {
       neededStores.add("Profile");
       if (typeof query.select?.profile === "object") {
@@ -776,6 +777,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("Profile");
+    this._getNeededStoresForWhere(query?.where, neededStores);
     if (query?.select?.user || query?.include?.user) {
       neededStores.add("User");
       if (typeof query.select?.user === "object") {
@@ -1198,6 +1200,7 @@ class PostIDBClass extends BaseIDBModelClass {
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("Post");
+    this._getNeededStoresForWhere(query?.where, neededStores);
     if (query?.select?.author || query?.include?.author) {
       neededStores.add("User");
       if (typeof query.select?.author === "object") {
@@ -1660,6 +1663,7 @@ class CommentIDBClass extends BaseIDBModelClass {
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("Comment");
+    this._getNeededStoresForWhere(query?.where, neededStores);
     if (query?.select?.post || query?.include?.post) {
       neededStores.add("Post");
       if (typeof query.select?.post === "object") {
@@ -2091,6 +2095,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("AllFieldScalarTypes");
+    this._getNeededStoresForWhere(query?.where, neededStores);
     return neededStores;
   }
 
