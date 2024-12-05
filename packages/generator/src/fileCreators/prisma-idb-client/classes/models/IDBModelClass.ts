@@ -15,8 +15,9 @@ import { addApplySelectClause } from "./utils/_applySelectClause";
 import { addApplyWhereClause } from "./utils/_applyWhereClause";
 import { addFillDefaultsFunction } from "./utils/_fillDefaults";
 import { addGetNeededStoresForCreate } from "./utils/_getNeededStoresForCreate";
-import { addGetNeededStoresForFind } from "./utils/_getStoresNeededForFind";
+import { addGetNeededStoresForFind } from "./utils/_getNeededStoresForFind";
 import { addRemoveNestedCreateDataMethod } from "./utils/_removeNestedCreateData";
+import { addGetNeededStoresForWhere } from "./utils/_getNeededStoresForWhere";
 
 export function addIDBModelClass(file: SourceFile, model: Model, models: readonly Model[]) {
   const modelClass = file.addClass({
@@ -24,10 +25,11 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
     extends: "BaseIDBModelClass",
   });
 
-  addApplyWhereClause(modelClass, model);
+  addApplyWhereClause(modelClass, model, models);
   addApplySelectClause(modelClass, model);
   addApplyRelations(modelClass, model, models);
   addFillDefaultsFunction(modelClass, model);
+  addGetNeededStoresForWhere(modelClass, model);
   addGetNeededStoresForFind(modelClass, model);
   addGetNeededStoresForCreate(modelClass, model);
   addRemoveNestedCreateDataMethod(modelClass, model);

@@ -81,22 +81,110 @@ class BaseIDBModelClass {
 }
 
 class UserIDBClass extends BaseIDBModelClass {
-  private _applyWhereClause<
+  private async _applyWhereClause<
     W extends Prisma.Args<Prisma.UserDelegate, "findFirstOrThrow">["where"],
     R extends Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">,
-  >(records: R[], whereClause: W): R[] {
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
     if (!whereClause) return records;
-    return records.filter((record) => {
-      const stringFields = ["name"] as const;
-      for (const field of stringFields) {
-        if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return false;
-      }
-      const numberFields = ["id"] as const;
-      for (const field of numberFields) {
-        if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return false;
-      }
-      return true;
-    });
+    records = await IDBUtils.applyLogicalFilters<Prisma.UserDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this),
+    );
+    return (
+      await Promise.all(
+        records.map(async (record) => {
+          const stringFields = ["name"] as const;
+          for (const field of stringFields) {
+            if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
+          }
+          const numberFields = ["id"] as const;
+          for (const field of numberFields) {
+            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
+          }
+          if (whereClause.profile === null) {
+            const relatedRecord = await this.client.profile.findFirst({ where: { userId: record.id } }, tx);
+            if (relatedRecord) return null;
+          }
+          if (whereClause.profile) {
+            const { is, isNot, ...rest } = whereClause.profile;
+            if (is === null) {
+              const relatedRecord = await this.client.profile.findFirst({ where: { userId: record.id } }, tx);
+              if (relatedRecord) return null;
+            }
+            if (is !== null && is !== undefined) {
+              const relatedRecord = await this.client.profile.findFirst({ where: { ...is, userId: record.id } }, tx);
+              if (!relatedRecord) return null;
+            }
+            if (isNot === null) {
+              const relatedRecord = await this.client.profile.findFirst({ where: { userId: record.id } }, tx);
+              if (!relatedRecord) return null;
+            }
+            if (isNot !== null && isNot !== undefined) {
+              const relatedRecord = await this.client.profile.findFirst({ where: { ...isNot, userId: record.id } }, tx);
+              if (relatedRecord) return null;
+            }
+            if (Object.keys(rest).length) {
+              if (record.id === null) return null;
+              const relatedRecord = await this.client.profile.findFirst(
+                { where: { ...whereClause.profile, userId: record.id } },
+                tx,
+              );
+              if (!relatedRecord) return null;
+            }
+          }
+          if (whereClause.posts) {
+            if (whereClause.posts.every) {
+              const violatingRecord = await this.client.post.findFirst({
+                where: { NOT: { ...whereClause.posts.every }, authorId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+            if (whereClause.posts.some) {
+              const relatedRecords = await this.client.post.findMany({
+                where: { ...whereClause.posts.some, authorId: record.id },
+                tx,
+              });
+              if (relatedRecords.length === 0) return null;
+            }
+            if (whereClause.posts.none) {
+              const violatingRecord = await this.client.post.findFirst({
+                where: { ...whereClause.posts.none, authorId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+          }
+          if (whereClause.comments) {
+            if (whereClause.comments.every) {
+              const violatingRecord = await this.client.comment.findFirst({
+                where: { NOT: { ...whereClause.comments.every }, userId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+            if (whereClause.comments.some) {
+              const relatedRecords = await this.client.comment.findMany({
+                where: { ...whereClause.comments.some, userId: record.id },
+                tx,
+              });
+              if (relatedRecords.length === 0) return null;
+            }
+            if (whereClause.comments.none) {
+              const violatingRecord = await this.client.comment.findFirst({
+                where: { ...whereClause.comments.none, userId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+          }
+          return record;
+        }),
+      )
+    ).filter((result) => result !== null);
   }
 
   private _applySelectClause<S extends Prisma.Args<Prisma.UserDelegate, "findMany">["select"]>(
@@ -118,7 +206,7 @@ class UserIDBClass extends BaseIDBModelClass {
 
   private async _applyRelations<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
     records: Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">[],
-    tx: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx: IDBUtils.TransactionType,
     query?: Q,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[];
@@ -173,11 +261,42 @@ class UserIDBClass extends BaseIDBModelClass {
     return data;
   }
 
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.UserDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>,
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+    if (whereClause.profile) {
+      neededStores.add("Profile");
+      this.client.profile._getNeededStoresForWhere(whereClause.profile, neededStores);
+    }
+    if (whereClause.posts) {
+      neededStores.add("Post");
+      this.client.post._getNeededStoresForWhere(whereClause.posts.every, neededStores);
+      this.client.post._getNeededStoresForWhere(whereClause.posts.some, neededStores);
+      this.client.post._getNeededStoresForWhere(whereClause.posts.none, neededStores);
+    }
+    if (whereClause.comments) {
+      neededStores.add("Comment");
+      this.client.comment._getNeededStoresForWhere(whereClause.comments.every, neededStores);
+      this.client.comment._getNeededStoresForWhere(whereClause.comments.some, neededStores);
+      this.client.comment._getNeededStoresForWhere(whereClause.comments.none, neededStores);
+    }
+  }
+
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
     query?: Q,
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("User");
+    this._getNeededStoresForWhere(query?.where, neededStores);
     if (query?.select?.profile || query?.include?.profile) {
       neededStores.add("Profile");
       if (typeof query.select?.profile === "object") {
@@ -296,10 +415,10 @@ class UserIDBClass extends BaseIDBModelClass {
 
   async findMany<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findMany">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = this._applyWhereClause(await tx.objectStore("User").getAll(), query?.where);
+    const records = await this._applyWhereClause(await tx.objectStore("User").getAll(), query?.where, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.UserDelegate,
       object,
@@ -312,15 +431,15 @@ class UserIDBClass extends BaseIDBModelClass {
 
   async findFirst<Q extends Prisma.Args<Prisma.UserDelegate, "findFirst">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findFirst">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    return (await this.findMany(query))[0] ?? null;
+    return (await this.findMany(query, tx))[0] ?? null;
   }
 
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.UserDelegate, "findFirstOrThrow">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findFirst(query, tx);
@@ -333,7 +452,7 @@ class UserIDBClass extends BaseIDBModelClass {
 
   async findUnique<Q extends Prisma.Args<Prisma.UserDelegate, "findUnique">>(
     query: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findUnique">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
@@ -343,7 +462,7 @@ class UserIDBClass extends BaseIDBModelClass {
     if (!record) return null;
 
     const recordWithRelations = this._applySelectClause(
-      await this._applyRelations(this._applyWhereClause([record], query.where), tx, query),
+      await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query),
       query.select,
     )[0];
     return recordWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "findUnique">;
@@ -351,7 +470,7 @@ class UserIDBClass extends BaseIDBModelClass {
 
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.UserDelegate, "findUniqueOrThrow">>(
     query: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findUniqueOrThrow">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findUnique(query, tx);
@@ -531,22 +650,51 @@ class UserIDBClass extends BaseIDBModelClass {
 }
 
 class ProfileIDBClass extends BaseIDBModelClass {
-  private _applyWhereClause<
+  private async _applyWhereClause<
     W extends Prisma.Args<Prisma.ProfileDelegate, "findFirstOrThrow">["where"],
     R extends Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">,
-  >(records: R[], whereClause: W): R[] {
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
     if (!whereClause) return records;
-    return records.filter((record) => {
-      const stringFields = ["bio"] as const;
-      for (const field of stringFields) {
-        if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return false;
-      }
-      const numberFields = ["id", "userId"] as const;
-      for (const field of numberFields) {
-        if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return false;
-      }
-      return true;
-    });
+    records = await IDBUtils.applyLogicalFilters<Prisma.ProfileDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this),
+    );
+    return (
+      await Promise.all(
+        records.map(async (record) => {
+          const stringFields = ["bio"] as const;
+          for (const field of stringFields) {
+            if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
+          }
+          const numberFields = ["id", "userId"] as const;
+          for (const field of numberFields) {
+            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
+          }
+          if (whereClause.user) {
+            const { is, isNot, ...rest } = whereClause.user;
+            if (is !== null && is !== undefined) {
+              const relatedRecord = await this.client.user.findFirst({ where: { ...is, id: record.userId } }, tx);
+              if (!relatedRecord) return null;
+            }
+            if (isNot !== null && isNot !== undefined) {
+              const relatedRecord = await this.client.user.findFirst({ where: { ...isNot, id: record.userId } }, tx);
+              if (relatedRecord) return null;
+            }
+            if (Object.keys(rest).length) {
+              const relatedRecord = await this.client.user.findFirst(
+                { where: { ...whereClause.user, id: record.userId } },
+                tx,
+              );
+              if (!relatedRecord) return null;
+            }
+          }
+          return record;
+        }),
+      )
+    ).filter((result) => result !== null);
   }
 
   private _applySelectClause<S extends Prisma.Args<Prisma.ProfileDelegate, "findMany">["select"]>(
@@ -568,7 +716,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   private async _applyRelations<Q extends Prisma.Args<Prisma.ProfileDelegate, "findMany">>(
     records: Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">[],
-    tx: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx: IDBUtils.TransactionType,
     query?: Q,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">[];
@@ -606,11 +754,30 @@ class ProfileIDBClass extends BaseIDBModelClass {
     return data;
   }
 
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.ProfileDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>,
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+    if (whereClause.user) {
+      neededStores.add("User");
+      this.client.user._getNeededStoresForWhere(whereClause.user, neededStores);
+    }
+  }
+
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.ProfileDelegate, "findMany">>(
     query?: Q,
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("Profile");
+    this._getNeededStoresForWhere(query?.where, neededStores);
     if (query?.select?.user || query?.include?.user) {
       neededStores.add("User");
       if (typeof query.select?.user === "object") {
@@ -660,10 +827,10 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   async findMany<Q extends Prisma.Args<Prisma.ProfileDelegate, "findMany">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findMany">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = this._applyWhereClause(await tx.objectStore("Profile").getAll(), query?.where);
+    const records = await this._applyWhereClause(await tx.objectStore("Profile").getAll(), query?.where, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.ProfileDelegate,
       object,
@@ -676,15 +843,15 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   async findFirst<Q extends Prisma.Args<Prisma.ProfileDelegate, "findFirst">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findFirst">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    return (await this.findMany(query))[0] ?? null;
+    return (await this.findMany(query, tx))[0] ?? null;
   }
 
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.ProfileDelegate, "findFirstOrThrow">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findFirst(query, tx);
@@ -697,7 +864,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   async findUnique<Q extends Prisma.Args<Prisma.ProfileDelegate, "findUnique">>(
     query: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findUnique">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
@@ -709,7 +876,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
     if (!record) return null;
 
     const recordWithRelations = this._applySelectClause(
-      await this._applyRelations(this._applyWhereClause([record], query.where), tx, query),
+      await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query),
       query.select,
     )[0];
     return recordWithRelations as Prisma.Result<Prisma.ProfileDelegate, Q, "findUnique">;
@@ -717,7 +884,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.ProfileDelegate, "findUniqueOrThrow">>(
     query: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findUniqueOrThrow">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findUnique(query, tx);
@@ -846,22 +1013,86 @@ class ProfileIDBClass extends BaseIDBModelClass {
 }
 
 class PostIDBClass extends BaseIDBModelClass {
-  private _applyWhereClause<
+  private async _applyWhereClause<
     W extends Prisma.Args<Prisma.PostDelegate, "findFirstOrThrow">["where"],
     R extends Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">,
-  >(records: R[], whereClause: W): R[] {
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
     if (!whereClause) return records;
-    return records.filter((record) => {
-      const stringFields = ["title"] as const;
-      for (const field of stringFields) {
-        if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return false;
-      }
-      const numberFields = ["id", "authorId"] as const;
-      for (const field of numberFields) {
-        if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return false;
-      }
-      return true;
-    });
+    records = await IDBUtils.applyLogicalFilters<Prisma.PostDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this),
+    );
+    return (
+      await Promise.all(
+        records.map(async (record) => {
+          const stringFields = ["title"] as const;
+          for (const field of stringFields) {
+            if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
+          }
+          const numberFields = ["id", "authorId"] as const;
+          for (const field of numberFields) {
+            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
+          }
+          if (whereClause.author === null) {
+            if (record.authorId !== null) return null;
+          }
+          if (whereClause.author) {
+            const { is, isNot, ...rest } = whereClause.author;
+            if (is === null) {
+              if (record.authorId !== null) return null;
+            }
+            if (is !== null && is !== undefined) {
+              if (record.authorId === null) return null;
+              const relatedRecord = await this.client.user.findFirst({ where: { ...is, id: record.authorId } }, tx);
+              if (!relatedRecord) return null;
+            }
+            if (isNot === null) {
+              if (record.authorId === null) return null;
+            }
+            if (isNot !== null && isNot !== undefined) {
+              if (record.authorId === null) return null;
+              const relatedRecord = await this.client.user.findFirst({ where: { ...isNot, id: record.authorId } }, tx);
+              if (relatedRecord) return null;
+            }
+            if (Object.keys(rest).length) {
+              if (record.authorId === null) return null;
+              const relatedRecord = await this.client.user.findFirst(
+                { where: { ...whereClause.author, id: record.authorId } },
+                tx,
+              );
+              if (!relatedRecord) return null;
+            }
+          }
+          if (whereClause.comments) {
+            if (whereClause.comments.every) {
+              const violatingRecord = await this.client.comment.findFirst({
+                where: { NOT: { ...whereClause.comments.every }, postId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+            if (whereClause.comments.some) {
+              const relatedRecords = await this.client.comment.findMany({
+                where: { ...whereClause.comments.some, postId: record.id },
+                tx,
+              });
+              if (relatedRecords.length === 0) return null;
+            }
+            if (whereClause.comments.none) {
+              const violatingRecord = await this.client.comment.findFirst({
+                where: { ...whereClause.comments.none, postId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+          }
+          return record;
+        }),
+      )
+    ).filter((result) => result !== null);
   }
 
   private _applySelectClause<S extends Prisma.Args<Prisma.PostDelegate, "findMany">["select"]>(
@@ -883,7 +1114,7 @@ class PostIDBClass extends BaseIDBModelClass {
 
   private async _applyRelations<Q extends Prisma.Args<Prisma.PostDelegate, "findMany">>(
     records: Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">[],
-    tx: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx: IDBUtils.TransactionType,
     query?: Q,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.PostDelegate, Q, "findFirstOrThrow">[];
@@ -940,11 +1171,36 @@ class PostIDBClass extends BaseIDBModelClass {
     return data;
   }
 
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.PostDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>,
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+    if (whereClause.author) {
+      neededStores.add("User");
+      this.client.user._getNeededStoresForWhere(whereClause.author, neededStores);
+    }
+    if (whereClause.comments) {
+      neededStores.add("Comment");
+      this.client.comment._getNeededStoresForWhere(whereClause.comments.every, neededStores);
+      this.client.comment._getNeededStoresForWhere(whereClause.comments.some, neededStores);
+      this.client.comment._getNeededStoresForWhere(whereClause.comments.none, neededStores);
+    }
+  }
+
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.PostDelegate, "findMany">>(
     query?: Q,
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("Post");
+    this._getNeededStoresForWhere(query?.where, neededStores);
     if (query?.select?.author || query?.include?.author) {
       neededStores.add("User");
       if (typeof query.select?.author === "object") {
@@ -1031,10 +1287,10 @@ class PostIDBClass extends BaseIDBModelClass {
 
   async findMany<Q extends Prisma.Args<Prisma.PostDelegate, "findMany">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findMany">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = this._applyWhereClause(await tx.objectStore("Post").getAll(), query?.where);
+    const records = await this._applyWhereClause(await tx.objectStore("Post").getAll(), query?.where, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.PostDelegate,
       object,
@@ -1047,15 +1303,15 @@ class PostIDBClass extends BaseIDBModelClass {
 
   async findFirst<Q extends Prisma.Args<Prisma.PostDelegate, "findFirst">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findFirst">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    return (await this.findMany(query))[0] ?? null;
+    return (await this.findMany(query, tx))[0] ?? null;
   }
 
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.PostDelegate, "findFirstOrThrow">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findFirstOrThrow">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findFirst(query, tx);
@@ -1068,7 +1324,7 @@ class PostIDBClass extends BaseIDBModelClass {
 
   async findUnique<Q extends Prisma.Args<Prisma.PostDelegate, "findUnique">>(
     query: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findUnique">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
@@ -1078,7 +1334,7 @@ class PostIDBClass extends BaseIDBModelClass {
     if (!record) return null;
 
     const recordWithRelations = this._applySelectClause(
-      await this._applyRelations(this._applyWhereClause([record], query.where), tx, query),
+      await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query),
       query.select,
     )[0];
     return recordWithRelations as Prisma.Result<Prisma.PostDelegate, Q, "findUnique">;
@@ -1086,7 +1342,7 @@ class PostIDBClass extends BaseIDBModelClass {
 
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.PostDelegate, "findUniqueOrThrow">>(
     query: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findUniqueOrThrow">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findUnique(query, tx);
@@ -1254,22 +1510,69 @@ class PostIDBClass extends BaseIDBModelClass {
 }
 
 class CommentIDBClass extends BaseIDBModelClass {
-  private _applyWhereClause<
+  private async _applyWhereClause<
     W extends Prisma.Args<Prisma.CommentDelegate, "findFirstOrThrow">["where"],
     R extends Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">,
-  >(records: R[], whereClause: W): R[] {
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
     if (!whereClause) return records;
-    return records.filter((record) => {
-      const stringFields = ["id", "text"] as const;
-      for (const field of stringFields) {
-        if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return false;
-      }
-      const numberFields = ["postId", "userId"] as const;
-      for (const field of numberFields) {
-        if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return false;
-      }
-      return true;
-    });
+    records = await IDBUtils.applyLogicalFilters<Prisma.CommentDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this),
+    );
+    return (
+      await Promise.all(
+        records.map(async (record) => {
+          const stringFields = ["id", "text"] as const;
+          for (const field of stringFields) {
+            if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
+          }
+          const numberFields = ["postId", "userId"] as const;
+          for (const field of numberFields) {
+            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
+          }
+          if (whereClause.post) {
+            const { is, isNot, ...rest } = whereClause.post;
+            if (is !== null && is !== undefined) {
+              const relatedRecord = await this.client.post.findFirst({ where: { ...is, id: record.postId } }, tx);
+              if (!relatedRecord) return null;
+            }
+            if (isNot !== null && isNot !== undefined) {
+              const relatedRecord = await this.client.post.findFirst({ where: { ...isNot, id: record.postId } }, tx);
+              if (relatedRecord) return null;
+            }
+            if (Object.keys(rest).length) {
+              const relatedRecord = await this.client.post.findFirst(
+                { where: { ...whereClause.post, id: record.postId } },
+                tx,
+              );
+              if (!relatedRecord) return null;
+            }
+          }
+          if (whereClause.user) {
+            const { is, isNot, ...rest } = whereClause.user;
+            if (is !== null && is !== undefined) {
+              const relatedRecord = await this.client.user.findFirst({ where: { ...is, id: record.userId } }, tx);
+              if (!relatedRecord) return null;
+            }
+            if (isNot !== null && isNot !== undefined) {
+              const relatedRecord = await this.client.user.findFirst({ where: { ...isNot, id: record.userId } }, tx);
+              if (relatedRecord) return null;
+            }
+            if (Object.keys(rest).length) {
+              const relatedRecord = await this.client.user.findFirst(
+                { where: { ...whereClause.user, id: record.userId } },
+                tx,
+              );
+              if (!relatedRecord) return null;
+            }
+          }
+          return record;
+        }),
+      )
+    ).filter((result) => result !== null);
   }
 
   private _applySelectClause<S extends Prisma.Args<Prisma.CommentDelegate, "findMany">["select"]>(
@@ -1291,7 +1594,7 @@ class CommentIDBClass extends BaseIDBModelClass {
 
   private async _applyRelations<Q extends Prisma.Args<Prisma.CommentDelegate, "findMany">>(
     records: Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">[],
-    tx: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx: IDBUtils.TransactionType,
     query?: Q,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">[];
@@ -1333,11 +1636,34 @@ class CommentIDBClass extends BaseIDBModelClass {
     return data;
   }
 
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.CommentDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>,
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+    if (whereClause.post) {
+      neededStores.add("Post");
+      this.client.post._getNeededStoresForWhere(whereClause.post, neededStores);
+    }
+    if (whereClause.user) {
+      neededStores.add("User");
+      this.client.user._getNeededStoresForWhere(whereClause.user, neededStores);
+    }
+  }
+
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.CommentDelegate, "findMany">>(
     query?: Q,
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("Comment");
+    this._getNeededStoresForWhere(query?.where, neededStores);
     if (query?.select?.post || query?.include?.post) {
       neededStores.add("Post");
       if (typeof query.select?.post === "object") {
@@ -1416,10 +1742,10 @@ class CommentIDBClass extends BaseIDBModelClass {
 
   async findMany<Q extends Prisma.Args<Prisma.CommentDelegate, "findMany">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findMany">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = this._applyWhereClause(await tx.objectStore("Comment").getAll(), query?.where);
+    const records = await this._applyWhereClause(await tx.objectStore("Comment").getAll(), query?.where, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.CommentDelegate,
       object,
@@ -1432,15 +1758,15 @@ class CommentIDBClass extends BaseIDBModelClass {
 
   async findFirst<Q extends Prisma.Args<Prisma.CommentDelegate, "findFirst">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findFirst">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    return (await this.findMany(query))[0] ?? null;
+    return (await this.findMany(query, tx))[0] ?? null;
   }
 
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.CommentDelegate, "findFirstOrThrow">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findFirst(query, tx);
@@ -1453,7 +1779,7 @@ class CommentIDBClass extends BaseIDBModelClass {
 
   async findUnique<Q extends Prisma.Args<Prisma.CommentDelegate, "findUnique">>(
     query: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findUnique">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
@@ -1463,7 +1789,7 @@ class CommentIDBClass extends BaseIDBModelClass {
     if (!record) return null;
 
     const recordWithRelations = this._applySelectClause(
-      await this._applyRelations(this._applyWhereClause([record], query.where), tx, query),
+      await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query),
       query.select,
     )[0];
     return recordWithRelations as Prisma.Result<Prisma.CommentDelegate, Q, "findUnique">;
@@ -1471,7 +1797,7 @@ class CommentIDBClass extends BaseIDBModelClass {
 
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.CommentDelegate, "findUniqueOrThrow">>(
     query: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findUniqueOrThrow">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findUnique(query, tx);
@@ -1624,38 +1950,49 @@ class CommentIDBClass extends BaseIDBModelClass {
 }
 
 class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
-  private _applyWhereClause<
+  private async _applyWhereClause<
     W extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findFirstOrThrow">["where"],
     R extends Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">,
-  >(records: R[], whereClause: W): R[] {
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
     if (!whereClause) return records;
-    return records.filter((record) => {
-      const stringFields = ["string"] as const;
-      for (const field of stringFields) {
-        if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return false;
-      }
-      const numberFields = ["id", "int", "float"] as const;
-      for (const field of numberFields) {
-        if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return false;
-      }
-      const bigIntFields = ["bigInt"] as const;
-      for (const field of bigIntFields) {
-        if (!IDBUtils.whereBigIntFilter(record, field, whereClause[field])) return false;
-      }
-      const booleanFields = ["boolean"] as const;
-      for (const field of booleanFields) {
-        if (!IDBUtils.whereBoolFilter(record, field, whereClause[field])) return false;
-      }
-      const bytesFields = ["bytes"] as const;
-      for (const field of bytesFields) {
-        if (!IDBUtils.whereBytesFilter(record, field, whereClause[field])) return false;
-      }
-      const dateTimeFields = ["dateTime"] as const;
-      for (const field of dateTimeFields) {
-        if (!IDBUtils.whereDateTimeFilter(record, field, whereClause[field])) return false;
-      }
-      return true;
-    });
+    records = await IDBUtils.applyLogicalFilters<Prisma.AllFieldScalarTypesDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this),
+    );
+    return (
+      await Promise.all(
+        records.map(async (record) => {
+          const stringFields = ["string"] as const;
+          for (const field of stringFields) {
+            if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
+          }
+          const numberFields = ["id", "int", "float"] as const;
+          for (const field of numberFields) {
+            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
+          }
+          const bigIntFields = ["bigInt"] as const;
+          for (const field of bigIntFields) {
+            if (!IDBUtils.whereBigIntFilter(record, field, whereClause[field])) return null;
+          }
+          const booleanFields = ["boolean"] as const;
+          for (const field of booleanFields) {
+            if (!IDBUtils.whereBoolFilter(record, field, whereClause[field])) return null;
+          }
+          const bytesFields = ["bytes"] as const;
+          for (const field of bytesFields) {
+            if (!IDBUtils.whereBytesFilter(record, field, whereClause[field])) return null;
+          }
+          const dateTimeFields = ["dateTime"] as const;
+          for (const field of dateTimeFields) {
+            if (!IDBUtils.whereDateTimeFilter(record, field, whereClause[field])) return null;
+          }
+          return record;
+        }),
+      )
+    ).filter((result) => result !== null);
   }
 
   private _applySelectClause<S extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">["select"]>(
@@ -1690,7 +2027,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
 
   private async _applyRelations<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">>(
     records: Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">[],
-    tx: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx: IDBUtils.TransactionType,
     query?: Q,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirstOrThrow">[];
@@ -1739,11 +2076,26 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     return data;
   }
 
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>,
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+  }
+
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">>(
     query?: Q,
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("AllFieldScalarTypes");
+    this._getNeededStoresForWhere(query?.where, neededStores);
     return neededStores;
   }
 
@@ -1764,10 +2116,14 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
 
   async findMany<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findMany">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = this._applyWhereClause(await tx.objectStore("AllFieldScalarTypes").getAll(), query?.where);
+    const records = await this._applyWhereClause(
+      await tx.objectStore("AllFieldScalarTypes").getAll(),
+      query?.where,
+      tx,
+    );
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.AllFieldScalarTypesDelegate,
       object,
@@ -1780,15 +2136,15 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
 
   async findFirst<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findFirst">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirst">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    return (await this.findMany(query))[0] ?? null;
+    return (await this.findMany(query, tx))[0] ?? null;
   }
 
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findFirstOrThrow">>(
     query?: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirstOrThrow">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findFirst(query, tx);
@@ -1801,7 +2157,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
 
   async findUnique<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findUnique">>(
     query: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findUnique">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
@@ -1811,7 +2167,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     if (!record) return null;
 
     const recordWithRelations = this._applySelectClause(
-      await this._applyRelations(this._applyWhereClause([record], query.where), tx, query),
+      await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query),
       query.select,
     )[0];
     return recordWithRelations as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findUnique">;
@@ -1819,7 +2175,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
 
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findUniqueOrThrow">>(
     query: Q,
-    tx?: IDBUtils.ReadonlyTransactionType | IDBUtils.ReadwriteTransactionType,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findUniqueOrThrow">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const record = await this.findUnique(query, tx);

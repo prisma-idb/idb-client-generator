@@ -5,8 +5,8 @@ export function addBytesUpdateHandler(utilsFile: SourceFile, models: readonly Mo
   const bytesFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "Bytes");
   if (bytesFields.length === 0) return;
 
-  let updateOperationType = "undefined | Buffer | Prisma.BytesFieldUpdateOperationsInput";
-  let fieldType = "Buffer";
+  let updateOperationType = "undefined | Uint8Array | Prisma.BytesFieldUpdateOperationsInput";
+  let fieldType = "Uint8Array";
 
   const nullableBytesFieldPresent = bytesFields.some(({ isRequired }) => !isRequired);
   if (nullableBytesFieldPresent) {
@@ -29,7 +29,7 @@ export function addBytesUpdateHandler(utilsFile: SourceFile, models: readonly Mo
     statements: (writer) => {
       writer
         .writeLine(`if (bytesUpdate === undefined) return;`)
-        .write(`if (Buffer.isBuffer(bytesUpdate)`)
+        .write(`if (bytesUpdate instanceof Uint8Array`)
         .conditionalWrite(nullableBytesFieldPresent, ` || bytesUpdate === null`)
         .writeLine(`)`)
         .block(() => {

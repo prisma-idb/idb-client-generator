@@ -11,7 +11,8 @@ export function addGetNeededStoresForFind(modelClass: ClassDeclaration, model: M
     statements: (writer) => {
       writer
         .writeLine(`const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();`)
-        .writeLine(`neededStores.add("${model.name}");`);
+        .writeLine(`neededStores.add("${model.name}");`)
+        .writeLine(`this._getNeededStoresForWhere(query?.where, neededStores);`);
       processRelationsInQuery(writer, model);
       writer.writeLine("return neededStores;");
     },

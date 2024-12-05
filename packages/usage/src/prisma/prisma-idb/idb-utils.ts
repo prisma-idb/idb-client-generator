@@ -10,6 +10,68 @@ export type ReadwriteTransactionType = IDBPTransaction<PrismaIDBSchema, StoreNam
 
 export type ReadonlyTransactionType = IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readonly">;
 
+export type TransactionType = ReadonlyTransactionType | ReadwriteTransactionType;
+
+export const LogicalParams = ["AND", "OR", "NOT"] as const;
+
+export function intersectArraysByNestedKey<T>(arrays: T[][], keyPath: string[]): T[] {
+  return arrays.reduce((acc, array) =>
+    acc.filter((item) => array.some((el) => keyPath.every((key) => el[key as keyof T] === item[key as keyof T]))),
+  );
+}
+
+export function removeDuplicatesByKeyPath<T>(arrays: T[][], keyPath: string[]): T[] {
+  const seen = new Set<string>();
+  return arrays
+    .flatMap((el) => el)
+    .filter((item) => {
+      const key = JSON.stringify(keyPath.map((key) => item[key as keyof T]));
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+export async function applyLogicalFilters<
+  T,
+  R extends Prisma.Result<T, object, "findFirstOrThrow">,
+  W extends Prisma.Args<T, "findFirstOrThrow">["where"],
+>(
+  records: R[],
+  whereClause: W,
+  tx: TransactionType,
+  keyPath: string[],
+  applyWhereFunction: (records: R[], clause: W, tx: TransactionType) => Promise<R[]>,
+): Promise<R[]> {
+  if (whereClause.AND) {
+    records = intersectArraysByNestedKey(
+      await Promise.all(
+        convertToArray(whereClause.AND).map(async (clause) => await applyWhereFunction(records, clause, tx)),
+      ),
+      keyPath,
+    );
+  }
+  if (whereClause.OR) {
+    records = removeDuplicatesByKeyPath(
+      await Promise.all(
+        convertToArray(whereClause.OR).map(async (clause) => await applyWhereFunction(records, clause, tx)),
+      ),
+      keyPath,
+    );
+  }
+  if (whereClause.NOT) {
+    const excludedRecords = removeDuplicatesByKeyPath(
+      await Promise.all(convertToArray(whereClause.NOT).map(async (clause) => applyWhereFunction(records, clause, tx))),
+      keyPath,
+    );
+    records = records.filter(
+      (item) =>
+        !excludedRecords.some((excluded) => keyPath.every((key) => excluded[key as keyof R] === item[key as keyof R])),
+    );
+  }
+  return records;
+}
+
 export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
@@ -249,16 +311,22 @@ export function whereBoolFilter<T, R extends Prisma.Result<T, object, "findFirst
 export function whereBytesFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  bytesFilter: undefined | Buffer | Prisma.BytesFilter<unknown>,
+  bytesFilter: undefined | Uint8Array | Prisma.BytesFilter<unknown>,
 ): boolean {
   if (bytesFilter === undefined) return true;
 
-  const value = record[fieldName] as Buffer | null;
+  function areUint8ArraysEqual(arr1: Uint8Array, arr2: Uint8Array) {
+    if (arr1.length !== arr2.length) return false;
+    for (let i = 0; i < arr1.length; i++) if (arr1[i] !== arr2[i]) return false;
+    return true;
+  }
+
+  const value = record[fieldName] as Uint8Array | null;
   if (bytesFilter === null) return value === null;
 
-  if (Buffer.isBuffer(bytesFilter)) {
+  if (bytesFilter instanceof Uint8Array) {
     if (value === null) return false;
-    if (!bytesFilter.equals(value)) return false;
+    if (!areUint8ArraysEqual(bytesFilter, value)) return false;
   } else {
     if (bytesFilter.equals === null) {
       if (value !== null) return false;
@@ -276,11 +344,11 @@ export function whereBytesFilter<T, R extends Prisma.Result<T, object, "findFirs
     }
     if (Array.isArray(bytesFilter.in)) {
       if (value === null) return false;
-      if (!bytesFilter.in.some((buffer) => buffer.equals(value))) return false;
+      if (!bytesFilter.in.some((buffer) => areUint8ArraysEqual(buffer, value))) return false;
     }
     if (Array.isArray(bytesFilter.notIn)) {
       if (value === null) return false;
-      if (bytesFilter.notIn.some((buffer) => buffer.equals(value))) return false;
+      if (bytesFilter.notIn.some((buffer) => areUint8ArraysEqual(buffer, value))) return false;
     }
   }
   return true;
@@ -389,13 +457,13 @@ export function handleDateTimeUpdateField<T, R extends Prisma.Result<T, object, 
 export function handleBytesUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  bytesUpdate: undefined | Buffer | Prisma.BytesFieldUpdateOperationsInput,
+  bytesUpdate: undefined | Uint8Array | Prisma.BytesFieldUpdateOperationsInput,
 ) {
   if (bytesUpdate === undefined) return;
-  if (Buffer.isBuffer(bytesUpdate)) {
-    (record[fieldName] as Buffer) = bytesUpdate;
+  if (bytesUpdate instanceof Uint8Array) {
+    (record[fieldName] as Uint8Array) = bytesUpdate;
   } else if (bytesUpdate.set !== undefined) {
-    (record[fieldName] as Buffer) = bytesUpdate.set;
+    (record[fieldName] as Uint8Array) = bytesUpdate.set;
   }
 }
 

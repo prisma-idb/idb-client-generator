@@ -6,7 +6,7 @@ export function addBytesFilter(utilsFile: SourceFile, models: readonly Model[]) 
   if (bytesFields.length === 0) return;
 
   const nullableBytesFieldPresent = bytesFields.some(({ isRequired }) => !isRequired);
-  let filterType = "undefined | Buffer | Prisma.BytesFilter<unknown>";
+  let filterType = "undefined | Uint8Array | Prisma.BytesFilter<unknown>";
   if (nullableBytesFieldPresent) {
     filterType += " | null | Prisma.BytesNullableFilter<unknown>";
   }
@@ -28,14 +28,22 @@ export function addBytesFilter(utilsFile: SourceFile, models: readonly Model[]) 
       writer
         .writeLine(`if (bytesFilter === undefined) return true;`)
         .blankLine()
-        .writeLine(`const value = record[fieldName] as Buffer | null;`)
+        .writeLine(`function areUint8ArraysEqual(arr1: Uint8Array, arr2: Uint8Array)`)
+        .block(() => {
+          writer
+            .writeLine(`if (arr1.length !== arr2.length) return false;`)
+            .writeLine(`for (let i = 0; i < arr1.length; i++) if (arr1[i] !== arr2[i]) return false;`)
+            .writeLine(`return true;`);
+        })
+        .blankLine()
+        .writeLine(`const value = record[fieldName] as Uint8Array | null;`)
         .writeLine(`if (bytesFilter === null) return value === null;`)
         .blankLine()
-        .writeLine(`if (Buffer.isBuffer(bytesFilter))`)
+        .writeLine(`if (bytesFilter instanceof Uint8Array)`)
         .block(() => {
           writer
             .writeLine(`if (value === null) return false;`)
-            .writeLine(`if (!bytesFilter.equals(value)) return false;`);
+            .writeLine(`if (!areUint8ArraysEqual(bytesFilter, value)) return false;`);
         })
         .writeLine(`else`)
         .block(() => {
@@ -81,7 +89,7 @@ function addInHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (Array.isArray(bytesFilter.in))`).block(() => {
     writer
       .writeLine(`if (value === null) return false;`)
-      .writeLine(`if (!bytesFilter.in.some((buffer) => buffer.equals(value))) return false;`);
+      .writeLine(`if (!bytesFilter.in.some((buffer) => areUint8ArraysEqual(buffer, value))) return false;`);
   });
 }
 
@@ -89,6 +97,6 @@ function addNotInHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (Array.isArray(bytesFilter.notIn))`).block(() => {
     writer
       .writeLine(`if (value === null) return false;`)
-      .writeLine(`if (bytesFilter.notIn.some((buffer) => buffer.equals(value))) return false;`);
+      .writeLine(`if (bytesFilter.notIn.some((buffer) => areUint8ArraysEqual(buffer, value))) return false;`);
   });
 }
