@@ -261,6 +261,36 @@ class UserIDBClass extends BaseIDBModelClass {
     return data;
   }
 
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.UserDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>,
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+    if (whereClause.profile) {
+      neededStores.add("Profile");
+      this.client.profile._getNeededStoresForWhere(whereClause.profile, neededStores);
+    }
+    if (whereClause.posts) {
+      neededStores.add("Post");
+      this.client.post._getNeededStoresForWhere(whereClause.posts.every, neededStores);
+      this.client.post._getNeededStoresForWhere(whereClause.posts.some, neededStores);
+      this.client.post._getNeededStoresForWhere(whereClause.posts.none, neededStores);
+    }
+    if (whereClause.comments) {
+      neededStores.add("Comment");
+      this.client.comment._getNeededStoresForWhere(whereClause.comments.every, neededStores);
+      this.client.comment._getNeededStoresForWhere(whereClause.comments.some, neededStores);
+      this.client.comment._getNeededStoresForWhere(whereClause.comments.none, neededStores);
+    }
+  }
+
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
     query?: Q,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -723,6 +753,24 @@ class ProfileIDBClass extends BaseIDBModelClass {
     return data;
   }
 
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.ProfileDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>,
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+    if (whereClause.user) {
+      neededStores.add("User");
+      this.client.user._getNeededStoresForWhere(whereClause.user, neededStores);
+    }
+  }
+
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.ProfileDelegate, "findMany">>(
     query?: Q,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -1119,6 +1167,30 @@ class PostIDBClass extends BaseIDBModelClass {
       data.numberArr = data.numberArr?.set ?? [];
     }
     return data;
+  }
+
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.PostDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>,
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+    if (whereClause.author) {
+      neededStores.add("User");
+      this.client.user._getNeededStoresForWhere(whereClause.author, neededStores);
+    }
+    if (whereClause.comments) {
+      neededStores.add("Comment");
+      this.client.comment._getNeededStoresForWhere(whereClause.comments.every, neededStores);
+      this.client.comment._getNeededStoresForWhere(whereClause.comments.some, neededStores);
+      this.client.comment._getNeededStoresForWhere(whereClause.comments.none, neededStores);
+    }
   }
 
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.PostDelegate, "findMany">>(
@@ -1561,6 +1633,28 @@ class CommentIDBClass extends BaseIDBModelClass {
     return data;
   }
 
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.CommentDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>,
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+    if (whereClause.post) {
+      neededStores.add("Post");
+      this.client.post._getNeededStoresForWhere(whereClause.post, neededStores);
+    }
+    if (whereClause.user) {
+      neededStores.add("User");
+      this.client.user._getNeededStoresForWhere(whereClause.user, neededStores);
+    }
+  }
+
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.CommentDelegate, "findMany">>(
     query?: Q,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -1976,6 +2070,20 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
       data.dateTimes = [];
     }
     return data;
+  }
+
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>,
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
   }
 
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">>(
