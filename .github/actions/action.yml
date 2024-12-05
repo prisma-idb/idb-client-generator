@@ -11,7 +11,7 @@ runs:
 
     - name: Install package dependencies
       shell: bash
-      run: npm ci
+      run: npm ci --workspaces
 
     - name: Build package
       shell: bash
