@@ -1,4 +1,4 @@
-import { SourceFile } from "ts-morph";
+import { SourceFile, VariableDeclarationKind } from "ts-morph";
 import { Model } from "../types";
 import { addBigIntFilter } from "./filters/BigIntFilter";
 import { addBoolFilter } from "./filters/BoolFilter";
@@ -46,6 +46,12 @@ export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model
     isExported: true,
     name: "TransactionType",
     type: `ReadonlyTransactionType | ReadwriteTransactionType;`,
+  });
+
+  idbUtilsFile.addVariableStatement({
+    declarations: [{ name: "LogicalParams", initializer: `["AND", "OR", "NOT"] as const` }],
+    declarationKind: VariableDeclarationKind.Const,
+    isExported: true,
   });
 
   addIntersectArraysByNestedKeyFunction(idbUtilsFile);
