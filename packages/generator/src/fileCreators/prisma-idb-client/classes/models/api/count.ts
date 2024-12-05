@@ -6,9 +6,13 @@ export function addCountMethod(modelClass: ClassDeclaration, model: Model) {
     name: "count",
     isAsync: true,
     typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, 'count'>` }],
-    parameters: [{ name: "query", hasQuestionToken: true, type: "Q" }],
+    parameters: [
+      { name: "query", hasQuestionToken: true, type: "Q" },
+      { name: "tx", hasQuestionToken: true, type: "IDBUtils.TransactionType" },
+    ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'count'>>`,
     statements: (writer) => {
+      writer.writeLine(`tx = tx ?? this.client._db.transaction(["${model.name}"], "readonly");`);
       handleWithoutSelect(writer, model);
       handleWithSelect(writer, model);
     },
@@ -18,8 +22,8 @@ export function addCountMethod(modelClass: ClassDeclaration, model: Model) {
 function handleWithoutSelect(writer: CodeBlockWriter, model: Model) {
   writer.writeLine(`if (!query?.select || query.select === true)`).block(() => {
     writer
-      .writeLine(`const records = await this.findMany({ where: query?.where });`)
-      .writeLine(`return records.length as Prisma.Result<Prisma.${model.name}Delegate, Q, "count">;`);
+      .writeLine(`const totalRecords = await tx.objectStore("${model.name}").count();`)
+      .writeLine(`return totalRecords as Prisma.Result<Prisma.${model.name}Delegate, Q, "count">;`);
   });
 }
 
@@ -33,10 +37,10 @@ function handleWithSelect(writer: CodeBlockWriter, model: Model) {
         .writeLine(`if (typedKey === "_all")`)
         .block(() => {
           writer
-            .writeLine(`result[typedKey] = (await this.findMany({ where: query.where })).length;`)
+            .writeLine(`result[typedKey] = (await this.findMany({ where: query.where }, tx)).length;`)
             .writeLine(`continue;`);
         })
-        .writeLine("result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } })).length;");
+        .writeLine("result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)).length;");
     })
     .writeLine(`return result as Prisma.Result<Prisma.UserDelegate, Q, "count">;`);
 }
