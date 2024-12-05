@@ -11,12 +11,12 @@ runs:
 
     - name: Install package dependencies
       shell: bash
-      run: npm ci --workspace=packages/generator
+      run: npm ci --workspaces
 
     - name: Build package
       shell: bash
       run: npm run build --workspace=packages/generator
 
-    - name: Install Node Dependencies
+    - name: Generate Prisma client and IDB client
       shell: bash
-      run: npm ci --workspace=packages/usage
+      run: cd packages/usage && npm ci && npx prisma generate
