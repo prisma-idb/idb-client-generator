@@ -483,19 +483,21 @@ class UserIDBClass extends BaseIDBModelClass {
 
   async count<Q extends Prisma.Args<Prisma.UserDelegate, "count">>(
     query?: Q,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "count">> {
+    tx = tx ?? this.client._db.transaction(["User"], "readonly");
     if (!query?.select || query.select === true) {
-      const records = await this.findMany({ where: query?.where });
-      return records.length as Prisma.Result<Prisma.UserDelegate, Q, "count">;
+      const totalRecords = await tx.objectStore("User").count();
+      return totalRecords as Prisma.Result<Prisma.UserDelegate, Q, "count">;
     }
     const result: Partial<Record<keyof Prisma.UserCountAggregateInputType, number>> = {};
     for (const key of Object.keys(query.select)) {
       const typedKey = key as keyof typeof query.select;
       if (typedKey === "_all") {
-        result[typedKey] = (await this.findMany({ where: query.where })).length;
+        result[typedKey] = (await this.findMany({ where: query.where }, tx)).length;
         continue;
       }
-      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } })).length;
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)).length;
     }
     return result as Prisma.Result<Prisma.UserDelegate, Q, "count">;
   }
@@ -897,19 +899,21 @@ class ProfileIDBClass extends BaseIDBModelClass {
 
   async count<Q extends Prisma.Args<Prisma.ProfileDelegate, "count">>(
     query?: Q,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "count">> {
+    tx = tx ?? this.client._db.transaction(["Profile"], "readonly");
     if (!query?.select || query.select === true) {
-      const records = await this.findMany({ where: query?.where });
-      return records.length as Prisma.Result<Prisma.ProfileDelegate, Q, "count">;
+      const totalRecords = await tx.objectStore("Profile").count();
+      return totalRecords as Prisma.Result<Prisma.ProfileDelegate, Q, "count">;
     }
     const result: Partial<Record<keyof Prisma.ProfileCountAggregateInputType, number>> = {};
     for (const key of Object.keys(query.select)) {
       const typedKey = key as keyof typeof query.select;
       if (typedKey === "_all") {
-        result[typedKey] = (await this.findMany({ where: query.where })).length;
+        result[typedKey] = (await this.findMany({ where: query.where }, tx)).length;
         continue;
       }
-      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } })).length;
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)).length;
     }
     return result as Prisma.Result<Prisma.UserDelegate, Q, "count">;
   }
@@ -1355,19 +1359,21 @@ class PostIDBClass extends BaseIDBModelClass {
 
   async count<Q extends Prisma.Args<Prisma.PostDelegate, "count">>(
     query?: Q,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "count">> {
+    tx = tx ?? this.client._db.transaction(["Post"], "readonly");
     if (!query?.select || query.select === true) {
-      const records = await this.findMany({ where: query?.where });
-      return records.length as Prisma.Result<Prisma.PostDelegate, Q, "count">;
+      const totalRecords = await tx.objectStore("Post").count();
+      return totalRecords as Prisma.Result<Prisma.PostDelegate, Q, "count">;
     }
     const result: Partial<Record<keyof Prisma.PostCountAggregateInputType, number>> = {};
     for (const key of Object.keys(query.select)) {
       const typedKey = key as keyof typeof query.select;
       if (typedKey === "_all") {
-        result[typedKey] = (await this.findMany({ where: query.where })).length;
+        result[typedKey] = (await this.findMany({ where: query.where }, tx)).length;
         continue;
       }
-      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } })).length;
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)).length;
     }
     return result as Prisma.Result<Prisma.UserDelegate, Q, "count">;
   }
@@ -1810,19 +1816,21 @@ class CommentIDBClass extends BaseIDBModelClass {
 
   async count<Q extends Prisma.Args<Prisma.CommentDelegate, "count">>(
     query?: Q,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "count">> {
+    tx = tx ?? this.client._db.transaction(["Comment"], "readonly");
     if (!query?.select || query.select === true) {
-      const records = await this.findMany({ where: query?.where });
-      return records.length as Prisma.Result<Prisma.CommentDelegate, Q, "count">;
+      const totalRecords = await tx.objectStore("Comment").count();
+      return totalRecords as Prisma.Result<Prisma.CommentDelegate, Q, "count">;
     }
     const result: Partial<Record<keyof Prisma.CommentCountAggregateInputType, number>> = {};
     for (const key of Object.keys(query.select)) {
       const typedKey = key as keyof typeof query.select;
       if (typedKey === "_all") {
-        result[typedKey] = (await this.findMany({ where: query.where })).length;
+        result[typedKey] = (await this.findMany({ where: query.where }, tx)).length;
         continue;
       }
-      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } })).length;
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)).length;
     }
     return result as Prisma.Result<Prisma.UserDelegate, Q, "count">;
   }
@@ -2188,19 +2196,21 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
 
   async count<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "count">>(
     query?: Q,
+    tx?: IDBUtils.TransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "count">> {
+    tx = tx ?? this.client._db.transaction(["AllFieldScalarTypes"], "readonly");
     if (!query?.select || query.select === true) {
-      const records = await this.findMany({ where: query?.where });
-      return records.length as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "count">;
+      const totalRecords = await tx.objectStore("AllFieldScalarTypes").count();
+      return totalRecords as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "count">;
     }
     const result: Partial<Record<keyof Prisma.AllFieldScalarTypesCountAggregateInputType, number>> = {};
     for (const key of Object.keys(query.select)) {
       const typedKey = key as keyof typeof query.select;
       if (typedKey === "_all") {
-        result[typedKey] = (await this.findMany({ where: query.where })).length;
+        result[typedKey] = (await this.findMany({ where: query.where }, tx)).length;
         continue;
       }
-      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } })).length;
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)).length;
     }
     return result as Prisma.Result<Prisma.UserDelegate, Q, "count">;
   }
