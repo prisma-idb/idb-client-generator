@@ -19,4 +19,4 @@ runs:
 
     - name: Generate Prisma client and IDB client
       shell: bash
-      run: cd packages/usage && npx prisma generate
+      run: cd packages/usage && npm ci && npx prisma generate
