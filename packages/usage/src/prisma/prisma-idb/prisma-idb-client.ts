@@ -621,6 +621,47 @@ class UserIDBClass extends BaseIDBModelClass {
     return records as Prisma.Result<Prisma.UserDelegate, Q, "createManyAndReturn">;
   }
 
+  async delete<Q extends Prisma.Args<Prisma.UserDelegate, "delete">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "delete">> {
+    const storesNeeded = this._getNeededStoresForFind(query);
+    storesNeeded.add("Profile");
+    storesNeeded.add("Comment");
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = await this.findUnique(query, tx);
+    if (!record) throw new Error("Record not found");
+    await this.client.profile.deleteMany(
+      {
+        where: { userId: record.id },
+      },
+      tx,
+    );
+    await this.client.comment.deleteMany(
+      {
+        where: { userId: record.id },
+      },
+      tx,
+    );
+    await tx.objectStore("User").delete([record.id]);
+    return record;
+  }
+
+  async deleteMany<Q extends Prisma.Args<Prisma.UserDelegate, "deleteMany">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "deleteMany">> {
+    const storesNeeded = this._getNeededStoresForFind(query);
+    storesNeeded.add("Profile");
+    storesNeeded.add("Comment");
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const records = await this.findMany(query, tx);
+    for (const record of records) {
+      await this.delete({ where: { id: record.id } }, tx);
+    }
+    return { count: records.length };
+  }
+
   async update<Q extends Prisma.Args<Prisma.UserDelegate, "update">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -984,6 +1025,31 @@ class ProfileIDBClass extends BaseIDBModelClass {
       records.push(this._applySelectClause([record], query.select)[0]);
     }
     return records as Prisma.Result<Prisma.ProfileDelegate, Q, "createManyAndReturn">;
+  }
+
+  async delete<Q extends Prisma.Args<Prisma.ProfileDelegate, "delete">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "delete">> {
+    const storesNeeded = this._getNeededStoresForFind(query);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = await this.findUnique(query, tx);
+    if (!record) throw new Error("Record not found");
+    await tx.objectStore("Profile").delete([record.id]);
+    return record;
+  }
+
+  async deleteMany<Q extends Prisma.Args<Prisma.ProfileDelegate, "deleteMany">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "deleteMany">> {
+    const storesNeeded = this._getNeededStoresForFind(query);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const records = await this.findMany(query, tx);
+    for (const record of records) {
+      await this.delete({ where: { id: record.id } }, tx);
+    }
+    return { count: records.length };
   }
 
   async update<Q extends Prisma.Args<Prisma.ProfileDelegate, "update">>(
@@ -1481,6 +1547,39 @@ class PostIDBClass extends BaseIDBModelClass {
     return records as Prisma.Result<Prisma.PostDelegate, Q, "createManyAndReturn">;
   }
 
+  async delete<Q extends Prisma.Args<Prisma.PostDelegate, "delete">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "delete">> {
+    const storesNeeded = this._getNeededStoresForFind(query);
+    storesNeeded.add("Comment");
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = await this.findUnique(query, tx);
+    if (!record) throw new Error("Record not found");
+    await this.client.comment.deleteMany(
+      {
+        where: { postId: record.id },
+      },
+      tx,
+    );
+    await tx.objectStore("Post").delete([record.id]);
+    return record;
+  }
+
+  async deleteMany<Q extends Prisma.Args<Prisma.PostDelegate, "deleteMany">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "deleteMany">> {
+    const storesNeeded = this._getNeededStoresForFind(query);
+    storesNeeded.add("Comment");
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const records = await this.findMany(query, tx);
+    for (const record of records) {
+      await this.delete({ where: { id: record.id } }, tx);
+    }
+    return { count: records.length };
+  }
+
   async update<Q extends Prisma.Args<Prisma.PostDelegate, "update">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -1927,6 +2026,31 @@ class CommentIDBClass extends BaseIDBModelClass {
     return records as Prisma.Result<Prisma.CommentDelegate, Q, "createManyAndReturn">;
   }
 
+  async delete<Q extends Prisma.Args<Prisma.CommentDelegate, "delete">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "delete">> {
+    const storesNeeded = this._getNeededStoresForFind(query);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = await this.findUnique(query, tx);
+    if (!record) throw new Error("Record not found");
+    await tx.objectStore("Comment").delete([record.id]);
+    return record;
+  }
+
+  async deleteMany<Q extends Prisma.Args<Prisma.CommentDelegate, "deleteMany">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "deleteMany">> {
+    const storesNeeded = this._getNeededStoresForFind(query);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const records = await this.findMany(query, tx);
+    for (const record of records) {
+      await this.delete({ where: { id: record.id } }, tx);
+    }
+    return { count: records.length };
+  }
+
   async update<Q extends Prisma.Args<Prisma.CommentDelegate, "update">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -2257,6 +2381,31 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
       records.push(this._applySelectClause([record], query.select)[0]);
     }
     return records as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "createManyAndReturn">;
+  }
+
+  async delete<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "delete">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "delete">> {
+    const storesNeeded = this._getNeededStoresForFind(query);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = await this.findUnique(query, tx);
+    if (!record) throw new Error("Record not found");
+    await tx.objectStore("AllFieldScalarTypes").delete([record.id]);
+    return record;
+  }
+
+  async deleteMany<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "deleteMany">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "deleteMany">> {
+    const storesNeeded = this._getNeededStoresForFind(query);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const records = await this.findMany(query, tx);
+    for (const record of records) {
+      await this.delete({ where: { id: record.id } }, tx);
+    }
+    return { count: records.length };
   }
 
   async update<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "update">>(

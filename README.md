@@ -85,7 +85,7 @@ The API mimics Prisma Client's API for ease of use:
 Insert a new record:
 
 ```javascript
-db.modelName.create({
+idbClient.modelName.create({
   data: {
     field: value,
   },
@@ -97,7 +97,7 @@ db.modelName.create({
 Retrieve all records:
 
 ```javascript
-db.modelName.findMany();
+idbClient.modelName.findMany();
 ```
 
 ### `findUnique`
@@ -105,7 +105,7 @@ db.modelName.findMany();
 Retrieve a single record by unique key:
 
 ```javascript
-db.modelName.findUnique({
+idbClient.modelName.findUnique({
   where: { key: value },
 });
 ```
@@ -115,7 +115,7 @@ db.modelName.findUnique({
 Update a record:
 
 ```javascript
-db.modelName.update({
+idbClient.modelName.update({
   where: { key: value },
   data: { key: newValue },
 });
@@ -126,7 +126,7 @@ db.modelName.update({
 Delete a record:
 
 ```javascript
-db.modelName.delete({
+idbClient.modelName.delete({
   where: { key: value },
 });
 ```

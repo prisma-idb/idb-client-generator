@@ -18,6 +18,8 @@ import { addGetNeededStoresForCreate } from "./utils/_getNeededStoresForCreate";
 import { addGetNeededStoresForFind } from "./utils/_getNeededStoresForFind";
 import { addRemoveNestedCreateDataMethod } from "./utils/_removeNestedCreateData";
 import { addGetNeededStoresForWhere } from "./utils/_getNeededStoresForWhere";
+import { addDeleteMethod } from "./api/delete";
+import { addDeleteManyMethod } from "./api/deleteMany";
 
 export function addIDBModelClass(file: SourceFile, model: Model, models: readonly Model[]) {
   const modelClass = file.addClass({
@@ -44,6 +46,9 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
   addCreateMethod(modelClass, model, models);
   addCreateManyMethod(modelClass, model);
   addCreateManyAndReturn(modelClass, model);
+
+  addDeleteMethod(modelClass, model, models);
+  addDeleteManyMethod(modelClass, model, models);
 
   addUpdateMethod(modelClass, model);
 }
