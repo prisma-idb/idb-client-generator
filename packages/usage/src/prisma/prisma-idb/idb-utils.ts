@@ -499,3 +499,29 @@ export function handleScalarListUpdateField<T, R extends Prisma.Result<T, object
     (record[fieldName] as unknown[]).push(...convertToArray(listUpdate.push));
   }
 }
+
+export function genericComparator(
+  a: unknown,
+  b: unknown,
+  sortOrder: Prisma.SortOrder | Prisma.SortOrderInput = "asc",
+): number {
+  if (typeof sortOrder !== "string" && sortOrder.nulls) {
+    const nullMultiplier = sortOrder.nulls === "first" ? 1 : -1;
+
+    if (a === null && b === null) return 0;
+    if (a === null || b === null) return (a === null ? 1 : -1) * nullMultiplier;
+  }
+  const multiplier = typeof sortOrder === "string" ? (sortOrder === "asc" ? 1 : -1) : sortOrder.sort === "asc" ? 1 : -1;
+  let returnValue: number | undefined;
+
+  if (typeof a === "string" && typeof b === "string") {
+    returnValue = a.localeCompare(b);
+  }
+  if (typeof a === "number" && typeof b === "number") {
+    returnValue = a - b;
+  }
+  if (returnValue === undefined) {
+    throw new Error(`Comparison of type: ${typeof a} not yet supported`);
+  }
+  return returnValue * multiplier;
+}

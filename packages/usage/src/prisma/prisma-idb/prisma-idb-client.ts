@@ -247,6 +247,25 @@ class UserIDBClass extends BaseIDBModelClass {
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[];
   }
 
+  private async _applyOrderByClause<
+    O extends Prisma.Args<Prisma.UserDelegate, "findMany">["orderBy"],
+    R extends Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">,
+  >(records: R[], orderByClause: O): Promise<void> {
+    if (orderByClause === undefined) return;
+    const scalarFields = ["id", "name"] as const;
+    records.sort((a, b) => {
+      for (const clause of IDBUtils.convertToArray(orderByClause)) {
+        const untypedClauseField = Object.keys(clause)[0] as keyof R;
+        if (scalarFields.includes(untypedClauseField as (typeof scalarFields)[number])) {
+          const clauseField = untypedClauseField as (typeof scalarFields)[number];
+          const comparison = IDBUtils.genericComparator(a[clauseField], b[clauseField], clause[clauseField]);
+          if (comparison !== 0) return comparison;
+        }
+      }
+      return 0;
+    });
+  }
+
   private async _fillDefaults<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -419,6 +438,7 @@ class UserIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findMany">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const records = await this._applyWhereClause(await tx.objectStore("User").getAll(), query?.where, tx);
+    await this._applyOrderByClause(records, query?.orderBy);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.UserDelegate,
       object,
@@ -780,6 +800,25 @@ class ProfileIDBClass extends BaseIDBModelClass {
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">[];
   }
 
+  private async _applyOrderByClause<
+    O extends Prisma.Args<Prisma.ProfileDelegate, "findMany">["orderBy"],
+    R extends Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">,
+  >(records: R[], orderByClause: O): Promise<void> {
+    if (orderByClause === undefined) return;
+    const scalarFields = ["id", "bio", "userId"] as const;
+    records.sort((a, b) => {
+      for (const clause of IDBUtils.convertToArray(orderByClause)) {
+        const untypedClauseField = Object.keys(clause)[0] as keyof R;
+        if (scalarFields.includes(untypedClauseField as (typeof scalarFields)[number])) {
+          const clauseField = untypedClauseField as (typeof scalarFields)[number];
+          const comparison = IDBUtils.genericComparator(a[clauseField], b[clauseField], clause[clauseField]);
+          if (comparison !== 0) return comparison;
+        }
+      }
+      return 0;
+    });
+  }
+
   private async _fillDefaults<D extends Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>(
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -874,6 +913,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findMany">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const records = await this._applyWhereClause(await tx.objectStore("Profile").getAll(), query?.where, tx);
+    await this._applyOrderByClause(records, query?.orderBy);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.ProfileDelegate,
       object,
@@ -1218,6 +1258,25 @@ class PostIDBClass extends BaseIDBModelClass {
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.PostDelegate, Q, "findFirstOrThrow">[];
   }
 
+  private async _applyOrderByClause<
+    O extends Prisma.Args<Prisma.PostDelegate, "findMany">["orderBy"],
+    R extends Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">,
+  >(records: R[], orderByClause: O): Promise<void> {
+    if (orderByClause === undefined) return;
+    const scalarFields = ["id", "title", "authorId", "tags", "numberArr"] as const;
+    records.sort((a, b) => {
+      for (const clause of IDBUtils.convertToArray(orderByClause)) {
+        const untypedClauseField = Object.keys(clause)[0] as keyof R;
+        if (scalarFields.includes(untypedClauseField as (typeof scalarFields)[number])) {
+          const clauseField = untypedClauseField as (typeof scalarFields)[number];
+          const comparison = IDBUtils.genericComparator(a[clauseField], b[clauseField], clause[clauseField]);
+          if (comparison !== 0) return comparison;
+        }
+      }
+      return 0;
+    });
+  }
+
   private async _fillDefaults<D extends Prisma.Args<Prisma.PostDelegate, "create">["data"]>(
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -1361,6 +1420,7 @@ class PostIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findMany">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const records = await this._applyWhereClause(await tx.objectStore("Post").getAll(), query?.where, tx);
+    await this._applyOrderByClause(records, query?.orderBy);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.PostDelegate,
       object,
@@ -1730,6 +1790,25 @@ class CommentIDBClass extends BaseIDBModelClass {
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">[];
   }
 
+  private async _applyOrderByClause<
+    O extends Prisma.Args<Prisma.CommentDelegate, "findMany">["orderBy"],
+    R extends Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">,
+  >(records: R[], orderByClause: O): Promise<void> {
+    if (orderByClause === undefined) return;
+    const scalarFields = ["id", "postId", "userId", "text"] as const;
+    records.sort((a, b) => {
+      for (const clause of IDBUtils.convertToArray(orderByClause)) {
+        const untypedClauseField = Object.keys(clause)[0] as keyof R;
+        if (scalarFields.includes(untypedClauseField as (typeof scalarFields)[number])) {
+          const clauseField = untypedClauseField as (typeof scalarFields)[number];
+          const comparison = IDBUtils.genericComparator(a[clauseField], b[clauseField], clause[clauseField]);
+          if (comparison !== 0) return comparison;
+        }
+      }
+      return 0;
+    });
+  }
+
   private async _fillDefaults<D extends Prisma.Args<Prisma.CommentDelegate, "create">["data"]>(
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -1851,6 +1930,7 @@ class CommentIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findMany">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const records = await this._applyWhereClause(await tx.objectStore("Comment").getAll(), query?.where, tx);
+    await this._applyOrderByClause(records, query?.orderBy);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.CommentDelegate,
       object,
@@ -2174,6 +2254,38 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     >[];
   }
 
+  private async _applyOrderByClause<
+    O extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">["orderBy"],
+    R extends Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">,
+  >(records: R[], orderByClause: O): Promise<void> {
+    if (orderByClause === undefined) return;
+    const scalarFields = [
+      "id",
+      "string",
+      "boolean",
+      "int",
+      "bigInt",
+      "bigIntegers",
+      "float",
+      "decimal",
+      "dateTime",
+      "dateTimes",
+      "json",
+      "bytes",
+    ] as const;
+    records.sort((a, b) => {
+      for (const clause of IDBUtils.convertToArray(orderByClause)) {
+        const untypedClauseField = Object.keys(clause)[0] as keyof R;
+        if (scalarFields.includes(untypedClauseField as (typeof scalarFields)[number])) {
+          const clauseField = untypedClauseField as (typeof scalarFields)[number];
+          const comparison = IDBUtils.genericComparator(a[clauseField], b[clauseField], clause[clauseField]);
+          if (comparison !== 0) return comparison;
+        }
+      }
+      return 0;
+    });
+  }
+
   private async _fillDefaults<D extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">["data"]>(
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -2256,6 +2368,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
       query?.where,
       tx,
     );
+    await this._applyOrderByClause(records, query?.orderBy);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.AllFieldScalarTypesDelegate,
       object,

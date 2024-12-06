@@ -15,6 +15,7 @@ import { addDateTimeUpdateHandler } from "./updateHandlers/DateTimeHandler";
 import { addIntUpdateHandler } from "./updateHandlers/IntHandler";
 import { addScalarListUpdateHandler } from "./updateHandlers/ScalarListHandler";
 import { addStringUpdateHandler } from "./updateHandlers/StringHandler";
+import { addGenericComparator } from "./comparator/genericComparator";
 
 export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model[]) {
   idbUtilsFile.addImportDeclarations([
@@ -71,4 +72,6 @@ export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model
   addBytesUpdateHandler(idbUtilsFile, models);
   addIntUpdateHandler(idbUtilsFile, models);
   addScalarListUpdateHandler(idbUtilsFile, models);
+
+  addGenericComparator(idbUtilsFile);
 }
