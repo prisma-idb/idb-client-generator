@@ -631,7 +631,7 @@ class UserIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
-    await this.client.profile.delete(
+    await this.client.profile.deleteMany(
       {
         where: { userId: record.id },
       },

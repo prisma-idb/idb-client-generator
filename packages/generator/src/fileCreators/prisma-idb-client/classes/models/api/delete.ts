@@ -48,9 +48,8 @@ function handleCascadeDeletes(writer: CodeBlockWriter, model: Model, models: rea
       (field) => field.relationOnDelete === "Cascade" && field.type === model.name,
     );
     for (const cascadingFk of cascadingFks) {
-      const { isList } = model.fields.find(({ relationName }) => relationName === cascadingFk.relationName)!;
       writer
-        .write(`await this.client.${toCamelCase(cascadeModel.name)}.${isList ? `deleteMany` : `delete`}(`)
+        .write(`await this.client.${toCamelCase(cascadeModel.name)}.deleteMany(`)
         .block(() => {
           const fk = cascadingFk.relationFromFields?.at(0);
           const pk = cascadingFk.relationToFields?.at(0);
