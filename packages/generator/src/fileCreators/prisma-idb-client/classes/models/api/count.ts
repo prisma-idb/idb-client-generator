@@ -22,8 +22,8 @@ export function addCountMethod(modelClass: ClassDeclaration, model: Model) {
 function handleWithoutSelect(writer: CodeBlockWriter, model: Model) {
   writer.writeLine(`if (!query?.select || query.select === true)`).block(() => {
     writer
-      .writeLine(`const totalRecords = await tx.objectStore("${model.name}").count();`)
-      .writeLine(`return totalRecords as Prisma.Result<Prisma.${model.name}Delegate, Q, "count">;`);
+      .writeLine(`const records = await this.findMany({ where: query?.where }, tx);`)
+      .writeLine(`return records.length as Prisma.Result<Prisma.${model.name}Delegate, Q, "count">;`);
   });
 }
 

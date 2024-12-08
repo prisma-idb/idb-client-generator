@@ -20,6 +20,9 @@ import { addRemoveNestedCreateDataMethod } from "./utils/_removeNestedCreateData
 import { addGetNeededStoresForWhere } from "./utils/_getNeededStoresForWhere";
 import { addDeleteMethod } from "./api/delete";
 import { addDeleteManyMethod } from "./api/deleteMany";
+import { addApplyOrderByClause } from "./utils/_applyOrderByClause";
+import { addResolveOrderByKey } from "./utils/_resolveOrderByKey";
+import { addResolveSortOrder } from "./utils/_resolveSortOrder";
 
 export function addIDBModelClass(file: SourceFile, model: Model, models: readonly Model[]) {
   const modelClass = file.addClass({
@@ -30,6 +33,9 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
   addApplyWhereClause(modelClass, model, models);
   addApplySelectClause(modelClass, model);
   addApplyRelations(modelClass, model, models);
+  addApplyOrderByClause(modelClass, model);
+  addResolveOrderByKey(modelClass, model, models);
+  addResolveSortOrder(modelClass, model);
   addFillDefaultsFunction(modelClass, model);
   addGetNeededStoresForWhere(modelClass, model);
   addGetNeededStoresForFind(modelClass, model);

@@ -13,6 +13,7 @@ export function addGetNeededStoresForFind(modelClass: ClassDeclaration, model: M
         .writeLine(`const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();`)
         .writeLine(`neededStores.add("${model.name}");`)
         .writeLine(`this._getNeededStoresForWhere(query?.where, neededStores);`);
+      processOrderByInQuery(writer, model);
       processRelationsInQuery(writer, model);
       writer.writeLine("return neededStores;");
     },
@@ -38,5 +39,23 @@ function processRelationsInQuery(writer: CodeBlockWriter, model: Model) {
           );
         });
     });
+  });
+}
+
+function processOrderByInQuery(writer: CodeBlockWriter, model: Model) {
+  const relationFields = model.fields.filter(({ kind }) => kind === "object");
+  writer.writeLine(`if (query?.orderBy)`).block(() => {
+    writer.writeLine(`const orderBy = IDBUtils.convertToArray(query.orderBy);`);
+    for (const field of relationFields) {
+      writer
+        .writeLine(`const orderBy_${field.name} = orderBy.find((clause) => clause.${field.name});`)
+        .writeLine(`if (orderBy_${field.name})`)
+        .block(() => {
+          writer
+            .writeLine(`this.client.${toCamelCase(field.type)}`)
+            .writeLine(`._getNeededStoresForFind({ orderBy: orderBy_${field.name} })`)
+            .writeLine(`.forEach((storeName) => neededStores.add(storeName));`);
+        });
+    }
   });
 }
