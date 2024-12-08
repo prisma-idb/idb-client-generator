@@ -247,23 +247,74 @@ class UserIDBClass extends BaseIDBModelClass {
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[];
   }
 
-  private async _applyOrderByClause<
+  async _applyOrderByClause<
     O extends Prisma.Args<Prisma.UserDelegate, "findMany">["orderBy"],
     R extends Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">,
-  >(records: R[], orderByClause: O): Promise<void> {
+  >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
     if (orderByClause === undefined) return;
-    const scalarFields = ["id", "name"] as const;
-    records.sort((a, b) => {
-      for (const clause of IDBUtils.convertToArray(orderByClause)) {
-        const untypedClauseField = Object.keys(clause)[0] as keyof R;
-        if (scalarFields.includes(untypedClauseField as (typeof scalarFields)[number])) {
-          const clauseField = untypedClauseField as (typeof scalarFields)[number];
-          const comparison = IDBUtils.genericComparator(a[clauseField], b[clauseField], clause[clauseField]);
-          if (comparison !== 0) return comparison;
-        }
+    const orderByClauses = IDBUtils.convertToArray(orderByClause);
+    const indexedKeys = await Promise.all(
+      records.map(async (record) => {
+        const keys = await Promise.all(
+          orderByClauses.map(async (clause) => await this._resolveOrderByKey(record, clause, tx)),
+        );
+        return { keys, record };
+      }),
+    );
+    indexedKeys.sort((a, b) => {
+      for (let i = 0; i < orderByClauses.length; i++) {
+        const clause = orderByClauses[i];
+        const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));
+        if (comparison !== 0) return comparison;
       }
       return 0;
     });
+    for (let i = 0; i < records.length; i++) {
+      records[i] = indexedKeys[i].record;
+    }
+  }
+
+  async _resolveOrderByKey(
+    record: Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">,
+    orderByInput: Prisma.UserOrderByWithRelationInput,
+    tx: IDBUtils.TransactionType,
+  ): Promise<unknown> {
+    if (orderByInput.id) {
+      return record.id;
+    }
+    if (orderByInput.name) {
+      return record.name;
+    }
+    if (orderByInput.profile) {
+      return record.id === null
+        ? null
+        : await this.client.profile._resolveOrderByKey(
+            await this.client.profile.findFirstOrThrow({ where: { userId: record.id } }),
+            orderByInput.profile,
+            tx,
+          );
+    }
+    if (orderByInput.posts) {
+      return await this.client.post.count({ where: { authorId: record.id } }, tx);
+    }
+    if (orderByInput.comments) {
+      return await this.client.comment.count({ where: { userId: record.id } }, tx);
+    }
+  }
+
+  _resolveSortOrder(orderByInput: Prisma.UserOrderByWithRelationInput): Prisma.SortOrder | Prisma.SortOrderInput {
+    if (orderByInput.id) return orderByInput.id;
+    if (orderByInput.name) return orderByInput.name;
+    if (orderByInput.profile) {
+      return this.client.profile._resolveSortOrder(orderByInput.profile);
+    }
+    if (orderByInput.posts?._count) {
+      return orderByInput.posts._count;
+    }
+    if (orderByInput.comments?._count) {
+      return orderByInput.comments._count;
+    }
+    throw new Error("No field in orderBy clause");
   }
 
   private async _fillDefaults<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(
@@ -316,6 +367,27 @@ class UserIDBClass extends BaseIDBModelClass {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("User");
     this._getNeededStoresForWhere(query?.where, neededStores);
+    if (query?.orderBy) {
+      const orderBy = IDBUtils.convertToArray(query.orderBy);
+      const orderBy_profile = orderBy.find((clause) => clause.profile);
+      if (orderBy_profile) {
+        this.client.profile
+          ._getNeededStoresForFind({ orderBy: orderBy_profile })
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      const orderBy_posts = orderBy.find((clause) => clause.posts);
+      if (orderBy_posts) {
+        this.client.post
+          ._getNeededStoresForFind({ orderBy: orderBy_posts })
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      const orderBy_comments = orderBy.find((clause) => clause.comments);
+      if (orderBy_comments) {
+        this.client.comment
+          ._getNeededStoresForFind({ orderBy: orderBy_comments })
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
     if (query?.select?.profile || query?.include?.profile) {
       neededStores.add("Profile");
       if (typeof query.select?.profile === "object") {
@@ -438,7 +510,7 @@ class UserIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findMany">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const records = await this._applyWhereClause(await tx.objectStore("User").getAll(), query?.where, tx);
-    await this._applyOrderByClause(records, query?.orderBy);
+    await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.UserDelegate,
       object,
@@ -507,8 +579,8 @@ class UserIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "count">> {
     tx = tx ?? this.client._db.transaction(["User"], "readonly");
     if (!query?.select || query.select === true) {
-      const totalRecords = await tx.objectStore("User").count();
-      return totalRecords as Prisma.Result<Prisma.UserDelegate, Q, "count">;
+      const records = await this.findMany({ where: query?.where }, tx);
+      return records.length as Prisma.Result<Prisma.UserDelegate, Q, "count">;
     }
     const result: Partial<Record<keyof Prisma.UserCountAggregateInputType, number>> = {};
     for (const key of Object.keys(query.select)) {
@@ -800,23 +872,64 @@ class ProfileIDBClass extends BaseIDBModelClass {
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">[];
   }
 
-  private async _applyOrderByClause<
+  async _applyOrderByClause<
     O extends Prisma.Args<Prisma.ProfileDelegate, "findMany">["orderBy"],
     R extends Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">,
-  >(records: R[], orderByClause: O): Promise<void> {
+  >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
     if (orderByClause === undefined) return;
-    const scalarFields = ["id", "bio", "userId"] as const;
-    records.sort((a, b) => {
-      for (const clause of IDBUtils.convertToArray(orderByClause)) {
-        const untypedClauseField = Object.keys(clause)[0] as keyof R;
-        if (scalarFields.includes(untypedClauseField as (typeof scalarFields)[number])) {
-          const clauseField = untypedClauseField as (typeof scalarFields)[number];
-          const comparison = IDBUtils.genericComparator(a[clauseField], b[clauseField], clause[clauseField]);
-          if (comparison !== 0) return comparison;
-        }
+    const orderByClauses = IDBUtils.convertToArray(orderByClause);
+    const indexedKeys = await Promise.all(
+      records.map(async (record) => {
+        const keys = await Promise.all(
+          orderByClauses.map(async (clause) => await this._resolveOrderByKey(record, clause, tx)),
+        );
+        return { keys, record };
+      }),
+    );
+    indexedKeys.sort((a, b) => {
+      for (let i = 0; i < orderByClauses.length; i++) {
+        const clause = orderByClauses[i];
+        const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));
+        if (comparison !== 0) return comparison;
       }
       return 0;
     });
+    for (let i = 0; i < records.length; i++) {
+      records[i] = indexedKeys[i].record;
+    }
+  }
+
+  async _resolveOrderByKey(
+    record: Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">,
+    orderByInput: Prisma.ProfileOrderByWithRelationInput,
+    tx: IDBUtils.TransactionType,
+  ): Promise<unknown> {
+    if (orderByInput.id) {
+      return record.id;
+    }
+    if (orderByInput.bio) {
+      return record.bio;
+    }
+    if (orderByInput.userId) {
+      return record.userId;
+    }
+    if (orderByInput.user) {
+      return await this.client.user._resolveOrderByKey(
+        await this.client.user.findFirstOrThrow({ where: { id: record.userId } }),
+        orderByInput.user,
+        tx,
+      );
+    }
+  }
+
+  _resolveSortOrder(orderByInput: Prisma.ProfileOrderByWithRelationInput): Prisma.SortOrder | Prisma.SortOrderInput {
+    if (orderByInput.id) return orderByInput.id;
+    if (orderByInput.bio) return orderByInput.bio;
+    if (orderByInput.userId) return orderByInput.userId;
+    if (orderByInput.user) {
+      return this.client.user._resolveSortOrder(orderByInput.user);
+    }
+    throw new Error("No field in orderBy clause");
   }
 
   private async _fillDefaults<D extends Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>(
@@ -860,6 +973,15 @@ class ProfileIDBClass extends BaseIDBModelClass {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("Profile");
     this._getNeededStoresForWhere(query?.where, neededStores);
+    if (query?.orderBy) {
+      const orderBy = IDBUtils.convertToArray(query.orderBy);
+      const orderBy_user = orderBy.find((clause) => clause.user);
+      if (orderBy_user) {
+        this.client.user
+          ._getNeededStoresForFind({ orderBy: orderBy_user })
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
     if (query?.select?.user || query?.include?.user) {
       neededStores.add("User");
       if (typeof query.select?.user === "object") {
@@ -913,7 +1035,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findMany">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const records = await this._applyWhereClause(await tx.objectStore("Profile").getAll(), query?.where, tx);
-    await this._applyOrderByClause(records, query?.orderBy);
+    await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.ProfileDelegate,
       object,
@@ -984,8 +1106,8 @@ class ProfileIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "count">> {
     tx = tx ?? this.client._db.transaction(["Profile"], "readonly");
     if (!query?.select || query.select === true) {
-      const totalRecords = await tx.objectStore("Profile").count();
-      return totalRecords as Prisma.Result<Prisma.ProfileDelegate, Q, "count">;
+      const records = await this.findMany({ where: query?.where }, tx);
+      return records.length as Prisma.Result<Prisma.ProfileDelegate, Q, "count">;
     }
     const result: Partial<Record<keyof Prisma.ProfileCountAggregateInputType, number>> = {};
     for (const key of Object.keys(query.select)) {
@@ -1258,23 +1380,80 @@ class PostIDBClass extends BaseIDBModelClass {
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.PostDelegate, Q, "findFirstOrThrow">[];
   }
 
-  private async _applyOrderByClause<
+  async _applyOrderByClause<
     O extends Prisma.Args<Prisma.PostDelegate, "findMany">["orderBy"],
     R extends Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">,
-  >(records: R[], orderByClause: O): Promise<void> {
+  >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
     if (orderByClause === undefined) return;
-    const scalarFields = ["id", "title", "authorId", "tags", "numberArr"] as const;
-    records.sort((a, b) => {
-      for (const clause of IDBUtils.convertToArray(orderByClause)) {
-        const untypedClauseField = Object.keys(clause)[0] as keyof R;
-        if (scalarFields.includes(untypedClauseField as (typeof scalarFields)[number])) {
-          const clauseField = untypedClauseField as (typeof scalarFields)[number];
-          const comparison = IDBUtils.genericComparator(a[clauseField], b[clauseField], clause[clauseField]);
-          if (comparison !== 0) return comparison;
-        }
+    const orderByClauses = IDBUtils.convertToArray(orderByClause);
+    const indexedKeys = await Promise.all(
+      records.map(async (record) => {
+        const keys = await Promise.all(
+          orderByClauses.map(async (clause) => await this._resolveOrderByKey(record, clause, tx)),
+        );
+        return { keys, record };
+      }),
+    );
+    indexedKeys.sort((a, b) => {
+      for (let i = 0; i < orderByClauses.length; i++) {
+        const clause = orderByClauses[i];
+        const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));
+        if (comparison !== 0) return comparison;
       }
       return 0;
     });
+    for (let i = 0; i < records.length; i++) {
+      records[i] = indexedKeys[i].record;
+    }
+  }
+
+  async _resolveOrderByKey(
+    record: Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">,
+    orderByInput: Prisma.PostOrderByWithRelationInput,
+    tx: IDBUtils.TransactionType,
+  ): Promise<unknown> {
+    if (orderByInput.id) {
+      return record.id;
+    }
+    if (orderByInput.title) {
+      return record.title;
+    }
+    if (orderByInput.authorId) {
+      return record.authorId;
+    }
+    if (orderByInput.tags) {
+      return record.tags;
+    }
+    if (orderByInput.numberArr) {
+      return record.numberArr;
+    }
+    if (orderByInput.author) {
+      return record.authorId === null
+        ? null
+        : await this.client.user._resolveOrderByKey(
+            await this.client.user.findFirstOrThrow({ where: { id: record.authorId } }),
+            orderByInput.author,
+            tx,
+          );
+    }
+    if (orderByInput.comments) {
+      return await this.client.comment.count({ where: { postId: record.id } }, tx);
+    }
+  }
+
+  _resolveSortOrder(orderByInput: Prisma.PostOrderByWithRelationInput): Prisma.SortOrder | Prisma.SortOrderInput {
+    if (orderByInput.id) return orderByInput.id;
+    if (orderByInput.title) return orderByInput.title;
+    if (orderByInput.authorId) return orderByInput.authorId;
+    if (orderByInput.tags) return orderByInput.tags;
+    if (orderByInput.numberArr) return orderByInput.numberArr;
+    if (orderByInput.author) {
+      return this.client.user._resolveSortOrder(orderByInput.author);
+    }
+    if (orderByInput.comments?._count) {
+      return orderByInput.comments._count;
+    }
+    throw new Error("No field in orderBy clause");
   }
 
   private async _fillDefaults<D extends Prisma.Args<Prisma.PostDelegate, "create">["data"]>(
@@ -1330,6 +1509,21 @@ class PostIDBClass extends BaseIDBModelClass {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("Post");
     this._getNeededStoresForWhere(query?.where, neededStores);
+    if (query?.orderBy) {
+      const orderBy = IDBUtils.convertToArray(query.orderBy);
+      const orderBy_author = orderBy.find((clause) => clause.author);
+      if (orderBy_author) {
+        this.client.user
+          ._getNeededStoresForFind({ orderBy: orderBy_author })
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      const orderBy_comments = orderBy.find((clause) => clause.comments);
+      if (orderBy_comments) {
+        this.client.comment
+          ._getNeededStoresForFind({ orderBy: orderBy_comments })
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
     if (query?.select?.author || query?.include?.author) {
       neededStores.add("User");
       if (typeof query.select?.author === "object") {
@@ -1420,7 +1614,7 @@ class PostIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findMany">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const records = await this._applyWhereClause(await tx.objectStore("Post").getAll(), query?.where, tx);
-    await this._applyOrderByClause(records, query?.orderBy);
+    await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.PostDelegate,
       object,
@@ -1489,8 +1683,8 @@ class PostIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "count">> {
     tx = tx ?? this.client._db.transaction(["Post"], "readonly");
     if (!query?.select || query.select === true) {
-      const totalRecords = await tx.objectStore("Post").count();
-      return totalRecords as Prisma.Result<Prisma.PostDelegate, Q, "count">;
+      const records = await this.findMany({ where: query?.where }, tx);
+      return records.length as Prisma.Result<Prisma.PostDelegate, Q, "count">;
     }
     const result: Partial<Record<keyof Prisma.PostCountAggregateInputType, number>> = {};
     for (const key of Object.keys(query.select)) {
@@ -1790,23 +1984,78 @@ class CommentIDBClass extends BaseIDBModelClass {
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">[];
   }
 
-  private async _applyOrderByClause<
+  async _applyOrderByClause<
     O extends Prisma.Args<Prisma.CommentDelegate, "findMany">["orderBy"],
     R extends Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">,
-  >(records: R[], orderByClause: O): Promise<void> {
+  >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
     if (orderByClause === undefined) return;
-    const scalarFields = ["id", "postId", "userId", "text"] as const;
-    records.sort((a, b) => {
-      for (const clause of IDBUtils.convertToArray(orderByClause)) {
-        const untypedClauseField = Object.keys(clause)[0] as keyof R;
-        if (scalarFields.includes(untypedClauseField as (typeof scalarFields)[number])) {
-          const clauseField = untypedClauseField as (typeof scalarFields)[number];
-          const comparison = IDBUtils.genericComparator(a[clauseField], b[clauseField], clause[clauseField]);
-          if (comparison !== 0) return comparison;
-        }
+    const orderByClauses = IDBUtils.convertToArray(orderByClause);
+    const indexedKeys = await Promise.all(
+      records.map(async (record) => {
+        const keys = await Promise.all(
+          orderByClauses.map(async (clause) => await this._resolveOrderByKey(record, clause, tx)),
+        );
+        return { keys, record };
+      }),
+    );
+    indexedKeys.sort((a, b) => {
+      for (let i = 0; i < orderByClauses.length; i++) {
+        const clause = orderByClauses[i];
+        const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));
+        if (comparison !== 0) return comparison;
       }
       return 0;
     });
+    for (let i = 0; i < records.length; i++) {
+      records[i] = indexedKeys[i].record;
+    }
+  }
+
+  async _resolveOrderByKey(
+    record: Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">,
+    orderByInput: Prisma.CommentOrderByWithRelationInput,
+    tx: IDBUtils.TransactionType,
+  ): Promise<unknown> {
+    if (orderByInput.id) {
+      return record.id;
+    }
+    if (orderByInput.postId) {
+      return record.postId;
+    }
+    if (orderByInput.userId) {
+      return record.userId;
+    }
+    if (orderByInput.text) {
+      return record.text;
+    }
+    if (orderByInput.post) {
+      return await this.client.post._resolveOrderByKey(
+        await this.client.post.findFirstOrThrow({ where: { id: record.postId } }),
+        orderByInput.post,
+        tx,
+      );
+    }
+    if (orderByInput.user) {
+      return await this.client.user._resolveOrderByKey(
+        await this.client.user.findFirstOrThrow({ where: { id: record.userId } }),
+        orderByInput.user,
+        tx,
+      );
+    }
+  }
+
+  _resolveSortOrder(orderByInput: Prisma.CommentOrderByWithRelationInput): Prisma.SortOrder | Prisma.SortOrderInput {
+    if (orderByInput.id) return orderByInput.id;
+    if (orderByInput.postId) return orderByInput.postId;
+    if (orderByInput.userId) return orderByInput.userId;
+    if (orderByInput.text) return orderByInput.text;
+    if (orderByInput.post) {
+      return this.client.post._resolveSortOrder(orderByInput.post);
+    }
+    if (orderByInput.user) {
+      return this.client.user._resolveSortOrder(orderByInput.user);
+    }
+    throw new Error("No field in orderBy clause");
   }
 
   private async _fillDefaults<D extends Prisma.Args<Prisma.CommentDelegate, "create">["data"]>(
@@ -1848,6 +2097,21 @@ class CommentIDBClass extends BaseIDBModelClass {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("Comment");
     this._getNeededStoresForWhere(query?.where, neededStores);
+    if (query?.orderBy) {
+      const orderBy = IDBUtils.convertToArray(query.orderBy);
+      const orderBy_post = orderBy.find((clause) => clause.post);
+      if (orderBy_post) {
+        this.client.post
+          ._getNeededStoresForFind({ orderBy: orderBy_post })
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      const orderBy_user = orderBy.find((clause) => clause.user);
+      if (orderBy_user) {
+        this.client.user
+          ._getNeededStoresForFind({ orderBy: orderBy_user })
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
     if (query?.select?.post || query?.include?.post) {
       neededStores.add("Post");
       if (typeof query.select?.post === "object") {
@@ -1930,7 +2194,7 @@ class CommentIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findMany">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const records = await this._applyWhereClause(await tx.objectStore("Comment").getAll(), query?.where, tx);
-    await this._applyOrderByClause(records, query?.orderBy);
+    await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.CommentDelegate,
       object,
@@ -1999,8 +2263,8 @@ class CommentIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "count">> {
     tx = tx ?? this.client._db.transaction(["Comment"], "readonly");
     if (!query?.select || query.select === true) {
-      const totalRecords = await tx.objectStore("Comment").count();
-      return totalRecords as Prisma.Result<Prisma.CommentDelegate, Q, "count">;
+      const records = await this.findMany({ where: query?.where }, tx);
+      return records.length as Prisma.Result<Prisma.CommentDelegate, Q, "count">;
     }
     const result: Partial<Record<keyof Prisma.CommentCountAggregateInputType, number>> = {};
     for (const key of Object.keys(query.select)) {
@@ -2254,36 +2518,92 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     >[];
   }
 
-  private async _applyOrderByClause<
+  async _applyOrderByClause<
     O extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">["orderBy"],
     R extends Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">,
-  >(records: R[], orderByClause: O): Promise<void> {
+  >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
     if (orderByClause === undefined) return;
-    const scalarFields = [
-      "id",
-      "string",
-      "boolean",
-      "int",
-      "bigInt",
-      "bigIntegers",
-      "float",
-      "decimal",
-      "dateTime",
-      "dateTimes",
-      "json",
-      "bytes",
-    ] as const;
-    records.sort((a, b) => {
-      for (const clause of IDBUtils.convertToArray(orderByClause)) {
-        const untypedClauseField = Object.keys(clause)[0] as keyof R;
-        if (scalarFields.includes(untypedClauseField as (typeof scalarFields)[number])) {
-          const clauseField = untypedClauseField as (typeof scalarFields)[number];
-          const comparison = IDBUtils.genericComparator(a[clauseField], b[clauseField], clause[clauseField]);
-          if (comparison !== 0) return comparison;
-        }
+    const orderByClauses = IDBUtils.convertToArray(orderByClause);
+    const indexedKeys = await Promise.all(
+      records.map(async (record) => {
+        const keys = await Promise.all(
+          orderByClauses.map(async (clause) => await this._resolveOrderByKey(record, clause, tx)),
+        );
+        return { keys, record };
+      }),
+    );
+    indexedKeys.sort((a, b) => {
+      for (let i = 0; i < orderByClauses.length; i++) {
+        const clause = orderByClauses[i];
+        const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));
+        if (comparison !== 0) return comparison;
       }
       return 0;
     });
+    for (let i = 0; i < records.length; i++) {
+      records[i] = indexedKeys[i].record;
+    }
+  }
+
+  async _resolveOrderByKey(
+    record: Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">,
+    orderByInput: Prisma.AllFieldScalarTypesOrderByWithRelationInput,
+    tx: IDBUtils.TransactionType,
+  ): Promise<unknown> {
+    if (orderByInput.id) {
+      return record.id;
+    }
+    if (orderByInput.string) {
+      return record.string;
+    }
+    if (orderByInput.boolean) {
+      return record.boolean;
+    }
+    if (orderByInput.int) {
+      return record.int;
+    }
+    if (orderByInput.bigInt) {
+      return record.bigInt;
+    }
+    if (orderByInput.bigIntegers) {
+      return record.bigIntegers;
+    }
+    if (orderByInput.float) {
+      return record.float;
+    }
+    if (orderByInput.decimal) {
+      return record.decimal;
+    }
+    if (orderByInput.dateTime) {
+      return record.dateTime;
+    }
+    if (orderByInput.dateTimes) {
+      return record.dateTimes;
+    }
+    if (orderByInput.json) {
+      return record.json;
+    }
+    if (orderByInput.bytes) {
+      return record.bytes;
+    }
+  }
+
+  _resolveSortOrder(
+    orderByInput: Prisma.AllFieldScalarTypesOrderByWithRelationInput,
+  ): Prisma.SortOrder | Prisma.SortOrderInput {
+    if (orderByInput.id) return orderByInput.id;
+    if (orderByInput.string) return orderByInput.string;
+    if (orderByInput.boolean) return orderByInput.boolean;
+    if (orderByInput.int) return orderByInput.int;
+    if (orderByInput.bigInt) return orderByInput.bigInt;
+    if (orderByInput.bigIntegers) return orderByInput.bigIntegers;
+    if (orderByInput.float) return orderByInput.float;
+    if (orderByInput.decimal) return orderByInput.decimal;
+    if (orderByInput.dateTime) return orderByInput.dateTime;
+    if (orderByInput.dateTimes) return orderByInput.dateTimes;
+    if (orderByInput.json) return orderByInput.json;
+    if (orderByInput.bytes) return orderByInput.bytes;
+    throw new Error("No field in orderBy clause");
   }
 
   private async _fillDefaults<D extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">["data"]>(
@@ -2340,6 +2660,9 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("AllFieldScalarTypes");
     this._getNeededStoresForWhere(query?.where, neededStores);
+    if (query?.orderBy) {
+      const orderBy = IDBUtils.convertToArray(query.orderBy);
+    }
     return neededStores;
   }
 
@@ -2368,7 +2691,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
       query?.where,
       tx,
     );
-    await this._applyOrderByClause(records, query?.orderBy);
+    await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.AllFieldScalarTypesDelegate,
       object,
@@ -2437,8 +2760,8 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "count">> {
     tx = tx ?? this.client._db.transaction(["AllFieldScalarTypes"], "readonly");
     if (!query?.select || query.select === true) {
-      const totalRecords = await tx.objectStore("AllFieldScalarTypes").count();
-      return totalRecords as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "count">;
+      const records = await this.findMany({ where: query?.where }, tx);
+      return records.length as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "count">;
     }
     const result: Partial<Record<keyof Prisma.AllFieldScalarTypesCountAggregateInputType, number>> = {};
     for (const key of Object.keys(query.select)) {
