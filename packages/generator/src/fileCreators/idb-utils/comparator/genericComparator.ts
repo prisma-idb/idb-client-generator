@@ -26,7 +26,7 @@ export function addGenericComparator(utilsFile: SourceFile) {
 function handleNullsSorting(writer: CodeBlockWriter) {
   writer.writeLine(`if (typeof sortOrder !== "string" && sortOrder.nulls)`).block(() => {
     writer
-      .writeLine(`const nullMultiplier = sortOrder.nulls === "first" ? 1 : -1;`)
+      .writeLine(`const nullMultiplier = sortOrder.nulls === "first" ? -1 : 1;`)
       .blankLine()
       .writeLine(`if (a === null && b === null) return 0;`)
       .writeLine(`if (a === null || b === null) return (a === null ? 1 : -1) * nullMultiplier;`);

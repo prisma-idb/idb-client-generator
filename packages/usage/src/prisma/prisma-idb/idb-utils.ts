@@ -506,7 +506,7 @@ export function genericComparator(
   sortOrder: Prisma.SortOrder | Prisma.SortOrderInput = "asc",
 ): number {
   if (typeof sortOrder !== "string" && sortOrder.nulls) {
-    const nullMultiplier = sortOrder.nulls === "first" ? 1 : -1;
+    const nullMultiplier = sortOrder.nulls === "first" ? -1 : 1;
 
     if (a === null && b === null) return 0;
     if (a === null || b === null) return (a === null ? 1 : -1) * nullMultiplier;
