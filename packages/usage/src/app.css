@@ -68,8 +68,15 @@
 @layer base {
   * {
     @apply border-border;
+    font-family: "JetBrains Mono", monospace;
+    font-optical-sizing: auto;
   }
   body {
     @apply bg-background text-foreground;
   }
+}
+
+pre {
+  font-family: "JetBrains Mono", monospace;
+  font-optical-sizing: auto;
 }

@@ -35,6 +35,7 @@
   <Label for="query">Query</Label>
   <Input
     data-testid="query-input"
+    class=""
     id="query"
     placeholder={"user.create({ data: { name: 'John Doe' } })"}
     required
@@ -45,5 +46,5 @@
 
 <div class="grid w-full max-w-sm gap-1.5">
   <Label for="output">Output</Label>
-  <code class="rounded-md border p-2"><pre>{output === "" ? "Run a query" : output}</pre></code>
+  <code class="rounded-md border p-2 text-sm"><pre>{output === "" ? "Run a query" : output}</pre></code>
 </div>
