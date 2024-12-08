@@ -1,27 +1,27 @@
 import { Model } from "src/fileCreators/types";
 import type { CodeBlockWriter, SourceFile } from "ts-morph";
 
-export function addStringListFilter(utilsFile: SourceFile, models: readonly Model[]) {
-  const stringListFields = models
+export function addBooleanListFilter(utilsFile: SourceFile, models: readonly Model[]) {
+  const booleanListFields = models
     .flatMap(({ fields }) => fields)
-    .filter((field) => field.type === "String" && field.isList);
-  if (stringListFields.length === 0) return;
+    .filter((field) => field.type === "Boolean" && field.isList);
+  if (booleanListFields.length === 0) return;
 
   utilsFile.addFunction({
-    name: "whereStringListFilter",
+    name: "whereBooleanListFilter",
     isExported: true,
     typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
     parameters: [
       { name: "record", type: `R` },
       { name: "fieldName", type: "keyof R" },
-      { name: "scalarListFilter", type: "undefined | Prisma.StringNullableListFilter<unknown>" },
+      { name: "scalarListFilter", type: "undefined | Prisma.BoolNullableListFilter<unknown>" },
     ],
     returnType: "boolean",
     statements: (writer) => {
       writer
         .writeLine(`if (scalarListFilter === undefined) return true;`)
         .blankLine()
-        .writeLine(`const value = record[fieldName] as string[] | undefined;`)
+        .writeLine(`const value = record[fieldName] as boolean[] | undefined;`)
         .writeLine(`if (value === undefined && Object.keys(scalarListFilter).length) return false;`);
       addEqualsHandler(writer);
       addHasHandler(writer);
@@ -43,7 +43,7 @@ function addEqualsHandler(writer: CodeBlockWriter) {
 
 function addHasHandler(writer: CodeBlockWriter) {
   writer
-    .writeLine(`if (typeof scalarListFilter.has === 'string')`)
+    .writeLine(`if (typeof scalarListFilter.has === 'boolean')`)
     .block(() => {
       writer.writeLine(`if (!value?.includes(scalarListFilter.has)) return false;`);
     })

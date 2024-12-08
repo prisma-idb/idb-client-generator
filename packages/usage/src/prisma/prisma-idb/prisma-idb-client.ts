@@ -1272,6 +1272,10 @@ class PostIDBClass extends BaseIDBModelClass {
           for (const field of numberFields) {
             if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
           }
+          const numberListFields = ["numberArr"] as const;
+          for (const field of numberListFields) {
+            if (!IDBUtils.whereNumberListFilter(record, field, whereClause[field])) return null;
+          }
           if (whereClause.author === null) {
             if (record.authorId !== null) return null;
           }
@@ -2449,25 +2453,37 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
           for (const field of stringFields) {
             if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
           }
-          const numberFields = ["id", "int", "float"] as const;
+          const numberFields = ["id", "float"] as const;
           for (const field of numberFields) {
             if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
           }
-          const bigIntFields = ["bigInt"] as const;
-          for (const field of bigIntFields) {
-            if (!IDBUtils.whereBigIntFilter(record, field, whereClause[field])) return null;
+          const numberListFields = ["floats"] as const;
+          for (const field of numberListFields) {
+            if (!IDBUtils.whereNumberListFilter(record, field, whereClause[field])) return null;
           }
           const booleanFields = ["boolean"] as const;
           for (const field of booleanFields) {
             if (!IDBUtils.whereBoolFilter(record, field, whereClause[field])) return null;
           }
+          const booleanListFields = ["booleans"] as const;
+          for (const field of booleanListFields) {
+            if (!IDBUtils.whereBooleanListFilter(record, field, whereClause[field])) return null;
+          }
           const bytesFields = ["bytes"] as const;
           for (const field of bytesFields) {
             if (!IDBUtils.whereBytesFilter(record, field, whereClause[field])) return null;
           }
+          const bytesListFields = ["manyBytes"] as const;
+          for (const field of bytesListFields) {
+            if (!IDBUtils.whereBytesListFilter(record, field, whereClause[field])) return null;
+          }
           const dateTimeFields = ["dateTime"] as const;
           for (const field of dateTimeFields) {
             if (!IDBUtils.whereDateTimeFilter(record, field, whereClause[field])) return null;
+          }
+          const dateTimeListFields = ["dateTimes"] as const;
+          for (const field of dateTimeListFields) {
+            if (!IDBUtils.whereDateTimeListFilter(record, field, whereClause[field])) return null;
           }
           return record;
         }),
@@ -2488,15 +2504,19 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
         "id",
         "string",
         "boolean",
-        "int",
+        "booleans",
         "bigInt",
         "bigIntegers",
         "float",
+        "floats",
         "decimal",
+        "decimals",
         "dateTime",
         "dateTimes",
         "json",
+        "jsonS",
         "bytes",
+        "manyBytes",
       ]) {
         const key = untypedKey as keyof typeof record & keyof S;
         if (!selectClause[key]) delete partialRecord[key];
@@ -2563,8 +2583,8 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     if (orderByInput.boolean) {
       return record.boolean;
     }
-    if (orderByInput.int) {
-      return record.int;
+    if (orderByInput.booleans) {
+      return record.booleans;
     }
     if (orderByInput.bigInt) {
       return record.bigInt;
@@ -2575,8 +2595,14 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     if (orderByInput.float) {
       return record.float;
     }
+    if (orderByInput.floats) {
+      return record.floats;
+    }
     if (orderByInput.decimal) {
       return record.decimal;
+    }
+    if (orderByInput.decimals) {
+      return record.decimals;
     }
     if (orderByInput.dateTime) {
       return record.dateTime;
@@ -2587,8 +2613,14 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     if (orderByInput.json) {
       return record.json;
     }
+    if (orderByInput.jsonS) {
+      return record.jsonS;
+    }
     if (orderByInput.bytes) {
       return record.bytes;
+    }
+    if (orderByInput.manyBytes) {
+      return record.manyBytes;
     }
   }
 
@@ -2598,15 +2630,19 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     if (orderByInput.id) return orderByInput.id;
     if (orderByInput.string) return orderByInput.string;
     if (orderByInput.boolean) return orderByInput.boolean;
-    if (orderByInput.int) return orderByInput.int;
+    if (orderByInput.booleans) return orderByInput.booleans;
     if (orderByInput.bigInt) return orderByInput.bigInt;
     if (orderByInput.bigIntegers) return orderByInput.bigIntegers;
     if (orderByInput.float) return orderByInput.float;
+    if (orderByInput.floats) return orderByInput.floats;
     if (orderByInput.decimal) return orderByInput.decimal;
+    if (orderByInput.decimals) return orderByInput.decimals;
     if (orderByInput.dateTime) return orderByInput.dateTime;
     if (orderByInput.dateTimes) return orderByInput.dateTimes;
     if (orderByInput.json) return orderByInput.json;
+    if (orderByInput.jsonS) return orderByInput.jsonS;
     if (orderByInput.bytes) return orderByInput.bytes;
+    if (orderByInput.manyBytes) return orderByInput.manyBytes;
     throw new Error("No field in orderBy clause");
   }
 
@@ -2621,6 +2657,9 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
       const cursor = await store.openCursor(null, "prev");
       data.id = cursor ? Number(cursor.key) + 1 : 1;
     }
+    if (!Array.isArray(data.booleans)) {
+      data.booleans = data.booleans?.set ?? [];
+    }
     if (typeof data.bigInt === "number") {
       data.bigInt = BigInt(data.bigInt);
     }
@@ -2631,6 +2670,12 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     } else {
       data.bigIntegers = [];
     }
+    if (!Array.isArray(data.floats)) {
+      data.floats = data.floats?.set ?? [];
+    }
+    if (!Array.isArray(data.decimals)) {
+      data.decimals = data.decimals?.set ?? [];
+    }
     if (typeof data.dateTime === "string") {
       data.dateTime = new Date(data.dateTime);
     }
@@ -2640,6 +2685,12 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
       data.dateTimes = data.dateTimes.set.map((d) => new Date(d));
     } else {
       data.dateTimes = [];
+    }
+    if (!Array.isArray(data.jsonS)) {
+      data.jsonS = data.jsonS?.set ?? [];
+    }
+    if (!Array.isArray(data.manyBytes)) {
+      data.manyBytes = data.manyBytes?.set ?? [];
     }
     return data;
   }
@@ -2874,11 +2925,11 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     for (const field of bytesFields) {
       IDBUtils.handleBytesUpdateField(record, field, query.data[field]);
     }
-    const intFields = ["id", "int"] as const;
+    const intFields = ["id"] as const;
     for (const field of intFields) {
       IDBUtils.handleIntUpdateField(record, field, query.data[field]);
     }
-    const listFields = ["bigIntegers", "dateTimes"] as const;
+    const listFields = ["booleans", "bigIntegers", "floats", "decimals", "dateTimes", "jsonS", "manyBytes"] as const;
     for (const field of listFields) {
       IDBUtils.handleScalarListUpdateField(record, field, query.data[field]);
     }

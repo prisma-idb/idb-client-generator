@@ -50,13 +50,17 @@ model AllFieldScalarTypes {
   id          Int        @id @default(autoincrement())
   string      String
   boolean     Boolean
-  int         Int
+  booleans    Boolean[]
   bigInt      BigInt
   bigIntegers BigInt[]
   float       Float
+  floats      Float[]
   decimal     Decimal
+  decimals    Decimal[]
   dateTime    DateTime
   dateTimes   DateTime[]
   json        Json
+  jsonS       Json[]
   bytes       Bytes
+  manyBytes   Bytes[]
 }

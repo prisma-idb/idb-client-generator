@@ -436,6 +436,136 @@ export function whereStringListFilter<T, R extends Prisma.Result<T, object, "fin
   return true;
 }
 
+export function whereNumberListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
+  record: R,
+  fieldName: keyof R,
+  scalarListFilter: undefined | Prisma.IntNullableListFilter<unknown> | Prisma.FloatNullableListFilter<unknown>,
+): boolean {
+  if (scalarListFilter === undefined) return true;
+
+  const value = record[fieldName] as number[];
+  if (Array.isArray(scalarListFilter.equals)) {
+    if (scalarListFilter.equals.length !== value.length) return false;
+    if (!scalarListFilter.equals.every((val, i) => val === value[i])) return false;
+  }
+  if (typeof scalarListFilter.has === "number") {
+    if (!value.includes(scalarListFilter.has)) return false;
+  }
+  if (Array.isArray(scalarListFilter.hasSome)) {
+    if (!scalarListFilter.hasSome.some((val) => value.includes(val))) return false;
+  }
+  if (Array.isArray(scalarListFilter.hasEvery)) {
+    if (!scalarListFilter.hasEvery.every((val) => value.includes(val))) return false;
+  }
+  if (scalarListFilter.isEmpty === true && value.length > 0) return false;
+  if (scalarListFilter.isEmpty === false && value.length === 0) return false;
+  return true;
+}
+
+export function whereBigIntListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
+  record: R,
+  fieldName: keyof R,
+  scalarListFilter: undefined | Prisma.BigIntNullableListFilter<unknown>,
+): boolean {
+  if (scalarListFilter === undefined) return true;
+
+  const value = record[fieldName] as bigint[];
+  if (Array.isArray(scalarListFilter.equals)) {
+    if (scalarListFilter.equals.length !== value.length) return false;
+    if (!scalarListFilter.equals.every((val, i) => BigInt(val) === value[i])) return false;
+  }
+  if (typeof scalarListFilter.has === "bigint" || typeof scalarListFilter.has === "number") {
+    if (!value.includes(BigInt(scalarListFilter.has))) return false;
+  }
+  if (Array.isArray(scalarListFilter.hasSome)) {
+    if (!scalarListFilter.hasSome.some((val) => value.includes(BigInt(val)))) return false;
+  }
+  if (Array.isArray(scalarListFilter.hasEvery)) {
+    if (!scalarListFilter.hasEvery.every((val) => value.includes(BigInt(val)))) return false;
+  }
+  if (scalarListFilter.isEmpty === true && value.length > 0) return false;
+  if (scalarListFilter.isEmpty === false && value.length === 0) return false;
+  return true;
+}
+
+export function whereBooleanListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
+  record: R,
+  fieldName: keyof R,
+  scalarListFilter: undefined | Prisma.BoolNullableListFilter<unknown>,
+): boolean {
+  if (scalarListFilter === undefined) return true;
+
+  const value = record[fieldName] as boolean[];
+  if (Array.isArray(scalarListFilter.equals)) {
+    if (scalarListFilter.equals.length !== value.length) return false;
+    if (!scalarListFilter.equals.every((val, i) => val === value[i])) return false;
+  }
+  if (typeof scalarListFilter.has === "boolean") {
+    if (!value.includes(scalarListFilter.has)) return false;
+  }
+  if (Array.isArray(scalarListFilter.hasSome)) {
+    if (!scalarListFilter.hasSome.some((val) => value.includes(val))) return false;
+  }
+  if (Array.isArray(scalarListFilter.hasEvery)) {
+    if (!scalarListFilter.hasEvery.every((val) => value.includes(val))) return false;
+  }
+  if (scalarListFilter.isEmpty === true && value.length > 0) return false;
+  if (scalarListFilter.isEmpty === false && value.length === 0) return false;
+  return true;
+}
+
+export function whereBytesListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
+  record: R,
+  fieldName: keyof R,
+  scalarListFilter: undefined | Prisma.BytesNullableListFilter<unknown>,
+): boolean {
+  if (scalarListFilter === undefined) return true;
+
+  const value = record[fieldName] as Uint8Array[];
+  if (Array.isArray(scalarListFilter.equals)) {
+    if (scalarListFilter.equals.length !== value.length) return false;
+    if (!scalarListFilter.equals.every((val, i) => val === value[i])) return false;
+  }
+  if (scalarListFilter.has instanceof Uint8Array) {
+    if (!value.includes(scalarListFilter.has)) return false;
+  }
+  if (Array.isArray(scalarListFilter.hasSome)) {
+    if (!scalarListFilter.hasSome.some((val) => value.includes(val))) return false;
+  }
+  if (Array.isArray(scalarListFilter.hasEvery)) {
+    if (!scalarListFilter.hasEvery.every((val) => value.includes(val))) return false;
+  }
+  if (scalarListFilter.isEmpty === true && value.length > 0) return false;
+  if (scalarListFilter.isEmpty === false && value.length === 0) return false;
+  return true;
+}
+
+export function whereDateTimeListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
+  record: R,
+  fieldName: keyof R,
+  scalarListFilter: undefined | Prisma.DateTimeNullableListFilter<unknown>,
+): boolean {
+  if (scalarListFilter === undefined) return true;
+
+  const value = record[fieldName] as Date[];
+  if (Array.isArray(scalarListFilter.equals)) {
+    if (scalarListFilter.equals.length !== value.length) return false;
+    if (!scalarListFilter.equals.every((val, i) => new Date(val).getTime() === value[i].getTime())) return false;
+  }
+  if (scalarListFilter.has instanceof Date || typeof scalarListFilter.has === "string") {
+    if (!value.includes(new Date(scalarListFilter.has))) return false;
+  }
+  if (Array.isArray(scalarListFilter.hasSome)) {
+    if (!scalarListFilter.hasSome.some((val) => value.includes(new Date(val)))) return false;
+  }
+  if (Array.isArray(scalarListFilter.hasEvery)) {
+    if (!scalarListFilter.hasEvery.every((val) => value.includes(new Date(val)))) return false;
+  }
+  if (scalarListFilter.isEmpty === true && value.length > 0) return false;
+  if (scalarListFilter.isEmpty === false && value.length === 0) return false;
+  return true;
+}
+
 export function handleStringUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,

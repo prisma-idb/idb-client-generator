@@ -1,27 +1,27 @@
 import { Model } from "src/fileCreators/types";
 import type { CodeBlockWriter, SourceFile } from "ts-morph";
 
-export function addStringListFilter(utilsFile: SourceFile, models: readonly Model[]) {
-  const stringListFields = models
+export function addBigIntListFilter(utilsFile: SourceFile, models: readonly Model[]) {
+  const bigIntListFields = models
     .flatMap(({ fields }) => fields)
-    .filter((field) => field.type === "String" && field.isList);
-  if (stringListFields.length === 0) return;
+    .filter((field) => field.type === "BigInt" && field.isList);
+  if (bigIntListFields.length === 0) return;
 
   utilsFile.addFunction({
-    name: "whereStringListFilter",
+    name: "whereBigIntListFilter",
     isExported: true,
     typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
     parameters: [
       { name: "record", type: `R` },
       { name: "fieldName", type: "keyof R" },
-      { name: "scalarListFilter", type: "undefined | Prisma.StringNullableListFilter<unknown>" },
+      { name: "scalarListFilter", type: "undefined | Prisma.BigIntNullableListFilter<unknown>" },
     ],
     returnType: "boolean",
     statements: (writer) => {
       writer
         .writeLine(`if (scalarListFilter === undefined) return true;`)
         .blankLine()
-        .writeLine(`const value = record[fieldName] as string[] | undefined;`)
+        .writeLine(`const value = record[fieldName] as bigint[] | undefined;`)
         .writeLine(`if (value === undefined && Object.keys(scalarListFilter).length) return false;`);
       addEqualsHandler(writer);
       addHasHandler(writer);
@@ -37,28 +37,28 @@ function addEqualsHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (Array.isArray(scalarListFilter.equals))`).block(() => {
     writer
       .writeLine(`if (scalarListFilter.equals.length !== value?.length) return false;`)
-      .writeLine(`if (!scalarListFilter.equals.every((val, i) => val === value[i])) return false;`);
+      .writeLine(`if (!scalarListFilter.equals.every((val, i) => BigInt(val) === value[i])) return false;`);
   });
 }
 
 function addHasHandler(writer: CodeBlockWriter) {
   writer
-    .writeLine(`if (typeof scalarListFilter.has === 'string')`)
+    .writeLine(`if (typeof scalarListFilter.has === 'bigint' || typeof scalarListFilter.has === 'number')`)
     .block(() => {
-      writer.writeLine(`if (!value?.includes(scalarListFilter.has)) return false;`);
+      writer.writeLine(`if (!value?.includes(BigInt(scalarListFilter.has))) return false;`);
     })
     .writeLine(`if (scalarListFilter.has === null) return false;`);
 }
 
 function addHasSomeHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (Array.isArray(scalarListFilter.hasSome))`).block(() => {
-    writer.writeLine(`if (!scalarListFilter.hasSome.some((val) => value?.includes(val))) return false;`);
+    writer.writeLine(`if (!scalarListFilter.hasSome.some((val) => value?.includes(BigInt(val)))) return false;`);
   });
 }
 
 function addHasEveryHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (Array.isArray(scalarListFilter.hasEvery))`).block(() => {
-    writer.writeLine(`if (!scalarListFilter.hasEvery.every((val) => value?.includes(val))) return false;`);
+    writer.writeLine(`if (!scalarListFilter.hasEvery.every((val) => value?.includes(BigInt(val)))) return false;`);
   });
 }
 

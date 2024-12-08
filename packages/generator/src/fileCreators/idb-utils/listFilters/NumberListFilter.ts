@@ -1,27 +1,39 @@
 import { Model } from "src/fileCreators/types";
 import type { CodeBlockWriter, SourceFile } from "ts-morph";
 
-export function addStringListFilter(utilsFile: SourceFile, models: readonly Model[]) {
-  const stringListFields = models
-    .flatMap(({ fields }) => fields)
-    .filter((field) => field.type === "String" && field.isList);
-  if (stringListFields.length === 0) return;
+export function addNumberListFilter(utilsFile: SourceFile, models: readonly Model[]) {
+  const allFields = models.flatMap(({ fields }) => fields);
+  const numberListFields = allFields.filter(
+    (field) => (field.type === "Int" || field.type === "Float") && field.isList,
+  );
+  if (numberListFields.length === 0) return;
+
+  let listFilterType = "undefined";
+  if (allFields.some((field) => field.isList && field.type === "Int")) {
+    listFilterType += " | Prisma.IntNullableListFilter<unknown>";
+  }
+  if (allFields.some((field) => field.isList && field.type === "Float")) {
+    listFilterType += " | Prisma.FloatNullableListFilter<unknown>";
+  }
 
   utilsFile.addFunction({
-    name: "whereStringListFilter",
+    name: "whereNumberListFilter",
     isExported: true,
     typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
     parameters: [
       { name: "record", type: `R` },
       { name: "fieldName", type: "keyof R" },
-      { name: "scalarListFilter", type: "undefined | Prisma.StringNullableListFilter<unknown>" },
+      {
+        name: "scalarListFilter",
+        type: listFilterType,
+      },
     ],
     returnType: "boolean",
     statements: (writer) => {
       writer
         .writeLine(`if (scalarListFilter === undefined) return true;`)
         .blankLine()
-        .writeLine(`const value = record[fieldName] as string[] | undefined;`)
+        .writeLine(`const value = record[fieldName] as number[] | undefined;`)
         .writeLine(`if (value === undefined && Object.keys(scalarListFilter).length) return false;`);
       addEqualsHandler(writer);
       addHasHandler(writer);
@@ -43,7 +55,7 @@ function addEqualsHandler(writer: CodeBlockWriter) {
 
 function addHasHandler(writer: CodeBlockWriter) {
   writer
-    .writeLine(`if (typeof scalarListFilter.has === 'string')`)
+    .writeLine(`if (typeof scalarListFilter.has === 'number')`)
     .block(() => {
       writer.writeLine(`if (!value?.includes(scalarListFilter.has)) return false;`);
     })

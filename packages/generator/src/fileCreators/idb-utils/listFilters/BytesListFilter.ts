@@ -1,27 +1,27 @@
 import { Model } from "src/fileCreators/types";
 import type { CodeBlockWriter, SourceFile } from "ts-morph";
 
-export function addStringListFilter(utilsFile: SourceFile, models: readonly Model[]) {
-  const stringListFields = models
+export function addBytesListFilter(utilsFile: SourceFile, models: readonly Model[]) {
+  const bytesListFields = models
     .flatMap(({ fields }) => fields)
-    .filter((field) => field.type === "String" && field.isList);
-  if (stringListFields.length === 0) return;
+    .filter((field) => field.type === "Bytes" && field.isList);
+  if (bytesListFields.length === 0) return;
 
   utilsFile.addFunction({
-    name: "whereStringListFilter",
+    name: "whereBytesListFilter",
     isExported: true,
     typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
     parameters: [
       { name: "record", type: `R` },
       { name: "fieldName", type: "keyof R" },
-      { name: "scalarListFilter", type: "undefined | Prisma.StringNullableListFilter<unknown>" },
+      { name: "scalarListFilter", type: "undefined | Prisma.BytesNullableListFilter<unknown>" },
     ],
     returnType: "boolean",
     statements: (writer) => {
       writer
         .writeLine(`if (scalarListFilter === undefined) return true;`)
         .blankLine()
-        .writeLine(`const value = record[fieldName] as string[] | undefined;`)
+        .writeLine(`const value = record[fieldName] as Uint8Array[] | undefined;`)
         .writeLine(`if (value === undefined && Object.keys(scalarListFilter).length) return false;`);
       addEqualsHandler(writer);
       addHasHandler(writer);
@@ -43,7 +43,7 @@ function addEqualsHandler(writer: CodeBlockWriter) {
 
 function addHasHandler(writer: CodeBlockWriter) {
   writer
-    .writeLine(`if (typeof scalarListFilter.has === 'string')`)
+    .writeLine(`if (scalarListFilter.has instanceof Uint8Array)`)
     .block(() => {
       writer.writeLine(`if (!value?.includes(scalarListFilter.has)) return false;`);
     })

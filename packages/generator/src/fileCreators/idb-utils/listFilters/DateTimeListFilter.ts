@@ -1,27 +1,27 @@
 import { Model } from "src/fileCreators/types";
 import type { CodeBlockWriter, SourceFile } from "ts-morph";
 
-export function addStringListFilter(utilsFile: SourceFile, models: readonly Model[]) {
-  const stringListFields = models
+export function addDateTimeListFilter(utilsFile: SourceFile, models: readonly Model[]) {
+  const dateTimeListFields = models
     .flatMap(({ fields }) => fields)
-    .filter((field) => field.type === "String" && field.isList);
-  if (stringListFields.length === 0) return;
+    .filter((field) => field.type === "DateTime" && field.isList);
+  if (dateTimeListFields.length === 0) return;
 
   utilsFile.addFunction({
-    name: "whereStringListFilter",
+    name: "whereDateTimeListFilter",
     isExported: true,
     typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
     parameters: [
       { name: "record", type: `R` },
       { name: "fieldName", type: "keyof R" },
-      { name: "scalarListFilter", type: "undefined | Prisma.StringNullableListFilter<unknown>" },
+      { name: "scalarListFilter", type: "undefined | Prisma.DateTimeNullableListFilter<unknown>" },
     ],
     returnType: "boolean",
     statements: (writer) => {
       writer
         .writeLine(`if (scalarListFilter === undefined) return true;`)
         .blankLine()
-        .writeLine(`const value = record[fieldName] as string[] | undefined;`)
+        .writeLine(`const value = record[fieldName] as Date[] | undefined;`)
         .writeLine(`if (value === undefined && Object.keys(scalarListFilter).length) return false;`);
       addEqualsHandler(writer);
       addHasHandler(writer);
@@ -37,28 +37,30 @@ function addEqualsHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (Array.isArray(scalarListFilter.equals))`).block(() => {
     writer
       .writeLine(`if (scalarListFilter.equals.length !== value?.length) return false;`)
-      .writeLine(`if (!scalarListFilter.equals.every((val, i) => val === value[i])) return false;`);
+      .writeLine(
+        `if (!scalarListFilter.equals.every((val, i) => new Date(val).getTime() === value[i].getTime())) return false;`,
+      );
   });
 }
 
 function addHasHandler(writer: CodeBlockWriter) {
   writer
-    .writeLine(`if (typeof scalarListFilter.has === 'string')`)
+    .writeLine(`if (scalarListFilter.has instanceof Date || typeof scalarListFilter.has === 'string')`)
     .block(() => {
-      writer.writeLine(`if (!value?.includes(scalarListFilter.has)) return false;`);
+      writer.writeLine(`if (!value?.includes(new Date(scalarListFilter.has))) return false;`);
     })
     .writeLine(`if (scalarListFilter.has === null) return false;`);
 }
 
 function addHasSomeHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (Array.isArray(scalarListFilter.hasSome))`).block(() => {
-    writer.writeLine(`if (!scalarListFilter.hasSome.some((val) => value?.includes(val))) return false;`);
+    writer.writeLine(`if (!scalarListFilter.hasSome.some((val) => value?.includes(new Date(val)))) return false;`);
   });
 }
 
 function addHasEveryHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (Array.isArray(scalarListFilter.hasEvery))`).block(() => {
-    writer.writeLine(`if (!scalarListFilter.hasEvery.every((val) => value?.includes(val))) return false;`);
+    writer.writeLine(`if (!scalarListFilter.hasEvery.every((val) => value?.includes(new Date(val)))) return false;`);
   });
 }
 
