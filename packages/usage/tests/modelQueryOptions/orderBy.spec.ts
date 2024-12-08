@@ -157,3 +157,44 @@ test("orderBy_CountOfOneToMany_ReturnsSortedData", async ({ page }) => {
     query: { orderBy: { posts: { _count: "desc" } } },
   });
 });
+
+test("orderBy_WithNullableField_ReturnsSortedData", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "create",
+    query: { data: { name: "John", profile: { create: { bio: "B" } } } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "create",
+    query: { data: { name: "Robert", profile: { create: { bio: "A" } } } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "create",
+    query: { data: { name: "Alice", profile: { create: { bio: null } } } },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    model: "profile",
+    operation: "findMany",
+    query: { orderBy: { bio: { nulls: "first", sort: "asc" } } },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "findMany",
+    query: {
+      orderBy: [
+        { name: "asc" },
+        { profile: { bio: { nulls: "first", sort: "asc" } } },
+        { comments: { _count: "asc" } },
+      ],
+    },
+  });
+});
