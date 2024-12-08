@@ -47,13 +47,26 @@ function addLogicalFiltering(writer: CodeBlockWriter, model: Model) {
 
 function addStringFiltering(writer: CodeBlockWriter, model: Model) {
   const stringFields = model.fields.filter((field) => field.type === "String" && !field.isList).map(({ name }) => name);
-  if (stringFields.length === 0) return;
-  writer
-    .writeLine(`const stringFields = ${JSON.stringify(stringFields)} as const;`)
-    .writeLine(`for (const field of stringFields)`)
-    .block(() => {
-      writer.writeLine(`if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;`);
-    });
+  if (stringFields.length > 0) {
+    writer
+      .writeLine(`const stringFields = ${JSON.stringify(stringFields)} as const;`)
+      .writeLine(`for (const field of stringFields)`)
+      .block(() => {
+        writer.writeLine(`if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;`);
+      });
+  }
+  
+  const stringListFields = model.fields
+    .filter((field) => field.type === "String" && field.isList)
+    .map(({ name }) => name);
+  if (stringListFields.length > 0) {
+    writer
+      .writeLine(`const stringListFields = ${JSON.stringify(stringListFields)} as const;`)
+      .writeLine(`for (const field of stringListFields)`)
+      .block(() => {
+        writer.writeLine(`if (!IDBUtils.whereStringListFilter(record, field, whereClause[field])) return null;`);
+      });
+  }
 }
 
 function addNumberFiltering(writer: CodeBlockWriter, model: Model) {

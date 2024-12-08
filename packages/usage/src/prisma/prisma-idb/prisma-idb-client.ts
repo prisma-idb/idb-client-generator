@@ -1264,6 +1264,10 @@ class PostIDBClass extends BaseIDBModelClass {
           for (const field of stringFields) {
             if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
           }
+          const stringListFields = ["tags"] as const;
+          for (const field of stringListFields) {
+            if (!IDBUtils.whereStringListFilter(record, field, whereClause[field])) return null;
+          }
           const numberFields = ["id", "authorId"] as const;
           for (const field of numberFields) {
             if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
