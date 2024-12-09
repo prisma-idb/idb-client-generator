@@ -75,7 +75,8 @@ function applyClausesAndReturnRecords(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`const data = (await tx.objectStore("${model.name}").get(keyPath))!;`)
     .write(`const recordsWithRelations = this._applySelectClause`)
-    .write(`(await this._applyRelations([data], tx, query), query.select)[0];`);
+    .write(`(await this._applyRelations([data], tx, query), query.select)[0];`)
+    .writeLine(`this._preprocessListFields([recordsWithRelations]);`);
 
   writer.writeLine(`return recordsWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "create">;`);
 }

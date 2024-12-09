@@ -24,15 +24,23 @@ export function addScalarListUpdateHandler(utilsFile: SourceFile, models: readon
         .writeLine(`if (listUpdate === undefined) return;`)
         .write(`if (Array.isArray(listUpdate))`)
         .block(() => {
-          writer.writeLine(`(record[fieldName] as unknown[]) = listUpdate;`);
+          writer.writeLine(`(record[fieldName] as unknown[] | undefined) = listUpdate;`);
         })
         .writeLine(`else if (listUpdate.set !== undefined)`)
         .block(() => {
-          writer.writeLine(`(record[fieldName] as unknown[]) = listUpdate.set;`);
+          writer.writeLine(`(record[fieldName] as unknown[] | undefined) = listUpdate.set;`);
         })
         .writeLine(`else if (listUpdate.push !== undefined)`)
         .block(() => {
-          writer.writeLine(`(record[fieldName] as unknown[]).push(...convertToArray(listUpdate.push));`);
+          writer
+            .writeLine(`if (Array.isArray(record[fieldName]))`)
+            .block(() => {
+              writer.writeLine(`record[fieldName].push(...convertToArray(listUpdate.push));`);
+            })
+            .writeLine(`else`)
+            .block(() => {
+              writer.writeLine(`(record[fieldName] as unknown[]) = convertToArray(listUpdate.push);`);
+            });
         });
     },
   });

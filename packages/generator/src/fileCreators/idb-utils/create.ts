@@ -16,6 +16,12 @@ import { addIntUpdateHandler } from "./updateHandlers/IntHandler";
 import { addScalarListUpdateHandler } from "./updateHandlers/ScalarListHandler";
 import { addStringUpdateHandler } from "./updateHandlers/StringHandler";
 import { addGenericComparator } from "./comparator/genericComparator";
+import { addStringListFilter } from "./listFilters/StringListFilter";
+import { addNumberListFilter } from "./listFilters/NumberListFilter";
+import { addBigIntListFilter } from "./listFilters/BigIntListFilter";
+import { addBooleanListFilter } from "./listFilters/BooleanListFilter";
+import { addBytesListFilter } from "./listFilters/BytesListFilter";
+import { addDateTimeListFilter } from "./listFilters/DateTimeListFilter";
 
 export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model[]) {
   idbUtilsFile.addImportDeclarations([
@@ -65,6 +71,13 @@ export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model
   addBoolFilter(idbUtilsFile, models);
   addBytesFilter(idbUtilsFile, models);
   addDateTimeFilter(idbUtilsFile, models);
+
+  addStringListFilter(idbUtilsFile, models);
+  addNumberListFilter(idbUtilsFile, models);
+  addBigIntListFilter(idbUtilsFile, models);
+  addBooleanListFilter(idbUtilsFile, models);
+  addBytesListFilter(idbUtilsFile, models);
+  addDateTimeListFilter(idbUtilsFile, models);
 
   addStringUpdateHandler(idbUtilsFile, models);
   addBooleanUpdateHandler(idbUtilsFile, models);

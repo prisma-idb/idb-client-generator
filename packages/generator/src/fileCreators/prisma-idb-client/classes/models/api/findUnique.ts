@@ -31,6 +31,7 @@ export function addFindUniqueMethod(modelClass: ClassDeclaration, model: Model) 
         .write(
           `this._applySelectClause(await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query), query.select)[0];`,
         )
+        .writeLine(`this._preprocessListFields([recordWithRelations]);`)
         .writeLine(`return recordWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "findUnique">;`);
     },
   });

@@ -47,39 +47,76 @@ function addLogicalFiltering(writer: CodeBlockWriter, model: Model) {
 
 function addStringFiltering(writer: CodeBlockWriter, model: Model) {
   const stringFields = model.fields.filter((field) => field.type === "String" && !field.isList).map(({ name }) => name);
-  if (stringFields.length === 0) return;
-  writer
-    .writeLine(`const stringFields = ${JSON.stringify(stringFields)} as const;`)
-    .writeLine(`for (const field of stringFields)`)
-    .block(() => {
-      writer.writeLine(`if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;`);
-    });
+  if (stringFields.length > 0) {
+    writer
+      .writeLine(`const stringFields = ${JSON.stringify(stringFields)} as const;`)
+      .writeLine(`for (const field of stringFields)`)
+      .block(() => {
+        writer.writeLine(`if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;`);
+      });
+  }
+
+  const stringListFields = model.fields
+    .filter((field) => field.type === "String" && field.isList)
+    .map(({ name }) => name);
+  if (stringListFields.length > 0) {
+    writer
+      .writeLine(`const stringListFields = ${JSON.stringify(stringListFields)} as const;`)
+      .writeLine(`for (const field of stringListFields)`)
+      .block(() => {
+        writer.writeLine(`if (!IDBUtils.whereStringListFilter(record, field, whereClause[field])) return null;`);
+      });
+  }
 }
 
 function addNumberFiltering(writer: CodeBlockWriter, model: Model) {
   const numberFields = model.fields
     .filter((field) => (field.type === "Int" || field.type === "Float") && !field.isList)
     .map(({ name }) => name);
+  if (numberFields.length > 0) {
+    writer
+      .writeLine(`const numberFields = ${JSON.stringify(numberFields)} as const;`)
+      .writeLine(`for (const field of numberFields)`)
+      .block(() => {
+        writer.writeLine(`if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;`);
+      });
+  }
 
-  if (numberFields.length === 0) return;
-  writer
-    .writeLine(`const numberFields = ${JSON.stringify(numberFields)} as const;`)
-    .writeLine(`for (const field of numberFields)`)
-    .block(() => {
-      writer.writeLine(`if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;`);
-    });
+  const numberListFields = model.fields
+    .filter((field) => (field.type === "Int" || field.type === "Float") && field.isList)
+    .map(({ name }) => name);
+  if (numberListFields.length > 0) {
+    writer
+      .writeLine(`const numberListFields = ${JSON.stringify(numberListFields)} as const;`)
+      .writeLine(`for (const field of numberListFields)`)
+      .block(() => {
+        writer.writeLine(`if (!IDBUtils.whereNumberListFilter(record, field, whereClause[field])) return null;`);
+      });
+  }
 }
 
 function addBigIntFiltering(writer: CodeBlockWriter, model: Model) {
-  const numberFields = model.fields.filter((field) => field.type === "BigInt" && !field.isList).map(({ name }) => name);
+  const bigIntFields = model.fields.filter((field) => field.type === "BigInt" && !field.isList).map(({ name }) => name);
+  if (bigIntFields.length < 0) {
+    writer
+      .writeLine(`const bigIntFields = ${JSON.stringify(bigIntFields)} as const;`)
+      .writeLine(`for (const field of bigIntFields)`)
+      .block(() => {
+        writer.writeLine(`if (!IDBUtils.whereBigIntFilter(record, field, whereClause[field])) return null;`);
+      });
+  }
 
-  if (numberFields.length === 0) return;
-  writer
-    .writeLine(`const bigIntFields = ${JSON.stringify(numberFields)} as const;`)
-    .writeLine(`for (const field of bigIntFields)`)
-    .block(() => {
-      writer.writeLine(`if (!IDBUtils.whereBigIntFilter(record, field, whereClause[field])) return null;`);
-    });
+  const bigIntListFields = model.fields
+    .filter((field) => field.type === "BigInt" && field.isList)
+    .map(({ name }) => name);
+  if (bigIntListFields.length < 0) {
+    writer
+      .writeLine(`const bigIntListFields = ${JSON.stringify(bigIntListFields)} as const;`)
+      .writeLine(`for (const field of bigIntListFields)`)
+      .block(() => {
+        writer.writeLine(`if (!IDBUtils.whereBigIntListFilter(record, field, whereClause[field])) return null;`);
+      });
+  }
 }
 
 function addBoolFiltering(writer: CodeBlockWriter, model: Model) {
@@ -87,39 +124,77 @@ function addBoolFiltering(writer: CodeBlockWriter, model: Model) {
     .filter((field) => field.type === "Boolean" && !field.isList)
     .map(({ name }) => name);
 
-  if (booleanFields.length === 0) return;
-  writer
-    .writeLine(`const booleanFields = ${JSON.stringify(booleanFields)} as const;`)
-    .writeLine(`for (const field of booleanFields)`)
-    .block(() => {
-      writer.writeLine(`if (!IDBUtils.whereBoolFilter(record, field, whereClause[field])) return null;`);
-    });
+  if (booleanFields.length > 0) {
+    writer
+      .writeLine(`const booleanFields = ${JSON.stringify(booleanFields)} as const;`)
+      .writeLine(`for (const field of booleanFields)`)
+      .block(() => {
+        writer.writeLine(`if (!IDBUtils.whereBoolFilter(record, field, whereClause[field])) return null;`);
+      });
+  }
+
+  const booleanListFields = model.fields
+    .filter((field) => field.type === "Boolean" && field.isList)
+    .map(({ name }) => name);
+
+  if (booleanListFields.length > 0) {
+    writer
+      .writeLine(`const booleanListFields = ${JSON.stringify(booleanListFields)} as const;`)
+      .writeLine(`for (const field of booleanListFields)`)
+      .block(() => {
+        writer.writeLine(`if (!IDBUtils.whereBooleanListFilter(record, field, whereClause[field])) return null;`);
+      });
+  }
 }
 
 function addBytesFiltering(writer: CodeBlockWriter, model: Model) {
   const bytesFields = model.fields.filter((field) => field.type === "Bytes" && !field.isList).map(({ name }) => name);
+  if (bytesFields.length > 0) {
+    writer
+      .writeLine(`const bytesFields = ${JSON.stringify(bytesFields)} as const;`)
+      .writeLine(`for (const field of bytesFields)`)
+      .block(() => {
+        writer.writeLine(`if (!IDBUtils.whereBytesFilter(record, field, whereClause[field])) return null;`);
+      });
+  }
 
-  if (bytesFields.length === 0) return;
-  writer
-    .writeLine(`const bytesFields = ${JSON.stringify(bytesFields)} as const;`)
-    .writeLine(`for (const field of bytesFields)`)
-    .block(() => {
-      writer.writeLine(`if (!IDBUtils.whereBytesFilter(record, field, whereClause[field])) return null;`);
-    });
+  const bytesListFields = model.fields
+    .filter((field) => field.type === "Bytes" && field.isList)
+    .map(({ name }) => name);
+  if (bytesListFields.length > 0) {
+    writer
+      .writeLine(`const bytesListFields = ${JSON.stringify(bytesListFields)} as const;`)
+      .writeLine(`for (const field of bytesListFields)`)
+      .block(() => {
+        writer.writeLine(`if (!IDBUtils.whereBytesListFilter(record, field, whereClause[field])) return null;`);
+      });
+  }
 }
 
 function addDateTimeFiltering(writer: CodeBlockWriter, model: Model) {
   const dateTimeFields = model.fields
     .filter((field) => field.type === "DateTime" && !field.isList)
     .map(({ name }) => name);
+  if (dateTimeFields.length > 0) {
+    writer
+      .writeLine(`const dateTimeFields = ${JSON.stringify(dateTimeFields)} as const;`)
+      .writeLine(`for (const field of dateTimeFields)`)
+      .block(() => {
+        writer.writeLine(`if (!IDBUtils.whereDateTimeFilter(record, field, whereClause[field])) return null;`);
+      });
+  }
 
-  if (dateTimeFields.length === 0) return;
-  writer
-    .writeLine(`const dateTimeFields = ${JSON.stringify(dateTimeFields)} as const;`)
-    .writeLine(`for (const field of dateTimeFields)`)
-    .block(() => {
-      writer.writeLine(`if (!IDBUtils.whereDateTimeFilter(record, field, whereClause[field])) return null;`);
-    });
+  const dateTimeListFields = model.fields
+    .filter((field) => field.type === "DateTime" && field.isList)
+    .map(({ name }) => name);
+  if (dateTimeListFields.length > 0) {
+    writer
+      .writeLine(`const dateTimeListFields = ${JSON.stringify(dateTimeListFields)} as const;`)
+      .writeLine(`for (const field of dateTimeListFields)`)
+      .block(() => {
+        writer.writeLine(`if (!IDBUtils.whereDateTimeListFilter(record, field, whereClause[field])) return null;`);
+      });
+  }
 }
 
 function addRelationFiltering(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
