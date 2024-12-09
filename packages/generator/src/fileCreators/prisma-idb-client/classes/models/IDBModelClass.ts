@@ -23,6 +23,7 @@ import { addDeleteManyMethod } from "./api/deleteMany";
 import { addApplyOrderByClause } from "./utils/_applyOrderByClause";
 import { addResolveOrderByKey } from "./utils/_resolveOrderByKey";
 import { addResolveSortOrder } from "./utils/_resolveSortOrder";
+import { addPreprocessListFields } from "./utils/_preprocessListFields";
 
 export function addIDBModelClass(file: SourceFile, model: Model, models: readonly Model[]) {
   const modelClass = file.addClass({
@@ -41,6 +42,7 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
   addGetNeededStoresForFind(modelClass, model);
   addGetNeededStoresForCreate(modelClass, model);
   addRemoveNestedCreateDataMethod(modelClass, model);
+  addPreprocessListFields(modelClass, model);
 
   addFindManyMethod(modelClass, model);
   addFindFirstMethod(modelClass, model);

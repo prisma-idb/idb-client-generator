@@ -138,6 +138,6 @@ function addBigIntListConverter(writer: CodeBlockWriter, field: Field) {
 
 function addScalarListProcessing(writer: CodeBlockWriter, field: Field) {
   writer.writeLine(`if (!Array.isArray(data.${field.name}))`).block(() => {
-    writer.writeLine(`data.${field.name} = data.${field.name}?.set ?? [];`);
+    writer.writeLine(`data.${field.name} = data.${field.name}?.set;`);
   });
 }

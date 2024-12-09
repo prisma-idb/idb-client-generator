@@ -14,7 +14,7 @@ export function addCreateManyAndReturn(modelClass: ClassDeclaration, model: Mode
     statements: (writer) => {
       writer
         .writeLine(`const createManyData = IDBUtils.convertToArray(query.data);`)
-        .writeLine(`const records: unknown[] = [];`)
+        .writeLine(`const records: Prisma.Result<Prisma.${model.name}Delegate, object, "findMany"> = [];`)
         .writeLine(`tx = tx ?? this.client._db.transaction(["${model.name}"], "readwrite");`)
         .writeLine(`for (const createData of createManyData)`)
         .block(() => {
@@ -23,6 +23,7 @@ export function addCreateManyAndReturn(modelClass: ClassDeclaration, model: Mode
             .writeLine(`await tx.objectStore("${model.name}").add(record);`)
             .writeLine(`records.push(this._applySelectClause([record], query.select)[0]);`);
         })
+        .writeLine(`this._preprocessListFields(records);`)
         .writeLine(`return records as Prisma.Result<Prisma.${model.name}Delegate, Q, "createManyAndReturn">;`);
     },
   });

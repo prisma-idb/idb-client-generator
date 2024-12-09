@@ -46,5 +46,7 @@ function applySelectClauseToRecords(writer: CodeBlockWriter) {
 }
 
 function returnRecords(writer: CodeBlockWriter, model: Model) {
-  writer.writeLine(`return selectAppliedRecords as Prisma.Result<Prisma.${model.name}Delegate, Q, 'findMany'>;`);
+  writer
+    .writeLine(`this._preprocessListFields(selectAppliedRecords);`)
+    .writeLine(`return selectAppliedRecords as Prisma.Result<Prisma.${model.name}Delegate, Q, 'findMany'>;`);
 }
