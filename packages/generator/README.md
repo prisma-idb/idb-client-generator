@@ -138,13 +138,17 @@ idbClient.modelName.delete({
 - **Local-Only**: This is designed for local storage scenarios and does not support server-side databases.
 
 ## Contributing
+
 We welcome contributions! Please see our CONTRIBUTING.md for guidelines on how to contribute to this project.
 
 ## Security
+
 If you discover a security vulnerability, please follow our SECURITY.md guidelines on reporting issues responsibly.
 
 ## License
+
 This project is licensed under the GNU Affero General Public License v3.0. See the LICENSE file for more details.
 
 ## Acknowledgements
+
 Special thanks to the open-source community for their contributions to the tools and libraries used in this project.
