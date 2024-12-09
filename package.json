@@ -19,5 +19,10 @@
     "format": "npm run format --workspaces",
     "test": "npm run build --workspace=packages/generator && npm run test --workspace=packages/usage",
     "dev": "npm run dev --workspace=packages/usage"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/prisma-idb/idb-client-generator.git",
+    "directory": "packages/generator"
   }
 }
