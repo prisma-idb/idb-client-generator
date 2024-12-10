@@ -770,6 +770,7 @@ class UserIDBClass extends BaseIDBModelClass {
       tx.abort();
       throw new Error("Record not found");
     }
+    const startKeyPath: PrismaIDBSchema["User"]["key"] = [record.id];
     const stringFields = ["name"] as const;
     for (const field of stringFields) {
       IDBUtils.handleStringUpdateField(record, field, query.data[field]);
@@ -777,6 +778,13 @@ class UserIDBClass extends BaseIDBModelClass {
     const intFields = ["id"] as const;
     for (const field of intFields) {
       IDBUtils.handleIntUpdateField(record, field, query.data[field]);
+    }
+    const endKeyPath: PrismaIDBSchema["User"]["key"] = [record.id];
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        await tx.objectStore("User").delete(startKeyPath);
+        break;
+      }
     }
     const keyPath = await tx.objectStore("User").put(record);
     const recordWithRelations = (await this.findUnique(
@@ -787,6 +795,18 @@ class UserIDBClass extends BaseIDBModelClass {
       tx,
     ))!;
     return recordWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "update">;
+  }
+
+  async upsert<Q extends Prisma.Args<Prisma.UserDelegate, "upsert">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "upsert">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    let record = await this.findUnique({ where: query.where }, tx);
+    if (!record) record = await this.create({ data: query.create }, tx);
+    else record = await this.update({ where: query.where, data: query.update }, tx);
+    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select, include: query.include });
+    return record as Prisma.Result<Prisma.UserDelegate, Q, "upsert">;
   }
 }
 
@@ -1236,6 +1256,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
       tx.abort();
       throw new Error("Record not found");
     }
+    const startKeyPath: PrismaIDBSchema["Profile"]["key"] = [record.id];
     const stringFields = ["bio"] as const;
     for (const field of stringFields) {
       IDBUtils.handleStringUpdateField(record, field, query.data[field]);
@@ -1243,6 +1264,13 @@ class ProfileIDBClass extends BaseIDBModelClass {
     const intFields = ["id", "userId"] as const;
     for (const field of intFields) {
       IDBUtils.handleIntUpdateField(record, field, query.data[field]);
+    }
+    const endKeyPath: PrismaIDBSchema["Profile"]["key"] = [record.id];
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        await tx.objectStore("Profile").delete(startKeyPath);
+        break;
+      }
     }
     const keyPath = await tx.objectStore("Profile").put(record);
     const recordWithRelations = (await this.findUnique(
@@ -1253,6 +1281,18 @@ class ProfileIDBClass extends BaseIDBModelClass {
       tx,
     ))!;
     return recordWithRelations as Prisma.Result<Prisma.ProfileDelegate, Q, "update">;
+  }
+
+  async upsert<Q extends Prisma.Args<Prisma.ProfileDelegate, "upsert">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "upsert">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    let record = await this.findUnique({ where: query.where }, tx);
+    if (!record) record = await this.create({ data: query.create }, tx);
+    else record = await this.update({ where: query.where, data: query.update }, tx);
+    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select, include: query.include });
+    return record as Prisma.Result<Prisma.ProfileDelegate, Q, "upsert">;
   }
 }
 
@@ -1875,6 +1915,7 @@ class PostIDBClass extends BaseIDBModelClass {
       tx.abort();
       throw new Error("Record not found");
     }
+    const startKeyPath: PrismaIDBSchema["Post"]["key"] = [record.id];
     const stringFields = ["title"] as const;
     for (const field of stringFields) {
       IDBUtils.handleStringUpdateField(record, field, query.data[field]);
@@ -1887,6 +1928,13 @@ class PostIDBClass extends BaseIDBModelClass {
     for (const field of listFields) {
       IDBUtils.handleScalarListUpdateField(record, field, query.data[field]);
     }
+    const endKeyPath: PrismaIDBSchema["Post"]["key"] = [record.id];
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        await tx.objectStore("Post").delete(startKeyPath);
+        break;
+      }
+    }
     const keyPath = await tx.objectStore("Post").put(record);
     const recordWithRelations = (await this.findUnique(
       {
@@ -1896,6 +1944,18 @@ class PostIDBClass extends BaseIDBModelClass {
       tx,
     ))!;
     return recordWithRelations as Prisma.Result<Prisma.PostDelegate, Q, "update">;
+  }
+
+  async upsert<Q extends Prisma.Args<Prisma.PostDelegate, "upsert">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "upsert">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    let record = await this.findUnique({ where: query.where }, tx);
+    if (!record) record = await this.create({ data: query.create }, tx);
+    else record = await this.update({ where: query.where, data: query.update }, tx);
+    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select, include: query.include });
+    return record as Prisma.Result<Prisma.PostDelegate, Q, "upsert">;
   }
 }
 
@@ -2442,6 +2502,7 @@ class CommentIDBClass extends BaseIDBModelClass {
       tx.abort();
       throw new Error("Record not found");
     }
+    const startKeyPath: PrismaIDBSchema["Comment"]["key"] = [record.id];
     const stringFields = ["id", "text"] as const;
     for (const field of stringFields) {
       IDBUtils.handleStringUpdateField(record, field, query.data[field]);
@@ -2449,6 +2510,13 @@ class CommentIDBClass extends BaseIDBModelClass {
     const intFields = ["postId", "userId"] as const;
     for (const field of intFields) {
       IDBUtils.handleIntUpdateField(record, field, query.data[field]);
+    }
+    const endKeyPath: PrismaIDBSchema["Comment"]["key"] = [record.id];
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        await tx.objectStore("Comment").delete(startKeyPath);
+        break;
+      }
     }
     const keyPath = await tx.objectStore("Comment").put(record);
     const recordWithRelations = (await this.findUnique(
@@ -2459,6 +2527,18 @@ class CommentIDBClass extends BaseIDBModelClass {
       tx,
     ))!;
     return recordWithRelations as Prisma.Result<Prisma.CommentDelegate, Q, "update">;
+  }
+
+  async upsert<Q extends Prisma.Args<Prisma.CommentDelegate, "upsert">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "upsert">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    let record = await this.findUnique({ where: query.where }, tx);
+    if (!record) record = await this.create({ data: query.create }, tx);
+    else record = await this.update({ where: query.where, data: query.update }, tx);
+    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select, include: query.include });
+    return record as Prisma.Result<Prisma.CommentDelegate, Q, "upsert">;
   }
 }
 
@@ -2954,6 +3034,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
       tx.abort();
       throw new Error("Record not found");
     }
+    const startKeyPath: PrismaIDBSchema["AllFieldScalarTypes"]["key"] = [record.id];
     const stringFields = ["string"] as const;
     for (const field of stringFields) {
       IDBUtils.handleStringUpdateField(record, field, query.data[field]);
@@ -2978,6 +3059,13 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     for (const field of listFields) {
       IDBUtils.handleScalarListUpdateField(record, field, query.data[field]);
     }
+    const endKeyPath: PrismaIDBSchema["AllFieldScalarTypes"]["key"] = [record.id];
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        await tx.objectStore("AllFieldScalarTypes").delete(startKeyPath);
+        break;
+      }
+    }
     const keyPath = await tx.objectStore("AllFieldScalarTypes").put(record);
     const recordWithRelations = (await this.findUnique(
       {
@@ -2987,5 +3075,17 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
       tx,
     ))!;
     return recordWithRelations as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "update">;
+  }
+
+  async upsert<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "upsert">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "upsert">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    let record = await this.findUnique({ where: query.where }, tx);
+    if (!record) record = await this.create({ data: query.create }, tx);
+    else record = await this.update({ where: query.where, data: query.update }, tx);
+    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select, include: query.include });
+    return record as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "upsert">;
   }
 }
