@@ -3085,7 +3085,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     let record = await this.findUnique({ where: query.where }, tx);
     if (!record) record = await this.create({ data: query.create }, tx);
     else record = await this.update({ where: query.where, data: query.update }, tx);
-    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select, include: query.include });
+    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select });
     return record as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "upsert">;
   }
 }

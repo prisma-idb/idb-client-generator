@@ -31,9 +31,13 @@ function addGetAndUpsertRecord(writer: CodeBlockWriter) {
 function addRefetchAndReturnRecord(writer: CodeBlockWriter, model: Model) {
   // TODO: composite keys
   const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath)[0];
+  const hasRelations = model.fields.some(({ kind }) => kind === "object");
+
+  let recordFindQuery = `record = await this.findUniqueOrThrow({ where: { ${pk}: record.${pk} }, select: query.select`;
+  if (hasRelations) recordFindQuery += ", include: query.include";
+  recordFindQuery += "});";
+
   writer
-    .writeLine(
-      `record = await this.findUniqueOrThrow({ where: { ${pk}: record.${pk} }, select: query.select, include: query.include });`,
-    )
+    .writeLine(recordFindQuery)
     .writeLine(`return record as Prisma.Result<Prisma.${model.name}Delegate, Q, "upsert">;`);
 }
