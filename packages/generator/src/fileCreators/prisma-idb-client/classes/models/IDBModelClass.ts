@@ -24,6 +24,7 @@ import { addApplyOrderByClause } from "./utils/_applyOrderByClause";
 import { addResolveOrderByKey } from "./utils/_resolveOrderByKey";
 import { addResolveSortOrder } from "./utils/_resolveSortOrder";
 import { addPreprocessListFields } from "./utils/_preprocessListFields";
+import { addUpsertMethod } from "./api/upsert";
 
 export function addIDBModelClass(file: SourceFile, model: Model, models: readonly Model[]) {
   const modelClass = file.addClass({
@@ -59,4 +60,5 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
   addDeleteManyMethod(modelClass, model, models);
 
   addUpdateMethod(modelClass, model);
+  addUpsertMethod(modelClass, model);
 }

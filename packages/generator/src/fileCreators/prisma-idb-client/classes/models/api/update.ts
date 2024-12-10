@@ -13,7 +13,7 @@ export function addUpdateMethod(modelClass: ClassDeclaration, model: Model) {
     ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'update'>>`,
     statements: (writer) => {
-      addGetRecord(writer);
+      addGetRecord(writer, model);
       addStringUpdateHandling(writer, model);
       addDateTimeUpdateHandling(writer, model);
       addBooleanUpdateHandling(writer, model);
@@ -26,23 +26,37 @@ export function addUpdateMethod(modelClass: ClassDeclaration, model: Model) {
   });
 }
 
-function addGetRecord(writer: CodeBlockWriter) {
+function addGetRecord(writer: CodeBlockWriter, model: Model) {
+  const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
   writer
     .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");`)
     .writeLine(`const record = await this.findUnique({ where: query.where }, tx);`)
     .writeLine(`if (record === null)`)
     .block(() => {
       writer.writeLine(`tx.abort();`).writeLine(`throw new Error("Record not found");`);
-    });
+    })
+    .writeLine(
+      `const startKeyPath: PrismaIDBSchema["${model.name}"]["key"] = [${pk.map((field) => `record.${field}, `)}];`,
+    );
 }
 
 function addPutAndReturn(writer: CodeBlockWriter, model: Model) {
-  const pk = getUniqueIdentifiers(model)[0];
+  const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
   writer
+    .writeLine(
+      `const endKeyPath: PrismaIDBSchema["${model.name}"]["key"] = [${pk.map((field) => `record.${field}, `)}];`,
+    )
+    .writeLine(`for (let i = 0; i < startKeyPath.length; i++)`)
+    .block(() => {
+      writer.writeLine(`if (startKeyPath[i] !== endKeyPath[i])`).block(() => {
+        writer.writeLine(`await tx.objectStore("${model.name}").delete(startKeyPath);`).writeLine(`break;`);
+      });
+    })
     .writeLine(`const keyPath = await tx.objectStore("${model.name}").put(record);`)
     .writeLine(`const recordWithRelations = (await this.findUnique(`)
     .block(() => {
-      writer.writeLine(`...query, where: { ${JSON.parse(pk.keyPath)[0]}: keyPath[0] },`);
+      // TODO: composite keys
+      writer.writeLine(`...query, where: { ${pk[0]}: keyPath[0] },`);
     })
     .writeLine(`, tx))!;`)
     .writeLine(`return recordWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "update">;`);
