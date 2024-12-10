@@ -797,6 +797,20 @@ class UserIDBClass extends BaseIDBModelClass {
     return recordWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "update">;
   }
 
+  async updateMany<Q extends Prisma.Args<Prisma.UserDelegate, "updateMany">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "updateMany">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const records = await this.findMany({ where: query.where }, tx);
+    await Promise.all(
+      records.map(async (record) => {
+        await this.update({ where: { id: record.id }, data: query.data }, tx);
+      }),
+    );
+    return { count: records.length };
+  }
+
   async upsert<Q extends Prisma.Args<Prisma.UserDelegate, "upsert">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -1281,6 +1295,20 @@ class ProfileIDBClass extends BaseIDBModelClass {
       tx,
     ))!;
     return recordWithRelations as Prisma.Result<Prisma.ProfileDelegate, Q, "update">;
+  }
+
+  async updateMany<Q extends Prisma.Args<Prisma.ProfileDelegate, "updateMany">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "updateMany">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const records = await this.findMany({ where: query.where }, tx);
+    await Promise.all(
+      records.map(async (record) => {
+        await this.update({ where: { id: record.id }, data: query.data }, tx);
+      }),
+    );
+    return { count: records.length };
   }
 
   async upsert<Q extends Prisma.Args<Prisma.ProfileDelegate, "upsert">>(
@@ -1946,6 +1974,20 @@ class PostIDBClass extends BaseIDBModelClass {
     return recordWithRelations as Prisma.Result<Prisma.PostDelegate, Q, "update">;
   }
 
+  async updateMany<Q extends Prisma.Args<Prisma.PostDelegate, "updateMany">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "updateMany">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const records = await this.findMany({ where: query.where }, tx);
+    await Promise.all(
+      records.map(async (record) => {
+        await this.update({ where: { id: record.id }, data: query.data }, tx);
+      }),
+    );
+    return { count: records.length };
+  }
+
   async upsert<Q extends Prisma.Args<Prisma.PostDelegate, "upsert">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -2529,6 +2571,20 @@ class CommentIDBClass extends BaseIDBModelClass {
     return recordWithRelations as Prisma.Result<Prisma.CommentDelegate, Q, "update">;
   }
 
+  async updateMany<Q extends Prisma.Args<Prisma.CommentDelegate, "updateMany">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "updateMany">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const records = await this.findMany({ where: query.where }, tx);
+    await Promise.all(
+      records.map(async (record) => {
+        await this.update({ where: { id: record.id }, data: query.data }, tx);
+      }),
+    );
+    return { count: records.length };
+  }
+
   async upsert<Q extends Prisma.Args<Prisma.CommentDelegate, "upsert">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -3075,6 +3131,20 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
       tx,
     ))!;
     return recordWithRelations as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "update">;
+  }
+
+  async updateMany<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "updateMany">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "updateMany">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const records = await this.findMany({ where: query.where }, tx);
+    await Promise.all(
+      records.map(async (record) => {
+        await this.update({ where: { id: record.id }, data: query.data }, tx);
+      }),
+    );
+    return { count: records.length };
   }
 
   async upsert<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "upsert">>(
