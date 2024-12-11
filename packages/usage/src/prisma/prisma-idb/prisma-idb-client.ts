@@ -193,6 +193,75 @@ class UserIDBClass extends BaseIDBModelClass {
               if (violatingRecord !== null) return null;
             }
           }
+          if (whereClause.Child) {
+            if (whereClause.Child.every) {
+              const violatingRecord = await this.client.child.findFirst({
+                where: { NOT: { ...whereClause.Child.every }, userId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+            if (whereClause.Child.some) {
+              const relatedRecords = await this.client.child.findMany({
+                where: { ...whereClause.Child.some, userId: record.id },
+                tx,
+              });
+              if (relatedRecords.length === 0) return null;
+            }
+            if (whereClause.Child.none) {
+              const violatingRecord = await this.client.child.findFirst({
+                where: { ...whereClause.Child.none, userId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+          }
+          if (whereClause.Father) {
+            if (whereClause.Father.every) {
+              const violatingRecord = await this.client.father.findFirst({
+                where: { NOT: { ...whereClause.Father.every }, userId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+            if (whereClause.Father.some) {
+              const relatedRecords = await this.client.father.findMany({
+                where: { ...whereClause.Father.some, userId: record.id },
+                tx,
+              });
+              if (relatedRecords.length === 0) return null;
+            }
+            if (whereClause.Father.none) {
+              const violatingRecord = await this.client.father.findFirst({
+                where: { ...whereClause.Father.none, userId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+          }
+          if (whereClause.Mother) {
+            if (whereClause.Mother.every) {
+              const violatingRecord = await this.client.mother.findFirst({
+                where: { NOT: { ...whereClause.Mother.every }, userId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+            if (whereClause.Mother.some) {
+              const relatedRecords = await this.client.mother.findMany({
+                where: { ...whereClause.Mother.some, userId: record.id },
+                tx,
+              });
+              if (relatedRecords.length === 0) return null;
+            }
+            if (whereClause.Mother.none) {
+              const violatingRecord = await this.client.mother.findFirst({
+                where: { ...whereClause.Mother.none, userId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+          }
           return record;
         }),
       )
@@ -208,7 +277,7 @@ class UserIDBClass extends BaseIDBModelClass {
     }
     return records.map((record) => {
       const partialRecord: Partial<typeof record> = record;
-      for (const untypedKey of ["id", "name", "profile", "posts", "comments"]) {
+      for (const untypedKey of ["id", "name", "profile", "posts", "comments", "Child", "Father", "Mother"]) {
         const key = untypedKey as keyof typeof record & keyof S;
         if (!selectClause[key]) delete partialRecord[key];
       }
@@ -249,6 +318,36 @@ class UserIDBClass extends BaseIDBModelClass {
         unsafeRecord["comments"] = await this.client.comment.findMany(
           {
             ...(attach_comments === true ? {} : attach_comments),
+            where: { userId: record.id },
+          },
+          tx,
+        );
+      }
+      const attach_Child = query.select?.Child || query.include?.Child;
+      if (attach_Child) {
+        unsafeRecord["Child"] = await this.client.child.findMany(
+          {
+            ...(attach_Child === true ? {} : attach_Child),
+            where: { userId: record.id },
+          },
+          tx,
+        );
+      }
+      const attach_Father = query.select?.Father || query.include?.Father;
+      if (attach_Father) {
+        unsafeRecord["Father"] = await this.client.father.findMany(
+          {
+            ...(attach_Father === true ? {} : attach_Father),
+            where: { userId: record.id },
+          },
+          tx,
+        );
+      }
+      const attach_Mother = query.select?.Mother || query.include?.Mother;
+      if (attach_Mother) {
+        unsafeRecord["Mother"] = await this.client.mother.findMany(
+          {
+            ...(attach_Mother === true ? {} : attach_Mother),
             where: { userId: record.id },
           },
           tx,
@@ -308,6 +407,15 @@ class UserIDBClass extends BaseIDBModelClass {
     if (orderByInput.comments) {
       return await this.client.comment.count({ where: { userId: record.id } }, tx);
     }
+    if (orderByInput.Child) {
+      return await this.client.child.count({ where: { userId: record.id } }, tx);
+    }
+    if (orderByInput.Father) {
+      return await this.client.father.count({ where: { userId: record.id } }, tx);
+    }
+    if (orderByInput.Mother) {
+      return await this.client.mother.count({ where: { userId: record.id } }, tx);
+    }
   }
 
   _resolveSortOrder(
@@ -323,6 +431,15 @@ class UserIDBClass extends BaseIDBModelClass {
     }
     if (orderByInput.comments?._count) {
       return orderByInput.comments._count;
+    }
+    if (orderByInput.Child?._count) {
+      return orderByInput.Child._count;
+    }
+    if (orderByInput.Father?._count) {
+      return orderByInput.Father._count;
+    }
+    if (orderByInput.Mother?._count) {
+      return orderByInput.Mother._count;
     }
     throw new Error("No field in orderBy clause");
   }
@@ -369,6 +486,24 @@ class UserIDBClass extends BaseIDBModelClass {
       this.client.comment._getNeededStoresForWhere(whereClause.comments.some, neededStores);
       this.client.comment._getNeededStoresForWhere(whereClause.comments.none, neededStores);
     }
+    if (whereClause.Child) {
+      neededStores.add("Child");
+      this.client.child._getNeededStoresForWhere(whereClause.Child.every, neededStores);
+      this.client.child._getNeededStoresForWhere(whereClause.Child.some, neededStores);
+      this.client.child._getNeededStoresForWhere(whereClause.Child.none, neededStores);
+    }
+    if (whereClause.Father) {
+      neededStores.add("Father");
+      this.client.father._getNeededStoresForWhere(whereClause.Father.every, neededStores);
+      this.client.father._getNeededStoresForWhere(whereClause.Father.some, neededStores);
+      this.client.father._getNeededStoresForWhere(whereClause.Father.none, neededStores);
+    }
+    if (whereClause.Mother) {
+      neededStores.add("Mother");
+      this.client.mother._getNeededStoresForWhere(whereClause.Mother.every, neededStores);
+      this.client.mother._getNeededStoresForWhere(whereClause.Mother.some, neededStores);
+      this.client.mother._getNeededStoresForWhere(whereClause.Mother.none, neededStores);
+    }
   }
 
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
@@ -392,6 +527,18 @@ class UserIDBClass extends BaseIDBModelClass {
       const orderBy_comments = orderBy.find((clause) => clause.comments);
       if (orderBy_comments) {
         neededStores.add("Comment");
+      }
+      const orderBy_Child = orderBy.find((clause) => clause.Child);
+      if (orderBy_Child) {
+        neededStores.add("Child");
+      }
+      const orderBy_Father = orderBy.find((clause) => clause.Father);
+      if (orderBy_Father) {
+        neededStores.add("Father");
+      }
+      const orderBy_Mother = orderBy.find((clause) => clause.Mother);
+      if (orderBy_Mother) {
+        neededStores.add("Mother");
       }
     }
     if (query?.select?.profile || query?.include?.profile) {
@@ -430,6 +577,45 @@ class UserIDBClass extends BaseIDBModelClass {
       if (typeof query.include?.comments === "object") {
         this.client.comment
           ._getNeededStoresForFind(query.include.comments)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
+    if (query?.select?.Child || query?.include?.Child) {
+      neededStores.add("Child");
+      if (typeof query.select?.Child === "object") {
+        this.client.child
+          ._getNeededStoresForFind(query.select.Child)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.Child === "object") {
+        this.client.child
+          ._getNeededStoresForFind(query.include.Child)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
+    if (query?.select?.Father || query?.include?.Father) {
+      neededStores.add("Father");
+      if (typeof query.select?.Father === "object") {
+        this.client.father
+          ._getNeededStoresForFind(query.select.Father)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.Father === "object") {
+        this.client.father
+          ._getNeededStoresForFind(query.include.Father)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
+    if (query?.select?.Mother || query?.include?.Mother) {
+      neededStores.add("Mother");
+      if (typeof query.select?.Mother === "object") {
+        this.client.mother
+          ._getNeededStoresForFind(query.select.Mother)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.Mother === "object") {
+        this.client.mother
+          ._getNeededStoresForFind(query.include.Mother)
           .forEach((storeName) => neededStores.add(storeName));
       }
     }
@@ -497,6 +683,69 @@ class UserIDBClass extends BaseIDBModelClass {
         );
       }
     }
+    if (data.Child) {
+      neededStores.add("Child");
+      if (data.Child.create) {
+        const createData = Array.isArray(data.Child.create) ? data.Child.create : [data.Child.create];
+        createData.forEach((record) =>
+          this.client.child._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.Child.connectOrCreate) {
+        IDBUtils.convertToArray(data.Child.connectOrCreate).forEach((record) =>
+          this.client.child
+            ._getNeededStoresForCreate(record.create)
+            .forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.Child.createMany) {
+        IDBUtils.convertToArray(data.Child.createMany.data).forEach((record) =>
+          this.client.child._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+    }
+    if (data.Father) {
+      neededStores.add("Father");
+      if (data.Father.create) {
+        const createData = Array.isArray(data.Father.create) ? data.Father.create : [data.Father.create];
+        createData.forEach((record) =>
+          this.client.father._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.Father.connectOrCreate) {
+        IDBUtils.convertToArray(data.Father.connectOrCreate).forEach((record) =>
+          this.client.father
+            ._getNeededStoresForCreate(record.create)
+            .forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.Father.createMany) {
+        IDBUtils.convertToArray(data.Father.createMany.data).forEach((record) =>
+          this.client.father._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+    }
+    if (data.Mother) {
+      neededStores.add("Mother");
+      if (data.Mother.create) {
+        const createData = Array.isArray(data.Mother.create) ? data.Mother.create : [data.Mother.create];
+        createData.forEach((record) =>
+          this.client.mother._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.Mother.connectOrCreate) {
+        IDBUtils.convertToArray(data.Mother.connectOrCreate).forEach((record) =>
+          this.client.mother
+            ._getNeededStoresForCreate(record.create)
+            .forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.Mother.createMany) {
+        IDBUtils.convertToArray(data.Mother.createMany.data).forEach((record) =>
+          this.client.mother._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+    }
     return neededStores;
   }
 
@@ -507,6 +756,9 @@ class UserIDBClass extends BaseIDBModelClass {
     delete recordWithoutNestedCreate.profile;
     delete recordWithoutNestedCreate.posts;
     delete recordWithoutNestedCreate.comments;
+    delete recordWithoutNestedCreate.Child;
+    delete recordWithoutNestedCreate.Father;
+    delete recordWithoutNestedCreate.Mother;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">;
   }
 
@@ -678,6 +930,96 @@ class UserIDBClass extends BaseIDBModelClass {
       await this.client.comment.createMany(
         {
           data: IDBUtils.convertToArray(query.data.comments.createMany.data).map((createData) => ({
+            ...createData,
+            userId: keyPath[0],
+          })),
+        },
+        tx,
+      );
+    }
+    if (query.data.Mother?.create) {
+      for (const elem of IDBUtils.convertToArray(query.data.Mother.create)) {
+        await this.client.mother.create({ data: { ...elem, user: { connect: { id: keyPath[0] } } } }, tx);
+      }
+    }
+    if (query.data.Mother?.connect) {
+      await Promise.all(
+        IDBUtils.convertToArray(query.data.Mother.connect).map(async (connectWhere) => {
+          await this.client.mother.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx);
+        }),
+      );
+    }
+    if (query.data.Mother?.connectOrCreate) {
+      throw new Error("connectOrCreate not yet implemented");
+    }
+    if (query.data.Mother?.createMany) {
+      await this.client.mother.createMany(
+        {
+          data: IDBUtils.convertToArray(query.data.Mother.createMany.data).map((createData) => ({
+            ...createData,
+            userId: keyPath[0],
+          })),
+        },
+        tx,
+      );
+    }
+    if (query.data.Father?.create) {
+      const createData = Array.isArray(query.data.Father.create)
+        ? query.data.Father.create
+        : [query.data.Father.create];
+      for (const elem of createData) {
+        if ("wife" in elem && !("motherFirstName" in elem)) {
+          await this.client.father.create({ data: { ...elem, user: { connect: { id: keyPath[0] } } } }, tx);
+        } else if (elem.motherFirstName !== undefined) {
+          await this.client.father.create({ data: { ...elem, userId: keyPath[0] } }, tx);
+        }
+      }
+    }
+    if (query.data.Father?.connect) {
+      await Promise.all(
+        IDBUtils.convertToArray(query.data.Father.connect).map(async (connectWhere) => {
+          await this.client.father.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx);
+        }),
+      );
+    }
+    if (query.data.Father?.connectOrCreate) {
+      throw new Error("connectOrCreate not yet implemented");
+    }
+    if (query.data.Father?.createMany) {
+      await this.client.father.createMany(
+        {
+          data: IDBUtils.convertToArray(query.data.Father.createMany.data).map((createData) => ({
+            ...createData,
+            userId: keyPath[0],
+          })),
+        },
+        tx,
+      );
+    }
+    if (query.data.Child?.create) {
+      const createData = Array.isArray(query.data.Child.create) ? query.data.Child.create : [query.data.Child.create];
+      for (const elem of createData) {
+        if ("father" in elem && !("fatherFirstName" in elem)) {
+          await this.client.child.create({ data: { ...elem, user: { connect: { id: keyPath[0] } } } }, tx);
+        } else if (elem.fatherFirstName !== undefined) {
+          await this.client.child.create({ data: { ...elem, userId: keyPath[0] } }, tx);
+        }
+      }
+    }
+    if (query.data.Child?.connect) {
+      await Promise.all(
+        IDBUtils.convertToArray(query.data.Child.connect).map(async (connectWhere) => {
+          await this.client.child.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx);
+        }),
+      );
+    }
+    if (query.data.Child?.connectOrCreate) {
+      throw new Error("connectOrCreate not yet implemented");
+    }
+    if (query.data.Child?.createMany) {
+      await this.client.child.createMany(
+        {
+          data: IDBUtils.convertToArray(query.data.Child.createMany.data).map((createData) => ({
             ...createData,
             userId: keyPath[0],
           })),
@@ -3128,6 +3470,10 @@ class FatherIDBClass extends BaseIDBModelClass {
           for (const field of stringFields) {
             if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
           }
+          const numberFields = ["userId"] as const;
+          for (const field of numberFields) {
+            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
+          }
           if (whereClause.children) {
             if (whereClause.children.every) {
               const violatingRecord = await this.client.child.findFirst({
@@ -3175,6 +3521,36 @@ class FatherIDBClass extends BaseIDBModelClass {
               if (!relatedRecord) return null;
             }
           }
+          if (whereClause.user === null) {
+            if (record.userId !== null) return null;
+          }
+          if (whereClause.user) {
+            const { is, isNot, ...rest } = whereClause.user;
+            if (is === null) {
+              if (record.userId !== null) return null;
+            }
+            if (is !== null && is !== undefined) {
+              if (record.userId === null) return null;
+              const relatedRecord = await this.client.user.findFirst({ where: { ...is, id: record.userId } }, tx);
+              if (!relatedRecord) return null;
+            }
+            if (isNot === null) {
+              if (record.userId === null) return null;
+            }
+            if (isNot !== null && isNot !== undefined) {
+              if (record.userId === null) return null;
+              const relatedRecord = await this.client.user.findFirst({ where: { ...isNot, id: record.userId } }, tx);
+              if (relatedRecord) return null;
+            }
+            if (Object.keys(rest).length) {
+              if (record.userId === null) return null;
+              const relatedRecord = await this.client.user.findFirst(
+                { where: { ...whereClause.user, id: record.userId } },
+                tx,
+              );
+              if (!relatedRecord) return null;
+            }
+          }
           return record;
         }),
       )
@@ -3190,7 +3566,16 @@ class FatherIDBClass extends BaseIDBModelClass {
     }
     return records.map((record) => {
       const partialRecord: Partial<typeof record> = record;
-      for (const untypedKey of ["firstName", "lastName", "children", "wife", "motherFirstName", "motherLastName"]) {
+      for (const untypedKey of [
+        "firstName",
+        "lastName",
+        "children",
+        "wife",
+        "motherFirstName",
+        "motherLastName",
+        "user",
+        "userId",
+      ]) {
         const key = untypedKey as keyof typeof record & keyof S;
         if (!selectClause[key]) delete partialRecord[key];
       }
@@ -3225,6 +3610,19 @@ class FatherIDBClass extends BaseIDBModelClass {
           },
           tx,
         );
+      }
+      const attach_user = query.select?.user || query.include?.user;
+      if (attach_user) {
+        unsafeRecord["user"] =
+          record.userId === null
+            ? null
+            : await this.client.user.findUnique(
+                {
+                  ...(attach_user === true ? {} : attach_user),
+                  where: { id: record.userId },
+                },
+                tx,
+              );
       }
       return unsafeRecord;
     });
@@ -3263,7 +3661,7 @@ class FatherIDBClass extends BaseIDBModelClass {
     orderByInput: Prisma.FatherOrderByWithRelationInput,
     tx: IDBUtils.TransactionType,
   ): Promise<unknown> {
-    const scalarFields = ["firstName", "lastName", "motherFirstName", "motherLastName"] as const;
+    const scalarFields = ["firstName", "lastName", "motherFirstName", "motherLastName", "userId"] as const;
     for (const field of scalarFields) if (orderByInput[field]) return record[field];
     if (orderByInput.wife) {
       return await this.client.mother._resolveOrderByKey(
@@ -3271,6 +3669,15 @@ class FatherIDBClass extends BaseIDBModelClass {
         orderByInput.wife,
         tx,
       );
+    }
+    if (orderByInput.user) {
+      return record.userId === null
+        ? null
+        : await this.client.user._resolveOrderByKey(
+            await this.client.user.findFirstOrThrow({ where: { id: record.userId } }),
+            orderByInput.user,
+            tx,
+          );
     }
     if (orderByInput.children) {
       return await this.client.child.count({ where: { fatherFirstName: record.firstName } }, tx);
@@ -3280,10 +3687,13 @@ class FatherIDBClass extends BaseIDBModelClass {
   _resolveSortOrder(
     orderByInput: Prisma.FatherOrderByWithRelationInput,
   ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
-    const scalarFields = ["firstName", "lastName", "motherFirstName", "motherLastName"] as const;
+    const scalarFields = ["firstName", "lastName", "motherFirstName", "motherLastName", "userId"] as const;
     for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
     if (orderByInput.wife) {
       return this.client.mother._resolveSortOrder(orderByInput.wife);
+    }
+    if (orderByInput.user) {
+      return this.client.user._resolveSortOrder(orderByInput.user);
     }
     if (orderByInput.children?._count) {
       return orderByInput.children._count;
@@ -3296,6 +3706,9 @@ class FatherIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<D> {
     if (data === undefined) data = {} as D;
+    if (data.userId === undefined) {
+      data.userId = null;
+    }
     return data;
   }
 
@@ -3321,6 +3734,10 @@ class FatherIDBClass extends BaseIDBModelClass {
       neededStores.add("Mother");
       this.client.mother._getNeededStoresForWhere(whereClause.wife, neededStores);
     }
+    if (whereClause.user) {
+      neededStores.add("User");
+      this.client.user._getNeededStoresForWhere(whereClause.user, neededStores);
+    }
   }
 
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.FatherDelegate, "findMany">>(
@@ -3339,6 +3756,12 @@ class FatherIDBClass extends BaseIDBModelClass {
       if (orderBy_wife) {
         this.client.mother
           ._getNeededStoresForFind({ orderBy: orderBy_wife.wife })
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      const orderBy_user = orderBy.find((clause) => clause.user);
+      if (orderBy_user) {
+        this.client.user
+          ._getNeededStoresForFind({ orderBy: orderBy_user.user })
           .forEach((storeName) => neededStores.add(storeName));
       }
     }
@@ -3365,6 +3788,17 @@ class FatherIDBClass extends BaseIDBModelClass {
       if (typeof query.include?.wife === "object") {
         this.client.mother
           ._getNeededStoresForFind(query.include.wife)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
+    if (query?.select?.user || query?.include?.user) {
+      neededStores.add("User");
+      if (typeof query.select?.user === "object") {
+        this.client.user._getNeededStoresForFind(query.select.user).forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.user === "object") {
+        this.client.user
+          ._getNeededStoresForFind(query.include.user)
           .forEach((storeName) => neededStores.add(storeName));
       }
     }
@@ -3416,6 +3850,23 @@ class FatherIDBClass extends BaseIDBModelClass {
     if (data.motherFirstName !== undefined) {
       neededStores.add("Mother");
     }
+    if (data.user) {
+      neededStores.add("User");
+      if (data.user.create) {
+        const createData = Array.isArray(data.user.create) ? data.user.create : [data.user.create];
+        createData.forEach((record) =>
+          this.client.user._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.user.connectOrCreate) {
+        IDBUtils.convertToArray(data.user.connectOrCreate).forEach((record) =>
+          this.client.user._getNeededStoresForCreate(record.create).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+    }
+    if (data.userId !== undefined) {
+      neededStores.add("User");
+    }
     return neededStores;
   }
 
@@ -3425,6 +3876,7 @@ class FatherIDBClass extends BaseIDBModelClass {
     const recordWithoutNestedCreate = structuredClone(data);
     delete recordWithoutNestedCreate.children;
     delete recordWithoutNestedCreate.wife;
+    delete recordWithoutNestedCreate.user;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.FatherDelegate, object, "findFirstOrThrow">;
   }
 
@@ -3566,6 +4018,31 @@ class FatherIDBClass extends BaseIDBModelClass {
         tx,
       );
     }
+    if (query.data.user) {
+      const fk: Partial<PrismaIDBSchema["User"]["key"]> = [];
+      if (query.data.user?.create) {
+        const record = await this.client.user.create({ data: query.data.user.create }, tx);
+        fk[0] = record.id;
+      }
+      if (query.data.user?.connect) {
+        const record = await this.client.user.findUniqueOrThrow({ where: query.data.user.connect }, tx);
+        delete query.data.user.connect;
+        fk[0] = record.id;
+      }
+      if (query.data.user?.connectOrCreate) {
+        throw new Error("connectOrCreate not yet implemented");
+      }
+      const unsafeData = query.data as Record<string, unknown>;
+      unsafeData.userId = fk[0];
+      delete unsafeData.user;
+    } else if (query.data.userId !== undefined && query.data.userId !== null) {
+      await this.client.user.findUniqueOrThrow(
+        {
+          where: { id: query.data.userId },
+        },
+        tx,
+      );
+    }
     const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
     const keyPath = await tx.objectStore("Father").add(record);
     if (query.data.children?.create) {
@@ -3697,6 +4174,10 @@ class FatherIDBClass extends BaseIDBModelClass {
     for (const field of stringFields) {
       IDBUtils.handleStringUpdateField(record, field, query.data[field]);
     }
+    const intFields = ["userId"] as const;
+    for (const field of intFields) {
+      IDBUtils.handleIntUpdateField(record, field, query.data[field]);
+    }
     const endKeyPath: PrismaIDBSchema["Father"]["key"] = [record.firstName, record.lastName];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
@@ -3772,6 +4253,10 @@ class MotherIDBClass extends BaseIDBModelClass {
           for (const field of stringFields) {
             if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
           }
+          const numberFields = ["userId"] as const;
+          for (const field of numberFields) {
+            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
+          }
           if (whereClause.children) {
             if (whereClause.children.every) {
               const violatingRecord = await this.client.child.findFirst({
@@ -3841,6 +4326,36 @@ class MotherIDBClass extends BaseIDBModelClass {
               if (!relatedRecord) return null;
             }
           }
+          if (whereClause.user === null) {
+            if (record.userId !== null) return null;
+          }
+          if (whereClause.user) {
+            const { is, isNot, ...rest } = whereClause.user;
+            if (is === null) {
+              if (record.userId !== null) return null;
+            }
+            if (is !== null && is !== undefined) {
+              if (record.userId === null) return null;
+              const relatedRecord = await this.client.user.findFirst({ where: { ...is, id: record.userId } }, tx);
+              if (!relatedRecord) return null;
+            }
+            if (isNot === null) {
+              if (record.userId === null) return null;
+            }
+            if (isNot !== null && isNot !== undefined) {
+              if (record.userId === null) return null;
+              const relatedRecord = await this.client.user.findFirst({ where: { ...isNot, id: record.userId } }, tx);
+              if (relatedRecord) return null;
+            }
+            if (Object.keys(rest).length) {
+              if (record.userId === null) return null;
+              const relatedRecord = await this.client.user.findFirst(
+                { where: { ...whereClause.user, id: record.userId } },
+                tx,
+              );
+              if (!relatedRecord) return null;
+            }
+          }
           return record;
         }),
       )
@@ -3856,7 +4371,7 @@ class MotherIDBClass extends BaseIDBModelClass {
     }
     return records.map((record) => {
       const partialRecord: Partial<typeof record> = record;
-      for (const untypedKey of ["firstName", "lastName", "children", "husband"]) {
+      for (const untypedKey of ["firstName", "lastName", "children", "husband", "user", "userId"]) {
         const key = untypedKey as keyof typeof record & keyof S;
         if (!selectClause[key]) delete partialRecord[key];
       }
@@ -3893,6 +4408,19 @@ class MotherIDBClass extends BaseIDBModelClass {
           },
           tx,
         );
+      }
+      const attach_user = query.select?.user || query.include?.user;
+      if (attach_user) {
+        unsafeRecord["user"] =
+          record.userId === null
+            ? null
+            : await this.client.user.findUnique(
+                {
+                  ...(attach_user === true ? {} : attach_user),
+                  where: { id: record.userId },
+                },
+                tx,
+              );
       }
       return unsafeRecord;
     });
@@ -3931,7 +4459,7 @@ class MotherIDBClass extends BaseIDBModelClass {
     orderByInput: Prisma.MotherOrderByWithRelationInput,
     tx: IDBUtils.TransactionType,
   ): Promise<unknown> {
-    const scalarFields = ["firstName", "lastName"] as const;
+    const scalarFields = ["firstName", "lastName", "userId"] as const;
     for (const field of scalarFields) if (orderByInput[field]) return record[field];
     if (orderByInput.husband) {
       return record.firstName === null
@@ -3939,6 +4467,15 @@ class MotherIDBClass extends BaseIDBModelClass {
         : await this.client.father._resolveOrderByKey(
             await this.client.father.findFirstOrThrow({ where: { motherFirstName: record.firstName } }),
             orderByInput.husband,
+            tx,
+          );
+    }
+    if (orderByInput.user) {
+      return record.userId === null
+        ? null
+        : await this.client.user._resolveOrderByKey(
+            await this.client.user.findFirstOrThrow({ where: { id: record.userId } }),
+            orderByInput.user,
             tx,
           );
     }
@@ -3950,10 +4487,13 @@ class MotherIDBClass extends BaseIDBModelClass {
   _resolveSortOrder(
     orderByInput: Prisma.MotherOrderByWithRelationInput,
   ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
-    const scalarFields = ["firstName", "lastName"] as const;
+    const scalarFields = ["firstName", "lastName", "userId"] as const;
     for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
     if (orderByInput.husband) {
       return this.client.father._resolveSortOrder(orderByInput.husband);
+    }
+    if (orderByInput.user) {
+      return this.client.user._resolveSortOrder(orderByInput.user);
     }
     if (orderByInput.children?._count) {
       return orderByInput.children._count;
@@ -3966,6 +4506,9 @@ class MotherIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<D> {
     if (data === undefined) data = {} as D;
+    if (data.userId === undefined) {
+      data.userId = null;
+    }
     return data;
   }
 
@@ -3991,6 +4534,10 @@ class MotherIDBClass extends BaseIDBModelClass {
       neededStores.add("Father");
       this.client.father._getNeededStoresForWhere(whereClause.husband, neededStores);
     }
+    if (whereClause.user) {
+      neededStores.add("User");
+      this.client.user._getNeededStoresForWhere(whereClause.user, neededStores);
+    }
   }
 
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.MotherDelegate, "findMany">>(
@@ -4009,6 +4556,12 @@ class MotherIDBClass extends BaseIDBModelClass {
       if (orderBy_husband) {
         this.client.father
           ._getNeededStoresForFind({ orderBy: orderBy_husband.husband })
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      const orderBy_user = orderBy.find((clause) => clause.user);
+      if (orderBy_user) {
+        this.client.user
+          ._getNeededStoresForFind({ orderBy: orderBy_user.user })
           .forEach((storeName) => neededStores.add(storeName));
       }
     }
@@ -4035,6 +4588,17 @@ class MotherIDBClass extends BaseIDBModelClass {
       if (typeof query.include?.husband === "object") {
         this.client.father
           ._getNeededStoresForFind(query.include.husband)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
+    if (query?.select?.user || query?.include?.user) {
+      neededStores.add("User");
+      if (typeof query.select?.user === "object") {
+        this.client.user._getNeededStoresForFind(query.select.user).forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.user === "object") {
+        this.client.user
+          ._getNeededStoresForFind(query.include.user)
           .forEach((storeName) => neededStores.add(storeName));
       }
     }
@@ -4083,6 +4647,23 @@ class MotherIDBClass extends BaseIDBModelClass {
         );
       }
     }
+    if (data.user) {
+      neededStores.add("User");
+      if (data.user.create) {
+        const createData = Array.isArray(data.user.create) ? data.user.create : [data.user.create];
+        createData.forEach((record) =>
+          this.client.user._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.user.connectOrCreate) {
+        IDBUtils.convertToArray(data.user.connectOrCreate).forEach((record) =>
+          this.client.user._getNeededStoresForCreate(record.create).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+    }
+    if (data.userId !== undefined) {
+      neededStores.add("User");
+    }
     return neededStores;
   }
 
@@ -4092,6 +4673,7 @@ class MotherIDBClass extends BaseIDBModelClass {
     const recordWithoutNestedCreate = structuredClone(data);
     delete recordWithoutNestedCreate.children;
     delete recordWithoutNestedCreate.husband;
+    delete recordWithoutNestedCreate.user;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.MotherDelegate, object, "findFirstOrThrow">;
   }
 
@@ -4197,6 +4779,31 @@ class MotherIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "create">> {
     const storesNeeded = this._getNeededStoresForCreate(query.data);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    if (query.data.user) {
+      const fk: Partial<PrismaIDBSchema["User"]["key"]> = [];
+      if (query.data.user?.create) {
+        const record = await this.client.user.create({ data: query.data.user.create }, tx);
+        fk[0] = record.id;
+      }
+      if (query.data.user?.connect) {
+        const record = await this.client.user.findUniqueOrThrow({ where: query.data.user.connect }, tx);
+        delete query.data.user.connect;
+        fk[0] = record.id;
+      }
+      if (query.data.user?.connectOrCreate) {
+        throw new Error("connectOrCreate not yet implemented");
+      }
+      const unsafeData = query.data as Record<string, unknown>;
+      unsafeData.userId = fk[0];
+      delete unsafeData.user;
+    } else if (query.data.userId !== undefined && query.data.userId !== null) {
+      await this.client.user.findUniqueOrThrow(
+        {
+          where: { id: query.data.userId },
+        },
+        tx,
+      );
+    }
     const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
     const keyPath = await tx.objectStore("Mother").add(record);
     if (query.data.husband?.create) {
@@ -4342,6 +4949,10 @@ class MotherIDBClass extends BaseIDBModelClass {
     for (const field of stringFields) {
       IDBUtils.handleStringUpdateField(record, field, query.data[field]);
     }
+    const intFields = ["userId"] as const;
+    for (const field of intFields) {
+      IDBUtils.handleIntUpdateField(record, field, query.data[field]);
+    }
     const endKeyPath: PrismaIDBSchema["Mother"]["key"] = [record.firstName, record.lastName];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
@@ -4424,6 +5035,40 @@ class ChildIDBClass extends BaseIDBModelClass {
           for (const field of stringFields) {
             if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
           }
+          const numberFields = ["userId"] as const;
+          for (const field of numberFields) {
+            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
+          }
+          if (whereClause.user === null) {
+            if (record.userId !== null) return null;
+          }
+          if (whereClause.user) {
+            const { is, isNot, ...rest } = whereClause.user;
+            if (is === null) {
+              if (record.userId !== null) return null;
+            }
+            if (is !== null && is !== undefined) {
+              if (record.userId === null) return null;
+              const relatedRecord = await this.client.user.findFirst({ where: { ...is, id: record.userId } }, tx);
+              if (!relatedRecord) return null;
+            }
+            if (isNot === null) {
+              if (record.userId === null) return null;
+            }
+            if (isNot !== null && isNot !== undefined) {
+              if (record.userId === null) return null;
+              const relatedRecord = await this.client.user.findFirst({ where: { ...isNot, id: record.userId } }, tx);
+              if (relatedRecord) return null;
+            }
+            if (Object.keys(rest).length) {
+              if (record.userId === null) return null;
+              const relatedRecord = await this.client.user.findFirst(
+                { where: { ...whereClause.user, id: record.userId } },
+                tx,
+              );
+              if (!relatedRecord) return null;
+            }
+          }
           if (whereClause.father) {
             const { is, isNot, ...rest } = whereClause.father;
             if (is !== null && is !== undefined) {
@@ -4494,8 +5139,10 @@ class ChildIDBClass extends BaseIDBModelClass {
         "fatherLastName",
         "motherFirstName",
         "motherLastName",
+        "user",
         "father",
         "mother",
+        "userId",
       ]) {
         const key = untypedKey as keyof typeof record & keyof S;
         if (!selectClause[key]) delete partialRecord[key];
@@ -4512,6 +5159,19 @@ class ChildIDBClass extends BaseIDBModelClass {
     if (!query) return records as Prisma.Result<Prisma.ChildDelegate, Q, "findFirstOrThrow">[];
     const recordsWithRelations = records.map(async (record) => {
       const unsafeRecord = record as Record<string, unknown>;
+      const attach_user = query.select?.user || query.include?.user;
+      if (attach_user) {
+        unsafeRecord["user"] =
+          record.userId === null
+            ? null
+            : await this.client.user.findUnique(
+                {
+                  ...(attach_user === true ? {} : attach_user),
+                  where: { id: record.userId },
+                },
+                tx,
+              );
+      }
       const attach_father = query.select?.father || query.include?.father;
       if (attach_father) {
         unsafeRecord["father"] = await this.client.father.findUnique(
@@ -4576,8 +5236,18 @@ class ChildIDBClass extends BaseIDBModelClass {
       "fatherLastName",
       "motherFirstName",
       "motherLastName",
+      "userId",
     ] as const;
     for (const field of scalarFields) if (orderByInput[field]) return record[field];
+    if (orderByInput.user) {
+      return record.userId === null
+        ? null
+        : await this.client.user._resolveOrderByKey(
+            await this.client.user.findFirstOrThrow({ where: { id: record.userId } }),
+            orderByInput.user,
+            tx,
+          );
+    }
     if (orderByInput.father) {
       return await this.client.father._resolveOrderByKey(
         await this.client.father.findFirstOrThrow({ where: { firstName: record.fatherFirstName } }),
@@ -4604,8 +5274,12 @@ class ChildIDBClass extends BaseIDBModelClass {
       "fatherLastName",
       "motherFirstName",
       "motherLastName",
+      "userId",
     ] as const;
     for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
+    if (orderByInput.user) {
+      return this.client.user._resolveSortOrder(orderByInput.user);
+    }
     if (orderByInput.father) {
       return this.client.father._resolveSortOrder(orderByInput.father);
     }
@@ -4620,6 +5294,9 @@ class ChildIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<D> {
     if (data === undefined) data = {} as D;
+    if (data.userId === undefined) {
+      data.userId = null;
+    }
     return data;
   }
 
@@ -4634,6 +5311,10 @@ class ChildIDBClass extends BaseIDBModelClass {
           this._getNeededStoresForWhere(clause, neededStores);
         }
       }
+    }
+    if (whereClause.user) {
+      neededStores.add("User");
+      this.client.user._getNeededStoresForWhere(whereClause.user, neededStores);
     }
     if (whereClause.father) {
       neededStores.add("Father");
@@ -4653,6 +5334,12 @@ class ChildIDBClass extends BaseIDBModelClass {
     this._getNeededStoresForWhere(query?.where, neededStores);
     if (query?.orderBy) {
       const orderBy = IDBUtils.convertToArray(query.orderBy);
+      const orderBy_user = orderBy.find((clause) => clause.user);
+      if (orderBy_user) {
+        this.client.user
+          ._getNeededStoresForFind({ orderBy: orderBy_user.user })
+          .forEach((storeName) => neededStores.add(storeName));
+      }
       const orderBy_father = orderBy.find((clause) => clause.father);
       if (orderBy_father) {
         this.client.father
@@ -4663,6 +5350,17 @@ class ChildIDBClass extends BaseIDBModelClass {
       if (orderBy_mother) {
         this.client.mother
           ._getNeededStoresForFind({ orderBy: orderBy_mother.mother })
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
+    if (query?.select?.user || query?.include?.user) {
+      neededStores.add("User");
+      if (typeof query.select?.user === "object") {
+        this.client.user._getNeededStoresForFind(query.select.user).forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.user === "object") {
+        this.client.user
+          ._getNeededStoresForFind(query.include.user)
           .forEach((storeName) => neededStores.add(storeName));
       }
     }
@@ -4700,6 +5398,23 @@ class ChildIDBClass extends BaseIDBModelClass {
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("Child");
+    if (data.user) {
+      neededStores.add("User");
+      if (data.user.create) {
+        const createData = Array.isArray(data.user.create) ? data.user.create : [data.user.create];
+        createData.forEach((record) =>
+          this.client.user._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.user.connectOrCreate) {
+        IDBUtils.convertToArray(data.user.connectOrCreate).forEach((record) =>
+          this.client.user._getNeededStoresForCreate(record.create).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+    }
+    if (data.userId !== undefined) {
+      neededStores.add("User");
+    }
     if (data.father) {
       neededStores.add("Father");
       if (data.father.create) {
@@ -4745,6 +5460,7 @@ class ChildIDBClass extends BaseIDBModelClass {
     data: D,
   ): Prisma.Result<Prisma.ChildDelegate, object, "findFirstOrThrow"> {
     const recordWithoutNestedCreate = structuredClone(data);
+    delete recordWithoutNestedCreate.user;
     delete recordWithoutNestedCreate.father;
     delete recordWithoutNestedCreate.mother;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.ChildDelegate, object, "findFirstOrThrow">;
@@ -4855,6 +5571,31 @@ class ChildIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "create">> {
     const storesNeeded = this._getNeededStoresForCreate(query.data);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    if (query.data.user) {
+      const fk: Partial<PrismaIDBSchema["User"]["key"]> = [];
+      if (query.data.user?.create) {
+        const record = await this.client.user.create({ data: query.data.user.create }, tx);
+        fk[0] = record.id;
+      }
+      if (query.data.user?.connect) {
+        const record = await this.client.user.findUniqueOrThrow({ where: query.data.user.connect }, tx);
+        delete query.data.user.connect;
+        fk[0] = record.id;
+      }
+      if (query.data.user?.connectOrCreate) {
+        throw new Error("connectOrCreate not yet implemented");
+      }
+      const unsafeData = query.data as Record<string, unknown>;
+      unsafeData.userId = fk[0];
+      delete unsafeData.user;
+    } else if (query.data.userId !== undefined && query.data.userId !== null) {
+      await this.client.user.findUniqueOrThrow(
+        {
+          where: { id: query.data.userId },
+        },
+        tx,
+      );
+    }
     if (query.data.mother) {
       const fk: Partial<PrismaIDBSchema["Mother"]["key"]> = [];
       if (query.data.mother?.create) {
@@ -5007,6 +5748,10 @@ class ChildIDBClass extends BaseIDBModelClass {
     ] as const;
     for (const field of stringFields) {
       IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const intFields = ["userId"] as const;
+    for (const field of intFields) {
+      IDBUtils.handleIntUpdateField(record, field, query.data[field]);
     }
     const endKeyPath: PrismaIDBSchema["Child"]["key"] = [record.childFirstName, record.childLastName];
     for (let i = 0; i < startKeyPath.length; i++) {

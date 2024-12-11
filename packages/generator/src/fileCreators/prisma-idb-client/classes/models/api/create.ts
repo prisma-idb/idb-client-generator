@@ -192,7 +192,9 @@ function addOneToManyRelation(
         This is due to Prisma's create query's constraint of using either 
         { connect: { pk: value } } OR { fk: value } for all the fields
       */
-      const otherFkField = fkFields.find(({ relationName }) => relationName !== field.relationName)!;
+      const otherFkField =
+        fkFields.find(({ relationName, isRequired }) => relationName !== field.relationName && isRequired) ??
+        fkFields.find(({ relationName }) => relationName !== field.relationName)!;
       writer
         .writeLine(`const createData = Array.isArray(query.data.${field.name}.create)`)
         .writeLine(`? query.data.${field.name}.create`)
