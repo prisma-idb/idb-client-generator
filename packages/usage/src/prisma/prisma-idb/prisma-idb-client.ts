@@ -372,20 +372,16 @@ class UserIDBClass extends BaseIDBModelClass {
       const orderBy_profile = orderBy.find((clause) => clause.profile);
       if (orderBy_profile) {
         this.client.profile
-          ._getNeededStoresForFind({ orderBy: orderBy_profile })
+          ._getNeededStoresForFind({ orderBy: orderBy_profile.profile })
           .forEach((storeName) => neededStores.add(storeName));
       }
       const orderBy_posts = orderBy.find((clause) => clause.posts);
       if (orderBy_posts) {
-        this.client.post
-          ._getNeededStoresForFind({ orderBy: orderBy_posts })
-          .forEach((storeName) => neededStores.add(storeName));
+        neededStores.add("Post");
       }
       const orderBy_comments = orderBy.find((clause) => clause.comments);
       if (orderBy_comments) {
-        this.client.comment
-          ._getNeededStoresForFind({ orderBy: orderBy_comments })
-          .forEach((storeName) => neededStores.add(storeName));
+        neededStores.add("Comment");
       }
     }
     if (query?.select?.profile || query?.include?.profile) {
@@ -621,8 +617,8 @@ class UserIDBClass extends BaseIDBModelClass {
       throw new Error("connectOrCreate not yet implemented");
     }
     if (query.data.posts?.create) {
-      for (const createData of IDBUtils.convertToArray(query.data.posts.create)) {
-        await this.client.post.create({ data: { ...createData, author: { connect: { id: keyPath[0] } } } }, tx);
+      for (const elem of IDBUtils.convertToArray(query.data.posts.create)) {
+        await this.client.post.create({ data: { ...elem, author: { connect: { id: keyPath[0] } } } }, tx);
       }
     }
     if (query.data.posts?.connect) {
@@ -650,15 +646,13 @@ class UserIDBClass extends BaseIDBModelClass {
       const createData = Array.isArray(query.data.comments.create)
         ? query.data.comments.create
         : [query.data.comments.create];
-      await Promise.all(
-        createData.map(async (elem) => {
-          if ("post" in elem && !("postId" in elem)) {
-            await this.client.comment.create({ data: { ...elem, user: { connect: { id: keyPath[0] } } } }, tx);
-          } else if (elem.postId !== undefined) {
-            await this.client.comment.create({ data: { ...elem, userId: keyPath[0] } }, tx);
-          }
-        }),
-      );
+      for (const elem of createData) {
+        if ("post" in elem && !("postId" in elem)) {
+          await this.client.comment.create({ data: { ...elem, user: { connect: { id: keyPath[0] } } } }, tx);
+        } else if (elem.postId !== undefined) {
+          await this.client.comment.create({ data: { ...elem, userId: keyPath[0] } }, tx);
+        }
+      }
     }
     if (query.data.comments?.connect) {
       await Promise.all(
@@ -1018,7 +1012,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
       const orderBy_user = orderBy.find((clause) => clause.user);
       if (orderBy_user) {
         this.client.user
-          ._getNeededStoresForFind({ orderBy: orderBy_user })
+          ._getNeededStoresForFind({ orderBy: orderBy_user.user })
           .forEach((storeName) => neededStores.add(storeName));
       }
     }
@@ -1602,14 +1596,12 @@ class PostIDBClass extends BaseIDBModelClass {
       const orderBy_author = orderBy.find((clause) => clause.author);
       if (orderBy_author) {
         this.client.user
-          ._getNeededStoresForFind({ orderBy: orderBy_author })
+          ._getNeededStoresForFind({ orderBy: orderBy_author.author })
           .forEach((storeName) => neededStores.add(storeName));
       }
       const orderBy_comments = orderBy.find((clause) => clause.comments);
       if (orderBy_comments) {
-        this.client.comment
-          ._getNeededStoresForFind({ orderBy: orderBy_comments })
-          .forEach((storeName) => neededStores.add(storeName));
+        neededStores.add("Comment");
       }
     }
     if (query?.select?.author || query?.include?.author) {
@@ -1831,15 +1823,13 @@ class PostIDBClass extends BaseIDBModelClass {
       const createData = Array.isArray(query.data.comments.create)
         ? query.data.comments.create
         : [query.data.comments.create];
-      await Promise.all(
-        createData.map(async (elem) => {
-          if ("user" in elem && !("userId" in elem)) {
-            await this.client.comment.create({ data: { ...elem, post: { connect: { id: keyPath[0] } } } }, tx);
-          } else if (elem.userId !== undefined) {
-            await this.client.comment.create({ data: { ...elem, postId: keyPath[0] } }, tx);
-          }
-        }),
-      );
+      for (const elem of createData) {
+        if ("user" in elem && !("userId" in elem)) {
+          await this.client.comment.create({ data: { ...elem, post: { connect: { id: keyPath[0] } } } }, tx);
+        } else if (elem.userId !== undefined) {
+          await this.client.comment.create({ data: { ...elem, postId: keyPath[0] } }, tx);
+        }
+      }
     }
     if (query.data.comments?.connect) {
       await Promise.all(
@@ -2235,13 +2225,13 @@ class CommentIDBClass extends BaseIDBModelClass {
       const orderBy_post = orderBy.find((clause) => clause.post);
       if (orderBy_post) {
         this.client.post
-          ._getNeededStoresForFind({ orderBy: orderBy_post })
+          ._getNeededStoresForFind({ orderBy: orderBy_post.post })
           .forEach((storeName) => neededStores.add(storeName));
       }
       const orderBy_user = orderBy.find((clause) => clause.user);
       if (orderBy_user) {
         this.client.user
-          ._getNeededStoresForFind({ orderBy: orderBy_user })
+          ._getNeededStoresForFind({ orderBy: orderBy_user.user })
           .forEach((storeName) => neededStores.add(storeName));
       }
     }

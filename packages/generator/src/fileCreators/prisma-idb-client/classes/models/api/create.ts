@@ -1,6 +1,6 @@
 import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
 import { Field, Model } from "../../../../../fileCreators/types";
-import { toCamelCase } from "../../../../../helpers/utils";
+import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
 
 // TODO: nested connectOrCreate
 
@@ -16,7 +16,7 @@ export function addCreateMethod(modelClass: ClassDeclaration, model: Model, mode
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "create">>`,
     statements: (writer) => {
       createTx(writer);
-      createDependencies(writer, model);
+      createDependencies(writer, model, models);
       createCurrentModel(writer, model);
       createDependents(writer, model, models);
       applyClausesAndReturnRecords(writer, model);
@@ -30,7 +30,7 @@ function createTx(writer: CodeBlockWriter) {
     .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");`);
 }
 
-function createDependencies(writer: CodeBlockWriter, model: Model) {
+function createDependencies(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   model.fields.forEach((field) => {
     if (!field.relationName) return;
     if (field.relationFromFields?.length === 0 || field.relationToFields?.length === 0) return;
@@ -39,7 +39,7 @@ function createDependencies(writer: CodeBlockWriter, model: Model) {
     writer.writeLine(`if (query.data.${field.name})`).block(() => {
       addOneToOneMetaOnFieldRelation(writer, field);
     });
-    handleForeignKeyValidation(writer, field, foreignKeyField);
+    handleForeignKeyValidation(writer, field, foreignKeyField, models);
   });
 }
 
@@ -66,7 +66,7 @@ function createDependents(writer: CodeBlockWriter, model: Model, models: readonl
         (field) =>
           dependentModel.fields.find((fkField) => fkField.name === field.relationFromFields?.at(0)) !== undefined,
       );
-      addOneToManyRelation(writer, field, otherField, fks);
+      addOneToManyRelation(writer, field, otherField, fks, model);
     }
   });
 }
@@ -131,16 +131,35 @@ function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Fie
   });
 }
 
-function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField: Field, fkFields: Field[]) {
+function addOneToManyRelation(
+  writer: CodeBlockWriter,
+  field: Field,
+  otherField: Field,
+  fkFields: Field[],
+  model: Model,
+) {
+  const getCreateQuery = (extraDataFields: string) =>
+    `await this.client.${toCamelCase(field.type)}.create({ data: { ...elem, ${extraDataFields} } }, tx);`;
+
+  const modelPk = getUniqueIdentifiers(model)[0];
+  const modelPkFields = JSON.parse(modelPk.keyPath) as string[];
+  const fields = `{ ${otherField.relationToFields!.map((field, idx) => `${field}: keyPath[${idx}]`).join(", ")} }`;
+
+  let nestedConnectLine = `${otherField.name}: { connect: `;
+  if (modelPkFields.length === 1) nestedConnectLine += `${fields}`;
+  else nestedConnectLine += `{ ${modelPk.name}: ${fields} }`;
+  nestedConnectLine += ` }`;
+
+  const nestedDirectLine = otherField.relationFromFields!.map((field, idx) => `${field}: keyPath[${idx}]`).join(", ");
+
+  const connectQuery = getCreateQuery(nestedConnectLine);
+  const directQuery = getCreateQuery(nestedDirectLine);
+
   writer.writeLine(`if (query.data.${field.name}?.create)`).block(() => {
     if (fkFields.length === 1) {
-      writer
-        .writeLine(`for (const createData of IDBUtils.convertToArray(query.data.${field.name}.create))`)
-        .block(() => {
-          writer.writeLine(
-            `await this.client.${toCamelCase(field.type)}.create({ data: { ...createData, ${otherField.name}: { connect: { ${otherField.relationToFields?.at(0)}: keyPath[0] } } } }, tx);`,
-          );
-        });
+      writer.writeLine(`for (const elem of IDBUtils.convertToArray(query.data.${field.name}.create))`).block(() => {
+        writer.writeLine(connectQuery);
+      });
     } else {
       /* 
         This is due to Prisma's create query's constraint of using either 
@@ -151,24 +170,18 @@ function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField:
         .writeLine(`const createData = Array.isArray(query.data.${field.name}.create)`)
         .writeLine(`? query.data.${field.name}.create`)
         .writeLine(`: [query.data.${field.name}.create]`)
-        .writeLine(`await Promise.all(`)
-        .writeLine(`createData.map(async (elem) => `)
+        .writeLine(`for (const elem of createData)`)
         .block(() => {
           writer
             .writeLine(`if ("${otherFkField.name}" in elem && !("${otherFkField.relationFromFields?.at(0)}" in elem))`)
             .block(() => {
-              writer.writeLine(
-                `await this.client.${toCamelCase(field.type)}.create({ data: { ...elem, ${otherField.name}: { connect: { ${otherField.relationToFields?.at(0)}: keyPath[0] } } } }, tx);`,
-              );
+              writer.writeLine(connectQuery);
             })
             .writeLine(`else if (elem.${otherFkField.relationFromFields?.at(0)} !== undefined)`)
             .block(() => {
-              writer.writeLine(
-                `await this.client.${toCamelCase(field.type)}.create({ data: { ...elem, ${otherField.relationFromFields?.at(0)}: keyPath[0] } }, tx);`,
-              );
+              writer.writeLine(directQuery);
             });
-        })
-        .writeLine(`))`);
+        });
     }
   });
 
@@ -180,7 +193,7 @@ function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField:
           .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.connect).map(async (connectWhere) => `)
           .block(() => {
             writer.writeLine(
-              `await this.client.${toCamelCase(field.type)}.update({ where: connectWhere, data: { ${otherField.relationFromFields?.at(0)}: keyPath[0] } }, tx);`,
+              `await this.client.${toCamelCase(field.type)}.update({ where: connectWhere, data: { ${nestedDirectLine} } }, tx);`,
             );
           })
           .writeLine(`),`);
@@ -197,7 +210,7 @@ function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField:
         writer
           .writeLine(`data: IDBUtils.convertToArray(query.data.${field.name}.createMany.data).map((createData) => (`)
           .block(() => {
-            writer.writeLine(`...createData, ${otherField.relationFromFields?.at(0)}: keyPath[0]`);
+            writer.writeLine(`...createData, ${nestedDirectLine}`);
           })
           .writeLine(`)),`);
       })
@@ -205,7 +218,11 @@ function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField:
   });
 }
 
-function handleForeignKeyValidation(writer: CodeBlockWriter, field: Field, fkField: Field) {
+function handleForeignKeyValidation(writer: CodeBlockWriter, field: Field, fkField: Field, models: readonly Model[]) {
+  const otherModel = models.find(({ name }) => name === field.type)!;
+  const otherModelPk = getUniqueIdentifiers(otherModel)[0];
+  const otherModelPkFields = JSON.parse(otherModelPk.keyPath) as string[];
+
   writer
     .writeLine(`else if (query.data.${fkField.name} !== undefined && query.data.${fkField.name} !== null)`)
     .block(() => {
@@ -213,9 +230,15 @@ function handleForeignKeyValidation(writer: CodeBlockWriter, field: Field, fkFie
       writer
         .writeLine(`await this.client.${toCamelCase(field.type)}.findUniqueOrThrow(`)
         .block(() => {
-          writer.writeLine(
-            `where: { ${field.relationToFields?.at(0)}: query.data.${field.relationFromFields?.at(0)} }`,
-          );
+          const fieldValueMap = field
+            .relationToFields!.map((from, idx) => `${from}: query.data.${field.relationFromFields?.at(idx)}`)
+            .join(", ");
+
+          if (otherModelPkFields.length === 1) {
+            writer.writeLine(`where: { ${fieldValueMap} }`);
+          } else {
+            writer.writeLine(`where: { ${otherModelPk.name}: { ${fieldValueMap} } }`);
+          }
         })
         .writeLine(`, tx);`);
     });
