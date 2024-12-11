@@ -44,5 +44,5 @@ function handleWithSelect(writer: CodeBlockWriter, model: Model) {
           "result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)).length;",
         );
     })
-    .writeLine(`return result as Prisma.Result<Prisma.UserDelegate, Q, "count">;`);
+    .writeLine(`return result as Prisma.Result<Prisma.${model.name}Delegate, Q, "count">;`);
 }
