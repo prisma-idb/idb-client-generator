@@ -164,7 +164,7 @@ function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField:
             .writeLine(`else if (elem.${otherFkField.relationFromFields?.at(0)} !== undefined)`)
             .block(() => {
               writer.writeLine(
-                `await this.client.comment.create({ data: { ...elem, ${otherField.relationFromFields?.at(0)}: keyPath[0] } }, tx);`,
+                `await this.client.${toCamelCase(field.type)}.create({ data: { ...elem, ${otherField.relationFromFields?.at(0)}: keyPath[0] } }, tx);`,
               );
             });
         })
