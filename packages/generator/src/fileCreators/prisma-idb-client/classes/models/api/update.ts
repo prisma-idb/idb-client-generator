@@ -36,7 +36,7 @@ function addGetRecord(writer: CodeBlockWriter, model: Model) {
       writer.writeLine(`tx.abort();`).writeLine(`throw new Error("Record not found");`);
     })
     .writeLine(
-      `const startKeyPath: PrismaIDBSchema["${model.name}"]["key"] = [${pk.map((field) => `record.${field}, `)}];`,
+      `const startKeyPath: PrismaIDBSchema["${model.name}"]["key"] = [${pk.map((field) => `record.${field}`)}];`,
     );
 }
 
@@ -44,7 +44,7 @@ function addPutAndReturn(writer: CodeBlockWriter, model: Model) {
   const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
   writer
     .writeLine(
-      `const endKeyPath: PrismaIDBSchema["${model.name}"]["key"] = [${pk.map((field) => `record.${field}, `)}];`,
+      `const endKeyPath: PrismaIDBSchema["${model.name}"]["key"] = [${pk.map((field) => `record.${field}`)}];`,
     )
     .writeLine(`for (let i = 0; i < startKeyPath.length; i++)`)
     .block(() => {
