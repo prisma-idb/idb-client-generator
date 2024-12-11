@@ -1,5 +1,5 @@
 import { Field, Model } from "../../../../types";
-import { toCamelCase } from "../../../../../helpers/utils";
+import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
 import { ClassDeclaration, CodeBlockWriter, Scope } from "ts-morph";
 
 export function addApplyRelations(modelClass: ClassDeclaration, model: Model, models: readonly Model[]) {
@@ -48,7 +48,7 @@ function addRelationProcessing(writer: CodeBlockWriter, model: Model, models: re
             const otherFieldOfRelation = allFields.find(
               (_field) => _field.relationName === field.relationName && field !== _field,
             )!;
-            handleVariousRelationships(writer, field, otherFieldOfRelation);
+            handleVariousRelationships(writer, field, otherFieldOfRelation, models);
           });
       });
       writer.writeLine("return unsafeRecord;");
@@ -56,10 +56,15 @@ function addRelationProcessing(writer: CodeBlockWriter, model: Model, models: re
     .writeLine(");");
 }
 
-function handleVariousRelationships(writer: CodeBlockWriter, field: Field, otherField: Field) {
+function handleVariousRelationships(
+  writer: CodeBlockWriter,
+  field: Field,
+  otherField: Field,
+  models: readonly Model[],
+) {
   if (!field.isList) {
     if (field.relationFromFields?.length) {
-      addOneToOneMetaOnFieldRelation(writer, field);
+      addOneToOneMetaOnFieldRelation(writer, field, models);
     } else {
       addOneToOneMetaOnOtherFieldRelation(writer, field, otherField);
     }
@@ -68,15 +73,25 @@ function handleVariousRelationships(writer: CodeBlockWriter, field: Field, other
   }
 }
 
-function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
+function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field, models: readonly Model[]) {
   writer
     .write(`unsafeRecord['${field.name}'] = `)
     .conditionalWrite(!field.isRequired, () => `record.${field.relationFromFields?.at(0)} === null ? null :`)
     .writeLine(`await this.client.${toCamelCase(field.type)}.findUnique(`)
     .block(() => {
-      writer
-        .writeLine(`...(attach_${field.name} === true ? {} : attach_${field.name}),`)
-        .writeLine(`where: { ${field.relationToFields?.at(0)}: record.${field.relationFromFields?.at(0)} }`);
+      writer.writeLine(`...(attach_${field.name} === true ? {} : attach_${field.name}),`);
+
+      const otherModel = models.find(({ name }) => name === field.type)!;
+      const otherPk = getUniqueIdentifiers(otherModel)[0];
+      const otherPkFields = JSON.parse(otherPk.keyPath) as string[];
+      if (otherPkFields.length === 1) {
+        writer.writeLine(`where: { ${otherPk.name}: record.${field.relationFromFields?.at(0)} }`);
+      } else {
+        const compositeKey = otherPkFields
+          .map((_, idx) => `${field.relationToFields?.at(idx)}: record.${field.relationFromFields?.at(idx)}`)
+          .join(", ");
+        writer.writeLine(`where: { ${otherPk.name}: { ${compositeKey} } }`);
+      }
     })
     .writeLine(`, tx)`);
 }
