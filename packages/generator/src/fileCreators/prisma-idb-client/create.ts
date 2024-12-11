@@ -48,5 +48,8 @@ export function createPrismaIDBClientFile(idbClientFile: SourceFile, models: DMM
   addVersionDeclaration(idbClientFile);
   addClientClass(idbClientFile, models);
   addBaseModelClass(idbClientFile);
-  models.forEach((model) => addIDBModelClass(idbClientFile, model, models));
+  models.forEach((model, idx) => {
+    addIDBModelClass(idbClientFile, model, models);
+    console.log(`${idx + 1}/${models.length}: ${model.name} done`);
+  });
 }
