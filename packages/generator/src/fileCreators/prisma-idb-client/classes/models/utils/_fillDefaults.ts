@@ -13,7 +13,7 @@ export function addFillDefaultsFunction(modelClass: ClassDeclaration, model: Mod
     ],
     returnType: `Promise<D>`,
     statements: (writer) => {
-      writer.writeLine("if (data === undefined) data = {} as D;");
+      writer.writeLine("if (data === undefined) data = {} as NonNullable<D>;");
       model.fields
         .filter(({ kind }) => kind !== "object")
         .filter(({ hasDefaultValue, isRequired }) => hasDefaultValue || !isRequired)

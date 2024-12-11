@@ -97,7 +97,7 @@ function applyClausesAndReturnRecords(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`const data = (await tx.objectStore("${model.name}").get(keyPath))!;`)
     .write(`const recordsWithRelations = this._applySelectClause`)
-    .write(`(await this._applyRelations([data], tx, query), query.select)[0];`)
+    .write(`(await this._applyRelations<object>([data], tx, query), query.select)[0];`)
     .writeLine(`this._preprocessListFields([recordsWithRelations]);`);
 
   writer.writeLine(`return recordsWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "create">;`);
@@ -182,7 +182,7 @@ function addOneToManyRelation(
   const nestedDirectLine = otherField.relationFromFields!.map((field, idx) => `${field}: keyPath[${idx}]`).join(", ");
   const connectQuery = getCreateQuery(nestedConnectLine);
 
-  writer.writeLine(`if (query.data.${field.name}?.create)`).block(() => {
+  writer.writeLine(`if (query.data?.${field.name}?.create)`).block(() => {
     if (fkFields.length === 1) {
       writer.writeLine(`for (const elem of IDBUtils.convertToArray(query.data.${field.name}.create))`).block(() => {
         writer.writeLine(connectQuery);
@@ -203,7 +203,7 @@ function addOneToManyRelation(
     }
   });
 
-  writer.writeLine(`if (query.data.${field.name}?.connect)`).block(() => {
+  writer.writeLine(`if (query.data?.${field.name}?.connect)`).block(() => {
     writer
       .writeLine(`await Promise.all(`)
       .indent(() => {
@@ -218,10 +218,10 @@ function addOneToManyRelation(
       })
       .writeLine(");");
   });
-  writer.writeLine(`if (query.data.${field.name}?.connectOrCreate)`).block(() => {
+  writer.writeLine(`if (query.data?.${field.name}?.connectOrCreate)`).block(() => {
     writer.writeLine(`throw new Error('connectOrCreate not yet implemented')`);
   });
-  writer.writeLine(`if (query.data.${field.name}?.createMany)`).block(() => {
+  writer.writeLine(`if (query.data?.${field.name}?.createMany)`).block(() => {
     writer
       .write(`await this.client.${toCamelCase(field.type)}.createMany(`)
       .block(() => {
@@ -242,7 +242,7 @@ function handleForeignKeyValidation(writer: CodeBlockWriter, field: Field, fkFie
   const otherModelPkFields = JSON.parse(otherModelPk.keyPath) as string[];
 
   writer
-    .writeLine(`else if (query.data.${fkField.name} !== undefined && query.data.${fkField.name} !== null)`)
+    .writeLine(`else if (query.data?.${fkField.name} !== undefined && query.data.${fkField.name} !== null)`)
     .block(() => {
       writer
         .writeLine(`await this.client.${toCamelCase(field.type)}.findUniqueOrThrow(`)

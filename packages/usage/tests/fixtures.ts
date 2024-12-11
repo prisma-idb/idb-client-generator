@@ -2,16 +2,16 @@ import { prisma } from "$lib/prisma";
 import { test as base } from "@playwright/test";
 
 async function resetDatabase() {
-  await prisma.child.deleteMany();
-  await prisma.father.deleteMany();
-  await prisma.mother.deleteMany();
-
-  await prisma.comment.deleteMany();
-  await prisma.post.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.$executeRaw`ALTER SEQUENCE "User_id_seq" RESTART WITH 1`;
-  await prisma.$executeRaw`ALTER SEQUENCE "Profile_id_seq" RESTART WITH 1`;
-  await prisma.$executeRaw`ALTER SEQUENCE "Post_id_seq" RESTART WITH 1`;
+  await prisma.$executeRawUnsafe(`TRUNCATE TABLE 
+      "Child", 
+      "Father", 
+      "Mother", 
+      "Comment", 
+      "Post", 
+      "UserGroup", 
+      "Group", 
+      "User" 
+      RESTART IDENTITY CASCADE;`);
 }
 
 export const test = base.extend<{ prepareTest: void }>({

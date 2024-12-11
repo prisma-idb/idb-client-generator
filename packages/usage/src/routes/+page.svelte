@@ -1,7 +1,8 @@
 <script lang="ts">
   import Button from "$lib/components/ui/button/button.svelte";
-  import Input from "$lib/components/ui/input/input.svelte";
   import { Label } from "$lib/components/ui/label";
+  import Textarea from "$lib/components/ui/textarea/textarea.svelte";
+  import { cn } from "$lib/utils";
   import { onMount } from "svelte";
   import { toast } from "svelte-sonner";
   import { PrismaIDBClient } from "../prisma/prisma-idb/prisma-idb-client";
@@ -31,20 +32,22 @@
   }
 </script>
 
-<form class="flex w-full max-w-sm flex-col gap-1.5" onsubmit={executeQuery}>
+<form class="flex w-full max-w-md flex-col gap-1.5" onsubmit={executeQuery}>
   <Label for="query">Query</Label>
-  <Input
+  <Textarea
     data-testid="query-input"
-    class=""
+    class={cn("h-24", { italic: query === "" })}
     id="query"
-    placeholder={"user.create({ data: { name: 'John Doe' } })"}
+    placeholder={"user.create({ \n\tdata: { name: 'John Doe' } \n})"}
     required
     bind:value={query}
   />
   <Button type="submit">Run query</Button>
 </form>
 
-<div class="grid w-full max-w-sm gap-1.5">
+<div class="grid w-full max-w-md gap-1.5">
   <Label for="output">Output</Label>
-  <code class="rounded-md border p-2 text-sm"><pre>{output === "" ? "Run a query" : output}</pre></code>
+  <code class={cn("rounded-md border p-2 text-sm", { "italic text-secondary-foreground/60": output === "" })}>
+    <pre>{output === "" ? "Run a query" : output}</pre>
+  </code>
 </div>

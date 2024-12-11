@@ -13,7 +13,7 @@ generator prismaIDB {
 }
 
 model User {
-  id       Int       @id @default(autoincrement())
+  id       Int         @id @default(autoincrement())
   name     String
   profile  Profile?
   posts    Post[]
@@ -21,6 +21,23 @@ model User {
   Child    Child[]
   Father   Father[]
   Mother   Mother[]
+  groups   UserGroup[]
+}
+
+model Group {
+  id         Int         @id @default(autoincrement())
+  name       String
+  userGroups UserGroup[]
+}
+
+model UserGroup {
+  group    Group    @relation(fields: [groupId], references: [id])
+  groupId  Int
+  user     User     @relation(fields: [userId], references: [id])
+  userId   Int
+  joinedOn DateTime @default(now())
+
+  @@id([groupId, userId])
 }
 
 model Profile {

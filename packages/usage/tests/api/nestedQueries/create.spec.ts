@@ -90,7 +90,24 @@ test("create_WithOneToManyRelation_CreatesParentAndManyChildRecords", async ({ p
   });
 });
 
-test("create_WithManyToManyRelation_CreatesJoinRecords", async ({ page }) => {
+test("create_WithExplicitManyToManyRelation_CreatesJoinRecords", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "userGroup",
+    operation: "create",
+    query: {
+      data: { group: { create: { name: "Group1" } }, user: { create: { name: "John" } }, joinedOn: new Date() },
+    },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "findMany",
+    query: { include: { groups: { include: { group: true, user: true } } } },
+  });
+});
+
+test("create_WithDeeplyNestedRelations_PersistsAllEntities", async ({ page }) => {
   const randomCUID = createId();
   await expectQueryToSucceed({
     page,
@@ -109,8 +126,4 @@ test("create_WithManyToManyRelation_CreatesJoinRecords", async ({ page }) => {
     operation: "findMany",
     query: { include: { author: true, comments: { include: { user: true } } } },
   });
-});
-
-test("create_WithDeeplyNestedRelations_PersistsAllEntities", async () => {
-  // TODO
 });

@@ -21,7 +21,7 @@ export function addGetNeededStoresForCreate(modelClass: ClassDeclaration, model:
 function processRelationsInData(writer: CodeBlockWriter, model: Model) {
   const relationFields = model.fields.filter(({ kind }) => kind === "object");
   relationFields.forEach((field) => {
-    writer.writeLine(`if (data.${field.name})`).block(() => {
+    writer.writeLine(`if (data?.${field.name})`).block(() => {
       writer.writeLine(`neededStores.add('${field.type}')`);
       writer.writeLine(`if (data.${field.name}.create)`).block(() => {
         writer

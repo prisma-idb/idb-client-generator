@@ -1,11 +1,13 @@
 <script lang="ts">
-  import "../app.css";
   import { Toaster } from "$lib/components/ui/sonner/index.js";
+  import { ModeWatcher } from "mode-watcher";
+  import "../app.css";
 
   let { children } = $props();
 </script>
 
 <Toaster />
+<ModeWatcher />
 
 <main class="mx-auto flex h-screen w-full max-w-xl flex-col items-center gap-16 px-4 py-20">
   <div class="flex items-center gap-2">
