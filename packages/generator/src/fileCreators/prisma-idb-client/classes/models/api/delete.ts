@@ -1,4 +1,4 @@
-import { toCamelCase } from "../../../../../helpers/utils";
+import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
 import { Model } from "../../../../../fileCreators/types";
 import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
 
@@ -61,5 +61,7 @@ function handleCascadeDeletes(writer: CodeBlockWriter, model: Model, models: rea
 }
 
 function deleteAndReturnRecord(writer: CodeBlockWriter, model: Model) {
-  writer.writeLine(`await tx.objectStore("${model.name}").delete([record.id]);`).writeLine(`return record;`);
+  const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
+  const keyPath = pk.map((field) => `record.${field}`).join(", ");
+  writer.writeLine(`await tx.objectStore("${model.name}").delete([${keyPath}]);`).writeLine(`return record;`);
 }
