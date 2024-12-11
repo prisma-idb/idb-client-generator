@@ -64,3 +64,38 @@ model AllFieldScalarTypes {
   bytes       Bytes
   manyBytes   Bytes[]
 }
+
+model Father {
+  firstName       String
+  lastName        String
+  children        Child[]
+  wife            Mother  @relation(fields: [motherFirstName, motherLastName], references: [firstName, lastName])
+  motherFirstName String
+  motherLastName  String
+
+  @@id([firstName, lastName])
+  @@unique([motherFirstName, motherLastName])
+}
+
+model Mother {
+  firstName String
+  lastName  String
+  children  Child[]
+  husband   Father?
+
+  @@id([firstName, lastName])
+}
+
+model Child {
+  childFirstName  String
+  childLastName   String
+  fatherFirstName String
+  fatherLastName  String
+  motherFirstName String
+  motherLastName  String
+
+  father Father @relation(fields: [fatherFirstName, fatherLastName], references: [firstName, lastName])
+  mother Mother @relation(fields: [motherFirstName, motherLastName], references: [firstName, lastName])
+
+  @@id([childFirstName, childLastName])
+}

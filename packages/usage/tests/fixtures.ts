@@ -2,6 +2,10 @@ import { prisma } from "$lib/prisma";
 import { test as base } from "@playwright/test";
 
 async function resetDatabase() {
+  await prisma.child.deleteMany();
+  await prisma.father.deleteMany();
+  await prisma.mother.deleteMany();
+
   await prisma.comment.deleteMany();
   await prisma.post.deleteMany();
   await prisma.user.deleteMany();
