@@ -99,13 +99,12 @@ test("create_WithExplicitManyToManyRelation_CreatesJoinRecords", async ({ page }
       data: { group: { create: { name: "Group1" } }, user: { create: { name: "John" } }, joinedOn: new Date() },
     },
   });
-  const res = await expectQueryToSucceed({
+  await expectQueryToSucceed({
     page,
     model: "user",
     operation: "findMany",
     query: { include: { groups: { include: { group: true, user: true } } } },
   });
-  console.dir(res, { depth: Infinity });
 });
 
 test("create_WithDeeplyNestedRelations_PersistsAllEntities", async ({ page }) => {
