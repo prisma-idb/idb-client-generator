@@ -883,7 +883,15 @@ class UserIDBClass extends BaseIDBModelClass {
     }
     if (query.data.posts?.create) {
       for (const elem of IDBUtils.convertToArray(query.data.posts.create)) {
-        await this.client.post.create({ data: { ...elem, author: { connect: { id: keyPath[0] } } } }, tx);
+        await this.client.post.create(
+          {
+            data: { ...elem, author: { connect: { id: keyPath[0] } } } as Prisma.Args<
+              Prisma.PostDelegate,
+              "create"
+            >["data"],
+          },
+          tx,
+        );
       }
     }
     if (query.data.posts?.connect) {
@@ -912,11 +920,15 @@ class UserIDBClass extends BaseIDBModelClass {
         ? query.data.comments.create
         : [query.data.comments.create];
       for (const elem of createData) {
-        if ("post" in elem && !("postId" in elem)) {
-          await this.client.comment.create({ data: { ...elem, user: { connect: { id: keyPath[0] } } } }, tx);
-        } else if (elem.postId !== undefined) {
-          await this.client.comment.create({ data: { ...elem, userId: keyPath[0] } }, tx);
-        }
+        await this.client.comment.create(
+          {
+            data: { ...elem, user: { connect: { id: keyPath[0] } } } as Prisma.Args<
+              Prisma.CommentDelegate,
+              "create"
+            >["data"],
+          },
+          tx,
+        );
       }
     }
     if (query.data.comments?.connect) {
@@ -942,7 +954,15 @@ class UserIDBClass extends BaseIDBModelClass {
     }
     if (query.data.Mother?.create) {
       for (const elem of IDBUtils.convertToArray(query.data.Mother.create)) {
-        await this.client.mother.create({ data: { ...elem, user: { connect: { id: keyPath[0] } } } }, tx);
+        await this.client.mother.create(
+          {
+            data: { ...elem, user: { connect: { id: keyPath[0] } } } as Prisma.Args<
+              Prisma.MotherDelegate,
+              "create"
+            >["data"],
+          },
+          tx,
+        );
       }
     }
     if (query.data.Mother?.connect) {
@@ -971,11 +991,15 @@ class UserIDBClass extends BaseIDBModelClass {
         ? query.data.Father.create
         : [query.data.Father.create];
       for (const elem of createData) {
-        if ("wife" in elem && !("motherFirstName" in elem)) {
-          await this.client.father.create({ data: { ...elem, user: { connect: { id: keyPath[0] } } } }, tx);
-        } else if (elem.motherFirstName !== undefined) {
-          await this.client.father.create({ data: { ...elem, userId: keyPath[0] } }, tx);
-        }
+        await this.client.father.create(
+          {
+            data: { ...elem, user: { connect: { id: keyPath[0] } } } as Prisma.Args<
+              Prisma.FatherDelegate,
+              "create"
+            >["data"],
+          },
+          tx,
+        );
       }
     }
     if (query.data.Father?.connect) {
@@ -1002,11 +1026,15 @@ class UserIDBClass extends BaseIDBModelClass {
     if (query.data.Child?.create) {
       const createData = Array.isArray(query.data.Child.create) ? query.data.Child.create : [query.data.Child.create];
       for (const elem of createData) {
-        if ("father" in elem && !("fatherFirstName" in elem)) {
-          await this.client.child.create({ data: { ...elem, user: { connect: { id: keyPath[0] } } } }, tx);
-        } else if (elem.fatherFirstName !== undefined) {
-          await this.client.child.create({ data: { ...elem, userId: keyPath[0] } }, tx);
-        }
+        await this.client.child.create(
+          {
+            data: { ...elem, user: { connect: { id: keyPath[0] } } } as Prisma.Args<
+              Prisma.ChildDelegate,
+              "create"
+            >["data"],
+          },
+          tx,
+        );
       }
     }
     if (query.data.Child?.connect) {
@@ -2161,11 +2189,15 @@ class PostIDBClass extends BaseIDBModelClass {
         ? query.data.comments.create
         : [query.data.comments.create];
       for (const elem of createData) {
-        if ("user" in elem && !("userId" in elem)) {
-          await this.client.comment.create({ data: { ...elem, post: { connect: { id: keyPath[0] } } } }, tx);
-        } else if (elem.userId !== undefined) {
-          await this.client.comment.create({ data: { ...elem, postId: keyPath[0] } }, tx);
-        }
+        await this.client.comment.create(
+          {
+            data: { ...elem, post: { connect: { id: keyPath[0] } } } as Prisma.Args<
+              Prisma.CommentDelegate,
+              "create"
+            >["data"],
+          },
+          tx,
+        );
       }
     }
     if (query.data.comments?.connect) {
@@ -4053,22 +4085,15 @@ class FatherIDBClass extends BaseIDBModelClass {
         ? query.data.children.create
         : [query.data.children.create];
       for (const elem of createData) {
-        if ("mother" in elem && !("motherFirstName" in elem)) {
-          await this.client.child.create(
-            {
-              data: {
-                ...elem,
-                father: { connect: { firstName_lastName: { firstName: keyPath[0], lastName: keyPath[1] } } },
-              },
-            },
-            tx,
-          );
-        } else if (elem.motherFirstName !== undefined) {
-          await this.client.child.create(
-            { data: { ...elem, fatherFirstName: keyPath[0], fatherLastName: keyPath[1] } },
-            tx,
-          );
-        }
+        await this.client.child.create(
+          {
+            data: {
+              ...elem,
+              father: { connect: { firstName_lastName: { firstName: keyPath[0], lastName: keyPath[1] } } },
+            } as Prisma.Args<Prisma.ChildDelegate, "create">["data"],
+          },
+          tx,
+        );
       }
     }
     if (query.data.children?.connect) {
@@ -4832,22 +4857,15 @@ class MotherIDBClass extends BaseIDBModelClass {
         ? query.data.children.create
         : [query.data.children.create];
       for (const elem of createData) {
-        if ("father" in elem && !("fatherFirstName" in elem)) {
-          await this.client.child.create(
-            {
-              data: {
-                ...elem,
-                mother: { connect: { firstName_lastName: { firstName: keyPath[0], lastName: keyPath[1] } } },
-              },
-            },
-            tx,
-          );
-        } else if (elem.fatherFirstName !== undefined) {
-          await this.client.child.create(
-            { data: { ...elem, motherFirstName: keyPath[0], motherLastName: keyPath[1] } },
-            tx,
-          );
-        }
+        await this.client.child.create(
+          {
+            data: {
+              ...elem,
+              mother: { connect: { firstName_lastName: { firstName: keyPath[0], lastName: keyPath[1] } } },
+            } as Prisma.Args<Prisma.ChildDelegate, "create">["data"],
+          },
+          tx,
+        );
       }
     }
     if (query.data.children?.connect) {
