@@ -31,9 +31,19 @@ function createTx(writer: CodeBlockWriter) {
 }
 
 function createDependencies(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
-  model.fields.forEach((field) => {
-    if (!field.relationName) return;
-    if (field.relationFromFields?.length === 0 || field.relationToFields?.length === 0) return;
+  const fields = model.fields.filter((field) => field.relationName && field.relationFromFields?.length !== 0);
+
+  fields.sort((a, b) => {
+    const modelA = models.find(({ name }) => a.type === name)!;
+    if (modelA.fields.find((field) => field.isRequired && field.type === b.type && !field.isList)) return 1;
+
+    const modelB = models.find(({ name }) => b.type === name)!;
+    if (modelB.fields.find((field) => field.isRequired && field.type === a.type && !field.isList)) return -1;
+
+    return 0;
+  });
+
+  fields.forEach((field) => {
     const foreignKeyField = model.fields.find((fkField) => fkField.name === field.relationFromFields?.at(0))!;
 
     writer.writeLine(`if (query.data.${field.name})`).block(() => {
@@ -51,7 +61,19 @@ function createCurrentModel(writer: CodeBlockWriter, model: Model) {
 
 function createDependents(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   const allFields = models.flatMap((model) => model.fields);
-  model.fields.forEach((field) => {
+  const fields = model.fields.filter((field) => field.relationName && !field.relationFromFields?.length);
+
+  fields.sort((a, b) => {
+    const modelA = models.find(({ name }) => a.type === name)!;
+    if (modelA.fields.find((field) => field.isRequired && field.type === b.type && !field.isList)) return 1;
+
+    const modelB = models.find(({ name }) => b.type === name)!;
+    if (modelB.fields.find((field) => field.isRequired && field.type === a.type && !field.isList)) return -1;
+
+    return 0;
+  });
+
+  fields.forEach((field) => {
     if (!field.relationName) return;
     if (field.relationFromFields?.length || field.relationToFields?.length) return;
     const otherField = allFields.find(
@@ -83,12 +105,15 @@ function applyClausesAndReturnRecords(writer: CodeBlockWriter, model: Model) {
 
 function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
   writer
-    .writeLine(`let fk;`)
+    .writeLine(`const fk: Partial<PrismaIDBSchema['${field.type}']['key']> = [];`)
     .writeLine(`if (query.data.${field.name}?.create)`)
     .block(() => {
       writer.writeLine(
-        `fk = (await this.client.${toCamelCase(field.type)}.create({ data: query.data.${field.name}.create }, tx)).${field.relationToFields?.at(0)};`,
+        `const record = await this.client.${toCamelCase(field.type)}.create({ data: query.data.${field.name}.create }, tx);`,
       );
+      for (let i = 0; i < field.relationToFields!.length; i++) {
+        writer.writeLine(`fk[${i}] = record.${field.relationToFields?.at(i)}`);
+      }
     });
 
   writer.writeLine(`if (query.data.${field.name}?.connect)`).block(() => {
@@ -96,28 +121,30 @@ function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
       .writeLine(
         `const record = await this.client.${toCamelCase(field.type)}.findUniqueOrThrow({ where: query.data.${field.name}.connect }, tx);`,
       )
-      .writeLine(`delete query.data.${field.name}.connect;`)
-      .writeLine(`fk = record.${field.relationToFields?.at(0)};`);
+      .writeLine(`delete query.data.${field.name}.connect;`);
+    for (let i = 0; i < field.relationToFields!.length; i++) {
+      writer.writeLine(`fk[${i}] = record.${field.relationToFields?.at(i)};`);
+    }
   });
 
   writer.writeLine(`if (query.data.${field.name}?.connectOrCreate)`).block(() => {
     writer.writeLine(`throw new Error('connectOrCreate not yet implemented')`);
   });
 
-  writer
-    .writeLine(`const unsafeData = query.data as Record<string, unknown>;`)
-    .writeLine(`unsafeData.${field.relationFromFields?.at(0)} = fk as NonNullable<typeof fk>;`)
-    .writeLine(`delete unsafeData.${field.name};`);
+  writer.writeLine(`const unsafeData = query.data as Record<string, unknown>;`);
+  field.relationFromFields!.forEach((fromField, idx) => {
+    writer.writeLine(`unsafeData.${fromField} = fk[${idx}];`);
+  });
+  writer.writeLine(`delete unsafeData.${field.name};`);
 }
 
 function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Field, otherField: Field) {
+  const keyPathMapping = otherField.relationFromFields!.map((field, idx) => `${field}: keyPath[${idx}]`).join(", ");
   writer.writeLine(`if (query.data.${field.name}?.create)`).block(() => {
     writer
       .write(`await this.client.${toCamelCase(field.type)}.create(`)
       .block(() => {
-        writer.writeLine(
-          `data: { ...query.data.${field.name}.create, ${otherField.relationFromFields?.at(0)}: keyPath[0] }`,
-        );
+        writer.writeLine(`data: { ...query.data.${field.name}.create, ${keyPathMapping} }`);
       })
       .writeLine(`, tx)`);
   });
