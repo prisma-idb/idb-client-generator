@@ -51,10 +51,14 @@ function processOrderByInQuery(writer: CodeBlockWriter, model: Model) {
         .writeLine(`const orderBy_${field.name} = orderBy.find((clause) => clause.${field.name});`)
         .writeLine(`if (orderBy_${field.name})`)
         .block(() => {
-          writer
-            .writeLine(`this.client.${toCamelCase(field.type)}`)
-            .writeLine(`._getNeededStoresForFind({ orderBy: orderBy_${field.name} })`)
-            .writeLine(`.forEach((storeName) => neededStores.add(storeName));`);
+          if (field.isList) {
+            writer.writeLine(`neededStores.add("${field.type}")`);
+          } else {
+            writer
+              .writeLine(`this.client.${toCamelCase(field.type)}`)
+              .writeLine(`._getNeededStoresForFind({ orderBy: orderBy_${field.name}.${field.name} })`)
+              .writeLine(`.forEach((storeName) => neededStores.add(storeName));`);
+          }
         });
     }
   });

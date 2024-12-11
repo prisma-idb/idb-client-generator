@@ -39,8 +39,14 @@ function createTxAndGetRecord(writer: CodeBlockWriter, model: Model, models: rea
 }
 
 function deleteRecords(writer: CodeBlockWriter, model: Model) {
-  const pkOfModel = JSON.parse(getUniqueIdentifiers(model)[0].keyPath)[0];
+  const pk = getUniqueIdentifiers(model)[0];
+  const keyPath = JSON.parse(pk.keyPath) as string[];
   writer.writeLine(`for (const record of records)`).block(() => {
-    writer.writeLine(`await this.delete({ where: { ${pkOfModel}: record.${pkOfModel} } }, tx);`);
+    if (keyPath.length === 1) {
+      writer.writeLine(`await this.delete({ where: { ${pk.name}: record.${keyPath[0]} } }, tx);`);
+    } else {
+      const compositeKey = keyPath.map((field) => `${field}: record.${field}`).join(", ");
+      writer.writeLine(`await this.delete({ where: { ${pk.name}: { ${compositeKey} } } }, tx);`);
+    }
   });
 }

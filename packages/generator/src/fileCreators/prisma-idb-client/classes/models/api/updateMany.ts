@@ -17,8 +17,8 @@ export function addUpdateMany(modelClass: ClassDeclaration, model: Model) {
     ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "updateMany">>`,
     statements: (writer) => {
-      // TODO: composite keys
-      const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
+      const pk = getUniqueIdentifiers(model)[0];
+      const keyPath = JSON.parse(pk.keyPath) as string[];
       writer
         // TODO: nested create stores as well
         .writeLine(
@@ -28,9 +28,16 @@ export function addUpdateMany(modelClass: ClassDeclaration, model: Model) {
         .writeLine(`await Promise.all(`)
         .writeLine(`records.map(async (record) =>`)
         .block(() => {
-          writer.writeLine(
-            `await this.update({ where: { ${pk.map((field) => `${field}: record.${field},`)} }, data: query.data }, tx);`,
-          );
+          if (keyPath.length === 1) {
+            writer.writeLine(
+              `await this.update({ where: { ${pk.name}: record.${keyPath[0]} }, data: query.data }, tx);`,
+            );
+          } else {
+            const compositeKey = keyPath.map((field) => `${field}: record.${field}`).join(", ");
+            writer.writeLine(
+              `await this.update({ where: { ${pk.name}: { ${compositeKey} } }, data: query.data }, tx);`,
+            );
+          }
         })
         .writeLine(`));`)
         .writeLine(`return { count: records.length };`);

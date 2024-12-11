@@ -29,13 +29,21 @@ function addGetAndUpsertRecord(writer: CodeBlockWriter) {
 }
 
 function addRefetchAndReturnRecord(writer: CodeBlockWriter, model: Model) {
-  // TODO: composite keys
-  const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath)[0];
+  const pk = getUniqueIdentifiers(model)[0];
+  const keyPath = JSON.parse(pk.keyPath) as string[];
   const hasRelations = model.fields.some(({ kind }) => kind === "object");
 
-  let recordFindQuery = `record = await this.findUniqueOrThrow({ where: { ${pk}: record.${pk} }, select: query.select`;
+  let recordFindQuery = `record = await this.findUniqueOrThrow({ where: { `;
+  if (keyPath.length === 1) {
+    recordFindQuery += `${pk.name}: record.${keyPath[0]}`;
+  } else {
+    const compositeKey = keyPath.map((field) => `${field}: record.${field}`).join(", ");
+    recordFindQuery += `${pk.name}: { ${compositeKey} }`;
+  }
+  recordFindQuery += ` }, select: query.select`;
+
   if (hasRelations) recordFindQuery += ", include: query.include";
-  recordFindQuery += "});";
+  recordFindQuery += " });";
 
   writer
     .writeLine(recordFindQuery)

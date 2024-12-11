@@ -25,4 +25,22 @@ export interface PrismaIDBSchema extends DBSchema {
     key: [id: Prisma.AllFieldScalarTypes["id"]];
     value: Prisma.AllFieldScalarTypes;
   };
+  Father: {
+    key: [firstName: Prisma.Father["firstName"], lastName: Prisma.Father["lastName"]];
+    value: Prisma.Father;
+    indexes: {
+      motherFirstName_motherLastNameIndex: [
+        motherFirstName: Prisma.Father["motherFirstName"],
+        motherLastName: Prisma.Father["motherLastName"],
+      ];
+    };
+  };
+  Mother: {
+    key: [firstName: Prisma.Mother["firstName"], lastName: Prisma.Mother["lastName"]];
+    value: Prisma.Mother;
+  };
+  Child: {
+    key: [childFirstName: Prisma.Child["childFirstName"], childLastName: Prisma.Child["childLastName"]];
+    value: Prisma.Child;
+  };
 }
