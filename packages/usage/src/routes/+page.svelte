@@ -47,7 +47,7 @@
 
 <div class="grid w-full max-w-md gap-1.5">
   <Label for="output">Output</Label>
-  <code class={cn("rounded-md border p-2 text-sm", { "text-secondary-foreground/60 italic": output === "" })}>
+  <code class={cn("rounded-md border p-2 text-sm", { "italic text-secondary-foreground/60": output === "" })}>
     <pre>{output === "" ? "Run a query" : output}</pre>
   </code>
 </div>
