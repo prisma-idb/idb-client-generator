@@ -1,5 +1,5 @@
-import { test } from "../fixtures";
-import { expectQueryToSucceed } from "../queryRunnerHelper";
+import { test } from "../../fixtures";
+import { expectQueryToSucceed } from "../../queryRunnerHelper";
 
 test("@@id_CreateRecordWithCompositeKey_SuccessfullyCreatesRecord", async ({ page }) => {
   await expectQueryToSucceed({
