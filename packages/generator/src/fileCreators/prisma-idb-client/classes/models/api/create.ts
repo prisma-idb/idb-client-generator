@@ -144,7 +144,7 @@ function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Fie
     writer
       .write(`await this.client.${toCamelCase(field.type)}.create(`)
       .block(() => {
-        writer.writeLine(`data: { ...query.data.${field.name}.create, ${keyPathMapping} }`);
+        writer.writeLine(`data: { ...query.data.${field.name}.create, ${keyPathMapping} } as Prisma.Args<Prisma.${field.type}Delegate, "create">["data"]`);
       })
       .writeLine(`, tx)`);
   });

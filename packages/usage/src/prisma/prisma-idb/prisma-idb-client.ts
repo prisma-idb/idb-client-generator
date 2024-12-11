@@ -867,7 +867,10 @@ class UserIDBClass extends BaseIDBModelClass {
     if (query.data.profile?.create) {
       await this.client.profile.create(
         {
-          data: { ...query.data.profile.create, userId: keyPath[0] },
+          data: { ...query.data.profile.create, userId: keyPath[0] } as Prisma.Args<
+            Prisma.ProfileDelegate,
+            "create"
+          >["data"],
         },
         tx,
       );
@@ -4809,7 +4812,11 @@ class MotherIDBClass extends BaseIDBModelClass {
     if (query.data.husband?.create) {
       await this.client.father.create(
         {
-          data: { ...query.data.husband.create, motherFirstName: keyPath[0], motherLastName: keyPath[1] },
+          data: {
+            ...query.data.husband.create,
+            motherFirstName: keyPath[0],
+            motherLastName: keyPath[1],
+          } as Prisma.Args<Prisma.FatherDelegate, "create">["data"],
         },
         tx,
       );

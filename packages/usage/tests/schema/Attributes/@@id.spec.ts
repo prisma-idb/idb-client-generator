@@ -102,3 +102,38 @@ test("@@id_CreateFatherAndMotherDuringChildCreation_SuccessfullyRearrangesDeps",
     query: { include: { husband: true, children: true } },
   });
 });
+
+test("@@id_CreateDeeplyNestedRecords_SuccessfullyCreatesRecords", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "mother",
+    operation: "create",
+    query: {
+      data: {
+        firstName: "Alice",
+        lastName: "Doe",
+        husband: { create: { firstName: "John", lastName: "Doe", user: { create: { name: "JohnDoe456" } } } },
+        user: { create: { name: "AliceDoe123" } },
+      },
+    },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    model: "father",
+    operation: "findMany",
+    query: { include: { wife: true, children: true, user: true } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "mother",
+    operation: "findMany",
+    query: { include: { husband: true, children: true, user: true } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "findMany",
+    query: { include: { Mother: true, Father: true, Child: true } },
+  });
+});
