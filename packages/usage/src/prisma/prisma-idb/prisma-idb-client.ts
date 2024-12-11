@@ -15,6 +15,8 @@ export class PrismaIDBClient {
   private constructor() {}
 
   user!: UserIDBClass;
+  group!: GroupIDBClass;
+  userGroup!: UserGroupIDBClass;
   profile!: ProfileIDBClass;
   post!: PostIDBClass;
   comment!: CommentIDBClass;
@@ -36,6 +38,8 @@ export class PrismaIDBClient {
     this._db = await openDB<PrismaIDBSchema>("prisma-idb", IDB_VERSION, {
       upgrade(db) {
         db.createObjectStore("User", { keyPath: ["id"] });
+        db.createObjectStore("Group", { keyPath: ["id"] });
+        db.createObjectStore("UserGroup", { keyPath: ["groupId", "userId"] });
         const ProfileStore = db.createObjectStore("Profile", { keyPath: ["id"] });
         ProfileStore.createIndex("userIdIndex", ["userId"], { unique: true });
         db.createObjectStore("Post", { keyPath: ["id"] });
@@ -50,6 +54,8 @@ export class PrismaIDBClient {
       },
     });
     this.user = new UserIDBClass(this, ["id"]);
+    this.group = new GroupIDBClass(this, ["id"]);
+    this.userGroup = new UserGroupIDBClass(this, ["groupId", "userId"]);
     this.profile = new ProfileIDBClass(this, ["id"]);
     this.post = new PostIDBClass(this, ["id"]);
     this.comment = new CommentIDBClass(this, ["id"]);
@@ -262,6 +268,29 @@ class UserIDBClass extends BaseIDBModelClass {
               if (violatingRecord !== null) return null;
             }
           }
+          if (whereClause.groups) {
+            if (whereClause.groups.every) {
+              const violatingRecord = await this.client.userGroup.findFirst({
+                where: { NOT: { ...whereClause.groups.every }, userId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+            if (whereClause.groups.some) {
+              const relatedRecords = await this.client.userGroup.findMany({
+                where: { ...whereClause.groups.some, userId: record.id },
+                tx,
+              });
+              if (relatedRecords.length === 0) return null;
+            }
+            if (whereClause.groups.none) {
+              const violatingRecord = await this.client.userGroup.findFirst({
+                where: { ...whereClause.groups.none, userId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+          }
           return record;
         }),
       )
@@ -277,7 +306,7 @@ class UserIDBClass extends BaseIDBModelClass {
     }
     return records.map((record) => {
       const partialRecord: Partial<typeof record> = record;
-      for (const untypedKey of ["id", "name", "profile", "posts", "comments", "Child", "Father", "Mother"]) {
+      for (const untypedKey of ["id", "name", "profile", "posts", "comments", "Child", "Father", "Mother", "groups"]) {
         const key = untypedKey as keyof typeof record & keyof S;
         if (!selectClause[key]) delete partialRecord[key];
       }
@@ -353,6 +382,16 @@ class UserIDBClass extends BaseIDBModelClass {
           tx,
         );
       }
+      const attach_groups = query.select?.groups || query.include?.groups;
+      if (attach_groups) {
+        unsafeRecord["groups"] = await this.client.userGroup.findMany(
+          {
+            ...(attach_groups === true ? {} : attach_groups),
+            where: { userId: record.id },
+          },
+          tx,
+        );
+      }
       return unsafeRecord;
     });
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[];
@@ -416,6 +455,9 @@ class UserIDBClass extends BaseIDBModelClass {
     if (orderByInput.Mother) {
       return await this.client.mother.count({ where: { userId: record.id } }, tx);
     }
+    if (orderByInput.groups) {
+      return await this.client.userGroup.count({ where: { userId: record.id } }, tx);
+    }
   }
 
   _resolveSortOrder(
@@ -441,6 +483,9 @@ class UserIDBClass extends BaseIDBModelClass {
     if (orderByInput.Mother?._count) {
       return orderByInput.Mother._count;
     }
+    if (orderByInput.groups?._count) {
+      return orderByInput.groups._count;
+    }
     throw new Error("No field in orderBy clause");
   }
 
@@ -448,7 +493,7 @@ class UserIDBClass extends BaseIDBModelClass {
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<D> {
-    if (data === undefined) data = {} as D;
+    if (data === undefined) data = {} as NonNullable<D>;
     if (data.id === undefined) {
       const transaction = tx ?? this.client._db.transaction(["User"], "readwrite");
       const store = transaction.objectStore("User");
@@ -504,6 +549,12 @@ class UserIDBClass extends BaseIDBModelClass {
       this.client.mother._getNeededStoresForWhere(whereClause.Mother.some, neededStores);
       this.client.mother._getNeededStoresForWhere(whereClause.Mother.none, neededStores);
     }
+    if (whereClause.groups) {
+      neededStores.add("UserGroup");
+      this.client.userGroup._getNeededStoresForWhere(whereClause.groups.every, neededStores);
+      this.client.userGroup._getNeededStoresForWhere(whereClause.groups.some, neededStores);
+      this.client.userGroup._getNeededStoresForWhere(whereClause.groups.none, neededStores);
+    }
   }
 
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
@@ -539,6 +590,10 @@ class UserIDBClass extends BaseIDBModelClass {
       const orderBy_Mother = orderBy.find((clause) => clause.Mother);
       if (orderBy_Mother) {
         neededStores.add("Mother");
+      }
+      const orderBy_groups = orderBy.find((clause) => clause.groups);
+      if (orderBy_groups) {
+        neededStores.add("UserGroup");
       }
     }
     if (query?.select?.profile || query?.include?.profile) {
@@ -619,6 +674,19 @@ class UserIDBClass extends BaseIDBModelClass {
           .forEach((storeName) => neededStores.add(storeName));
       }
     }
+    if (query?.select?.groups || query?.include?.groups) {
+      neededStores.add("UserGroup");
+      if (typeof query.select?.groups === "object") {
+        this.client.userGroup
+          ._getNeededStoresForFind(query.select.groups)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.groups === "object") {
+        this.client.userGroup
+          ._getNeededStoresForFind(query.include.groups)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
     return neededStores;
   }
 
@@ -627,7 +695,7 @@ class UserIDBClass extends BaseIDBModelClass {
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("User");
-    if (data.profile) {
+    if (data?.profile) {
       neededStores.add("Profile");
       if (data.profile.create) {
         const createData = Array.isArray(data.profile.create) ? data.profile.create : [data.profile.create];
@@ -643,7 +711,7 @@ class UserIDBClass extends BaseIDBModelClass {
         );
       }
     }
-    if (data.posts) {
+    if (data?.posts) {
       neededStores.add("Post");
       if (data.posts.create) {
         const createData = Array.isArray(data.posts.create) ? data.posts.create : [data.posts.create];
@@ -662,7 +730,7 @@ class UserIDBClass extends BaseIDBModelClass {
         );
       }
     }
-    if (data.comments) {
+    if (data?.comments) {
       neededStores.add("Comment");
       if (data.comments.create) {
         const createData = Array.isArray(data.comments.create) ? data.comments.create : [data.comments.create];
@@ -683,7 +751,7 @@ class UserIDBClass extends BaseIDBModelClass {
         );
       }
     }
-    if (data.Child) {
+    if (data?.Child) {
       neededStores.add("Child");
       if (data.Child.create) {
         const createData = Array.isArray(data.Child.create) ? data.Child.create : [data.Child.create];
@@ -704,7 +772,7 @@ class UserIDBClass extends BaseIDBModelClass {
         );
       }
     }
-    if (data.Father) {
+    if (data?.Father) {
       neededStores.add("Father");
       if (data.Father.create) {
         const createData = Array.isArray(data.Father.create) ? data.Father.create : [data.Father.create];
@@ -725,7 +793,7 @@ class UserIDBClass extends BaseIDBModelClass {
         );
       }
     }
-    if (data.Mother) {
+    if (data?.Mother) {
       neededStores.add("Mother");
       if (data.Mother.create) {
         const createData = Array.isArray(data.Mother.create) ? data.Mother.create : [data.Mother.create];
@@ -746,6 +814,27 @@ class UserIDBClass extends BaseIDBModelClass {
         );
       }
     }
+    if (data?.groups) {
+      neededStores.add("UserGroup");
+      if (data.groups.create) {
+        const createData = Array.isArray(data.groups.create) ? data.groups.create : [data.groups.create];
+        createData.forEach((record) =>
+          this.client.userGroup._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.groups.connectOrCreate) {
+        IDBUtils.convertToArray(data.groups.connectOrCreate).forEach((record) =>
+          this.client.userGroup
+            ._getNeededStoresForCreate(record.create)
+            .forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.groups.createMany) {
+        IDBUtils.convertToArray(data.groups.createMany.data).forEach((record) =>
+          this.client.userGroup._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+    }
     return neededStores;
   }
 
@@ -753,12 +842,13 @@ class UserIDBClass extends BaseIDBModelClass {
     data: D,
   ): Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow"> {
     const recordWithoutNestedCreate = structuredClone(data);
-    delete recordWithoutNestedCreate.profile;
-    delete recordWithoutNestedCreate.posts;
-    delete recordWithoutNestedCreate.comments;
-    delete recordWithoutNestedCreate.Child;
-    delete recordWithoutNestedCreate.Father;
-    delete recordWithoutNestedCreate.Mother;
+    delete recordWithoutNestedCreate?.profile;
+    delete recordWithoutNestedCreate?.posts;
+    delete recordWithoutNestedCreate?.comments;
+    delete recordWithoutNestedCreate?.Child;
+    delete recordWithoutNestedCreate?.Father;
+    delete recordWithoutNestedCreate?.Mother;
+    delete recordWithoutNestedCreate?.groups;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">;
   }
 
@@ -881,7 +971,7 @@ class UserIDBClass extends BaseIDBModelClass {
     if (query.data.profile?.connectOrCreate) {
       throw new Error("connectOrCreate not yet implemented");
     }
-    if (query.data.posts?.create) {
+    if (query.data?.posts?.create) {
       for (const elem of IDBUtils.convertToArray(query.data.posts.create)) {
         await this.client.post.create(
           {
@@ -894,17 +984,17 @@ class UserIDBClass extends BaseIDBModelClass {
         );
       }
     }
-    if (query.data.posts?.connect) {
+    if (query.data?.posts?.connect) {
       await Promise.all(
         IDBUtils.convertToArray(query.data.posts.connect).map(async (connectWhere) => {
           await this.client.post.update({ where: connectWhere, data: { authorId: keyPath[0] } }, tx);
         }),
       );
     }
-    if (query.data.posts?.connectOrCreate) {
+    if (query.data?.posts?.connectOrCreate) {
       throw new Error("connectOrCreate not yet implemented");
     }
-    if (query.data.posts?.createMany) {
+    if (query.data?.posts?.createMany) {
       await this.client.post.createMany(
         {
           data: IDBUtils.convertToArray(query.data.posts.createMany.data).map((createData) => ({
@@ -915,7 +1005,7 @@ class UserIDBClass extends BaseIDBModelClass {
         tx,
       );
     }
-    if (query.data.comments?.create) {
+    if (query.data?.comments?.create) {
       const createData = Array.isArray(query.data.comments.create)
         ? query.data.comments.create
         : [query.data.comments.create];
@@ -931,17 +1021,17 @@ class UserIDBClass extends BaseIDBModelClass {
         );
       }
     }
-    if (query.data.comments?.connect) {
+    if (query.data?.comments?.connect) {
       await Promise.all(
         IDBUtils.convertToArray(query.data.comments.connect).map(async (connectWhere) => {
           await this.client.comment.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx);
         }),
       );
     }
-    if (query.data.comments?.connectOrCreate) {
+    if (query.data?.comments?.connectOrCreate) {
       throw new Error("connectOrCreate not yet implemented");
     }
-    if (query.data.comments?.createMany) {
+    if (query.data?.comments?.createMany) {
       await this.client.comment.createMany(
         {
           data: IDBUtils.convertToArray(query.data.comments.createMany.data).map((createData) => ({
@@ -952,7 +1042,7 @@ class UserIDBClass extends BaseIDBModelClass {
         tx,
       );
     }
-    if (query.data.Mother?.create) {
+    if (query.data?.Mother?.create) {
       for (const elem of IDBUtils.convertToArray(query.data.Mother.create)) {
         await this.client.mother.create(
           {
@@ -965,17 +1055,17 @@ class UserIDBClass extends BaseIDBModelClass {
         );
       }
     }
-    if (query.data.Mother?.connect) {
+    if (query.data?.Mother?.connect) {
       await Promise.all(
         IDBUtils.convertToArray(query.data.Mother.connect).map(async (connectWhere) => {
           await this.client.mother.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx);
         }),
       );
     }
-    if (query.data.Mother?.connectOrCreate) {
+    if (query.data?.Mother?.connectOrCreate) {
       throw new Error("connectOrCreate not yet implemented");
     }
-    if (query.data.Mother?.createMany) {
+    if (query.data?.Mother?.createMany) {
       await this.client.mother.createMany(
         {
           data: IDBUtils.convertToArray(query.data.Mother.createMany.data).map((createData) => ({
@@ -986,7 +1076,7 @@ class UserIDBClass extends BaseIDBModelClass {
         tx,
       );
     }
-    if (query.data.Father?.create) {
+    if (query.data?.Father?.create) {
       const createData = Array.isArray(query.data.Father.create)
         ? query.data.Father.create
         : [query.data.Father.create];
@@ -1002,17 +1092,17 @@ class UserIDBClass extends BaseIDBModelClass {
         );
       }
     }
-    if (query.data.Father?.connect) {
+    if (query.data?.Father?.connect) {
       await Promise.all(
         IDBUtils.convertToArray(query.data.Father.connect).map(async (connectWhere) => {
           await this.client.father.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx);
         }),
       );
     }
-    if (query.data.Father?.connectOrCreate) {
+    if (query.data?.Father?.connectOrCreate) {
       throw new Error("connectOrCreate not yet implemented");
     }
-    if (query.data.Father?.createMany) {
+    if (query.data?.Father?.createMany) {
       await this.client.father.createMany(
         {
           data: IDBUtils.convertToArray(query.data.Father.createMany.data).map((createData) => ({
@@ -1023,7 +1113,7 @@ class UserIDBClass extends BaseIDBModelClass {
         tx,
       );
     }
-    if (query.data.Child?.create) {
+    if (query.data?.Child?.create) {
       const createData = Array.isArray(query.data.Child.create) ? query.data.Child.create : [query.data.Child.create];
       for (const elem of createData) {
         await this.client.child.create(
@@ -1037,17 +1127,17 @@ class UserIDBClass extends BaseIDBModelClass {
         );
       }
     }
-    if (query.data.Child?.connect) {
+    if (query.data?.Child?.connect) {
       await Promise.all(
         IDBUtils.convertToArray(query.data.Child.connect).map(async (connectWhere) => {
           await this.client.child.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx);
         }),
       );
     }
-    if (query.data.Child?.connectOrCreate) {
+    if (query.data?.Child?.connectOrCreate) {
       throw new Error("connectOrCreate not yet implemented");
     }
-    if (query.data.Child?.createMany) {
+    if (query.data?.Child?.createMany) {
       await this.client.child.createMany(
         {
           data: IDBUtils.convertToArray(query.data.Child.createMany.data).map((createData) => ({
@@ -1058,9 +1148,46 @@ class UserIDBClass extends BaseIDBModelClass {
         tx,
       );
     }
+    if (query.data?.groups?.create) {
+      const createData = Array.isArray(query.data.groups.create)
+        ? query.data.groups.create
+        : [query.data.groups.create];
+      for (const elem of createData) {
+        await this.client.userGroup.create(
+          {
+            data: { ...elem, user: { connect: { id: keyPath[0] } } } as Prisma.Args<
+              Prisma.UserGroupDelegate,
+              "create"
+            >["data"],
+          },
+          tx,
+        );
+      }
+    }
+    if (query.data?.groups?.connect) {
+      await Promise.all(
+        IDBUtils.convertToArray(query.data.groups.connect).map(async (connectWhere) => {
+          await this.client.userGroup.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx);
+        }),
+      );
+    }
+    if (query.data?.groups?.connectOrCreate) {
+      throw new Error("connectOrCreate not yet implemented");
+    }
+    if (query.data?.groups?.createMany) {
+      await this.client.userGroup.createMany(
+        {
+          data: IDBUtils.convertToArray(query.data.groups.createMany.data).map((createData) => ({
+            ...createData,
+            userId: keyPath[0],
+          })),
+        },
+        tx,
+      );
+    }
     const data = (await tx.objectStore("User").get(keyPath))!;
     const recordsWithRelations = this._applySelectClause(
-      await this._applyRelations([data], tx, query),
+      await this._applyRelations<object>([data], tx, query),
       query.select,
     )[0];
     this._preprocessListFields([recordsWithRelations]);
@@ -1198,6 +1325,1124 @@ class UserIDBClass extends BaseIDBModelClass {
     else record = await this.update({ where: query.where, data: query.update }, tx);
     record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select, include: query.include });
     return record as Prisma.Result<Prisma.UserDelegate, Q, "upsert">;
+  }
+}
+
+class GroupIDBClass extends BaseIDBModelClass {
+  private async _applyWhereClause<
+    W extends Prisma.Args<Prisma.GroupDelegate, "findFirstOrThrow">["where"],
+    R extends Prisma.Result<Prisma.GroupDelegate, object, "findFirstOrThrow">,
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
+    if (!whereClause) return records;
+    records = await IDBUtils.applyLogicalFilters<Prisma.GroupDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this),
+    );
+    return (
+      await Promise.all(
+        records.map(async (record) => {
+          const stringFields = ["name"] as const;
+          for (const field of stringFields) {
+            if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
+          }
+          const numberFields = ["id"] as const;
+          for (const field of numberFields) {
+            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
+          }
+          if (whereClause.userGroups) {
+            if (whereClause.userGroups.every) {
+              const violatingRecord = await this.client.userGroup.findFirst({
+                where: { NOT: { ...whereClause.userGroups.every }, groupId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+            if (whereClause.userGroups.some) {
+              const relatedRecords = await this.client.userGroup.findMany({
+                where: { ...whereClause.userGroups.some, groupId: record.id },
+                tx,
+              });
+              if (relatedRecords.length === 0) return null;
+            }
+            if (whereClause.userGroups.none) {
+              const violatingRecord = await this.client.userGroup.findFirst({
+                where: { ...whereClause.userGroups.none, groupId: record.id },
+                tx,
+              });
+              if (violatingRecord !== null) return null;
+            }
+          }
+          return record;
+        }),
+      )
+    ).filter((result) => result !== null);
+  }
+
+  private _applySelectClause<S extends Prisma.Args<Prisma.GroupDelegate, "findMany">["select"]>(
+    records: Prisma.Result<Prisma.GroupDelegate, object, "findFirstOrThrow">[],
+    selectClause: S,
+  ): Prisma.Result<Prisma.GroupDelegate, { select: S }, "findFirstOrThrow">[] {
+    if (!selectClause) {
+      return records as Prisma.Result<Prisma.GroupDelegate, { select: S }, "findFirstOrThrow">[];
+    }
+    return records.map((record) => {
+      const partialRecord: Partial<typeof record> = record;
+      for (const untypedKey of ["id", "name", "userGroups"]) {
+        const key = untypedKey as keyof typeof record & keyof S;
+        if (!selectClause[key]) delete partialRecord[key];
+      }
+      return partialRecord;
+    }) as Prisma.Result<Prisma.GroupDelegate, { select: S }, "findFirstOrThrow">[];
+  }
+
+  private async _applyRelations<Q extends Prisma.Args<Prisma.GroupDelegate, "findMany">>(
+    records: Prisma.Result<Prisma.GroupDelegate, object, "findFirstOrThrow">[],
+    tx: IDBUtils.TransactionType,
+    query?: Q,
+  ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "findFirstOrThrow">[]> {
+    if (!query) return records as Prisma.Result<Prisma.GroupDelegate, Q, "findFirstOrThrow">[];
+    const recordsWithRelations = records.map(async (record) => {
+      const unsafeRecord = record as Record<string, unknown>;
+      const attach_userGroups = query.select?.userGroups || query.include?.userGroups;
+      if (attach_userGroups) {
+        unsafeRecord["userGroups"] = await this.client.userGroup.findMany(
+          {
+            ...(attach_userGroups === true ? {} : attach_userGroups),
+            where: { groupId: record.id },
+          },
+          tx,
+        );
+      }
+      return unsafeRecord;
+    });
+    return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.GroupDelegate, Q, "findFirstOrThrow">[];
+  }
+
+  async _applyOrderByClause<
+    O extends Prisma.Args<Prisma.GroupDelegate, "findMany">["orderBy"],
+    R extends Prisma.Result<Prisma.GroupDelegate, object, "findFirstOrThrow">,
+  >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
+    if (orderByClause === undefined) return;
+    const orderByClauses = IDBUtils.convertToArray(orderByClause);
+    const indexedKeys = await Promise.all(
+      records.map(async (record) => {
+        const keys = await Promise.all(
+          orderByClauses.map(async (clause) => await this._resolveOrderByKey(record, clause, tx)),
+        );
+        return { keys, record };
+      }),
+    );
+    indexedKeys.sort((a, b) => {
+      for (let i = 0; i < orderByClauses.length; i++) {
+        const clause = orderByClauses[i];
+        const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));
+        if (comparison !== 0) return comparison;
+      }
+      return 0;
+    });
+    for (let i = 0; i < records.length; i++) {
+      records[i] = indexedKeys[i].record;
+    }
+  }
+
+  async _resolveOrderByKey(
+    record: Prisma.Result<Prisma.GroupDelegate, object, "findFirstOrThrow">,
+    orderByInput: Prisma.GroupOrderByWithRelationInput,
+    tx: IDBUtils.TransactionType,
+  ): Promise<unknown> {
+    const scalarFields = ["id", "name"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return record[field];
+    if (orderByInput.userGroups) {
+      return await this.client.userGroup.count({ where: { groupId: record.id } }, tx);
+    }
+  }
+
+  _resolveSortOrder(
+    orderByInput: Prisma.GroupOrderByWithRelationInput,
+  ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
+    const scalarFields = ["id", "name"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
+    if (orderByInput.userGroups?._count) {
+      return orderByInput.userGroups._count;
+    }
+    throw new Error("No field in orderBy clause");
+  }
+
+  private async _fillDefaults<D extends Prisma.Args<Prisma.GroupDelegate, "create">["data"]>(
+    data: D,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<D> {
+    if (data === undefined) data = {} as NonNullable<D>;
+    if (data.id === undefined) {
+      const transaction = tx ?? this.client._db.transaction(["Group"], "readwrite");
+      const store = transaction.objectStore("Group");
+      const cursor = await store.openCursor(null, "prev");
+      data.id = cursor ? Number(cursor.key) + 1 : 1;
+    }
+    return data;
+  }
+
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.GroupDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>,
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+    if (whereClause.userGroups) {
+      neededStores.add("UserGroup");
+      this.client.userGroup._getNeededStoresForWhere(whereClause.userGroups.every, neededStores);
+      this.client.userGroup._getNeededStoresForWhere(whereClause.userGroups.some, neededStores);
+      this.client.userGroup._getNeededStoresForWhere(whereClause.userGroups.none, neededStores);
+    }
+  }
+
+  _getNeededStoresForFind<Q extends Prisma.Args<Prisma.GroupDelegate, "findMany">>(
+    query?: Q,
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("Group");
+    this._getNeededStoresForWhere(query?.where, neededStores);
+    if (query?.orderBy) {
+      const orderBy = IDBUtils.convertToArray(query.orderBy);
+      const orderBy_userGroups = orderBy.find((clause) => clause.userGroups);
+      if (orderBy_userGroups) {
+        neededStores.add("UserGroup");
+      }
+    }
+    if (query?.select?.userGroups || query?.include?.userGroups) {
+      neededStores.add("UserGroup");
+      if (typeof query.select?.userGroups === "object") {
+        this.client.userGroup
+          ._getNeededStoresForFind(query.select.userGroups)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.userGroups === "object") {
+        this.client.userGroup
+          ._getNeededStoresForFind(query.include.userGroups)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
+    return neededStores;
+  }
+
+  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.GroupDelegate, "create">["data"]>>(
+    data: D,
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("Group");
+    if (data?.userGroups) {
+      neededStores.add("UserGroup");
+      if (data.userGroups.create) {
+        const createData = Array.isArray(data.userGroups.create) ? data.userGroups.create : [data.userGroups.create];
+        createData.forEach((record) =>
+          this.client.userGroup._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.userGroups.connectOrCreate) {
+        IDBUtils.convertToArray(data.userGroups.connectOrCreate).forEach((record) =>
+          this.client.userGroup
+            ._getNeededStoresForCreate(record.create)
+            .forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.userGroups.createMany) {
+        IDBUtils.convertToArray(data.userGroups.createMany.data).forEach((record) =>
+          this.client.userGroup._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+    }
+    return neededStores;
+  }
+
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.GroupDelegate, "create">["data"]>(
+    data: D,
+  ): Prisma.Result<Prisma.GroupDelegate, object, "findFirstOrThrow"> {
+    const recordWithoutNestedCreate = structuredClone(data);
+    delete recordWithoutNestedCreate?.userGroups;
+    return recordWithoutNestedCreate as Prisma.Result<Prisma.GroupDelegate, object, "findFirstOrThrow">;
+  }
+
+  private _preprocessListFields(records: Prisma.Result<Prisma.GroupDelegate, object, "findMany">): void {}
+
+  async findMany<Q extends Prisma.Args<Prisma.GroupDelegate, "findMany">>(
+    query?: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "findMany">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const records = await this._applyWhereClause(await tx.objectStore("Group").getAll(), query?.where, tx);
+    await this._applyOrderByClause(records, query?.orderBy, tx);
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.GroupDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
+    const selectClause = query?.select;
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    this._preprocessListFields(selectAppliedRecords);
+    return selectAppliedRecords as Prisma.Result<Prisma.GroupDelegate, Q, "findMany">;
+  }
+
+  async findFirst<Q extends Prisma.Args<Prisma.GroupDelegate, "findFirst">>(
+    query?: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "findFirst">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    return (await this.findMany(query, tx))[0] ?? null;
+  }
+
+  async findFirstOrThrow<Q extends Prisma.Args<Prisma.GroupDelegate, "findFirstOrThrow">>(
+    query?: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "findFirstOrThrow">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findFirst(query, tx);
+    if (!record) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+
+  async findUnique<Q extends Prisma.Args<Prisma.GroupDelegate, "findUnique">>(
+    query: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "findUnique">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let record;
+    if (query.where.id) {
+      record = await tx.objectStore("Group").get([query.where.id]);
+    }
+    if (!record) return null;
+
+    const recordWithRelations = this._applySelectClause(
+      await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query),
+      query.select,
+    )[0];
+    this._preprocessListFields([recordWithRelations]);
+    return recordWithRelations as Prisma.Result<Prisma.GroupDelegate, Q, "findUnique">;
+  }
+
+  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.GroupDelegate, "findUniqueOrThrow">>(
+    query: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "findUniqueOrThrow">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findUnique(query, tx);
+    if (!record) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+
+  async count<Q extends Prisma.Args<Prisma.GroupDelegate, "count">>(
+    query?: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "count">> {
+    tx = tx ?? this.client._db.transaction(["Group"], "readonly");
+    if (!query?.select || query.select === true) {
+      const records = await this.findMany({ where: query?.where }, tx);
+      return records.length as Prisma.Result<Prisma.GroupDelegate, Q, "count">;
+    }
+    const result: Partial<Record<keyof Prisma.GroupCountAggregateInputType, number>> = {};
+    for (const key of Object.keys(query.select)) {
+      const typedKey = key as keyof typeof query.select;
+      if (typedKey === "_all") {
+        result[typedKey] = (await this.findMany({ where: query.where }, tx)).length;
+        continue;
+      }
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)).length;
+    }
+    return result as Prisma.Result<Prisma.GroupDelegate, Q, "count">;
+  }
+
+  async create<Q extends Prisma.Args<Prisma.GroupDelegate, "create">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "create">> {
+    const storesNeeded = this._getNeededStoresForCreate(query.data);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
+    const keyPath = await tx.objectStore("Group").add(record);
+    if (query.data?.userGroups?.create) {
+      const createData = Array.isArray(query.data.userGroups.create)
+        ? query.data.userGroups.create
+        : [query.data.userGroups.create];
+      for (const elem of createData) {
+        await this.client.userGroup.create(
+          {
+            data: { ...elem, group: { connect: { id: keyPath[0] } } } as Prisma.Args<
+              Prisma.UserGroupDelegate,
+              "create"
+            >["data"],
+          },
+          tx,
+        );
+      }
+    }
+    if (query.data?.userGroups?.connect) {
+      await Promise.all(
+        IDBUtils.convertToArray(query.data.userGroups.connect).map(async (connectWhere) => {
+          await this.client.userGroup.update({ where: connectWhere, data: { groupId: keyPath[0] } }, tx);
+        }),
+      );
+    }
+    if (query.data?.userGroups?.connectOrCreate) {
+      throw new Error("connectOrCreate not yet implemented");
+    }
+    if (query.data?.userGroups?.createMany) {
+      await this.client.userGroup.createMany(
+        {
+          data: IDBUtils.convertToArray(query.data.userGroups.createMany.data).map((createData) => ({
+            ...createData,
+            groupId: keyPath[0],
+          })),
+        },
+        tx,
+      );
+    }
+    const data = (await tx.objectStore("Group").get(keyPath))!;
+    const recordsWithRelations = this._applySelectClause(
+      await this._applyRelations<object>([data], tx, query),
+      query.select,
+    )[0];
+    this._preprocessListFields([recordsWithRelations]);
+    return recordsWithRelations as Prisma.Result<Prisma.GroupDelegate, Q, "create">;
+  }
+
+  async createMany<Q extends Prisma.Args<Prisma.GroupDelegate, "createMany">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "createMany">> {
+    const createManyData = IDBUtils.convertToArray(query.data);
+    tx = tx ?? this.client._db.transaction(["Group"], "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      await tx.objectStore("Group").add(record);
+    }
+    return { count: createManyData.length };
+  }
+
+  async createManyAndReturn<Q extends Prisma.Args<Prisma.GroupDelegate, "createManyAndReturn">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "createManyAndReturn">> {
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const records: Prisma.Result<Prisma.GroupDelegate, object, "findMany"> = [];
+    tx = tx ?? this.client._db.transaction(["Group"], "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      await tx.objectStore("Group").add(record);
+      records.push(this._applySelectClause([record], query.select)[0]);
+    }
+    this._preprocessListFields(records);
+    return records as Prisma.Result<Prisma.GroupDelegate, Q, "createManyAndReturn">;
+  }
+
+  async delete<Q extends Prisma.Args<Prisma.GroupDelegate, "delete">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "delete">> {
+    const storesNeeded = this._getNeededStoresForFind(query);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = await this.findUnique(query, tx);
+    if (!record) throw new Error("Record not found");
+    await tx.objectStore("Group").delete([record.id]);
+    return record;
+  }
+
+  async deleteMany<Q extends Prisma.Args<Prisma.GroupDelegate, "deleteMany">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "deleteMany">> {
+    const storesNeeded = this._getNeededStoresForFind(query);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const records = await this.findMany(query, tx);
+    for (const record of records) {
+      await this.delete({ where: { id: record.id } }, tx);
+    }
+    return { count: records.length };
+  }
+
+  async update<Q extends Prisma.Args<Prisma.GroupDelegate, "update">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "update">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const record = await this.findUnique({ where: query.where }, tx);
+    if (record === null) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
+    const startKeyPath: PrismaIDBSchema["Group"]["key"] = [record.id];
+    const stringFields = ["name"] as const;
+    for (const field of stringFields) {
+      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const intFields = ["id"] as const;
+    for (const field of intFields) {
+      IDBUtils.handleIntUpdateField(record, field, query.data[field]);
+    }
+    const endKeyPath: PrismaIDBSchema["Group"]["key"] = [record.id];
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        await tx.objectStore("Group").delete(startKeyPath);
+        break;
+      }
+    }
+    const keyPath = await tx.objectStore("Group").put(record);
+    const recordWithRelations = (await this.findUnique(
+      {
+        ...query,
+        where: { id: keyPath[0] },
+      },
+      tx,
+    ))!;
+    return recordWithRelations as Prisma.Result<Prisma.GroupDelegate, Q, "update">;
+  }
+
+  async updateMany<Q extends Prisma.Args<Prisma.GroupDelegate, "updateMany">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "updateMany">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const records = await this.findMany({ where: query.where }, tx);
+    await Promise.all(
+      records.map(async (record) => {
+        await this.update({ where: { id: record.id }, data: query.data }, tx);
+      }),
+    );
+    return { count: records.length };
+  }
+
+  async upsert<Q extends Prisma.Args<Prisma.GroupDelegate, "upsert">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "upsert">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    let record = await this.findUnique({ where: query.where }, tx);
+    if (!record) record = await this.create({ data: query.create }, tx);
+    else record = await this.update({ where: query.where, data: query.update }, tx);
+    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select, include: query.include });
+    return record as Prisma.Result<Prisma.GroupDelegate, Q, "upsert">;
+  }
+}
+
+class UserGroupIDBClass extends BaseIDBModelClass {
+  private async _applyWhereClause<
+    W extends Prisma.Args<Prisma.UserGroupDelegate, "findFirstOrThrow">["where"],
+    R extends Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">,
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
+    if (!whereClause) return records;
+    records = await IDBUtils.applyLogicalFilters<Prisma.UserGroupDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this),
+    );
+    return (
+      await Promise.all(
+        records.map(async (record) => {
+          const numberFields = ["groupId", "userId"] as const;
+          for (const field of numberFields) {
+            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
+          }
+          const dateTimeFields = ["joinedOn"] as const;
+          for (const field of dateTimeFields) {
+            if (!IDBUtils.whereDateTimeFilter(record, field, whereClause[field])) return null;
+          }
+          if (whereClause.group) {
+            const { is, isNot, ...rest } = whereClause.group;
+            if (is !== null && is !== undefined) {
+              const relatedRecord = await this.client.group.findFirst({ where: { ...is, id: record.groupId } }, tx);
+              if (!relatedRecord) return null;
+            }
+            if (isNot !== null && isNot !== undefined) {
+              const relatedRecord = await this.client.group.findFirst({ where: { ...isNot, id: record.groupId } }, tx);
+              if (relatedRecord) return null;
+            }
+            if (Object.keys(rest).length) {
+              const relatedRecord = await this.client.group.findFirst(
+                { where: { ...whereClause.group, id: record.groupId } },
+                tx,
+              );
+              if (!relatedRecord) return null;
+            }
+          }
+          if (whereClause.user) {
+            const { is, isNot, ...rest } = whereClause.user;
+            if (is !== null && is !== undefined) {
+              const relatedRecord = await this.client.user.findFirst({ where: { ...is, id: record.userId } }, tx);
+              if (!relatedRecord) return null;
+            }
+            if (isNot !== null && isNot !== undefined) {
+              const relatedRecord = await this.client.user.findFirst({ where: { ...isNot, id: record.userId } }, tx);
+              if (relatedRecord) return null;
+            }
+            if (Object.keys(rest).length) {
+              const relatedRecord = await this.client.user.findFirst(
+                { where: { ...whereClause.user, id: record.userId } },
+                tx,
+              );
+              if (!relatedRecord) return null;
+            }
+          }
+          return record;
+        }),
+      )
+    ).filter((result) => result !== null);
+  }
+
+  private _applySelectClause<S extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">["select"]>(
+    records: Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">[],
+    selectClause: S,
+  ): Prisma.Result<Prisma.UserGroupDelegate, { select: S }, "findFirstOrThrow">[] {
+    if (!selectClause) {
+      return records as Prisma.Result<Prisma.UserGroupDelegate, { select: S }, "findFirstOrThrow">[];
+    }
+    return records.map((record) => {
+      const partialRecord: Partial<typeof record> = record;
+      for (const untypedKey of ["group", "groupId", "user", "userId", "joinedOn"]) {
+        const key = untypedKey as keyof typeof record & keyof S;
+        if (!selectClause[key]) delete partialRecord[key];
+      }
+      return partialRecord;
+    }) as Prisma.Result<Prisma.UserGroupDelegate, { select: S }, "findFirstOrThrow">[];
+  }
+
+  private async _applyRelations<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">>(
+    records: Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">[],
+    tx: IDBUtils.TransactionType,
+    query?: Q,
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirstOrThrow">[]> {
+    if (!query) return records as Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirstOrThrow">[];
+    const recordsWithRelations = records.map(async (record) => {
+      const unsafeRecord = record as Record<string, unknown>;
+      const attach_group = query.select?.group || query.include?.group;
+      if (attach_group) {
+        unsafeRecord["group"] = await this.client.group.findUnique(
+          {
+            ...(attach_group === true ? {} : attach_group),
+            where: { id: record.groupId },
+          },
+          tx,
+        );
+      }
+      const attach_user = query.select?.user || query.include?.user;
+      if (attach_user) {
+        unsafeRecord["user"] = await this.client.user.findUnique(
+          {
+            ...(attach_user === true ? {} : attach_user),
+            where: { id: record.userId },
+          },
+          tx,
+        );
+      }
+      return unsafeRecord;
+    });
+    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
+      Prisma.UserGroupDelegate,
+      Q,
+      "findFirstOrThrow"
+    >[];
+  }
+
+  async _applyOrderByClause<
+    O extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">["orderBy"],
+    R extends Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">,
+  >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
+    if (orderByClause === undefined) return;
+    const orderByClauses = IDBUtils.convertToArray(orderByClause);
+    const indexedKeys = await Promise.all(
+      records.map(async (record) => {
+        const keys = await Promise.all(
+          orderByClauses.map(async (clause) => await this._resolveOrderByKey(record, clause, tx)),
+        );
+        return { keys, record };
+      }),
+    );
+    indexedKeys.sort((a, b) => {
+      for (let i = 0; i < orderByClauses.length; i++) {
+        const clause = orderByClauses[i];
+        const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));
+        if (comparison !== 0) return comparison;
+      }
+      return 0;
+    });
+    for (let i = 0; i < records.length; i++) {
+      records[i] = indexedKeys[i].record;
+    }
+  }
+
+  async _resolveOrderByKey(
+    record: Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">,
+    orderByInput: Prisma.UserGroupOrderByWithRelationInput,
+    tx: IDBUtils.TransactionType,
+  ): Promise<unknown> {
+    const scalarFields = ["groupId", "userId", "joinedOn"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return record[field];
+    if (orderByInput.group) {
+      return await this.client.group._resolveOrderByKey(
+        await this.client.group.findFirstOrThrow({ where: { id: record.groupId } }),
+        orderByInput.group,
+        tx,
+      );
+    }
+    if (orderByInput.user) {
+      return await this.client.user._resolveOrderByKey(
+        await this.client.user.findFirstOrThrow({ where: { id: record.userId } }),
+        orderByInput.user,
+        tx,
+      );
+    }
+  }
+
+  _resolveSortOrder(
+    orderByInput: Prisma.UserGroupOrderByWithRelationInput,
+  ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
+    const scalarFields = ["groupId", "userId", "joinedOn"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
+    if (orderByInput.group) {
+      return this.client.group._resolveSortOrder(orderByInput.group);
+    }
+    if (orderByInput.user) {
+      return this.client.user._resolveSortOrder(orderByInput.user);
+    }
+    throw new Error("No field in orderBy clause");
+  }
+
+  private async _fillDefaults<D extends Prisma.Args<Prisma.UserGroupDelegate, "create">["data"]>(
+    data: D,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<D> {
+    if (data === undefined) data = {} as NonNullable<D>;
+    if (data.joinedOn === undefined) {
+      data.joinedOn = new Date();
+    }
+    if (typeof data.joinedOn === "string") {
+      data.joinedOn = new Date(data.joinedOn);
+    }
+    return data;
+  }
+
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>,
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+    if (whereClause.group) {
+      neededStores.add("Group");
+      this.client.group._getNeededStoresForWhere(whereClause.group, neededStores);
+    }
+    if (whereClause.user) {
+      neededStores.add("User");
+      this.client.user._getNeededStoresForWhere(whereClause.user, neededStores);
+    }
+  }
+
+  _getNeededStoresForFind<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">>(
+    query?: Q,
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("UserGroup");
+    this._getNeededStoresForWhere(query?.where, neededStores);
+    if (query?.orderBy) {
+      const orderBy = IDBUtils.convertToArray(query.orderBy);
+      const orderBy_group = orderBy.find((clause) => clause.group);
+      if (orderBy_group) {
+        this.client.group
+          ._getNeededStoresForFind({ orderBy: orderBy_group.group })
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      const orderBy_user = orderBy.find((clause) => clause.user);
+      if (orderBy_user) {
+        this.client.user
+          ._getNeededStoresForFind({ orderBy: orderBy_user.user })
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
+    if (query?.select?.group || query?.include?.group) {
+      neededStores.add("Group");
+      if (typeof query.select?.group === "object") {
+        this.client.group
+          ._getNeededStoresForFind(query.select.group)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.group === "object") {
+        this.client.group
+          ._getNeededStoresForFind(query.include.group)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
+    if (query?.select?.user || query?.include?.user) {
+      neededStores.add("User");
+      if (typeof query.select?.user === "object") {
+        this.client.user._getNeededStoresForFind(query.select.user).forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.user === "object") {
+        this.client.user
+          ._getNeededStoresForFind(query.include.user)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
+    return neededStores;
+  }
+
+  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.UserGroupDelegate, "create">["data"]>>(
+    data: D,
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("UserGroup");
+    if (data?.group) {
+      neededStores.add("Group");
+      if (data.group.create) {
+        const createData = Array.isArray(data.group.create) ? data.group.create : [data.group.create];
+        createData.forEach((record) =>
+          this.client.group._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.group.connectOrCreate) {
+        IDBUtils.convertToArray(data.group.connectOrCreate).forEach((record) =>
+          this.client.group
+            ._getNeededStoresForCreate(record.create)
+            .forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+    }
+    if (data.groupId !== undefined) {
+      neededStores.add("Group");
+    }
+    if (data?.user) {
+      neededStores.add("User");
+      if (data.user.create) {
+        const createData = Array.isArray(data.user.create) ? data.user.create : [data.user.create];
+        createData.forEach((record) =>
+          this.client.user._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+      if (data.user.connectOrCreate) {
+        IDBUtils.convertToArray(data.user.connectOrCreate).forEach((record) =>
+          this.client.user._getNeededStoresForCreate(record.create).forEach((storeName) => neededStores.add(storeName)),
+        );
+      }
+    }
+    if (data.userId !== undefined) {
+      neededStores.add("User");
+    }
+    return neededStores;
+  }
+
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.UserGroupDelegate, "create">["data"]>(
+    data: D,
+  ): Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow"> {
+    const recordWithoutNestedCreate = structuredClone(data);
+    delete recordWithoutNestedCreate?.group;
+    delete recordWithoutNestedCreate?.user;
+    return recordWithoutNestedCreate as Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">;
+  }
+
+  private _preprocessListFields(records: Prisma.Result<Prisma.UserGroupDelegate, object, "findMany">): void {}
+
+  async findMany<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">>(
+    query?: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findMany">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const records = await this._applyWhereClause(await tx.objectStore("UserGroup").getAll(), query?.where, tx);
+    await this._applyOrderByClause(records, query?.orderBy, tx);
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.UserGroupDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
+    const selectClause = query?.select;
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    this._preprocessListFields(selectAppliedRecords);
+    return selectAppliedRecords as Prisma.Result<Prisma.UserGroupDelegate, Q, "findMany">;
+  }
+
+  async findFirst<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findFirst">>(
+    query?: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirst">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    return (await this.findMany(query, tx))[0] ?? null;
+  }
+
+  async findFirstOrThrow<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findFirstOrThrow">>(
+    query?: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirstOrThrow">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findFirst(query, tx);
+    if (!record) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+
+  async findUnique<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findUnique">>(
+    query: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findUnique">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let record;
+    if (query.where.groupId_userId) {
+      record = await tx
+        .objectStore("UserGroup")
+        .get([query.where.groupId_userId.groupId, query.where.groupId_userId.userId]);
+    }
+    if (!record) return null;
+
+    const recordWithRelations = this._applySelectClause(
+      await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query),
+      query.select,
+    )[0];
+    this._preprocessListFields([recordWithRelations]);
+    return recordWithRelations as Prisma.Result<Prisma.UserGroupDelegate, Q, "findUnique">;
+  }
+
+  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findUniqueOrThrow">>(
+    query: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findUniqueOrThrow">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findUnique(query, tx);
+    if (!record) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+
+  async count<Q extends Prisma.Args<Prisma.UserGroupDelegate, "count">>(
+    query?: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "count">> {
+    tx = tx ?? this.client._db.transaction(["UserGroup"], "readonly");
+    if (!query?.select || query.select === true) {
+      const records = await this.findMany({ where: query?.where }, tx);
+      return records.length as Prisma.Result<Prisma.UserGroupDelegate, Q, "count">;
+    }
+    const result: Partial<Record<keyof Prisma.UserGroupCountAggregateInputType, number>> = {};
+    for (const key of Object.keys(query.select)) {
+      const typedKey = key as keyof typeof query.select;
+      if (typedKey === "_all") {
+        result[typedKey] = (await this.findMany({ where: query.where }, tx)).length;
+        continue;
+      }
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)).length;
+    }
+    return result as Prisma.Result<Prisma.UserGroupDelegate, Q, "count">;
+  }
+
+  async create<Q extends Prisma.Args<Prisma.UserGroupDelegate, "create">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "create">> {
+    const storesNeeded = this._getNeededStoresForCreate(query.data);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    if (query.data.group) {
+      const fk: Partial<PrismaIDBSchema["Group"]["key"]> = [];
+      if (query.data.group?.create) {
+        const record = await this.client.group.create({ data: query.data.group.create }, tx);
+        fk[0] = record.id;
+      }
+      if (query.data.group?.connect) {
+        const record = await this.client.group.findUniqueOrThrow({ where: query.data.group.connect }, tx);
+        delete query.data.group.connect;
+        fk[0] = record.id;
+      }
+      if (query.data.group?.connectOrCreate) {
+        throw new Error("connectOrCreate not yet implemented");
+      }
+      const unsafeData = query.data as Record<string, unknown>;
+      unsafeData.groupId = fk[0];
+      delete unsafeData.group;
+    } else if (query.data?.groupId !== undefined && query.data.groupId !== null) {
+      await this.client.group.findUniqueOrThrow(
+        {
+          where: { id: query.data.groupId },
+        },
+        tx,
+      );
+    }
+    if (query.data.user) {
+      const fk: Partial<PrismaIDBSchema["User"]["key"]> = [];
+      if (query.data.user?.create) {
+        const record = await this.client.user.create({ data: query.data.user.create }, tx);
+        fk[0] = record.id;
+      }
+      if (query.data.user?.connect) {
+        const record = await this.client.user.findUniqueOrThrow({ where: query.data.user.connect }, tx);
+        delete query.data.user.connect;
+        fk[0] = record.id;
+      }
+      if (query.data.user?.connectOrCreate) {
+        throw new Error("connectOrCreate not yet implemented");
+      }
+      const unsafeData = query.data as Record<string, unknown>;
+      unsafeData.userId = fk[0];
+      delete unsafeData.user;
+    } else if (query.data?.userId !== undefined && query.data.userId !== null) {
+      await this.client.user.findUniqueOrThrow(
+        {
+          where: { id: query.data.userId },
+        },
+        tx,
+      );
+    }
+    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
+    const keyPath = await tx.objectStore("UserGroup").add(record);
+    const data = (await tx.objectStore("UserGroup").get(keyPath))!;
+    const recordsWithRelations = this._applySelectClause(
+      await this._applyRelations<object>([data], tx, query),
+      query.select,
+    )[0];
+    this._preprocessListFields([recordsWithRelations]);
+    return recordsWithRelations as Prisma.Result<Prisma.UserGroupDelegate, Q, "create">;
+  }
+
+  async createMany<Q extends Prisma.Args<Prisma.UserGroupDelegate, "createMany">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "createMany">> {
+    const createManyData = IDBUtils.convertToArray(query.data);
+    tx = tx ?? this.client._db.transaction(["UserGroup"], "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      await tx.objectStore("UserGroup").add(record);
+    }
+    return { count: createManyData.length };
+  }
+
+  async createManyAndReturn<Q extends Prisma.Args<Prisma.UserGroupDelegate, "createManyAndReturn">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "createManyAndReturn">> {
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const records: Prisma.Result<Prisma.UserGroupDelegate, object, "findMany"> = [];
+    tx = tx ?? this.client._db.transaction(["UserGroup"], "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      await tx.objectStore("UserGroup").add(record);
+      records.push(this._applySelectClause([record], query.select)[0]);
+    }
+    this._preprocessListFields(records);
+    return records as Prisma.Result<Prisma.UserGroupDelegate, Q, "createManyAndReturn">;
+  }
+
+  async delete<Q extends Prisma.Args<Prisma.UserGroupDelegate, "delete">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "delete">> {
+    const storesNeeded = this._getNeededStoresForFind(query);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = await this.findUnique(query, tx);
+    if (!record) throw new Error("Record not found");
+    await tx.objectStore("UserGroup").delete([record.groupId, record.userId]);
+    return record;
+  }
+
+  async deleteMany<Q extends Prisma.Args<Prisma.UserGroupDelegate, "deleteMany">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "deleteMany">> {
+    const storesNeeded = this._getNeededStoresForFind(query);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const records = await this.findMany(query, tx);
+    for (const record of records) {
+      await this.delete({ where: { groupId_userId: { groupId: record.groupId, userId: record.userId } } }, tx);
+    }
+    return { count: records.length };
+  }
+
+  async update<Q extends Prisma.Args<Prisma.UserGroupDelegate, "update">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "update">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const record = await this.findUnique({ where: query.where }, tx);
+    if (record === null) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
+    const startKeyPath: PrismaIDBSchema["UserGroup"]["key"] = [record.groupId, record.userId];
+    const dateTimeFields = ["joinedOn"] as const;
+    for (const field of dateTimeFields) {
+      IDBUtils.handleDateTimeUpdateField(record, field, query.data[field]);
+    }
+    const intFields = ["groupId", "userId"] as const;
+    for (const field of intFields) {
+      IDBUtils.handleIntUpdateField(record, field, query.data[field]);
+    }
+    const endKeyPath: PrismaIDBSchema["UserGroup"]["key"] = [record.groupId, record.userId];
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        await tx.objectStore("UserGroup").delete(startKeyPath);
+        break;
+      }
+    }
+    const keyPath = await tx.objectStore("UserGroup").put(record);
+    const recordWithRelations = (await this.findUnique(
+      {
+        ...query,
+        where: { groupId: keyPath[0] },
+      },
+      tx,
+    ))!;
+    return recordWithRelations as Prisma.Result<Prisma.UserGroupDelegate, Q, "update">;
+  }
+
+  async updateMany<Q extends Prisma.Args<Prisma.UserGroupDelegate, "updateMany">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "updateMany">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const records = await this.findMany({ where: query.where }, tx);
+    await Promise.all(
+      records.map(async (record) => {
+        await this.update(
+          { where: { groupId_userId: { groupId: record.groupId, userId: record.userId } }, data: query.data },
+          tx,
+        );
+      }),
+    );
+    return { count: records.length };
+  }
+
+  async upsert<Q extends Prisma.Args<Prisma.UserGroupDelegate, "upsert">>(
+    query: Q,
+    tx?: IDBUtils.ReadwriteTransactionType,
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "upsert">> {
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    let record = await this.findUnique({ where: query.where }, tx);
+    if (!record) record = await this.create({ data: query.create }, tx);
+    else record = await this.update({ where: query.where, data: query.update }, tx);
+    record = await this.findUniqueOrThrow({
+      where: { groupId_userId: { groupId: record.groupId, userId: record.userId } },
+      select: query.select,
+      include: query.include,
+    });
+    return record as Prisma.Result<Prisma.UserGroupDelegate, Q, "upsert">;
   }
 }
 
@@ -1347,7 +2592,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<D> {
-    if (data === undefined) data = {} as D;
+    if (data === undefined) data = {} as NonNullable<D>;
     if (data.id === undefined) {
       const transaction = tx ?? this.client._db.transaction(["Profile"], "readwrite");
       const store = transaction.objectStore("Profile");
@@ -1412,7 +2657,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("Profile");
-    if (data.user) {
+    if (data?.user) {
       neededStores.add("User");
       if (data.user.create) {
         const createData = Array.isArray(data.user.create) ? data.user.create : [data.user.create];
@@ -1436,7 +2681,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
     data: D,
   ): Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow"> {
     const recordWithoutNestedCreate = structuredClone(data);
-    delete recordWithoutNestedCreate.user;
+    delete recordWithoutNestedCreate?.user;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">;
   }
 
@@ -1559,7 +2804,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.userId = fk[0];
       delete unsafeData.user;
-    } else if (query.data.userId !== undefined && query.data.userId !== null) {
+    } else if (query.data?.userId !== undefined && query.data.userId !== null) {
       await this.client.user.findUniqueOrThrow(
         {
           where: { id: query.data.userId },
@@ -1571,7 +2816,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
     const keyPath = await tx.objectStore("Profile").add(record);
     const data = (await tx.objectStore("Profile").get(keyPath))!;
     const recordsWithRelations = this._applySelectClause(
-      await this._applyRelations([data], tx, query),
+      await this._applyRelations<object>([data], tx, query),
       query.select,
     )[0];
     this._preprocessListFields([recordsWithRelations]);
@@ -1906,7 +3151,7 @@ class PostIDBClass extends BaseIDBModelClass {
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<D> {
-    if (data === undefined) data = {} as D;
+    if (data === undefined) data = {} as NonNullable<D>;
     if (data.id === undefined) {
       const transaction = tx ?? this.client._db.transaction(["Post"], "readwrite");
       const store = transaction.objectStore("Post");
@@ -2002,7 +3247,7 @@ class PostIDBClass extends BaseIDBModelClass {
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("Post");
-    if (data.author) {
+    if (data?.author) {
       neededStores.add("User");
       if (data.author.create) {
         const createData = Array.isArray(data.author.create) ? data.author.create : [data.author.create];
@@ -2019,7 +3264,7 @@ class PostIDBClass extends BaseIDBModelClass {
     if (data.authorId !== undefined) {
       neededStores.add("User");
     }
-    if (data.comments) {
+    if (data?.comments) {
       neededStores.add("Comment");
       if (data.comments.create) {
         const createData = Array.isArray(data.comments.create) ? data.comments.create : [data.comments.create];
@@ -2047,8 +3292,8 @@ class PostIDBClass extends BaseIDBModelClass {
     data: D,
   ): Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow"> {
     const recordWithoutNestedCreate = structuredClone(data);
-    delete recordWithoutNestedCreate.author;
-    delete recordWithoutNestedCreate.comments;
+    delete recordWithoutNestedCreate?.author;
+    delete recordWithoutNestedCreate?.comments;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">;
   }
 
@@ -2174,7 +3419,7 @@ class PostIDBClass extends BaseIDBModelClass {
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.authorId = fk[0];
       delete unsafeData.author;
-    } else if (query.data.authorId !== undefined && query.data.authorId !== null) {
+    } else if (query.data?.authorId !== undefined && query.data.authorId !== null) {
       await this.client.user.findUniqueOrThrow(
         {
           where: { id: query.data.authorId },
@@ -2184,7 +3429,7 @@ class PostIDBClass extends BaseIDBModelClass {
     }
     const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
     const keyPath = await tx.objectStore("Post").add(record);
-    if (query.data.comments?.create) {
+    if (query.data?.comments?.create) {
       const createData = Array.isArray(query.data.comments.create)
         ? query.data.comments.create
         : [query.data.comments.create];
@@ -2200,17 +3445,17 @@ class PostIDBClass extends BaseIDBModelClass {
         );
       }
     }
-    if (query.data.comments?.connect) {
+    if (query.data?.comments?.connect) {
       await Promise.all(
         IDBUtils.convertToArray(query.data.comments.connect).map(async (connectWhere) => {
           await this.client.comment.update({ where: connectWhere, data: { postId: keyPath[0] } }, tx);
         }),
       );
     }
-    if (query.data.comments?.connectOrCreate) {
+    if (query.data?.comments?.connectOrCreate) {
       throw new Error("connectOrCreate not yet implemented");
     }
-    if (query.data.comments?.createMany) {
+    if (query.data?.comments?.createMany) {
       await this.client.comment.createMany(
         {
           data: IDBUtils.convertToArray(query.data.comments.createMany.data).map((createData) => ({
@@ -2223,7 +3468,7 @@ class PostIDBClass extends BaseIDBModelClass {
     }
     const data = (await tx.objectStore("Post").get(keyPath))!;
     const recordsWithRelations = this._applySelectClause(
-      await this._applyRelations([data], tx, query),
+      await this._applyRelations<object>([data], tx, query),
       query.select,
     )[0];
     this._preprocessListFields([recordsWithRelations]);
@@ -2544,7 +3789,7 @@ class CommentIDBClass extends BaseIDBModelClass {
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<D> {
-    if (data === undefined) data = {} as D;
+    if (data === undefined) data = {} as NonNullable<D>;
     if (data.id === undefined) {
       data.id = createId();
     }
@@ -2624,7 +3869,7 @@ class CommentIDBClass extends BaseIDBModelClass {
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("Comment");
-    if (data.post) {
+    if (data?.post) {
       neededStores.add("Post");
       if (data.post.create) {
         const createData = Array.isArray(data.post.create) ? data.post.create : [data.post.create];
@@ -2641,7 +3886,7 @@ class CommentIDBClass extends BaseIDBModelClass {
     if (data.postId !== undefined) {
       neededStores.add("Post");
     }
-    if (data.user) {
+    if (data?.user) {
       neededStores.add("User");
       if (data.user.create) {
         const createData = Array.isArray(data.user.create) ? data.user.create : [data.user.create];
@@ -2665,8 +3910,8 @@ class CommentIDBClass extends BaseIDBModelClass {
     data: D,
   ): Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow"> {
     const recordWithoutNestedCreate = structuredClone(data);
-    delete recordWithoutNestedCreate.post;
-    delete recordWithoutNestedCreate.user;
+    delete recordWithoutNestedCreate?.post;
+    delete recordWithoutNestedCreate?.user;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">;
   }
 
@@ -2787,7 +4032,7 @@ class CommentIDBClass extends BaseIDBModelClass {
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.postId = fk[0];
       delete unsafeData.post;
-    } else if (query.data.postId !== undefined && query.data.postId !== null) {
+    } else if (query.data?.postId !== undefined && query.data.postId !== null) {
       await this.client.post.findUniqueOrThrow(
         {
           where: { id: query.data.postId },
@@ -2812,7 +4057,7 @@ class CommentIDBClass extends BaseIDBModelClass {
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.userId = fk[0];
       delete unsafeData.user;
-    } else if (query.data.userId !== undefined && query.data.userId !== null) {
+    } else if (query.data?.userId !== undefined && query.data.userId !== null) {
       await this.client.user.findUniqueOrThrow(
         {
           where: { id: query.data.userId },
@@ -2824,7 +4069,7 @@ class CommentIDBClass extends BaseIDBModelClass {
     const keyPath = await tx.objectStore("Comment").add(record);
     const data = (await tx.objectStore("Comment").get(keyPath))!;
     const recordsWithRelations = this._applySelectClause(
-      await this._applyRelations([data], tx, query),
+      await this._applyRelations<object>([data], tx, query),
       query.select,
     )[0];
     this._preprocessListFields([recordsWithRelations]);
@@ -3140,7 +4385,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<D> {
-    if (data === undefined) data = {} as D;
+    if (data === undefined) data = {} as NonNullable<D>;
     if (data.id === undefined) {
       const transaction = tx ?? this.client._db.transaction(["AllFieldScalarTypes"], "readwrite");
       const store = transaction.objectStore("AllFieldScalarTypes");
@@ -3344,7 +4589,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     const keyPath = await tx.objectStore("AllFieldScalarTypes").add(record);
     const data = (await tx.objectStore("AllFieldScalarTypes").get(keyPath))!;
     const recordsWithRelations = this._applySelectClause(
-      await this._applyRelations([data], tx, query),
+      await this._applyRelations<object>([data], tx, query),
       query.select,
     )[0];
     this._preprocessListFields([recordsWithRelations]);
@@ -3740,7 +4985,7 @@ class FatherIDBClass extends BaseIDBModelClass {
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<D> {
-    if (data === undefined) data = {} as D;
+    if (data === undefined) data = {} as NonNullable<D>;
     if (data.userId === undefined) {
       data.userId = null;
     }
@@ -3845,7 +5090,7 @@ class FatherIDBClass extends BaseIDBModelClass {
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("Father");
-    if (data.children) {
+    if (data?.children) {
       neededStores.add("Child");
       if (data.children.create) {
         const createData = Array.isArray(data.children.create) ? data.children.create : [data.children.create];
@@ -3866,7 +5111,7 @@ class FatherIDBClass extends BaseIDBModelClass {
         );
       }
     }
-    if (data.wife) {
+    if (data?.wife) {
       neededStores.add("Mother");
       if (data.wife.create) {
         const createData = Array.isArray(data.wife.create) ? data.wife.create : [data.wife.create];
@@ -3885,7 +5130,7 @@ class FatherIDBClass extends BaseIDBModelClass {
     if (data.motherFirstName !== undefined) {
       neededStores.add("Mother");
     }
-    if (data.user) {
+    if (data?.user) {
       neededStores.add("User");
       if (data.user.create) {
         const createData = Array.isArray(data.user.create) ? data.user.create : [data.user.create];
@@ -3909,9 +5154,9 @@ class FatherIDBClass extends BaseIDBModelClass {
     data: D,
   ): Prisma.Result<Prisma.FatherDelegate, object, "findFirstOrThrow"> {
     const recordWithoutNestedCreate = structuredClone(data);
-    delete recordWithoutNestedCreate.children;
-    delete recordWithoutNestedCreate.wife;
-    delete recordWithoutNestedCreate.user;
+    delete recordWithoutNestedCreate?.children;
+    delete recordWithoutNestedCreate?.wife;
+    delete recordWithoutNestedCreate?.user;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.FatherDelegate, object, "findFirstOrThrow">;
   }
 
@@ -4045,7 +5290,7 @@ class FatherIDBClass extends BaseIDBModelClass {
       unsafeData.motherFirstName = fk[0];
       unsafeData.motherLastName = fk[1];
       delete unsafeData.wife;
-    } else if (query.data.motherFirstName !== undefined && query.data.motherFirstName !== null) {
+    } else if (query.data?.motherFirstName !== undefined && query.data.motherFirstName !== null) {
       await this.client.mother.findUniqueOrThrow(
         {
           where: { firstName_lastName: { firstName: query.data.motherFirstName, lastName: query.data.motherLastName } },
@@ -4070,7 +5315,7 @@ class FatherIDBClass extends BaseIDBModelClass {
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.userId = fk[0];
       delete unsafeData.user;
-    } else if (query.data.userId !== undefined && query.data.userId !== null) {
+    } else if (query.data?.userId !== undefined && query.data.userId !== null) {
       await this.client.user.findUniqueOrThrow(
         {
           where: { id: query.data.userId },
@@ -4080,7 +5325,7 @@ class FatherIDBClass extends BaseIDBModelClass {
     }
     const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
     const keyPath = await tx.objectStore("Father").add(record);
-    if (query.data.children?.create) {
+    if (query.data?.children?.create) {
       const createData = Array.isArray(query.data.children.create)
         ? query.data.children.create
         : [query.data.children.create];
@@ -4096,7 +5341,7 @@ class FatherIDBClass extends BaseIDBModelClass {
         );
       }
     }
-    if (query.data.children?.connect) {
+    if (query.data?.children?.connect) {
       await Promise.all(
         IDBUtils.convertToArray(query.data.children.connect).map(async (connectWhere) => {
           await this.client.child.update(
@@ -4106,10 +5351,10 @@ class FatherIDBClass extends BaseIDBModelClass {
         }),
       );
     }
-    if (query.data.children?.connectOrCreate) {
+    if (query.data?.children?.connectOrCreate) {
       throw new Error("connectOrCreate not yet implemented");
     }
-    if (query.data.children?.createMany) {
+    if (query.data?.children?.createMany) {
       await this.client.child.createMany(
         {
           data: IDBUtils.convertToArray(query.data.children.createMany.data).map((createData) => ({
@@ -4123,7 +5368,7 @@ class FatherIDBClass extends BaseIDBModelClass {
     }
     const data = (await tx.objectStore("Father").get(keyPath))!;
     const recordsWithRelations = this._applySelectClause(
-      await this._applyRelations([data], tx, query),
+      await this._applyRelations<object>([data], tx, query),
       query.select,
     )[0];
     this._preprocessListFields([recordsWithRelations]);
@@ -4533,7 +5778,7 @@ class MotherIDBClass extends BaseIDBModelClass {
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<D> {
-    if (data === undefined) data = {} as D;
+    if (data === undefined) data = {} as NonNullable<D>;
     if (data.userId === undefined) {
       data.userId = null;
     }
@@ -4638,7 +5883,7 @@ class MotherIDBClass extends BaseIDBModelClass {
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("Mother");
-    if (data.children) {
+    if (data?.children) {
       neededStores.add("Child");
       if (data.children.create) {
         const createData = Array.isArray(data.children.create) ? data.children.create : [data.children.create];
@@ -4659,7 +5904,7 @@ class MotherIDBClass extends BaseIDBModelClass {
         );
       }
     }
-    if (data.husband) {
+    if (data?.husband) {
       neededStores.add("Father");
       if (data.husband.create) {
         const createData = Array.isArray(data.husband.create) ? data.husband.create : [data.husband.create];
@@ -4675,7 +5920,7 @@ class MotherIDBClass extends BaseIDBModelClass {
         );
       }
     }
-    if (data.user) {
+    if (data?.user) {
       neededStores.add("User");
       if (data.user.create) {
         const createData = Array.isArray(data.user.create) ? data.user.create : [data.user.create];
@@ -4699,9 +5944,9 @@ class MotherIDBClass extends BaseIDBModelClass {
     data: D,
   ): Prisma.Result<Prisma.MotherDelegate, object, "findFirstOrThrow"> {
     const recordWithoutNestedCreate = structuredClone(data);
-    delete recordWithoutNestedCreate.children;
-    delete recordWithoutNestedCreate.husband;
-    delete recordWithoutNestedCreate.user;
+    delete recordWithoutNestedCreate?.children;
+    delete recordWithoutNestedCreate?.husband;
+    delete recordWithoutNestedCreate?.user;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.MotherDelegate, object, "findFirstOrThrow">;
   }
 
@@ -4824,7 +6069,7 @@ class MotherIDBClass extends BaseIDBModelClass {
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.userId = fk[0];
       delete unsafeData.user;
-    } else if (query.data.userId !== undefined && query.data.userId !== null) {
+    } else if (query.data?.userId !== undefined && query.data.userId !== null) {
       await this.client.user.findUniqueOrThrow(
         {
           where: { id: query.data.userId },
@@ -4852,7 +6097,7 @@ class MotherIDBClass extends BaseIDBModelClass {
     if (query.data.husband?.connectOrCreate) {
       throw new Error("connectOrCreate not yet implemented");
     }
-    if (query.data.children?.create) {
+    if (query.data?.children?.create) {
       const createData = Array.isArray(query.data.children.create)
         ? query.data.children.create
         : [query.data.children.create];
@@ -4868,7 +6113,7 @@ class MotherIDBClass extends BaseIDBModelClass {
         );
       }
     }
-    if (query.data.children?.connect) {
+    if (query.data?.children?.connect) {
       await Promise.all(
         IDBUtils.convertToArray(query.data.children.connect).map(async (connectWhere) => {
           await this.client.child.update(
@@ -4878,10 +6123,10 @@ class MotherIDBClass extends BaseIDBModelClass {
         }),
       );
     }
-    if (query.data.children?.connectOrCreate) {
+    if (query.data?.children?.connectOrCreate) {
       throw new Error("connectOrCreate not yet implemented");
     }
-    if (query.data.children?.createMany) {
+    if (query.data?.children?.createMany) {
       await this.client.child.createMany(
         {
           data: IDBUtils.convertToArray(query.data.children.createMany.data).map((createData) => ({
@@ -4895,7 +6140,7 @@ class MotherIDBClass extends BaseIDBModelClass {
     }
     const data = (await tx.objectStore("Mother").get(keyPath))!;
     const recordsWithRelations = this._applySelectClause(
-      await this._applyRelations([data], tx, query),
+      await this._applyRelations<object>([data], tx, query),
       query.select,
     )[0];
     this._preprocessListFields([recordsWithRelations]);
@@ -5318,7 +6563,7 @@ class ChildIDBClass extends BaseIDBModelClass {
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<D> {
-    if (data === undefined) data = {} as D;
+    if (data === undefined) data = {} as NonNullable<D>;
     if (data.userId === undefined) {
       data.userId = null;
     }
@@ -5423,7 +6668,7 @@ class ChildIDBClass extends BaseIDBModelClass {
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("Child");
-    if (data.user) {
+    if (data?.user) {
       neededStores.add("User");
       if (data.user.create) {
         const createData = Array.isArray(data.user.create) ? data.user.create : [data.user.create];
@@ -5440,7 +6685,7 @@ class ChildIDBClass extends BaseIDBModelClass {
     if (data.userId !== undefined) {
       neededStores.add("User");
     }
-    if (data.father) {
+    if (data?.father) {
       neededStores.add("Father");
       if (data.father.create) {
         const createData = Array.isArray(data.father.create) ? data.father.create : [data.father.create];
@@ -5459,7 +6704,7 @@ class ChildIDBClass extends BaseIDBModelClass {
     if (data.fatherFirstName !== undefined) {
       neededStores.add("Father");
     }
-    if (data.mother) {
+    if (data?.mother) {
       neededStores.add("Mother");
       if (data.mother.create) {
         const createData = Array.isArray(data.mother.create) ? data.mother.create : [data.mother.create];
@@ -5485,9 +6730,9 @@ class ChildIDBClass extends BaseIDBModelClass {
     data: D,
   ): Prisma.Result<Prisma.ChildDelegate, object, "findFirstOrThrow"> {
     const recordWithoutNestedCreate = structuredClone(data);
-    delete recordWithoutNestedCreate.user;
-    delete recordWithoutNestedCreate.father;
-    delete recordWithoutNestedCreate.mother;
+    delete recordWithoutNestedCreate?.user;
+    delete recordWithoutNestedCreate?.father;
+    delete recordWithoutNestedCreate?.mother;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.ChildDelegate, object, "findFirstOrThrow">;
   }
 
@@ -5613,7 +6858,7 @@ class ChildIDBClass extends BaseIDBModelClass {
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.userId = fk[0];
       delete unsafeData.user;
-    } else if (query.data.userId !== undefined && query.data.userId !== null) {
+    } else if (query.data?.userId !== undefined && query.data.userId !== null) {
       await this.client.user.findUniqueOrThrow(
         {
           where: { id: query.data.userId },
@@ -5641,7 +6886,7 @@ class ChildIDBClass extends BaseIDBModelClass {
       unsafeData.motherFirstName = fk[0];
       unsafeData.motherLastName = fk[1];
       delete unsafeData.mother;
-    } else if (query.data.motherFirstName !== undefined && query.data.motherFirstName !== null) {
+    } else if (query.data?.motherFirstName !== undefined && query.data.motherFirstName !== null) {
       await this.client.mother.findUniqueOrThrow(
         {
           where: { firstName_lastName: { firstName: query.data.motherFirstName, lastName: query.data.motherLastName } },
@@ -5669,7 +6914,7 @@ class ChildIDBClass extends BaseIDBModelClass {
       unsafeData.fatherFirstName = fk[0];
       unsafeData.fatherLastName = fk[1];
       delete unsafeData.father;
-    } else if (query.data.fatherFirstName !== undefined && query.data.fatherFirstName !== null) {
+    } else if (query.data?.fatherFirstName !== undefined && query.data.fatherFirstName !== null) {
       await this.client.father.findUniqueOrThrow(
         {
           where: { firstName_lastName: { firstName: query.data.fatherFirstName, lastName: query.data.fatherLastName } },
@@ -5681,7 +6926,7 @@ class ChildIDBClass extends BaseIDBModelClass {
     const keyPath = await tx.objectStore("Child").add(record);
     const data = (await tx.objectStore("Child").get(keyPath))!;
     const recordsWithRelations = this._applySelectClause(
-      await this._applyRelations([data], tx, query),
+      await this._applyRelations<object>([data], tx, query),
       query.select,
     )[0];
     this._preprocessListFields([recordsWithRelations]);

@@ -6,6 +6,14 @@ export interface PrismaIDBSchema extends DBSchema {
     key: [id: Prisma.User["id"]];
     value: Prisma.User;
   };
+  Group: {
+    key: [id: Prisma.Group["id"]];
+    value: Prisma.Group;
+  };
+  UserGroup: {
+    key: [groupId: Prisma.UserGroup["groupId"], userId: Prisma.UserGroup["userId"]];
+    value: Prisma.UserGroup;
+  };
   Profile: {
     key: [id: Prisma.Profile["id"]];
     value: Prisma.Profile;
