@@ -6,7 +6,7 @@ export function addResolveSortOrder(modelClass: ClassDeclaration, model: Model) 
   modelClass.addMethod({
     name: "_resolveSortOrder",
     parameters: [{ name: "orderByInput", type: `Prisma.${model.name}OrderByWithRelationInput` }],
-    returnType: "Prisma.SortOrder | Prisma.SortOrderInput",
+    returnType: "Prisma.SortOrder | { sort: Prisma.SortOrder, nulls?: 'first' | 'last' }",
     statements: (writer) => {
       addScalarResolution(writer, model);
       addOneToOneRelationResolution(writer, model);
@@ -17,10 +17,12 @@ export function addResolveSortOrder(modelClass: ClassDeclaration, model: Model) 
 }
 
 function addScalarResolution(writer: CodeBlockWriter, model: Model) {
-  const scalarFields = model.fields.filter(({ kind }) => kind !== "object");
-  for (const field of scalarFields) {
-    writer.writeLine(`if (orderByInput.${field.name}) return orderByInput.${field.name}`);
-  }
+  const scalarFields = model.fields.filter(({ kind }) => kind !== "object").map(({ name }) => name);
+  if (!scalarFields.length) return;
+
+  writer
+    .writeLine(`const scalarFields = ${JSON.stringify(scalarFields)} as const;`)
+    .writeLine(`for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];`);
 }
 
 function addOneToOneRelationResolution(writer: CodeBlockWriter, model: Model) {

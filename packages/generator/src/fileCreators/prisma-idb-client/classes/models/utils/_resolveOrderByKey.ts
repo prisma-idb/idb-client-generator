@@ -21,12 +21,12 @@ export function addResolveOrderByKey(modelClass: ClassDeclaration, model: Model,
 }
 
 function addScalarResolution(writer: CodeBlockWriter, model: Model) {
-  const scalarFields = model.fields.filter(({ kind }) => kind !== "object");
-  for (const field of scalarFields) {
-    writer.writeLine(`if (orderByInput.${field.name})`).block(() => {
-      writer.writeLine(`return record.${field.name};`);
-    });
-  }
+  const scalarFields = model.fields.filter(({ kind }) => kind !== "object").map(({ name }) => name);
+  if (!scalarFields.length) return;
+
+  writer
+    .writeLine(`const scalarFields = ${JSON.stringify(scalarFields)} as const;`)
+    .writeLine(`for (const field of scalarFields) if (orderByInput[field]) return record[field];`);
 }
 
 function addOneToOneResolution(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
