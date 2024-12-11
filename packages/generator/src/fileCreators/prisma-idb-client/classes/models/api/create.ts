@@ -226,7 +226,6 @@ function handleForeignKeyValidation(writer: CodeBlockWriter, field: Field, fkFie
   writer
     .writeLine(`else if (query.data.${fkField.name} !== undefined && query.data.${fkField.name} !== null)`)
     .block(() => {
-      // TODO: composite FKs
       writer
         .writeLine(`await this.client.${toCamelCase(field.type)}.findUniqueOrThrow(`)
         .block(() => {
