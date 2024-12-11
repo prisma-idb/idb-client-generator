@@ -21,6 +21,6 @@ export function addRemoveNestedCreateDataMethod(modelClass: ClassDeclaration, mo
 function addRelationProcessing(writer: CodeBlockWriter, model: Model) {
   const relationFields = model.fields.filter(({ kind }) => kind === "object");
   relationFields.forEach((field) => {
-    writer.writeLine(`delete recordWithoutNestedCreate.${field.name};`);
+    writer.writeLine(`delete recordWithoutNestedCreate?.${field.name};`);
   });
 }
