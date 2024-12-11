@@ -168,7 +168,7 @@ function addOneToManyRelation(
   model: Model,
 ) {
   const getCreateQuery = (extraDataFields: string) =>
-    `await this.client.${toCamelCase(field.type)}.create({ data: { ...elem, ${extraDataFields} } }, tx);`;
+    `await this.client.${toCamelCase(field.type)}.create({ data: { ...elem, ${extraDataFields} } as Prisma.Args<Prisma.${field.type}Delegate, "create">['data'] }, tx);`;
 
   const modelPk = getUniqueIdentifiers(model)[0];
   const modelPkFields = JSON.parse(modelPk.keyPath) as string[];
@@ -180,9 +180,7 @@ function addOneToManyRelation(
   nestedConnectLine += ` }`;
 
   const nestedDirectLine = otherField.relationFromFields!.map((field, idx) => `${field}: keyPath[${idx}]`).join(", ");
-
   const connectQuery = getCreateQuery(nestedConnectLine);
-  const directQuery = getCreateQuery(nestedDirectLine);
 
   writer.writeLine(`if (query.data.${field.name}?.create)`).block(() => {
     if (fkFields.length === 1) {
@@ -194,24 +192,13 @@ function addOneToManyRelation(
         This is due to Prisma's create query's constraint of using either 
         { connect: { pk: value } } OR { fk: value } for all the fields
       */
-      const otherFkField =
-        fkFields.find(({ relationName, isRequired }) => relationName !== field.relationName && isRequired) ??
-        fkFields.find(({ relationName }) => relationName !== field.relationName)!;
       writer
         .writeLine(`const createData = Array.isArray(query.data.${field.name}.create)`)
         .writeLine(`? query.data.${field.name}.create`)
         .writeLine(`: [query.data.${field.name}.create]`)
         .writeLine(`for (const elem of createData)`)
         .block(() => {
-          writer
-            .writeLine(`if ("${otherFkField.name}" in elem && !("${otherFkField.relationFromFields?.at(0)}" in elem))`)
-            .block(() => {
-              writer.writeLine(connectQuery);
-            })
-            .writeLine(`else if (elem.${otherFkField.relationFromFields?.at(0)} !== undefined)`)
-            .block(() => {
-              writer.writeLine(directQuery);
-            });
+          writer.writeLine(connectQuery);
         });
     }
   });
