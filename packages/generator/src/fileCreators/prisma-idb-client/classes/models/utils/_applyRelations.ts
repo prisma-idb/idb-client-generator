@@ -1,6 +1,6 @@
-import { Field, Model } from "../../../../types";
-import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
 import { ClassDeclaration, CodeBlockWriter, Scope } from "ts-morph";
+import { toCamelCase } from "../../../../../helpers/utils";
+import { Field, Model } from "../../../../types";
 
 export function addApplyRelations(modelClass: ClassDeclaration, model: Model, models: readonly Model[]) {
   modelClass.addMethod({
@@ -48,7 +48,7 @@ function addRelationProcessing(writer: CodeBlockWriter, model: Model, models: re
             const otherFieldOfRelation = allFields.find(
               (_field) => _field.relationName === field.relationName && field !== _field,
             )!;
-            handleVariousRelationships(writer, field, otherFieldOfRelation, models);
+            handleVariousRelationships(writer, field, otherFieldOfRelation);
           });
       });
       writer.writeLine("return unsafeRecord;");
@@ -56,15 +56,10 @@ function addRelationProcessing(writer: CodeBlockWriter, model: Model, models: re
     .writeLine(");");
 }
 
-function handleVariousRelationships(
-  writer: CodeBlockWriter,
-  field: Field,
-  otherField: Field,
-  models: readonly Model[],
-) {
+function handleVariousRelationships(writer: CodeBlockWriter, field: Field, otherField: Field) {
   if (!field.isList) {
     if (field.relationFromFields?.length) {
-      addOneToOneMetaOnFieldRelation(writer, field, models);
+      addOneToOneMetaOnFieldRelation(writer, field);
     } else {
       addOneToOneMetaOnOtherFieldRelation(writer, field, otherField);
     }
@@ -73,36 +68,42 @@ function handleVariousRelationships(
   }
 }
 
-function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field, models: readonly Model[]) {
+function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
+  const compositeKeyName = field.relationToFields!.join("_");
+  const compositeKey = field
+    .relationToFields!.map((toField, idx) => `${toField}: record.${field.relationFromFields?.at(idx)}`)
+    .join(", ");
+
   writer
     .write(`unsafeRecord['${field.name}'] = `)
     .conditionalWrite(!field.isRequired, () => `record.${field.relationFromFields?.at(0)} === null ? null :`)
     .writeLine(`await this.client.${toCamelCase(field.type)}.findUnique(`)
     .block(() => {
       writer.writeLine(`...(attach_${field.name} === true ? {} : attach_${field.name}),`);
-
-      const otherModel = models.find(({ name }) => name === field.type)!;
-      const otherPk = getUniqueIdentifiers(otherModel)[0];
-      const otherPkFields = JSON.parse(otherPk.keyPath) as string[];
-      if (otherPkFields.length === 1) {
-        writer.writeLine(`where: { ${otherPk.name}: record.${field.relationFromFields?.at(0)} }`);
+      if (field.relationFromFields?.length === 1) {
+        writer.writeLine(`where: { ${compositeKey} }`);
       } else {
-        const compositeKey = otherPkFields
-          .map((_, idx) => `${field.relationToFields?.at(idx)}: record.${field.relationFromFields?.at(idx)}`)
-          .join(", ");
-        writer.writeLine(`where: { ${otherPk.name}: { ${compositeKey} } }`);
+        writer.writeLine(`where: { ${compositeKeyName}: { ${compositeKey} } }`);
       }
     })
     .writeLine(`, tx)`);
 }
 
 function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Field, otherField: Field) {
+  const compositeKeyName = otherField.relationFromFields!.join("_");
+  const compositeKey = otherField
+    .relationFromFields!.map((fromField, idx) => `${fromField}: record.${otherField.relationToFields?.at(idx)}`)
+    .join(", ");
+
   writer
     .writeLine(`unsafeRecord['${field.name}'] = await this.client.${toCamelCase(field.type)}.findUnique(`)
     .block(() => {
-      writer
-        .writeLine(`...(attach_${field.name} === true ? {} : attach_${field.name}),`)
-        .writeLine(`where: { ${otherField.relationFromFields?.at(0)}: record.${otherField.relationToFields?.at(0)} }`);
+      writer.writeLine(`...(attach_${field.name} === true ? {} : attach_${field.name}),`);
+      if (otherField.relationFromFields?.length === 1) {
+        writer.writeLine(`where: { ${compositeKey} }`);
+      } else {
+        writer.writeLine(`where: { ${compositeKeyName}: { ${compositeKey} } }`);
+      }
     })
     .writeLine(`, tx)`);
 }
