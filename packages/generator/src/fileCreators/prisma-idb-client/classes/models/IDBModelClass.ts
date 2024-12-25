@@ -60,7 +60,7 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
   addDeleteMethod(modelClass, model, models);
   addDeleteManyMethod(modelClass, model, models);
 
-  addUpdateMethod(modelClass, model);
+  addUpdateMethod(modelClass, model, models);
   addUpdateMany(modelClass, model);
   addUpsertMethod(modelClass, model);
 }

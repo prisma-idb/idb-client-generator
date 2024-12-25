@@ -1,8 +1,8 @@
-import { getUniqueIdentifiers } from "../../../../../helpers/utils";
-import { Model } from "../../../../../fileCreators/types";
 import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
+import { Field, Model } from "../../../../../fileCreators/types";
+import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
 
-export function addUpdateMethod(modelClass: ClassDeclaration, model: Model) {
+export function addUpdateMethod(modelClass: ClassDeclaration, model: Model, models: readonly Model[]) {
   modelClass.addMethod({
     name: "update",
     isAsync: true,
@@ -21,6 +21,7 @@ export function addUpdateMethod(modelClass: ClassDeclaration, model: Model) {
       addIntUpdateHandling(writer, model);
       // TODO: the numeric types
       addScalarListUpdateHandling(writer, model);
+      addRelationUpdateHandling(writer, model, models);
       addPutAndReturn(writer, model);
     },
   });
@@ -42,6 +43,11 @@ function addGetRecord(writer: CodeBlockWriter, model: Model) {
 
 function addPutAndReturn(writer: CodeBlockWriter, model: Model) {
   const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
+  const whereUnique =
+    pk.length === 1
+      ? `{ ${pk[0]}: keyPath[0] }`
+      : `{ ${pk.join("_")}: { ${pk.map((field, idx) => `${field}: keyPath[${idx}]`).join(", ")} } }`;
+
   writer
     .writeLine(`const endKeyPath: PrismaIDBSchema["${model.name}"]["key"] = [${pk.map((field) => `record.${field}`)}];`)
     .writeLine(`for (let i = 0; i < startKeyPath.length; i++)`)
@@ -53,8 +59,7 @@ function addPutAndReturn(writer: CodeBlockWriter, model: Model) {
     .writeLine(`const keyPath = await tx.objectStore("${model.name}").put(record);`)
     .writeLine(`const recordWithRelations = (await this.findUnique(`)
     .block(() => {
-      // TODO: composite keys
-      writer.writeLine(`...query, where: { ${pk[0]}: keyPath[0] },`);
+      writer.writeLine(`where: ${whereUnique},`);
     })
     .writeLine(`, tx))!;`)
     .writeLine(`return recordWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "update">;`);
@@ -133,5 +138,311 @@ function addScalarListUpdateHandling(writer: CodeBlockWriter, model: Model) {
     .writeLine(`for (const field of listFields)`)
     .block(() => {
       writer.writeLine(`IDBUtils.handleScalarListUpdateField(record, field, query.data[field]);`);
+    });
+}
+
+function addRelationUpdateHandling(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+  const relationFields = model.fields.filter((field) => field.kind === "object");
+
+  for (const field of relationFields) {
+    const otherField = models
+      .flatMap(({ fields }) => fields)
+      .find((f) => f !== field && f.relationName === field.relationName)!;
+    writer.writeLine(`if (query.data.${field.name})`).block(() => {
+      if (field.isList) {
+        handleOneToManyRelationUpdate(writer, field, otherField);
+      } else {
+        if (field.relationFromFields?.length) {
+          handleOneToOneRelationMetaOnCurrentUpdate(writer, field);
+        } else {
+          handleOneToOneRelationMetaOnOtherUpdate(writer, field, otherField);
+        }
+      }
+    });
+  }
+}
+
+function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, otherField: Field) {
+  const fkFields = `${otherField.relationFromFields!.map((_field, idx) => `${_field}: record.${otherField.relationToFields?.at(idx)}`).join(", ")}`;
+  const fkFieldsNull = `${otherField.relationFromFields!.map((_field) => `${_field}: null`).join(", ")}`;
+
+  writer
+    .writeLine(`if (query.data.${field.name}.connect)`)
+    .block(() => {
+      writer
+        .writeLine(`await Promise.all(`)
+        .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.connect).map(async (connectWhere) => `)
+        .block(() => {
+          writer.writeLine(
+            `await this.client.${toCamelCase(field.type)}.update({ where: connectWhere, data: { ${fkFields} } }, tx);`,
+          );
+        })
+        .writeLine(`))`);
+    })
+    .writeLine(`if (query.data.${field.name}.disconnect)`)
+    .block(() => {
+      if (otherField.isRequired) {
+        writer.writeLine(`throw new Error("Cannot disconnect required relation");`);
+      } else {
+        writer
+          .writeLine(`await Promise.all(`)
+          .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.disconnect).map(async (connectWhere) => `)
+          .block(() => {
+            writer.writeLine(
+              `await this.client.${toCamelCase(field.type)}.update({ where: connectWhere, data: { ${fkFieldsNull} } }, tx);`,
+            );
+          })
+          .writeLine(`))`);
+      }
+    })
+    .writeLine(`if (query.data.${field.name}.create)`)
+    .block(() => {
+      writer
+        .writeLine(`const createData = Array.isArray(query.data.${field.name}.create)`)
+        .writeLine(`? query.data.${field.name}.create`)
+        .writeLine(`: [query.data.${field.name}.create];`)
+        .writeLine(`for (const elem of createData)`)
+        .block(() => {
+          writer
+            .write(`await this.client.${toCamelCase(field.type)}.create({ data: { ...elem, ${fkFields} }`)
+            .write(`as Prisma.Args<Prisma.${field.type}Delegate, "create">["data"] }, tx);`);
+        });
+    })
+    .writeLine(`if (query.data.${field.name}.createMany)`)
+    .block(() => {
+      writer
+        .writeLine(`await Promise.all(`)
+        .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.createMany.data).map(async (createData) => `)
+        .block(() => {
+          writer.writeLine(
+            `await this.client.${toCamelCase(field.type)}.create({ data: { ...createData, ${fkFields} } }, tx);`,
+          );
+        })
+        .writeLine(`))`);
+    })
+    .writeLine(`if (query.data.${field.name}.update)`)
+    .block(() => {
+      writer
+        .writeLine(`await Promise.all(`)
+        .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.update).map(async (updateData) => `)
+        .block(() => {
+          writer.writeLine(
+            `await this.client.${toCamelCase(field.type)}.updateMany({ where: { ${fkFields} }, data: updateData }, tx);`,
+          );
+        })
+        .writeLine(`))`);
+    })
+    .writeLine(`if (query.data.${field.name}.updateMany)`)
+    .block(() => {
+      writer
+        .writeLine(`await Promise.all(`)
+        .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.updateMany).map(async (updateData) => `)
+        .block(() => {
+          writer.writeLine(
+            `await this.client.${toCamelCase(field.type)}.updateMany({ where: { ${fkFields} }, data: updateData }, tx);`,
+          );
+        })
+        .writeLine(`))`);
+    })
+    .writeLine(`if (query.data.${field.name}.upsert)`)
+    .block(() => {
+      writer
+        .writeLine(`await Promise.all(`)
+        .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.upsert).map(async (upsertData) => `)
+        .block(() => {
+          writer.writeLine(
+            `await this.client.${toCamelCase(field.type)}.upsert({ ...upsertData, where: { ...upsertData.where, ${fkFields} }, create: { ...upsertData.create, ${fkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'] }, tx);`,
+          );
+        })
+        .writeLine(`))`);
+    })
+    .writeLine(`if (query.data.${field.name}.delete)`)
+    .block(() => {
+      writer
+        .writeLine(`await Promise.all(`)
+        .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.delete).map(async (deleteData) => `)
+        .block(() => {
+          writer.writeLine(
+            `await this.client.${toCamelCase(field.type)}.delete({ where: { ...deleteData, ${fkFields} } }, tx);`,
+          );
+        })
+        .writeLine(`))`);
+    })
+    .writeLine(`if (query.data.${field.name}.deleteMany)`)
+    .block(() => {
+      writer
+        .writeLine(`await Promise.all(`)
+        .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.deleteMany).map(async (deleteData) => `)
+        .block(() => {
+          writer.writeLine(
+            `await this.client.${toCamelCase(field.type)}.deleteMany({ where: { ...deleteData, ${fkFields} } }, tx);`,
+          );
+        })
+        .writeLine(`))`);
+    })
+    .writeLine(`if (query.data.${field.name}.set)`)
+    .block(() => {
+      writer
+        .writeLine(
+          `const existing = await this.client.${toCamelCase(field.type)}.findMany({ where: { ${fkFields} } }, tx);`,
+        )
+        .writeLine(`if (existing.length > 0)`)
+        .block(() => {
+          if (otherField.isRequired) {
+            writer.writeLine(`throw new Error("Cannot set required relation");`);
+          } else {
+            writer.writeLine(
+              `await this.client.${toCamelCase(field.type)}.updateMany({ where: { ${fkFields} }, data: { ${fkFieldsNull} } }, tx);`,
+            );
+          }
+        })
+        .writeLine(`await Promise.all(`)
+        .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.set).map(async (setData) => `)
+        .block(() => {
+          writer.writeLine(
+            `await this.client.${toCamelCase(field.type)}.update({ where: setData, data: { ${fkFields} } }, tx);`,
+          );
+        })
+        .writeLine(`))`);
+    });
+}
+
+function handleOneToOneRelationMetaOnCurrentUpdate(writer: CodeBlockWriter, field: Field) {
+  const fkFields = `${field.relationToFields!.map((_field, idx) => `${_field}: record.${field.relationFromFields?.at(idx)}!`).join(", ")}`;
+
+  let uniqueInput;
+  if (field.relationFromFields!.length === 1) {
+    uniqueInput = `${field.relationToFields!.map((_field, idx) => `${_field}: record.${field.relationFromFields?.at(idx)}!`).join(", ")}`;
+  } else {
+    uniqueInput = `${field.relationToFields?.join("_")} : { ${field.relationToFields?.map((_field, idx) => `${_field}: record.${field.relationFromFields?.at(idx)}`).join(", ")} }`;
+  }
+
+  writer
+    .writeLine(`if (query.data.${field.name}.connect)`)
+    .block(() => {
+      writer.writeLine(
+        `const other = await this.client.${toCamelCase(field.type)}.findUniqueOrThrow({ where: query.data.${field.name}.connect }, tx);`,
+      );
+      for (let i = 0; i < field.relationFromFields!.length; i++) {
+        writer.writeLine(`record.${field.relationFromFields?.at(i)} = other.${field.relationToFields?.at(i)};`);
+      }
+    })
+    .writeLine(`if (query.data.${field.name}.create)`)
+    .block(() => {
+      writer.writeLine(
+        `const other = await this.client.${toCamelCase(field.type)}.create({ data: query.data.${field.name}.create }, tx);`,
+      );
+      for (let i = 0; i < field.relationFromFields!.length; i++) {
+        writer.writeLine(`record.${field.relationFromFields?.at(i)} = other.${field.relationToFields?.at(i)};`);
+      }
+    })
+    .writeLine(`if (query.data.${field.name}.update)`)
+    .block(() => {
+      writer
+        .writeLine(`const updateData = query.data.${field.name}.update.data ?? query.data.${field.name}.update;`)
+        .writeLine(
+          `await this.client.${toCamelCase(field.type)}.update({ where: { ...query.data.${field.name}.update.where, ${uniqueInput} }, data: updateData }, tx);`,
+        );
+    })
+    .writeLine(`if (query.data.${field.name}.upsert)`)
+    .block(() => {
+      writer.writeLine(
+        `await this.client.${toCamelCase(field.type)}.upsert({ where: { ...query.data.${field.name}.upsert.where, ${uniqueInput} }, create: { ...query.data.${field.name}.upsert.create, ${fkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'], update: query.data.${field.name}.upsert.update, }, tx);`,
+      );
+    })
+    .writeLine(`if (query.data.${field.name}.connectOrCreate)`)
+    .block(() => {
+      writer
+        .writeLine(`await this.client.${toCamelCase(field.type)}.upsert(`)
+        .block(() => {
+          writer
+            .writeLine(`where: { ...query.data.${field.name}.connectOrCreate.where, ${uniqueInput} },`)
+            .writeLine(
+              `create: { ...query.data.${field.name}.connectOrCreate.create, ${fkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'],`,
+            )
+            .writeLine(`update: { ${fkFields} },`);
+        })
+        .writeLine(`, tx);`);
+    });
+
+  if (!field.isRequired) {
+    writer
+      .writeLine(`if (query.data.${field.name}.disconnect)`)
+      .block(() => {
+        for (const _field of field.relationFromFields!) {
+          writer.writeLine(`record.${_field} = null;`);
+        }
+      })
+      .writeLine(`if (query.data.${field.name}.delete)`)
+      .block(() => {
+        writer
+          .writeLine(
+            `const deleteWhere = query.data.${field.name}.delete === true ? {} : query.data.${field.name}.delete;`,
+          )
+          .writeLine(
+            `await this.client.${toCamelCase(field.type)}.delete({ where: { ...deleteWhere, ${uniqueInput} } }, tx);`,
+          );
+        for (const _field of field.relationFromFields!) {
+          writer.writeLine(`record.${_field} = null;`);
+        }
+      });
+  }
+}
+
+function handleOneToOneRelationMetaOnOtherUpdate(writer: CodeBlockWriter, field: Field, otherField: Field) {
+  const otherFkFields = `${otherField.relationFromFields!.map((_field, idx) => `${_field}: record.${otherField.relationToFields?.at(idx)}`).join(", ")}`;
+  const otherFkFieldsNull = `${otherField.relationFromFields!.map((_field) => `${_field}: null`).join(", ")}`;
+  writer
+    .writeLine(`if (query.data.${field.name}.connect)`)
+    .block(() => {
+      writer.writeLine(
+        `await this.client.${toCamelCase(field.type)}.update({ where: query.data.${field.name}.connect, data: { ${otherFkFields} } }, tx);`,
+      );
+    })
+    .writeLine(`if (query.data.${field.name}.disconnect)`)
+    .block(() => {
+      if (otherField.isRequired) {
+        writer.writeLine(`throw new Error("Cannot disconnect required relation");`);
+      } else {
+        writer.writeLine(
+          `await this.client.${toCamelCase(field.type)}.update({ where: query.data.${field.name}.disconnect, data: { ${otherFkFieldsNull} } }, tx);`,
+        );
+      }
+    })
+    .writeLine(`if (query.data.${field.name}.create)`)
+    .block(() => {
+      writer.writeLine(
+        `await this.client.${toCamelCase(field.type)}.create({ data: { ...query.data.${field.name}.create, ${otherFkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "create">["data"] }, tx);`,
+      );
+    })
+    .writeLine(`if (query.data.${field.name}.delete)`)
+    .block(() => {
+      writer
+        .writeLine(
+          `const deleteWhere = query.data.${field.name}.delete === true ? {} : query.data.${field.name}.delete;`,
+        )
+        .writeLine(
+          `await this.client.${toCamelCase(field.type)}.delete({ where: { ...deleteWhere, ${otherFkFields} } as Prisma.${field.type}WhereUniqueInput }, tx);`,
+        );
+    })
+    .writeLine(`if (query.data.${field.name}.update)`)
+    .block(() => {
+      writer
+        .writeLine(`const updateData = query.data.${field.name}.update.data ?? query.data.${field.name}.update;`)
+        .writeLine(
+          `await this.client.${toCamelCase(field.type)}.update({ where: { ...query.data.${field.name}.update.where, ${otherFkFields} } as Prisma.${field.type}WhereUniqueInput, data: updateData }, tx);`,
+        );
+    })
+    .writeLine(`if (query.data.${field.name}.upsert)`)
+    .block(() => {
+      writer.writeLine(
+        `await this.client.${toCamelCase(field.type)}.upsert({ ...query.data.${field.name}.upsert, where: { ...query.data.${field.name}.upsert.where, ${otherFkFields} } as Prisma.${field.type}WhereUniqueInput, create: { ...query.data.${field.name}.upsert.create, ${otherFkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'] }, tx);`,
+      );
+    })
+    .writeLine(`if (query.data.${field.name}.connectOrCreate)`)
+    .block(() => {
+      writer.writeLine(
+        `await this.client.${toCamelCase(field.type)}.upsert({ where: { ...query.data.${field.name}.connectOrCreate.where, ${otherFkFields} } as Prisma.${field.type}WhereUniqueInput, create: { ...query.data.${field.name}.connectOrCreate.create, ${otherFkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'], update: { ${otherFkFields} } }, tx);`,
+      );
     });
 }
