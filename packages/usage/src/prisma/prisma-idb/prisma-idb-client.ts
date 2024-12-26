@@ -969,7 +969,19 @@ class UserIDBClass extends BaseIDBModelClass {
       await this.client.profile.update({ where: query.data.profile.connect, data: { userId: keyPath[0] } }, tx);
     }
     if (query.data.profile?.connectOrCreate) {
-      throw new Error("connectOrCreate not yet implemented");
+      if (query.data.profile?.connectOrCreate) {
+        await this.client.profile.upsert(
+          {
+            where: query.data.profile.connectOrCreate.where,
+            create: { ...query.data.profile.connectOrCreate.create, userId: keyPath[0] } as Prisma.Args<
+              Prisma.ProfileDelegate,
+              "create"
+            >["data"],
+            update: { userId: keyPath[0] },
+          },
+          tx,
+        );
+      }
     }
     if (query.data?.posts?.create) {
       for (const elem of IDBUtils.convertToArray(query.data.posts.create)) {
@@ -992,7 +1004,21 @@ class UserIDBClass extends BaseIDBModelClass {
       );
     }
     if (query.data?.posts?.connectOrCreate) {
-      throw new Error("connectOrCreate not yet implemented");
+      await Promise.all(
+        IDBUtils.convertToArray(query.data.posts.connectOrCreate).map(async (connectOrCreate) => {
+          await this.client.post.upsert(
+            {
+              where: connectOrCreate.where,
+              create: { ...connectOrCreate.create, authorId: keyPath[0] } as Prisma.Args<
+                Prisma.PostDelegate,
+                "create"
+              >["data"],
+              update: { authorId: keyPath[0] },
+            },
+            tx,
+          );
+        }),
+      );
     }
     if (query.data?.posts?.createMany) {
       await this.client.post.createMany(
@@ -1029,7 +1055,21 @@ class UserIDBClass extends BaseIDBModelClass {
       );
     }
     if (query.data?.comments?.connectOrCreate) {
-      throw new Error("connectOrCreate not yet implemented");
+      await Promise.all(
+        IDBUtils.convertToArray(query.data.comments.connectOrCreate).map(async (connectOrCreate) => {
+          await this.client.comment.upsert(
+            {
+              where: connectOrCreate.where,
+              create: { ...connectOrCreate.create, userId: keyPath[0] } as Prisma.Args<
+                Prisma.CommentDelegate,
+                "create"
+              >["data"],
+              update: { userId: keyPath[0] },
+            },
+            tx,
+          );
+        }),
+      );
     }
     if (query.data?.comments?.createMany) {
       await this.client.comment.createMany(
@@ -1063,7 +1103,21 @@ class UserIDBClass extends BaseIDBModelClass {
       );
     }
     if (query.data?.Mother?.connectOrCreate) {
-      throw new Error("connectOrCreate not yet implemented");
+      await Promise.all(
+        IDBUtils.convertToArray(query.data.Mother.connectOrCreate).map(async (connectOrCreate) => {
+          await this.client.mother.upsert(
+            {
+              where: connectOrCreate.where,
+              create: { ...connectOrCreate.create, userId: keyPath[0] } as Prisma.Args<
+                Prisma.MotherDelegate,
+                "create"
+              >["data"],
+              update: { userId: keyPath[0] },
+            },
+            tx,
+          );
+        }),
+      );
     }
     if (query.data?.Mother?.createMany) {
       await this.client.mother.createMany(
@@ -1100,7 +1154,21 @@ class UserIDBClass extends BaseIDBModelClass {
       );
     }
     if (query.data?.Father?.connectOrCreate) {
-      throw new Error("connectOrCreate not yet implemented");
+      await Promise.all(
+        IDBUtils.convertToArray(query.data.Father.connectOrCreate).map(async (connectOrCreate) => {
+          await this.client.father.upsert(
+            {
+              where: connectOrCreate.where,
+              create: { ...connectOrCreate.create, userId: keyPath[0] } as Prisma.Args<
+                Prisma.FatherDelegate,
+                "create"
+              >["data"],
+              update: { userId: keyPath[0] },
+            },
+            tx,
+          );
+        }),
+      );
     }
     if (query.data?.Father?.createMany) {
       await this.client.father.createMany(
@@ -1135,7 +1203,21 @@ class UserIDBClass extends BaseIDBModelClass {
       );
     }
     if (query.data?.Child?.connectOrCreate) {
-      throw new Error("connectOrCreate not yet implemented");
+      await Promise.all(
+        IDBUtils.convertToArray(query.data.Child.connectOrCreate).map(async (connectOrCreate) => {
+          await this.client.child.upsert(
+            {
+              where: connectOrCreate.where,
+              create: { ...connectOrCreate.create, userId: keyPath[0] } as Prisma.Args<
+                Prisma.ChildDelegate,
+                "create"
+              >["data"],
+              update: { userId: keyPath[0] },
+            },
+            tx,
+          );
+        }),
+      );
     }
     if (query.data?.Child?.createMany) {
       await this.client.child.createMany(
@@ -1172,7 +1254,21 @@ class UserIDBClass extends BaseIDBModelClass {
       );
     }
     if (query.data?.groups?.connectOrCreate) {
-      throw new Error("connectOrCreate not yet implemented");
+      await Promise.all(
+        IDBUtils.convertToArray(query.data.groups.connectOrCreate).map(async (connectOrCreate) => {
+          await this.client.userGroup.upsert(
+            {
+              where: connectOrCreate.where,
+              create: { ...connectOrCreate.create, userId: keyPath[0] } as Prisma.Args<
+                Prisma.UserGroupDelegate,
+                "create"
+              >["data"],
+              update: { userId: keyPath[0] },
+            },
+            tx,
+          );
+        }),
+      );
     }
     if (query.data?.groups?.createMany) {
       await this.client.userGroup.createMany(
@@ -2286,7 +2382,21 @@ class GroupIDBClass extends BaseIDBModelClass {
       );
     }
     if (query.data?.userGroups?.connectOrCreate) {
-      throw new Error("connectOrCreate not yet implemented");
+      await Promise.all(
+        IDBUtils.convertToArray(query.data.userGroups.connectOrCreate).map(async (connectOrCreate) => {
+          await this.client.userGroup.upsert(
+            {
+              where: connectOrCreate.where,
+              create: { ...connectOrCreate.create, groupId: keyPath[0] } as Prisma.Args<
+                Prisma.UserGroupDelegate,
+                "create"
+              >["data"],
+              update: { groupId: keyPath[0] },
+            },
+            tx,
+          );
+        }),
+      );
     }
     if (query.data?.userGroups?.createMany) {
       await this.client.userGroup.createMany(
@@ -2946,7 +3056,15 @@ class UserGroupIDBClass extends BaseIDBModelClass {
         fk[0] = record.id;
       }
       if (query.data.group?.connectOrCreate) {
-        throw new Error("connectOrCreate not yet implemented");
+        const record = await this.client.group.upsert(
+          {
+            where: query.data.group.connectOrCreate.where,
+            create: query.data.group.connectOrCreate.create,
+            update: {},
+          },
+          tx,
+        );
+        fk[0] = record.id;
       }
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.groupId = fk[0];
@@ -2971,7 +3089,15 @@ class UserGroupIDBClass extends BaseIDBModelClass {
         fk[0] = record.id;
       }
       if (query.data.user?.connectOrCreate) {
-        throw new Error("connectOrCreate not yet implemented");
+        const record = await this.client.user.upsert(
+          {
+            where: query.data.user.connectOrCreate.where,
+            create: query.data.user.connectOrCreate.create,
+            update: {},
+          },
+          tx,
+        );
+        fk[0] = record.id;
       }
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.userId = fk[0];
@@ -3558,7 +3684,15 @@ class ProfileIDBClass extends BaseIDBModelClass {
         fk[0] = record.id;
       }
       if (query.data.user?.connectOrCreate) {
-        throw new Error("connectOrCreate not yet implemented");
+        const record = await this.client.user.upsert(
+          {
+            where: query.data.user.connectOrCreate.where,
+            create: query.data.user.connectOrCreate.create,
+            update: {},
+          },
+          tx,
+        );
+        fk[0] = record.id;
       }
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.userId = fk[0];
@@ -4215,7 +4349,15 @@ class PostIDBClass extends BaseIDBModelClass {
         fk[0] = record.id;
       }
       if (query.data.author?.connectOrCreate) {
-        throw new Error("connectOrCreate not yet implemented");
+        const record = await this.client.user.upsert(
+          {
+            where: query.data.author.connectOrCreate.where,
+            create: query.data.author.connectOrCreate.create,
+            update: {},
+          },
+          tx,
+        );
+        fk[0] = record.id;
       }
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.authorId = fk[0];
@@ -4254,7 +4396,21 @@ class PostIDBClass extends BaseIDBModelClass {
       );
     }
     if (query.data?.comments?.connectOrCreate) {
-      throw new Error("connectOrCreate not yet implemented");
+      await Promise.all(
+        IDBUtils.convertToArray(query.data.comments.connectOrCreate).map(async (connectOrCreate) => {
+          await this.client.comment.upsert(
+            {
+              where: connectOrCreate.where,
+              create: { ...connectOrCreate.create, postId: keyPath[0] } as Prisma.Args<
+                Prisma.CommentDelegate,
+                "create"
+              >["data"],
+              update: { postId: keyPath[0] },
+            },
+            tx,
+          );
+        }),
+      );
     }
     if (query.data?.comments?.createMany) {
       await this.client.comment.createMany(
@@ -4964,7 +5120,15 @@ class CommentIDBClass extends BaseIDBModelClass {
         fk[0] = record.id;
       }
       if (query.data.post?.connectOrCreate) {
-        throw new Error("connectOrCreate not yet implemented");
+        const record = await this.client.post.upsert(
+          {
+            where: query.data.post.connectOrCreate.where,
+            create: query.data.post.connectOrCreate.create,
+            update: {},
+          },
+          tx,
+        );
+        fk[0] = record.id;
       }
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.postId = fk[0];
@@ -4989,7 +5153,15 @@ class CommentIDBClass extends BaseIDBModelClass {
         fk[0] = record.id;
       }
       if (query.data.user?.connectOrCreate) {
-        throw new Error("connectOrCreate not yet implemented");
+        const record = await this.client.user.upsert(
+          {
+            where: query.data.user.connectOrCreate.where,
+            create: query.data.user.connectOrCreate.create,
+            update: {},
+          },
+          tx,
+        );
+        fk[0] = record.id;
       }
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.userId = fk[0];
@@ -6305,7 +6477,16 @@ class FatherIDBClass extends BaseIDBModelClass {
         fk[1] = record.lastName;
       }
       if (query.data.wife?.connectOrCreate) {
-        throw new Error("connectOrCreate not yet implemented");
+        const record = await this.client.mother.upsert(
+          {
+            where: query.data.wife.connectOrCreate.where,
+            create: query.data.wife.connectOrCreate.create,
+            update: {},
+          },
+          tx,
+        );
+        fk[0] = record.firstName;
+        fk[1] = record.lastName;
       }
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.motherFirstName = fk[0];
@@ -6331,7 +6512,15 @@ class FatherIDBClass extends BaseIDBModelClass {
         fk[0] = record.id;
       }
       if (query.data.user?.connectOrCreate) {
-        throw new Error("connectOrCreate not yet implemented");
+        const record = await this.client.user.upsert(
+          {
+            where: query.data.user.connectOrCreate.where,
+            create: query.data.user.connectOrCreate.create,
+            update: {},
+          },
+          tx,
+        );
+        fk[0] = record.id;
       }
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.userId = fk[0];
@@ -6373,7 +6562,22 @@ class FatherIDBClass extends BaseIDBModelClass {
       );
     }
     if (query.data?.children?.connectOrCreate) {
-      throw new Error("connectOrCreate not yet implemented");
+      await Promise.all(
+        IDBUtils.convertToArray(query.data.children.connectOrCreate).map(async (connectOrCreate) => {
+          await this.client.child.upsert(
+            {
+              where: connectOrCreate.where,
+              create: {
+                ...connectOrCreate.create,
+                fatherFirstName: keyPath[0],
+                fatherLastName: keyPath[1],
+              } as Prisma.Args<Prisma.ChildDelegate, "create">["data"],
+              update: { fatherFirstName: keyPath[0], fatherLastName: keyPath[1] },
+            },
+            tx,
+          );
+        }),
+      );
     }
     if (query.data?.children?.createMany) {
       await this.client.child.createMany(
@@ -7310,7 +7514,15 @@ class MotherIDBClass extends BaseIDBModelClass {
         fk[0] = record.id;
       }
       if (query.data.user?.connectOrCreate) {
-        throw new Error("connectOrCreate not yet implemented");
+        const record = await this.client.user.upsert(
+          {
+            where: query.data.user.connectOrCreate.where,
+            create: query.data.user.connectOrCreate.create,
+            update: {},
+          },
+          tx,
+        );
+        fk[0] = record.id;
       }
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.userId = fk[0];
@@ -7341,7 +7553,20 @@ class MotherIDBClass extends BaseIDBModelClass {
       await this.client.father.update({ where: query.data.husband.connect, data: { motherFirstName: keyPath[0] } }, tx);
     }
     if (query.data.husband?.connectOrCreate) {
-      throw new Error("connectOrCreate not yet implemented");
+      if (query.data.husband?.connectOrCreate) {
+        await this.client.father.upsert(
+          {
+            where: query.data.husband.connectOrCreate.where,
+            create: {
+              ...query.data.husband.connectOrCreate.create,
+              motherFirstName: keyPath[0],
+              motherLastName: keyPath[1],
+            } as Prisma.Args<Prisma.FatherDelegate, "create">["data"],
+            update: { motherFirstName: keyPath[0], motherLastName: keyPath[1] },
+          },
+          tx,
+        );
+      }
     }
     if (query.data?.children?.create) {
       const createData = Array.isArray(query.data.children.create)
@@ -7370,7 +7595,22 @@ class MotherIDBClass extends BaseIDBModelClass {
       );
     }
     if (query.data?.children?.connectOrCreate) {
-      throw new Error("connectOrCreate not yet implemented");
+      await Promise.all(
+        IDBUtils.convertToArray(query.data.children.connectOrCreate).map(async (connectOrCreate) => {
+          await this.client.child.upsert(
+            {
+              where: connectOrCreate.where,
+              create: {
+                ...connectOrCreate.create,
+                motherFirstName: keyPath[0],
+                motherLastName: keyPath[1],
+              } as Prisma.Args<Prisma.ChildDelegate, "create">["data"],
+              update: { motherFirstName: keyPath[0], motherLastName: keyPath[1] },
+            },
+            tx,
+          );
+        }),
+      );
     }
     if (query.data?.children?.createMany) {
       await this.client.child.createMany(
@@ -8354,7 +8594,15 @@ class ChildIDBClass extends BaseIDBModelClass {
         fk[0] = record.id;
       }
       if (query.data.user?.connectOrCreate) {
-        throw new Error("connectOrCreate not yet implemented");
+        const record = await this.client.user.upsert(
+          {
+            where: query.data.user.connectOrCreate.where,
+            create: query.data.user.connectOrCreate.create,
+            update: {},
+          },
+          tx,
+        );
+        fk[0] = record.id;
       }
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.userId = fk[0];
@@ -8381,7 +8629,16 @@ class ChildIDBClass extends BaseIDBModelClass {
         fk[1] = record.lastName;
       }
       if (query.data.mother?.connectOrCreate) {
-        throw new Error("connectOrCreate not yet implemented");
+        const record = await this.client.mother.upsert(
+          {
+            where: query.data.mother.connectOrCreate.where,
+            create: query.data.mother.connectOrCreate.create,
+            update: {},
+          },
+          tx,
+        );
+        fk[0] = record.firstName;
+        fk[1] = record.lastName;
       }
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.motherFirstName = fk[0];
@@ -8409,7 +8666,16 @@ class ChildIDBClass extends BaseIDBModelClass {
         fk[1] = record.lastName;
       }
       if (query.data.father?.connectOrCreate) {
-        throw new Error("connectOrCreate not yet implemented");
+        const record = await this.client.father.upsert(
+          {
+            where: query.data.father.connectOrCreate.where,
+            create: query.data.father.connectOrCreate.create,
+            update: {},
+          },
+          tx,
+        );
+        fk[0] = record.firstName;
+        fk[1] = record.lastName;
       }
       const unsafeData = query.data as Record<string, unknown>;
       unsafeData.fatherFirstName = fk[0];
