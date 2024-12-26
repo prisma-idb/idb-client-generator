@@ -30,7 +30,12 @@ export function addUpdateMethod(modelClass: ClassDeclaration, model: Model, mode
 function addGetRecord(writer: CodeBlockWriter, model: Model) {
   const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
   writer
-    .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");`)
+    .write(`tx = tx ?? this.client._db.transaction(`)
+    .write(`Array.from(this._getNeededStoresForFind(query)`)
+    .write(
+      `.union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]))`,
+    )
+    .writeLine(`.union(this._getNeededStoresForFind(query))), "readwrite");`)
     .writeLine(`const record = await this.findUnique({ where: query.where }, tx);`)
     .writeLine(`if (record === null)`)
     .block(() => {

@@ -43,7 +43,7 @@ function addRefetchAndReturnRecord(writer: CodeBlockWriter, model: Model) {
   recordFindQuery += ` }, select: query.select`;
 
   if (hasRelations) recordFindQuery += ", include: query.include";
-  recordFindQuery += " });";
+  recordFindQuery += " }, tx);";
 
   writer
     .writeLine(recordFindQuery)

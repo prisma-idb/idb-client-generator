@@ -1364,7 +1364,16 @@ class UserIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "update">> {
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    tx =
+      tx ??
+      this.client._db.transaction(
+        Array.from(
+          this._getNeededStoresForFind(query)
+            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.UserDelegate, "create">["data"]))
+            .union(this._getNeededStoresForFind(query)),
+        ),
+        "readwrite",
+      );
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       tx.abort();
@@ -2008,7 +2017,10 @@ class UserIDBClass extends BaseIDBModelClass {
     let record = await this.findUnique({ where: query.where }, tx);
     if (!record) record = await this.create({ data: query.create }, tx);
     else record = await this.update({ where: query.where, data: query.update }, tx);
-    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select, include: query.include });
+    record = await this.findUniqueOrThrow(
+      { where: { id: record.id }, select: query.select, include: query.include },
+      tx,
+    );
     return record as Prisma.Result<Prisma.UserDelegate, Q, "upsert">;
   }
 }
@@ -2476,7 +2488,16 @@ class GroupIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "update">> {
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    tx =
+      tx ??
+      this.client._db.transaction(
+        Array.from(
+          this._getNeededStoresForFind(query)
+            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.GroupDelegate, "create">["data"]))
+            .union(this._getNeededStoresForFind(query)),
+        ),
+        "readwrite",
+      );
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       tx.abort();
@@ -2616,7 +2637,10 @@ class GroupIDBClass extends BaseIDBModelClass {
     let record = await this.findUnique({ where: query.where }, tx);
     if (!record) record = await this.create({ data: query.create }, tx);
     else record = await this.update({ where: query.where, data: query.update }, tx);
-    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select, include: query.include });
+    record = await this.findUniqueOrThrow(
+      { where: { id: record.id }, select: query.select, include: query.include },
+      tx,
+    );
     return record as Prisma.Result<Prisma.GroupDelegate, Q, "upsert">;
   }
 }
@@ -3179,7 +3203,18 @@ class UserGroupIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "update">> {
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    tx =
+      tx ??
+      this.client._db.transaction(
+        Array.from(
+          this._getNeededStoresForFind(query)
+            .union(
+              this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.UserGroupDelegate, "create">["data"]),
+            )
+            .union(this._getNeededStoresForFind(query)),
+        ),
+        "readwrite",
+      );
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       tx.abort();
@@ -3322,11 +3357,14 @@ class UserGroupIDBClass extends BaseIDBModelClass {
     let record = await this.findUnique({ where: query.where }, tx);
     if (!record) record = await this.create({ data: query.create }, tx);
     else record = await this.update({ where: query.where, data: query.update }, tx);
-    record = await this.findUniqueOrThrow({
-      where: { groupId_userId: { groupId: record.groupId, userId: record.userId } },
-      select: query.select,
-      include: query.include,
-    });
+    record = await this.findUniqueOrThrow(
+      {
+        where: { groupId_userId: { groupId: record.groupId, userId: record.userId } },
+        select: query.select,
+        include: query.include,
+      },
+      tx,
+    );
     return record as Prisma.Result<Prisma.UserGroupDelegate, Q, "upsert">;
   }
 }
@@ -3774,7 +3812,16 @@ class ProfileIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "update">> {
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    tx =
+      tx ??
+      this.client._db.transaction(
+        Array.from(
+          this._getNeededStoresForFind(query)
+            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.ProfileDelegate, "create">["data"]))
+            .union(this._getNeededStoresForFind(query)),
+        ),
+        "readwrite",
+      );
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       tx.abort();
@@ -3871,7 +3918,10 @@ class ProfileIDBClass extends BaseIDBModelClass {
     let record = await this.findUnique({ where: query.where }, tx);
     if (!record) record = await this.create({ data: query.create }, tx);
     else record = await this.update({ where: query.where, data: query.update }, tx);
-    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select, include: query.include });
+    record = await this.findUniqueOrThrow(
+      { where: { id: record.id }, select: query.select, include: query.include },
+      tx,
+    );
     return record as Prisma.Result<Prisma.ProfileDelegate, Q, "upsert">;
   }
 }
@@ -4498,7 +4548,16 @@ class PostIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "update">> {
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    tx =
+      tx ??
+      this.client._db.transaction(
+        Array.from(
+          this._getNeededStoresForFind(query)
+            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.PostDelegate, "create">["data"]))
+            .union(this._getNeededStoresForFind(query)),
+        ),
+        "readwrite",
+      );
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       tx.abort();
@@ -4693,7 +4752,10 @@ class PostIDBClass extends BaseIDBModelClass {
     let record = await this.findUnique({ where: query.where }, tx);
     if (!record) record = await this.create({ data: query.create }, tx);
     else record = await this.update({ where: query.where, data: query.update }, tx);
-    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select, include: query.include });
+    record = await this.findUniqueOrThrow(
+      { where: { id: record.id }, select: query.select, include: query.include },
+      tx,
+    );
     return record as Prisma.Result<Prisma.PostDelegate, Q, "upsert">;
   }
 }
@@ -5243,7 +5305,16 @@ class CommentIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "update">> {
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    tx =
+      tx ??
+      this.client._db.transaction(
+        Array.from(
+          this._getNeededStoresForFind(query)
+            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.CommentDelegate, "create">["data"]))
+            .union(this._getNeededStoresForFind(query)),
+        ),
+        "readwrite",
+      );
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       tx.abort();
@@ -5383,7 +5454,10 @@ class CommentIDBClass extends BaseIDBModelClass {
     let record = await this.findUnique({ where: query.where }, tx);
     if (!record) record = await this.create({ data: query.create }, tx);
     else record = await this.update({ where: query.where, data: query.update }, tx);
-    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select, include: query.include });
+    record = await this.findUniqueOrThrow(
+      { where: { id: record.id }, select: query.select, include: query.include },
+      tx,
+    );
     return record as Prisma.Result<Prisma.CommentDelegate, Q, "upsert">;
   }
 }
@@ -5848,7 +5922,20 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "update">> {
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    tx =
+      tx ??
+      this.client._db.transaction(
+        Array.from(
+          this._getNeededStoresForFind(query)
+            .union(
+              this._getNeededStoresForCreate(
+                query.data as Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">["data"],
+              ),
+            )
+            .union(this._getNeededStoresForFind(query)),
+        ),
+        "readwrite",
+      );
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       tx.abort();
@@ -5918,7 +6005,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     let record = await this.findUnique({ where: query.where }, tx);
     if (!record) record = await this.create({ data: query.create }, tx);
     else record = await this.update({ where: query.where, data: query.update }, tx);
-    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select });
+    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select }, tx);
     return record as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "upsert">;
   }
 }
@@ -6661,7 +6748,16 @@ class FatherIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.FatherDelegate, Q, "update">> {
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    tx =
+      tx ??
+      this.client._db.transaction(
+        Array.from(
+          this._getNeededStoresForFind(query)
+            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.FatherDelegate, "create">["data"]))
+            .union(this._getNeededStoresForFind(query)),
+        ),
+        "readwrite",
+      );
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       tx.abort();
@@ -6947,11 +7043,14 @@ class FatherIDBClass extends BaseIDBModelClass {
     let record = await this.findUnique({ where: query.where }, tx);
     if (!record) record = await this.create({ data: query.create }, tx);
     else record = await this.update({ where: query.where, data: query.update }, tx);
-    record = await this.findUniqueOrThrow({
-      where: { firstName_lastName: { firstName: record.firstName, lastName: record.lastName } },
-      select: query.select,
-      include: query.include,
-    });
+    record = await this.findUniqueOrThrow(
+      {
+        where: { firstName_lastName: { firstName: record.firstName, lastName: record.lastName } },
+        select: query.select,
+        include: query.include,
+      },
+      tx,
+    );
     return record as Prisma.Result<Prisma.FatherDelegate, Q, "upsert">;
   }
 }
@@ -7694,7 +7793,16 @@ class MotherIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "update">> {
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    tx =
+      tx ??
+      this.client._db.transaction(
+        Array.from(
+          this._getNeededStoresForFind(query)
+            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.MotherDelegate, "create">["data"]))
+            .union(this._getNeededStoresForFind(query)),
+        ),
+        "readwrite",
+      );
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       tx.abort();
@@ -8010,11 +8118,14 @@ class MotherIDBClass extends BaseIDBModelClass {
     let record = await this.findUnique({ where: query.where }, tx);
     if (!record) record = await this.create({ data: query.create }, tx);
     else record = await this.update({ where: query.where, data: query.update }, tx);
-    record = await this.findUniqueOrThrow({
-      where: { firstName_lastName: { firstName: record.firstName, lastName: record.lastName } },
-      select: query.select,
-      include: query.include,
-    });
+    record = await this.findUniqueOrThrow(
+      {
+        where: { firstName_lastName: { firstName: record.firstName, lastName: record.lastName } },
+        select: query.select,
+        include: query.include,
+      },
+      tx,
+    );
     return record as Prisma.Result<Prisma.MotherDelegate, Q, "upsert">;
   }
 }
@@ -8768,7 +8879,16 @@ class ChildIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "update">> {
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    tx =
+      tx ??
+      this.client._db.transaction(
+        Array.from(
+          this._getNeededStoresForFind(query)
+            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.ChildDelegate, "create">["data"]))
+            .union(this._getNeededStoresForFind(query)),
+        ),
+        "readwrite",
+      );
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       tx.abort();
@@ -9009,13 +9129,16 @@ class ChildIDBClass extends BaseIDBModelClass {
     let record = await this.findUnique({ where: query.where }, tx);
     if (!record) record = await this.create({ data: query.create }, tx);
     else record = await this.update({ where: query.where, data: query.update }, tx);
-    record = await this.findUniqueOrThrow({
-      where: {
-        childFirstName_childLastName: { childFirstName: record.childFirstName, childLastName: record.childLastName },
+    record = await this.findUniqueOrThrow(
+      {
+        where: {
+          childFirstName_childLastName: { childFirstName: record.childFirstName, childLastName: record.childLastName },
+        },
+        select: query.select,
+        include: query.include,
       },
-      select: query.select,
-      include: query.include,
-    });
+      tx,
+    );
     return record as Prisma.Result<Prisma.ChildDelegate, Q, "upsert">;
   }
 }
