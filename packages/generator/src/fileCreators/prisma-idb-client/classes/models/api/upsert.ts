@@ -20,9 +20,11 @@ export function addUpsertMethod(modelClass: ClassDeclaration, model: Model) {
 }
 
 function addGetAndUpsertRecord(writer: CodeBlockWriter) {
-  // TODO: add nested query things to the tx as well (nested writes to other records)
   writer
-    .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");`)
+    .write(`tx = tx ?? this.client._db.transaction(`)
+    .write(`Array.from(this._getNeededStoresForFind(query)`)
+    .write(`.union(this._getNeededStoresForCreate(query.create))`)
+    .writeLine(`.union(this._getNeededStoresForFind(query))), "readwrite");`)
     .writeLine(`let record = await this.findUnique({ where: query.where }, tx);`)
     .writeLine(`if (!record) record = await this.create({ data: query.create }, tx);`)
     .writeLine(`else record = await this.update({ where: query.where, data: query.update }, tx);`);

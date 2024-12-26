@@ -2,8 +2,6 @@ import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
 import { Field, Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
 
-// TODO: nested connectOrCreate
-
 export function addCreateMethod(modelClass: ClassDeclaration, model: Model, models: readonly Model[]) {
   modelClass.addMethod({
     name: "create",

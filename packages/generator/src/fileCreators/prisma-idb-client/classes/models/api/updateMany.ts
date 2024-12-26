@@ -20,10 +20,12 @@ export function addUpdateMany(modelClass: ClassDeclaration, model: Model) {
       const pk = getUniqueIdentifiers(model)[0];
       const keyPath = JSON.parse(pk.keyPath) as string[];
       writer
-        // TODO: nested create stores as well
-        .writeLine(
-          `tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");`,
+        .write(`tx = tx ?? this.client._db.transaction(`)
+        .write(`Array.from(this._getNeededStoresForFind(query)`)
+        .write(
+          `.union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]))`,
         )
+        .writeLine(`.union(this._getNeededStoresForFind(query))), "readwrite");`)
         .writeLine(`const records = await this.findMany({ where: query.where }, tx);`)
         .writeLine(`await Promise.all(`)
         .writeLine(`records.map(async (record) =>`)
