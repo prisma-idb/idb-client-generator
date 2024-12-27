@@ -21,11 +21,7 @@ export function addUpdateMany(modelClass: ClassDeclaration, model: Model) {
       const keyPath = JSON.parse(pk.keyPath) as string[];
       writer
         .write(`tx = tx ?? this.client._db.transaction(`)
-        .write(`Array.from(this._getNeededStoresForFind(query)`)
-        .write(
-          `.union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]))`,
-        )
-        .writeLine(`.union(this._getNeededStoresForFind(query))), "readwrite");`)
+        .writeLine(`Array.from(this._getNeededStoresForFind(query)), "readwrite");`)
         .writeLine(`const records = await this.findMany({ where: query.where }, tx);`)
         .writeLine(`await Promise.all(`)
         .writeLine(`records.map(async (record) =>`)

@@ -31,11 +31,7 @@ function addGetRecord(writer: CodeBlockWriter, model: Model) {
   const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
   writer
     .write(`tx = tx ?? this.client._db.transaction(`)
-    .write(`Array.from(this._getNeededStoresForFind(query)`)
-    .write(
-      `.union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]))`,
-    )
-    .writeLine(`.union(this._getNeededStoresForFind(query))), "readwrite");`)
+    .writeLine(`Array.from(this._getNeededStoresForUpdate(query)), "readwrite");`)
     .writeLine(`const record = await this.findUnique({ where: query.where }, tx);`)
     .writeLine(`if (record === null)`)
     .block(() => {
@@ -231,9 +227,7 @@ function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, ot
         .writeLine(`await Promise.all(`)
         .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.update).map(async (updateData) => `)
         .block(() => {
-          writer.writeLine(
-            `await this.client.${toCamelCase(field.type)}.updateMany({ where: { ${fkFields} }, data: updateData }, tx);`,
-          );
+          writer.writeLine(`await this.client.${toCamelCase(field.type)}.update(updateData, tx);`);
         })
         .writeLine(`))`);
     })
@@ -243,9 +237,7 @@ function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, ot
         .writeLine(`await Promise.all(`)
         .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.updateMany).map(async (updateData) => `)
         .block(() => {
-          writer.writeLine(
-            `await this.client.${toCamelCase(field.type)}.updateMany({ where: { ${fkFields} }, data: updateData }, tx);`,
-          );
+          writer.writeLine(`await this.client.${toCamelCase(field.type)}.updateMany(updateData, tx);`);
         })
         .writeLine(`))`);
     })

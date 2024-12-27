@@ -838,6 +838,42 @@ class UserIDBClass extends BaseIDBModelClass {
     return neededStores;
   }
 
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.UserDelegate, "update">>(
+    query: Partial<Q>,
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores = this._getNeededStoresForFind(query).union(
+      this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.UserDelegate, "create">["data"]),
+    );
+    if (query.data?.profile?.delete) {
+      this.client.profile._getNeededStoresForNestedDelete(neededStores);
+    }
+    if (query.data?.posts?.delete || query.data?.posts?.deleteMany) {
+      this.client.post._getNeededStoresForNestedDelete(neededStores);
+    }
+    if (query.data?.comments?.delete || query.data?.comments?.deleteMany) {
+      this.client.comment._getNeededStoresForNestedDelete(neededStores);
+    }
+    if (query.data?.Child?.delete || query.data?.Child?.deleteMany) {
+      this.client.child._getNeededStoresForNestedDelete(neededStores);
+    }
+    if (query.data?.Father?.delete || query.data?.Father?.deleteMany) {
+      this.client.father._getNeededStoresForNestedDelete(neededStores);
+    }
+    if (query.data?.Mother?.delete || query.data?.Mother?.deleteMany) {
+      this.client.mother._getNeededStoresForNestedDelete(neededStores);
+    }
+    if (query.data?.groups?.delete || query.data?.groups?.deleteMany) {
+      this.client.userGroup._getNeededStoresForNestedDelete(neededStores);
+    }
+    return neededStores;
+  }
+
+  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
+    neededStores.add("User");
+    neededStores.add("Profile");
+    neededStores.add("Comment");
+  }
+
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow"> {
@@ -1364,16 +1400,7 @@ class UserIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "update">> {
-    tx =
-      tx ??
-      this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForFind(query)
-            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.UserDelegate, "create">["data"]))
-            .union(this._getNeededStoresForFind(query)),
-        ),
-        "readwrite",
-      );
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       tx.abort();
@@ -1484,14 +1511,14 @@ class UserIDBClass extends BaseIDBModelClass {
       if (query.data.posts.update) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.posts.update).map(async (updateData) => {
-            await this.client.post.updateMany({ where: { authorId: record.id }, data: updateData }, tx);
+            await this.client.post.update(updateData, tx);
           }),
         );
       }
       if (query.data.posts.updateMany) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.posts.updateMany).map(async (updateData) => {
-            await this.client.post.updateMany({ where: { authorId: record.id }, data: updateData }, tx);
+            await this.client.post.updateMany(updateData, tx);
           }),
         );
       }
@@ -1570,14 +1597,14 @@ class UserIDBClass extends BaseIDBModelClass {
       if (query.data.comments.update) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.comments.update).map(async (updateData) => {
-            await this.client.comment.updateMany({ where: { userId: record.id }, data: updateData }, tx);
+            await this.client.comment.update(updateData, tx);
           }),
         );
       }
       if (query.data.comments.updateMany) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.comments.updateMany).map(async (updateData) => {
-            await this.client.comment.updateMany({ where: { userId: record.id }, data: updateData }, tx);
+            await this.client.comment.updateMany(updateData, tx);
           }),
         );
       }
@@ -1658,14 +1685,14 @@ class UserIDBClass extends BaseIDBModelClass {
       if (query.data.Child.update) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.Child.update).map(async (updateData) => {
-            await this.client.child.updateMany({ where: { userId: record.id }, data: updateData }, tx);
+            await this.client.child.update(updateData, tx);
           }),
         );
       }
       if (query.data.Child.updateMany) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.Child.updateMany).map(async (updateData) => {
-            await this.client.child.updateMany({ where: { userId: record.id }, data: updateData }, tx);
+            await this.client.child.updateMany(updateData, tx);
           }),
         );
       }
@@ -1748,14 +1775,14 @@ class UserIDBClass extends BaseIDBModelClass {
       if (query.data.Father.update) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.Father.update).map(async (updateData) => {
-            await this.client.father.updateMany({ where: { userId: record.id }, data: updateData }, tx);
+            await this.client.father.update(updateData, tx);
           }),
         );
       }
       if (query.data.Father.updateMany) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.Father.updateMany).map(async (updateData) => {
-            await this.client.father.updateMany({ where: { userId: record.id }, data: updateData }, tx);
+            await this.client.father.updateMany(updateData, tx);
           }),
         );
       }
@@ -1838,14 +1865,14 @@ class UserIDBClass extends BaseIDBModelClass {
       if (query.data.Mother.update) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.Mother.update).map(async (updateData) => {
-            await this.client.mother.updateMany({ where: { userId: record.id }, data: updateData }, tx);
+            await this.client.mother.update(updateData, tx);
           }),
         );
       }
       if (query.data.Mother.updateMany) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.Mother.updateMany).map(async (updateData) => {
-            await this.client.mother.updateMany({ where: { userId: record.id }, data: updateData }, tx);
+            await this.client.mother.updateMany(updateData, tx);
           }),
         );
       }
@@ -1924,14 +1951,14 @@ class UserIDBClass extends BaseIDBModelClass {
       if (query.data.groups.update) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.groups.update).map(async (updateData) => {
-            await this.client.userGroup.updateMany({ where: { userId: record.id }, data: updateData }, tx);
+            await this.client.userGroup.update(updateData, tx);
           }),
         );
       }
       if (query.data.groups.updateMany) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.groups.updateMany).map(async (updateData) => {
-            await this.client.userGroup.updateMany({ where: { userId: record.id }, data: updateData }, tx);
+            await this.client.userGroup.updateMany(updateData, tx);
           }),
         );
       }
@@ -1999,16 +2026,7 @@ class UserIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "updateMany">> {
-    tx =
-      tx ??
-      this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForFind(query)
-            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.UserDelegate, "create">["data"]))
-            .union(this._getNeededStoresForFind(query)),
-        ),
-        "readwrite",
-      );
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
     const records = await this.findMany({ where: query.where }, tx);
     await Promise.all(
       records.map(async (record) => {
@@ -2278,6 +2296,22 @@ class GroupIDBClass extends BaseIDBModelClass {
     return neededStores;
   }
 
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.GroupDelegate, "update">>(
+    query: Partial<Q>,
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores = this._getNeededStoresForFind(query).union(
+      this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.GroupDelegate, "create">["data"]),
+    );
+    if (query.data?.userGroups?.delete || query.data?.userGroups?.deleteMany) {
+      this.client.userGroup._getNeededStoresForNestedDelete(neededStores);
+    }
+    return neededStores;
+  }
+
+  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
+    neededStores.add("Group");
+  }
+
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.GroupDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.GroupDelegate, object, "findFirstOrThrow"> {
@@ -2506,16 +2540,7 @@ class GroupIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "update">> {
-    tx =
-      tx ??
-      this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForFind(query)
-            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.GroupDelegate, "create">["data"]))
-            .union(this._getNeededStoresForFind(query)),
-        ),
-        "readwrite",
-      );
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       tx.abort();
@@ -2562,14 +2587,14 @@ class GroupIDBClass extends BaseIDBModelClass {
       if (query.data.userGroups.update) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.userGroups.update).map(async (updateData) => {
-            await this.client.userGroup.updateMany({ where: { groupId: record.id }, data: updateData }, tx);
+            await this.client.userGroup.update(updateData, tx);
           }),
         );
       }
       if (query.data.userGroups.updateMany) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.userGroups.updateMany).map(async (updateData) => {
-            await this.client.userGroup.updateMany({ where: { groupId: record.id }, data: updateData }, tx);
+            await this.client.userGroup.updateMany(updateData, tx);
           }),
         );
       }
@@ -2637,16 +2662,7 @@ class GroupIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "updateMany">> {
-    tx =
-      tx ??
-      this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForFind(query)
-            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.GroupDelegate, "create">["data"]))
-            .union(this._getNeededStoresForFind(query)),
-        ),
-        "readwrite",
-      );
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
     const records = await this.findMany({ where: query.where }, tx);
     await Promise.all(
       records.map(async (record) => {
@@ -2993,6 +3009,19 @@ class UserGroupIDBClass extends BaseIDBModelClass {
     return neededStores;
   }
 
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.UserGroupDelegate, "update">>(
+    query: Partial<Q>,
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores = this._getNeededStoresForFind(query).union(
+      this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.UserGroupDelegate, "create">["data"]),
+    );
+    return neededStores;
+  }
+
+  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
+    neededStores.add("UserGroup");
+  }
+
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.UserGroupDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow"> {
@@ -3239,18 +3268,7 @@ class UserGroupIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "update">> {
-    tx =
-      tx ??
-      this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForFind(query)
-            .union(
-              this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.UserGroupDelegate, "create">["data"]),
-            )
-            .union(this._getNeededStoresForFind(query)),
-        ),
-        "readwrite",
-      );
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       tx.abort();
@@ -3372,18 +3390,7 @@ class UserGroupIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "updateMany">> {
-    tx =
-      tx ??
-      this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForFind(query)
-            .union(
-              this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.UserGroupDelegate, "create">["data"]),
-            )
-            .union(this._getNeededStoresForFind(query)),
-        ),
-        "readwrite",
-      );
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
     const records = await this.findMany({ where: query.where }, tx);
     await Promise.all(
       records.map(async (record) => {
@@ -3656,6 +3663,19 @@ class ProfileIDBClass extends BaseIDBModelClass {
     return neededStores;
   }
 
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.ProfileDelegate, "update">>(
+    query: Partial<Q>,
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores = this._getNeededStoresForFind(query).union(
+      this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.ProfileDelegate, "create">["data"]),
+    );
+    return neededStores;
+  }
+
+  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
+    neededStores.add("Profile");
+  }
+
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow"> {
@@ -3868,16 +3888,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "update">> {
-    tx =
-      tx ??
-      this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForFind(query)
-            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.ProfileDelegate, "create">["data"]))
-            .union(this._getNeededStoresForFind(query)),
-        ),
-        "readwrite",
-      );
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       tx.abort();
@@ -3956,16 +3967,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "updateMany">> {
-    tx =
-      tx ??
-      this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForFind(query)
-            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.ProfileDelegate, "create">["data"]))
-            .union(this._getNeededStoresForFind(query)),
-        ),
-        "readwrite",
-      );
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
     const records = await this.findMany({ where: query.where }, tx);
     await Promise.all(
       records.map(async (record) => {
@@ -4347,6 +4349,26 @@ class PostIDBClass extends BaseIDBModelClass {
     return neededStores;
   }
 
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.PostDelegate, "update">>(
+    query: Partial<Q>,
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores = this._getNeededStoresForFind(query).union(
+      this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.PostDelegate, "create">["data"]),
+    );
+    if (query.data?.author?.delete) {
+      this.client.user._getNeededStoresForNestedDelete(neededStores);
+    }
+    if (query.data?.comments?.delete || query.data?.comments?.deleteMany) {
+      this.client.comment._getNeededStoresForNestedDelete(neededStores);
+    }
+    return neededStores;
+  }
+
+  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
+    neededStores.add("Post");
+    neededStores.add("Comment");
+  }
+
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.PostDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow"> {
@@ -4622,16 +4644,7 @@ class PostIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "update">> {
-    tx =
-      tx ??
-      this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForFind(query)
-            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.PostDelegate, "create">["data"]))
-            .union(this._getNeededStoresForFind(query)),
-        ),
-        "readwrite",
-      );
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       tx.abort();
@@ -4733,14 +4746,14 @@ class PostIDBClass extends BaseIDBModelClass {
       if (query.data.comments.update) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.comments.update).map(async (updateData) => {
-            await this.client.comment.updateMany({ where: { postId: record.id }, data: updateData }, tx);
+            await this.client.comment.update(updateData, tx);
           }),
         );
       }
       if (query.data.comments.updateMany) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.comments.updateMany).map(async (updateData) => {
-            await this.client.comment.updateMany({ where: { postId: record.id }, data: updateData }, tx);
+            await this.client.comment.updateMany(updateData, tx);
           }),
         );
       }
@@ -4808,16 +4821,7 @@ class PostIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "updateMany">> {
-    tx =
-      tx ??
-      this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForFind(query)
-            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.PostDelegate, "create">["data"]))
-            .union(this._getNeededStoresForFind(query)),
-        ),
-        "readwrite",
-      );
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
     const records = await this.findMany({ where: query.where }, tx);
     await Promise.all(
       records.map(async (record) => {
@@ -5153,6 +5157,19 @@ class CommentIDBClass extends BaseIDBModelClass {
     return neededStores;
   }
 
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.CommentDelegate, "update">>(
+    query: Partial<Q>,
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores = this._getNeededStoresForFind(query).union(
+      this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.CommentDelegate, "create">["data"]),
+    );
+    return neededStores;
+  }
+
+  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
+    neededStores.add("Comment");
+  }
+
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.CommentDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow"> {
@@ -5397,16 +5414,7 @@ class CommentIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "update">> {
-    tx =
-      tx ??
-      this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForFind(query)
-            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.CommentDelegate, "create">["data"]))
-            .union(this._getNeededStoresForFind(query)),
-        ),
-        "readwrite",
-      );
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       tx.abort();
@@ -5528,16 +5536,7 @@ class CommentIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "updateMany">> {
-    tx =
-      tx ??
-      this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForFind(query)
-            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.CommentDelegate, "create">["data"]))
-            .union(this._getNeededStoresForFind(query)),
-        ),
-        "readwrite",
-      );
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
     const records = await this.findMany({ where: query.where }, tx);
     await Promise.all(
       records.map(async (record) => {
@@ -5842,6 +5841,19 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     return neededStores;
   }
 
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "update">>(
+    query: Partial<Q>,
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores = this._getNeededStoresForFind(query).union(
+      this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">["data"]),
+    );
+    return neededStores;
+  }
+
+  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
+    neededStores.add("AllFieldScalarTypes");
+  }
+
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow"> {
@@ -6032,20 +6044,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "update">> {
-    tx =
-      tx ??
-      this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForFind(query)
-            .union(
-              this._getNeededStoresForCreate(
-                query.data as Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">["data"],
-              ),
-            )
-            .union(this._getNeededStoresForFind(query)),
-        ),
-        "readwrite",
-      );
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       tx.abort();
@@ -6097,20 +6096,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "updateMany">> {
-    tx =
-      tx ??
-      this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForFind(query)
-            .union(
-              this._getNeededStoresForCreate(
-                query.data as Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">["data"],
-              ),
-            )
-            .union(this._getNeededStoresForFind(query)),
-        ),
-        "readwrite",
-      );
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
     const records = await this.findMany({ where: query.where }, tx);
     await Promise.all(
       records.map(async (record) => {
@@ -6562,6 +6548,25 @@ class FatherIDBClass extends BaseIDBModelClass {
     return neededStores;
   }
 
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.FatherDelegate, "update">>(
+    query: Partial<Q>,
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores = this._getNeededStoresForFind(query).union(
+      this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.FatherDelegate, "create">["data"]),
+    );
+    if (query.data?.children?.delete || query.data?.children?.deleteMany) {
+      this.client.child._getNeededStoresForNestedDelete(neededStores);
+    }
+    if (query.data?.user?.delete) {
+      this.client.user._getNeededStoresForNestedDelete(neededStores);
+    }
+    return neededStores;
+  }
+
+  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
+    neededStores.add("Father");
+  }
+
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.FatherDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.FatherDelegate, object, "findFirstOrThrow"> {
@@ -6880,16 +6885,7 @@ class FatherIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.FatherDelegate, Q, "update">> {
-    tx =
-      tx ??
-      this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForFind(query)
-            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.FatherDelegate, "create">["data"]))
-            .union(this._getNeededStoresForFind(query)),
-        ),
-        "readwrite",
-      );
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       tx.abort();
@@ -6947,20 +6943,14 @@ class FatherIDBClass extends BaseIDBModelClass {
       if (query.data.children.update) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.children.update).map(async (updateData) => {
-            await this.client.child.updateMany(
-              { where: { fatherFirstName: record.firstName, fatherLastName: record.lastName }, data: updateData },
-              tx,
-            );
+            await this.client.child.update(updateData, tx);
           }),
         );
       }
       if (query.data.children.updateMany) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.children.updateMany).map(async (updateData) => {
-            await this.client.child.updateMany(
-              { where: { fatherFirstName: record.firstName, fatherLastName: record.lastName }, data: updateData },
-              tx,
-            );
+            await this.client.child.updateMany(updateData, tx);
           }),
         );
       }
@@ -7151,16 +7141,7 @@ class FatherIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.FatherDelegate, Q, "updateMany">> {
-    tx =
-      tx ??
-      this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForFind(query)
-            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.FatherDelegate, "create">["data"]))
-            .union(this._getNeededStoresForFind(query)),
-        ),
-        "readwrite",
-      );
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
     const records = await this.findMany({ where: query.where }, tx);
     await Promise.all(
       records.map(async (record) => {
@@ -7639,6 +7620,28 @@ class MotherIDBClass extends BaseIDBModelClass {
     return neededStores;
   }
 
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.MotherDelegate, "update">>(
+    query: Partial<Q>,
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores = this._getNeededStoresForFind(query).union(
+      this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.MotherDelegate, "create">["data"]),
+    );
+    if (query.data?.children?.delete || query.data?.children?.deleteMany) {
+      this.client.child._getNeededStoresForNestedDelete(neededStores);
+    }
+    if (query.data?.husband?.delete) {
+      this.client.father._getNeededStoresForNestedDelete(neededStores);
+    }
+    if (query.data?.user?.delete) {
+      this.client.user._getNeededStoresForNestedDelete(neededStores);
+    }
+    return neededStores;
+  }
+
+  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
+    neededStores.add("Mother");
+  }
+
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.MotherDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.MotherDelegate, object, "findFirstOrThrow"> {
@@ -7943,16 +7946,7 @@ class MotherIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "update">> {
-    tx =
-      tx ??
-      this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForFind(query)
-            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.MotherDelegate, "create">["data"]))
-            .union(this._getNeededStoresForFind(query)),
-        ),
-        "readwrite",
-      );
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       tx.abort();
@@ -8010,20 +8004,14 @@ class MotherIDBClass extends BaseIDBModelClass {
       if (query.data.children.update) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.children.update).map(async (updateData) => {
-            await this.client.child.updateMany(
-              { where: { motherFirstName: record.firstName, motherLastName: record.lastName }, data: updateData },
-              tx,
-            );
+            await this.client.child.update(updateData, tx);
           }),
         );
       }
       if (query.data.children.updateMany) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.children.updateMany).map(async (updateData) => {
-            await this.client.child.updateMany(
-              { where: { motherFirstName: record.firstName, motherLastName: record.lastName }, data: updateData },
-              tx,
-            );
+            await this.client.child.updateMany(updateData, tx);
           }),
         );
       }
@@ -8244,16 +8232,7 @@ class MotherIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "updateMany">> {
-    tx =
-      tx ??
-      this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForFind(query)
-            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.MotherDelegate, "create">["data"]))
-            .union(this._getNeededStoresForFind(query)),
-        ),
-        "readwrite",
-      );
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
     const records = await this.findMany({ where: query.where }, tx);
     await Promise.all(
       records.map(async (record) => {
@@ -8746,6 +8725,22 @@ class ChildIDBClass extends BaseIDBModelClass {
     return neededStores;
   }
 
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.ChildDelegate, "update">>(
+    query: Partial<Q>,
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores = this._getNeededStoresForFind(query).union(
+      this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.ChildDelegate, "create">["data"]),
+    );
+    if (query.data?.user?.delete) {
+      this.client.user._getNeededStoresForNestedDelete(neededStores);
+    }
+    return neededStores;
+  }
+
+  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
+    neededStores.add("Child");
+  }
+
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.ChildDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.ChildDelegate, object, "findFirstOrThrow"> {
@@ -9047,16 +9042,7 @@ class ChildIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "update">> {
-    tx =
-      tx ??
-      this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForFind(query)
-            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.ChildDelegate, "create">["data"]))
-            .union(this._getNeededStoresForFind(query)),
-        ),
-        "readwrite",
-      );
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
     const record = await this.findUnique({ where: query.where }, tx);
     if (record === null) {
       tx.abort();
@@ -9268,16 +9254,7 @@ class ChildIDBClass extends BaseIDBModelClass {
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "updateMany">> {
-    tx =
-      tx ??
-      this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForFind(query)
-            .union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.ChildDelegate, "create">["data"]))
-            .union(this._getNeededStoresForFind(query)),
-        ),
-        "readwrite",
-      );
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
     const records = await this.findMany({ where: query.where }, tx);
     await Promise.all(
       records.map(async (record) => {
