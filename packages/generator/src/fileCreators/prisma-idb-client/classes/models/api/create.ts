@@ -2,8 +2,6 @@ import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
 import { Field, Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
 
-// TODO: nested connectOrCreate
-
 export function addCreateMethod(modelClass: ClassDeclaration, model: Model, models: readonly Model[]) {
   modelClass.addMethod({
     name: "create",
@@ -128,7 +126,15 @@ function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
   });
 
   writer.writeLine(`if (query.data.${field.name}?.connectOrCreate)`).block(() => {
-    writer.writeLine(`throw new Error('connectOrCreate not yet implemented')`);
+    writer
+      .writeLine(`const record = await this.client.${toCamelCase(field.type)}.upsert({`)
+      .writeLine(`where: query.data.${field.name}.connectOrCreate.where,`)
+      .writeLine(`create: query.data.${field.name}.connectOrCreate.create,`)
+      .writeLine(`update: {},`)
+      .writeLine(`}, tx);`);
+    for (let i = 0; i < field.relationToFields!.length; i++) {
+      writer.writeLine(`fk[${i}] = record.${field.relationToFields?.at(i)};`);
+    }
   });
 
   writer.writeLine(`const unsafeData = query.data as Record<string, unknown>;`);
@@ -140,6 +146,7 @@ function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
 
 function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Field, otherField: Field) {
   const keyPathMapping = otherField.relationFromFields!.map((field, idx) => `${field}: keyPath[${idx}]`).join(", ");
+
   writer.writeLine(`if (query.data.${field.name}?.create)`).block(() => {
     writer
       .write(`await this.client.${toCamelCase(field.type)}.create(`)
@@ -156,7 +163,16 @@ function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Fie
     );
   });
   writer.writeLine(`if (query.data.${field.name}?.connectOrCreate)`).block(() => {
-    writer.writeLine(`throw new Error('connectOrCreate not yet implemented')`);
+    writer.writeLine(`if (query.data.${field.name}?.connectOrCreate)`).block(() => {
+      writer
+        .writeLine(`await this.client.${toCamelCase(field.type)}.upsert({`)
+        .writeLine(`where: query.data.${field.name}.connectOrCreate.where,`)
+        .writeLine(
+          `create: { ...query.data.${field.name}.connectOrCreate.create, ${keyPathMapping} } as Prisma.Args<Prisma.${field.type}Delegate, "create">["data"],`,
+        )
+        .writeLine(`update: { ${keyPathMapping} },`)
+        .writeLine(`}, tx);`);
+    });
   });
 }
 
@@ -219,7 +235,26 @@ function addOneToManyRelation(
       .writeLine(");");
   });
   writer.writeLine(`if (query.data?.${field.name}?.connectOrCreate)`).block(() => {
-    writer.writeLine(`throw new Error('connectOrCreate not yet implemented')`);
+    writer
+      .writeLine(`await Promise.all(`)
+      .indent(() => {
+        writer
+          .writeLine(
+            `IDBUtils.convertToArray(query.data.${field.name}.connectOrCreate).map(async (connectOrCreate) => `,
+          )
+          .block(() => {
+            writer
+              .writeLine(`await this.client.${toCamelCase(field.type)}.upsert({`)
+              .writeLine(`where: connectOrCreate.where,`)
+              .writeLine(
+                `create: { ...connectOrCreate.create, ${nestedDirectLine} } as Prisma.Args<Prisma.${field.type}Delegate, "create">["data"],`,
+              )
+              .writeLine(`update: { ${nestedDirectLine} },`)
+              .writeLine(`}, tx);`);
+          })
+          .writeLine(`),`);
+      })
+      .writeLine(");");
   });
   writer.writeLine(`if (query.data?.${field.name}?.createMany)`).block(() => {
     writer

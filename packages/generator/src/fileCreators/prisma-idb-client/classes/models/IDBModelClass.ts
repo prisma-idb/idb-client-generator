@@ -26,6 +26,8 @@ import { addPreprocessListFields } from "./utils/_preprocessListFields";
 import { addRemoveNestedCreateDataMethod } from "./utils/_removeNestedCreateData";
 import { addResolveOrderByKey } from "./utils/_resolveOrderByKey";
 import { addResolveSortOrder } from "./utils/_resolveSortOrder";
+import { addGetNeededStoresForUpdate } from "./utils/_getNeededStoresForUpdate";
+import { addGetNeededStoresForNestedDelete } from "./utils/_getNeededStoresForNestedDelete";
 
 export function addIDBModelClass(file: SourceFile, model: Model, models: readonly Model[]) {
   const modelClass = file.addClass({
@@ -43,6 +45,8 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
   addGetNeededStoresForWhere(modelClass, model);
   addGetNeededStoresForFind(modelClass, model);
   addGetNeededStoresForCreate(modelClass, model);
+  addGetNeededStoresForUpdate(modelClass, model);
+  addGetNeededStoresForNestedDelete(modelClass, model, models);
   addRemoveNestedCreateDataMethod(modelClass, model);
   addPreprocessListFields(modelClass, model);
 
@@ -60,7 +64,7 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
   addDeleteMethod(modelClass, model, models);
   addDeleteManyMethod(modelClass, model, models);
 
-  addUpdateMethod(modelClass, model);
+  addUpdateMethod(modelClass, model, models);
   addUpdateMany(modelClass, model);
   addUpsertMethod(modelClass, model);
 }
