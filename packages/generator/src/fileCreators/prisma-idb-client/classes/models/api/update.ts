@@ -56,11 +56,13 @@ function addPutAndReturn(writer: CodeBlockWriter, model: Model, models: readonly
     .block(() => {
       writer.writeLine(`if (startKeyPath[i] !== endKeyPath[i])`).block(() => {
         writer.writeLine(`await tx.objectStore("${model.name}").delete(startKeyPath);`);
-        addReferentialUpdateHandling(writer, model, models);
         writer.writeLine(`break;`);
       });
     })
-    .writeLine(`const keyPath = await tx.objectStore("${model.name}").put(record);`)
+    .writeLine(`const keyPath = await tx.objectStore("${model.name}").put(record);`);
+
+  addReferentialUpdateHandling(writer, model, models);
+  writer
     .writeLine(`const recordWithRelations = (await this.findUnique(`)
     .block(() => {
       writer.writeLine(`where: ${whereUnique},`);
@@ -447,30 +449,34 @@ function handleOneToOneRelationMetaOnOtherUpdate(writer: CodeBlockWriter, field:
     });
 }
 
+// NoAction is the same as Restrict for this package
 function addReferentialUpdateHandling(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   const referencingModels = models.filter((m) =>
     m.fields.some((field) => field.kind === "object" && field.type === model.name && field.relationFromFields?.length),
   );
 
-  for (const referencingModel of referencingModels) {
-    const objectField = referencingModel.fields.find((field) => field.type === model.name)!;
+  writer.writeLine(`for (let i = 0; i < startKeyPath.length; i++)`).block(() => {
+    writer.writeLine(`if (startKeyPath[i] !== endKeyPath[i])`).block(() => {
+      for (const referencingModel of referencingModels) {
+        const objectField = referencingModel.fields.find((field) => field.type === model.name)!;
 
-    // TODO: Other referential actions (SetNull, SetDefault, Restrict), need resolution of https://github.com/prisma/prisma/issues/25944
-    // * NoAction is the same as Restrict for this library
+        const whereClause = objectField
+          .relationFromFields!.map((field, idx) => `${field}: startKeyPath[${idx}]`)
+          .join(", ");
+        const dataClause = objectField
+          .relationFromFields!.map((field, idx) => `${field}: endKeyPath[${idx}]`)
+          .join(", ");
 
-    // For default, Cascade
-    const whereClause = objectField
-      .relationFromFields!.map((field, idx) => `${field}: startKeyPath[${idx}]`)
-      .join(", ");
-    const dataClause = objectField.relationFromFields!.map((field, idx) => `${field}: endKeyPath[${idx}]`).join(", ");
-
-    writer
-      .writeLine(`await this.client.${toCamelCase(referencingModel.name)}.updateMany(`)
-      .block(() => {
-        writer.writeLine(`where: { ${whereClause} },`).writeLine(`data: { ${dataClause} },`);
-      })
-      .writeLine(`, tx);`);
-  }
+        writer
+          .writeLine(`await this.client.${toCamelCase(referencingModel.name)}.updateMany(`)
+          .block(() => {
+            writer.writeLine(`where: { ${whereClause} },`).writeLine(`data: { ${dataClause} },`);
+          })
+          .writeLine(`, tx);`);
+      }
+      writer.writeLine(`break;`);
+    });
+  });
 }
 
 function addFkValidation(writer: CodeBlockWriter, model: Model) {
