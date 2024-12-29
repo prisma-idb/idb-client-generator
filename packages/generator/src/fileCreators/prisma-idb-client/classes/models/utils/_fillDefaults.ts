@@ -29,7 +29,7 @@ export function addFillDefaultsFunction(modelClass: ClassDeclaration, model: Mod
               } else if (field.default.name === "now") {
                 addNowDefault(writer, field);
               }
-            } else if (field.default) {
+            } else if (field.default !== undefined) {
               addDefaultValue(writer, field);
             } else if (!field.isRequired) {
               addNullAssignment(writer, field);
