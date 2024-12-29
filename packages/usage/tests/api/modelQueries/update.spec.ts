@@ -52,4 +52,3 @@ test("update_CascadeUpdateToFkFields_SuccessfullyUpdatesDependentRecords", async
     query: { where: { userId: 2 } },
   });
 });
-
