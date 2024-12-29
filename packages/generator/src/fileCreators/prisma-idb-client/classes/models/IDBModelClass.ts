@@ -45,7 +45,7 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
   addGetNeededStoresForWhere(modelClass, model);
   addGetNeededStoresForFind(modelClass, model);
   addGetNeededStoresForCreate(modelClass, model);
-  addGetNeededStoresForUpdate(modelClass, model);
+  addGetNeededStoresForUpdate(modelClass, model, models);
   addGetNeededStoresForNestedDelete(modelClass, model, models);
   addRemoveNestedCreateDataMethod(modelClass, model);
   addPreprocessListFields(modelClass, model);
