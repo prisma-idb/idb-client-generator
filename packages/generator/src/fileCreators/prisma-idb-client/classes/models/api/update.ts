@@ -22,7 +22,7 @@ export function addUpdateMethod(modelClass: ClassDeclaration, model: Model, mode
       // TODO: the numeric types
       addScalarListUpdateHandling(writer, model);
       addRelationUpdateHandling(writer, model, models);
-      addPutAndReturn(writer, model);
+      addPutAndReturn(writer, model, models);
     },
   });
 }
@@ -42,7 +42,7 @@ function addGetRecord(writer: CodeBlockWriter, model: Model) {
     );
 }
 
-function addPutAndReturn(writer: CodeBlockWriter, model: Model) {
+function addPutAndReturn(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
   const whereUnique =
     pk.length === 1
@@ -54,7 +54,9 @@ function addPutAndReturn(writer: CodeBlockWriter, model: Model) {
     .writeLine(`for (let i = 0; i < startKeyPath.length; i++)`)
     .block(() => {
       writer.writeLine(`if (startKeyPath[i] !== endKeyPath[i])`).block(() => {
-        writer.writeLine(`await tx.objectStore("${model.name}").delete(startKeyPath);`).writeLine(`break;`);
+        writer.writeLine(`await tx.objectStore("${model.name}").delete(startKeyPath);`);
+        addReferentialUpdateHandling(writer, model, models);
+        writer.writeLine(`break;`);
       });
     })
     .writeLine(`const keyPath = await tx.objectStore("${model.name}").put(record);`)
@@ -442,4 +444,30 @@ function handleOneToOneRelationMetaOnOtherUpdate(writer: CodeBlockWriter, field:
         `await this.client.${toCamelCase(field.type)}.upsert({ where: { ...query.data.${field.name}.connectOrCreate.where, ${otherFkFields} } as Prisma.${field.type}WhereUniqueInput, create: { ...query.data.${field.name}.connectOrCreate.create, ${otherFkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'], update: { ${otherFkFields} } }, tx);`,
       );
     });
+}
+
+function addReferentialUpdateHandling(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+  const referencingModels = models.filter((m) =>
+    m.fields.some((field) => field.kind === "object" && field.type === model.name && field.relationFromFields?.length),
+  );
+
+  for (const referencingModel of referencingModels) {
+    const objectField = referencingModel.fields.find((field) => field.type === model.name)!;
+
+    // TODO: Other referential actions (SetNull, SetDefault, Restrict), need resolution of https://github.com/prisma/prisma/issues/25944
+    // * NoAction is the same as Restrict for this library
+
+    // For default, Cascade
+    const whereClause = objectField
+      .relationFromFields!.map((field, idx) => `${field}: startKeyPath[${idx}]`)
+      .join(", ");
+    const dataClause = objectField.relationFromFields!.map((field, idx) => `${field}: endKeyPath[${idx}]`).join(", ");
+
+    writer
+      .writeLine(`await this.client.${toCamelCase(referencingModel.name)}.updateMany(`)
+      .block(() => {
+        writer.writeLine(`where: { ${whereClause} },`).writeLine(`data: { ${dataClause} },`);
+      })
+      .writeLine(`, tx);`);
+  }
 }
