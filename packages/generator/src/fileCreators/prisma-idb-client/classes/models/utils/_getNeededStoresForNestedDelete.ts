@@ -1,5 +1,6 @@
 import { Model } from "src/fileCreators/types";
 import { ClassDeclaration } from "ts-morph";
+import { toCamelCase } from "../../../../../helpers/utils";
 
 export function addGetNeededStoresForNestedDelete(
   modelClass: ClassDeclaration,
@@ -15,10 +16,10 @@ export function addGetNeededStoresForNestedDelete(
       const relationFields = model.fields.filter(({ kind }) => kind === "object");
       const cascadingDeletes = relationFields.filter((field) => {
         const otherModel = models.find((m) => m.name === field.type);
-        return otherModel?.fields.some((f) => f.type === model.name && f.relationOnDelete === "Cascade");
+        return otherModel?.fields.some((f) => f.type === model.name && f.relationFromFields?.length);
       });
       for (const field of cascadingDeletes) {
-        writer.writeLine(`neededStores.add("${field.type}");`);
+        writer.writeLine(`this.client.${toCamelCase(field.type)}._getNeededStoresForNestedDelete(neededStores);`);
       }
     },
   });
