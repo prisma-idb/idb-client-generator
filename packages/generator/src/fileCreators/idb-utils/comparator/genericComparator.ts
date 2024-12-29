@@ -7,7 +7,11 @@ export function addGenericComparator(utilsFile: SourceFile) {
     parameters: [
       { name: "a", type: "unknown" },
       { name: "b", type: "unknown" },
-      { name: "sortOrder", type: `Prisma.SortOrder | Prisma.SortOrderInput`, initializer: `"asc"` },
+      {
+        name: "sortOrder",
+        type: `Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" }`,
+        initializer: `"asc"`,
+      },
     ],
     returnType: "number",
     statements: (writer) => {

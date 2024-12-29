@@ -675,7 +675,7 @@ export function handleScalarListUpdateField<T, R extends Prisma.Result<T, object
 export function genericComparator(
   a: unknown,
   b: unknown,
-  sortOrder: Prisma.SortOrder | Prisma.SortOrderInput = "asc",
+  sortOrder: Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } = "asc",
 ): number {
   if (typeof sortOrder !== "string" && sortOrder.nulls) {
     const nullMultiplier = sortOrder.nulls === "first" ? -1 : 1;
