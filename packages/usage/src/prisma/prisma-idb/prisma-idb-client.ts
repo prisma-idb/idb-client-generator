@@ -1139,8 +1139,13 @@ class UserIDBClass extends BaseIDBModelClass {
 
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("User");
-    neededStores.add("Profile");
-    neededStores.add("Comment");
+    this.client.profile._getNeededStoresForNestedDelete(neededStores);
+    this.client.post._getNeededStoresForNestedDelete(neededStores);
+    this.client.comment._getNeededStoresForNestedDelete(neededStores);
+    this.client.child._getNeededStoresForNestedDelete(neededStores);
+    this.client.father._getNeededStoresForNestedDelete(neededStores);
+    this.client.mother._getNeededStoresForNestedDelete(neededStores);
+    this.client.userGroup._getNeededStoresForNestedDelete(neededStores);
   }
 
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(
@@ -1204,7 +1209,7 @@ class UserIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findUnique">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
-    if (query.where.id) {
+    if (query.where.id !== undefined) {
       record = await tx.objectStore("User").get([query.where.id]);
     }
     if (!record) return null;
@@ -1629,20 +1634,50 @@ class UserIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "delete">> {
     const storesNeeded = this._getNeededStoresForFind(query);
-    storesNeeded.add("Profile");
-    storesNeeded.add("Comment");
+    this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
+    const relatedUserGroup = await this.client.userGroup.findMany({ where: { userId: record.id } }, tx);
+    if (relatedUserGroup.length) throw new Error("Cannot delete record, other records depend on it");
     await this.client.profile.deleteMany(
       {
         where: { userId: record.id },
       },
       tx,
     );
-    await this.client.comment.deleteMany(
+    await this.client.post.updateMany(
+      {
+        where: { authorId: record.id },
+        data: { authorId: null },
+      },
+      tx,
+    );
+    await this.client.comment.updateMany(
       {
         where: { userId: record.id },
+        data: { userId: 0 },
+      },
+      tx,
+    );
+    await this.client.father.updateMany(
+      {
+        where: { userId: record.id },
+        data: { userId: null },
+      },
+      tx,
+    );
+    await this.client.mother.updateMany(
+      {
+        where: { userId: record.id },
+        data: { userId: null },
+      },
+      tx,
+    );
+    await this.client.child.updateMany(
+      {
+        where: { userId: record.id },
+        data: { userId: null },
       },
       tx,
     );
@@ -1655,8 +1690,7 @@ class UserIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "deleteMany">> {
     const storesNeeded = this._getNeededStoresForFind(query);
-    storesNeeded.add("Profile");
-    storesNeeded.add("Comment");
+    this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const records = await this.findMany(query, tx);
     for (const record of records) {
@@ -2278,6 +2312,12 @@ class UserIDBClass extends BaseIDBModelClass {
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         await tx.objectStore("User").delete(startKeyPath);
+        break;
+      }
+    }
+    const keyPath = await tx.objectStore("User").put(record);
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
         await this.client.userGroup.updateMany(
           {
             where: { userId: startKeyPath[0] },
@@ -2330,7 +2370,6 @@ class UserIDBClass extends BaseIDBModelClass {
         break;
       }
     }
-    const keyPath = await tx.objectStore("User").put(record);
     const recordWithRelations = (await this.findUnique(
       {
         where: { id: keyPath[0] },
@@ -2664,6 +2703,7 @@ class GroupIDBClass extends BaseIDBModelClass {
 
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("Group");
+    this.client.userGroup._getNeededStoresForNestedDelete(neededStores);
   }
 
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.GroupDelegate, "create">["data"]>(
@@ -2721,7 +2761,7 @@ class GroupIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "findUnique">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
-    if (query.where.id) {
+    if (query.where.id !== undefined) {
       record = await tx.objectStore("Group").get([query.where.id]);
     }
     if (!record) return null;
@@ -2870,9 +2910,12 @@ class GroupIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "delete">> {
     const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
+    const relatedUserGroup = await this.client.userGroup.findMany({ where: { groupId: record.id } }, tx);
+    if (relatedUserGroup.length) throw new Error("Cannot delete record, other records depend on it");
     await tx.objectStore("Group").delete([record.id]);
     return record;
   }
@@ -2882,6 +2925,7 @@ class GroupIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "deleteMany">> {
     const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const records = await this.findMany(query, tx);
     for (const record of records) {
@@ -2999,6 +3043,12 @@ class GroupIDBClass extends BaseIDBModelClass {
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         await tx.objectStore("Group").delete(startKeyPath);
+        break;
+      }
+    }
+    const keyPath = await tx.objectStore("Group").put(record);
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
         await this.client.userGroup.updateMany(
           {
             where: { groupId: startKeyPath[0] },
@@ -3009,7 +3059,6 @@ class GroupIDBClass extends BaseIDBModelClass {
         break;
       }
     }
-    const keyPath = await tx.objectStore("Group").put(record);
     const recordWithRelations = (await this.findUnique(
       {
         where: { id: keyPath[0] },
@@ -3482,7 +3531,7 @@ class UserGroupIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findUnique">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
-    if (query.where.groupId_userId) {
+    if (query.where.groupId_userId !== undefined) {
       record = await tx
         .objectStore("UserGroup")
         .get([query.where.groupId_userId.groupId, query.where.groupId_userId.userId]);
@@ -3648,6 +3697,7 @@ class UserGroupIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "delete">> {
     const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
@@ -3660,6 +3710,7 @@ class UserGroupIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "deleteMany">> {
     const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const records = await this.findMany(query, tx);
     for (const record of records) {
@@ -3773,6 +3824,14 @@ class UserGroupIDBClass extends BaseIDBModelClass {
         );
       }
     }
+    if (record.groupId !== undefined) {
+      const related = await this.client.group.findUnique({ where: { id: record.groupId } }, tx);
+      if (!related) throw new Error("Related record not found");
+    }
+    if (record.userId !== undefined) {
+      const related = await this.client.user.findUnique({ where: { id: record.userId } }, tx);
+      if (!related) throw new Error("Related record not found");
+    }
     const endKeyPath: PrismaIDBSchema["UserGroup"]["key"] = [record.groupId, record.userId];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
@@ -3781,6 +3840,11 @@ class UserGroupIDBClass extends BaseIDBModelClass {
       }
     }
     const keyPath = await tx.objectStore("UserGroup").put(record);
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        break;
+      }
+    }
     const recordWithRelations = (await this.findUnique(
       {
         where: { groupId_userId: { groupId: keyPath[0], userId: keyPath[1] } },
@@ -4154,9 +4218,9 @@ class ProfileIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findUnique">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
-    if (query.where.id) {
+    if (query.where.id !== undefined) {
       record = await tx.objectStore("Profile").get([query.where.id]);
-    } else if (query.where.userId) {
+    } else if (query.where.userId !== undefined) {
       record = await tx.objectStore("Profile").index("userIdIndex").get([query.where.userId]);
     }
     if (!record) return null;
@@ -4287,6 +4351,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "delete">> {
     const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
@@ -4299,6 +4364,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "deleteMany">> {
     const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const records = await this.findMany(query, tx);
     for (const record of records) {
@@ -4369,6 +4435,10 @@ class ProfileIDBClass extends BaseIDBModelClass {
         );
       }
     }
+    if (record.userId !== undefined) {
+      const related = await this.client.user.findUnique({ where: { id: record.userId } }, tx);
+      if (!related) throw new Error("Related record not found");
+    }
     const endKeyPath: PrismaIDBSchema["Profile"]["key"] = [record.id];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
@@ -4377,6 +4447,11 @@ class ProfileIDBClass extends BaseIDBModelClass {
       }
     }
     const keyPath = await tx.objectStore("Profile").put(record);
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        break;
+      }
+    }
     const recordWithRelations = (await this.findUnique(
       {
         where: { id: keyPath[0] },
@@ -4857,7 +4932,7 @@ class PostIDBClass extends BaseIDBModelClass {
 
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("Post");
-    neededStores.add("Comment");
+    this.client.comment._getNeededStoresForNestedDelete(neededStores);
   }
 
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.PostDelegate, "create">["data"]>(
@@ -4921,7 +4996,7 @@ class PostIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findUnique">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
-    if (query.where.id) {
+    if (query.where.id !== undefined) {
       record = await tx.objectStore("Post").get([query.where.id]);
     }
     if (!record) return null;
@@ -5103,7 +5178,7 @@ class PostIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "delete">> {
     const storesNeeded = this._getNeededStoresForFind(query);
-    storesNeeded.add("Comment");
+    this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
@@ -5122,7 +5197,7 @@ class PostIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "deleteMany">> {
     const storesNeeded = this._getNeededStoresForFind(query);
-    storesNeeded.add("Comment");
+    this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const records = await this.findMany(query, tx);
     for (const record of records) {
@@ -5291,10 +5366,20 @@ class PostIDBClass extends BaseIDBModelClass {
         );
       }
     }
+    if (record.authorId !== undefined && record.authorId !== null) {
+      const related = await this.client.user.findUnique({ where: { id: record.authorId } }, tx);
+      if (!related) throw new Error("Related record not found");
+    }
     const endKeyPath: PrismaIDBSchema["Post"]["key"] = [record.id];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         await tx.objectStore("Post").delete(startKeyPath);
+        break;
+      }
+    }
+    const keyPath = await tx.objectStore("Post").put(record);
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
         await this.client.comment.updateMany(
           {
             where: { postId: startKeyPath[0] },
@@ -5305,7 +5390,6 @@ class PostIDBClass extends BaseIDBModelClass {
         break;
       }
     }
-    const keyPath = await tx.objectStore("Post").put(record);
     const recordWithRelations = (await this.findUnique(
       {
         where: { id: keyPath[0] },
@@ -5537,6 +5621,9 @@ class CommentIDBClass extends BaseIDBModelClass {
     if (data.id === undefined) {
       data.id = createId();
     }
+    if (data.userId === undefined) {
+      data.userId = 0;
+    }
     return data;
   }
 
@@ -5767,7 +5854,7 @@ class CommentIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findUnique">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
-    if (query.where.id) {
+    if (query.where.id !== undefined) {
       record = await tx.objectStore("Comment").get([query.where.id]);
     }
     if (!record) return null;
@@ -5931,6 +6018,7 @@ class CommentIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "delete">> {
     const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
@@ -5943,6 +6031,7 @@ class CommentIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "deleteMany">> {
     const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const records = await this.findMany(query, tx);
     for (const record of records) {
@@ -6056,6 +6145,14 @@ class CommentIDBClass extends BaseIDBModelClass {
         );
       }
     }
+    if (record.postId !== undefined) {
+      const related = await this.client.post.findUnique({ where: { id: record.postId } }, tx);
+      if (!related) throw new Error("Related record not found");
+    }
+    if (record.userId !== undefined) {
+      const related = await this.client.user.findUnique({ where: { id: record.userId } }, tx);
+      if (!related) throw new Error("Related record not found");
+    }
     const endKeyPath: PrismaIDBSchema["Comment"]["key"] = [record.id];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
@@ -6064,6 +6161,11 @@ class CommentIDBClass extends BaseIDBModelClass {
       }
     }
     const keyPath = await tx.objectStore("Comment").put(record);
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        break;
+      }
+    }
     const recordWithRelations = (await this.findUnique(
       {
         where: { id: keyPath[0] },
@@ -6458,7 +6560,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findUnique">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
-    if (query.where.id) {
+    if (query.where.id !== undefined) {
       record = await tx.objectStore("AllFieldScalarTypes").get([query.where.id]);
     }
     if (!record) return null;
@@ -6556,6 +6658,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "delete">> {
     const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
@@ -6568,6 +6671,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "deleteMany">> {
     const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const records = await this.findMany(query, tx);
     for (const record of records) {
@@ -6619,6 +6723,11 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
       }
     }
     const keyPath = await tx.objectStore("AllFieldScalarTypes").put(record);
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        break;
+      }
+    }
     const recordWithRelations = (await this.findUnique(
       {
         where: { id: keyPath[0] },
@@ -7193,6 +7302,7 @@ class FatherIDBClass extends BaseIDBModelClass {
 
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("Father");
+    this.client.child._getNeededStoresForNestedDelete(neededStores);
   }
 
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.FatherDelegate, "create">["data"]>(
@@ -7252,11 +7362,11 @@ class FatherIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.FatherDelegate, Q, "findUnique">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
-    if (query.where.firstName_lastName) {
+    if (query.where.firstName_lastName !== undefined) {
       record = await tx
         .objectStore("Father")
         .get([query.where.firstName_lastName.firstName, query.where.firstName_lastName.lastName]);
-    } else if (query.where.motherFirstName_motherLastName) {
+    } else if (query.where.motherFirstName_motherLastName !== undefined) {
       record = await tx
         .objectStore("Father")
         .index("motherFirstName_motherLastNameIndex")
@@ -7486,9 +7596,15 @@ class FatherIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.FatherDelegate, Q, "delete">> {
     const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
+    const relatedChild = await this.client.child.findMany(
+      { where: { fatherFirstName: record.firstName, fatherLastName: record.lastName } },
+      tx,
+    );
+    if (relatedChild.length) throw new Error("Cannot delete record, other records depend on it");
     await tx.objectStore("Father").delete([record.firstName, record.lastName]);
     return record;
   }
@@ -7498,6 +7614,7 @@ class FatherIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.FatherDelegate, Q, "deleteMany">> {
     const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const records = await this.findMany(query, tx);
     for (const record of records) {
@@ -7748,10 +7865,27 @@ class FatherIDBClass extends BaseIDBModelClass {
         record.userId = null;
       }
     }
+    if (record.motherFirstName !== undefined) {
+      const related = await this.client.mother.findUnique(
+        { where: { firstName_lastName: { firstName: record.motherFirstName, lastName: record.motherLastName } } },
+        tx,
+      );
+      if (!related) throw new Error("Related record not found");
+    }
+    if (record.userId !== undefined && record.userId !== null) {
+      const related = await this.client.user.findUnique({ where: { id: record.userId } }, tx);
+      if (!related) throw new Error("Related record not found");
+    }
     const endKeyPath: PrismaIDBSchema["Father"]["key"] = [record.firstName, record.lastName];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         await tx.objectStore("Father").delete(startKeyPath);
+        break;
+      }
+    }
+    const keyPath = await tx.objectStore("Father").put(record);
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
         await this.client.child.updateMany(
           {
             where: { fatherFirstName: startKeyPath[0], fatherLastName: startKeyPath[1] },
@@ -7762,7 +7896,6 @@ class FatherIDBClass extends BaseIDBModelClass {
         break;
       }
     }
-    const keyPath = await tx.objectStore("Father").put(record);
     const recordWithRelations = (await this.findUnique(
       {
         where: { firstName_lastName: { firstName: keyPath[0], lastName: keyPath[1] } },
@@ -8376,6 +8509,8 @@ class MotherIDBClass extends BaseIDBModelClass {
 
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("Mother");
+    this.client.child._getNeededStoresForNestedDelete(neededStores);
+    this.client.father._getNeededStoresForNestedDelete(neededStores);
   }
 
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.MotherDelegate, "create">["data"]>(
@@ -8435,7 +8570,7 @@ class MotherIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "findUnique">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
-    if (query.where.firstName_lastName) {
+    if (query.where.firstName_lastName !== undefined) {
       record = await tx
         .objectStore("Mother")
         .get([query.where.firstName_lastName.firstName, query.where.firstName_lastName.lastName]);
@@ -8655,9 +8790,20 @@ class MotherIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "delete">> {
     const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
+    const relatedFather = await this.client.father.findMany(
+      { where: { motherFirstName: record.firstName, motherLastName: record.lastName } },
+      tx,
+    );
+    if (relatedFather.length) throw new Error("Cannot delete record, other records depend on it");
+    const relatedChild = await this.client.child.findMany(
+      { where: { motherFirstName: record.firstName, motherLastName: record.lastName } },
+      tx,
+    );
+    if (relatedChild.length) throw new Error("Cannot delete record, other records depend on it");
     await tx.objectStore("Mother").delete([record.firstName, record.lastName]);
     return record;
   }
@@ -8667,6 +8813,7 @@ class MotherIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "deleteMany">> {
     const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const records = await this.findMany(query, tx);
     for (const record of records) {
@@ -8947,10 +9094,20 @@ class MotherIDBClass extends BaseIDBModelClass {
         record.userId = null;
       }
     }
+    if (record.userId !== undefined && record.userId !== null) {
+      const related = await this.client.user.findUnique({ where: { id: record.userId } }, tx);
+      if (!related) throw new Error("Related record not found");
+    }
     const endKeyPath: PrismaIDBSchema["Mother"]["key"] = [record.firstName, record.lastName];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         await tx.objectStore("Mother").delete(startKeyPath);
+        break;
+      }
+    }
+    const keyPath = await tx.objectStore("Mother").put(record);
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
         await this.client.father.updateMany(
           {
             where: { motherFirstName: startKeyPath[0], motherLastName: startKeyPath[1] },
@@ -8968,7 +9125,6 @@ class MotherIDBClass extends BaseIDBModelClass {
         break;
       }
     }
-    const keyPath = await tx.objectStore("Mother").put(record);
     const recordWithRelations = (await this.findUnique(
       {
         where: { firstName_lastName: { firstName: keyPath[0], lastName: keyPath[1] } },
@@ -9623,7 +9779,7 @@ class ChildIDBClass extends BaseIDBModelClass {
   ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "findUnique">> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
-    if (query.where.childFirstName_childLastName) {
+    if (query.where.childFirstName_childLastName !== undefined) {
       record = await tx
         .objectStore("Child")
         .get([
@@ -9833,6 +9989,7 @@ class ChildIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "delete">> {
     const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
@@ -9845,6 +10002,7 @@ class ChildIDBClass extends BaseIDBModelClass {
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "deleteMany">> {
     const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const records = await this.findMany(query, tx);
     for (const record of records) {
@@ -10058,6 +10216,24 @@ class ChildIDBClass extends BaseIDBModelClass {
         );
       }
     }
+    if (record.userId !== undefined && record.userId !== null) {
+      const related = await this.client.user.findUnique({ where: { id: record.userId } }, tx);
+      if (!related) throw new Error("Related record not found");
+    }
+    if (record.fatherFirstName !== undefined) {
+      const related = await this.client.father.findUnique(
+        { where: { firstName_lastName: { firstName: record.fatherFirstName, lastName: record.fatherLastName } } },
+        tx,
+      );
+      if (!related) throw new Error("Related record not found");
+    }
+    if (record.motherFirstName !== undefined) {
+      const related = await this.client.mother.findUnique(
+        { where: { firstName_lastName: { firstName: record.motherFirstName, lastName: record.motherLastName } } },
+        tx,
+      );
+      if (!related) throw new Error("Related record not found");
+    }
     const endKeyPath: PrismaIDBSchema["Child"]["key"] = [record.childFirstName, record.childLastName];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
@@ -10066,6 +10242,11 @@ class ChildIDBClass extends BaseIDBModelClass {
       }
     }
     const keyPath = await tx.objectStore("Child").put(record);
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        break;
+      }
+    }
     const recordWithRelations = (await this.findUnique(
       {
         where: { childFirstName_childLastName: { childFirstName: keyPath[0], childLastName: keyPath[1] } },

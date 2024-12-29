@@ -1,3 +1,4 @@
+import { createId } from "@paralleldrive/cuid2";
 import { test } from "../../fixtures";
 import { expectQueryToSucceed } from "../../queryRunnerHelper";
 
@@ -32,6 +33,9 @@ test("include_WithOneToManyRelation_ReturnsRelatedData", async ({ page }) => {
 });
 
 test("include_WithNestedRelationships_ReturnsAllData", async ({ page }) => {
+  const cuid1 = createId();
+  const cuid2 = createId();
+
   await expectQueryToSucceed({
     page,
     model: "user",
@@ -45,8 +49,8 @@ test("include_WithNestedRelationships_ReturnsAllData", async ({ page }) => {
               title: "post1",
               comments: {
                 create: [
-                  { text: "1st comment", userId: 1, id: "d9lyjcbysitdi9gpjqlfbu7b" },
-                  { text: "2nd comment", userId: 1, id: "qjvdd5we849m0xwepeclnemv" },
+                  { text: "1st comment", userId: 1, id: cuid1 },
+                  { text: "2nd comment", userId: 1, id: cuid2 },
                 ],
               },
             },
@@ -60,6 +64,6 @@ test("include_WithNestedRelationships_ReturnsAllData", async ({ page }) => {
     page,
     model: "user",
     operation: "findMany",
-    query: { include: { posts: { include: { comments: true } } } },
+    query: { include: { posts: { include: { comments: { orderBy: { text: "asc" } } } } } },
   });
 });
