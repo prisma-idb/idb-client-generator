@@ -2,7 +2,7 @@ import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
 import { Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers } from "../../../../../helpers/utils";
 
-export function addDeleteManyMethod(modelClass: ClassDeclaration, model: Model, models: readonly Model[]) {
+export function addDeleteManyMethod(modelClass: ClassDeclaration, model: Model) {
   modelClass.addMethod({
     name: "deleteMany",
     isAsync: true,
@@ -17,23 +17,17 @@ export function addDeleteManyMethod(modelClass: ClassDeclaration, model: Model, 
     ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'deleteMany'>>`,
     statements: (writer) => {
-      createTxAndGetRecord(writer, model, models);
+      createTxAndGetRecord(writer);
       deleteRecords(writer, model);
       writer.writeLine(`return { count: records.length };`);
     },
   });
 }
 
-function createTxAndGetRecord(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
-  writer.writeLine(`const storesNeeded = this._getNeededStoresForFind(query);`);
-  const cascadingModels = models.filter((_model) =>
-    _model.fields.some((field) => field.relationOnDelete === "Cascade" && field.type === model.name),
-  );
-  for (const cascadeModel of cascadingModels) {
-    writer.writeLine(`storesNeeded.add("${cascadeModel.name}")`);
-  }
-
+function createTxAndGetRecord(writer: CodeBlockWriter) {
   writer
+    .writeLine(`const storesNeeded = this._getNeededStoresForFind(query);`)
+    .writeLine(`this._getNeededStoresForNestedDelete(storesNeeded);`)
     .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");`)
     .writeLine(`const records = await this.findMany(query, tx);`);
 }
