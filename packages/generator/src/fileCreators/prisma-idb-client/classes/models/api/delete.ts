@@ -17,23 +17,17 @@ export function addDeleteMethod(modelClass: ClassDeclaration, model: Model, mode
     ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'delete'>>`,
     statements: (writer) => {
-      createTxAndGetRecord(writer, model, models);
+      createTxAndGetRecord(writer);
       handleCascadeDeletes(writer, model, models);
       deleteAndReturnRecord(writer, model);
     },
   });
 }
 
-function createTxAndGetRecord(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
-  writer.writeLine(`const storesNeeded = this._getNeededStoresForFind(query);`);
-  const cascadingModels = models.filter((_model) =>
-    _model.fields.some((field) => field.relationOnDelete === "Cascade" && field.type === model.name),
-  );
-  for (const cascadeModel of cascadingModels) {
-    writer.writeLine(`storesNeeded.add("${cascadeModel.name}")`);
-  }
-
+function createTxAndGetRecord(writer: CodeBlockWriter) {
   writer
+    .writeLine(`const storesNeeded = this._getNeededStoresForFind(query);`)
+    .writeLine(`this._getNeededStoresForNestedDelete(storesNeeded);`)
     .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");`)
     .writeLine(`const record = await this.findUnique(query, tx);`)
     .writeLine(`if (!record) throw new Error("Record not found");`);
@@ -41,21 +35,56 @@ function createTxAndGetRecord(writer: CodeBlockWriter, model: Model, models: rea
 
 function handleCascadeDeletes(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   const cascadingModels = models.filter((_model) =>
-    _model.fields.some((field) => field.relationOnDelete === "Cascade" && field.type === model.name),
+    _model.fields.some((field) => field.type === model.name && field.relationFromFields?.length),
   );
   for (const cascadeModel of cascadingModels) {
-    const cascadingFks = cascadeModel.fields.filter(
-      (field) => field.relationOnDelete === "Cascade" && field.type === model.name,
-    );
+    const cascadingFks = cascadeModel.fields.filter((field) => field.type === model.name);
+
     for (const cascadingFk of cascadingFks) {
-      writer
-        .write(`await this.client.${toCamelCase(cascadeModel.name)}.deleteMany(`)
-        .block(() => {
-          const fk = cascadingFk.relationFromFields?.at(0);
-          const pk = cascadingFk.relationToFields?.at(0);
-          writer.write(`where: { ${fk}: record.${pk} }`);
-        })
-        .writeLine(`, tx)`);
+      const whereClause = cascadingFk.relationFromFields
+        ?.map((_field, idx) => `${_field}: record.${cascadingFk.relationToFields?.at(idx)}`)
+        .join(", ");
+
+      if (cascadingFk.relationOnDelete === "Cascade") {
+        writer
+          .write(`await this.client.${toCamelCase(cascadeModel.name)}.deleteMany(`)
+          .block(() => {
+            writer.write(`where: { ${whereClause} }`);
+          })
+          .writeLine(`, tx)`);
+      } else if (
+        cascadingFk.relationOnDelete === "SetNull" ||
+        (cascadingFk.relationOnDelete === undefined && !cascadingFk.isRequired)
+      ) {
+        const setNullData = cascadingFk.relationFromFields?.map((field) => `${field}: null`).join(", ");
+        writer
+          .write(`await this.client.${toCamelCase(cascadeModel.name)}.updateMany(`)
+          .block(() => {
+            writer.write(`where: { ${whereClause} }, data: { ${setNullData} }`);
+          })
+          .writeLine(`, tx)`);
+      } else if (cascadingFk.relationOnDelete === "SetDefault") {
+        const setDefaultData = cascadingFk.relationFromFields
+          ?.map((field) => {
+            const defaultValue = cascadeModel.fields.find((_field) => _field.name === field)?.default;
+            return `${field}: ${defaultValue}`;
+          })
+          .join(", ");
+        writer
+          .write(`await this.client.${toCamelCase(cascadeModel.name)}.updateMany(`)
+          .block(() => {
+            writer.write(`where: { ${whereClause} }, data: { ${setDefaultData} }`);
+          })
+          .writeLine(`, tx)`);
+      } else {
+        writer
+          .writeLine(
+            `const related${cascadeModel.name} = await this.client.${toCamelCase(cascadeModel.name)}.findMany({ where: { ${whereClause} } }, tx);`,
+          )
+          .writeLine(
+            `if (related${cascadeModel.name}.length) throw new Error("Cannot delete record, other records depend on it");`,
+          );
+      }
     }
   }
 }

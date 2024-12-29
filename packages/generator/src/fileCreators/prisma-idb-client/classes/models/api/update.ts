@@ -22,7 +22,8 @@ export function addUpdateMethod(modelClass: ClassDeclaration, model: Model, mode
       // TODO: the numeric types
       addScalarListUpdateHandling(writer, model);
       addRelationUpdateHandling(writer, model, models);
-      addPutAndReturn(writer, model);
+      addFkValidation(writer, model);
+      addPutAndReturn(writer, model, models);
     },
   });
 }
@@ -42,7 +43,7 @@ function addGetRecord(writer: CodeBlockWriter, model: Model) {
     );
 }
 
-function addPutAndReturn(writer: CodeBlockWriter, model: Model) {
+function addPutAndReturn(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
   const whereUnique =
     pk.length === 1
@@ -54,10 +55,14 @@ function addPutAndReturn(writer: CodeBlockWriter, model: Model) {
     .writeLine(`for (let i = 0; i < startKeyPath.length; i++)`)
     .block(() => {
       writer.writeLine(`if (startKeyPath[i] !== endKeyPath[i])`).block(() => {
-        writer.writeLine(`await tx.objectStore("${model.name}").delete(startKeyPath);`).writeLine(`break;`);
+        writer.writeLine(`await tx.objectStore("${model.name}").delete(startKeyPath);`);
+        writer.writeLine(`break;`);
       });
     })
-    .writeLine(`const keyPath = await tx.objectStore("${model.name}").put(record);`)
+    .writeLine(`const keyPath = await tx.objectStore("${model.name}").put(record);`);
+
+  addReferentialUpdateHandling(writer, model, models);
+  writer
     .writeLine(`const recordWithRelations = (await this.findUnique(`)
     .block(() => {
       writer.writeLine(`where: ${whereUnique},`);
@@ -442,4 +447,57 @@ function handleOneToOneRelationMetaOnOtherUpdate(writer: CodeBlockWriter, field:
         `await this.client.${toCamelCase(field.type)}.upsert({ where: { ...query.data.${field.name}.connectOrCreate.where, ${otherFkFields} } as Prisma.${field.type}WhereUniqueInput, create: { ...query.data.${field.name}.connectOrCreate.create, ${otherFkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'], update: { ${otherFkFields} } }, tx);`,
       );
     });
+}
+
+// NoAction is the same as Restrict for this package
+function addReferentialUpdateHandling(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+  const referencingModels = models.filter((m) =>
+    m.fields.some((field) => field.kind === "object" && field.type === model.name && field.relationFromFields?.length),
+  );
+
+  writer.writeLine(`for (let i = 0; i < startKeyPath.length; i++)`).block(() => {
+    writer.writeLine(`if (startKeyPath[i] !== endKeyPath[i])`).block(() => {
+      for (const referencingModel of referencingModels) {
+        const objectField = referencingModel.fields.find((field) => field.type === model.name)!;
+
+        const whereClause = objectField
+          .relationFromFields!.map((field, idx) => `${field}: startKeyPath[${idx}]`)
+          .join(", ");
+        const dataClause = objectField
+          .relationFromFields!.map((field, idx) => `${field}: endKeyPath[${idx}]`)
+          .join(", ");
+
+        writer
+          .writeLine(`await this.client.${toCamelCase(referencingModel.name)}.updateMany(`)
+          .block(() => {
+            writer.writeLine(`where: { ${whereClause} },`).writeLine(`data: { ${dataClause} },`);
+          })
+          .writeLine(`, tx);`);
+      }
+      writer.writeLine(`break;`);
+    });
+  });
+}
+
+function addFkValidation(writer: CodeBlockWriter, model: Model) {
+  const dependentModelFields = model.fields.filter(
+    (field) => field.kind === "object" && field.relationFromFields?.length,
+  );
+  for (const dependentModelField of dependentModelFields) {
+    let whereUnique = `{ ${dependentModelField.relationToFields?.at(0)}: record.${dependentModelField.relationFromFields?.at(0)} }`;
+    if (dependentModelField.relationFromFields!.length > 1) {
+      whereUnique = `{ ${dependentModelField.relationToFields?.join("_")}: { ${dependentModelField.relationToFields?.map((_field, idx) => `${_field}: record.${dependentModelField.relationFromFields?.at(idx)}`).join(", ")} } }`;
+    }
+
+    let condition = `record.${dependentModelField.relationFromFields?.at(0)} !== undefined`;
+    if (!dependentModelField.isRequired)
+      condition += ` && record.${dependentModelField.relationFromFields?.at(0)} !== null`;
+
+    writer.writeLine(`if (${condition})`).block(() => {
+      writer.writeLine(
+        `const related = await this.client.${toCamelCase(dependentModelField.type)}.findUnique({ where: ${whereUnique} }, tx);`,
+      );
+      writer.writeLine(`if (!related) throw new Error("Related record not found");`);
+    });
+  }
 }

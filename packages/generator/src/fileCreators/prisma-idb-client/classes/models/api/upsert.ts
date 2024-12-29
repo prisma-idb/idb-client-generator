@@ -13,18 +13,18 @@ export function addUpsertMethod(modelClass: ClassDeclaration, model: Model) {
     ],
     returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "upsert">>`,
     statements: (writer) => {
-      addGetAndUpsertRecord(writer);
+      addGetAndUpsertRecord(writer, model);
       addRefetchAndReturnRecord(writer, model);
     },
   });
 }
 
-function addGetAndUpsertRecord(writer: CodeBlockWriter) {
+function addGetAndUpsertRecord(writer: CodeBlockWriter, model: Model) {
   writer
-    .write(`tx = tx ?? this.client._db.transaction(`)
-    .write(`Array.from(this._getNeededStoresForFind(query)`)
-    .write(`.union(this._getNeededStoresForCreate(query.create))`)
-    .writeLine(`.union(this._getNeededStoresForFind(query))), "readwrite");`)
+    .writeLine(
+      `const neededStores = this._getNeededStoresForUpdate({ ...query, data: { ...query.update, ...query.create } as Prisma.Args<Prisma.${model.name}Delegate, "update">["data"] });`,
+    )
+    .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(neededStores), "readwrite");`)
     .writeLine(`let record = await this.findUnique({ where: query.where }, tx);`)
     .writeLine(`if (!record) record = await this.create({ data: query.create }, tx);`)
     .writeLine(`else record = await this.update({ where: query.where, data: query.update }, tx);`);

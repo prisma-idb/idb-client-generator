@@ -1,3 +1,4 @@
+import { createId } from "@paralleldrive/cuid2";
 import { test } from "../../fixtures";
 import { expectQueryToSucceed, expectQueryToFail } from "../../queryRunnerHelper";
 
@@ -136,5 +137,60 @@ test("update_InvalidNestedUpdateQuery_ThrowsError", async ({ page }) => {
     operation: "update",
     query: { where: { id: 999 }, data: { posts: { update: { where: { id: 1 }, data: { title: "Invalid Update" } } } } },
     errorMessage: "Record not found",
+  });
+});
+test("update_NestedUpdateQueryWithTwoLevels_SuccessfullyUpdatesNestedRelations", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "create",
+    query: { data: { name: "Eve" } },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    model: "post",
+    operation: "create",
+    query: { data: { title: "Post4", author: { connect: { id: 1 } } } },
+  });
+
+  const cuid = createId();
+  await expectQueryToSucceed({
+    page,
+    model: "comment",
+    operation: "create",
+    query: { data: { id: cuid, text: "Comment1", post: { connect: { id: 1 } }, user: { connect: { id: 1 } } } },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "update",
+    query: {
+      where: { id: 1 },
+      data: {
+        posts: {
+          update: {
+            where: { id: 1 },
+            data: {
+              title: "Updated Post4",
+              comments: {
+                update: {
+                  where: { id: cuid },
+                  data: { text: "Updated Comment1" },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "findMany",
+    query: { include: { posts: { include: { comments: true } } } },
   });
 });

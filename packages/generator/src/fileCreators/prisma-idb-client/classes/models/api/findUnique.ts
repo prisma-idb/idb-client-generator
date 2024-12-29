@@ -51,7 +51,7 @@ function getFromKeyIdentifier(writer: CodeBlockWriter, model: Model) {
   }
   fields = fields.replaceAll('"', "");
 
-  writer.writeLine(`if (query.where.${keyUniqueIdentifier.name})`).block(() => {
+  writer.writeLine(`if (query.where.${keyUniqueIdentifier.name} !== undefined)`).block(() => {
     writer.writeLine(`record = await tx.objectStore("${model.name}").get(${fields});`);
   });
 }
@@ -70,7 +70,7 @@ function getFromNonKeyIdentifier(writer: CodeBlockWriter, model: Model) {
     }
     fields = fields.replaceAll('"', "");
 
-    writer.writeLine(`else if (query.where.${name})`).block(() => {
+    writer.writeLine(`else if (query.where.${name} !== undefined)`).block(() => {
       writer.writeLine(`record = await tx.objectStore("${model.name}").index("${name}Index").get(${fields});`);
     });
   });
