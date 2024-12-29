@@ -22,6 +22,7 @@ export function addUpdateMethod(modelClass: ClassDeclaration, model: Model, mode
       // TODO: the numeric types
       addScalarListUpdateHandling(writer, model);
       addRelationUpdateHandling(writer, model, models);
+      addFkValidation(writer, model);
       addPutAndReturn(writer, model, models);
     },
   });
@@ -469,5 +470,28 @@ function addReferentialUpdateHandling(writer: CodeBlockWriter, model: Model, mod
         writer.writeLine(`where: { ${whereClause} },`).writeLine(`data: { ${dataClause} },`);
       })
       .writeLine(`, tx);`);
+  }
+}
+
+function addFkValidation(writer: CodeBlockWriter, model: Model) {
+  const dependentModelFields = model.fields.filter(
+    (field) => field.kind === "object" && field.relationFromFields?.length,
+  );
+  for (const dependentModelField of dependentModelFields) {
+    let whereUnique = `{ ${dependentModelField.relationToFields?.at(0)}: record.${dependentModelField.relationFromFields?.at(0)} }`;
+    if (dependentModelField.relationFromFields!.length > 1) {
+      whereUnique = `{ ${dependentModelField.relationToFields?.join("_")}: { ${dependentModelField.relationToFields?.map((_field, idx) => `${_field}: record.${dependentModelField.relationFromFields?.at(idx)}`).join(", ")} } }`;
+    }
+
+    let condition = `record.${dependentModelField.relationFromFields?.at(0)} !== undefined`;
+    if (!dependentModelField.isRequired)
+      condition += ` && record.${dependentModelField.relationFromFields?.at(0)} !== null`;
+
+    writer.writeLine(`if (${condition})`).block(() => {
+      writer.writeLine(
+        `const related = await this.client.${toCamelCase(dependentModelField.type)}.findUnique({ where: ${whereUnique} }, tx);`,
+      );
+      writer.writeLine(`if (!related) throw new Error("Related record not found");`);
+    });
   }
 }
