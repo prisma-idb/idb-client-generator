@@ -8,7 +8,7 @@ export function addDeleteManyMethod(modelClass: ClassDeclaration, model: Model) 
     isAsync: true,
     typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, 'deleteMany'>` }],
     parameters: [
-      { name: "query", type: "Q" },
+      { name: "query", hasQuestionToken: true, type: "Q" },
       {
         name: "tx",
         hasQuestionToken: true,

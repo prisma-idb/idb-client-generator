@@ -1708,7 +1708,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
   }
 
   async deleteMany<Q extends Prisma.Args<Prisma.UserDelegate, "deleteMany">>(
-    query: Q,
+    query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "deleteMany">> {
     const storesNeeded = this._getNeededStoresForFind(query);
@@ -2948,7 +2948,7 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
   }
 
   async deleteMany<Q extends Prisma.Args<Prisma.GroupDelegate, "deleteMany">>(
-    query: Q,
+    query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "deleteMany">> {
     const storesNeeded = this._getNeededStoresForFind(query);
@@ -3738,7 +3738,7 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
   }
 
   async deleteMany<Q extends Prisma.Args<Prisma.UserGroupDelegate, "deleteMany">>(
-    query: Q,
+    query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "deleteMany">> {
     const storesNeeded = this._getNeededStoresForFind(query);
@@ -4397,7 +4397,7 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
   }
 
   async deleteMany<Q extends Prisma.Args<Prisma.ProfileDelegate, "deleteMany">>(
-    query: Q,
+    query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "deleteMany">> {
     const storesNeeded = this._getNeededStoresForFind(query);
@@ -5235,7 +5235,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
   }
 
   async deleteMany<Q extends Prisma.Args<Prisma.PostDelegate, "deleteMany">>(
-    query: Q,
+    query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "deleteMany">> {
     const storesNeeded = this._getNeededStoresForFind(query);
@@ -6074,7 +6074,7 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
   }
 
   async deleteMany<Q extends Prisma.Args<Prisma.CommentDelegate, "deleteMany">>(
-    query: Q,
+    query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "deleteMany">> {
     const storesNeeded = this._getNeededStoresForFind(query);
@@ -6719,7 +6719,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
   }
 
   async deleteMany<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "deleteMany">>(
-    query: Q,
+    query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "deleteMany">> {
     const storesNeeded = this._getNeededStoresForFind(query);
@@ -7667,7 +7667,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
   }
 
   async deleteMany<Q extends Prisma.Args<Prisma.FatherDelegate, "deleteMany">>(
-    query: Q,
+    query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.FatherDelegate, Q, "deleteMany">> {
     const storesNeeded = this._getNeededStoresForFind(query);
@@ -8871,7 +8871,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
   }
 
   async deleteMany<Q extends Prisma.Args<Prisma.MotherDelegate, "deleteMany">>(
-    query: Q,
+    query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "deleteMany">> {
     const storesNeeded = this._getNeededStoresForFind(query);
@@ -10065,7 +10065,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
   }
 
   async deleteMany<Q extends Prisma.Args<Prisma.ChildDelegate, "deleteMany">>(
-    query: Q,
+    query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
   ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "deleteMany">> {
     const storesNeeded = this._getNeededStoresForFind(query);
