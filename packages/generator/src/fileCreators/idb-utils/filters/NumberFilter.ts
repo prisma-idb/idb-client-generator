@@ -9,8 +9,8 @@ export function addNumberFilter(utilsFile: SourceFile, models: readonly Model[])
   if (intFields.length + floatFields.length === 0) return;
   let filterType = "undefined | number";
 
-  if (intFields.length) filterType += "| Prisma.IntFilter<unknown>";
-  if (floatFields.length) filterType += "| Prisma.FloatFilter<unknown>";
+  if (intFields.some(({ isRequired }) => isRequired)) filterType += "| Prisma.IntFilter<unknown>";
+  if (floatFields.some(({ isRequired }) => isRequired)) filterType += "| Prisma.FloatFilter<unknown>";
 
   if (intFields.some(({ isRequired }) => !isRequired)) filterType += "| Prisma.IntNullableFilter<unknown>";
   if (floatFields.some(({ isRequired }) => !isRequired)) filterType += "| Prisma.FloatNullableFilter<unknown>";

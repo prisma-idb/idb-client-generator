@@ -5,8 +5,13 @@ export function addStringFilter(utilsFile: SourceFile, models: readonly Model[])
   const stringFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "String");
   if (stringFields.length === 0) return;
 
+  const nonNullableStringFieldPresent = stringFields.some(({ isRequired }) => isRequired);
   const nullableStringFieldPresent = stringFields.some(({ isRequired }) => !isRequired);
-  let filterType = "undefined | string | Prisma.StringFilter<unknown>";
+
+  let filterType = "undefined | string";
+  if (nonNullableStringFieldPresent) {
+    filterType += " | Prisma.StringFilter<unknown>";
+  }
   if (nullableStringFieldPresent) {
     filterType += " | null | Prisma.StringNullableFilter<unknown>";
   }

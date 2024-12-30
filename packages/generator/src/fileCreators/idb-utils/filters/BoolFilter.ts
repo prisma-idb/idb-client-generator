@@ -5,8 +5,13 @@ export function addBoolFilter(utilsFile: SourceFile, models: readonly Model[]) {
   const booleanFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "Boolean");
   if (booleanFields.length === 0) return;
 
+  const nonNullableBooleanFieldPresent = booleanFields.some(({ isRequired }) => isRequired);
   const nullableBooleanFieldPresent = booleanFields.some(({ isRequired }) => !isRequired);
-  let filterType = "undefined | boolean | Prisma.BoolFilter<unknown>";
+
+  let filterType = "undefined | boolean";
+  if (nonNullableBooleanFieldPresent) {
+    filterType += " | Prisma.BoolFilter<unknown>";
+  }
   if (nullableBooleanFieldPresent) {
     filterType += " | null | Prisma.BoolNullableFilter<unknown>";
   }
