@@ -5,10 +5,15 @@ export function addBooleanUpdateHandler(utilsFile: SourceFile, models: readonly 
   const booleanFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "Boolean");
   if (booleanFields.length === 0) return;
 
-  let updateOperationType = "undefined | boolean | Prisma.BoolFieldUpdateOperationsInput";
+  let updateOperationType = "undefined | boolean";
   let fieldType = "boolean";
 
+  const nonNullableBooleanFieldPresent = booleanFields.some(({ isRequired }) => isRequired);
   const nullableBooleanFieldPresent = booleanFields.some(({ isRequired }) => !isRequired);
+
+  if (nonNullableBooleanFieldPresent) {
+    updateOperationType += " | Prisma.BoolFieldUpdateOperationsInput";
+  }
   if (nullableBooleanFieldPresent) {
     updateOperationType += " | null | Prisma.NullableBoolFieldUpdateOperationsInput";
     fieldType += " | null";
