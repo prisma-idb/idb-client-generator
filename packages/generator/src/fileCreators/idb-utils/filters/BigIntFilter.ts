@@ -5,8 +5,13 @@ export function addBigIntFilter(utilsFile: SourceFile, models: readonly Model[])
   const bigIntFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "BigInt");
   if (bigIntFields.length === 0) return;
 
+  const nonNullableBigIntFieldPresent = bigIntFields.some(({ isRequired }) => isRequired);
   const nullableBigIntFieldPresent = bigIntFields.some(({ isRequired }) => !isRequired);
-  let filterType = "undefined | number | bigint | Prisma.BigIntFilter<unknown>";
+
+  let filterType = "undefined | number | bigint";
+  if (nonNullableBigIntFieldPresent) {
+    filterType += " | Prisma.BigIntFilter<unknown>";
+  }
   if (nullableBigIntFieldPresent) {
     filterType += " | null | Prisma.BigIntNullableFilter<unknown>";
   }

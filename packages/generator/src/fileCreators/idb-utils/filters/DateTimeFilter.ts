@@ -5,8 +5,13 @@ export function addDateTimeFilter(utilsFile: SourceFile, models: readonly Model[
   const dateTimeFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "DateTime");
   if (dateTimeFields.length === 0) return;
 
+  const nonNullableDateTimeFieldPresent = dateTimeFields.some(({ isRequired }) => isRequired);
   const nullableDateTimeFieldPresent = dateTimeFields.some(({ isRequired }) => !isRequired);
-  let filterType = "undefined | Date | string | Prisma.DateTimeFilter<unknown>";
+
+  let filterType = "undefined | Date | string";
+  if (nonNullableDateTimeFieldPresent) {
+    filterType += " | Prisma.DateTimeFilter<unknown>";
+  }
   if (nullableDateTimeFieldPresent) {
     filterType += " | null | Prisma.DateTimeNullableFilter<unknown>";
   }

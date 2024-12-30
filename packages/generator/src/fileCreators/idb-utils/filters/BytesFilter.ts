@@ -5,8 +5,13 @@ export function addBytesFilter(utilsFile: SourceFile, models: readonly Model[]) 
   const bytesFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "Bytes");
   if (bytesFields.length === 0) return;
 
+  const nonNullableBytesFieldPresent = bytesFields.some(({ isRequired }) => isRequired);
   const nullableBytesFieldPresent = bytesFields.some(({ isRequired }) => !isRequired);
-  let filterType = "undefined | Uint8Array | Prisma.BytesFilter<unknown>";
+
+  let filterType = "undefined | Uint8Array";
+  if (nonNullableBytesFieldPresent) {
+    filterType += " | Prisma.BytesFilter<unknown>";
+  }
   if (nullableBytesFieldPresent) {
     filterType += " | null | Prisma.BytesNullableFilter<unknown>";
   }
