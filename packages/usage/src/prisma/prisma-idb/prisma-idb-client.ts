@@ -3856,11 +3856,11 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
         );
       }
     }
-    if (record.groupId !== undefined) {
+    if (query.data.groupId !== undefined) {
       const related = await this.client.group.findUnique({ where: { id: record.groupId } }, tx);
       if (!related) throw new Error("Related record not found");
     }
-    if (record.userId !== undefined) {
+    if (query.data.userId !== undefined) {
       const related = await this.client.user.findUnique({ where: { id: record.userId } }, tx);
       if (!related) throw new Error("Related record not found");
     }
@@ -4472,7 +4472,7 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
         );
       }
     }
-    if (record.userId !== undefined) {
+    if (query.data.userId !== undefined) {
       const related = await this.client.user.findUnique({ where: { id: record.userId } }, tx);
       if (!related) throw new Error("Related record not found");
     }
@@ -5408,7 +5408,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
         );
       }
     }
-    if (record.authorId !== undefined && record.authorId !== null) {
+    if (query.data.authorId !== undefined && record.authorId !== null) {
       const related = await this.client.user.findUnique({ where: { id: record.authorId } }, tx);
       if (!related) throw new Error("Related record not found");
     }
@@ -6192,11 +6192,11 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
         );
       }
     }
-    if (record.postId !== undefined) {
+    if (query.data.postId !== undefined) {
       const related = await this.client.post.findUnique({ where: { id: record.postId } }, tx);
       if (!related) throw new Error("Related record not found");
     }
-    if (record.userId !== undefined) {
+    if (query.data.userId !== undefined) {
       const related = await this.client.user.findUnique({ where: { id: record.userId } }, tx);
       if (!related) throw new Error("Related record not found");
     }
@@ -7922,14 +7922,14 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
         record.userId = null;
       }
     }
-    if (record.motherFirstName !== undefined) {
+    if (query.data.motherFirstName !== undefined) {
       const related = await this.client.mother.findUnique(
         { where: { firstName_lastName: { firstName: record.motherFirstName, lastName: record.motherLastName } } },
         tx,
       );
       if (!related) throw new Error("Related record not found");
     }
-    if (record.userId !== undefined && record.userId !== null) {
+    if (query.data.userId !== undefined && record.userId !== null) {
       const related = await this.client.user.findUnique({ where: { id: record.userId } }, tx);
       if (!related) throw new Error("Related record not found");
     }
@@ -9156,7 +9156,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
         record.userId = null;
       }
     }
-    if (record.userId !== undefined && record.userId !== null) {
+    if (query.data.userId !== undefined && record.userId !== null) {
       const related = await this.client.user.findUnique({ where: { id: record.userId } }, tx);
       if (!related) throw new Error("Related record not found");
     }
@@ -10283,18 +10283,18 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
         );
       }
     }
-    if (record.userId !== undefined && record.userId !== null) {
+    if (query.data.userId !== undefined && record.userId !== null) {
       const related = await this.client.user.findUnique({ where: { id: record.userId } }, tx);
       if (!related) throw new Error("Related record not found");
     }
-    if (record.fatherFirstName !== undefined) {
+    if (query.data.fatherFirstName !== undefined) {
       const related = await this.client.father.findUnique(
         { where: { firstName_lastName: { firstName: record.fatherFirstName, lastName: record.fatherLastName } } },
         tx,
       );
       if (!related) throw new Error("Related record not found");
     }
-    if (record.motherFirstName !== undefined) {
+    if (query.data.motherFirstName !== undefined) {
       const related = await this.client.mother.findUnique(
         { where: { firstName_lastName: { firstName: record.motherFirstName, lastName: record.motherLastName } } },
         tx,
