@@ -20,7 +20,8 @@ export function addCreateManyAndReturn(modelClass: ClassDeclaration, model: Mode
         .block(() => {
           writer
             .writeLine(`const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));`)
-            .writeLine(`await tx.objectStore("${model.name}").add(record);`)
+            .writeLine(`const keyPath = await tx.objectStore("${model.name}").add(record);`)
+            .writeLine(`this.emit("create", keyPath);`)
             .writeLine(`records.push(this._applySelectClause([record], query.select)[0]);`);
         })
         .writeLine(`this._preprocessListFields(records);`)

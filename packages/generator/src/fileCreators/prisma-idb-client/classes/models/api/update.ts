@@ -59,7 +59,8 @@ function addPutAndReturn(writer: CodeBlockWriter, model: Model, models: readonly
         writer.writeLine(`break;`);
       });
     })
-    .writeLine(`const keyPath = await tx.objectStore("${model.name}").put(record);`);
+    .writeLine(`const keyPath = await tx.objectStore("${model.name}").put(record);`)
+    .writeLine(`this.emit("update", keyPath, startKeyPath);`);
 
   addReferentialUpdateHandling(writer, model, models);
   writer

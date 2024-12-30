@@ -10,9 +10,13 @@
   let client = $state<PrismaIDBClient>();
   let query = $state("");
   let output = $state("");
+  let eventOutput = $state("");
 
   onMount(async () => {
     client = await PrismaIDBClient.createClient();
+    client.user.subscribe(["create", "delete", "update"], (e) => {
+      eventOutput = JSON.stringify(e.detail, null, 2);
+    });
   });
 
   async function executeQuery(e: SubmitEvent) {
@@ -44,6 +48,13 @@
   />
   <Button type="submit">Run query</Button>
 </form>
+
+<div class="grid w-full max-w-md gap-1.5">
+  <Label for="event-output">Event output (for user model)</Label>
+  <code class={cn("rounded-md border p-2 text-sm", { "italic text-secondary-foreground/60": eventOutput === "" })}>
+    <pre>{eventOutput === "" ? "No events fired yet" : eventOutput}</pre>
+  </code>
+</div>
 
 <div class="grid w-full max-w-md gap-1.5">
   <Label for="output">Output</Label>

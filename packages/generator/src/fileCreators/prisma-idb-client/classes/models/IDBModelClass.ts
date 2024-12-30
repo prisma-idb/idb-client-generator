@@ -32,7 +32,7 @@ import { addGetNeededStoresForNestedDelete } from "./utils/_getNeededStoresForNe
 export function addIDBModelClass(file: SourceFile, model: Model, models: readonly Model[]) {
   const modelClass = file.addClass({
     name: `${model.name}IDBClass`,
-    extends: "BaseIDBModelClass",
+    extends: `BaseIDBModelClass<"${model.name}">`,
   });
 
   addApplyWhereClause(modelClass, model, models);
