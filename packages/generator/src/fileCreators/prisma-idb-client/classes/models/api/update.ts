@@ -490,7 +490,7 @@ function addFkValidation(writer: CodeBlockWriter, model: Model) {
       whereUnique = `{ ${dependentModelField.relationToFields?.join("_")}: { ${dependentModelField.relationToFields?.map((_field, idx) => `${_field}: record.${dependentModelField.relationFromFields?.at(idx)}`).join(", ")} } }`;
     }
 
-    let condition = `record.${dependentModelField.relationFromFields?.at(0)} !== undefined`;
+    let condition = `query.data.${dependentModelField.relationFromFields?.at(0)} !== undefined`;
     if (!dependentModelField.isRequired)
       condition += ` && record.${dependentModelField.relationFromFields?.at(0)} !== null`;
 
