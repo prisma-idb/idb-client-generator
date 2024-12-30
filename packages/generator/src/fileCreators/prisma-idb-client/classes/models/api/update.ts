@@ -55,8 +55,13 @@ function addPutAndReturn(writer: CodeBlockWriter, model: Model, models: readonly
     .writeLine(`for (let i = 0; i < startKeyPath.length; i++)`)
     .block(() => {
       writer.writeLine(`if (startKeyPath[i] !== endKeyPath[i])`).block(() => {
-        writer.writeLine(`await tx.objectStore("${model.name}").delete(startKeyPath);`);
-        writer.writeLine(`break;`);
+        writer
+          .writeLine(`if (await tx.objectStore("${model.name}").get(endKeyPath) !== undefined)`)
+          .block(() => {
+            writer.writeLine(`throw new Error("Record with the same keyPath already exists");`);
+          })
+          .writeLine(`await tx.objectStore("${model.name}").delete(startKeyPath);`)
+          .writeLine(`break;`);
       });
     })
     .writeLine(`const keyPath = await tx.objectStore("${model.name}").put(record);`)

@@ -2333,6 +2333,9 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     const endKeyPath: PrismaIDBSchema["User"]["key"] = [record.id];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
+        if ((await tx.objectStore("User").get(endKeyPath)) !== undefined) {
+          throw new Error("Record with the same keyPath already exists");
+        }
         await tx.objectStore("User").delete(startKeyPath);
         break;
       }
@@ -3069,6 +3072,9 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     const endKeyPath: PrismaIDBSchema["Group"]["key"] = [record.id];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
+        if ((await tx.objectStore("Group").get(endKeyPath)) !== undefined) {
+          throw new Error("Record with the same keyPath already exists");
+        }
         await tx.objectStore("Group").delete(startKeyPath);
         break;
       }
@@ -3867,6 +3873,9 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     const endKeyPath: PrismaIDBSchema["UserGroup"]["key"] = [record.groupId, record.userId];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
+        if ((await tx.objectStore("UserGroup").get(endKeyPath)) !== undefined) {
+          throw new Error("Record with the same keyPath already exists");
+        }
         await tx.objectStore("UserGroup").delete(startKeyPath);
         break;
       }
@@ -4479,6 +4488,9 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     const endKeyPath: PrismaIDBSchema["Profile"]["key"] = [record.id];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
+        if ((await tx.objectStore("Profile").get(endKeyPath)) !== undefined) {
+          throw new Error("Record with the same keyPath already exists");
+        }
         await tx.objectStore("Profile").delete(startKeyPath);
         break;
       }
@@ -5415,6 +5427,9 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     const endKeyPath: PrismaIDBSchema["Post"]["key"] = [record.id];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
+        if ((await tx.objectStore("Post").get(endKeyPath)) !== undefined) {
+          throw new Error("Record with the same keyPath already exists");
+        }
         await tx.objectStore("Post").delete(startKeyPath);
         break;
       }
@@ -6203,6 +6218,9 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     const endKeyPath: PrismaIDBSchema["Comment"]["key"] = [record.id];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
+        if ((await tx.objectStore("Comment").get(endKeyPath)) !== undefined) {
+          throw new Error("Record with the same keyPath already exists");
+        }
         await tx.objectStore("Comment").delete(startKeyPath);
         break;
       }
@@ -6770,6 +6788,9 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     const endKeyPath: PrismaIDBSchema["AllFieldScalarTypes"]["key"] = [record.id];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
+        if ((await tx.objectStore("AllFieldScalarTypes").get(endKeyPath)) !== undefined) {
+          throw new Error("Record with the same keyPath already exists");
+        }
         await tx.objectStore("AllFieldScalarTypes").delete(startKeyPath);
         break;
       }
@@ -7936,6 +7957,9 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     const endKeyPath: PrismaIDBSchema["Father"]["key"] = [record.firstName, record.lastName];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
+        if ((await tx.objectStore("Father").get(endKeyPath)) !== undefined) {
+          throw new Error("Record with the same keyPath already exists");
+        }
         await tx.objectStore("Father").delete(startKeyPath);
         break;
       }
@@ -9163,6 +9187,9 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     const endKeyPath: PrismaIDBSchema["Mother"]["key"] = [record.firstName, record.lastName];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
+        if ((await tx.objectStore("Mother").get(endKeyPath)) !== undefined) {
+          throw new Error("Record with the same keyPath already exists");
+        }
         await tx.objectStore("Mother").delete(startKeyPath);
         break;
       }
@@ -10304,6 +10331,9 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     const endKeyPath: PrismaIDBSchema["Child"]["key"] = [record.childFirstName, record.childLastName];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
+        if ((await tx.objectStore("Child").get(endKeyPath)) !== undefined) {
+          throw new Error("Record with the same keyPath already exists");
+        }
         await tx.objectStore("Child").delete(startKeyPath);
         break;
       }
