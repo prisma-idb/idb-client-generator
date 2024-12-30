@@ -92,5 +92,8 @@ function handleCascadeDeletes(writer: CodeBlockWriter, model: Model, models: rea
 function deleteAndReturnRecord(writer: CodeBlockWriter, model: Model) {
   const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
   const keyPath = pk.map((field) => `record.${field}`).join(", ");
-  writer.writeLine(`await tx.objectStore("${model.name}").delete([${keyPath}]);`).writeLine(`return record;`);
+  writer
+    .writeLine(`await tx.objectStore("${model.name}").delete([${keyPath}]);`)
+    .writeLine(`this.emit("delete", [${keyPath}]);`)
+    .writeLine(`return record;`);
 }

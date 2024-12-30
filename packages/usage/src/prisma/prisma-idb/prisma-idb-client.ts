@@ -66,7 +66,7 @@ export class PrismaIDBClient {
   }
 }
 
-class BaseIDBModelClass {
+class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
   protected client: PrismaIDBClient;
   protected keyPath: string[];
   private eventEmitter: EventTarget;
@@ -77,7 +77,12 @@ class BaseIDBModelClass {
     this.eventEmitter = new EventTarget();
   }
 
-  subscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: () => void) {
+  subscribe(
+    event: "create" | "update" | "delete" | ("create" | "update" | "delete")[],
+    callback: (
+      e: CustomEventInit<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>,
+    ) => void,
+  ) {
     if (Array.isArray(event)) {
       event.forEach((event) => this.eventEmitter.addEventListener(event, callback));
       return;
@@ -85,7 +90,12 @@ class BaseIDBModelClass {
     this.eventEmitter.addEventListener(event, callback);
   }
 
-  unsubscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: () => void) {
+  unsubscribe(
+    event: "create" | "update" | "delete" | ("create" | "update" | "delete")[],
+    callback: (
+      e: CustomEventInit<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>,
+    ) => void,
+  ) {
     if (Array.isArray(event)) {
       event.forEach((event) => this.eventEmitter.removeEventListener(event, callback));
       return;
@@ -93,12 +103,20 @@ class BaseIDBModelClass {
     this.eventEmitter.removeEventListener(event, callback);
   }
 
-  protected emit(event: "create" | "update" | "delete") {
-    this.eventEmitter.dispatchEvent(new Event(event));
+  protected emit(
+    event: "create" | "update" | "delete",
+    keyPath: PrismaIDBSchema[T]["key"],
+    oldKeyPath?: PrismaIDBSchema[T]["key"],
+  ) {
+    if (event === "update") {
+      this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath, oldKeyPath } }));
+      return;
+    }
+    this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath } }));
   }
 }
 
-class UserIDBClass extends BaseIDBModelClass {
+class UserIDBClass extends BaseIDBModelClass<"User"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.UserDelegate, "findFirstOrThrow">["where"],
     R extends Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">,
@@ -1597,6 +1615,7 @@ class UserIDBClass extends BaseIDBModelClass {
       query.select,
     )[0];
     this._preprocessListFields([recordsWithRelations]);
+    this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "create">;
   }
 
@@ -1608,7 +1627,8 @@ class UserIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(["User"], "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      await tx.objectStore("User").add(record);
+      const keyPath = await tx.objectStore("User").add(record);
+      this.emit("create", keyPath);
     }
     return { count: createManyData.length };
   }
@@ -1622,7 +1642,8 @@ class UserIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(["User"], "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      await tx.objectStore("User").add(record);
+      const keyPath = await tx.objectStore("User").add(record);
+      this.emit("create", keyPath);
       records.push(this._applySelectClause([record], query.select)[0]);
     }
     this._preprocessListFields(records);
@@ -1682,6 +1703,7 @@ class UserIDBClass extends BaseIDBModelClass {
       tx,
     );
     await tx.objectStore("User").delete([record.id]);
+    this.emit("delete", [record.id]);
     return record;
   }
 
@@ -2316,6 +2338,7 @@ class UserIDBClass extends BaseIDBModelClass {
       }
     }
     const keyPath = await tx.objectStore("User").put(record);
+    this.emit("update", keyPath, startKeyPath);
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         await this.client.userGroup.updateMany(
@@ -2413,7 +2436,7 @@ class UserIDBClass extends BaseIDBModelClass {
   }
 }
 
-class GroupIDBClass extends BaseIDBModelClass {
+class GroupIDBClass extends BaseIDBModelClass<"Group"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.GroupDelegate, "findFirstOrThrow">["where"],
     R extends Prisma.Result<Prisma.GroupDelegate, object, "findFirstOrThrow">,
@@ -2873,6 +2896,7 @@ class GroupIDBClass extends BaseIDBModelClass {
       query.select,
     )[0];
     this._preprocessListFields([recordsWithRelations]);
+    this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.GroupDelegate, Q, "create">;
   }
 
@@ -2884,7 +2908,8 @@ class GroupIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(["Group"], "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      await tx.objectStore("Group").add(record);
+      const keyPath = await tx.objectStore("Group").add(record);
+      this.emit("create", keyPath);
     }
     return { count: createManyData.length };
   }
@@ -2898,7 +2923,8 @@ class GroupIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(["Group"], "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      await tx.objectStore("Group").add(record);
+      const keyPath = await tx.objectStore("Group").add(record);
+      this.emit("create", keyPath);
       records.push(this._applySelectClause([record], query.select)[0]);
     }
     this._preprocessListFields(records);
@@ -2917,6 +2943,7 @@ class GroupIDBClass extends BaseIDBModelClass {
     const relatedUserGroup = await this.client.userGroup.findMany({ where: { groupId: record.id } }, tx);
     if (relatedUserGroup.length) throw new Error("Cannot delete record, other records depend on it");
     await tx.objectStore("Group").delete([record.id]);
+    this.emit("delete", [record.id]);
     return record;
   }
 
@@ -3047,6 +3074,7 @@ class GroupIDBClass extends BaseIDBModelClass {
       }
     }
     const keyPath = await tx.objectStore("Group").put(record);
+    this.emit("update", keyPath, startKeyPath);
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         await this.client.userGroup.updateMany(
@@ -3102,7 +3130,7 @@ class GroupIDBClass extends BaseIDBModelClass {
   }
 }
 
-class UserGroupIDBClass extends BaseIDBModelClass {
+class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.UserGroupDelegate, "findFirstOrThrow">["where"],
     R extends Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">,
@@ -3660,6 +3688,7 @@ class UserGroupIDBClass extends BaseIDBModelClass {
       query.select,
     )[0];
     this._preprocessListFields([recordsWithRelations]);
+    this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.UserGroupDelegate, Q, "create">;
   }
 
@@ -3671,7 +3700,8 @@ class UserGroupIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(["UserGroup"], "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      await tx.objectStore("UserGroup").add(record);
+      const keyPath = await tx.objectStore("UserGroup").add(record);
+      this.emit("create", keyPath);
     }
     return { count: createManyData.length };
   }
@@ -3685,7 +3715,8 @@ class UserGroupIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(["UserGroup"], "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      await tx.objectStore("UserGroup").add(record);
+      const keyPath = await tx.objectStore("UserGroup").add(record);
+      this.emit("create", keyPath);
       records.push(this._applySelectClause([record], query.select)[0]);
     }
     this._preprocessListFields(records);
@@ -3702,6 +3733,7 @@ class UserGroupIDBClass extends BaseIDBModelClass {
     const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
     await tx.objectStore("UserGroup").delete([record.groupId, record.userId]);
+    this.emit("delete", [record.groupId, record.userId]);
     return record;
   }
 
@@ -3840,6 +3872,7 @@ class UserGroupIDBClass extends BaseIDBModelClass {
       }
     }
     const keyPath = await tx.objectStore("UserGroup").put(record);
+    this.emit("update", keyPath, startKeyPath);
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         break;
@@ -3895,7 +3928,7 @@ class UserGroupIDBClass extends BaseIDBModelClass {
   }
 }
 
-class ProfileIDBClass extends BaseIDBModelClass {
+class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.ProfileDelegate, "findFirstOrThrow">["where"],
     R extends Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">,
@@ -4314,6 +4347,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
       query.select,
     )[0];
     this._preprocessListFields([recordsWithRelations]);
+    this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.ProfileDelegate, Q, "create">;
   }
 
@@ -4325,7 +4359,8 @@ class ProfileIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(["Profile"], "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      await tx.objectStore("Profile").add(record);
+      const keyPath = await tx.objectStore("Profile").add(record);
+      this.emit("create", keyPath);
     }
     return { count: createManyData.length };
   }
@@ -4339,7 +4374,8 @@ class ProfileIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(["Profile"], "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      await tx.objectStore("Profile").add(record);
+      const keyPath = await tx.objectStore("Profile").add(record);
+      this.emit("create", keyPath);
       records.push(this._applySelectClause([record], query.select)[0]);
     }
     this._preprocessListFields(records);
@@ -4356,6 +4392,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
     const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
     await tx.objectStore("Profile").delete([record.id]);
+    this.emit("delete", [record.id]);
     return record;
   }
 
@@ -4447,6 +4484,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
       }
     }
     const keyPath = await tx.objectStore("Profile").put(record);
+    this.emit("update", keyPath, startKeyPath);
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         break;
@@ -4495,7 +4533,7 @@ class ProfileIDBClass extends BaseIDBModelClass {
   }
 }
 
-class PostIDBClass extends BaseIDBModelClass {
+class PostIDBClass extends BaseIDBModelClass<"Post"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.PostDelegate, "findFirstOrThrow">["where"],
     R extends Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">,
@@ -5141,6 +5179,7 @@ class PostIDBClass extends BaseIDBModelClass {
       query.select,
     )[0];
     this._preprocessListFields([recordsWithRelations]);
+    this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.PostDelegate, Q, "create">;
   }
 
@@ -5152,7 +5191,8 @@ class PostIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(["Post"], "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      await tx.objectStore("Post").add(record);
+      const keyPath = await tx.objectStore("Post").add(record);
+      this.emit("create", keyPath);
     }
     return { count: createManyData.length };
   }
@@ -5166,7 +5206,8 @@ class PostIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(["Post"], "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      await tx.objectStore("Post").add(record);
+      const keyPath = await tx.objectStore("Post").add(record);
+      this.emit("create", keyPath);
       records.push(this._applySelectClause([record], query.select)[0]);
     }
     this._preprocessListFields(records);
@@ -5189,6 +5230,7 @@ class PostIDBClass extends BaseIDBModelClass {
       tx,
     );
     await tx.objectStore("Post").delete([record.id]);
+    this.emit("delete", [record.id]);
     return record;
   }
 
@@ -5378,6 +5420,7 @@ class PostIDBClass extends BaseIDBModelClass {
       }
     }
     const keyPath = await tx.objectStore("Post").put(record);
+    this.emit("update", keyPath, startKeyPath);
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         await this.client.comment.updateMany(
@@ -5433,7 +5476,7 @@ class PostIDBClass extends BaseIDBModelClass {
   }
 }
 
-class CommentIDBClass extends BaseIDBModelClass {
+class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.CommentDelegate, "findFirstOrThrow">["where"],
     R extends Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">,
@@ -5981,6 +6024,7 @@ class CommentIDBClass extends BaseIDBModelClass {
       query.select,
     )[0];
     this._preprocessListFields([recordsWithRelations]);
+    this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.CommentDelegate, Q, "create">;
   }
 
@@ -5992,7 +6036,8 @@ class CommentIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(["Comment"], "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      await tx.objectStore("Comment").add(record);
+      const keyPath = await tx.objectStore("Comment").add(record);
+      this.emit("create", keyPath);
     }
     return { count: createManyData.length };
   }
@@ -6006,7 +6051,8 @@ class CommentIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(["Comment"], "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      await tx.objectStore("Comment").add(record);
+      const keyPath = await tx.objectStore("Comment").add(record);
+      this.emit("create", keyPath);
       records.push(this._applySelectClause([record], query.select)[0]);
     }
     this._preprocessListFields(records);
@@ -6023,6 +6069,7 @@ class CommentIDBClass extends BaseIDBModelClass {
     const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
     await tx.objectStore("Comment").delete([record.id]);
+    this.emit("delete", [record.id]);
     return record;
   }
 
@@ -6161,6 +6208,7 @@ class CommentIDBClass extends BaseIDBModelClass {
       }
     }
     const keyPath = await tx.objectStore("Comment").put(record);
+    this.emit("update", keyPath, startKeyPath);
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         break;
@@ -6209,7 +6257,7 @@ class CommentIDBClass extends BaseIDBModelClass {
   }
 }
 
-class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
+class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findFirstOrThrow">["where"],
     R extends Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">,
@@ -6621,6 +6669,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
       query.select,
     )[0];
     this._preprocessListFields([recordsWithRelations]);
+    this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "create">;
   }
 
@@ -6632,7 +6681,8 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(["AllFieldScalarTypes"], "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      await tx.objectStore("AllFieldScalarTypes").add(record);
+      const keyPath = await tx.objectStore("AllFieldScalarTypes").add(record);
+      this.emit("create", keyPath);
     }
     return { count: createManyData.length };
   }
@@ -6646,7 +6696,8 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(["AllFieldScalarTypes"], "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      await tx.objectStore("AllFieldScalarTypes").add(record);
+      const keyPath = await tx.objectStore("AllFieldScalarTypes").add(record);
+      this.emit("create", keyPath);
       records.push(this._applySelectClause([record], query.select)[0]);
     }
     this._preprocessListFields(records);
@@ -6663,6 +6714,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
     const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
     await tx.objectStore("AllFieldScalarTypes").delete([record.id]);
+    this.emit("delete", [record.id]);
     return record;
   }
 
@@ -6723,6 +6775,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
       }
     }
     const keyPath = await tx.objectStore("AllFieldScalarTypes").put(record);
+    this.emit("update", keyPath, startKeyPath);
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         break;
@@ -6768,7 +6821,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass {
   }
 }
 
-class FatherIDBClass extends BaseIDBModelClass {
+class FatherIDBClass extends BaseIDBModelClass<"Father"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.FatherDelegate, "findFirstOrThrow">["where"],
     R extends Prisma.Result<Prisma.FatherDelegate, object, "findFirstOrThrow">,
@@ -7559,6 +7612,7 @@ class FatherIDBClass extends BaseIDBModelClass {
       query.select,
     )[0];
     this._preprocessListFields([recordsWithRelations]);
+    this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.FatherDelegate, Q, "create">;
   }
 
@@ -7570,7 +7624,8 @@ class FatherIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(["Father"], "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      await tx.objectStore("Father").add(record);
+      const keyPath = await tx.objectStore("Father").add(record);
+      this.emit("create", keyPath);
     }
     return { count: createManyData.length };
   }
@@ -7584,7 +7639,8 @@ class FatherIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(["Father"], "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      await tx.objectStore("Father").add(record);
+      const keyPath = await tx.objectStore("Father").add(record);
+      this.emit("create", keyPath);
       records.push(this._applySelectClause([record], query.select)[0]);
     }
     this._preprocessListFields(records);
@@ -7606,6 +7662,7 @@ class FatherIDBClass extends BaseIDBModelClass {
     );
     if (relatedChild.length) throw new Error("Cannot delete record, other records depend on it");
     await tx.objectStore("Father").delete([record.firstName, record.lastName]);
+    this.emit("delete", [record.firstName, record.lastName]);
     return record;
   }
 
@@ -7884,6 +7941,7 @@ class FatherIDBClass extends BaseIDBModelClass {
       }
     }
     const keyPath = await tx.objectStore("Father").put(record);
+    this.emit("update", keyPath, startKeyPath);
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         await this.client.child.updateMany(
@@ -7949,7 +8007,7 @@ class FatherIDBClass extends BaseIDBModelClass {
   }
 }
 
-class MotherIDBClass extends BaseIDBModelClass {
+class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.MotherDelegate, "findFirstOrThrow">["where"],
     R extends Prisma.Result<Prisma.MotherDelegate, object, "findFirstOrThrow">,
@@ -8753,6 +8811,7 @@ class MotherIDBClass extends BaseIDBModelClass {
       query.select,
     )[0];
     this._preprocessListFields([recordsWithRelations]);
+    this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.MotherDelegate, Q, "create">;
   }
 
@@ -8764,7 +8823,8 @@ class MotherIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(["Mother"], "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      await tx.objectStore("Mother").add(record);
+      const keyPath = await tx.objectStore("Mother").add(record);
+      this.emit("create", keyPath);
     }
     return { count: createManyData.length };
   }
@@ -8778,7 +8838,8 @@ class MotherIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(["Mother"], "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      await tx.objectStore("Mother").add(record);
+      const keyPath = await tx.objectStore("Mother").add(record);
+      this.emit("create", keyPath);
       records.push(this._applySelectClause([record], query.select)[0]);
     }
     this._preprocessListFields(records);
@@ -8805,6 +8866,7 @@ class MotherIDBClass extends BaseIDBModelClass {
     );
     if (relatedChild.length) throw new Error("Cannot delete record, other records depend on it");
     await tx.objectStore("Mother").delete([record.firstName, record.lastName]);
+    this.emit("delete", [record.firstName, record.lastName]);
     return record;
   }
 
@@ -9106,6 +9168,7 @@ class MotherIDBClass extends BaseIDBModelClass {
       }
     }
     const keyPath = await tx.objectStore("Mother").put(record);
+    this.emit("update", keyPath, startKeyPath);
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         await this.client.father.updateMany(
@@ -9178,7 +9241,7 @@ class MotherIDBClass extends BaseIDBModelClass {
   }
 }
 
-class ChildIDBClass extends BaseIDBModelClass {
+class ChildIDBClass extends BaseIDBModelClass<"Child"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.ChildDelegate, "findFirstOrThrow">["where"],
     R extends Prisma.Result<Prisma.ChildDelegate, object, "findFirstOrThrow">,
@@ -9952,6 +10015,7 @@ class ChildIDBClass extends BaseIDBModelClass {
       query.select,
     )[0];
     this._preprocessListFields([recordsWithRelations]);
+    this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.ChildDelegate, Q, "create">;
   }
 
@@ -9963,7 +10027,8 @@ class ChildIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(["Child"], "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      await tx.objectStore("Child").add(record);
+      const keyPath = await tx.objectStore("Child").add(record);
+      this.emit("create", keyPath);
     }
     return { count: createManyData.length };
   }
@@ -9977,7 +10042,8 @@ class ChildIDBClass extends BaseIDBModelClass {
     tx = tx ?? this.client._db.transaction(["Child"], "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      await tx.objectStore("Child").add(record);
+      const keyPath = await tx.objectStore("Child").add(record);
+      this.emit("create", keyPath);
       records.push(this._applySelectClause([record], query.select)[0]);
     }
     this._preprocessListFields(records);
@@ -9994,6 +10060,7 @@ class ChildIDBClass extends BaseIDBModelClass {
     const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
     await tx.objectStore("Child").delete([record.childFirstName, record.childLastName]);
+    this.emit("delete", [record.childFirstName, record.childLastName]);
     return record;
   }
 
@@ -10242,6 +10309,7 @@ class ChildIDBClass extends BaseIDBModelClass {
       }
     }
     const keyPath = await tx.objectStore("Child").put(record);
+    this.emit("update", keyPath, startKeyPath);
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         break;

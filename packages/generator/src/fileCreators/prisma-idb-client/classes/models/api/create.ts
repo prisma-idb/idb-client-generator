@@ -96,9 +96,9 @@ function applyClausesAndReturnRecords(writer: CodeBlockWriter, model: Model) {
     .writeLine(`const data = (await tx.objectStore("${model.name}").get(keyPath))!;`)
     .write(`const recordsWithRelations = this._applySelectClause`)
     .write(`(await this._applyRelations<object>([data], tx, query), query.select)[0];`)
-    .writeLine(`this._preprocessListFields([recordsWithRelations]);`);
-
-  writer.writeLine(`return recordsWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "create">;`);
+    .writeLine(`this._preprocessListFields([recordsWithRelations]);`)
+    .writeLine(`this.emit("create", keyPath);`)
+    .writeLine(`return recordsWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "create">;`);
 }
 
 function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {

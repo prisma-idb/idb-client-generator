@@ -16,7 +16,7 @@ export async function expectQueryToSucceed<
   await page.getByRole("button", { name: "Run query" }).click();
   await expect(page.getByRole("status").first()).toContainText("Query executed successfully");
 
-  const idbClientResult = (await page.getByRole("code").textContent()) ?? "";
+  const idbClientResult = (await page.getByRole("code").last().textContent()) ?? "";
   expect(JSON.parse(idbClientResult)).toEqual(JSON.parse(JSON.stringify(prismaClientResult)));
   return prismaClientResult;
 }
