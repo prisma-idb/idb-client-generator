@@ -5,10 +5,15 @@ export function addDateTimeUpdateHandler(utilsFile: SourceFile, models: readonly
   const dateTimeFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "DateTime");
   if (dateTimeFields.length === 0) return;
 
-  let updateOperationType = "undefined | Date | string | Prisma.DateTimeFieldUpdateOperationsInput";
+  let updateOperationType = "undefined | Date | string";
   let fieldType = "Date";
 
+  const nonNullableDateTimeFieldPresent = dateTimeFields.some(({ isRequired }) => isRequired);
   const nullableDateTimeFieldPresent = dateTimeFields.some(({ isRequired }) => !isRequired);
+
+  if (nonNullableDateTimeFieldPresent) {
+    updateOperationType += " | Prisma.DateTimeFieldUpdateOperationsInput";
+  }
   if (nullableDateTimeFieldPresent) {
     updateOperationType += " | null | Prisma.NullableDateTimeFieldUpdateOperationsInput";
     fieldType += " | null";

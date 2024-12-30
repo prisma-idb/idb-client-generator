@@ -5,10 +5,15 @@ export function addBytesUpdateHandler(utilsFile: SourceFile, models: readonly Mo
   const bytesFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "Bytes");
   if (bytesFields.length === 0) return;
 
-  let updateOperationType = "undefined | Uint8Array | Prisma.BytesFieldUpdateOperationsInput";
+  let updateOperationType = "undefined | Uint8Array";
   let fieldType = "Uint8Array";
 
+  const nonNullableBytesFieldPresent = bytesFields.some(({ isRequired }) => isRequired);
   const nullableBytesFieldPresent = bytesFields.some(({ isRequired }) => !isRequired);
+
+  if (nonNullableBytesFieldPresent) {
+    updateOperationType += " | Prisma.BytesFieldUpdateOperationsInput";
+  }
   if (nullableBytesFieldPresent) {
     updateOperationType += " | null | Prisma.NullableBytesFieldUpdateOperationsInput";
     fieldType += " | null";

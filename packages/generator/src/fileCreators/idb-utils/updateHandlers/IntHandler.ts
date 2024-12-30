@@ -7,10 +7,15 @@ export function addIntUpdateHandler(utilsFile: SourceFile, models: readonly Mode
   const intFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "Int");
   if (intFields.length === 0) return;
 
-  let updateOperationType = "undefined | number | Prisma.IntFieldUpdateOperationsInput";
+  let updateOperationType = "undefined | number";
   let fieldType = "number";
 
+  const nonNullableIntFieldPresent = intFields.some(({ isRequired }) => isRequired);
   const nullableIntFieldPresent = intFields.some(({ isRequired }) => !isRequired);
+
+  if (nonNullableIntFieldPresent) {
+    updateOperationType += " | Prisma.IntFieldUpdateOperationsInput";
+  }
   if (nullableIntFieldPresent) {
     updateOperationType += " | null | Prisma.NullableIntFieldUpdateOperationsInput";
     fieldType += " | null";

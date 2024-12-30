@@ -5,10 +5,15 @@ export function addStringUpdateHandler(utilsFile: SourceFile, models: readonly M
   const stringFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "String");
   if (stringFields.length === 0) return;
 
-  let updateOperationType = "undefined | string | Prisma.StringFieldUpdateOperationsInput";
+  let updateOperationType = "undefined | string";
   let fieldType = "string";
 
+  const nonNullableStringFieldPresent = stringFields.some(({ isRequired }) => isRequired);
   const nullableStringFieldPresent = stringFields.some(({ isRequired }) => !isRequired);
+
+  if (nonNullableStringFieldPresent) {
+    updateOperationType += " | Prisma.StringFieldUpdateOperationsInput";
+  }
   if (nullableStringFieldPresent) {
     updateOperationType += " | null | Prisma.NullableStringFieldUpdateOperationsInput";
     fieldType += " | null";
