@@ -31,4 +31,46 @@ test("select_WithNestedRelationSelect_ReturnsSelectedData", async ({ page }) => 
   });
 });
 
-// TODO: test for other relation types (one-to-many, one-to-oneMetaOnCurrent)
+test("select_WithOneToManyRelation_ReturnsSelectedData", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "create",
+    query: {
+      data: {
+        name: "Jane Doe",
+        posts: {
+          create: [{ title: "First Post" }, { title: "Second Post" }],
+        },
+      },
+    },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "findMany",
+    query: { select: { posts: true, name: true } },
+  });
+});
+
+test("select_WithOneToOneRelation_ReturnsSelectedData", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "create",
+    query: {
+      data: {
+        name: "Alice Smith",
+        profile: {
+          create: { bio: "Sample Meta" },
+        },
+      },
+    },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "findMany",
+    query: { select: { profile: true, name: true } },
+  });
+});

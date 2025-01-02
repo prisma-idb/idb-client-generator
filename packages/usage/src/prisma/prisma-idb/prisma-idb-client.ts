@@ -4857,7 +4857,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
           for (const field of stringListFields) {
             if (!IDBUtils.whereStringListFilter(record, field, whereClause[field])) return null;
           }
-          const numberFields = ["id", "authorId"] as const;
+          const numberFields = ["id", "authorId", "views"] as const;
           for (const field of numberFields) {
             if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
           }
@@ -4933,7 +4933,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     }
     return records.map((record) => {
       const partialRecord: Partial<typeof record> = record;
-      for (const untypedKey of ["id", "title", "author", "authorId", "comments", "tags", "numberArr"]) {
+      for (const untypedKey of ["id", "title", "author", "authorId", "comments", "tags", "numberArr", "views"]) {
         const key = untypedKey as keyof typeof record & keyof S;
         if (!selectClause[key]) delete partialRecord[key];
       }
@@ -5009,7 +5009,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     orderByInput: Prisma.PostOrderByWithRelationInput,
     tx: IDBUtils.TransactionType,
   ): Promise<unknown> {
-    const scalarFields = ["id", "title", "authorId", "tags", "numberArr"] as const;
+    const scalarFields = ["id", "title", "authorId", "tags", "numberArr", "views"] as const;
     for (const field of scalarFields) if (orderByInput[field]) return record[field];
     if (orderByInput.author) {
       return record.authorId === null
@@ -5028,7 +5028,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
   _resolveSortOrder(
     orderByInput: Prisma.PostOrderByWithRelationInput,
   ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
-    const scalarFields = ["id", "title", "authorId", "tags", "numberArr"] as const;
+    const scalarFields = ["id", "title", "authorId", "tags", "numberArr", "views"] as const;
     for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
     if (orderByInput.author) {
       return this.client.user._resolveSortOrder(orderByInput.author);
@@ -5052,6 +5052,9 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     }
     if (data.authorId === undefined) {
       data.authorId = null;
+    }
+    if (data.views === undefined) {
+      data.views = null;
     }
     if (!Array.isArray(data.tags)) {
       data.tags = data.tags?.set;
@@ -5573,7 +5576,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     for (const field of stringFields) {
       IDBUtils.handleStringUpdateField(record, field, query.data[field]);
     }
-    const intFields = ["id", "authorId"] as const;
+    const intFields = ["id", "authorId", "views"] as const;
     for (const field of intFields) {
       IDBUtils.handleIntUpdateField(record, field, query.data[field]);
     }
@@ -7222,6 +7225,14 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     const intFields = ["id"] as const;
     for (const field of intFields) {
       IDBUtils.handleIntUpdateField(record, field, query.data[field]);
+    }
+    const bigIntFields = ["bigInt"] as const;
+    for (const field of bigIntFields) {
+      IDBUtils.handleBigIntUpdateField(record, field, query.data[field]);
+    }
+    const floatFields = ["float"] as const;
+    for (const field of floatFields) {
+      IDBUtils.handleFloatUpdateField(record, field, query.data[field]);
     }
     const listFields = ["booleans", "bigIntegers", "floats", "decimals", "dateTimes", "jsonS", "manyBytes"] as const;
     for (const field of listFields) {

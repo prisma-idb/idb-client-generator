@@ -20,7 +20,7 @@ export function addFillDefaultsFunction(modelClass: ClassDeclaration, model: Mod
         .forEach((field) => {
           writer.writeLine(`if (data.${field.name} === undefined) `).block(() => {
             if (typeof field.default === "object" && "name" in field.default) {
-              if (field.default.name === "uuid(4)") {
+              if (field.default.name === "uuid") {
                 addUuidDefault(writer, field);
               } else if (field.default.name === "cuid") {
                 addCuidDefault(writer, field);

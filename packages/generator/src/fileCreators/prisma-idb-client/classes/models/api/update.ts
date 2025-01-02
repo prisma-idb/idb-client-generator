@@ -19,7 +19,9 @@ export function addUpdateMethod(modelClass: ClassDeclaration, model: Model, mode
       addBooleanUpdateHandling(writer, model);
       addBytesUpdateHandling(writer, model);
       addIntUpdateHandling(writer, model);
-      // TODO: the numeric types
+      addBigIntUpdateHandling(writer, model);
+      addFloatUpdateHandling(writer, model);
+      // TODO: decimal, json
       addScalarListUpdateHandling(writer, model);
       addRelationUpdateHandling(writer, model, models);
       addFkValidation(writer, model);
@@ -98,6 +100,30 @@ function addIntUpdateHandling(writer: CodeBlockWriter, model: Model) {
     .writeLine(`for (const field of intFields)`)
     .block(() => {
       writer.writeLine(`IDBUtils.handleIntUpdateField(record, field, query.data[field]);`);
+    });
+}
+
+function addBigIntUpdateHandling(writer: CodeBlockWriter, model: Model) {
+  const bigIntFields = model.fields.filter((field) => field.type === "BigInt" && !field.isList).map(({ name }) => name);
+  if (bigIntFields.length === 0) return;
+
+  writer
+    .writeLine(`const bigIntFields = ${JSON.stringify(bigIntFields)} as const;`)
+    .writeLine(`for (const field of bigIntFields)`)
+    .block(() => {
+      writer.writeLine(`IDBUtils.handleBigIntUpdateField(record, field, query.data[field]);`);
+    });
+}
+
+function addFloatUpdateHandling(writer: CodeBlockWriter, model: Model) {
+  const floatFields = model.fields.filter((field) => field.type === "Float" && !field.isList).map(({ name }) => name);
+  if (floatFields.length === 0) return;
+
+  writer
+    .writeLine(`const floatFields = ${JSON.stringify(floatFields)} as const;`)
+    .writeLine(`for (const field of floatFields)`)
+    .block(() => {
+      writer.writeLine(`IDBUtils.handleFloatUpdateField(record, field, query.data[field]);`);
     });
 }
 
