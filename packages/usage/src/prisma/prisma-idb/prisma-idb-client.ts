@@ -1195,7 +1195,17 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      selectAppliedRecords = selectAppliedRecords.filter((record) => {
+        const key = distinctFields.map((field) => record[field]).join("|");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.UserDelegate, Q, "findMany">;
   }
@@ -2817,7 +2827,17 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      selectAppliedRecords = selectAppliedRecords.filter((record) => {
+        const key = distinctFields.map((field) => record[field]).join("|");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.GroupDelegate, Q, "findMany">;
   }
@@ -3657,7 +3677,17 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      selectAppliedRecords = selectAppliedRecords.filter((record) => {
+        const key = distinctFields.map((field) => record[field]).join("|");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.UserGroupDelegate, Q, "findMany">;
   }
@@ -4414,7 +4444,17 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      selectAppliedRecords = selectAppliedRecords.filter((record) => {
+        const key = distinctFields.map((field) => record[field]).join("|");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.ProfileDelegate, Q, "findMany">;
   }
@@ -5262,7 +5302,17 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      selectAppliedRecords = selectAppliedRecords.filter((record) => {
+        const key = distinctFields.map((field) => record[field]).join("|");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.PostDelegate, Q, "findMany">;
   }
@@ -6190,7 +6240,17 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      selectAppliedRecords = selectAppliedRecords.filter((record) => {
+        const key = distinctFields.map((field) => record[field]).join("|");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.CommentDelegate, Q, "findMany">;
   }
@@ -6966,7 +7026,17 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      selectAppliedRecords = selectAppliedRecords.filter((record) => {
+        const key = distinctFields.map((field) => record[field]).join("|");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findMany">;
   }
@@ -7838,7 +7908,17 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      selectAppliedRecords = selectAppliedRecords.filter((record) => {
+        const key = distinctFields.map((field) => record[field]).join("|");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.FatherDelegate, Q, "findMany">;
   }
@@ -9116,7 +9196,17 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      selectAppliedRecords = selectAppliedRecords.filter((record) => {
+        const key = distinctFields.map((field) => record[field]).join("|");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.MotherDelegate, Q, "findMany">;
   }
@@ -10395,7 +10485,17 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      selectAppliedRecords = selectAppliedRecords.filter((record) => {
+        const key = distinctFields.map((field) => record[field]).join("|");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.ChildDelegate, Q, "findMany">;
   }
