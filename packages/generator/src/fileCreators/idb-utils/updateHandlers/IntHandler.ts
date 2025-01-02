@@ -1,8 +1,6 @@
 import { Model } from "src/fileCreators/types";
 import type { SourceFile } from "ts-morph";
 
-// TODO: atomic operations
-
 export function addIntUpdateHandler(utilsFile: SourceFile, models: readonly Model[]) {
   const intFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "Int");
   if (intFields.length === 0) return;
@@ -41,10 +39,27 @@ export function addIntUpdateHandler(utilsFile: SourceFile, models: readonly Mode
         .writeLine(`)`)
         .block(() => {
           writer.writeLine(`(record[fieldName] as ${fieldType}) = intUpdate;`);
+        })
+        .writeLine(`else if (intUpdate.set !== undefined)`)
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as ${fieldType}) = intUpdate.set;`);
+        })
+        .writeLine(`else if (intUpdate.increment !== undefined && record[fieldName] !== null)`)
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as number) += intUpdate.increment;`);
+        })
+        .writeLine(`else if (intUpdate.decrement !== undefined && record[fieldName] !== null)`)
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as number) -= intUpdate.decrement;`);
+        })
+        .writeLine(`else if (intUpdate.multiply !== undefined && record[fieldName] !== null)`)
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as number) *= intUpdate.multiply;`);
+        })
+        .writeLine(`else if (intUpdate.divide !== undefined && record[fieldName] !== null)`)
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as number) /= intUpdate.divide;`);
         });
-      writer.writeLine(`else if (intUpdate.set !== undefined)`).block(() => {
-        writer.writeLine(`(record[fieldName] as ${fieldType}) = intUpdate.set;`);
-      });
     },
   });
 }

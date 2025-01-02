@@ -1,27 +1,29 @@
 import { SourceFile, VariableDeclarationKind } from "ts-morph";
 import { Model } from "../types";
+import { addGenericComparator } from "./comparator/genericComparator";
 import { addBigIntFilter } from "./filters/BigIntFilter";
 import { addBoolFilter } from "./filters/BoolFilter";
 import { addBytesFilter } from "./filters/BytesFilter";
 import { addDateTimeFilter } from "./filters/DateTimeFilter";
 import { addNumberFilter } from "./filters/NumberFilter";
 import { addStringFilter } from "./filters/StringFilter";
-import { addApplyLogicalFilters } from "./logicalFilters/applyLogicalFilters";
-import { addIntersectArraysByNestedKeyFunction } from "./logicalFilters/intersectArraysByNestedKey";
-import { addRemoveDuplicatesByKeyPath } from "./logicalFilters/removeDuplicatesByKeyPath";
-import { addBooleanUpdateHandler } from "./updateHandlers/BooleanHandler";
-import { addBytesUpdateHandler } from "./updateHandlers/BytesHandler";
-import { addDateTimeUpdateHandler } from "./updateHandlers/DateTimeHandler";
-import { addIntUpdateHandler } from "./updateHandlers/IntHandler";
-import { addScalarListUpdateHandler } from "./updateHandlers/ScalarListHandler";
-import { addStringUpdateHandler } from "./updateHandlers/StringHandler";
-import { addGenericComparator } from "./comparator/genericComparator";
-import { addStringListFilter } from "./listFilters/StringListFilter";
-import { addNumberListFilter } from "./listFilters/NumberListFilter";
 import { addBigIntListFilter } from "./listFilters/BigIntListFilter";
 import { addBooleanListFilter } from "./listFilters/BooleanListFilter";
 import { addBytesListFilter } from "./listFilters/BytesListFilter";
 import { addDateTimeListFilter } from "./listFilters/DateTimeListFilter";
+import { addNumberListFilter } from "./listFilters/NumberListFilter";
+import { addStringListFilter } from "./listFilters/StringListFilter";
+import { addApplyLogicalFilters } from "./logicalFilters/applyLogicalFilters";
+import { addIntersectArraysByNestedKeyFunction } from "./logicalFilters/intersectArraysByNestedKey";
+import { addRemoveDuplicatesByKeyPath } from "./logicalFilters/removeDuplicatesByKeyPath";
+import { addBigIntUpdateHandler } from "./updateHandlers/BigIntHandler";
+import { addBooleanUpdateHandler } from "./updateHandlers/BooleanHandler";
+import { addBytesUpdateHandler } from "./updateHandlers/BytesHandler";
+import { addDateTimeUpdateHandler } from "./updateHandlers/DateTimeHandler";
+import { addFloatUpdateHandler } from "./updateHandlers/FloatHandler";
+import { addIntUpdateHandler } from "./updateHandlers/IntHandler";
+import { addScalarListUpdateHandler } from "./updateHandlers/ScalarListHandler";
+import { addStringUpdateHandler } from "./updateHandlers/StringHandler";
 
 export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model[]) {
   idbUtilsFile.addImportDeclarations([
@@ -84,6 +86,8 @@ export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model
   addDateTimeUpdateHandler(idbUtilsFile, models);
   addBytesUpdateHandler(idbUtilsFile, models);
   addIntUpdateHandler(idbUtilsFile, models);
+  addBigIntUpdateHandler(idbUtilsFile, models);
+  addFloatUpdateHandler(idbUtilsFile, models);
   addScalarListUpdateHandler(idbUtilsFile, models);
 
   addGenericComparator(idbUtilsFile);
