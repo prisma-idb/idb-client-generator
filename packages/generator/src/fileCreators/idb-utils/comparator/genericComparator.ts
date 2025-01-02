@@ -20,7 +20,11 @@ export function addGenericComparator(utilsFile: SourceFile) {
 
       handleStringComparison(writer);
       handleNumberComparison(writer);
-      // TODO: rest
+      handleBigIntComparison(writer);
+      handleDateTimeComparison(writer);
+      handleBytesComparison(writer);
+      handleBooleanComparison(writer);
+      // TODO: decimal, json
 
       handleComparisonTypeErrorAndReturn(writer);
     },
@@ -55,6 +59,42 @@ function handleStringComparison(writer: CodeBlockWriter) {
 function handleNumberComparison(writer: CodeBlockWriter) {
   writer.writeLine(`if (typeof a === "number" && typeof b === "number")`).block(() => {
     writer.writeLine(`returnValue = a - b;`);
+  });
+}
+
+function handleBigIntComparison(writer: CodeBlockWriter) {
+  writer.writeLine(`if (typeof a === "bigint" && typeof b === "bigint")`).block(() => {
+    writer
+      .writeLine("if (a > b)")
+      .block(() => {
+        writer.writeLine("returnValue = 1;");
+      })
+      .writeLine("else if (a < b)")
+      .block(() => {
+        writer.writeLine("returnValue = -1;");
+      })
+      .writeLine("else")
+      .block(() => {
+        writer.writeLine("returnValue = 0;");
+      });
+  });
+}
+
+function handleDateTimeComparison(writer: CodeBlockWriter) {
+  writer.writeLine(`if (a instanceof Date && b instanceof Date)`).block(() => {
+    writer.writeLine(`returnValue = a.getTime() - b.getTime();`);
+  });
+}
+
+function handleBytesComparison(writer: CodeBlockWriter) {
+  writer.writeLine(`if (a instanceof Uint8Array && b instanceof Uint8Array)`).block(() => {
+    writer.writeLine(`returnValue = a.length - b.length;`);
+  });
+}
+
+function handleBooleanComparison(writer: CodeBlockWriter) {
+  writer.writeLine(`if (typeof a === "boolean" && typeof b === "boolean")`).block(() => {
+    writer.writeLine(`returnValue = a === b ? 0 : a ? 1 : -1;`);
   });
 }
 

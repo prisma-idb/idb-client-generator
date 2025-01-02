@@ -55,10 +55,11 @@ model Post {
   comments  Comment[]
   tags      String[]
   numberArr Int[]
+  views     Int?
 }
 
 model Comment {
-  id     String @id @default(cuid())
+  id     String @id @default(cuid(2))
   post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
   postId Int
   user   User   @relation(fields: [userId], references: [id], onDelete: SetDefault)

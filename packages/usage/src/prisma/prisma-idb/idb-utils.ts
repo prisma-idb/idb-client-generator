@@ -650,6 +650,56 @@ export function handleIntUpdateField<T, R extends Prisma.Result<T, object, "find
     (record[fieldName] as number | null) = intUpdate;
   } else if (intUpdate.set !== undefined) {
     (record[fieldName] as number | null) = intUpdate.set;
+  } else if (intUpdate.increment !== undefined && record[fieldName] !== null) {
+    (record[fieldName] as number) += intUpdate.increment;
+  } else if (intUpdate.decrement !== undefined && record[fieldName] !== null) {
+    (record[fieldName] as number) -= intUpdate.decrement;
+  } else if (intUpdate.multiply !== undefined && record[fieldName] !== null) {
+    (record[fieldName] as number) *= intUpdate.multiply;
+  } else if (intUpdate.divide !== undefined && record[fieldName] !== null) {
+    (record[fieldName] as number) /= intUpdate.divide;
+  }
+}
+
+export function handleBigIntUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
+  record: R,
+  fieldName: keyof R,
+  bigIntUpdate: undefined | bigint | number | Prisma.BigIntFieldUpdateOperationsInput,
+) {
+  if (bigIntUpdate === undefined) return;
+  if (typeof bigIntUpdate === "bigint" || typeof bigIntUpdate === "number") {
+    (record[fieldName] as bigint) = BigInt(bigIntUpdate);
+  } else if (bigIntUpdate.set !== undefined) {
+    (record[fieldName] as bigint) = BigInt(bigIntUpdate.set);
+  } else if (bigIntUpdate.increment !== undefined && record[fieldName] !== null) {
+    (record[fieldName] as bigint) += BigInt(bigIntUpdate.increment);
+  } else if (bigIntUpdate.decrement !== undefined && record[fieldName] !== null) {
+    (record[fieldName] as bigint) -= BigInt(bigIntUpdate.decrement);
+  } else if (bigIntUpdate.multiply !== undefined && record[fieldName] !== null) {
+    (record[fieldName] as bigint) *= BigInt(bigIntUpdate.multiply);
+  } else if (bigIntUpdate.divide !== undefined && record[fieldName] !== null) {
+    (record[fieldName] as bigint) /= BigInt(bigIntUpdate.divide);
+  }
+}
+
+export function handleFloatUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
+  record: R,
+  fieldName: keyof R,
+  floatUpdate: undefined | number | Prisma.FloatFieldUpdateOperationsInput,
+) {
+  if (floatUpdate === undefined) return;
+  if (typeof floatUpdate === "number") {
+    (record[fieldName] as number) = floatUpdate;
+  } else if (floatUpdate.set !== undefined) {
+    (record[fieldName] as number) = floatUpdate.set;
+  } else if (floatUpdate.increment !== undefined && record[fieldName] !== null) {
+    (record[fieldName] as number) += floatUpdate.increment;
+  } else if (floatUpdate.decrement !== undefined && record[fieldName] !== null) {
+    (record[fieldName] as number) -= floatUpdate.decrement;
+  } else if (floatUpdate.multiply !== undefined && record[fieldName] !== null) {
+    (record[fieldName] as number) *= floatUpdate.multiply;
+  } else if (floatUpdate.divide !== undefined && record[fieldName] !== null) {
+    (record[fieldName] as number) /= floatUpdate.divide;
   }
 }
 
@@ -691,6 +741,24 @@ export function genericComparator(
   }
   if (typeof a === "number" && typeof b === "number") {
     returnValue = a - b;
+  }
+  if (typeof a === "bigint" && typeof b === "bigint") {
+    if (a > b) {
+      returnValue = 1;
+    } else if (a < b) {
+      returnValue = -1;
+    } else {
+      returnValue = 0;
+    }
+  }
+  if (a instanceof Date && b instanceof Date) {
+    returnValue = a.getTime() - b.getTime();
+  }
+  if (a instanceof Uint8Array && b instanceof Uint8Array) {
+    returnValue = a.length - b.length;
+  }
+  if (typeof a === "boolean" && typeof b === "boolean") {
+    returnValue = a === b ? 0 : a ? 1 : -1;
   }
   if (returnValue === undefined) {
     throw new Error(`Comparison of type: ${typeof a} not yet supported`);

@@ -39,7 +39,9 @@ export function addBigIntUpdateHandler(utilsFile: SourceFile, models: readonly M
         .writeLine(`)`)
         .block(() => {
           if (nullableBigIntFieldPresent) {
-            writer.writeLine(`(record[fieldName] as ${fieldType}) = bigIntUpdate === null ? null : BigInt(bigIntUpdate);`);
+            writer.writeLine(
+              `(record[fieldName] as ${fieldType}) = bigIntUpdate === null ? null : BigInt(bigIntUpdate);`,
+            );
           } else {
             writer.writeLine(`(record[fieldName] as ${fieldType}) = BigInt(bigIntUpdate);`);
           }
