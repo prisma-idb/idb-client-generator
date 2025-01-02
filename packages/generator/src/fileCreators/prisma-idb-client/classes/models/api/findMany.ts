@@ -19,6 +19,7 @@ export function addFindManyMethod(modelClass: ClassDeclaration, model: Model) {
       getRecords(writer, model);
       applyRelationsToRecords(writer, model);
       applySelectClauseToRecords(writer);
+      applyDistinctClauseToRecords(writer);
       returnRecords(writer, model);
     },
   });
@@ -42,7 +43,24 @@ function applyRelationsToRecords(writer: CodeBlockWriter, model: Model) {
 function applySelectClauseToRecords(writer: CodeBlockWriter) {
   writer
     .writeLine("const selectClause = query?.select;")
-    .writeLine("const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);");
+    .writeLine("let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);");
+}
+
+function applyDistinctClauseToRecords(writer: CodeBlockWriter) {
+  writer.writeLine("if (query?.distinct)").block(() => {
+    writer
+      .writeLine(`const distinctFields = IDBUtils.convertToArray(query.distinct);`)
+      .writeLine(`const seen = new Set<string>();`)
+      .writeLine(`selectAppliedRecords = selectAppliedRecords.filter((record) => `)
+      .block(() => {
+        writer
+          .writeLine(`const key = distinctFields.map((field) => record[field]).join("|");`)
+          .writeLine(`if (seen.has(key)) return false;`)
+          .writeLine(`seen.add(key);`)
+          .writeLine(`return true;`);
+      })
+      .writeLine(");");
+  });
 }
 
 function returnRecords(writer: CodeBlockWriter, model: Model) {
