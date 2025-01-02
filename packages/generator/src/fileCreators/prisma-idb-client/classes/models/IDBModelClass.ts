@@ -1,5 +1,6 @@
 import { SourceFile } from "ts-morph";
 import { Model } from "../../../types";
+import { addAggregateMethod } from "./api/aggregate";
 import { addCountMethod } from "./api/count";
 import { addCreateMethod } from "./api/create";
 import { addCreateManyMethod } from "./api/createMany";
@@ -21,13 +22,13 @@ import { addApplyWhereClause } from "./utils/_applyWhereClause";
 import { addFillDefaultsFunction } from "./utils/_fillDefaults";
 import { addGetNeededStoresForCreate } from "./utils/_getNeededStoresForCreate";
 import { addGetNeededStoresForFind } from "./utils/_getNeededStoresForFind";
+import { addGetNeededStoresForNestedDelete } from "./utils/_getNeededStoresForNestedDelete";
+import { addGetNeededStoresForUpdate } from "./utils/_getNeededStoresForUpdate";
 import { addGetNeededStoresForWhere } from "./utils/_getNeededStoresForWhere";
 import { addPreprocessListFields } from "./utils/_preprocessListFields";
 import { addRemoveNestedCreateDataMethod } from "./utils/_removeNestedCreateData";
 import { addResolveOrderByKey } from "./utils/_resolveOrderByKey";
 import { addResolveSortOrder } from "./utils/_resolveSortOrder";
-import { addGetNeededStoresForUpdate } from "./utils/_getNeededStoresForUpdate";
-import { addGetNeededStoresForNestedDelete } from "./utils/_getNeededStoresForNestedDelete";
 
 export function addIDBModelClass(file: SourceFile, model: Model, models: readonly Model[]) {
   const modelClass = file.addClass({
@@ -67,4 +68,6 @@ export function addIDBModelClass(file: SourceFile, model: Model, models: readonl
   addUpdateMethod(modelClass, model, models);
   addUpdateMany(modelClass, model);
   addUpsertMethod(modelClass, model);
+
+  addAggregateMethod(modelClass, model);
 }
