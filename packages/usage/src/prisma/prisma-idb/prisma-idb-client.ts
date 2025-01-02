@@ -2437,6 +2437,68 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     );
     return record as Prisma.Result<Prisma.UserDelegate, Q, "upsert">;
   }
+
+  async aggregate<Q extends Prisma.Args<Prisma.UserDelegate, "aggregate">>(
+    query?: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "aggregate">> {
+    tx = tx ?? this.client._db.transaction(["User"], "readonly");
+    const records = await this.findMany({ where: query?.where }, tx);
+    const result: Partial<Prisma.Result<Prisma.UserDelegate, Q, "aggregate">> = {};
+    if (query?._count) {
+      if (query._count === true) {
+        (result._count as number) = records.length;
+      } else {
+        for (const key of Object.keys(query._count)) {
+          const typedKey = key as keyof typeof query._count;
+          if (typedKey === "_all") {
+            (result._count as Record<string, number>)[typedKey] = records.length;
+            continue;
+          }
+          (result._count as Record<string, number>)[typedKey] = (
+            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)
+          ).length;
+        }
+      }
+    }
+    if (query?._avg) {
+      const avgResult = {} as Prisma.Result<Prisma.UserDelegate, Q, "aggregate">["_avg"];
+      for (const untypedField of Object.keys(query._avg)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+      result._avg = avgResult;
+    }
+    if (query?._sum) {
+      const sumResult = {} as Prisma.Result<Prisma.UserDelegate, Q, "aggregate">["_sum"];
+      for (const untypedField of Object.keys(query._sum)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
+      }
+      result._sum = sumResult;
+    }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.UserDelegate, Q, "aggregate">["_min"];
+      for (const untypedField of Object.keys(query._min)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.UserDelegate, Q, "aggregate">["_max"];
+      for (const untypedField of Object.keys(query._max)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      result._max = maxResult;
+    }
+    return result as unknown as Prisma.Result<Prisma.UserDelegate, Q, "aggregate">;
+  }
 }
 
 class GroupIDBClass extends BaseIDBModelClass<"Group"> {
@@ -3133,6 +3195,68 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
       tx,
     );
     return record as Prisma.Result<Prisma.GroupDelegate, Q, "upsert">;
+  }
+
+  async aggregate<Q extends Prisma.Args<Prisma.GroupDelegate, "aggregate">>(
+    query?: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "aggregate">> {
+    tx = tx ?? this.client._db.transaction(["Group"], "readonly");
+    const records = await this.findMany({ where: query?.where }, tx);
+    const result: Partial<Prisma.Result<Prisma.GroupDelegate, Q, "aggregate">> = {};
+    if (query?._count) {
+      if (query._count === true) {
+        (result._count as number) = records.length;
+      } else {
+        for (const key of Object.keys(query._count)) {
+          const typedKey = key as keyof typeof query._count;
+          if (typedKey === "_all") {
+            (result._count as Record<string, number>)[typedKey] = records.length;
+            continue;
+          }
+          (result._count as Record<string, number>)[typedKey] = (
+            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)
+          ).length;
+        }
+      }
+    }
+    if (query?._avg) {
+      const avgResult = {} as Prisma.Result<Prisma.GroupDelegate, Q, "aggregate">["_avg"];
+      for (const untypedField of Object.keys(query._avg)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+      result._avg = avgResult;
+    }
+    if (query?._sum) {
+      const sumResult = {} as Prisma.Result<Prisma.GroupDelegate, Q, "aggregate">["_sum"];
+      for (const untypedField of Object.keys(query._sum)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
+      }
+      result._sum = sumResult;
+    }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.GroupDelegate, Q, "aggregate">["_min"];
+      for (const untypedField of Object.keys(query._min)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.GroupDelegate, Q, "aggregate">["_max"];
+      for (const untypedField of Object.keys(query._max)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      result._max = maxResult;
+    }
+    return result as unknown as Prisma.Result<Prisma.GroupDelegate, Q, "aggregate">;
   }
 }
 
@@ -3935,6 +4059,68 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     );
     return record as Prisma.Result<Prisma.UserGroupDelegate, Q, "upsert">;
   }
+
+  async aggregate<Q extends Prisma.Args<Prisma.UserGroupDelegate, "aggregate">>(
+    query?: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">> {
+    tx = tx ?? this.client._db.transaction(["UserGroup"], "readonly");
+    const records = await this.findMany({ where: query?.where }, tx);
+    const result: Partial<Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">> = {};
+    if (query?._count) {
+      if (query._count === true) {
+        (result._count as number) = records.length;
+      } else {
+        for (const key of Object.keys(query._count)) {
+          const typedKey = key as keyof typeof query._count;
+          if (typedKey === "_all") {
+            (result._count as Record<string, number>)[typedKey] = records.length;
+            continue;
+          }
+          (result._count as Record<string, number>)[typedKey] = (
+            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)
+          ).length;
+        }
+      }
+    }
+    if (query?._avg) {
+      const avgResult = {} as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">["_avg"];
+      for (const untypedField of Object.keys(query._avg)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+      result._avg = avgResult;
+    }
+    if (query?._sum) {
+      const sumResult = {} as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">["_sum"];
+      for (const untypedField of Object.keys(query._sum)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
+      }
+      result._sum = sumResult;
+    }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">["_min"];
+      for (const untypedField of Object.keys(query._min)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">["_max"];
+      for (const untypedField of Object.keys(query._max)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      result._max = maxResult;
+    }
+    return result as unknown as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">;
+  }
 }
 
 class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
@@ -4542,6 +4728,68 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
       tx,
     );
     return record as Prisma.Result<Prisma.ProfileDelegate, Q, "upsert">;
+  }
+
+  async aggregate<Q extends Prisma.Args<Prisma.ProfileDelegate, "aggregate">>(
+    query?: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "aggregate">> {
+    tx = tx ?? this.client._db.transaction(["Profile"], "readonly");
+    const records = await this.findMany({ where: query?.where }, tx);
+    const result: Partial<Prisma.Result<Prisma.ProfileDelegate, Q, "aggregate">> = {};
+    if (query?._count) {
+      if (query._count === true) {
+        (result._count as number) = records.length;
+      } else {
+        for (const key of Object.keys(query._count)) {
+          const typedKey = key as keyof typeof query._count;
+          if (typedKey === "_all") {
+            (result._count as Record<string, number>)[typedKey] = records.length;
+            continue;
+          }
+          (result._count as Record<string, number>)[typedKey] = (
+            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)
+          ).length;
+        }
+      }
+    }
+    if (query?._avg) {
+      const avgResult = {} as Prisma.Result<Prisma.ProfileDelegate, Q, "aggregate">["_avg"];
+      for (const untypedField of Object.keys(query._avg)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+      result._avg = avgResult;
+    }
+    if (query?._sum) {
+      const sumResult = {} as Prisma.Result<Prisma.ProfileDelegate, Q, "aggregate">["_sum"];
+      for (const untypedField of Object.keys(query._sum)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
+      }
+      result._sum = sumResult;
+    }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.ProfileDelegate, Q, "aggregate">["_min"];
+      for (const untypedField of Object.keys(query._min)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.ProfileDelegate, Q, "aggregate">["_max"];
+      for (const untypedField of Object.keys(query._max)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      result._max = maxResult;
+    }
+    return result as unknown as Prisma.Result<Prisma.ProfileDelegate, Q, "aggregate">;
   }
 }
 
@@ -5489,6 +5737,68 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     );
     return record as Prisma.Result<Prisma.PostDelegate, Q, "upsert">;
   }
+
+  async aggregate<Q extends Prisma.Args<Prisma.PostDelegate, "aggregate">>(
+    query?: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "aggregate">> {
+    tx = tx ?? this.client._db.transaction(["Post"], "readonly");
+    const records = await this.findMany({ where: query?.where }, tx);
+    const result: Partial<Prisma.Result<Prisma.PostDelegate, Q, "aggregate">> = {};
+    if (query?._count) {
+      if (query._count === true) {
+        (result._count as number) = records.length;
+      } else {
+        for (const key of Object.keys(query._count)) {
+          const typedKey = key as keyof typeof query._count;
+          if (typedKey === "_all") {
+            (result._count as Record<string, number>)[typedKey] = records.length;
+            continue;
+          }
+          (result._count as Record<string, number>)[typedKey] = (
+            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)
+          ).length;
+        }
+      }
+    }
+    if (query?._avg) {
+      const avgResult = {} as Prisma.Result<Prisma.PostDelegate, Q, "aggregate">["_avg"];
+      for (const untypedField of Object.keys(query._avg)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+      result._avg = avgResult;
+    }
+    if (query?._sum) {
+      const sumResult = {} as Prisma.Result<Prisma.PostDelegate, Q, "aggregate">["_sum"];
+      for (const untypedField of Object.keys(query._sum)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
+      }
+      result._sum = sumResult;
+    }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.PostDelegate, Q, "aggregate">["_min"];
+      for (const untypedField of Object.keys(query._min)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.PostDelegate, Q, "aggregate">["_max"];
+      for (const untypedField of Object.keys(query._max)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      result._max = maxResult;
+    }
+    return result as unknown as Prisma.Result<Prisma.PostDelegate, Q, "aggregate">;
+  }
 }
 
 class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
@@ -6273,6 +6583,68 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     );
     return record as Prisma.Result<Prisma.CommentDelegate, Q, "upsert">;
   }
+
+  async aggregate<Q extends Prisma.Args<Prisma.CommentDelegate, "aggregate">>(
+    query?: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "aggregate">> {
+    tx = tx ?? this.client._db.transaction(["Comment"], "readonly");
+    const records = await this.findMany({ where: query?.where }, tx);
+    const result: Partial<Prisma.Result<Prisma.CommentDelegate, Q, "aggregate">> = {};
+    if (query?._count) {
+      if (query._count === true) {
+        (result._count as number) = records.length;
+      } else {
+        for (const key of Object.keys(query._count)) {
+          const typedKey = key as keyof typeof query._count;
+          if (typedKey === "_all") {
+            (result._count as Record<string, number>)[typedKey] = records.length;
+            continue;
+          }
+          (result._count as Record<string, number>)[typedKey] = (
+            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)
+          ).length;
+        }
+      }
+    }
+    if (query?._avg) {
+      const avgResult = {} as Prisma.Result<Prisma.CommentDelegate, Q, "aggregate">["_avg"];
+      for (const untypedField of Object.keys(query._avg)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+      result._avg = avgResult;
+    }
+    if (query?._sum) {
+      const sumResult = {} as Prisma.Result<Prisma.CommentDelegate, Q, "aggregate">["_sum"];
+      for (const untypedField of Object.keys(query._sum)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
+      }
+      result._sum = sumResult;
+    }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.CommentDelegate, Q, "aggregate">["_min"];
+      for (const untypedField of Object.keys(query._min)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.CommentDelegate, Q, "aggregate">["_max"];
+      for (const untypedField of Object.keys(query._max)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      result._max = maxResult;
+    }
+    return result as unknown as Prisma.Result<Prisma.CommentDelegate, Q, "aggregate">;
+  }
 }
 
 class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes"> {
@@ -6839,6 +7211,68 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     else record = await this.update({ where: query.where, data: query.update }, tx);
     record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select }, tx);
     return record as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "upsert">;
+  }
+
+  async aggregate<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "aggregate">>(
+    query?: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "aggregate">> {
+    tx = tx ?? this.client._db.transaction(["AllFieldScalarTypes"], "readonly");
+    const records = await this.findMany({ where: query?.where }, tx);
+    const result: Partial<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "aggregate">> = {};
+    if (query?._count) {
+      if (query._count === true) {
+        (result._count as number) = records.length;
+      } else {
+        for (const key of Object.keys(query._count)) {
+          const typedKey = key as keyof typeof query._count;
+          if (typedKey === "_all") {
+            (result._count as Record<string, number>)[typedKey] = records.length;
+            continue;
+          }
+          (result._count as Record<string, number>)[typedKey] = (
+            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)
+          ).length;
+        }
+      }
+    }
+    if (query?._avg) {
+      const avgResult = {} as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "aggregate">["_avg"];
+      for (const untypedField of Object.keys(query._avg)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+      result._avg = avgResult;
+    }
+    if (query?._sum) {
+      const sumResult = {} as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "aggregate">["_sum"];
+      for (const untypedField of Object.keys(query._sum)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
+      }
+      result._sum = sumResult;
+    }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "aggregate">["_min"];
+      for (const untypedField of Object.keys(query._min)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "aggregate">["_max"];
+      for (const untypedField of Object.keys(query._max)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      result._max = maxResult;
+    }
+    return result as unknown as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "aggregate">;
   }
 }
 
@@ -8028,6 +8462,68 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
       tx,
     );
     return record as Prisma.Result<Prisma.FatherDelegate, Q, "upsert">;
+  }
+
+  async aggregate<Q extends Prisma.Args<Prisma.FatherDelegate, "aggregate">>(
+    query?: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.FatherDelegate, Q, "aggregate">> {
+    tx = tx ?? this.client._db.transaction(["Father"], "readonly");
+    const records = await this.findMany({ where: query?.where }, tx);
+    const result: Partial<Prisma.Result<Prisma.FatherDelegate, Q, "aggregate">> = {};
+    if (query?._count) {
+      if (query._count === true) {
+        (result._count as number) = records.length;
+      } else {
+        for (const key of Object.keys(query._count)) {
+          const typedKey = key as keyof typeof query._count;
+          if (typedKey === "_all") {
+            (result._count as Record<string, number>)[typedKey] = records.length;
+            continue;
+          }
+          (result._count as Record<string, number>)[typedKey] = (
+            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)
+          ).length;
+        }
+      }
+    }
+    if (query?._avg) {
+      const avgResult = {} as Prisma.Result<Prisma.FatherDelegate, Q, "aggregate">["_avg"];
+      for (const untypedField of Object.keys(query._avg)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+      result._avg = avgResult;
+    }
+    if (query?._sum) {
+      const sumResult = {} as Prisma.Result<Prisma.FatherDelegate, Q, "aggregate">["_sum"];
+      for (const untypedField of Object.keys(query._sum)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
+      }
+      result._sum = sumResult;
+    }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.FatherDelegate, Q, "aggregate">["_min"];
+      for (const untypedField of Object.keys(query._min)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.FatherDelegate, Q, "aggregate">["_max"];
+      for (const untypedField of Object.keys(query._max)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      result._max = maxResult;
+    }
+    return result as unknown as Prisma.Result<Prisma.FatherDelegate, Q, "aggregate">;
   }
 }
 
@@ -9266,6 +9762,68 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     );
     return record as Prisma.Result<Prisma.MotherDelegate, Q, "upsert">;
   }
+
+  async aggregate<Q extends Prisma.Args<Prisma.MotherDelegate, "aggregate">>(
+    query?: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "aggregate">> {
+    tx = tx ?? this.client._db.transaction(["Mother"], "readonly");
+    const records = await this.findMany({ where: query?.where }, tx);
+    const result: Partial<Prisma.Result<Prisma.MotherDelegate, Q, "aggregate">> = {};
+    if (query?._count) {
+      if (query._count === true) {
+        (result._count as number) = records.length;
+      } else {
+        for (const key of Object.keys(query._count)) {
+          const typedKey = key as keyof typeof query._count;
+          if (typedKey === "_all") {
+            (result._count as Record<string, number>)[typedKey] = records.length;
+            continue;
+          }
+          (result._count as Record<string, number>)[typedKey] = (
+            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)
+          ).length;
+        }
+      }
+    }
+    if (query?._avg) {
+      const avgResult = {} as Prisma.Result<Prisma.MotherDelegate, Q, "aggregate">["_avg"];
+      for (const untypedField of Object.keys(query._avg)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+      result._avg = avgResult;
+    }
+    if (query?._sum) {
+      const sumResult = {} as Prisma.Result<Prisma.MotherDelegate, Q, "aggregate">["_sum"];
+      for (const untypedField of Object.keys(query._sum)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
+      }
+      result._sum = sumResult;
+    }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.MotherDelegate, Q, "aggregate">["_min"];
+      for (const untypedField of Object.keys(query._min)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.MotherDelegate, Q, "aggregate">["_max"];
+      for (const untypedField of Object.keys(query._max)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      result._max = maxResult;
+    }
+    return result as unknown as Prisma.Result<Prisma.MotherDelegate, Q, "aggregate">;
+  }
 }
 
 class ChildIDBClass extends BaseIDBModelClass<"Child"> {
@@ -10402,5 +10960,67 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
       tx,
     );
     return record as Prisma.Result<Prisma.ChildDelegate, Q, "upsert">;
+  }
+
+  async aggregate<Q extends Prisma.Args<Prisma.ChildDelegate, "aggregate">>(
+    query?: Q,
+    tx?: IDBUtils.TransactionType,
+  ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "aggregate">> {
+    tx = tx ?? this.client._db.transaction(["Child"], "readonly");
+    const records = await this.findMany({ where: query?.where }, tx);
+    const result: Partial<Prisma.Result<Prisma.ChildDelegate, Q, "aggregate">> = {};
+    if (query?._count) {
+      if (query._count === true) {
+        (result._count as number) = records.length;
+      } else {
+        for (const key of Object.keys(query._count)) {
+          const typedKey = key as keyof typeof query._count;
+          if (typedKey === "_all") {
+            (result._count as Record<string, number>)[typedKey] = records.length;
+            continue;
+          }
+          (result._count as Record<string, number>)[typedKey] = (
+            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)
+          ).length;
+        }
+      }
+    }
+    if (query?._avg) {
+      const avgResult = {} as Prisma.Result<Prisma.ChildDelegate, Q, "aggregate">["_avg"];
+      for (const untypedField of Object.keys(query._avg)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+      result._avg = avgResult;
+    }
+    if (query?._sum) {
+      const sumResult = {} as Prisma.Result<Prisma.ChildDelegate, Q, "aggregate">["_sum"];
+      for (const untypedField of Object.keys(query._sum)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
+      }
+      result._sum = sumResult;
+    }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.ChildDelegate, Q, "aggregate">["_min"];
+      for (const untypedField of Object.keys(query._min)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.ChildDelegate, Q, "aggregate">["_max"];
+      for (const untypedField of Object.keys(query._max)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      result._max = maxResult;
+    }
+    return result as unknown as Prisma.Result<Prisma.ChildDelegate, Q, "aggregate">;
   }
 }
