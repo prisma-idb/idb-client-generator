@@ -375,13 +375,13 @@ function handleOneToOneRelationMetaOnCurrentUpdate(writer: CodeBlockWriter, fiel
       writer
         .writeLine(`const updateData = query.data.${field.name}.update.data ?? query.data.${field.name}.update;`)
         .writeLine(
-          `await this.client.${toCamelCase(field.type)}.update({ where: { ...query.data.${field.name}.update.where, ${uniqueInput} }, data: updateData }, tx);`,
+          `await this.client.${toCamelCase(field.type)}.update({ where: { ...query.data.${field.name}.update.where, ${uniqueInput} } as Prisma.${field.type}WhereUniqueInput, data: updateData }, tx);`,
         );
     })
     .writeLine(`if (query.data.${field.name}.upsert)`)
     .block(() => {
       writer.writeLine(
-        `await this.client.${toCamelCase(field.type)}.upsert({ where: { ...query.data.${field.name}.upsert.where, ${uniqueInput} }, create: { ...query.data.${field.name}.upsert.create, ${fkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'], update: query.data.${field.name}.upsert.update, }, tx);`,
+        `await this.client.${toCamelCase(field.type)}.upsert({ where: { ...query.data.${field.name}.upsert.where, ${uniqueInput} } as Prisma.${field.type}WhereUniqueInput, create: { ...query.data.${field.name}.upsert.create, ${fkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'], update: query.data.${field.name}.upsert.update, }, tx);`,
       );
     })
     .writeLine(`if (query.data.${field.name}.connectOrCreate)`)
