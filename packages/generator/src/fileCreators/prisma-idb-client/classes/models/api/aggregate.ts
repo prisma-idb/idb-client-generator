@@ -14,10 +14,22 @@ export function addAggregateMethod(modelClass: ClassDeclaration, model: Model) {
     statements: (writer) => {
       addTxAndRecordSetup(writer, model);
       addCountHandling(writer);
-      addAvgHandling(writer, model);
-      addSumHandling(writer, model);
-      addMinHandling(writer, model);
-      addMaxHandling(writer, model);
+
+      const hasAvgOrSum = model.fields.some(
+        (field) => field.type === "Float" || field.type === "Int" || field.type === "Decimal",
+      );
+      const hasMinMax =
+        hasAvgOrSum || model.fields.some((field) => field.type === "DateTime" || field.type === "String");
+
+      if (hasMinMax) {
+        addMinHandling(writer, model);
+        addMaxHandling(writer, model);
+      }
+
+      if (hasAvgOrSum) {
+        addAvgHandling(writer, model);
+        addSumHandling(writer, model);
+      }
       writer.writeLine(`return result as unknown as Prisma.Result<Prisma.${model.name}Delegate, Q, "aggregate">;`);
     },
   });
@@ -89,31 +101,125 @@ function addSumHandling(writer: CodeBlockWriter, model: Model) {
 }
 
 function addMinHandling(writer: CodeBlockWriter, model: Model) {
+  const numericFields = model.fields
+    .filter((field) => field.type === "Float" || field.type === "Int" || field.type === "Decimal")
+    .map((field) => field.name);
+  const dateTimeFields = model.fields.filter((field) => field.type === "DateTime").map((field) => field.name);
+  const stringFields = model.fields.filter((field) => field.type === "String").map((field) => field.name);
+  const booleanFields = model.fields.filter((field) => field.type === "Boolean").map((field) => field.name);
+
   writer.writeLine(`if (query?._min)`).block(() => {
-    writer
-      .writeLine(`const minResult = {} as Prisma.Result<Prisma.${model.name}Delegate, Q, "aggregate">["_min"];`)
-      .writeLine(`for (const untypedField of Object.keys(query._min))`)
-      .block(() => {
-        writer
-          .writeLine(`const field = untypedField as keyof (typeof records)[number];`)
-          .writeLine(`const values = records.map((record) => record[field] as number);`)
-          .writeLine(`(minResult[field as keyof typeof minResult] as number) = Math.min(...values);`);
-      })
-      .writeLine(`result._min = minResult;`);
+    writer.writeLine(`const minResult = {} as Prisma.Result<Prisma.${model.name}Delegate, Q, "aggregate">["_min"];`);
+    if (numericFields.length) {
+      writer
+        .writeLine(`const numericFields = ${JSON.stringify(numericFields)} as const;`)
+        .writeLine(`for (const field of numericFields)`)
+        .block(() => {
+          writer
+            .writeLine(
+              `const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);`,
+            )
+            .writeLine(`(minResult[field as keyof typeof minResult] as number) = Math.min(...values);`);
+        });
+    }
+    if (dateTimeFields.length) {
+      writer
+        .writeLine(`const dateTimeFields = ${JSON.stringify(dateTimeFields)} as const;`)
+        .writeLine(`for (const field of dateTimeFields)`)
+        .block(() => {
+          writer
+            .writeLine(
+              `const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);`,
+            )
+            .writeLine(`(minResult[field as keyof typeof minResult] as Date) = new Date(Math.min(...values));`);
+        });
+    }
+    if (stringFields.length) {
+      writer
+        .writeLine(`const stringFields = ${JSON.stringify(stringFields)} as const;`)
+        .writeLine(`for (const field of stringFields)`)
+        .block(() => {
+          writer
+            .writeLine(
+              `const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);`,
+            )
+            .writeLine(`(minResult[field as keyof typeof minResult] as string) = values.sort()[0];`);
+        });
+    }
+    if (booleanFields.length) {
+      writer
+        .writeLine(`const booleanFields = ${JSON.stringify(booleanFields)} as const;`)
+        .writeLine(`for (const field of booleanFields)`)
+        .block(() => {
+          writer
+            .writeLine(
+              `const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);`,
+            )
+            .writeLine(`(minResult[field as keyof typeof minResult] as boolean) = values.includes(true);`);
+        });
+    }
+    writer.writeLine(`result._min = minResult;`);
   });
 }
 
 function addMaxHandling(writer: CodeBlockWriter, model: Model) {
+  const numericFields = model.fields
+    .filter((field) => field.type === "Float" || field.type === "Int" || field.type === "Decimal")
+    .map((field) => field.name);
+  const dateTimeFields = model.fields.filter((field) => field.type === "DateTime").map((field) => field.name);
+  const stringFields = model.fields.filter((field) => field.type === "String").map((field) => field.name);
+  const booleanFields = model.fields.filter((field) => field.type === "Boolean").map((field) => field.name);
+
   writer.writeLine(`if (query?._max)`).block(() => {
-    writer
-      .writeLine(`const maxResult = {} as Prisma.Result<Prisma.${model.name}Delegate, Q, "aggregate">["_max"];`)
-      .writeLine(`for (const untypedField of Object.keys(query._max))`)
-      .block(() => {
-        writer
-          .writeLine(`const field = untypedField as keyof (typeof records)[number];`)
-          .writeLine(`const values = records.map((record) => record[field] as number);`)
-          .writeLine(`(maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);`);
-      })
-      .writeLine(`result._max = maxResult;`);
+    writer.writeLine(`const maxResult = {} as Prisma.Result<Prisma.${model.name}Delegate, Q, "aggregate">["_max"];`);
+    if (numericFields.length) {
+      writer
+        .writeLine(`const numericFields = ${JSON.stringify(numericFields)} as const;`)
+        .writeLine(`for (const field of numericFields)`)
+        .block(() => {
+          writer
+            .writeLine(
+              `const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);`,
+            )
+            .writeLine(`(maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);`);
+        });
+    }
+    if (dateTimeFields.length) {
+      writer
+        .writeLine(`const dateTimeFields = ${JSON.stringify(dateTimeFields)} as const;`)
+        .writeLine(`for (const field of dateTimeFields)`)
+        .block(() => {
+          writer
+            .writeLine(
+              `const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);`,
+            )
+            .writeLine(`(maxResult[field as keyof typeof maxResult] as Date) = new Date(Math.max(...values));`);
+        });
+    }
+    if (stringFields.length) {
+      writer
+        .writeLine(`const stringFields = ${JSON.stringify(stringFields)} as const;`)
+        .writeLine(`for (const field of stringFields)`)
+        .block(() => {
+          writer
+            .writeLine(
+              `const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);`,
+            )
+            .writeLine(`(maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];`);
+        });
+    }
+    if (booleanFields.length) {
+      writer
+        .writeLine(`const booleanFields = ${JSON.stringify(booleanFields)} as const;`)
+        .writeLine(`for (const field of booleanFields)`)
+        .block(() => {
+          writer
+            .writeLine(
+              `const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);`,
+            )
+            .writeLine(`(maxResult[field as keyof typeof maxResult] as boolean) = values.includes(true);`);
+        })
+        .writeLine(`result._max = maxResult;`);
+    }
   });
 }
