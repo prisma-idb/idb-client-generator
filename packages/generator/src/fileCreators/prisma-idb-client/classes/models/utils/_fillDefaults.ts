@@ -77,7 +77,7 @@ function addAutoincrementDefault(writer: CodeBlockWriter, model: Model, field: F
 function addDefaultValue(writer: CodeBlockWriter, field: Field) {
   if (field.isList) {
     writer.write(`data.${field.name} = ${JSON.stringify(field.default)};`);
-  } else if (field.type === "String") {
+  } else if (field.type === "String" || field.kind === "enum") {
     writer.write(`data.${field.name} = '${field.default}';`);
   } else {
     writer.write(`data.${field.name} = ${field.default};`);
