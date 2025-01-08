@@ -38,6 +38,7 @@ export function getUniqueIdentifiers(model: Model) {
 
   const uniqueField = model.fields.filter(({ isUnique }) => isUnique);
   uniqueField.forEach((uniqueField) => {
+    if (uniqueIdentifiers.some((identifier) => identifier.name === uniqueField.name)) return;
     uniqueIdentifiers.push({
       name: uniqueField.name,
       keyPath: JSON.stringify([uniqueField.name]),
@@ -48,6 +49,7 @@ export function getUniqueIdentifiers(model: Model) {
   const compositeUniqueFields = model.uniqueIndexes;
   compositeUniqueFields.forEach(({ name, fields }) => {
     name = name ?? fields.join("_");
+    if (uniqueIdentifiers.some((identifier) => identifier.name === name)) return;
     uniqueIdentifiers.push({
       name,
       keyPath: JSON.stringify(fields),
