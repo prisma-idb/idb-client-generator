@@ -45,7 +45,7 @@ function createDependencies(writer: CodeBlockWriter, model: Model, models: reado
     const foreignKeyField = model.fields.find((fkField) => fkField.name === field.relationFromFields?.at(0))!;
 
     writer.writeLine(`if (query.data.${field.name})`).block(() => {
-      addOneToOneMetaOnFieldRelation(writer, field);
+      addOneToOneMetaOnFieldRelation(writer, field, models);
     });
     handleForeignKeyValidation(writer, field, foreignKeyField, models);
   });
@@ -79,7 +79,7 @@ function createDependents(writer: CodeBlockWriter, model: Model, models: readonl
     )!;
 
     if (!field.isList) {
-      addOneToOneMetaOnOtherFieldRelation(writer, field, otherField);
+      addOneToOneMetaOnOtherFieldRelation(writer, field, otherField, model);
     } else {
       const dependentModel = models.find(({ name }) => name === field.type)!;
       const fks = dependentModel.fields.filter(
@@ -101,7 +101,10 @@ function applyClausesAndReturnRecords(writer: CodeBlockWriter, model: Model) {
     .writeLine(`return recordsWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "create">;`);
 }
 
-function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
+function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field, models: readonly Model[]) {
+  const otherModel = models.find(({ name }) => name === field.type)!;
+  const otherModelKeyPath = JSON.parse(getUniqueIdentifiers(otherModel)[0].keyPath) as string[];
+
   writer
     .writeLine(`const fk: Partial<PrismaIDBSchema['${field.type}']['key']> = [];`)
     .writeLine(`if (query.data.${field.name}?.create)`)
@@ -109,8 +112,8 @@ function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
       writer.writeLine(
         `const record = await this.client.${toCamelCase(field.type)}.create({ data: query.data.${field.name}.create }, tx);`,
       );
-      for (let i = 0; i < field.relationToFields!.length; i++) {
-        writer.writeLine(`fk[${i}] = record.${field.relationToFields?.at(i)}`);
+      for (let i = 0; i < otherModelKeyPath!.length; i++) {
+        writer.writeLine(`fk[${i}] = record.${otherModelKeyPath?.at(i)}`);
       }
     });
 
@@ -120,8 +123,8 @@ function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
         `const record = await this.client.${toCamelCase(field.type)}.findUniqueOrThrow({ where: query.data.${field.name}.connect }, tx);`,
       )
       .writeLine(`delete query.data.${field.name}.connect;`);
-    for (let i = 0; i < field.relationToFields!.length; i++) {
-      writer.writeLine(`fk[${i}] = record.${field.relationToFields?.at(i)};`);
+    for (let i = 0; i < otherModelKeyPath!.length; i++) {
+      writer.writeLine(`fk[${i}] = record.${otherModelKeyPath?.at(i)};`);
     }
   });
 
@@ -132,20 +135,26 @@ function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
       .writeLine(`create: query.data.${field.name}.connectOrCreate.create,`)
       .writeLine(`update: {},`)
       .writeLine(`}, tx);`);
-    for (let i = 0; i < field.relationToFields!.length; i++) {
-      writer.writeLine(`fk[${i}] = record.${field.relationToFields?.at(i)};`);
+    for (let i = 0; i < otherModelKeyPath!.length; i++) {
+      writer.writeLine(`fk[${i}] = record.${otherModelKeyPath?.at(i)};`);
     }
   });
 
   writer.writeLine(`const unsafeData = query.data as Record<string, unknown>;`);
   field.relationFromFields!.forEach((fromField, idx) => {
-    writer.writeLine(`unsafeData.${fromField} = fk[${idx}];`);
+    writer.writeLine(`unsafeData.${fromField} = fk[${otherModelKeyPath.indexOf(field.relationToFields![idx])}];`);
   });
   writer.writeLine(`delete unsafeData.${field.name};`);
 }
 
-function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Field, otherField: Field) {
-  const keyPathMapping = otherField.relationFromFields!.map((field, idx) => `${field}: keyPath[${idx}]`).join(", ");
+function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Field, otherField: Field, model: Model) {
+  const modelKeyPath = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
+
+  const keyPathMapping = otherField
+    .relationFromFields!.map(
+      (field, idx) => `${field}: keyPath[${modelKeyPath.indexOf(otherField.relationToFields![idx])}]`,
+    )
+    .join(", ");
 
   writer.writeLine(`if (query.data.${field.name}?.create)`).block(() => {
     writer
@@ -159,7 +168,7 @@ function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Fie
   });
   writer.writeLine(`if (query.data.${field.name}?.connect)`).block(() => {
     writer.writeLine(
-      `await this.client.${toCamelCase(field.type)}.update({ where: query.data.${field.name}.connect, data: { ${otherField.relationFromFields?.at(0)}: keyPath[0] } }, tx);`,
+      `await this.client.${toCamelCase(field.type)}.update({ where: query.data.${field.name}.connect, data: { ${keyPathMapping} } }, tx);`,
     );
   });
   writer.writeLine(`if (query.data.${field.name}?.connectOrCreate)`).block(() => {
@@ -188,14 +197,19 @@ function addOneToManyRelation(
 
   const modelPk = getUniqueIdentifiers(model)[0];
   const modelPkFields = JSON.parse(modelPk.keyPath) as string[];
-  const fields = `{ ${otherField.relationToFields!.map((field, idx) => `${field}: keyPath[${idx}]`).join(", ")} }`;
+  const fields = `{ ${modelPkFields.map((field, idx) => `${field}: keyPath[${idx}]`).join(", ")} }`;
 
   let nestedConnectLine = `${otherField.name}: { connect: `;
   if (modelPkFields.length === 1) nestedConnectLine += `${fields}`;
   else nestedConnectLine += `{ ${modelPk.name}: ${fields} }`;
   nestedConnectLine += ` }`;
 
-  const nestedDirectLine = otherField.relationFromFields!.map((field, idx) => `${field}: keyPath[${idx}]`).join(", ");
+  const nestedDirectLine = otherField
+    .relationFromFields!.map(
+      (field, idx) =>
+        `${field}: keyPath[${JSON.parse(getUniqueIdentifiers(model)[0].keyPath).indexOf(otherField.relationToFields?.at(idx))}]`,
+    )
+    .join(", ");
   const connectQuery = getCreateQuery(nestedConnectLine);
 
   writer.writeLine(`if (query.data?.${field.name}?.create)`).block(() => {

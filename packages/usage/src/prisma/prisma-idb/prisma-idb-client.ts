@@ -355,7 +355,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         unsafeRecord["posts"] = await this.client.post.findMany(
           {
             ...(attach_posts === true ? {} : attach_posts),
-            where: { authorId: record.id },
+            where: { authorId: record.id! },
           },
           tx,
         );
@@ -365,7 +365,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         unsafeRecord["comments"] = await this.client.comment.findMany(
           {
             ...(attach_comments === true ? {} : attach_comments),
-            where: { userId: record.id },
+            where: { userId: record.id! },
           },
           tx,
         );
@@ -375,7 +375,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         unsafeRecord["Child"] = await this.client.child.findMany(
           {
             ...(attach_Child === true ? {} : attach_Child),
-            where: { userId: record.id },
+            where: { userId: record.id! },
           },
           tx,
         );
@@ -385,7 +385,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         unsafeRecord["Father"] = await this.client.father.findMany(
           {
             ...(attach_Father === true ? {} : attach_Father),
-            where: { userId: record.id },
+            where: { userId: record.id! },
           },
           tx,
         );
@@ -395,7 +395,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         unsafeRecord["Mother"] = await this.client.mother.findMany(
           {
             ...(attach_Mother === true ? {} : attach_Mother),
-            where: { userId: record.id },
+            where: { userId: record.id! },
           },
           tx,
         );
@@ -405,7 +405,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         unsafeRecord["groups"] = await this.client.userGroup.findMany(
           {
             ...(attach_groups === true ? {} : attach_groups),
-            where: { userId: record.id },
+            where: { userId: record.id! },
           },
           tx,
         );
@@ -2471,6 +2471,38 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         }
       }
     }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.UserDelegate, Q, "aggregate">["_min"];
+      const numericFields = ["id"] as const;
+      for (const field of numericFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      const stringFields = ["name"] as const;
+      for (const field of stringFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as string) = values.sort()[0];
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.UserDelegate, Q, "aggregate">["_max"];
+      const numericFields = ["id"] as const;
+      for (const field of numericFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      const stringFields = ["name"] as const;
+      for (const field of stringFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];
+      }
+      result._max = maxResult;
+    }
     if (query?._avg) {
       const avgResult = {} as Prisma.Result<Prisma.UserDelegate, Q, "aggregate">["_avg"];
       for (const untypedField of Object.keys(query._avg)) {
@@ -2488,24 +2520,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
       }
       result._sum = sumResult;
-    }
-    if (query?._min) {
-      const minResult = {} as Prisma.Result<Prisma.UserDelegate, Q, "aggregate">["_min"];
-      for (const untypedField of Object.keys(query._min)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
-      }
-      result._min = minResult;
-    }
-    if (query?._max) {
-      const maxResult = {} as Prisma.Result<Prisma.UserDelegate, Q, "aggregate">["_max"];
-      for (const untypedField of Object.keys(query._max)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
-      }
-      result._max = maxResult;
     }
     return result as unknown as Prisma.Result<Prisma.UserDelegate, Q, "aggregate">;
   }
@@ -2594,7 +2608,7 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
         unsafeRecord["userGroups"] = await this.client.userGroup.findMany(
           {
             ...(attach_userGroups === true ? {} : attach_userGroups),
-            where: { groupId: record.id },
+            where: { groupId: record.id! },
           },
           tx,
         );
@@ -3240,6 +3254,38 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
         }
       }
     }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.GroupDelegate, Q, "aggregate">["_min"];
+      const numericFields = ["id"] as const;
+      for (const field of numericFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      const stringFields = ["name"] as const;
+      for (const field of stringFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as string) = values.sort()[0];
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.GroupDelegate, Q, "aggregate">["_max"];
+      const numericFields = ["id"] as const;
+      for (const field of numericFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      const stringFields = ["name"] as const;
+      for (const field of stringFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];
+      }
+      result._max = maxResult;
+    }
     if (query?._avg) {
       const avgResult = {} as Prisma.Result<Prisma.GroupDelegate, Q, "aggregate">["_avg"];
       for (const untypedField of Object.keys(query._avg)) {
@@ -3257,24 +3303,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
         (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
       }
       result._sum = sumResult;
-    }
-    if (query?._min) {
-      const minResult = {} as Prisma.Result<Prisma.GroupDelegate, Q, "aggregate">["_min"];
-      for (const untypedField of Object.keys(query._min)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
-      }
-      result._min = minResult;
-    }
-    if (query?._max) {
-      const maxResult = {} as Prisma.Result<Prisma.GroupDelegate, Q, "aggregate">["_max"];
-      for (const untypedField of Object.keys(query._max)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
-      }
-      result._max = maxResult;
     }
     return result as unknown as Prisma.Result<Prisma.GroupDelegate, Q, "aggregate">;
   }
@@ -3376,7 +3404,7 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
         unsafeRecord["group"] = await this.client.group.findUnique(
           {
             ...(attach_group === true ? {} : attach_group),
-            where: { id: record.groupId },
+            where: { id: record.groupId! },
           },
           tx,
         );
@@ -3386,7 +3414,7 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
         unsafeRecord["user"] = await this.client.user.findUnique(
           {
             ...(attach_user === true ? {} : attach_user),
-            where: { id: record.userId },
+            where: { id: record.userId! },
           },
           tx,
         );
@@ -3942,14 +3970,17 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
       if (query.data.group.update) {
         const updateData = query.data.group.update.data ?? query.data.group.update;
         await this.client.group.update(
-          { where: { ...query.data.group.update.where, id: record.groupId! }, data: updateData },
+          {
+            where: { ...query.data.group.update.where, id: record.groupId! } as Prisma.GroupWhereUniqueInput,
+            data: updateData,
+          },
           tx,
         );
       }
       if (query.data.group.upsert) {
         await this.client.group.upsert(
           {
-            where: { ...query.data.group.upsert.where, id: record.groupId! },
+            where: { ...query.data.group.upsert.where, id: record.groupId! } as Prisma.GroupWhereUniqueInput,
             create: { ...query.data.group.upsert.create, id: record.groupId! } as Prisma.Args<
               Prisma.GroupDelegate,
               "upsert"
@@ -3985,14 +4016,17 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
       if (query.data.user.update) {
         const updateData = query.data.user.update.data ?? query.data.user.update;
         await this.client.user.update(
-          { where: { ...query.data.user.update.where, id: record.userId! }, data: updateData },
+          {
+            where: { ...query.data.user.update.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
+            data: updateData,
+          },
           tx,
         );
       }
       if (query.data.user.upsert) {
         await this.client.user.upsert(
           {
-            where: { ...query.data.user.upsert.where, id: record.userId! },
+            where: { ...query.data.user.upsert.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
             create: { ...query.data.user.upsert.create, id: record.userId! } as Prisma.Args<
               Prisma.UserDelegate,
               "upsert"
@@ -4113,6 +4147,38 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
         }
       }
     }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">["_min"];
+      const numericFields = ["groupId", "userId"] as const;
+      for (const field of numericFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      const dateTimeFields = ["joinedOn"] as const;
+      for (const field of dateTimeFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as Date) = new Date(Math.min(...values));
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">["_max"];
+      const numericFields = ["groupId", "userId"] as const;
+      for (const field of numericFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      const dateTimeFields = ["joinedOn"] as const;
+      for (const field of dateTimeFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as Date) = new Date(Math.max(...values));
+      }
+      result._max = maxResult;
+    }
     if (query?._avg) {
       const avgResult = {} as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">["_avg"];
       for (const untypedField of Object.keys(query._avg)) {
@@ -4130,24 +4196,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
         (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
       }
       result._sum = sumResult;
-    }
-    if (query?._min) {
-      const minResult = {} as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">["_min"];
-      for (const untypedField of Object.keys(query._min)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
-      }
-      result._min = minResult;
-    }
-    if (query?._max) {
-      const maxResult = {} as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">["_max"];
-      for (const untypedField of Object.keys(query._max)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
-      }
-      result._max = maxResult;
     }
     return result as unknown as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">;
   }
@@ -4231,7 +4279,7 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
         unsafeRecord["user"] = await this.client.user.findUnique(
           {
             ...(attach_user === true ? {} : attach_user),
-            where: { id: record.userId },
+            where: { id: record.userId! },
           },
           tx,
         );
@@ -4676,14 +4724,17 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
       if (query.data.user.update) {
         const updateData = query.data.user.update.data ?? query.data.user.update;
         await this.client.user.update(
-          { where: { ...query.data.user.update.where, id: record.userId! }, data: updateData },
+          {
+            where: { ...query.data.user.update.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
+            data: updateData,
+          },
           tx,
         );
       }
       if (query.data.user.upsert) {
         await this.client.user.upsert(
           {
-            where: { ...query.data.user.upsert.where, id: record.userId! },
+            where: { ...query.data.user.upsert.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
             create: { ...query.data.user.upsert.create, id: record.userId! } as Prisma.Args<
               Prisma.UserDelegate,
               "upsert"
@@ -4793,6 +4844,38 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
         }
       }
     }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.ProfileDelegate, Q, "aggregate">["_min"];
+      const numericFields = ["id", "userId"] as const;
+      for (const field of numericFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      const stringFields = ["bio"] as const;
+      for (const field of stringFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as string) = values.sort()[0];
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.ProfileDelegate, Q, "aggregate">["_max"];
+      const numericFields = ["id", "userId"] as const;
+      for (const field of numericFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      const stringFields = ["bio"] as const;
+      for (const field of stringFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];
+      }
+      result._max = maxResult;
+    }
     if (query?._avg) {
       const avgResult = {} as Prisma.Result<Prisma.ProfileDelegate, Q, "aggregate">["_avg"];
       for (const untypedField of Object.keys(query._avg)) {
@@ -4810,24 +4893,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
         (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
       }
       result._sum = sumResult;
-    }
-    if (query?._min) {
-      const minResult = {} as Prisma.Result<Prisma.ProfileDelegate, Q, "aggregate">["_min"];
-      for (const untypedField of Object.keys(query._min)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
-      }
-      result._min = minResult;
-    }
-    if (query?._max) {
-      const maxResult = {} as Prisma.Result<Prisma.ProfileDelegate, Q, "aggregate">["_max"];
-      for (const untypedField of Object.keys(query._max)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
-      }
-      result._max = maxResult;
     }
     return result as unknown as Prisma.Result<Prisma.ProfileDelegate, Q, "aggregate">;
   }
@@ -4957,7 +5022,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
             : await this.client.user.findUnique(
                 {
                   ...(attach_author === true ? {} : attach_author),
-                  where: { id: record.authorId },
+                  where: { id: record.authorId! },
                 },
                 tx,
               );
@@ -4967,7 +5032,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
         unsafeRecord["comments"] = await this.client.comment.findMany(
           {
             ...(attach_comments === true ? {} : attach_comments),
-            where: { postId: record.id },
+            where: { postId: record.id! },
           },
           tx,
         );
@@ -5596,14 +5661,17 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
       if (query.data.author.update) {
         const updateData = query.data.author.update.data ?? query.data.author.update;
         await this.client.user.update(
-          { where: { ...query.data.author.update.where, id: record.authorId! }, data: updateData },
+          {
+            where: { ...query.data.author.update.where, id: record.authorId! } as Prisma.UserWhereUniqueInput,
+            data: updateData,
+          },
           tx,
         );
       }
       if (query.data.author.upsert) {
         await this.client.user.upsert(
           {
-            where: { ...query.data.author.upsert.where, id: record.authorId! },
+            where: { ...query.data.author.upsert.where, id: record.authorId! } as Prisma.UserWhereUniqueInput,
             create: { ...query.data.author.upsert.create, id: record.authorId! } as Prisma.Args<
               Prisma.UserDelegate,
               "upsert"
@@ -5814,6 +5882,38 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
         }
       }
     }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.PostDelegate, Q, "aggregate">["_min"];
+      const numericFields = ["id", "authorId", "views"] as const;
+      for (const field of numericFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      const stringFields = ["title"] as const;
+      for (const field of stringFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as string) = values.sort()[0];
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.PostDelegate, Q, "aggregate">["_max"];
+      const numericFields = ["id", "authorId", "views"] as const;
+      for (const field of numericFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      const stringFields = ["title"] as const;
+      for (const field of stringFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];
+      }
+      result._max = maxResult;
+    }
     if (query?._avg) {
       const avgResult = {} as Prisma.Result<Prisma.PostDelegate, Q, "aggregate">["_avg"];
       for (const untypedField of Object.keys(query._avg)) {
@@ -5831,24 +5931,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
         (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
       }
       result._sum = sumResult;
-    }
-    if (query?._min) {
-      const minResult = {} as Prisma.Result<Prisma.PostDelegate, Q, "aggregate">["_min"];
-      for (const untypedField of Object.keys(query._min)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
-      }
-      result._min = minResult;
-    }
-    if (query?._max) {
-      const maxResult = {} as Prisma.Result<Prisma.PostDelegate, Q, "aggregate">["_max"];
-      for (const untypedField of Object.keys(query._max)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
-      }
-      result._max = maxResult;
     }
     return result as unknown as Prisma.Result<Prisma.PostDelegate, Q, "aggregate">;
   }
@@ -5950,7 +6032,7 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
         unsafeRecord["post"] = await this.client.post.findUnique(
           {
             ...(attach_post === true ? {} : attach_post),
-            where: { id: record.postId },
+            where: { id: record.postId! },
           },
           tx,
         );
@@ -5960,7 +6042,7 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
         unsafeRecord["user"] = await this.client.user.findUnique(
           {
             ...(attach_user === true ? {} : attach_user),
-            where: { id: record.userId },
+            where: { id: record.userId! },
           },
           tx,
         );
@@ -6506,14 +6588,17 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
       if (query.data.post.update) {
         const updateData = query.data.post.update.data ?? query.data.post.update;
         await this.client.post.update(
-          { where: { ...query.data.post.update.where, id: record.postId! }, data: updateData },
+          {
+            where: { ...query.data.post.update.where, id: record.postId! } as Prisma.PostWhereUniqueInput,
+            data: updateData,
+          },
           tx,
         );
       }
       if (query.data.post.upsert) {
         await this.client.post.upsert(
           {
-            where: { ...query.data.post.upsert.where, id: record.postId! },
+            where: { ...query.data.post.upsert.where, id: record.postId! } as Prisma.PostWhereUniqueInput,
             create: { ...query.data.post.upsert.create, id: record.postId! } as Prisma.Args<
               Prisma.PostDelegate,
               "upsert"
@@ -6549,14 +6634,17 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
       if (query.data.user.update) {
         const updateData = query.data.user.update.data ?? query.data.user.update;
         await this.client.user.update(
-          { where: { ...query.data.user.update.where, id: record.userId! }, data: updateData },
+          {
+            where: { ...query.data.user.update.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
+            data: updateData,
+          },
           tx,
         );
       }
       if (query.data.user.upsert) {
         await this.client.user.upsert(
           {
-            where: { ...query.data.user.upsert.where, id: record.userId! },
+            where: { ...query.data.user.upsert.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
             create: { ...query.data.user.upsert.create, id: record.userId! } as Prisma.Args<
               Prisma.UserDelegate,
               "upsert"
@@ -6670,6 +6758,38 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
         }
       }
     }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.CommentDelegate, Q, "aggregate">["_min"];
+      const numericFields = ["postId", "userId"] as const;
+      for (const field of numericFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      const stringFields = ["id", "text"] as const;
+      for (const field of stringFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as string) = values.sort()[0];
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.CommentDelegate, Q, "aggregate">["_max"];
+      const numericFields = ["postId", "userId"] as const;
+      for (const field of numericFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      const stringFields = ["id", "text"] as const;
+      for (const field of stringFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];
+      }
+      result._max = maxResult;
+    }
     if (query?._avg) {
       const avgResult = {} as Prisma.Result<Prisma.CommentDelegate, Q, "aggregate">["_avg"];
       for (const untypedField of Object.keys(query._avg)) {
@@ -6687,24 +6807,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
         (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
       }
       result._sum = sumResult;
-    }
-    if (query?._min) {
-      const minResult = {} as Prisma.Result<Prisma.CommentDelegate, Q, "aggregate">["_min"];
-      for (const untypedField of Object.keys(query._min)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
-      }
-      result._min = minResult;
-    }
-    if (query?._max) {
-      const maxResult = {} as Prisma.Result<Prisma.CommentDelegate, Q, "aggregate">["_max"];
-      for (const untypedField of Object.keys(query._max)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
-      }
-      result._max = maxResult;
     }
     return result as unknown as Prisma.Result<Prisma.CommentDelegate, Q, "aggregate">;
   }
@@ -7317,6 +7419,63 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
         }
       }
     }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "aggregate">["_min"];
+      const numericFields = ["id", "float", "decimal"] as const;
+      for (const field of numericFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      const dateTimeFields = ["dateTime"] as const;
+      for (const field of dateTimeFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as Date) = new Date(Math.min(...values));
+      }
+      const stringFields = ["string"] as const;
+      for (const field of stringFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as string) = values.sort()[0];
+      }
+      const booleanFields = ["boolean"] as const;
+      for (const field of booleanFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as boolean) = values.includes(true);
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "aggregate">["_max"];
+      const numericFields = ["id", "float", "decimal"] as const;
+      for (const field of numericFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      const dateTimeFields = ["dateTime"] as const;
+      for (const field of dateTimeFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as Date) = new Date(Math.max(...values));
+      }
+      const stringFields = ["string"] as const;
+      for (const field of stringFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];
+      }
+      const booleanFields = ["boolean"] as const;
+      for (const field of booleanFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as boolean) = values.includes(true);
+      }
+      result._max = maxResult;
+      result._max = maxResult;
+    }
     if (query?._avg) {
       const avgResult = {} as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "aggregate">["_avg"];
       for (const untypedField of Object.keys(query._avg)) {
@@ -7334,24 +7493,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
         (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
       }
       result._sum = sumResult;
-    }
-    if (query?._min) {
-      const minResult = {} as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "aggregate">["_min"];
-      for (const untypedField of Object.keys(query._min)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
-      }
-      result._min = minResult;
-    }
-    if (query?._max) {
-      const maxResult = {} as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "aggregate">["_max"];
-      for (const untypedField of Object.keys(query._max)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
-      }
-      result._max = maxResult;
     }
     return result as unknown as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "aggregate">;
   }
@@ -7384,21 +7525,33 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
           if (whereClause.children) {
             if (whereClause.children.every) {
               const violatingRecord = await this.client.child.findFirst({
-                where: { NOT: { ...whereClause.children.every }, fatherFirstName: record.firstName },
+                where: {
+                  NOT: { ...whereClause.children.every },
+                  fatherLastName: record.lastName,
+                  fatherFirstName: record.firstName,
+                },
                 tx,
               });
               if (violatingRecord !== null) return null;
             }
             if (whereClause.children.some) {
               const relatedRecords = await this.client.child.findMany({
-                where: { ...whereClause.children.some, fatherFirstName: record.firstName },
+                where: {
+                  ...whereClause.children.some,
+                  fatherLastName: record.lastName,
+                  fatherFirstName: record.firstName,
+                },
                 tx,
               });
               if (relatedRecords.length === 0) return null;
             }
             if (whereClause.children.none) {
               const violatingRecord = await this.client.child.findFirst({
-                where: { ...whereClause.children.none, fatherFirstName: record.firstName },
+                where: {
+                  ...whereClause.children.none,
+                  fatherLastName: record.lastName,
+                  fatherFirstName: record.firstName,
+                },
                 tx,
               });
               if (violatingRecord !== null) return null;
@@ -7408,21 +7561,21 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
             const { is, isNot, ...rest } = whereClause.wife;
             if (is !== null && is !== undefined) {
               const relatedRecord = await this.client.mother.findFirst(
-                { where: { ...is, firstName: record.motherFirstName } },
+                { where: { ...is, firstName: record.motherFirstName, lastName: record.motherLastName } },
                 tx,
               );
               if (!relatedRecord) return null;
             }
             if (isNot !== null && isNot !== undefined) {
               const relatedRecord = await this.client.mother.findFirst(
-                { where: { ...isNot, firstName: record.motherFirstName } },
+                { where: { ...isNot, firstName: record.motherFirstName, lastName: record.motherLastName } },
                 tx,
               );
               if (relatedRecord) return null;
             }
             if (Object.keys(rest).length) {
               const relatedRecord = await this.client.mother.findFirst(
-                { where: { ...whereClause.wife, firstName: record.motherFirstName } },
+                { where: { ...whereClause.wife, firstName: record.motherFirstName, lastName: record.motherLastName } },
                 tx,
               );
               if (!relatedRecord) return null;
@@ -7503,7 +7656,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
         unsafeRecord["children"] = await this.client.child.findMany(
           {
             ...(attach_children === true ? {} : attach_children),
-            where: { fatherFirstName: record.firstName },
+            where: { fatherLastName: record.lastName!, fatherFirstName: record.firstName! },
           },
           tx,
         );
@@ -7513,7 +7666,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
         unsafeRecord["wife"] = await this.client.mother.findUnique(
           {
             ...(attach_wife === true ? {} : attach_wife),
-            where: { firstName_lastName: { firstName: record.motherFirstName, lastName: record.motherLastName } },
+            where: { firstName_lastName: { firstName: record.motherFirstName!, lastName: record.motherLastName! } },
           },
           tx,
         );
@@ -7526,7 +7679,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
             : await this.client.user.findUnique(
                 {
                   ...(attach_user === true ? {} : attach_user),
-                  where: { id: record.userId },
+                  where: { id: record.userId! },
                 },
                 tx,
               );
@@ -7587,7 +7740,10 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
           );
     }
     if (orderByInput.children) {
-      return await this.client.child.count({ where: { fatherFirstName: record.firstName } }, tx);
+      return await this.client.child.count(
+        { where: { fatherLastName: record.lastName, fatherFirstName: record.firstName } },
+        tx,
+      );
     }
   }
 
@@ -8116,7 +8272,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
       await Promise.all(
         IDBUtils.convertToArray(query.data.children.connect).map(async (connectWhere) => {
           await this.client.child.update(
-            { where: connectWhere, data: { fatherFirstName: keyPath[0], fatherLastName: keyPath[1] } },
+            { where: connectWhere, data: { fatherLastName: keyPath[1], fatherFirstName: keyPath[0] } },
             tx,
           );
         }),
@@ -8130,10 +8286,10 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
               where: connectOrCreate.where,
               create: {
                 ...connectOrCreate.create,
-                fatherFirstName: keyPath[0],
                 fatherLastName: keyPath[1],
+                fatherFirstName: keyPath[0],
               } as Prisma.Args<Prisma.ChildDelegate, "create">["data"],
-              update: { fatherFirstName: keyPath[0], fatherLastName: keyPath[1] },
+              update: { fatherLastName: keyPath[1], fatherFirstName: keyPath[0] },
             },
             tx,
           );
@@ -8145,8 +8301,8 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
         {
           data: IDBUtils.convertToArray(query.data.children.createMany.data).map((createData) => ({
             ...createData,
-            fatherFirstName: keyPath[0],
             fatherLastName: keyPath[1],
+            fatherFirstName: keyPath[0],
           })),
         },
         tx,
@@ -8203,7 +8359,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     const record = await this.findUnique(query, tx);
     if (!record) throw new Error("Record not found");
     const relatedChild = await this.client.child.findMany(
-      { where: { fatherFirstName: record.firstName, fatherLastName: record.lastName } },
+      { where: { fatherLastName: record.lastName, fatherFirstName: record.firstName } },
       tx,
     );
     if (relatedChild.length) throw new Error("Cannot delete record, other records depend on it");
@@ -8253,7 +8409,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
         await Promise.all(
           IDBUtils.convertToArray(query.data.children.connect).map(async (connectWhere) => {
             await this.client.child.update(
-              { where: connectWhere, data: { fatherFirstName: record.firstName, fatherLastName: record.lastName } },
+              { where: connectWhere, data: { fatherLastName: record.lastName, fatherFirstName: record.firstName } },
               tx,
             );
           }),
@@ -8269,7 +8425,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
         for (const elem of createData) {
           await this.client.child.create(
             {
-              data: { ...elem, fatherFirstName: record.firstName, fatherLastName: record.lastName } as Prisma.Args<
+              data: { ...elem, fatherLastName: record.lastName, fatherFirstName: record.firstName } as Prisma.Args<
                 Prisma.ChildDelegate,
                 "create"
               >["data"],
@@ -8282,7 +8438,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
         await Promise.all(
           IDBUtils.convertToArray(query.data.children.createMany.data).map(async (createData) => {
             await this.client.child.create(
-              { data: { ...createData, fatherFirstName: record.firstName, fatherLastName: record.lastName } },
+              { data: { ...createData, fatherLastName: record.lastName, fatherFirstName: record.firstName } },
               tx,
             );
           }),
@@ -8308,11 +8464,11 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
             await this.client.child.upsert(
               {
                 ...upsertData,
-                where: { ...upsertData.where, fatherFirstName: record.firstName, fatherLastName: record.lastName },
+                where: { ...upsertData.where, fatherLastName: record.lastName, fatherFirstName: record.firstName },
                 create: {
                   ...upsertData.create,
-                  fatherFirstName: record.firstName,
                   fatherLastName: record.lastName,
+                  fatherFirstName: record.firstName,
                 } as Prisma.Args<Prisma.ChildDelegate, "upsert">["create"],
               },
               tx,
@@ -8324,7 +8480,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
         await Promise.all(
           IDBUtils.convertToArray(query.data.children.delete).map(async (deleteData) => {
             await this.client.child.delete(
-              { where: { ...deleteData, fatherFirstName: record.firstName, fatherLastName: record.lastName } },
+              { where: { ...deleteData, fatherLastName: record.lastName, fatherFirstName: record.firstName } },
               tx,
             );
           }),
@@ -8334,7 +8490,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
         await Promise.all(
           IDBUtils.convertToArray(query.data.children.deleteMany).map(async (deleteData) => {
             await this.client.child.deleteMany(
-              { where: { ...deleteData, fatherFirstName: record.firstName, fatherLastName: record.lastName } },
+              { where: { ...deleteData, fatherLastName: record.lastName, fatherFirstName: record.firstName } },
               tx,
             );
           }),
@@ -8342,7 +8498,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
       }
       if (query.data.children.set) {
         const existing = await this.client.child.findMany(
-          { where: { fatherFirstName: record.firstName, fatherLastName: record.lastName } },
+          { where: { fatherLastName: record.lastName, fatherFirstName: record.firstName } },
           tx,
         );
         if (existing.length > 0) {
@@ -8351,7 +8507,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
         await Promise.all(
           IDBUtils.convertToArray(query.data.children.set).map(async (setData) => {
             await this.client.child.update(
-              { where: setData, data: { fatherFirstName: record.firstName, fatherLastName: record.lastName } },
+              { where: setData, data: { fatherLastName: record.lastName, fatherFirstName: record.firstName } },
               tx,
             );
           }),
@@ -8376,7 +8532,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
             where: {
               ...query.data.wife.update.where,
               firstName_lastName: { firstName: record.motherFirstName, lastName: record.motherLastName },
-            },
+            } as Prisma.MotherWhereUniqueInput,
             data: updateData,
           },
           tx,
@@ -8388,7 +8544,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
             where: {
               ...query.data.wife.upsert.where,
               firstName_lastName: { firstName: record.motherFirstName, lastName: record.motherLastName },
-            },
+            } as Prisma.MotherWhereUniqueInput,
             create: {
               ...query.data.wife.upsert.create,
               firstName: record.motherFirstName!,
@@ -8429,14 +8585,17 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
       if (query.data.user.update) {
         const updateData = query.data.user.update.data ?? query.data.user.update;
         await this.client.user.update(
-          { where: { ...query.data.user.update.where, id: record.userId! }, data: updateData },
+          {
+            where: { ...query.data.user.update.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
+            data: updateData,
+          },
           tx,
         );
       }
       if (query.data.user.upsert) {
         await this.client.user.upsert(
           {
-            where: { ...query.data.user.upsert.where, id: record.userId! },
+            where: { ...query.data.user.upsert.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
             create: { ...query.data.user.upsert.create, id: record.userId! } as Prisma.Args<
               Prisma.UserDelegate,
               "upsert"
@@ -8468,7 +8627,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
         record.userId = null;
       }
     }
-    if (query.data.motherFirstName !== undefined) {
+    if (query.data.motherFirstName !== undefined || query.data.motherLastName !== undefined) {
       const related = await this.client.mother.findUnique(
         { where: { firstName_lastName: { firstName: record.motherFirstName, lastName: record.motherLastName } } },
         tx,
@@ -8495,8 +8654,8 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
       if (startKeyPath[i] !== endKeyPath[i]) {
         await this.client.child.updateMany(
           {
-            where: { fatherFirstName: startKeyPath[0], fatherLastName: startKeyPath[1] },
-            data: { fatherFirstName: endKeyPath[0], fatherLastName: endKeyPath[1] },
+            where: { fatherLastName: startKeyPath[1], fatherFirstName: startKeyPath[0] },
+            data: { fatherLastName: endKeyPath[1], fatherFirstName: endKeyPath[0] },
           },
           tx,
         );
@@ -8578,6 +8737,38 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
         }
       }
     }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.FatherDelegate, Q, "aggregate">["_min"];
+      const numericFields = ["userId"] as const;
+      for (const field of numericFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      const stringFields = ["firstName", "lastName", "motherFirstName", "motherLastName"] as const;
+      for (const field of stringFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as string) = values.sort()[0];
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.FatherDelegate, Q, "aggregate">["_max"];
+      const numericFields = ["userId"] as const;
+      for (const field of numericFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      const stringFields = ["firstName", "lastName", "motherFirstName", "motherLastName"] as const;
+      for (const field of stringFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];
+      }
+      result._max = maxResult;
+    }
     if (query?._avg) {
       const avgResult = {} as Prisma.Result<Prisma.FatherDelegate, Q, "aggregate">["_avg"];
       for (const untypedField of Object.keys(query._avg)) {
@@ -8595,24 +8786,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
         (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
       }
       result._sum = sumResult;
-    }
-    if (query?._min) {
-      const minResult = {} as Prisma.Result<Prisma.FatherDelegate, Q, "aggregate">["_min"];
-      for (const untypedField of Object.keys(query._min)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
-      }
-      result._min = minResult;
-    }
-    if (query?._max) {
-      const maxResult = {} as Prisma.Result<Prisma.FatherDelegate, Q, "aggregate">["_max"];
-      for (const untypedField of Object.keys(query._max)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
-      }
-      result._max = maxResult;
     }
     return result as unknown as Prisma.Result<Prisma.FatherDelegate, Q, "aggregate">;
   }
@@ -8645,21 +8818,33 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
           if (whereClause.children) {
             if (whereClause.children.every) {
               const violatingRecord = await this.client.child.findFirst({
-                where: { NOT: { ...whereClause.children.every }, motherFirstName: record.firstName },
+                where: {
+                  NOT: { ...whereClause.children.every },
+                  motherFirstName: record.firstName,
+                  motherLastName: record.lastName,
+                },
                 tx,
               });
               if (violatingRecord !== null) return null;
             }
             if (whereClause.children.some) {
               const relatedRecords = await this.client.child.findMany({
-                where: { ...whereClause.children.some, motherFirstName: record.firstName },
+                where: {
+                  ...whereClause.children.some,
+                  motherFirstName: record.firstName,
+                  motherLastName: record.lastName,
+                },
                 tx,
               });
               if (relatedRecords.length === 0) return null;
             }
             if (whereClause.children.none) {
               const violatingRecord = await this.client.child.findFirst({
-                where: { ...whereClause.children.none, motherFirstName: record.firstName },
+                where: {
+                  ...whereClause.children.none,
+                  motherFirstName: record.firstName,
+                  motherLastName: record.lastName,
+                },
                 tx,
               });
               if (violatingRecord !== null) return null;
@@ -8667,7 +8852,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
           }
           if (whereClause.husband === null) {
             const relatedRecord = await this.client.father.findFirst(
-              { where: { motherFirstName: record.firstName } },
+              { where: { motherFirstName: record.firstName, motherLastName: record.lastName } },
               tx,
             );
             if (relatedRecord) return null;
@@ -8676,28 +8861,28 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
             const { is, isNot, ...rest } = whereClause.husband;
             if (is === null) {
               const relatedRecord = await this.client.father.findFirst(
-                { where: { motherFirstName: record.firstName } },
+                { where: { motherFirstName: record.firstName, motherLastName: record.lastName } },
                 tx,
               );
               if (relatedRecord) return null;
             }
             if (is !== null && is !== undefined) {
               const relatedRecord = await this.client.father.findFirst(
-                { where: { ...is, motherFirstName: record.firstName } },
+                { where: { ...is, motherFirstName: record.firstName, motherLastName: record.lastName } },
                 tx,
               );
               if (!relatedRecord) return null;
             }
             if (isNot === null) {
               const relatedRecord = await this.client.father.findFirst(
-                { where: { motherFirstName: record.firstName } },
+                { where: { motherFirstName: record.firstName, motherLastName: record.lastName } },
                 tx,
               );
               if (!relatedRecord) return null;
             }
             if (isNot !== null && isNot !== undefined) {
               const relatedRecord = await this.client.father.findFirst(
-                { where: { ...isNot, motherFirstName: record.firstName } },
+                { where: { ...isNot, motherFirstName: record.firstName, motherLastName: record.lastName } },
                 tx,
               );
               if (relatedRecord) return null;
@@ -8705,7 +8890,9 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
             if (Object.keys(rest).length) {
               if (record.firstName === null) return null;
               const relatedRecord = await this.client.father.findFirst(
-                { where: { ...whereClause.husband, motherFirstName: record.firstName } },
+                {
+                  where: { ...whereClause.husband, motherFirstName: record.firstName, motherLastName: record.lastName },
+                },
                 tx,
               );
               if (!relatedRecord) return null;
@@ -8777,7 +8964,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
         unsafeRecord["children"] = await this.client.child.findMany(
           {
             ...(attach_children === true ? {} : attach_children),
-            where: { motherFirstName: record.firstName },
+            where: { motherFirstName: record.firstName!, motherLastName: record.lastName! },
           },
           tx,
         );
@@ -8802,7 +8989,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
             : await this.client.user.findUnique(
                 {
                   ...(attach_user === true ? {} : attach_user),
-                  where: { id: record.userId },
+                  where: { id: record.userId! },
                 },
                 tx,
               );
@@ -8865,7 +9052,10 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
           );
     }
     if (orderByInput.children) {
-      return await this.client.child.count({ where: { motherFirstName: record.firstName } }, tx);
+      return await this.client.child.count(
+        { where: { motherFirstName: record.firstName, motherLastName: record.lastName } },
+        tx,
+      );
     }
   }
 
@@ -9352,7 +9542,10 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
       );
     }
     if (query.data.husband?.connect) {
-      await this.client.father.update({ where: query.data.husband.connect, data: { motherFirstName: keyPath[0] } }, tx);
+      await this.client.father.update(
+        { where: query.data.husband.connect, data: { motherFirstName: keyPath[0], motherLastName: keyPath[1] } },
+        tx,
+      );
     }
     if (query.data.husband?.connectOrCreate) {
       if (query.data.husband?.connectOrCreate) {
@@ -9738,14 +9931,17 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
       if (query.data.user.update) {
         const updateData = query.data.user.update.data ?? query.data.user.update;
         await this.client.user.update(
-          { where: { ...query.data.user.update.where, id: record.userId! }, data: updateData },
+          {
+            where: { ...query.data.user.update.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
+            data: updateData,
+          },
           tx,
         );
       }
       if (query.data.user.upsert) {
         await this.client.user.upsert(
           {
-            where: { ...query.data.user.upsert.where, id: record.userId! },
+            where: { ...query.data.user.upsert.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
             create: { ...query.data.user.upsert.create, id: record.userId! } as Prisma.Args<
               Prisma.UserDelegate,
               "upsert"
@@ -9887,6 +10083,38 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
         }
       }
     }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.MotherDelegate, Q, "aggregate">["_min"];
+      const numericFields = ["userId"] as const;
+      for (const field of numericFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      const stringFields = ["firstName", "lastName"] as const;
+      for (const field of stringFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as string) = values.sort()[0];
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.MotherDelegate, Q, "aggregate">["_max"];
+      const numericFields = ["userId"] as const;
+      for (const field of numericFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      const stringFields = ["firstName", "lastName"] as const;
+      for (const field of stringFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];
+      }
+      result._max = maxResult;
+    }
     if (query?._avg) {
       const avgResult = {} as Prisma.Result<Prisma.MotherDelegate, Q, "aggregate">["_avg"];
       for (const untypedField of Object.keys(query._avg)) {
@@ -9904,24 +10132,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
         (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
       }
       result._sum = sumResult;
-    }
-    if (query?._min) {
-      const minResult = {} as Prisma.Result<Prisma.MotherDelegate, Q, "aggregate">["_min"];
-      for (const untypedField of Object.keys(query._min)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
-      }
-      result._min = minResult;
-    }
-    if (query?._max) {
-      const maxResult = {} as Prisma.Result<Prisma.MotherDelegate, Q, "aggregate">["_max"];
-      for (const untypedField of Object.keys(query._max)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
-      }
-      result._max = maxResult;
     }
     return result as unknown as Prisma.Result<Prisma.MotherDelegate, Q, "aggregate">;
   }
@@ -9992,21 +10202,23 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
             const { is, isNot, ...rest } = whereClause.father;
             if (is !== null && is !== undefined) {
               const relatedRecord = await this.client.father.findFirst(
-                { where: { ...is, firstName: record.fatherFirstName } },
+                { where: { ...is, lastName: record.fatherLastName, firstName: record.fatherFirstName } },
                 tx,
               );
               if (!relatedRecord) return null;
             }
             if (isNot !== null && isNot !== undefined) {
               const relatedRecord = await this.client.father.findFirst(
-                { where: { ...isNot, firstName: record.fatherFirstName } },
+                { where: { ...isNot, lastName: record.fatherLastName, firstName: record.fatherFirstName } },
                 tx,
               );
               if (relatedRecord) return null;
             }
             if (Object.keys(rest).length) {
               const relatedRecord = await this.client.father.findFirst(
-                { where: { ...whereClause.father, firstName: record.fatherFirstName } },
+                {
+                  where: { ...whereClause.father, lastName: record.fatherLastName, firstName: record.fatherFirstName },
+                },
                 tx,
               );
               if (!relatedRecord) return null;
@@ -10016,21 +10228,23 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
             const { is, isNot, ...rest } = whereClause.mother;
             if (is !== null && is !== undefined) {
               const relatedRecord = await this.client.mother.findFirst(
-                { where: { ...is, firstName: record.motherFirstName } },
+                { where: { ...is, firstName: record.motherFirstName, lastName: record.motherLastName } },
                 tx,
               );
               if (!relatedRecord) return null;
             }
             if (isNot !== null && isNot !== undefined) {
               const relatedRecord = await this.client.mother.findFirst(
-                { where: { ...isNot, firstName: record.motherFirstName } },
+                { where: { ...isNot, firstName: record.motherFirstName, lastName: record.motherLastName } },
                 tx,
               );
               if (relatedRecord) return null;
             }
             if (Object.keys(rest).length) {
               const relatedRecord = await this.client.mother.findFirst(
-                { where: { ...whereClause.mother, firstName: record.motherFirstName } },
+                {
+                  where: { ...whereClause.mother, firstName: record.motherFirstName, lastName: record.motherLastName },
+                },
                 tx,
               );
               if (!relatedRecord) return null;
@@ -10086,7 +10300,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
             : await this.client.user.findUnique(
                 {
                   ...(attach_user === true ? {} : attach_user),
-                  where: { id: record.userId },
+                  where: { id: record.userId! },
                 },
                 tx,
               );
@@ -10096,7 +10310,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
         unsafeRecord["father"] = await this.client.father.findUnique(
           {
             ...(attach_father === true ? {} : attach_father),
-            where: { firstName_lastName: { firstName: record.fatherFirstName, lastName: record.fatherLastName } },
+            where: { firstName_lastName: { firstName: record.fatherFirstName!, lastName: record.fatherLastName! } },
           },
           tx,
         );
@@ -10106,7 +10320,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
         unsafeRecord["mother"] = await this.client.mother.findUnique(
           {
             ...(attach_mother === true ? {} : attach_mother),
-            where: { firstName_lastName: { firstName: record.motherFirstName, lastName: record.motherLastName } },
+            where: { firstName_lastName: { firstName: record.motherFirstName!, lastName: record.motherLastName! } },
           },
           tx,
         );
@@ -10169,7 +10383,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     }
     if (orderByInput.father) {
       return await this.client.father._resolveOrderByKey(
-        await this.client.father.findFirstOrThrow({ where: { firstName: record.fatherFirstName } }),
+        await this.client.father.findFirstOrThrow({ where: { lastName: record.fatherLastName } }),
         orderByInput.father,
         tx,
       );
@@ -10350,7 +10564,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
         );
       }
     }
-    if (data.fatherFirstName !== undefined) {
+    if (data.fatherLastName !== undefined) {
       neededStores.add("Father");
     }
     if (data?.mother) {
@@ -10692,13 +10906,13 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
         fk[1] = record.lastName;
       }
       const unsafeData = query.data as Record<string, unknown>;
-      unsafeData.fatherFirstName = fk[0];
       unsafeData.fatherLastName = fk[1];
+      unsafeData.fatherFirstName = fk[0];
       delete unsafeData.father;
-    } else if (query.data?.fatherFirstName !== undefined && query.data.fatherFirstName !== null) {
+    } else if (query.data?.fatherLastName !== undefined && query.data.fatherLastName !== null) {
       await this.client.father.findUniqueOrThrow(
         {
-          where: { firstName_lastName: { firstName: query.data.fatherFirstName, lastName: query.data.fatherLastName } },
+          where: { firstName_lastName: { lastName: query.data.fatherLastName, firstName: query.data.fatherFirstName } },
         },
         tx,
       );
@@ -10822,14 +11036,17 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
       if (query.data.user.update) {
         const updateData = query.data.user.update.data ?? query.data.user.update;
         await this.client.user.update(
-          { where: { ...query.data.user.update.where, id: record.userId! }, data: updateData },
+          {
+            where: { ...query.data.user.update.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
+            data: updateData,
+          },
           tx,
         );
       }
       if (query.data.user.upsert) {
         await this.client.user.upsert(
           {
-            where: { ...query.data.user.upsert.where, id: record.userId! },
+            where: { ...query.data.user.upsert.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
             create: { ...query.data.user.upsert.create, id: record.userId! } as Prisma.Args<
               Prisma.UserDelegate,
               "upsert"
@@ -10864,13 +11081,13 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     if (query.data.father) {
       if (query.data.father.connect) {
         const other = await this.client.father.findUniqueOrThrow({ where: query.data.father.connect }, tx);
-        record.fatherFirstName = other.firstName;
         record.fatherLastName = other.lastName;
+        record.fatherFirstName = other.firstName;
       }
       if (query.data.father.create) {
         const other = await this.client.father.create({ data: query.data.father.create }, tx);
-        record.fatherFirstName = other.firstName;
         record.fatherLastName = other.lastName;
+        record.fatherFirstName = other.firstName;
       }
       if (query.data.father.update) {
         const updateData = query.data.father.update.data ?? query.data.father.update;
@@ -10878,8 +11095,8 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
           {
             where: {
               ...query.data.father.update.where,
-              firstName_lastName: { firstName: record.fatherFirstName, lastName: record.fatherLastName },
-            },
+              firstName_lastName: { lastName: record.fatherLastName, firstName: record.fatherFirstName },
+            } as Prisma.FatherWhereUniqueInput,
             data: updateData,
           },
           tx,
@@ -10890,12 +11107,12 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
           {
             where: {
               ...query.data.father.upsert.where,
-              firstName_lastName: { firstName: record.fatherFirstName, lastName: record.fatherLastName },
-            },
+              firstName_lastName: { lastName: record.fatherLastName, firstName: record.fatherFirstName },
+            } as Prisma.FatherWhereUniqueInput,
             create: {
               ...query.data.father.upsert.create,
-              firstName: record.fatherFirstName!,
               lastName: record.fatherLastName!,
+              firstName: record.fatherFirstName!,
             } as Prisma.Args<Prisma.FatherDelegate, "upsert">["create"],
             update: query.data.father.upsert.update,
           },
@@ -10907,14 +11124,14 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
           {
             where: {
               ...query.data.father.connectOrCreate.where,
-              firstName_lastName: { firstName: record.fatherFirstName, lastName: record.fatherLastName },
+              firstName_lastName: { lastName: record.fatherLastName, firstName: record.fatherFirstName },
             },
             create: {
               ...query.data.father.connectOrCreate.create,
-              firstName: record.fatherFirstName!,
               lastName: record.fatherLastName!,
+              firstName: record.fatherFirstName!,
             } as Prisma.Args<Prisma.FatherDelegate, "upsert">["create"],
-            update: { firstName: record.fatherFirstName!, lastName: record.fatherLastName! },
+            update: { lastName: record.fatherLastName!, firstName: record.fatherFirstName! },
           },
           tx,
         );
@@ -10938,7 +11155,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
             where: {
               ...query.data.mother.update.where,
               firstName_lastName: { firstName: record.motherFirstName, lastName: record.motherLastName },
-            },
+            } as Prisma.MotherWhereUniqueInput,
             data: updateData,
           },
           tx,
@@ -10950,7 +11167,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
             where: {
               ...query.data.mother.upsert.where,
               firstName_lastName: { firstName: record.motherFirstName, lastName: record.motherLastName },
-            },
+            } as Prisma.MotherWhereUniqueInput,
             create: {
               ...query.data.mother.upsert.create,
               firstName: record.motherFirstName!,
@@ -10983,14 +11200,14 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
       const related = await this.client.user.findUnique({ where: { id: record.userId } }, tx);
       if (!related) throw new Error("Related record not found");
     }
-    if (query.data.fatherFirstName !== undefined) {
+    if (query.data.fatherLastName !== undefined || query.data.fatherFirstName !== undefined) {
       const related = await this.client.father.findUnique(
         { where: { firstName_lastName: { firstName: record.fatherFirstName, lastName: record.fatherLastName } } },
         tx,
       );
       if (!related) throw new Error("Related record not found");
     }
-    if (query.data.motherFirstName !== undefined) {
+    if (query.data.motherFirstName !== undefined || query.data.motherLastName !== undefined) {
       const related = await this.client.mother.findUnique(
         { where: { firstName_lastName: { firstName: record.motherFirstName, lastName: record.motherLastName } } },
         tx,
@@ -11096,6 +11313,52 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
         }
       }
     }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.ChildDelegate, Q, "aggregate">["_min"];
+      const numericFields = ["userId"] as const;
+      for (const field of numericFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      const stringFields = [
+        "childFirstName",
+        "childLastName",
+        "fatherFirstName",
+        "fatherLastName",
+        "motherFirstName",
+        "motherLastName",
+      ] as const;
+      for (const field of stringFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as string) = values.sort()[0];
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.ChildDelegate, Q, "aggregate">["_max"];
+      const numericFields = ["userId"] as const;
+      for (const field of numericFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      const stringFields = [
+        "childFirstName",
+        "childLastName",
+        "fatherFirstName",
+        "fatherLastName",
+        "motherFirstName",
+        "motherLastName",
+      ] as const;
+      for (const field of stringFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];
+      }
+      result._max = maxResult;
+    }
     if (query?._avg) {
       const avgResult = {} as Prisma.Result<Prisma.ChildDelegate, Q, "aggregate">["_avg"];
       for (const untypedField of Object.keys(query._avg)) {
@@ -11113,24 +11376,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
         (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
       }
       result._sum = sumResult;
-    }
-    if (query?._min) {
-      const minResult = {} as Prisma.Result<Prisma.ChildDelegate, Q, "aggregate">["_min"];
-      for (const untypedField of Object.keys(query._min)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
-      }
-      result._min = minResult;
-    }
-    if (query?._max) {
-      const maxResult = {} as Prisma.Result<Prisma.ChildDelegate, Q, "aggregate">["_max"];
-      for (const untypedField of Object.keys(query._max)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
-      }
-      result._max = maxResult;
     }
     return result as unknown as Prisma.Result<Prisma.ChildDelegate, Q, "aggregate">;
   }

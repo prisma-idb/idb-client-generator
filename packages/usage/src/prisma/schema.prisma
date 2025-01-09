@@ -120,7 +120,7 @@ model Child {
   motherLastName  String
   user            User?  @relation(fields: [userId], references: [id])
 
-  father Father @relation(fields: [fatherFirstName, fatherLastName], references: [firstName, lastName])
+  father Father @relation(fields: [fatherLastName, fatherFirstName], references: [lastName, firstName])
   mother Mother @relation(fields: [motherFirstName, motherLastName], references: [firstName, lastName])
   userId Int?
 

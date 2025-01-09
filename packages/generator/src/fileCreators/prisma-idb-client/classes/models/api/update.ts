@@ -24,7 +24,7 @@ export function addUpdateMethod(modelClass: ClassDeclaration, model: Model, mode
       // TODO: decimal, json
       addScalarListUpdateHandling(writer, model);
       addRelationUpdateHandling(writer, model, models);
-      addFkValidation(writer, model);
+      addFkValidation(writer, model, models);
       addPutAndReturn(writer, model, models);
     },
   });
@@ -191,7 +191,7 @@ function addRelationUpdateHandling(writer: CodeBlockWriter, model: Model, models
         handleOneToManyRelationUpdate(writer, field, otherField);
       } else {
         if (field.relationFromFields?.length) {
-          handleOneToOneRelationMetaOnCurrentUpdate(writer, field);
+          handleOneToOneRelationMetaOnCurrentUpdate(writer, field, models);
         } else {
           handleOneToOneRelationMetaOnOtherUpdate(writer, field, otherField);
         }
@@ -341,14 +341,16 @@ function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, ot
     });
 }
 
-function handleOneToOneRelationMetaOnCurrentUpdate(writer: CodeBlockWriter, field: Field) {
+function handleOneToOneRelationMetaOnCurrentUpdate(writer: CodeBlockWriter, field: Field, models: readonly Model[]) {
   const fkFields = `${field.relationToFields!.map((_field, idx) => `${_field}: record.${field.relationFromFields?.at(idx)}!`).join(", ")}`;
 
   let uniqueInput;
   if (field.relationFromFields!.length === 1) {
     uniqueInput = `${field.relationToFields!.map((_field, idx) => `${_field}: record.${field.relationFromFields?.at(idx)}!`).join(", ")}`;
   } else {
-    uniqueInput = `${field.relationToFields?.join("_")} : { ${field.relationToFields?.map((_field, idx) => `${_field}: record.${field.relationFromFields?.at(idx)}`).join(", ")} }`;
+    const otherModel = models.find((model) => model.name === field.type)!;
+    const otherModelKeyPath = JSON.parse(getUniqueIdentifiers(otherModel)[0].keyPath) as string[];
+    uniqueInput = `${otherModelKeyPath.join("_")} : { ${field.relationToFields?.map((_field, idx) => `${_field}: record.${field.relationFromFields?.at(idx)}`).join(", ")} }`;
   }
 
   writer
@@ -375,13 +377,13 @@ function handleOneToOneRelationMetaOnCurrentUpdate(writer: CodeBlockWriter, fiel
       writer
         .writeLine(`const updateData = query.data.${field.name}.update.data ?? query.data.${field.name}.update;`)
         .writeLine(
-          `await this.client.${toCamelCase(field.type)}.update({ where: { ...query.data.${field.name}.update.where, ${uniqueInput} }, data: updateData }, tx);`,
+          `await this.client.${toCamelCase(field.type)}.update({ where: { ...query.data.${field.name}.update.where, ${uniqueInput} } as Prisma.${field.type}WhereUniqueInput, data: updateData }, tx);`,
         );
     })
     .writeLine(`if (query.data.${field.name}.upsert)`)
     .block(() => {
       writer.writeLine(
-        `await this.client.${toCamelCase(field.type)}.upsert({ where: { ...query.data.${field.name}.upsert.where, ${uniqueInput} }, create: { ...query.data.${field.name}.upsert.create, ${fkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'], update: query.data.${field.name}.upsert.update, }, tx);`,
+        `await this.client.${toCamelCase(field.type)}.upsert({ where: { ...query.data.${field.name}.upsert.where, ${uniqueInput} } as Prisma.${field.type}WhereUniqueInput, create: { ...query.data.${field.name}.upsert.create, ${fkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'], update: query.data.${field.name}.upsert.update, }, tx);`,
       );
     })
     .writeLine(`if (query.data.${field.name}.connectOrCreate)`)
@@ -483,6 +485,9 @@ function handleOneToOneRelationMetaOnOtherUpdate(writer: CodeBlockWriter, field:
 
 // NoAction is the same as Restrict for this package
 function addReferentialUpdateHandling(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+  const modelKeyPath = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
+  const getIndexOfKeyPart = (fieldName: string) => modelKeyPath.indexOf(fieldName);
+
   const referencingModels = models.filter((m) =>
     m.fields.some((field) => field.kind === "object" && field.type === model.name && field.relationFromFields?.length),
   );
@@ -493,10 +498,14 @@ function addReferentialUpdateHandling(writer: CodeBlockWriter, model: Model, mod
         const objectField = referencingModel.fields.find((field) => field.type === model.name)!;
 
         const whereClause = objectField
-          .relationFromFields!.map((field, idx) => `${field}: startKeyPath[${idx}]`)
+          .relationFromFields!.map(
+            (field, idx) => `${field}: startKeyPath[${getIndexOfKeyPart(objectField.relationToFields![idx])}]`,
+          )
           .join(", ");
         const dataClause = objectField
-          .relationFromFields!.map((field, idx) => `${field}: endKeyPath[${idx}]`)
+          .relationFromFields!.map(
+            (field, idx) => `${field}: endKeyPath[${getIndexOfKeyPart(objectField.relationToFields![idx])}]`,
+          )
           .join(", ");
 
         writer
@@ -511,19 +520,25 @@ function addReferentialUpdateHandling(writer: CodeBlockWriter, model: Model, mod
   });
 }
 
-function addFkValidation(writer: CodeBlockWriter, model: Model) {
+function addFkValidation(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   const dependentModelFields = model.fields.filter(
     (field) => field.kind === "object" && field.relationFromFields?.length,
   );
+
   for (const dependentModelField of dependentModelFields) {
-    let whereUnique = `{ ${dependentModelField.relationToFields?.at(0)}: record.${dependentModelField.relationFromFields?.at(0)} }`;
-    if (dependentModelField.relationFromFields!.length > 1) {
-      whereUnique = `{ ${dependentModelField.relationToFields?.join("_")}: { ${dependentModelField.relationToFields?.map((_field, idx) => `${_field}: record.${dependentModelField.relationFromFields?.at(idx)}`).join(", ")} } }`;
+    const dependentModel = models.find(({ name }) => name === dependentModelField.type)!;
+    const dependentModelKeyPath = JSON.parse(getUniqueIdentifiers(dependentModel)[0].keyPath) as string[];
+
+    let whereUnique = `{ ${dependentModelKeyPath.at(0)}: record.${dependentModelField.relationFromFields?.at(dependentModelField.relationToFields!.indexOf(dependentModelKeyPath[0]))} }`;
+    if (dependentModelKeyPath.length > 1) {
+      whereUnique = `{ ${dependentModelKeyPath.join("_")}: { ${dependentModelKeyPath.map((_field, idx) => `${_field}: record.${dependentModelField.relationFromFields?.at(dependentModelField.relationToFields!.indexOf(dependentModelKeyPath[idx]))}`).join(", ")} } }`;
     }
 
-    let condition = `query.data.${dependentModelField.relationFromFields?.at(0)} !== undefined`;
+    let condition = dependentModelField.relationFromFields
+      ?.map((field) => `query.data.${field} !== undefined`)
+      .join(" || ");
     if (!dependentModelField.isRequired)
-      condition += ` && record.${dependentModelField.relationFromFields?.at(0)} !== null`;
+      condition += ` && record.${dependentModelField.relationFromFields?.at(dependentModelField.relationToFields!.indexOf(dependentModelKeyPath[0]))} !== null`;
 
     writer.writeLine(`if (${condition})`).block(() => {
       writer.writeLine(
