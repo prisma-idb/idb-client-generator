@@ -62,13 +62,13 @@ function addOneToManyResolution(writer: CodeBlockWriter, model: Model, models: r
     const otherField = models
       .flatMap(({ fields }) => fields)
       .find((_field) => _field !== field && _field.relationName === field.relationName)!;
-    const pkOfOther = otherField.relationFromFields!.at(0)!;
-    const fkToOther = otherField.relationToFields!.at(0)!;
+
+    const fkMapping = otherField
+      .relationFromFields!.map((field, idx) => `${field}: record.${otherField.relationToFields?.at(idx)}`)
+      .join(", ");
 
     writer.writeLine(`if (orderByInput.${field.name})`).block(() => {
-      writer.writeLine(
-        `return await this.client.${toCamelCase(field.type)}.count({ where: { ${pkOfOther}: record.${fkToOther} } }, tx);`,
-      );
+      writer.writeLine(`return await this.client.${toCamelCase(field.type)}.count({ where: { ${fkMapping} } }, tx);`);
     });
   }
 }

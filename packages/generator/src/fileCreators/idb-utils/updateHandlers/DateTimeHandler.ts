@@ -38,14 +38,16 @@ export function addDateTimeUpdateHandler(utilsFile: SourceFile, models: readonly
         .conditionalWrite(nullableDateTimeFieldPresent, ` || dateTimeUpdate === null`)
         .writeLine(`)`)
         .block(() => {
-          writer.writeLine(
-            `(record[fieldName] as ${fieldType}) = dateTimeUpdate === null ? null : new Date(dateTimeUpdate);`,
-          );
+          writer
+            .writeLine(`(record[fieldName] as ${fieldType}) = `)
+            .conditionalWrite(nullableDateTimeFieldPresent, () => `dateTimeUpdate === null ? null : `)
+            .write(`new Date(dateTimeUpdate);`);
         });
       writer.writeLine(`else if (dateTimeUpdate.set !== undefined)`).block(() => {
-        writer.writeLine(
-          `(record[fieldName] as ${fieldType}) = dateTimeUpdate.set === null ? null : new Date(dateTimeUpdate.set);`,
-        );
+        writer
+          .writeLine(`(record[fieldName] as ${fieldType}) = `)
+          .conditionalWrite(nullableDateTimeFieldPresent, () => `dateTimeUpdate.set === null ? null : `)
+          .write(`new Date(dateTimeUpdate.set);`);
       });
     },
   });

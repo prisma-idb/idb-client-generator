@@ -1,5 +1,5 @@
 import { ClassDeclaration, CodeBlockWriter, Scope } from "ts-morph";
-import { toCamelCase } from "../../../../../helpers/utils";
+import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
 import { Field, Model } from "../../../../types";
 
 export function addApplyRelations(modelClass: ClassDeclaration, model: Model, models: readonly Model[]) {
@@ -48,7 +48,7 @@ function addRelationProcessing(writer: CodeBlockWriter, model: Model, models: re
             const otherFieldOfRelation = allFields.find(
               (_field) => _field.relationName === field.relationName && field !== _field,
             )!;
-            handleVariousRelationships(writer, field, otherFieldOfRelation);
+            handleVariousRelationships(writer, field, otherFieldOfRelation, models);
           });
       });
       writer.writeLine("return unsafeRecord;");
@@ -56,10 +56,15 @@ function addRelationProcessing(writer: CodeBlockWriter, model: Model, models: re
     .writeLine(");");
 }
 
-function handleVariousRelationships(writer: CodeBlockWriter, field: Field, otherField: Field) {
+function handleVariousRelationships(
+  writer: CodeBlockWriter,
+  field: Field,
+  otherField: Field,
+  models: readonly Model[],
+) {
   if (!field.isList) {
     if (field.relationFromFields?.length) {
-      addOneToOneMetaOnFieldRelation(writer, field);
+      addOneToOneMetaOnFieldRelation(writer, field, models);
     } else {
       addOneToOneMetaOnOtherFieldRelation(writer, field, otherField);
     }
@@ -68,10 +73,13 @@ function handleVariousRelationships(writer: CodeBlockWriter, field: Field, other
   }
 }
 
-function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field) {
-  const compositeKeyName = field.relationToFields!.join("_");
-  const compositeKey = field
-    .relationToFields!.map((toField, idx) => `${toField}: record.${field.relationFromFields?.at(idx)}`)
+function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field, models: readonly Model[]) {
+  const otherModel = models.find(({ name }) => name === field.type)!;
+  const otherModelKeyPath = JSON.parse(getUniqueIdentifiers(otherModel)[0].keyPath) as string[];
+
+  const compositeKeyName = otherModelKeyPath.join("_");
+  const compositeKey = otherModelKeyPath
+    .map((toField) => `${toField}: record.${field.relationFromFields?.at(field.relationToFields!.indexOf(toField))}!`)
     .join(", ");
 
   writer
@@ -109,12 +117,16 @@ function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Fie
 }
 
 function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField: Field) {
+  const fkMapping = otherField
+    .relationFromFields!.map((fromField, idx) => `${fromField}: record.${otherField.relationToFields?.at(idx)}!`)
+    .join(", ");
+
   writer
     .writeLine(`unsafeRecord['${field.name}'] = await this.client.${toCamelCase(field.type)}.findMany(`)
     .block(() => {
       writer
         .writeLine(`...(attach_${field.name} === true ? {} : attach_${field.name}),`)
-        .writeLine(`where: { ${otherField.relationFromFields?.at(0)}: record.${otherField.relationToFields?.at(0)} }`);
+        .writeLine(`where: { ${fkMapping} }`);
     })
     .writeLine(`, tx)`);
 }

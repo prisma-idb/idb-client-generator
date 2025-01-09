@@ -15,11 +15,14 @@ export function addAggregateMethod(modelClass: ClassDeclaration, model: Model) {
       addTxAndRecordSetup(writer, model);
       addCountHandling(writer);
 
-      const hasAvgOrSum = model.fields.some(
-        (field) => field.type === "Float" || field.type === "Int" || field.type === "Decimal",
-      );
+      const hasAvgOrSum = model.fields
+        .filter(({ isList }) => !isList)
+        .some((field) => field.type === "Float" || field.type === "Int" || field.type === "Decimal");
       const hasMinMax =
-        hasAvgOrSum || model.fields.some((field) => field.type === "DateTime" || field.type === "String");
+        hasAvgOrSum ||
+        model.fields
+          .filter(({ isList }) => !isList)
+          .some((field) => field.type === "DateTime" || field.type === "String");
 
       if (hasMinMax) {
         addMinHandling(writer, model);
@@ -101,12 +104,15 @@ function addSumHandling(writer: CodeBlockWriter, model: Model) {
 }
 
 function addMinHandling(writer: CodeBlockWriter, model: Model) {
-  const numericFields = model.fields
+  const nonListFields = model.fields.filter(({ isList }) => !isList);
+
+  const numericFields = nonListFields
+    .filter(({ isList }) => !isList)
     .filter((field) => field.type === "Float" || field.type === "Int" || field.type === "Decimal")
     .map((field) => field.name);
-  const dateTimeFields = model.fields.filter((field) => field.type === "DateTime").map((field) => field.name);
-  const stringFields = model.fields.filter((field) => field.type === "String").map((field) => field.name);
-  const booleanFields = model.fields.filter((field) => field.type === "Boolean").map((field) => field.name);
+  const dateTimeFields = nonListFields.filter((field) => field.type === "DateTime").map((field) => field.name);
+  const stringFields = nonListFields.filter((field) => field.type === "String").map((field) => field.name);
+  const booleanFields = nonListFields.filter((field) => field.type === "Boolean").map((field) => field.name);
 
   writer.writeLine(`if (query?._min)`).block(() => {
     writer.writeLine(`const minResult = {} as Prisma.Result<Prisma.${model.name}Delegate, Q, "aggregate">["_min"];`);
@@ -116,6 +122,7 @@ function addMinHandling(writer: CodeBlockWriter, model: Model) {
         .writeLine(`for (const field of numericFields)`)
         .block(() => {
           writer
+            .writeLine(`if (!query._min[field]) continue;`)
             .writeLine(
               `const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);`,
             )
@@ -128,6 +135,7 @@ function addMinHandling(writer: CodeBlockWriter, model: Model) {
         .writeLine(`for (const field of dateTimeFields)`)
         .block(() => {
           writer
+            .writeLine(`if (!query._min[field]) continue;`)
             .writeLine(
               `const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);`,
             )
@@ -140,6 +148,7 @@ function addMinHandling(writer: CodeBlockWriter, model: Model) {
         .writeLine(`for (const field of stringFields)`)
         .block(() => {
           writer
+            .writeLine(`if (!query._min[field]) continue;`)
             .writeLine(
               `const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);`,
             )
@@ -152,6 +161,7 @@ function addMinHandling(writer: CodeBlockWriter, model: Model) {
         .writeLine(`for (const field of booleanFields)`)
         .block(() => {
           writer
+            .writeLine(`if (!query._min[field]) continue;`)
             .writeLine(
               `const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);`,
             )
@@ -163,12 +173,14 @@ function addMinHandling(writer: CodeBlockWriter, model: Model) {
 }
 
 function addMaxHandling(writer: CodeBlockWriter, model: Model) {
-  const numericFields = model.fields
+  const nonListFields = model.fields.filter(({ isList }) => !isList);
+
+  const numericFields = nonListFields
     .filter((field) => field.type === "Float" || field.type === "Int" || field.type === "Decimal")
     .map((field) => field.name);
-  const dateTimeFields = model.fields.filter((field) => field.type === "DateTime").map((field) => field.name);
-  const stringFields = model.fields.filter((field) => field.type === "String").map((field) => field.name);
-  const booleanFields = model.fields.filter((field) => field.type === "Boolean").map((field) => field.name);
+  const dateTimeFields = nonListFields.filter((field) => field.type === "DateTime").map((field) => field.name);
+  const stringFields = nonListFields.filter((field) => field.type === "String").map((field) => field.name);
+  const booleanFields = nonListFields.filter((field) => field.type === "Boolean").map((field) => field.name);
 
   writer.writeLine(`if (query?._max)`).block(() => {
     writer.writeLine(`const maxResult = {} as Prisma.Result<Prisma.${model.name}Delegate, Q, "aggregate">["_max"];`);
@@ -178,6 +190,7 @@ function addMaxHandling(writer: CodeBlockWriter, model: Model) {
         .writeLine(`for (const field of numericFields)`)
         .block(() => {
           writer
+            .writeLine(`if (!query._max[field]) continue;`)
             .writeLine(
               `const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);`,
             )
@@ -190,6 +203,7 @@ function addMaxHandling(writer: CodeBlockWriter, model: Model) {
         .writeLine(`for (const field of dateTimeFields)`)
         .block(() => {
           writer
+            .writeLine(`if (!query._max[field]) continue;`)
             .writeLine(
               `const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);`,
             )
@@ -202,6 +216,7 @@ function addMaxHandling(writer: CodeBlockWriter, model: Model) {
         .writeLine(`for (const field of stringFields)`)
         .block(() => {
           writer
+            .writeLine(`if (!query._max[field]) continue;`)
             .writeLine(
               `const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);`,
             )
@@ -214,6 +229,7 @@ function addMaxHandling(writer: CodeBlockWriter, model: Model) {
         .writeLine(`for (const field of booleanFields)`)
         .block(() => {
           writer
+            .writeLine(`if (!query._max[field]) continue;`)
             .writeLine(
               `const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);`,
             )
@@ -221,5 +237,6 @@ function addMaxHandling(writer: CodeBlockWriter, model: Model) {
         })
         .writeLine(`result._max = maxResult;`);
     }
+    writer.writeLine(`result._max = maxResult;`);
   });
 }
