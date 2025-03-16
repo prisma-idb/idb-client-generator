@@ -703,6 +703,19 @@ export function handleFloatUpdateField<T, R extends Prisma.Result<T, object, "fi
   }
 }
 
+export function handleEnumUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
+  record: R,
+  fieldName: keyof R,
+  enumUpdate: undefined | string | { set?: string } | null | { set?: string | null },
+) {
+  if (enumUpdate === undefined) return;
+  if (typeof enumUpdate === "string" || enumUpdate === null) {
+    (record[fieldName] as string | null) = enumUpdate;
+  } else if (enumUpdate.set !== undefined) {
+    (record[fieldName] as string | null) = enumUpdate.set;
+  }
+}
+
 export function handleScalarListUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,

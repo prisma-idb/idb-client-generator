@@ -24,6 +24,7 @@ import { addFloatUpdateHandler } from "./updateHandlers/FloatHandler";
 import { addIntUpdateHandler } from "./updateHandlers/IntHandler";
 import { addScalarListUpdateHandler } from "./updateHandlers/ScalarListHandler";
 import { addStringUpdateHandler } from "./updateHandlers/StringHandler";
+import { addEnumUpdateHandler } from "./updateHandlers/EnumHandler";
 
 export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model[]) {
   idbUtilsFile.addImportDeclarations([
@@ -88,6 +89,7 @@ export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model
   addIntUpdateHandler(idbUtilsFile, models);
   addBigIntUpdateHandler(idbUtilsFile, models);
   addFloatUpdateHandler(idbUtilsFile, models);
+  addEnumUpdateHandler(idbUtilsFile, models);
   addScalarListUpdateHandler(idbUtilsFile, models);
 
   addGenericComparator(idbUtilsFile);

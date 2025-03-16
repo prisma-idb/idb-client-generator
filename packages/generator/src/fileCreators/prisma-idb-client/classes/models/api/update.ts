@@ -21,6 +21,7 @@ export function addUpdateMethod(modelClass: ClassDeclaration, model: Model, mode
       addIntUpdateHandling(writer, model);
       addBigIntUpdateHandling(writer, model);
       addFloatUpdateHandling(writer, model);
+      addEnumUpdateHandling(writer, model);
       // TODO: decimal, json
       addScalarListUpdateHandling(writer, model);
       addRelationUpdateHandling(writer, model, models);
@@ -176,6 +177,18 @@ function addScalarListUpdateHandling(writer: CodeBlockWriter, model: Model) {
     .writeLine(`for (const field of listFields)`)
     .block(() => {
       writer.writeLine(`IDBUtils.handleScalarListUpdateField(record, field, query.data[field]);`);
+    });
+}
+
+function addEnumUpdateHandling(writer: CodeBlockWriter, model: Model) {
+  const enumFields = model.fields.filter((field) => field.kind === "enum" && !field.isList).map(({ name }) => name);
+  if (enumFields.length === 0) return;
+
+  writer
+    .writeLine(`const enumFields = ${JSON.stringify(enumFields)} as const;`)
+    .writeLine(`for (const field of enumFields)`)
+    .block(() => {
+      writer.writeLine(`IDBUtils.handleEnumUpdateField(record, field, query.data[field]);`);
     });
 }
 
