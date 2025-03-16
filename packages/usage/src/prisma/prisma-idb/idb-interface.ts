@@ -51,4 +51,8 @@ export interface PrismaIDBSchema extends DBSchema {
     key: [childFirstName: Prisma.Child["childFirstName"], childLastName: Prisma.Child["childLastName"]];
     value: Prisma.Child;
   };
+  ModelWithEnum: {
+    key: [id: Prisma.ModelWithEnum["id"]];
+    value: Prisma.ModelWithEnum;
+  };
 }

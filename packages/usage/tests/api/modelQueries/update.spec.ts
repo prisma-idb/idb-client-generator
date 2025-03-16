@@ -82,3 +82,25 @@ test("update_ChangeIdToExistingId_ThrowsError", async ({ page }) => {
     operation: "findMany",
   });
 });
+
+test("update_ChangeEnumField_SuccessfullyUpdatesRecord", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "modelWithEnum",
+    operation: "create",
+    query: { data: { id: 1, enum: "A" } },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    model: "modelWithEnum",
+    operation: "update",
+    query: { where: { id: 1 }, data: { enum: "B" } },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    model: "modelWithEnum",
+    operation: "findMany",
+  });
+});

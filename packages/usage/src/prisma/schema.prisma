@@ -126,3 +126,16 @@ model Child {
 
   @@id([childFirstName, childLastName])
 }
+
+model ModelWithEnum {
+  id           Int     @id @default(autoincrement())
+  enum         MyEnum
+  nullableEnum MyEnum?
+  enumArray    MyEnum[]
+}
+
+enum MyEnum {
+  A
+  B
+  C
+}
