@@ -35,6 +35,12 @@ export class PrismaIDBClient {
     return PrismaIDBClient.instance;
   }
 
+  public async resetDatabase() {
+    this._db.close();
+    window.indexedDB.deleteDatabase("prisma-idb");
+    await PrismaIDBClient.instance.initialize();
+  }
+
   private async initialize() {
     this._db = await openDB<PrismaIDBSchema>("prisma-idb", IDB_VERSION, {
       upgrade(db) {
