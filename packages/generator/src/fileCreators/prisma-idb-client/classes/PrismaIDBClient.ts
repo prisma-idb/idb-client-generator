@@ -15,6 +15,7 @@ export function addClientClass(file: SourceFile, models: readonly Model[]) {
 
   addModelProperties(clientClass, models);
   addCreateInstanceMethod(clientClass);
+  addResetDatabaseMethod(clientClass);
   addInitializeMethod(clientClass, models);
 }
 
@@ -84,4 +85,18 @@ function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter) {
   nonKeyUniqueIdentifiers.forEach(({ name, keyPath }) =>
     writer.writeLine(`${model.name}Store.createIndex("${name}Index", ${keyPath}, { unique: true });`),
   );
+}
+
+function addResetDatabaseMethod(clientClass: ClassDeclaration) {
+  clientClass.addMethod({
+    name: "resetDatabase",
+    scope: Scope.Public,
+    isAsync: true,
+    statements: (writer) => {
+      writer
+        .writeLine(`this._db.close();`)
+        .writeLine(`window.indexedDB.deleteDatabase("prisma-idb");`)
+        .writeLine(`await PrismaIDBClient.instance.initialize();`);
+    },
+  });
 }
