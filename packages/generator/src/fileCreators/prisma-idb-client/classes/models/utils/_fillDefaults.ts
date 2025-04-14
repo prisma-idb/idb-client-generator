@@ -59,7 +59,7 @@ export function addFillDefaultsFunction(modelClass: ClassDeclaration, model: Mod
 }
 
 function addUuidDefault(writer: CodeBlockWriter, field: Field) {
-  writer.writeLine(`data.${field.name} = crypto.randomUUID();`);
+  writer.writeLine(`data.${field.name} = uuidv4();`);
 }
 
 function addCuidDefault(writer: CodeBlockWriter, field: Field) {

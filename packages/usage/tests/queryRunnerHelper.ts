@@ -1,4 +1,4 @@
-import { prisma } from "$lib/prisma";
+import { prisma } from "../src/lib/prisma";
 import { expect, type Page } from "@playwright/test";
 import type { Prisma } from "@prisma/client";
 import type { Operation } from "@prisma/client/runtime/library";

@@ -55,4 +55,8 @@ export interface PrismaIDBSchema extends DBSchema {
     key: [id: Prisma.ModelWithEnum["id"]];
     value: Prisma.ModelWithEnum;
   };
+  TestUuid: {
+    key: [id: Prisma.TestUuid["id"]];
+    value: Prisma.TestUuid;
+  };
 }
