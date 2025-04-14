@@ -22,14 +22,14 @@
   "dependencies": {
     "@prisma/generator-helper": "^6.0.0",
     "prettier": "^3.3.3",
-    "ts-morph": "^24.0.0"
+    "ts-morph": "^25.0.0"
   },
   "devDependencies": {
-    "@release-it/conventional-changelog": "^9.0.3",
+    "@release-it/conventional-changelog": "^10.0.0",
     "@types/node": "^22.7.8",
     "@types/prettier": "^2.7.3",
     "@prisma/internals": "^6.0.0",
-    "release-it": "^17.10.0",
+    "release-it": "^18.0.0",
     "typescript": "^5.6.3"
   },
   "peerDependencies": {
