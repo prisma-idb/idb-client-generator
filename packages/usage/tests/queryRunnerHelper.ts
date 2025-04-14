@@ -1,4 +1,4 @@
-import { prisma } from "$lib/prisma";
+import { prisma } from "../src/lib/prisma";
 import { expect, type Page } from "@playwright/test";
 import type { Prisma } from "@prisma/client";
 import type { Operation } from "@prisma/client/runtime/library";
@@ -31,7 +31,7 @@ export async function expectQueryToSucceed<
 
   await page.getByTestId("query-input").fill(`${model}.${operation}(${JSON.stringify(query)})`);
   await page.getByRole("button", { name: "Run query" }).click();
-  await expect(page.getByRole("status").first()).toContainText("Query executed successfully");
+  await expect(page.getByRole("button", { name: "Run query" })).not.toBeDisabled();
 
   const idbClientResult = (await page.getByRole("code").last().textContent()) ?? "";
   expect(JSON.parse(idbClientResult)).toEqual(JSON.parse(JSON.stringify(prismaClientResult)));

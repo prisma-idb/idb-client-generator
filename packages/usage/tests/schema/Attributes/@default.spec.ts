@@ -71,4 +71,19 @@ test("@default(now()) - Creates new userGroup with current date", async ({ page 
   expect(new Date((idbClientResult as UserGroup).joinedOn).getTime() / 100).toBeCloseTo(new Date().getTime() / 100, 0);
 });
 
+test("@default(uuid()) - Creates new TestUuid entry with uuid generated ID", async ({ page }) => {
+  const { idbClientResult } = await runQuery({
+    page,
+    model: "testUuid",
+    operation: "create",
+    query: {
+      data: { name: "UUID Default Test" },
+    },
+  });
+
+  expect(typeof idbClientResult.id).toBe("string");
+  expect(idbClientResult.id).toHaveLength(36);
+  expect(idbClientResult.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+});
+
 // TODO: others with all possible params

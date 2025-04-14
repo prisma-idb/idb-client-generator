@@ -34,6 +34,16 @@ function addImports(file: SourceFile, models: readonly Model[]) {
       namedImports: ["createId"],
     });
   }
+
+  const uuidFieldExists = models
+    .flatMap((model) => model.fields)
+    .some((field) => typeof field.default === "object" && "name" in field.default && field.default.name == "uuid");
+  if (uuidFieldExists) {
+    file.addImportDeclaration({
+      moduleSpecifier: "uuid",
+      namedImports: ["v4 as uuidv4"],
+    });
+  }
 }
 
 function addVersionDeclaration(file: SourceFile) {

@@ -11,6 +11,7 @@
   let query = $state("");
   let output = $state("");
   let eventOutput = $state("");
+  let executing = $state(false);
 
   onMount(async () => {
     client = await PrismaIDBClient.createClient();
@@ -21,6 +22,7 @@
 
   async function executeQuery(e: SubmitEvent) {
     e.preventDefault();
+    executing = true;
     try {
       if (!client) throw new Error("Client not instantiated");
       const result = await eval(`client.v.${query}`);
@@ -33,6 +35,7 @@
       if (error instanceof Error) toast.error("Error", { description: error.message });
       console.error(error);
     }
+    executing = false;
   }
 </script>
 
@@ -46,19 +49,19 @@
     required
     bind:value={query}
   />
-  <Button type="submit">Run query</Button>
+  <Button disabled={executing} type="submit">Run query</Button>
 </form>
 
 <div class="grid w-full max-w-md gap-1.5">
   <Label for="event-output">Event output (for user model)</Label>
-  <code class={cn("rounded-md border p-2 text-sm", { "italic text-secondary-foreground/60": eventOutput === "" })}>
+  <code class={cn("rounded-md border p-2 text-sm", { "text-secondary-foreground/60 italic": eventOutput === "" })}>
     <pre>{eventOutput === "" ? "No events fired yet" : eventOutput}</pre>
   </code>
 </div>
 
 <div class="grid w-full max-w-md gap-1.5">
   <Label for="output">Output</Label>
-  <code class={cn("rounded-md border p-2 text-sm", { "italic text-secondary-foreground/60": output === "" })}>
+  <code class={cn("rounded-md border p-2 text-sm", { "text-secondary-foreground/60 italic": output === "" })}>
     <pre>{output === "" ? "Run a query" : output}</pre>
   </code>
 </div>

@@ -1,4 +1,4 @@
-import { prisma } from "$lib/prisma";
+import { prisma } from "../src/lib/prisma";
 import { test as base } from "@playwright/test";
 
 async function resetDatabase() {

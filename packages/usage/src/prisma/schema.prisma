@@ -139,3 +139,8 @@ enum MyEnum {
   B
   C
 }
+
+model TestUuid {
+  id   String @id @default(uuid())
+  name String
+}
