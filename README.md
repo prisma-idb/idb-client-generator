@@ -2,6 +2,20 @@
 
 This library is a **Prisma generator** that creates a client with a similar syntax and behavior to the Prisma Client but is designed to operate with **IndexedDB** for local storage. It allows developers to interact with IndexedDB using a familiar Prisma-like API.
 
+### 🔍 Demo
+
+Check out the [Live Demo](https://prisma-idb.github.io/pidb-kanban-example/) to see **Prisma IDB** in action!
+
+This demo showcases:
+
+* ⚡ **Instant local storage** using `IndexedDB` — no backend needed
+* 🔒 **Type-safe queries** powered by your **Prisma schema**
+* 🌐 **Offline-first** — works without internet
+
+Built with developers in mind: Fast, consistent, and schema-driven local data.
+
+> 🧠 Ideal for PWAs, offline apps, and prototypes that need real data handling — instantly.
+
 ## ⚠️ Warning
 
 This library is not fully ready yet. Check [issue #52](https://github.com/prisma-idb/idb-client-generator/issues/52) for the current list of implemented features.
