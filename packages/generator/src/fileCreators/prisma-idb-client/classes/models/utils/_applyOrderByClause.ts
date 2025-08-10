@@ -1,26 +1,17 @@
 import type { Model } from "src/fileCreators/types";
-import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
+import { CodeBlockWriter } from "ts-morph";
 
-export function addApplyOrderByClause(modelClass: ClassDeclaration, model: Model) {
-  modelClass.addMethod({
-    name: "_applyOrderByClause",
-    isAsync: true,
-    typeParameters: [
-      { name: "O", constraint: `Prisma.Args<Prisma.${model.name}Delegate, 'findMany'>['orderBy']` },
-      { name: "R", constraint: `Prisma.Result<Prisma.${model.name}Delegate, object, "findFirstOrThrow">` },
-    ],
-    parameters: [
-      { name: "records", type: `R[]` },
-      { name: "orderByClause", type: "O" },
-      { name: "tx", type: "IDBUtils.TransactionType" },
-    ],
-    returnType: `Promise<void>`,
-    statements: (writer) => {
+export function addApplyOrderByClause(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine(`async _applyOrderByClause<`)
+    .writeLine(`O extends Prisma.Args<Prisma.${model.name}Delegate, 'findMany'>['orderBy'],`)
+    .writeLine(`R extends Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>`)
+    .writeLine(`>(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void>`)
+    .block(() => {
       addEarlyExitAndArrayDeclaration(writer);
       addKeyedRecordsCreation(writer);
       addKeyedRecordsSorter(writer);
-    },
-  });
+    });
 }
 
 function addEarlyExitAndArrayDeclaration(writer: CodeBlockWriter) {

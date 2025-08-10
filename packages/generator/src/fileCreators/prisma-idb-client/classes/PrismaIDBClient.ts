@@ -1,76 +1,56 @@
-import { ClassDeclaration, CodeBlockWriter, Scope, SourceFile } from "ts-morph";
+import { CodeBlockWriter } from "ts-morph";
 import { getUniqueIdentifiers, toCamelCase } from "../../../helpers/utils";
 import { Model } from "../../types";
 
-export function addClientClass(file: SourceFile, models: readonly Model[]) {
-  const clientClass = file.addClass({
-    name: "PrismaIDBClient",
-    isExported: true,
-    ctors: [{ scope: Scope.Private }],
-    properties: [
-      { name: "instance", isStatic: true, type: "PrismaIDBClient", scope: Scope.Private },
-      { name: "_db", type: "IDBPDatabase<PrismaIDBSchema>", hasExclamationToken: true },
-    ],
-  });
+export function addClientClass(writer: CodeBlockWriter, models: readonly Model[]) {
+  writer.writeLine(`export class PrismaIDBClient`).block(() => {
+    writer
+      .writeLine(`private static instance: PrismaIDBClient;`)
+      .writeLine(`_db!: IDBPDatabase<PrismaIDBSchema>;`)
+      .blankLine()
+      .writeLine(`private constructor() {}`);
 
-  addModelProperties(clientClass, models);
-  addCreateInstanceMethod(clientClass);
-  addResetDatabaseMethod(clientClass);
-  addInitializeMethod(clientClass, models);
-}
-
-function addModelProperties(clientClass: ClassDeclaration, models: readonly Model[]) {
-  models.forEach((model) =>
-    clientClass.addProperty({
-      name: toCamelCase(model.name),
-      type: `${model.name}IDBClass`,
-      hasExclamationToken: true,
-    }),
-  );
-}
-
-function addCreateInstanceMethod(clientClass: ClassDeclaration) {
-  clientClass.addMethod({
-    name: "createClient",
-    isStatic: true,
-    isAsync: true,
-    scope: Scope.Public,
-    returnType: "Promise<PrismaIDBClient>",
-    statements: (writer) => {
-      writer
-        .writeLine("if (!PrismaIDBClient.instance)")
-        .block(() => {
-          writer
-            .writeLine("const client = new PrismaIDBClient();")
-            .writeLine("await client.initialize();")
-            .writeLine("PrismaIDBClient.instance = client;");
-        })
-        .writeLine("return PrismaIDBClient.instance;");
-    },
+    addModelProperties(writer, models);
+    addCreateInstanceMethod(writer);
+    addResetDatabaseMethod(writer);
+    addInitializeMethod(writer, models);
   });
 }
 
-function addInitializeMethod(clientClass: ClassDeclaration, models: readonly Model[]) {
-  clientClass.addMethod({
-    name: "initialize",
-    scope: Scope.Private,
-    isAsync: true,
-    statements: (writer) => {
-      writer
-        .writeLine("this._db = await openDB<PrismaIDBSchema>('prisma-idb', IDB_VERSION, ")
-        .block(() => {
-          writer.writeLine("upgrade(db)").block(() => {
-            models.forEach((model) => addObjectStoreInitialization(model, writer));
-          });
-        })
-        .writeLine(");");
+function addModelProperties(writer: CodeBlockWriter, models: readonly Model[]) {
+  models.forEach((model) => writer.writeLine(`${toCamelCase(model.name)}!: ${model.name}IDBClass;`));
+}
 
-      models.forEach((model) => {
-        writer.writeLine(
-          `this.${toCamelCase(model.name)} = new ${model.name}IDBClass(this, ${getUniqueIdentifiers(model)[0].keyPath});`,
-        );
-      });
-    },
+function addCreateInstanceMethod(writer: CodeBlockWriter) {
+  writer.writeLine(`public static async createClient(): Promise<PrismaIDBClient>`).block(() => {
+    writer
+      .writeLine(`if (!PrismaIDBClient.instance)`)
+      .block(() => {
+        writer
+          .writeLine(`const client = new PrismaIDBClient();`)
+          .writeLine(`await client.initialize();`)
+          .writeLine(`PrismaIDBClient.instance = client;`);
+      })
+      .writeLine(`return PrismaIDBClient.instance;`);
+  });
+}
+
+function addInitializeMethod(writer: CodeBlockWriter, models: readonly Model[]) {
+  writer.writeLine(`private async initialize()`).block(() => {
+    writer
+      .writeLine(`this._db = await openDB<PrismaIDBSchema>("prisma-idb", IDB_VERSION, `)
+      .block(() => {
+        writer.writeLine(`upgrade(db) `).block(() => {
+          models.forEach((model) => addObjectStoreInitialization(model, writer));
+        });
+      })
+      .writeLine(`);`);
+
+    models.forEach((model) => {
+      writer.writeLine(
+        `this.${toCamelCase(model.name)} = new ${model.name}IDBClass(this, ${getUniqueIdentifiers(model)[0].keyPath});`,
+      );
+    });
   });
 }
 
@@ -87,16 +67,11 @@ function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter) {
   );
 }
 
-function addResetDatabaseMethod(clientClass: ClassDeclaration) {
-  clientClass.addMethod({
-    name: "resetDatabase",
-    scope: Scope.Public,
-    isAsync: true,
-    statements: (writer) => {
-      writer
-        .writeLine(`this._db.close();`)
-        .writeLine(`window.indexedDB.deleteDatabase("prisma-idb");`)
-        .writeLine(`await PrismaIDBClient.instance.initialize();`);
-    },
+function addResetDatabaseMethod(writer: CodeBlockWriter) {
+  writer.writeLine(`public async resetDatabase()`).block(() => {
+    writer
+      .writeLine(`this._db.close();`)
+      .writeLine(`window.indexedDB.deleteDatabase("prisma-idb");`)
+      .writeLine(`await PrismaIDBClient.instance.initialize();`);
   });
 }

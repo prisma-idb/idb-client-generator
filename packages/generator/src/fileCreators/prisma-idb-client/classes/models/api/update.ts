@@ -1,18 +1,14 @@
-import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
+import { CodeBlockWriter } from "ts-morph";
 import { Field, Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
 
-export function addUpdateMethod(modelClass: ClassDeclaration, model: Model, models: readonly Model[]) {
-  modelClass.addMethod({
-    name: "update",
-    isAsync: true,
-    typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, 'update'>` }],
-    parameters: [
-      { name: "query", type: "Q" },
-      { name: "tx", hasQuestionToken: true, type: "IDBUtils.ReadwriteTransactionType" },
-    ],
-    returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'update'>>`,
-    statements: (writer) => {
+export function addUpdateMethod(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+  writer
+    .writeLine(`async update<Q extends Prisma.Args<Prisma.${model.name}Delegate, "update">>(`)
+    .writeLine(`query: Q,`)
+    .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
+    .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "update">>`)
+    .block(() => {
       addGetRecord(writer, model);
       addStringUpdateHandling(writer, model);
       addDateTimeUpdateHandling(writer, model);
@@ -27,8 +23,7 @@ export function addUpdateMethod(modelClass: ClassDeclaration, model: Model, mode
       addRelationUpdateHandling(writer, model, models);
       addFkValidation(writer, model, models);
       addPutAndReturn(writer, model, models);
-    },
-  });
+    });
 }
 
 function addGetRecord(writer: CodeBlockWriter, model: Model) {

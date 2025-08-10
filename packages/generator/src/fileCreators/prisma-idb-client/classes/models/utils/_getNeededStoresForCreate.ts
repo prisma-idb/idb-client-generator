@@ -1,21 +1,21 @@
 import { Model } from "src/fileCreators/types";
+import { CodeBlockWriter } from "ts-morph";
 import { toCamelCase } from "../../../../../helpers/utils";
-import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
 
-export function addGetNeededStoresForCreate(modelClass: ClassDeclaration, model: Model) {
-  modelClass.addMethod({
-    name: "_getNeededStoresForCreate",
-    typeParameters: [{ name: "D", constraint: `Partial<Prisma.Args<Prisma.${model.name}Delegate, "create">['data']>` }],
-    parameters: [{ name: "data", type: "D" }],
-    returnType: "Set<StoreNames<PrismaIDBSchema>>",
-    statements: (writer) => {
+export function addGetNeededStoresForCreate(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine(
+      `_getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]>>(`,
+    )
+    .writeLine(`data: D,`)
+    .writeLine(`): Set<StoreNames<PrismaIDBSchema>>`)
+    .block(() => {
       writer
         .writeLine(`const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();`)
         .writeLine(`neededStores.add("${model.name}");`);
       processRelationsInData(writer, model);
       writer.writeLine("return neededStores;");
-    },
-  });
+    });
 }
 
 function processRelationsInData(writer: CodeBlockWriter, model: Model) {

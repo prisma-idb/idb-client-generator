@@ -1,23 +1,18 @@
 import type { Model } from "src/fileCreators/types";
-import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
+import { CodeBlockWriter } from "ts-morph";
 import { toCamelCase } from "../../../../../helpers/utils";
 
-export function addResolveOrderByKey(modelClass: ClassDeclaration, model: Model, models: readonly Model[]) {
-  modelClass.addMethod({
-    name: "_resolveOrderByKey",
-    isAsync: true,
-    parameters: [
-      { name: "record", type: `Prisma.Result<Prisma.${model.name}Delegate, object, "findFirstOrThrow">` },
-      { name: "orderByInput", type: `Prisma.${model.name}OrderByWithRelationInput` },
-      { name: "tx", type: "IDBUtils.TransactionType" },
-    ],
-    returnType: "Promise<unknown>",
-    statements: (writer) => {
+export function addResolveOrderByKey(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+  writer
+    .writeLine(`async _resolveOrderByKey(`)
+    .writeLine(`record: Prisma.Result<Prisma.${model.name}Delegate, object, "findFirstOrThrow">,`)
+    .writeLine(`orderByInput: Prisma.${model.name}OrderByWithRelationInput,`)
+    .writeLine(`tx: IDBUtils.TransactionType): Promise<unknown>`)
+    .block(() => {
       addScalarResolution(writer, model);
       addOneToOneResolution(writer, model, models);
       addOneToManyResolution(writer, model, models);
-    },
-  });
+    });
 }
 
 function addScalarResolution(writer: CodeBlockWriter, model: Model) {

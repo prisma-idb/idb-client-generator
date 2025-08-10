@@ -1,22 +1,14 @@
-import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
+import { CodeBlockWriter } from "ts-morph";
 import { Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers } from "../../../../../helpers/utils";
 
-export function addFindUniqueMethod(modelClass: ClassDeclaration, model: Model) {
-  modelClass.addMethod({
-    name: "findUnique",
-    isAsync: true,
-    typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, 'findUnique'>` }],
-    parameters: [
-      { name: "query", type: "Q" },
-      {
-        name: "tx",
-        hasQuestionToken: true,
-        type: "IDBUtils.TransactionType",
-      },
-    ],
-    returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'findUnique'>>`,
-    statements: (writer) => {
+export function addFindUniqueMethod(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine(`async findUnique<Q extends Prisma.Args<Prisma.${model.name}Delegate, "findUnique">>(`)
+    .writeLine(`query: Q,`)
+    .writeLine(`tx?: IDBUtils.TransactionType,`)
+    .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "findUnique">>`)
+    .block(() => {
       writer
         .writeLine(
           `tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`,
@@ -33,8 +25,7 @@ export function addFindUniqueMethod(modelClass: ClassDeclaration, model: Model) 
         )
         .writeLine(`this._preprocessListFields([recordWithRelations]);`)
         .writeLine(`return recordWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "findUnique">;`);
-    },
-  });
+    });
 }
 
 function getFromKeyIdentifier(writer: CodeBlockWriter, model: Model) {

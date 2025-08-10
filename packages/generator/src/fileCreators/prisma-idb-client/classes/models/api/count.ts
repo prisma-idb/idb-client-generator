@@ -1,22 +1,17 @@
+import { CodeBlockWriter } from "ts-morph";
 import { Model } from "../../../../../fileCreators/types";
-import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
 
-export function addCountMethod(modelClass: ClassDeclaration, model: Model) {
-  modelClass.addMethod({
-    name: "count",
-    isAsync: true,
-    typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, 'count'>` }],
-    parameters: [
-      { name: "query", hasQuestionToken: true, type: "Q" },
-      { name: "tx", hasQuestionToken: true, type: "IDBUtils.TransactionType" },
-    ],
-    returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'count'>>`,
-    statements: (writer) => {
+export function addCountMethod(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine(`async count<Q extends Prisma.Args<Prisma.${model.name}Delegate, "count">>(`)
+    .writeLine(`query?: Q,`)
+    .writeLine(`tx?: IDBUtils.TransactionType,`)
+    .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "count">>`)
+    .block(() => {
       writer.writeLine(`tx = tx ?? this.client._db.transaction(["${model.name}"], "readonly");`);
       handleWithoutSelect(writer, model);
       handleWithSelect(writer, model);
-    },
-  });
+    });
 }
 
 function handleWithoutSelect(writer: CodeBlockWriter, model: Model) {

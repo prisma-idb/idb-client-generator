@@ -1,21 +1,13 @@
+import { CodeBlockWriter } from "ts-morph";
 import { Model } from "../../../../../fileCreators/types";
-import { ClassDeclaration } from "ts-morph";
 
-export function addFindUniqueOrThrow(modelClass: ClassDeclaration, model: Model) {
-  modelClass.addMethod({
-    name: "findUniqueOrThrow",
-    isAsync: true,
-    typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "findUniqueOrThrow">` }],
-    parameters: [
-      { name: "query", type: "Q" },
-      {
-        name: "tx",
-        hasQuestionToken: true,
-        type: "IDBUtils.TransactionType",
-      },
-    ],
-    returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "findUniqueOrThrow">>`,
-    statements: (writer) => {
+export function addFindUniqueOrThrow(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine(`async findUniqueOrThrow<Q extends Prisma.Args<Prisma.${model.name}Delegate, "findUniqueOrThrow">>(`)
+    .writeLine(`query: Q,`)
+    .writeLine(`tx?: IDBUtils.TransactionType,`)
+    .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "findUniqueOrThrow">>`)
+    .block(() => {
       writer
         .writeLine(
           `tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`,
@@ -26,6 +18,5 @@ export function addFindUniqueOrThrow(modelClass: ClassDeclaration, model: Model)
           writer.writeLine(`tx.abort();`).writeLine(`throw new Error("Record not found");`);
         })
         .writeLine(`return record;`);
-    },
-  });
+    });
 }

@@ -1,17 +1,11 @@
 import { Model } from "src/fileCreators/types";
-import { ClassDeclaration } from "ts-morph";
+import { CodeBlockWriter } from "ts-morph";
 import { toCamelCase } from "../../../../../helpers/utils";
 
-export function addGetNeededStoresForNestedDelete(
-  modelClass: ClassDeclaration,
-  model: Model,
-  models: readonly Model[],
-) {
-  modelClass.addMethod({
-    name: "_getNeededStoresForNestedDelete",
-    parameters: [{ name: "neededStores", type: "Set<StoreNames<PrismaIDBSchema>>" }],
-    returnType: `void`,
-    statements: (writer) => {
+export function addGetNeededStoresForNestedDelete(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+  writer
+    .writeLine(`_getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void`)
+    .block(() => {
       writer.writeLine(`neededStores.add("${model.name}");`);
       const relationFields = model.fields.filter(({ kind }) => kind === "object");
       const cascadingDeletes = relationFields.filter((field) => {
@@ -21,6 +15,5 @@ export function addGetNeededStoresForNestedDelete(
       for (const field of cascadingDeletes) {
         writer.writeLine(`this.client.${toCamelCase(field.type)}._getNeededStoresForNestedDelete(neededStores);`);
       }
-    },
-  });
+    });
 }

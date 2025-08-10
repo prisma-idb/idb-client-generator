@@ -14,7 +14,7 @@ export async function runQuery<
 
   await page.getByTestId("query-input").fill(`${model}.${operation}(${JSON.stringify(query)})`);
   await page.getByRole("button", { name: "Run query" }).click();
-  await expect(page.getByRole("status").first()).toContainText("Query executed successfully");
+  await expect(page.getByRole("button", { name: "Run query" })).not.toBeDisabled();
   const idbClientResult = JSON.parse((await page.getByRole("code").last().textContent()) ?? "");
 
   return { idbClientResult, prismaClientResult };

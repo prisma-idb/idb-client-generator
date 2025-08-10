@@ -21,21 +21,22 @@
   },
   "dependencies": {
     "@prisma/generator-helper": "^6.0.0",
+    "code-block-writer": "^13.0.3",
     "prettier": "^3.3.3",
     "ts-morph": "^26.0.0"
   },
   "devDependencies": {
+    "@prisma/internals": "^6.0.0",
     "@release-it/conventional-changelog": "^10.0.0",
     "@types/node": "^24.2.1",
     "@types/prettier": "^2.7.3",
-    "@prisma/internals": "^6.0.0",
     "release-it": "^19.0.0",
     "typescript": "^5.6.3"
   },
   "peerDependencies": {
-    "prisma": "^6.x.x",
     "@prisma/client": "^6.x.x",
-    "idb": "^8.x.x"
+    "idb": "^8.x.x",
+    "prisma": "^6.x.x"
   },
   "homepage": "https://github.com/prisma-idb/idb-client-generator",
   "repository": {

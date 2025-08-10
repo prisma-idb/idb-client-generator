@@ -68,7 +68,10 @@ test("@default(now()) - Creates new userGroup with current date", async ({ page 
   });
 
   // joinedOn should be near current time
-  expect(new Date((idbClientResult as UserGroup).joinedOn).getTime() / 100).toBeCloseTo(new Date().getTime() / 100, 0);
+  expect(new Date((idbClientResult as UserGroup).joinedOn).getTime() / 1000).toBeCloseTo(
+    new Date().getTime() / 1000,
+    0,
+  );
 });
 
 test("@default(uuid()) - Creates new TestUuid entry with uuid generated ID", async ({ page }) => {

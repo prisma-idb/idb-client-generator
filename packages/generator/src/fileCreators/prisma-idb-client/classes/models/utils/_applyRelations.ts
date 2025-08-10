@@ -1,28 +1,18 @@
-import { ClassDeclaration, CodeBlockWriter, Scope } from "ts-morph";
+import { CodeBlockWriter } from "ts-morph";
 import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
 import { Field, Model } from "../../../../types";
 
-export function addApplyRelations(modelClass: ClassDeclaration, model: Model, models: readonly Model[]) {
-  modelClass.addMethod({
-    name: "_applyRelations",
-    isAsync: true,
-    scope: Scope.Private,
-    typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, 'findMany'>` }],
-    parameters: [
-      { name: "records", type: `Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>[]` },
-      {
-        name: "tx",
-        type: "IDBUtils.TransactionType",
-      },
-      { name: "query", type: "Q", hasQuestionToken: true },
-    ],
-    returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'findFirstOrThrow'>[]>`,
-    statements: (writer) => {
+export function addApplyRelations(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+  writer
+    .writeLine(`private async _applyRelations<Q extends Prisma.Args<Prisma.${model.name}Delegate, 'findMany'>>(`)
+    .writeLine(`records: Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>[],`)
+    .writeLine(`tx: IDBUtils.TransactionType,`)
+    .writeLine(`query?: Q): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'findFirstOrThrow'>[]>`)
+    .block(() => {
       addEarlyExit(writer, model);
       addRelationProcessing(writer, model, models);
       addReturn(writer, model);
-    },
-  });
+    });
 }
 
 function addEarlyExit(writer: CodeBlockWriter, model: Model) {

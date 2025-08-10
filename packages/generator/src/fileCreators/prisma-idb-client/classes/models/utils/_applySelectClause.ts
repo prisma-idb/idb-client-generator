@@ -1,21 +1,16 @@
 import { Model } from "src/fileCreators/types";
-import { ClassDeclaration, CodeBlockWriter, Scope } from "ts-morph";
+import { CodeBlockWriter } from "ts-morph";
 
-export function addApplySelectClause(modelClass: ClassDeclaration, model: Model) {
-  modelClass.addMethod({
-    name: "_applySelectClause",
-    scope: Scope.Private,
-    typeParameters: [{ name: "S", constraint: `Prisma.Args<Prisma.${model.name}Delegate, 'findMany'>['select']` }],
-    parameters: [
-      { name: "records", type: `Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>[]` },
-      { name: "selectClause", type: "S" },
-    ],
-    returnType: `Prisma.Result<Prisma.${model.name}Delegate, { select: S }, 'findFirstOrThrow'>[]`,
-    statements: (writer) => {
+export function addApplySelectClause(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine(`private _applySelectClause<S extends Prisma.Args<Prisma.${model.name}Delegate, 'findMany'>['select']>(`)
+    .writeLine(`records: Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>[],`)
+    .writeLine(`selectClause: S,`)
+    .writeLine(`): Prisma.Result<Prisma.${model.name}Delegate, { select: S }, 'findFirstOrThrow'>[]`)
+    .block(() => {
       addEarlyExit(writer, model);
       addSelectProcessing(writer, model);
-    },
-  });
+    });
 }
 
 function addEarlyExit(writer: CodeBlockWriter, model: Model) {
