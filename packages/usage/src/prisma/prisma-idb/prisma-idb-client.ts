@@ -1,20 +1,17 @@
-import { createId } from "@paralleldrive/cuid2";
-import type { Prisma } from "@prisma/client";
-import type { IDBPDatabase, StoreNames } from "idb";
-import { openDB } from "idb";
-import { v4 as uuidv4 } from "uuid";
-import type { PrismaIDBSchema } from "./idb-interface";
-import * as IDBUtils from "./idb-utils";
-
 /* eslint-disable @typescript-eslint/no-unused-vars */
+import { openDB } from "idb";
+import type { IDBPDatabase, StoreNames, IDBPTransaction } from "idb";
+import type { Prisma } from "@prisma/client";
+import * as IDBUtils from "./idb-utils";
+import type { PrismaIDBSchema } from "./idb-interface";
+import { createId } from "@paralleldrive/cuid2";
+import { v4 as uuidv4 } from "uuid";
 const IDB_VERSION = 1;
-
 export class PrismaIDBClient {
   private static instance: PrismaIDBClient;
   _db!: IDBPDatabase<PrismaIDBSchema>;
 
   private constructor() {}
-
   user!: UserIDBClass;
   group!: GroupIDBClass;
   userGroup!: UserGroupIDBClass;
@@ -27,7 +24,6 @@ export class PrismaIDBClient {
   child!: ChildIDBClass;
   modelWithEnum!: ModelWithEnumIDBClass;
   testUuid!: TestUuidIDBClass;
-
   public static async createClient(): Promise<PrismaIDBClient> {
     if (!PrismaIDBClient.instance) {
       const client = new PrismaIDBClient();
@@ -36,13 +32,11 @@ export class PrismaIDBClient {
     }
     return PrismaIDBClient.instance;
   }
-
   public async resetDatabase() {
     this._db.close();
     window.indexedDB.deleteDatabase("prisma-idb");
     await PrismaIDBClient.instance.initialize();
   }
-
   private async initialize() {
     this._db = await openDB<PrismaIDBSchema>("prisma-idb", IDB_VERSION, {
       upgrade(db) {
@@ -78,7 +72,6 @@ export class PrismaIDBClient {
     this.testUuid = new TestUuidIDBClass(this, ["id"]);
   }
 }
-
 class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
   protected client: PrismaIDBClient;
   protected keyPath: string[];
@@ -89,7 +82,6 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
     this.keyPath = keyPath;
     this.eventEmitter = new EventTarget();
   }
-
   subscribe(
     event: "create" | "update" | "delete" | ("create" | "update" | "delete")[],
     callback: (
@@ -102,7 +94,6 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
     }
     this.eventEmitter.addEventListener(event, callback);
   }
-
   unsubscribe(
     event: "create" | "update" | "delete" | ("create" | "update" | "delete")[],
     callback: (
@@ -115,7 +106,6 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
     }
     this.eventEmitter.removeEventListener(event, callback);
   }
-
   protected emit(
     event: "create" | "update" | "delete",
     keyPath: PrismaIDBSchema[T]["key"],
@@ -128,7 +118,6 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
     this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath } }));
   }
 }
-
 class UserIDBClass extends BaseIDBModelClass<"User"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.UserDelegate, "findFirstOrThrow">["where"],
@@ -327,7 +316,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       )
     ).filter((result) => result !== null);
   }
-
   private _applySelectClause<S extends Prisma.Args<Prisma.UserDelegate, "findMany">["select"]>(
     records: Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">[],
     selectClause: S,
@@ -344,7 +332,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       return partialRecord;
     }) as Prisma.Result<Prisma.UserDelegate, { select: S }, "findFirstOrThrow">[];
   }
-
   private async _applyRelations<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
     records: Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">[],
     tx: IDBUtils.TransactionType,
@@ -427,7 +414,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     });
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[];
   }
-
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.UserDelegate, "findMany">["orderBy"],
     R extends Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">,
@@ -454,7 +440,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       records[i] = indexedKeys[i].record;
     }
   }
-
   async _resolveOrderByKey(
     record: Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">,
     orderByInput: Prisma.UserOrderByWithRelationInput,
@@ -490,7 +475,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       return await this.client.userGroup.count({ where: { userId: record.id } }, tx);
     }
   }
-
   _resolveSortOrder(
     orderByInput: Prisma.UserOrderByWithRelationInput,
   ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
@@ -519,7 +503,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     }
     throw new Error("No field in orderBy clause");
   }
-
   private async _fillDefaults<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -533,7 +516,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     }
     return data;
   }
-
   _getNeededStoresForWhere<W extends Prisma.Args<Prisma.UserDelegate, "findMany">["where"]>(
     whereClause: W,
     neededStores: Set<StoreNames<PrismaIDBSchema>>,
@@ -587,7 +569,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       this.client.userGroup._getNeededStoresForWhere(whereClause.groups.none, neededStores);
     }
   }
-
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
     query?: Q,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -720,7 +701,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.UserDelegate, "create">["data"]>>(
     data: D,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -868,7 +848,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.UserDelegate, "update">>(
     query: Partial<Q>,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -1167,7 +1146,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("User");
     this.client.profile._getNeededStoresForNestedDelete(neededStores);
@@ -1178,7 +1156,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     this.client.mother._getNeededStoresForNestedDelete(neededStores);
     this.client.userGroup._getNeededStoresForNestedDelete(neededStores);
   }
-
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow"> {
@@ -1192,9 +1169,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     delete recordWithoutNestedCreate?.groups;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">;
   }
-
   private _preprocessListFields(records: Prisma.Result<Prisma.UserDelegate, object, "findMany">): void {}
-
   async findMany<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -1222,7 +1197,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.UserDelegate, Q, "findMany">;
   }
-
   async findFirst<Q extends Prisma.Args<Prisma.UserDelegate, "findFirst">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -1230,7 +1204,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, tx))[0] ?? null;
   }
-
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.UserDelegate, "findFirstOrThrow">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -1243,7 +1216,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     }
     return record;
   }
-
   async findUnique<Q extends Prisma.Args<Prisma.UserDelegate, "findUnique">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -1262,7 +1234,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     this._preprocessListFields([recordWithRelations]);
     return recordWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "findUnique">;
   }
-
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.UserDelegate, "findUniqueOrThrow">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -1275,7 +1246,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     }
     return record;
   }
-
   async count<Q extends Prisma.Args<Prisma.UserDelegate, "count">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -1296,7 +1266,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     }
     return result as Prisma.Result<Prisma.UserDelegate, Q, "count">;
   }
-
   async create<Q extends Prisma.Args<Prisma.UserDelegate, "create">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -1641,7 +1610,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "create">;
   }
-
   async createMany<Q extends Prisma.Args<Prisma.UserDelegate, "createMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -1655,7 +1623,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     }
     return { count: createManyData.length };
   }
-
   async createManyAndReturn<Q extends Prisma.Args<Prisma.UserDelegate, "createManyAndReturn">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -1672,7 +1639,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     this._preprocessListFields(records);
     return records as Prisma.Result<Prisma.UserDelegate, Q, "createManyAndReturn">;
   }
-
   async delete<Q extends Prisma.Args<Prisma.UserDelegate, "delete">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -1729,7 +1695,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     this.emit("delete", [record.id]);
     return record;
   }
-
   async deleteMany<Q extends Prisma.Args<Prisma.UserDelegate, "deleteMany">>(
     query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -1743,7 +1708,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     }
     return { count: records.length };
   }
-
   async update<Q extends Prisma.Args<Prisma.UserDelegate, "update">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -2427,7 +2391,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     ))!;
     return recordWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "update">;
   }
-
   async updateMany<Q extends Prisma.Args<Prisma.UserDelegate, "updateMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -2441,7 +2404,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     );
     return { count: records.length };
   }
-
   async upsert<Q extends Prisma.Args<Prisma.UserDelegate, "upsert">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -2460,7 +2422,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     );
     return record as Prisma.Result<Prisma.UserDelegate, Q, "upsert">;
   }
-
   async aggregate<Q extends Prisma.Args<Prisma.UserDelegate, "aggregate">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -2537,7 +2498,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     return result as unknown as Prisma.Result<Prisma.UserDelegate, Q, "aggregate">;
   }
 }
-
 class GroupIDBClass extends BaseIDBModelClass<"Group"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.GroupDelegate, "findFirstOrThrow">["where"],
@@ -2590,7 +2550,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
       )
     ).filter((result) => result !== null);
   }
-
   private _applySelectClause<S extends Prisma.Args<Prisma.GroupDelegate, "findMany">["select"]>(
     records: Prisma.Result<Prisma.GroupDelegate, object, "findFirstOrThrow">[],
     selectClause: S,
@@ -2607,7 +2566,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
       return partialRecord;
     }) as Prisma.Result<Prisma.GroupDelegate, { select: S }, "findFirstOrThrow">[];
   }
-
   private async _applyRelations<Q extends Prisma.Args<Prisma.GroupDelegate, "findMany">>(
     records: Prisma.Result<Prisma.GroupDelegate, object, "findFirstOrThrow">[],
     tx: IDBUtils.TransactionType,
@@ -2630,7 +2588,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     });
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.GroupDelegate, Q, "findFirstOrThrow">[];
   }
-
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.GroupDelegate, "findMany">["orderBy"],
     R extends Prisma.Result<Prisma.GroupDelegate, object, "findFirstOrThrow">,
@@ -2657,7 +2614,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
       records[i] = indexedKeys[i].record;
     }
   }
-
   async _resolveOrderByKey(
     record: Prisma.Result<Prisma.GroupDelegate, object, "findFirstOrThrow">,
     orderByInput: Prisma.GroupOrderByWithRelationInput,
@@ -2669,7 +2625,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
       return await this.client.userGroup.count({ where: { groupId: record.id } }, tx);
     }
   }
-
   _resolveSortOrder(
     orderByInput: Prisma.GroupOrderByWithRelationInput,
   ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
@@ -2680,7 +2635,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     }
     throw new Error("No field in orderBy clause");
   }
-
   private async _fillDefaults<D extends Prisma.Args<Prisma.GroupDelegate, "create">["data"]>(
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -2694,7 +2648,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     }
     return data;
   }
-
   _getNeededStoresForWhere<W extends Prisma.Args<Prisma.GroupDelegate, "findMany">["where"]>(
     whereClause: W,
     neededStores: Set<StoreNames<PrismaIDBSchema>>,
@@ -2714,7 +2667,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
       this.client.userGroup._getNeededStoresForWhere(whereClause.userGroups.none, neededStores);
     }
   }
-
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.GroupDelegate, "findMany">>(
     query?: Q,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -2743,7 +2695,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.GroupDelegate, "create">["data"]>>(
     data: D,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -2772,7 +2723,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.GroupDelegate, "update">>(
     query: Partial<Q>,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -2825,12 +2775,10 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("Group");
     this.client.userGroup._getNeededStoresForNestedDelete(neededStores);
   }
-
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.GroupDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.GroupDelegate, object, "findFirstOrThrow"> {
@@ -2838,9 +2786,7 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     delete recordWithoutNestedCreate?.userGroups;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.GroupDelegate, object, "findFirstOrThrow">;
   }
-
   private _preprocessListFields(records: Prisma.Result<Prisma.GroupDelegate, object, "findMany">): void {}
-
   async findMany<Q extends Prisma.Args<Prisma.GroupDelegate, "findMany">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -2868,7 +2814,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.GroupDelegate, Q, "findMany">;
   }
-
   async findFirst<Q extends Prisma.Args<Prisma.GroupDelegate, "findFirst">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -2876,7 +2821,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, tx))[0] ?? null;
   }
-
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.GroupDelegate, "findFirstOrThrow">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -2889,7 +2833,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     }
     return record;
   }
-
   async findUnique<Q extends Prisma.Args<Prisma.GroupDelegate, "findUnique">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -2908,7 +2851,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     this._preprocessListFields([recordWithRelations]);
     return recordWithRelations as Prisma.Result<Prisma.GroupDelegate, Q, "findUnique">;
   }
-
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.GroupDelegate, "findUniqueOrThrow">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -2921,7 +2863,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     }
     return record;
   }
-
   async count<Q extends Prisma.Args<Prisma.GroupDelegate, "count">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -2942,7 +2883,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     }
     return result as Prisma.Result<Prisma.GroupDelegate, Q, "count">;
   }
-
   async create<Q extends Prisma.Args<Prisma.GroupDelegate, "create">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -3011,7 +2951,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.GroupDelegate, Q, "create">;
   }
-
   async createMany<Q extends Prisma.Args<Prisma.GroupDelegate, "createMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -3025,7 +2964,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     }
     return { count: createManyData.length };
   }
-
   async createManyAndReturn<Q extends Prisma.Args<Prisma.GroupDelegate, "createManyAndReturn">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -3042,7 +2980,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     this._preprocessListFields(records);
     return records as Prisma.Result<Prisma.GroupDelegate, Q, "createManyAndReturn">;
   }
-
   async delete<Q extends Prisma.Args<Prisma.GroupDelegate, "delete">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -3058,7 +2995,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     this.emit("delete", [record.id]);
     return record;
   }
-
   async deleteMany<Q extends Prisma.Args<Prisma.GroupDelegate, "deleteMany">>(
     query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -3072,7 +3008,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     }
     return { count: records.length };
   }
-
   async update<Q extends Prisma.Args<Prisma.GroupDelegate, "update">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -3210,7 +3145,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     ))!;
     return recordWithRelations as Prisma.Result<Prisma.GroupDelegate, Q, "update">;
   }
-
   async updateMany<Q extends Prisma.Args<Prisma.GroupDelegate, "updateMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -3224,7 +3158,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     );
     return { count: records.length };
   }
-
   async upsert<Q extends Prisma.Args<Prisma.GroupDelegate, "upsert">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -3243,7 +3176,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     );
     return record as Prisma.Result<Prisma.GroupDelegate, Q, "upsert">;
   }
-
   async aggregate<Q extends Prisma.Args<Prisma.GroupDelegate, "aggregate">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -3320,7 +3252,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     return result as unknown as Prisma.Result<Prisma.GroupDelegate, Q, "aggregate">;
   }
 }
-
 class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.UserGroupDelegate, "findFirstOrThrow">["where"],
@@ -3386,7 +3317,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
       )
     ).filter((result) => result !== null);
   }
-
   private _applySelectClause<S extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">["select"]>(
     records: Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">[],
     selectClause: S,
@@ -3403,7 +3333,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
       return partialRecord;
     }) as Prisma.Result<Prisma.UserGroupDelegate, { select: S }, "findFirstOrThrow">[];
   }
-
   private async _applyRelations<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">>(
     records: Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">[],
     tx: IDBUtils.TransactionType,
@@ -3440,7 +3369,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
       "findFirstOrThrow"
     >[];
   }
-
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">["orderBy"],
     R extends Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">,
@@ -3467,7 +3395,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
       records[i] = indexedKeys[i].record;
     }
   }
-
   async _resolveOrderByKey(
     record: Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">,
     orderByInput: Prisma.UserGroupOrderByWithRelationInput,
@@ -3490,7 +3417,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
       );
     }
   }
-
   _resolveSortOrder(
     orderByInput: Prisma.UserGroupOrderByWithRelationInput,
   ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
@@ -3504,7 +3430,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     }
     throw new Error("No field in orderBy clause");
   }
-
   private async _fillDefaults<D extends Prisma.Args<Prisma.UserGroupDelegate, "create">["data"]>(
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -3518,7 +3443,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     }
     return data;
   }
-
   _getNeededStoresForWhere<W extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">["where"]>(
     whereClause: W,
     neededStores: Set<StoreNames<PrismaIDBSchema>>,
@@ -3540,7 +3464,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
       this.client.user._getNeededStoresForWhere(whereClause.user, neededStores);
     }
   }
-
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">>(
     query?: Q,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -3588,7 +3511,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.UserGroupDelegate, "create">["data"]>>(
     data: D,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -3632,7 +3554,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.UserGroupDelegate, "update">>(
     query: Partial<Q>,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -3689,11 +3610,9 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("UserGroup");
   }
-
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.UserGroupDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow"> {
@@ -3702,9 +3621,7 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     delete recordWithoutNestedCreate?.user;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">;
   }
-
   private _preprocessListFields(records: Prisma.Result<Prisma.UserGroupDelegate, object, "findMany">): void {}
-
   async findMany<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -3732,7 +3649,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.UserGroupDelegate, Q, "findMany">;
   }
-
   async findFirst<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findFirst">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -3740,7 +3656,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, tx))[0] ?? null;
   }
-
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findFirstOrThrow">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -3753,7 +3668,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     }
     return record;
   }
-
   async findUnique<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findUnique">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -3774,7 +3688,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     this._preprocessListFields([recordWithRelations]);
     return recordWithRelations as Prisma.Result<Prisma.UserGroupDelegate, Q, "findUnique">;
   }
-
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findUniqueOrThrow">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -3787,7 +3700,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     }
     return record;
   }
-
   async count<Q extends Prisma.Args<Prisma.UserGroupDelegate, "count">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -3808,7 +3720,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     }
     return result as Prisma.Result<Prisma.UserGroupDelegate, Q, "count">;
   }
-
   async create<Q extends Prisma.Args<Prisma.UserGroupDelegate, "create">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -3892,7 +3803,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.UserGroupDelegate, Q, "create">;
   }
-
   async createMany<Q extends Prisma.Args<Prisma.UserGroupDelegate, "createMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -3906,7 +3816,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     }
     return { count: createManyData.length };
   }
-
   async createManyAndReturn<Q extends Prisma.Args<Prisma.UserGroupDelegate, "createManyAndReturn">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -3923,7 +3832,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     this._preprocessListFields(records);
     return records as Prisma.Result<Prisma.UserGroupDelegate, Q, "createManyAndReturn">;
   }
-
   async delete<Q extends Prisma.Args<Prisma.UserGroupDelegate, "delete">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -3937,7 +3845,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     this.emit("delete", [record.groupId, record.userId]);
     return record;
   }
-
   async deleteMany<Q extends Prisma.Args<Prisma.UserGroupDelegate, "deleteMany">>(
     query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -3951,7 +3858,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     }
     return { count: records.length };
   }
-
   async update<Q extends Prisma.Args<Prisma.UserGroupDelegate, "update">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -4096,7 +4002,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     ))!;
     return recordWithRelations as Prisma.Result<Prisma.UserGroupDelegate, Q, "update">;
   }
-
   async updateMany<Q extends Prisma.Args<Prisma.UserGroupDelegate, "updateMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -4113,7 +4018,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     );
     return { count: records.length };
   }
-
   async upsert<Q extends Prisma.Args<Prisma.UserGroupDelegate, "upsert">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -4136,7 +4040,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     );
     return record as Prisma.Result<Prisma.UserGroupDelegate, Q, "upsert">;
   }
-
   async aggregate<Q extends Prisma.Args<Prisma.UserGroupDelegate, "aggregate">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -4213,7 +4116,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     return result as unknown as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">;
   }
 }
-
 class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.ProfileDelegate, "findFirstOrThrow">["where"],
@@ -4261,7 +4163,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
       )
     ).filter((result) => result !== null);
   }
-
   private _applySelectClause<S extends Prisma.Args<Prisma.ProfileDelegate, "findMany">["select"]>(
     records: Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">[],
     selectClause: S,
@@ -4278,7 +4179,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
       return partialRecord;
     }) as Prisma.Result<Prisma.ProfileDelegate, { select: S }, "findFirstOrThrow">[];
   }
-
   private async _applyRelations<Q extends Prisma.Args<Prisma.ProfileDelegate, "findMany">>(
     records: Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">[],
     tx: IDBUtils.TransactionType,
@@ -4301,7 +4201,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     });
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">[];
   }
-
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.ProfileDelegate, "findMany">["orderBy"],
     R extends Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">,
@@ -4328,7 +4227,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
       records[i] = indexedKeys[i].record;
     }
   }
-
   async _resolveOrderByKey(
     record: Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">,
     orderByInput: Prisma.ProfileOrderByWithRelationInput,
@@ -4344,7 +4242,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
       );
     }
   }
-
   _resolveSortOrder(
     orderByInput: Prisma.ProfileOrderByWithRelationInput,
   ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
@@ -4355,7 +4252,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     }
     throw new Error("No field in orderBy clause");
   }
-
   private async _fillDefaults<D extends Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>(
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -4372,7 +4268,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     }
     return data;
   }
-
   _getNeededStoresForWhere<W extends Prisma.Args<Prisma.ProfileDelegate, "findMany">["where"]>(
     whereClause: W,
     neededStores: Set<StoreNames<PrismaIDBSchema>>,
@@ -4390,7 +4285,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
       this.client.user._getNeededStoresForWhere(whereClause.user, neededStores);
     }
   }
-
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.ProfileDelegate, "findMany">>(
     query?: Q,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -4419,7 +4313,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>>(
     data: D,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -4444,7 +4337,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.ProfileDelegate, "update">>(
     query: Partial<Q>,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -4477,11 +4369,9 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("Profile");
   }
-
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow"> {
@@ -4489,9 +4379,7 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     delete recordWithoutNestedCreate?.user;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">;
   }
-
   private _preprocessListFields(records: Prisma.Result<Prisma.ProfileDelegate, object, "findMany">): void {}
-
   async findMany<Q extends Prisma.Args<Prisma.ProfileDelegate, "findMany">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -4519,7 +4407,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.ProfileDelegate, Q, "findMany">;
   }
-
   async findFirst<Q extends Prisma.Args<Prisma.ProfileDelegate, "findFirst">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -4527,7 +4414,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, tx))[0] ?? null;
   }
-
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.ProfileDelegate, "findFirstOrThrow">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -4540,7 +4426,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     }
     return record;
   }
-
   async findUnique<Q extends Prisma.Args<Prisma.ProfileDelegate, "findUnique">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -4561,7 +4446,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     this._preprocessListFields([recordWithRelations]);
     return recordWithRelations as Prisma.Result<Prisma.ProfileDelegate, Q, "findUnique">;
   }
-
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.ProfileDelegate, "findUniqueOrThrow">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -4574,7 +4458,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     }
     return record;
   }
-
   async count<Q extends Prisma.Args<Prisma.ProfileDelegate, "count">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -4595,7 +4478,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     }
     return result as Prisma.Result<Prisma.ProfileDelegate, Q, "count">;
   }
-
   async create<Q extends Prisma.Args<Prisma.ProfileDelegate, "create">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -4646,7 +4528,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.ProfileDelegate, Q, "create">;
   }
-
   async createMany<Q extends Prisma.Args<Prisma.ProfileDelegate, "createMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -4660,7 +4541,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     }
     return { count: createManyData.length };
   }
-
   async createManyAndReturn<Q extends Prisma.Args<Prisma.ProfileDelegate, "createManyAndReturn">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -4677,7 +4557,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     this._preprocessListFields(records);
     return records as Prisma.Result<Prisma.ProfileDelegate, Q, "createManyAndReturn">;
   }
-
   async delete<Q extends Prisma.Args<Prisma.ProfileDelegate, "delete">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -4691,7 +4570,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     this.emit("delete", [record.id]);
     return record;
   }
-
   async deleteMany<Q extends Prisma.Args<Prisma.ProfileDelegate, "deleteMany">>(
     query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -4705,7 +4583,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     }
     return { count: records.length };
   }
-
   async update<Q extends Prisma.Args<Prisma.ProfileDelegate, "update">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -4800,7 +4677,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     ))!;
     return recordWithRelations as Prisma.Result<Prisma.ProfileDelegate, Q, "update">;
   }
-
   async updateMany<Q extends Prisma.Args<Prisma.ProfileDelegate, "updateMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -4814,7 +4690,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     );
     return { count: records.length };
   }
-
   async upsert<Q extends Prisma.Args<Prisma.ProfileDelegate, "upsert">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -4833,7 +4708,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     );
     return record as Prisma.Result<Prisma.ProfileDelegate, Q, "upsert">;
   }
-
   async aggregate<Q extends Prisma.Args<Prisma.ProfileDelegate, "aggregate">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -4910,7 +4784,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     return result as unknown as Prisma.Result<Prisma.ProfileDelegate, Q, "aggregate">;
   }
 }
-
 class PostIDBClass extends BaseIDBModelClass<"Post"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.PostDelegate, "findFirstOrThrow">["where"],
@@ -5001,7 +4874,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
       )
     ).filter((result) => result !== null);
   }
-
   private _applySelectClause<S extends Prisma.Args<Prisma.PostDelegate, "findMany">["select"]>(
     records: Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">[],
     selectClause: S,
@@ -5018,7 +4890,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
       return partialRecord;
     }) as Prisma.Result<Prisma.PostDelegate, { select: S }, "findFirstOrThrow">[];
   }
-
   private async _applyRelations<Q extends Prisma.Args<Prisma.PostDelegate, "findMany">>(
     records: Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">[],
     tx: IDBUtils.TransactionType,
@@ -5054,7 +4925,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     });
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.PostDelegate, Q, "findFirstOrThrow">[];
   }
-
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.PostDelegate, "findMany">["orderBy"],
     R extends Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">,
@@ -5081,7 +4951,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
       records[i] = indexedKeys[i].record;
     }
   }
-
   async _resolveOrderByKey(
     record: Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">,
     orderByInput: Prisma.PostOrderByWithRelationInput,
@@ -5102,7 +4971,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
       return await this.client.comment.count({ where: { postId: record.id } }, tx);
     }
   }
-
   _resolveSortOrder(
     orderByInput: Prisma.PostOrderByWithRelationInput,
   ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
@@ -5116,7 +4984,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     }
     throw new Error("No field in orderBy clause");
   }
-
   private async _fillDefaults<D extends Prisma.Args<Prisma.PostDelegate, "create">["data"]>(
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -5142,7 +5009,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     }
     return data;
   }
-
   _getNeededStoresForWhere<W extends Prisma.Args<Prisma.PostDelegate, "findMany">["where"]>(
     whereClause: W,
     neededStores: Set<StoreNames<PrismaIDBSchema>>,
@@ -5166,7 +5032,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
       this.client.comment._getNeededStoresForWhere(whereClause.comments.none, neededStores);
     }
   }
-
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.PostDelegate, "findMany">>(
     query?: Q,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -5214,7 +5079,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.PostDelegate, "create">["data"]>>(
     data: D,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -5260,7 +5124,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.PostDelegate, "update">>(
     query: Partial<Q>,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -5348,12 +5211,10 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("Post");
     this.client.comment._getNeededStoresForNestedDelete(neededStores);
   }
-
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.PostDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow"> {
@@ -5362,14 +5223,12 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     delete recordWithoutNestedCreate?.comments;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">;
   }
-
   private _preprocessListFields(records: Prisma.Result<Prisma.PostDelegate, object, "findMany">): void {
     for (const record of records) {
       record.tags = record.tags ?? [];
       record.numberArr = record.numberArr ?? [];
     }
   }
-
   async findMany<Q extends Prisma.Args<Prisma.PostDelegate, "findMany">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -5397,7 +5256,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.PostDelegate, Q, "findMany">;
   }
-
   async findFirst<Q extends Prisma.Args<Prisma.PostDelegate, "findFirst">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -5405,7 +5263,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, tx))[0] ?? null;
   }
-
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.PostDelegate, "findFirstOrThrow">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -5418,7 +5275,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     }
     return record;
   }
-
   async findUnique<Q extends Prisma.Args<Prisma.PostDelegate, "findUnique">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -5437,7 +5293,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     this._preprocessListFields([recordWithRelations]);
     return recordWithRelations as Prisma.Result<Prisma.PostDelegate, Q, "findUnique">;
   }
-
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.PostDelegate, "findUniqueOrThrow">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -5450,7 +5305,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     }
     return record;
   }
-
   async count<Q extends Prisma.Args<Prisma.PostDelegate, "count">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -5471,7 +5325,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     }
     return result as Prisma.Result<Prisma.PostDelegate, Q, "count">;
   }
-
   async create<Q extends Prisma.Args<Prisma.PostDelegate, "create">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -5573,7 +5426,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.PostDelegate, Q, "create">;
   }
-
   async createMany<Q extends Prisma.Args<Prisma.PostDelegate, "createMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -5587,7 +5439,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     }
     return { count: createManyData.length };
   }
-
   async createManyAndReturn<Q extends Prisma.Args<Prisma.PostDelegate, "createManyAndReturn">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -5604,7 +5455,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     this._preprocessListFields(records);
     return records as Prisma.Result<Prisma.PostDelegate, Q, "createManyAndReturn">;
   }
-
   async delete<Q extends Prisma.Args<Prisma.PostDelegate, "delete">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -5624,7 +5474,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     this.emit("delete", [record.id]);
     return record;
   }
-
   async deleteMany<Q extends Prisma.Args<Prisma.PostDelegate, "deleteMany">>(
     query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -5638,7 +5487,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     }
     return { count: records.length };
   }
-
   async update<Q extends Prisma.Args<Prisma.PostDelegate, "update">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -5838,7 +5686,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     ))!;
     return recordWithRelations as Prisma.Result<Prisma.PostDelegate, Q, "update">;
   }
-
   async updateMany<Q extends Prisma.Args<Prisma.PostDelegate, "updateMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -5852,7 +5699,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     );
     return { count: records.length };
   }
-
   async upsert<Q extends Prisma.Args<Prisma.PostDelegate, "upsert">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -5871,7 +5717,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     );
     return record as Prisma.Result<Prisma.PostDelegate, Q, "upsert">;
   }
-
   async aggregate<Q extends Prisma.Args<Prisma.PostDelegate, "aggregate">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -5948,7 +5793,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     return result as unknown as Prisma.Result<Prisma.PostDelegate, Q, "aggregate">;
   }
 }
-
 class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.CommentDelegate, "findFirstOrThrow">["where"],
@@ -6014,7 +5858,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
       )
     ).filter((result) => result !== null);
   }
-
   private _applySelectClause<S extends Prisma.Args<Prisma.CommentDelegate, "findMany">["select"]>(
     records: Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">[],
     selectClause: S,
@@ -6031,7 +5874,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
       return partialRecord;
     }) as Prisma.Result<Prisma.CommentDelegate, { select: S }, "findFirstOrThrow">[];
   }
-
   private async _applyRelations<Q extends Prisma.Args<Prisma.CommentDelegate, "findMany">>(
     records: Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">[],
     tx: IDBUtils.TransactionType,
@@ -6064,7 +5906,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     });
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">[];
   }
-
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.CommentDelegate, "findMany">["orderBy"],
     R extends Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">,
@@ -6091,7 +5932,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
       records[i] = indexedKeys[i].record;
     }
   }
-
   async _resolveOrderByKey(
     record: Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">,
     orderByInput: Prisma.CommentOrderByWithRelationInput,
@@ -6114,7 +5954,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
       );
     }
   }
-
   _resolveSortOrder(
     orderByInput: Prisma.CommentOrderByWithRelationInput,
   ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
@@ -6128,7 +5967,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     }
     throw new Error("No field in orderBy clause");
   }
-
   private async _fillDefaults<D extends Prisma.Args<Prisma.CommentDelegate, "create">["data"]>(
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -6142,7 +5980,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     }
     return data;
   }
-
   _getNeededStoresForWhere<W extends Prisma.Args<Prisma.CommentDelegate, "findMany">["where"]>(
     whereClause: W,
     neededStores: Set<StoreNames<PrismaIDBSchema>>,
@@ -6164,7 +6001,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
       this.client.user._getNeededStoresForWhere(whereClause.user, neededStores);
     }
   }
-
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.CommentDelegate, "findMany">>(
     query?: Q,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -6210,7 +6046,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.CommentDelegate, "create">["data"]>>(
     data: D,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -6252,7 +6087,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.CommentDelegate, "update">>(
     query: Partial<Q>,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -6309,11 +6143,9 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("Comment");
   }
-
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.CommentDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow"> {
@@ -6322,9 +6154,7 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     delete recordWithoutNestedCreate?.user;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">;
   }
-
   private _preprocessListFields(records: Prisma.Result<Prisma.CommentDelegate, object, "findMany">): void {}
-
   async findMany<Q extends Prisma.Args<Prisma.CommentDelegate, "findMany">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -6352,7 +6182,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.CommentDelegate, Q, "findMany">;
   }
-
   async findFirst<Q extends Prisma.Args<Prisma.CommentDelegate, "findFirst">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -6360,7 +6189,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, tx))[0] ?? null;
   }
-
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.CommentDelegate, "findFirstOrThrow">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -6373,7 +6201,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     }
     return record;
   }
-
   async findUnique<Q extends Prisma.Args<Prisma.CommentDelegate, "findUnique">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -6392,7 +6219,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     this._preprocessListFields([recordWithRelations]);
     return recordWithRelations as Prisma.Result<Prisma.CommentDelegate, Q, "findUnique">;
   }
-
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.CommentDelegate, "findUniqueOrThrow">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -6405,7 +6231,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     }
     return record;
   }
-
   async count<Q extends Prisma.Args<Prisma.CommentDelegate, "count">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -6426,7 +6251,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     }
     return result as Prisma.Result<Prisma.CommentDelegate, Q, "count">;
   }
-
   async create<Q extends Prisma.Args<Prisma.CommentDelegate, "create">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -6510,7 +6334,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.CommentDelegate, Q, "create">;
   }
-
   async createMany<Q extends Prisma.Args<Prisma.CommentDelegate, "createMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -6524,7 +6347,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     }
     return { count: createManyData.length };
   }
-
   async createManyAndReturn<Q extends Prisma.Args<Prisma.CommentDelegate, "createManyAndReturn">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -6541,7 +6363,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     this._preprocessListFields(records);
     return records as Prisma.Result<Prisma.CommentDelegate, Q, "createManyAndReturn">;
   }
-
   async delete<Q extends Prisma.Args<Prisma.CommentDelegate, "delete">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -6555,7 +6376,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     this.emit("delete", [record.id]);
     return record;
   }
-
   async deleteMany<Q extends Prisma.Args<Prisma.CommentDelegate, "deleteMany">>(
     query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -6569,7 +6389,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     }
     return { count: records.length };
   }
-
   async update<Q extends Prisma.Args<Prisma.CommentDelegate, "update">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -6714,7 +6533,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     ))!;
     return recordWithRelations as Prisma.Result<Prisma.CommentDelegate, Q, "update">;
   }
-
   async updateMany<Q extends Prisma.Args<Prisma.CommentDelegate, "updateMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -6728,7 +6546,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     );
     return { count: records.length };
   }
-
   async upsert<Q extends Prisma.Args<Prisma.CommentDelegate, "upsert">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -6747,7 +6564,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     );
     return record as Prisma.Result<Prisma.CommentDelegate, Q, "upsert">;
   }
-
   async aggregate<Q extends Prisma.Args<Prisma.CommentDelegate, "aggregate">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -6824,7 +6640,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     return result as unknown as Prisma.Result<Prisma.CommentDelegate, Q, "aggregate">;
   }
 }
-
 class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findFirstOrThrow">["where"],
@@ -6882,7 +6697,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
       )
     ).filter((result) => result !== null);
   }
-
   private _applySelectClause<S extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">["select"]>(
     records: Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">[],
     selectClause: S,
@@ -6916,7 +6730,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
       return partialRecord;
     }) as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, { select: S }, "findFirstOrThrow">[];
   }
-
   private async _applyRelations<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">>(
     records: Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">[],
     tx: IDBUtils.TransactionType,
@@ -6933,7 +6746,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
       "findFirstOrThrow"
     >[];
   }
-
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">["orderBy"],
     R extends Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">,
@@ -6960,7 +6772,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
       records[i] = indexedKeys[i].record;
     }
   }
-
   async _resolveOrderByKey(
     record: Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">,
     orderByInput: Prisma.AllFieldScalarTypesOrderByWithRelationInput,
@@ -6986,7 +6797,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     ] as const;
     for (const field of scalarFields) if (orderByInput[field]) return record[field];
   }
-
   _resolveSortOrder(
     orderByInput: Prisma.AllFieldScalarTypesOrderByWithRelationInput,
   ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
@@ -7011,7 +6821,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
     throw new Error("No field in orderBy clause");
   }
-
   private async _fillDefaults<D extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">["data"]>(
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -7060,7 +6869,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     }
     return data;
   }
-
   _getNeededStoresForWhere<W extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">["where"]>(
     whereClause: W,
     neededStores: Set<StoreNames<PrismaIDBSchema>>,
@@ -7074,7 +6882,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
       }
     }
   }
-
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">>(
     query?: Q,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -7086,7 +6893,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     }
     return neededStores;
   }
-
   _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">["data"]>>(
     data: D,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -7094,7 +6900,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     neededStores.add("AllFieldScalarTypes");
     return neededStores;
   }
-
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "update">>(
     query: Partial<Q>,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -7103,18 +6908,15 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     );
     return neededStores;
   }
-
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("AllFieldScalarTypes");
   }
-
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow"> {
     const recordWithoutNestedCreate = structuredClone(data);
     return recordWithoutNestedCreate as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">;
   }
-
   private _preprocessListFields(records: Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findMany">): void {
     for (const record of records) {
       record.booleans = record.booleans ?? [];
@@ -7126,7 +6928,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
       record.manyBytes = record.manyBytes ?? [];
     }
   }
-
   async findMany<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -7158,7 +6959,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findMany">;
   }
-
   async findFirst<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findFirst">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -7166,7 +6966,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, tx))[0] ?? null;
   }
-
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findFirstOrThrow">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -7179,7 +6978,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     }
     return record;
   }
-
   async findUnique<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findUnique">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -7198,7 +6996,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     this._preprocessListFields([recordWithRelations]);
     return recordWithRelations as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findUnique">;
   }
-
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findUniqueOrThrow">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -7211,7 +7008,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     }
     return record;
   }
-
   async count<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "count">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -7232,7 +7028,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     }
     return result as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "count">;
   }
-
   async create<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -7250,7 +7045,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "create">;
   }
-
   async createMany<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "createMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -7264,7 +7058,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     }
     return { count: createManyData.length };
   }
-
   async createManyAndReturn<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "createManyAndReturn">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -7281,7 +7074,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     this._preprocessListFields(records);
     return records as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "createManyAndReturn">;
   }
-
   async delete<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "delete">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -7295,7 +7087,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     this.emit("delete", [record.id]);
     return record;
   }
-
   async deleteMany<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "deleteMany">>(
     query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -7309,7 +7100,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     }
     return { count: records.length };
   }
-
   async update<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "update">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -7378,7 +7168,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     ))!;
     return recordWithRelations as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "update">;
   }
-
   async updateMany<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "updateMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -7392,7 +7181,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     );
     return { count: records.length };
   }
-
   async upsert<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "upsert">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -7408,7 +7196,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select }, tx);
     return record as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "upsert">;
   }
-
   async aggregate<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "aggregate">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -7510,7 +7297,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     return result as unknown as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "aggregate">;
   }
 }
-
 class FatherIDBClass extends BaseIDBModelClass<"Father"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.FatherDelegate, "findFirstOrThrow">["where"],
@@ -7629,7 +7415,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
       )
     ).filter((result) => result !== null);
   }
-
   private _applySelectClause<S extends Prisma.Args<Prisma.FatherDelegate, "findMany">["select"]>(
     records: Prisma.Result<Prisma.FatherDelegate, object, "findFirstOrThrow">[],
     selectClause: S,
@@ -7655,7 +7440,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
       return partialRecord;
     }) as Prisma.Result<Prisma.FatherDelegate, { select: S }, "findFirstOrThrow">[];
   }
-
   private async _applyRelations<Q extends Prisma.Args<Prisma.FatherDelegate, "findMany">>(
     records: Prisma.Result<Prisma.FatherDelegate, object, "findFirstOrThrow">[],
     tx: IDBUtils.TransactionType,
@@ -7701,7 +7485,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     });
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.FatherDelegate, Q, "findFirstOrThrow">[];
   }
-
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.FatherDelegate, "findMany">["orderBy"],
     R extends Prisma.Result<Prisma.FatherDelegate, object, "findFirstOrThrow">,
@@ -7728,7 +7511,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
       records[i] = indexedKeys[i].record;
     }
   }
-
   async _resolveOrderByKey(
     record: Prisma.Result<Prisma.FatherDelegate, object, "findFirstOrThrow">,
     orderByInput: Prisma.FatherOrderByWithRelationInput,
@@ -7759,7 +7541,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
       );
     }
   }
-
   _resolveSortOrder(
     orderByInput: Prisma.FatherOrderByWithRelationInput,
   ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
@@ -7776,7 +7557,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     }
     throw new Error("No field in orderBy clause");
   }
-
   private async _fillDefaults<D extends Prisma.Args<Prisma.FatherDelegate, "create">["data"]>(
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -7787,7 +7567,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     }
     return data;
   }
-
   _getNeededStoresForWhere<W extends Prisma.Args<Prisma.FatherDelegate, "findMany">["where"]>(
     whereClause: W,
     neededStores: Set<StoreNames<PrismaIDBSchema>>,
@@ -7815,7 +7594,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
       this.client.user._getNeededStoresForWhere(whereClause.user, neededStores);
     }
   }
-
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.FatherDelegate, "findMany">>(
     query?: Q,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -7880,7 +7658,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.FatherDelegate, "create">["data"]>>(
     data: D,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -7945,7 +7722,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.FatherDelegate, "update">>(
     query: Partial<Q>,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -8057,12 +7833,10 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("Father");
     this.client.child._getNeededStoresForNestedDelete(neededStores);
   }
-
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.FatherDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.FatherDelegate, object, "findFirstOrThrow"> {
@@ -8072,9 +7846,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     delete recordWithoutNestedCreate?.user;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.FatherDelegate, object, "findFirstOrThrow">;
   }
-
   private _preprocessListFields(records: Prisma.Result<Prisma.FatherDelegate, object, "findMany">): void {}
-
   async findMany<Q extends Prisma.Args<Prisma.FatherDelegate, "findMany">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -8102,7 +7874,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.FatherDelegate, Q, "findMany">;
   }
-
   async findFirst<Q extends Prisma.Args<Prisma.FatherDelegate, "findFirst">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -8110,7 +7881,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, tx))[0] ?? null;
   }
-
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.FatherDelegate, "findFirstOrThrow">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -8123,7 +7893,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     }
     return record;
   }
-
   async findUnique<Q extends Prisma.Args<Prisma.FatherDelegate, "findUnique">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -8152,7 +7921,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     this._preprocessListFields([recordWithRelations]);
     return recordWithRelations as Prisma.Result<Prisma.FatherDelegate, Q, "findUnique">;
   }
-
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.FatherDelegate, "findUniqueOrThrow">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -8165,7 +7933,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     }
     return record;
   }
-
   async count<Q extends Prisma.Args<Prisma.FatherDelegate, "count">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -8186,7 +7953,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     }
     return result as Prisma.Result<Prisma.FatherDelegate, Q, "count">;
   }
-
   async create<Q extends Prisma.Args<Prisma.FatherDelegate, "create">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -8330,7 +8096,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.FatherDelegate, Q, "create">;
   }
-
   async createMany<Q extends Prisma.Args<Prisma.FatherDelegate, "createMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -8344,7 +8109,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     }
     return { count: createManyData.length };
   }
-
   async createManyAndReturn<Q extends Prisma.Args<Prisma.FatherDelegate, "createManyAndReturn">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -8361,7 +8125,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     this._preprocessListFields(records);
     return records as Prisma.Result<Prisma.FatherDelegate, Q, "createManyAndReturn">;
   }
-
   async delete<Q extends Prisma.Args<Prisma.FatherDelegate, "delete">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -8380,7 +8143,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     this.emit("delete", [record.firstName, record.lastName]);
     return record;
   }
-
   async deleteMany<Q extends Prisma.Args<Prisma.FatherDelegate, "deleteMany">>(
     query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -8397,7 +8159,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     }
     return { count: records.length };
   }
-
   async update<Q extends Prisma.Args<Prisma.FatherDelegate, "update">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -8683,7 +8444,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     ))!;
     return recordWithRelations as Prisma.Result<Prisma.FatherDelegate, Q, "update">;
   }
-
   async updateMany<Q extends Prisma.Args<Prisma.FatherDelegate, "updateMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -8703,7 +8463,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     );
     return { count: records.length };
   }
-
   async upsert<Q extends Prisma.Args<Prisma.FatherDelegate, "upsert">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -8726,7 +8485,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     );
     return record as Prisma.Result<Prisma.FatherDelegate, Q, "upsert">;
   }
-
   async aggregate<Q extends Prisma.Args<Prisma.FatherDelegate, "aggregate">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -8803,7 +8561,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     return result as unknown as Prisma.Result<Prisma.FatherDelegate, Q, "aggregate">;
   }
 }
-
 class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.MotherDelegate, "findFirstOrThrow">["where"],
@@ -8946,7 +8703,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
       )
     ).filter((result) => result !== null);
   }
-
   private _applySelectClause<S extends Prisma.Args<Prisma.MotherDelegate, "findMany">["select"]>(
     records: Prisma.Result<Prisma.MotherDelegate, object, "findFirstOrThrow">[],
     selectClause: S,
@@ -8963,7 +8719,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
       return partialRecord;
     }) as Prisma.Result<Prisma.MotherDelegate, { select: S }, "findFirstOrThrow">[];
   }
-
   private async _applyRelations<Q extends Prisma.Args<Prisma.MotherDelegate, "findMany">>(
     records: Prisma.Result<Prisma.MotherDelegate, object, "findFirstOrThrow">[],
     tx: IDBUtils.TransactionType,
@@ -9011,7 +8766,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     });
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.MotherDelegate, Q, "findFirstOrThrow">[];
   }
-
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.MotherDelegate, "findMany">["orderBy"],
     R extends Prisma.Result<Prisma.MotherDelegate, object, "findFirstOrThrow">,
@@ -9038,7 +8792,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
       records[i] = indexedKeys[i].record;
     }
   }
-
   async _resolveOrderByKey(
     record: Prisma.Result<Prisma.MotherDelegate, object, "findFirstOrThrow">,
     orderByInput: Prisma.MotherOrderByWithRelationInput,
@@ -9071,7 +8824,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
       );
     }
   }
-
   _resolveSortOrder(
     orderByInput: Prisma.MotherOrderByWithRelationInput,
   ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
@@ -9088,7 +8840,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     }
     throw new Error("No field in orderBy clause");
   }
-
   private async _fillDefaults<D extends Prisma.Args<Prisma.MotherDelegate, "create">["data"]>(
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -9099,7 +8850,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     }
     return data;
   }
-
   _getNeededStoresForWhere<W extends Prisma.Args<Prisma.MotherDelegate, "findMany">["where"]>(
     whereClause: W,
     neededStores: Set<StoreNames<PrismaIDBSchema>>,
@@ -9127,7 +8877,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
       this.client.user._getNeededStoresForWhere(whereClause.user, neededStores);
     }
   }
-
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.MotherDelegate, "findMany">>(
     query?: Q,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -9192,7 +8941,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.MotherDelegate, "create">["data"]>>(
     data: D,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -9254,7 +9002,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.MotherDelegate, "update">>(
     query: Partial<Q>,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -9378,13 +9125,11 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("Mother");
     this.client.child._getNeededStoresForNestedDelete(neededStores);
     this.client.father._getNeededStoresForNestedDelete(neededStores);
   }
-
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.MotherDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.MotherDelegate, object, "findFirstOrThrow"> {
@@ -9394,9 +9139,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     delete recordWithoutNestedCreate?.user;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.MotherDelegate, object, "findFirstOrThrow">;
   }
-
   private _preprocessListFields(records: Prisma.Result<Prisma.MotherDelegate, object, "findMany">): void {}
-
   async findMany<Q extends Prisma.Args<Prisma.MotherDelegate, "findMany">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -9424,7 +9167,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.MotherDelegate, Q, "findMany">;
   }
-
   async findFirst<Q extends Prisma.Args<Prisma.MotherDelegate, "findFirst">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -9432,7 +9174,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, tx))[0] ?? null;
   }
-
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.MotherDelegate, "findFirstOrThrow">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -9445,7 +9186,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     }
     return record;
   }
-
   async findUnique<Q extends Prisma.Args<Prisma.MotherDelegate, "findUnique">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -9466,7 +9206,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     this._preprocessListFields([recordWithRelations]);
     return recordWithRelations as Prisma.Result<Prisma.MotherDelegate, Q, "findUnique">;
   }
-
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.MotherDelegate, "findUniqueOrThrow">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -9479,7 +9218,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     }
     return record;
   }
-
   async count<Q extends Prisma.Args<Prisma.MotherDelegate, "count">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -9500,7 +9238,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     }
     return result as Prisma.Result<Prisma.MotherDelegate, Q, "count">;
   }
-
   async create<Q extends Prisma.Args<Prisma.MotherDelegate, "create">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -9641,7 +9378,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.MotherDelegate, Q, "create">;
   }
-
   async createMany<Q extends Prisma.Args<Prisma.MotherDelegate, "createMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -9655,7 +9391,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     }
     return { count: createManyData.length };
   }
-
   async createManyAndReturn<Q extends Prisma.Args<Prisma.MotherDelegate, "createManyAndReturn">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -9672,7 +9407,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     this._preprocessListFields(records);
     return records as Prisma.Result<Prisma.MotherDelegate, Q, "createManyAndReturn">;
   }
-
   async delete<Q extends Prisma.Args<Prisma.MotherDelegate, "delete">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -9696,7 +9430,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     this.emit("delete", [record.firstName, record.lastName]);
     return record;
   }
-
   async deleteMany<Q extends Prisma.Args<Prisma.MotherDelegate, "deleteMany">>(
     query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -9713,7 +9446,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     }
     return { count: records.length };
   }
-
   async update<Q extends Prisma.Args<Prisma.MotherDelegate, "update">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -10029,7 +9761,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     ))!;
     return recordWithRelations as Prisma.Result<Prisma.MotherDelegate, Q, "update">;
   }
-
   async updateMany<Q extends Prisma.Args<Prisma.MotherDelegate, "updateMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -10049,7 +9780,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     );
     return { count: records.length };
   }
-
   async upsert<Q extends Prisma.Args<Prisma.MotherDelegate, "upsert">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -10072,7 +9802,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     );
     return record as Prisma.Result<Prisma.MotherDelegate, Q, "upsert">;
   }
-
   async aggregate<Q extends Prisma.Args<Prisma.MotherDelegate, "aggregate">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -10149,7 +9878,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     return result as unknown as Prisma.Result<Prisma.MotherDelegate, Q, "aggregate">;
   }
 }
-
 class ChildIDBClass extends BaseIDBModelClass<"Child"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.ChildDelegate, "findFirstOrThrow">["where"],
@@ -10268,7 +9996,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
       )
     ).filter((result) => result !== null);
   }
-
   private _applySelectClause<S extends Prisma.Args<Prisma.ChildDelegate, "findMany">["select"]>(
     records: Prisma.Result<Prisma.ChildDelegate, object, "findFirstOrThrow">[],
     selectClause: S,
@@ -10296,7 +10023,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
       return partialRecord;
     }) as Prisma.Result<Prisma.ChildDelegate, { select: S }, "findFirstOrThrow">[];
   }
-
   private async _applyRelations<Q extends Prisma.Args<Prisma.ChildDelegate, "findMany">>(
     records: Prisma.Result<Prisma.ChildDelegate, object, "findFirstOrThrow">[],
     tx: IDBUtils.TransactionType,
@@ -10342,7 +10068,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     });
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.ChildDelegate, Q, "findFirstOrThrow">[];
   }
-
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.ChildDelegate, "findMany">["orderBy"],
     R extends Prisma.Result<Prisma.ChildDelegate, object, "findFirstOrThrow">,
@@ -10369,7 +10094,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
       records[i] = indexedKeys[i].record;
     }
   }
-
   async _resolveOrderByKey(
     record: Prisma.Result<Prisma.ChildDelegate, object, "findFirstOrThrow">,
     orderByInput: Prisma.ChildOrderByWithRelationInput,
@@ -10409,7 +10133,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
       );
     }
   }
-
   _resolveSortOrder(
     orderByInput: Prisma.ChildOrderByWithRelationInput,
   ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
@@ -10434,7 +10157,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     }
     throw new Error("No field in orderBy clause");
   }
-
   private async _fillDefaults<D extends Prisma.Args<Prisma.ChildDelegate, "create">["data"]>(
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -10445,7 +10167,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     }
     return data;
   }
-
   _getNeededStoresForWhere<W extends Prisma.Args<Prisma.ChildDelegate, "findMany">["where"]>(
     whereClause: W,
     neededStores: Set<StoreNames<PrismaIDBSchema>>,
@@ -10471,7 +10192,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
       this.client.mother._getNeededStoresForWhere(whereClause.mother, neededStores);
     }
   }
-
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.ChildDelegate, "findMany">>(
     query?: Q,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -10538,7 +10258,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.ChildDelegate, "create">["data"]>>(
     data: D,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -10601,7 +10320,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.ChildDelegate, "update">>(
     query: Partial<Q>,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -10693,11 +10411,9 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("Child");
   }
-
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.ChildDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.ChildDelegate, object, "findFirstOrThrow"> {
@@ -10707,9 +10423,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     delete recordWithoutNestedCreate?.mother;
     return recordWithoutNestedCreate as Prisma.Result<Prisma.ChildDelegate, object, "findFirstOrThrow">;
   }
-
   private _preprocessListFields(records: Prisma.Result<Prisma.ChildDelegate, object, "findMany">): void {}
-
   async findMany<Q extends Prisma.Args<Prisma.ChildDelegate, "findMany">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -10737,7 +10451,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.ChildDelegate, Q, "findMany">;
   }
-
   async findFirst<Q extends Prisma.Args<Prisma.ChildDelegate, "findFirst">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -10745,7 +10458,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, tx))[0] ?? null;
   }
-
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.ChildDelegate, "findFirstOrThrow">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -10758,7 +10470,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     }
     return record;
   }
-
   async findUnique<Q extends Prisma.Args<Prisma.ChildDelegate, "findUnique">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -10782,7 +10493,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     this._preprocessListFields([recordWithRelations]);
     return recordWithRelations as Prisma.Result<Prisma.ChildDelegate, Q, "findUnique">;
   }
-
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.ChildDelegate, "findUniqueOrThrow">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -10795,7 +10505,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     }
     return record;
   }
-
   async count<Q extends Prisma.Args<Prisma.ChildDelegate, "count">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -10816,7 +10525,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     }
     return result as Prisma.Result<Prisma.ChildDelegate, Q, "count">;
   }
-
   async create<Q extends Prisma.Args<Prisma.ChildDelegate, "create">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -10941,7 +10649,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.ChildDelegate, Q, "create">;
   }
-
   async createMany<Q extends Prisma.Args<Prisma.ChildDelegate, "createMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -10955,7 +10662,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     }
     return { count: createManyData.length };
   }
-
   async createManyAndReturn<Q extends Prisma.Args<Prisma.ChildDelegate, "createManyAndReturn">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -10972,7 +10678,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     this._preprocessListFields(records);
     return records as Prisma.Result<Prisma.ChildDelegate, Q, "createManyAndReturn">;
   }
-
   async delete<Q extends Prisma.Args<Prisma.ChildDelegate, "delete">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -10986,7 +10691,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     this.emit("delete", [record.childFirstName, record.childLastName]);
     return record;
   }
-
   async deleteMany<Q extends Prisma.Args<Prisma.ChildDelegate, "deleteMany">>(
     query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -11010,7 +10714,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     }
     return { count: records.length };
   }
-
   async update<Q extends Prisma.Args<Prisma.ChildDelegate, "update">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -11252,7 +10955,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     ))!;
     return recordWithRelations as Prisma.Result<Prisma.ChildDelegate, Q, "update">;
   }
-
   async updateMany<Q extends Prisma.Args<Prisma.ChildDelegate, "updateMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -11277,7 +10979,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     );
     return { count: records.length };
   }
-
   async upsert<Q extends Prisma.Args<Prisma.ChildDelegate, "upsert">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -11302,7 +11003,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     );
     return record as Prisma.Result<Prisma.ChildDelegate, Q, "upsert">;
   }
-
   async aggregate<Q extends Prisma.Args<Prisma.ChildDelegate, "aggregate">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -11393,7 +11093,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     return result as unknown as Prisma.Result<Prisma.ChildDelegate, Q, "aggregate">;
   }
 }
-
 class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findFirstOrThrow">["where"],
@@ -11419,7 +11118,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
       )
     ).filter((result) => result !== null);
   }
-
   private _applySelectClause<S extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">["select"]>(
     records: Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow">[],
     selectClause: S,
@@ -11436,7 +11134,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
       return partialRecord;
     }) as Prisma.Result<Prisma.ModelWithEnumDelegate, { select: S }, "findFirstOrThrow">[];
   }
-
   private async _applyRelations<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">>(
     records: Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow">[],
     tx: IDBUtils.TransactionType,
@@ -11453,7 +11150,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
       "findFirstOrThrow"
     >[];
   }
-
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">["orderBy"],
     R extends Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow">,
@@ -11480,7 +11176,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
       records[i] = indexedKeys[i].record;
     }
   }
-
   async _resolveOrderByKey(
     record: Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow">,
     orderByInput: Prisma.ModelWithEnumOrderByWithRelationInput,
@@ -11489,7 +11184,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     const scalarFields = ["id", "enum", "nullableEnum", "enumArray"] as const;
     for (const field of scalarFields) if (orderByInput[field]) return record[field];
   }
-
   _resolveSortOrder(
     orderByInput: Prisma.ModelWithEnumOrderByWithRelationInput,
   ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
@@ -11497,7 +11191,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
     throw new Error("No field in orderBy clause");
   }
-
   private async _fillDefaults<D extends Prisma.Args<Prisma.ModelWithEnumDelegate, "create">["data"]>(
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -11517,7 +11210,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     }
     return data;
   }
-
   _getNeededStoresForWhere<W extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">["where"]>(
     whereClause: W,
     neededStores: Set<StoreNames<PrismaIDBSchema>>,
@@ -11531,7 +11223,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
       }
     }
   }
-
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">>(
     query?: Q,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -11543,7 +11234,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.ModelWithEnumDelegate, "create">["data"]>>(
     data: D,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -11551,7 +11241,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     neededStores.add("ModelWithEnum");
     return neededStores;
   }
-
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "update">>(
     query: Partial<Q>,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -11560,24 +11249,20 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     );
     return neededStores;
   }
-
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("ModelWithEnum");
   }
-
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.ModelWithEnumDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow"> {
     const recordWithoutNestedCreate = structuredClone(data);
     return recordWithoutNestedCreate as Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow">;
   }
-
   private _preprocessListFields(records: Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findMany">): void {
     for (const record of records) {
       record.enumArray = record.enumArray ?? [];
     }
   }
-
   async findMany<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -11605,7 +11290,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findMany">;
   }
-
   async findFirst<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findFirst">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -11613,7 +11297,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, tx))[0] ?? null;
   }
-
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findFirstOrThrow">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -11626,7 +11309,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     }
     return record;
   }
-
   async findUnique<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findUnique">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -11645,7 +11327,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     this._preprocessListFields([recordWithRelations]);
     return recordWithRelations as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findUnique">;
   }
-
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findUniqueOrThrow">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -11658,7 +11339,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     }
     return record;
   }
-
   async count<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "count">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -11679,7 +11359,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     }
     return result as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "count">;
   }
-
   async create<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "create">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -11697,7 +11376,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "create">;
   }
-
   async createMany<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "createMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -11711,7 +11389,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     }
     return { count: createManyData.length };
   }
-
   async createManyAndReturn<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "createManyAndReturn">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -11728,7 +11405,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     this._preprocessListFields(records);
     return records as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "createManyAndReturn">;
   }
-
   async delete<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "delete">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -11742,7 +11418,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     this.emit("delete", [record.id]);
     return record;
   }
-
   async deleteMany<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "deleteMany">>(
     query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -11756,7 +11431,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     }
     return { count: records.length };
   }
-
   async update<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "update">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -11805,7 +11479,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     ))!;
     return recordWithRelations as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "update">;
   }
-
   async updateMany<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "updateMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -11819,7 +11492,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     );
     return { count: records.length };
   }
-
   async upsert<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "upsert">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -11835,7 +11507,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select }, tx);
     return record as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "upsert">;
   }
-
   async aggregate<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "aggregate">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -11900,7 +11571,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     return result as unknown as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "aggregate">;
   }
 }
-
 class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
   private async _applyWhereClause<
     W extends Prisma.Args<Prisma.TestUuidDelegate, "findFirstOrThrow">["where"],
@@ -11926,7 +11596,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
       )
     ).filter((result) => result !== null);
   }
-
   private _applySelectClause<S extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">["select"]>(
     records: Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow">[],
     selectClause: S,
@@ -11943,7 +11612,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
       return partialRecord;
     }) as Prisma.Result<Prisma.TestUuidDelegate, { select: S }, "findFirstOrThrow">[];
   }
-
   private async _applyRelations<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">>(
     records: Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow">[],
     tx: IDBUtils.TransactionType,
@@ -11956,7 +11624,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     });
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirstOrThrow">[];
   }
-
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">["orderBy"],
     R extends Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow">,
@@ -11983,7 +11650,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
       records[i] = indexedKeys[i].record;
     }
   }
-
   async _resolveOrderByKey(
     record: Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow">,
     orderByInput: Prisma.TestUuidOrderByWithRelationInput,
@@ -11992,7 +11658,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     const scalarFields = ["id", "name"] as const;
     for (const field of scalarFields) if (orderByInput[field]) return record[field];
   }
-
   _resolveSortOrder(
     orderByInput: Prisma.TestUuidOrderByWithRelationInput,
   ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
@@ -12000,7 +11665,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
     throw new Error("No field in orderBy clause");
   }
-
   private async _fillDefaults<D extends Prisma.Args<Prisma.TestUuidDelegate, "create">["data"]>(
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -12011,7 +11675,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     }
     return data;
   }
-
   _getNeededStoresForWhere<W extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">["where"]>(
     whereClause: W,
     neededStores: Set<StoreNames<PrismaIDBSchema>>,
@@ -12025,7 +11688,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
       }
     }
   }
-
   _getNeededStoresForFind<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">>(
     query?: Q,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -12037,7 +11699,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     }
     return neededStores;
   }
-
   _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.TestUuidDelegate, "create">["data"]>>(
     data: D,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -12045,7 +11706,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     neededStores.add("TestUuid");
     return neededStores;
   }
-
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.TestUuidDelegate, "update">>(
     query: Partial<Q>,
   ): Set<StoreNames<PrismaIDBSchema>> {
@@ -12054,20 +11714,16 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     );
     return neededStores;
   }
-
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("TestUuid");
   }
-
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.TestUuidDelegate, "create">["data"]>(
     data: D,
   ): Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow"> {
     const recordWithoutNestedCreate = structuredClone(data);
     return recordWithoutNestedCreate as Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow">;
   }
-
   private _preprocessListFields(records: Prisma.Result<Prisma.TestUuidDelegate, object, "findMany">): void {}
-
   async findMany<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -12095,7 +11751,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.TestUuidDelegate, Q, "findMany">;
   }
-
   async findFirst<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findFirst">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -12103,7 +11758,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, tx))[0] ?? null;
   }
-
   async findFirstOrThrow<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findFirstOrThrow">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -12116,7 +11770,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     }
     return record;
   }
-
   async findUnique<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findUnique">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -12135,7 +11788,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     this._preprocessListFields([recordWithRelations]);
     return recordWithRelations as Prisma.Result<Prisma.TestUuidDelegate, Q, "findUnique">;
   }
-
   async findUniqueOrThrow<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findUniqueOrThrow">>(
     query: Q,
     tx?: IDBUtils.TransactionType,
@@ -12148,7 +11800,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     }
     return record;
   }
-
   async count<Q extends Prisma.Args<Prisma.TestUuidDelegate, "count">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,
@@ -12169,7 +11820,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     }
     return result as Prisma.Result<Prisma.TestUuidDelegate, Q, "count">;
   }
-
   async create<Q extends Prisma.Args<Prisma.TestUuidDelegate, "create">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -12187,7 +11837,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     this.emit("create", keyPath);
     return recordsWithRelations as Prisma.Result<Prisma.TestUuidDelegate, Q, "create">;
   }
-
   async createMany<Q extends Prisma.Args<Prisma.TestUuidDelegate, "createMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -12201,7 +11850,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     }
     return { count: createManyData.length };
   }
-
   async createManyAndReturn<Q extends Prisma.Args<Prisma.TestUuidDelegate, "createManyAndReturn">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -12218,7 +11866,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     this._preprocessListFields(records);
     return records as Prisma.Result<Prisma.TestUuidDelegate, Q, "createManyAndReturn">;
   }
-
   async delete<Q extends Prisma.Args<Prisma.TestUuidDelegate, "delete">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -12232,7 +11879,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     this.emit("delete", [record.id]);
     return record;
   }
-
   async deleteMany<Q extends Prisma.Args<Prisma.TestUuidDelegate, "deleteMany">>(
     query?: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -12246,7 +11892,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     }
     return { count: records.length };
   }
-
   async update<Q extends Prisma.Args<Prisma.TestUuidDelegate, "update">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -12287,7 +11932,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     ))!;
     return recordWithRelations as Prisma.Result<Prisma.TestUuidDelegate, Q, "update">;
   }
-
   async updateMany<Q extends Prisma.Args<Prisma.TestUuidDelegate, "updateMany">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -12301,7 +11945,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     );
     return { count: records.length };
   }
-
   async upsert<Q extends Prisma.Args<Prisma.TestUuidDelegate, "upsert">>(
     query: Q,
     tx?: IDBUtils.ReadwriteTransactionType,
@@ -12317,7 +11960,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select }, tx);
     return record as Prisma.Result<Prisma.TestUuidDelegate, Q, "upsert">;
   }
-
   async aggregate<Q extends Prisma.Args<Prisma.TestUuidDelegate, "aggregate">>(
     query?: Q,
     tx?: IDBUtils.TransactionType,

@@ -1,27 +1,18 @@
 import type { Field, Model } from "src/fileCreators/types";
+import { CodeBlockWriter } from "ts-morph";
 import { toCamelCase } from "../../../../../helpers/utils";
-import { ClassDeclaration, CodeBlockWriter, Scope } from "ts-morph";
 
 // TODO: composite key handling in _applyWhereClause, _resolveOrderByKey, _applyRelations
 // TODO: update (fk validation should be of all key parts instead of just the first one)
 // * see working tree changes in prisma-idb-client.ts for more details
 
-export function addApplyWhereClause(modelClass: ClassDeclaration, model: Model, models: readonly Model[]) {
-  modelClass.addMethod({
-    name: "_applyWhereClause",
-    scope: Scope.Private,
-    isAsync: true,
-    typeParameters: [
-      { name: "W", constraint: `Prisma.Args<Prisma.${model.name}Delegate, 'findFirstOrThrow'>['where']` },
-      { name: "R", constraint: `Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>` },
-    ],
-    parameters: [
-      { name: "records", type: `R[]` },
-      { name: "whereClause", type: "W" },
-      { name: "tx", type: "IDBUtils.TransactionType" },
-    ],
-    returnType: `Promise<R[]>`,
-    statements: (writer) => {
+export function addApplyWhereClause(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+  writer
+    .writeLine(`async private _applyWhereClause<`)
+    .writeLine(`W extends Prisma.Args<Prisma.${model.name}Delegate, 'findFirstOrThrow'>['where'],`)
+    .writeLine(`R extends Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>,`)
+    .writeLine(`>(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]>`)
+    .block(() => {
       writer.writeLine(`if (!whereClause) return records;`);
       addLogicalFiltering(writer, model);
       writer
@@ -37,9 +28,8 @@ export function addApplyWhereClause(modelClass: ClassDeclaration, model: Model, 
           addRelationFiltering(writer, model, models);
           writer.writeLine(`return record;`);
         })
-        .writeLine(`))).filter((result) => result !== null);;`);
-    },
-  });
+        .writeLine(`))).filter((result) => result !== null);`);
+    });
 }
 
 function addLogicalFiltering(writer: CodeBlockWriter, model: Model) {

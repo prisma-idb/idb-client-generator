@@ -1,22 +1,14 @@
-import { getUniqueIdentifiers } from "../../../../../helpers/utils";
+import { CodeBlockWriter } from "ts-morph";
 import { Model } from "../../../../../fileCreators/types";
-import { ClassDeclaration } from "ts-morph";
+import { getUniqueIdentifiers } from "../../../../../helpers/utils";
 
-export function addUpdateMany(modelClass: ClassDeclaration, model: Model) {
-  modelClass.addMethod({
-    name: "updateMany",
-    isAsync: true,
-    typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "updateMany">` }],
-    parameters: [
-      { name: "query", type: "Q" },
-      {
-        name: "tx",
-        hasQuestionToken: true,
-        type: "IDBUtils.ReadwriteTransactionType",
-      },
-    ],
-    returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "updateMany">>`,
-    statements: (writer) => {
+export function addUpdateMany(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine(`async updateMany<Q extends Prisma.Args<Prisma.${model.name}Delegate, "updateMany">>(`)
+    .writeLine(`query: Q,`)
+    .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
+    .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "updateMany">>`)
+    .block(() => {
       const pk = getUniqueIdentifiers(model)[0];
       const keyPath = JSON.parse(pk.keyPath) as string[];
       writer
@@ -39,6 +31,5 @@ export function addUpdateMany(modelClass: ClassDeclaration, model: Model) {
         })
         .writeLine(`));`)
         .writeLine(`return { count: records.length };`);
-    },
-  });
+    });
 }

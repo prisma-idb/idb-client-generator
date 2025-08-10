@@ -1,25 +1,20 @@
-import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
+import { CodeBlockWriter } from "ts-morph";
 import { Field, Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
 
-export function addCreateMethod(modelClass: ClassDeclaration, model: Model, models: readonly Model[]) {
-  modelClass.addMethod({
-    name: "create",
-    isAsync: true,
-    typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "create">` }],
-    parameters: [
-      { name: "query", type: "Q" },
-      { name: "tx", hasQuestionToken: true, type: "IDBUtils.ReadwriteTransactionType" },
-    ],
-    returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "create">>`,
-    statements: (writer) => {
+export function addCreateMethod(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+  writer
+    .writeLine(`async create<Q extends Prisma.Args<Prisma.${model.name}Delegate, "create">>(`)
+    .writeLine(`query: Q,`)
+    .writeLine(`tx?: IDBUtils.ReadwriteTransactionType`)
+    .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "create">>`)
+    .block(() => {
       createTx(writer);
       createDependencies(writer, model, models);
       createCurrentModel(writer, model);
       createDependents(writer, model, models);
       applyClausesAndReturnRecords(writer, model);
-    },
-  });
+    });
 }
 
 function createTx(writer: CodeBlockWriter) {

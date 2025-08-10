@@ -1,20 +1,15 @@
-import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
+import { CodeBlockWriter } from "ts-morph";
 import { Model } from "../../../../../fileCreators/types";
 
-export function addAggregateMethod(modelClass: ClassDeclaration, model: Model) {
-  modelClass.addMethod({
-    name: "aggregate",
-    isAsync: true,
-    typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, 'aggregate'>` }],
-    parameters: [
-      { name: "query", hasQuestionToken: true, type: "Q" },
-      { name: "tx", hasQuestionToken: true, type: "IDBUtils.TransactionType" },
-    ],
-    returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'aggregate'>>`,
-    statements: (writer) => {
+export function addAggregateMethod(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine(`async aggregate<Q extends Prisma.Args<Prisma.${model.name}Delegate, "aggregate">>(`)
+    .writeLine(`query?: Q,`)
+    .writeLine(`tx?: IDBUtils.TransactionType,`)
+    .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "aggregate">>`)
+    .block(() => {
       addTxAndRecordSetup(writer, model);
       addCountHandling(writer);
-
       const hasAvgOrSum = model.fields
         .filter(({ isList }) => !isList)
         .some((field) => field.type === "Float" || field.type === "Int" || field.type === "Decimal");
@@ -23,19 +18,16 @@ export function addAggregateMethod(modelClass: ClassDeclaration, model: Model) {
         model.fields
           .filter(({ isList }) => !isList)
           .some((field) => field.type === "DateTime" || field.type === "String");
-
       if (hasMinMax) {
         addMinHandling(writer, model);
         addMaxHandling(writer, model);
       }
-
       if (hasAvgOrSum) {
         addAvgHandling(writer, model);
         addSumHandling(writer, model);
       }
       writer.writeLine(`return result as unknown as Prisma.Result<Prisma.${model.name}Delegate, Q, "aggregate">;`);
-    },
-  });
+    });
 }
 
 function addTxAndRecordSetup(writer: CodeBlockWriter, model: Model) {

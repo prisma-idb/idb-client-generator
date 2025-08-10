@@ -1,27 +1,18 @@
-import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
+import { CodeBlockWriter } from "ts-morph";
 import { Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers } from "../../../../../helpers/utils";
 
-export function addDeleteManyMethod(modelClass: ClassDeclaration, model: Model) {
-  modelClass.addMethod({
-    name: "deleteMany",
-    isAsync: true,
-    typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, 'deleteMany'>` }],
-    parameters: [
-      { name: "query", hasQuestionToken: true, type: "Q" },
-      {
-        name: "tx",
-        hasQuestionToken: true,
-        type: "IDBUtils.ReadwriteTransactionType",
-      },
-    ],
-    returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'deleteMany'>>`,
-    statements: (writer) => {
+export function addDeleteManyMethod(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine(`async deleteMany<Q extends Prisma.Args<Prisma.${model.name}Delegate, "deleteMany">>(`)
+    .writeLine(`query?: Q,`)
+    .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
+    .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "deleteMany">>`)
+    .block(() => {
       createTxAndGetRecord(writer);
       deleteRecords(writer, model);
       writer.writeLine(`return { count: records.length };`);
-    },
-  });
+    });
 }
 
 function createTxAndGetRecord(writer: CodeBlockWriter) {

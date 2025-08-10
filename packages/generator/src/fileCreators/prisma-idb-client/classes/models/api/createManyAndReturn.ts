@@ -1,17 +1,13 @@
+import { CodeBlockWriter } from "ts-morph";
 import { Model } from "../../../../../fileCreators/types";
-import { ClassDeclaration } from "ts-morph";
 
-export function addCreateManyAndReturn(modelClass: ClassDeclaration, model: Model) {
-  modelClass.addMethod({
-    name: "createManyAndReturn",
-    isAsync: true,
-    typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "createManyAndReturn">` }],
-    parameters: [
-      { name: "query", type: "Q" },
-      { name: "tx", type: "IDBUtils.ReadwriteTransactionType", hasQuestionToken: true },
-    ],
-    returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "createManyAndReturn">>`,
-    statements: (writer) => {
+export function addCreateManyAndReturn(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine(`async createManyAndReturn<Q extends Prisma.Args<Prisma.${model.name}Delegate, "createManyAndReturn">>(`)
+    .writeLine(`query: Q,`)
+    .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
+    .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "createManyAndReturn">>`)
+    .block(() => {
       writer
         .writeLine(`const createManyData = IDBUtils.convertToArray(query.data);`)
         .writeLine(`const records: Prisma.Result<Prisma.${model.name}Delegate, object, "findMany"> = [];`)
@@ -26,6 +22,5 @@ export function addCreateManyAndReturn(modelClass: ClassDeclaration, model: Mode
         })
         .writeLine(`this._preprocessListFields(records);`)
         .writeLine(`return records as Prisma.Result<Prisma.${model.name}Delegate, Q, "createManyAndReturn">;`);
-    },
-  });
+    });
 }

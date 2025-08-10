@@ -1,24 +1,19 @@
-import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
+import { CodeBlockWriter } from "ts-morph";
 import { Model } from "../../../../../fileCreators/types";
 
 // TODO: skipDuplicates
 
-export function addCreateManyMethod(modelClass: ClassDeclaration, model: Model) {
-  modelClass.addMethod({
-    name: "createMany",
-    isAsync: true,
-    typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "createMany">` }],
-    parameters: [
-      { name: "query", type: "Q" },
-      { name: "tx", hasQuestionToken: true, type: "IDBUtils.ReadwriteTransactionType" },
-    ],
-    returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "createMany">>`,
-    statements: (writer) => {
+export function addCreateManyMethod(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine(`async createMany<Q extends Prisma.Args<Prisma.${model.name}Delegate, "createMany">>(`)
+    .writeLine(`query: Q,`)
+    .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
+    .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "createMany">>`)
+    .block(() => {
       setupDataAndTx(writer, model);
       addTransactionalHandling(writer, model);
       returnCount(writer);
-    },
-  });
+    });
 }
 
 function setupDataAndTx(writer: CodeBlockWriter, model: Model) {

@@ -1,14 +1,13 @@
 import { Model } from "src/fileCreators/types";
+import { CodeBlockWriter } from "ts-morph";
 import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
-import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
 
-export function addGetNeededStoresForUpdate(modelClass: ClassDeclaration, model: Model, models: readonly Model[]) {
-  modelClass.addMethod({
-    name: "_getNeededStoresForUpdate",
-    typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "update">` }],
-    parameters: [{ name: "query", type: "Partial<Q>" }],
-    returnType: `Set<StoreNames<PrismaIDBSchema>>`,
-    statements: (writer) => {
+export function addGetNeededStoresForUpdate(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+  writer
+    .writeLine(`_getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.${model.name}Delegate, "update">>(`)
+    .writeLine(`query: Partial<Q>,`)
+    .writeLine(`): Set<StoreNames<PrismaIDBSchema>>`)
+    .block(() => {
       writer.writeLine(
         `const neededStores = this._getNeededStoresForFind(query).union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]));`,
       );
@@ -16,8 +15,7 @@ export function addGetNeededStoresForUpdate(modelClass: ClassDeclaration, model:
       addNestedDeleteStores(writer, model);
       addUpdateCascadingStores(writer, model, models);
       writer.writeLine(`return neededStores;`);
-    },
-  });
+    });
 }
 
 function addNestedQueryStores(writer: CodeBlockWriter, model: Model) {

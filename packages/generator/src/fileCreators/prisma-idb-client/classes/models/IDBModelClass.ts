@@ -1,4 +1,4 @@
-import { SourceFile } from "ts-morph";
+import { CodeBlockWriter } from "ts-morph";
 import { Model } from "../../../types";
 import { addAggregateMethod } from "./api/aggregate";
 import { addCountMethod } from "./api/count";
@@ -30,44 +30,41 @@ import { addRemoveNestedCreateDataMethod } from "./utils/_removeNestedCreateData
 import { addResolveOrderByKey } from "./utils/_resolveOrderByKey";
 import { addResolveSortOrder } from "./utils/_resolveSortOrder";
 
-export function addIDBModelClass(file: SourceFile, model: Model, models: readonly Model[]) {
-  const modelClass = file.addClass({
-    name: `${model.name}IDBClass`,
-    extends: `BaseIDBModelClass<"${model.name}">`,
+export function addIDBModelClass(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+  writer.writeLine(`class ${model.name}IDBClass extends BaseIDBModelClass<"${model.name}">`).block(() => {
+    addApplyWhereClause(writer, model, models);
+    addApplySelectClause(writer, model);
+    addApplyRelations(writer, model, models);
+    addApplyOrderByClause(writer, model);
+    addResolveOrderByKey(writer, model, models);
+    addResolveSortOrder(writer, model);
+    addFillDefaultsFunction(writer, model);
+    addGetNeededStoresForWhere(writer, model);
+    addGetNeededStoresForFind(writer, model);
+    addGetNeededStoresForCreate(writer, model);
+    addGetNeededStoresForUpdate(writer, model, models);
+    addGetNeededStoresForNestedDelete(writer, model, models);
+    addRemoveNestedCreateDataMethod(writer, model);
+    addPreprocessListFields(writer, model);
+
+    addFindManyMethod(writer, model);
+    addFindFirstMethod(writer, model);
+    addFindFirstOrThrow(writer, model);
+    addFindUniqueMethod(writer, model);
+    addFindUniqueOrThrow(writer, model);
+    addCountMethod(writer, model);
+
+    addCreateMethod(writer, model, models);
+    addCreateManyMethod(writer, model);
+    addCreateManyAndReturn(writer, model);
+
+    addDeleteMethod(writer, model, models);
+    addDeleteManyMethod(writer, model);
+
+    addUpdateMethod(writer, model, models);
+    addUpdateMany(writer, model);
+    addUpsertMethod(writer, model);
+
+    addAggregateMethod(writer, model);
   });
-
-  addApplyWhereClause(modelClass, model, models);
-  addApplySelectClause(modelClass, model);
-  addApplyRelations(modelClass, model, models);
-  addApplyOrderByClause(modelClass, model);
-  addResolveOrderByKey(modelClass, model, models);
-  addResolveSortOrder(modelClass, model);
-  addFillDefaultsFunction(modelClass, model);
-  addGetNeededStoresForWhere(modelClass, model);
-  addGetNeededStoresForFind(modelClass, model);
-  addGetNeededStoresForCreate(modelClass, model);
-  addGetNeededStoresForUpdate(modelClass, model, models);
-  addGetNeededStoresForNestedDelete(modelClass, model, models);
-  addRemoveNestedCreateDataMethod(modelClass, model);
-  addPreprocessListFields(modelClass, model);
-
-  addFindManyMethod(modelClass, model);
-  addFindFirstMethod(modelClass, model);
-  addFindFirstOrThrow(modelClass, model);
-  addFindUniqueMethod(modelClass, model);
-  addFindUniqueOrThrow(modelClass, model);
-  addCountMethod(modelClass, model);
-
-  addCreateMethod(modelClass, model, models);
-  addCreateManyMethod(modelClass, model);
-  addCreateManyAndReturn(modelClass, model);
-
-  addDeleteMethod(modelClass, model, models);
-  addDeleteManyMethod(modelClass, model);
-
-  addUpdateMethod(modelClass, model, models);
-  addUpdateMany(modelClass, model);
-  addUpsertMethod(modelClass, model);
-
-  addAggregateMethod(modelClass, model);
 }

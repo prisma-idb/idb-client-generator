@@ -1,22 +1,17 @@
-import { getUniqueIdentifiers } from "../../../../../helpers/utils";
+import { CodeBlockWriter } from "ts-morph";
 import { Model } from "../../../../../fileCreators/types";
-import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
+import { getUniqueIdentifiers } from "../../../../../helpers/utils";
 
-export function addUpsertMethod(modelClass: ClassDeclaration, model: Model) {
-  modelClass.addMethod({
-    name: "upsert",
-    typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "upsert">` }],
-    isAsync: true,
-    parameters: [
-      { name: "query", type: "Q" },
-      { name: "tx", hasQuestionToken: true, type: "IDBUtils.ReadwriteTransactionType" },
-    ],
-    returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "upsert">>`,
-    statements: (writer) => {
+export function addUpsertMethod(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine(`async upsert<Q extends Prisma.Args<Prisma.${model.name}Delegate, "upsert">>(`)
+    .writeLine(`query: Q,`)
+    .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
+    .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "upsert">>`)
+    .block(() => {
       addGetAndUpsertRecord(writer, model);
       addRefetchAndReturnRecord(writer, model);
-    },
-  });
+    });
 }
 
 function addGetAndUpsertRecord(writer: CodeBlockWriter, model: Model) {

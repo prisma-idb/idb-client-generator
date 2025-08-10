@@ -1,21 +1,18 @@
 import { Model } from "src/fileCreators/types";
+import { CodeBlockWriter } from "ts-morph";
 import { toCamelCase } from "../../../../../helpers/utils";
-import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
 
-export function addGetNeededStoresForWhere(modelClass: ClassDeclaration, model: Model) {
-  modelClass.addMethod({
-    name: "_getNeededStoresForWhere",
-    typeParameters: [{ name: "W", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "findMany">['where']` }],
-    parameters: [
-      { name: "whereClause", type: "W" },
-      { name: "neededStores", type: "Set<StoreNames<PrismaIDBSchema>>" },
-    ],
-    statements: (writer) => {
+export function addGetNeededStoresForWhere(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine(`_getNeededStoresForWhere<W extends Prisma.Args<Prisma.${model.name}Delegate, "findMany">["where"]>(`)
+    .writeLine(`whereClause: W,`)
+    .writeLine(`neededStores: Set<StoreNames<PrismaIDBSchema>>,`)
+    .writeLine(`)`)
+    .block(() => {
       writer.writeLine(`if (whereClause === undefined) return;`);
       handleLogicalParams(writer);
       handleRelations(writer, model);
-    },
-  });
+    });
 }
 
 function handleLogicalParams(writer: CodeBlockWriter) {

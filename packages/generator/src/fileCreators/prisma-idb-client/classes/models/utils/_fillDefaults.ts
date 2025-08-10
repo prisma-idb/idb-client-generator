@@ -1,18 +1,13 @@
 import { Field, Model } from "src/fileCreators/types";
-import { ClassDeclaration, CodeBlockWriter, Scope } from "ts-morph";
+import { CodeBlockWriter } from "ts-morph";
 
-export function addFillDefaultsFunction(modelClass: ClassDeclaration, model: Model) {
-  modelClass.addMethod({
-    name: "_fillDefaults",
-    isAsync: true,
-    scope: Scope.Private,
-    typeParameters: [{ name: "D", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]` }],
-    parameters: [
-      { name: "data", type: "D" },
-      { name: "tx", hasQuestionToken: true, type: "IDBUtils.ReadwriteTransactionType" },
-    ],
-    returnType: `Promise<D>`,
-    statements: (writer) => {
+export function addFillDefaultsFunction(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine(`private async _fillDefaults<`)
+    .writeLine(`D extends Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]>(`)
+    .writeLine(`data: D,`)
+    .writeLine(`tx?: IDBUtils.ReadwriteTransactionType): Promise<D>`)
+    .block(() => {
       writer.writeLine("if (data === undefined) data = {} as NonNullable<D>;");
       model.fields
         .filter(({ kind }) => kind !== "object")
@@ -54,8 +49,7 @@ export function addFillDefaultsFunction(modelClass: ClassDeclaration, model: Mod
         }
       });
       writer.writeLine(`return data;`);
-    },
-  });
+    });
 }
 
 function addUuidDefault(writer: CodeBlockWriter, field: Field) {

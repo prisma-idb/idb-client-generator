@@ -1,19 +1,18 @@
 import type { Model } from "src/fileCreators/types";
-import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
+import { CodeBlockWriter } from "ts-morph";
 import { toCamelCase } from "../../../../../helpers/utils";
 
-export function addResolveSortOrder(modelClass: ClassDeclaration, model: Model) {
-  modelClass.addMethod({
-    name: "_resolveSortOrder",
-    parameters: [{ name: "orderByInput", type: `Prisma.${model.name}OrderByWithRelationInput` }],
-    returnType: "Prisma.SortOrder | { sort: Prisma.SortOrder, nulls?: 'first' | 'last' }",
-    statements: (writer) => {
+export function addResolveSortOrder(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine(`_resolveSortOrder(`)
+    .writeLine(`orderByInput: Prisma.${model.name}OrderByWithRelationInput`)
+    .writeLine(`): Prisma.SortOrder | { sort: Prisma.SortOrder, nulls?: 'first' | 'last' }`)
+    .block(() => {
       addScalarResolution(writer, model);
       addOneToOneRelationResolution(writer, model);
       addOneToManyRelationResolution(writer, model);
       writer.writeLine(`throw new Error("No field in orderBy clause");`);
-    },
-  });
+    });
 }
 
 function addScalarResolution(writer: CodeBlockWriter, model: Model) {

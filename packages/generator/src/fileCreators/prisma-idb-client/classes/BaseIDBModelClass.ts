@@ -1,94 +1,60 @@
-import { SourceFile, Scope, ClassDeclaration } from "ts-morph";
+import { CodeBlockWriter } from "ts-morph";
 
-export function addBaseModelClass(file: SourceFile) {
-  const baseModelClass = file.addClass({
-    name: "BaseIDBModelClass<T extends keyof PrismaIDBSchema>",
-    properties: [
-      { name: "client", type: "PrismaIDBClient", scope: Scope.Protected },
-      { name: "keyPath", type: "string[]", scope: Scope.Protected },
-      { name: "eventEmitter", type: "EventTarget", scope: Scope.Private },
-    ],
-    ctors: [
-      {
-        parameters: [
-          { name: "client", type: "PrismaIDBClient" },
-          { name: "keyPath", type: "string[]" },
-        ],
-        statements: (writer) => {
-          writer
-            .writeLine("this.client = client;")
-            .writeLine("this.keyPath = keyPath;")
-            .writeLine("this.eventEmitter = new EventTarget();");
-        },
-      },
-    ],
+export function addBaseModelClass(writer: CodeBlockWriter) {
+  writer.writeLine(`class BaseIDBModelClass<T extends keyof PrismaIDBSchema>`).block(() => {
+    writer
+      .writeLine(`protected client: PrismaIDBClient;`)
+      .writeLine(`protected keyPath: string[];`)
+      .writeLine(`private eventEmitter: EventTarget;`)
+      .blankLine();
+
+    writer.writeLine(`constructor(client: PrismaIDBClient, keyPath: string[])`).block(() => {
+      writer
+        .writeLine(`this.client = client;`)
+        .writeLine(`this.keyPath = keyPath;`)
+        .writeLine(`this.eventEmitter = new EventTarget();`);
+    });
+
+    addEventEmitters(writer);
   });
-
-  addEventEmitters(baseModelClass);
 }
 
-function addEventEmitters(baseModelClass: ClassDeclaration) {
-  baseModelClass.addMethods([
-    {
-      name: "subscribe",
-      parameters: [
-        { name: "event", type: `"create" | "update" | "delete" | ("create" | "update" | "delete")[]` },
-        {
-          name: "callback",
-          type: `(e: CustomEventInit<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>) => void`,
-        },
-      ],
-      statements: (writer) => {
-        writer
-          .writeLine(`if (Array.isArray(event))`)
-          .block(() => {
-            writer
-              .writeLine(`event.forEach((event) => this.eventEmitter.addEventListener(event, callback));`)
-              .writeLine(`return;`);
-          })
-          .writeLine(`this.eventEmitter.addEventListener(event, callback);`);
-      },
-    },
-    {
-      name: "unsubscribe",
-      parameters: [
-        { name: "event", type: `"create" | "update" | "delete" | ("create" | "update" | "delete")[]` },
-        {
-          name: "callback",
-          type: `(e: CustomEventInit<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>) => void`,
-        },
-      ],
-      statements: (writer) => {
-        writer
-          .writeLine(`if (Array.isArray(event))`)
-          .block(() =>
-            writer
-              .writeLine(`event.forEach((event) => this.eventEmitter.removeEventListener(event, callback));`)
-              .writeLine(`return;`),
-          )
-          .writeLine(`this.eventEmitter.removeEventListener(event, callback);`);
-      },
-    },
-    {
-      name: "emit",
-      parameters: [
-        { name: "event", type: `"create" | "update" | "delete"` },
-        { name: "keyPath", type: `PrismaIDBSchema[T]["key"]` },
-        { name: "oldKeyPath?", type: `PrismaIDBSchema[T]["key"]` },
-      ],
-      statements: (writer) => {
-        writer
-          .writeLine(`if (event === "update")`)
-          .block(() => {
-            writer
-              .writeLine(
-                `this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath, oldKeyPath } }));`,
-              )
-              .writeLine(`return;`);
-          })
-          .writeLine(`this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath } }));`);
-      },
-      scope: Scope.Protected,
-    },
-  ]);
+function addEventEmitters(writer: CodeBlockWriter) {
+  writer
+    .writeLine(
+      `subscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: (e: CustomEventInit<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>) => void)`,
+    )
+    .block(() => {
+      writer.writeLine(`if (Array.isArray(event))`).block(() => {
+        writer.writeLine(`event.forEach((event) => this.eventEmitter.addEventListener(event, callback));`);
+        writer.writeLine(`return;`);
+      });
+      writer.writeLine(`this.eventEmitter.addEventListener(event, callback);`);
+    });
+
+  writer
+    .writeLine(
+      `unsubscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: (e: CustomEventInit<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>) => void)`,
+    )
+    .block(() => {
+      writer.writeLine(`if (Array.isArray(event))`).block(() => {
+        writer.writeLine(`event.forEach((event) => this.eventEmitter.removeEventListener(event, callback));`);
+        writer.writeLine(`return;`);
+      });
+      writer.writeLine(`this.eventEmitter.removeEventListener(event, callback);`);
+    });
+
+  writer
+    .writeLine(
+      `protected emit(event: "create" | "update" | "delete", keyPath: PrismaIDBSchema[T]["key"], oldKeyPath?: PrismaIDBSchema[T]["key"])`,
+    )
+    .block(() => {
+      writer.writeLine(`if (event === "update")`).block(() => {
+        writer.writeLine(
+          `this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath, oldKeyPath } }));`,
+        );
+        writer.writeLine(`return;`);
+      });
+      writer.writeLine(`this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath } }));`);
+    });
 }

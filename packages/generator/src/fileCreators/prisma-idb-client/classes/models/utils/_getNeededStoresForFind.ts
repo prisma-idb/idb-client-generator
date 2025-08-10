@@ -1,14 +1,13 @@
 import { Model } from "src/fileCreators/types";
+import { CodeBlockWriter } from "ts-morph";
 import { toCamelCase } from "../../../../../helpers/utils";
-import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
 
-export function addGetNeededStoresForFind(modelClass: ClassDeclaration, model: Model) {
-  modelClass.addMethod({
-    name: "_getNeededStoresForFind",
-    typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, "findMany">` }],
-    parameters: [{ name: "query", hasQuestionToken: true, type: "Q" }],
-    returnType: "Set<StoreNames<PrismaIDBSchema>>",
-    statements: (writer) => {
+export function addGetNeededStoresForFind(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine(`_getNeededStoresForFind<Q extends Prisma.Args<Prisma.${model.name}Delegate, "findMany">>(`)
+    .writeLine(`query?: Q,`)
+    .writeLine(`): Set<StoreNames<PrismaIDBSchema>>`)
+    .block(() => {
       writer
         .writeLine(`const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();`)
         .writeLine(`neededStores.add("${model.name}");`)
@@ -16,8 +15,7 @@ export function addGetNeededStoresForFind(modelClass: ClassDeclaration, model: M
       processOrderByInQuery(writer, model);
       processRelationsInQuery(writer, model);
       writer.writeLine("return neededStores;");
-    },
-  });
+    });
 }
 
 function processRelationsInQuery(writer: CodeBlockWriter, model: Model) {

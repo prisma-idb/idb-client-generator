@@ -1,28 +1,19 @@
+import { CodeBlockWriter } from "ts-morph";
 import { Model } from "../../../../../fileCreators/types";
-import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
 
-export function addFindManyMethod(modelClass: ClassDeclaration, model: Model) {
-  modelClass.addMethod({
-    name: "findMany",
-    isAsync: true,
-    typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, 'findMany'>` }],
-    parameters: [
-      { name: "query", hasQuestionToken: true, type: "Q" },
-      {
-        name: "tx",
-        hasQuestionToken: true,
-        type: "IDBUtils.TransactionType",
-      },
-    ],
-    returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'findMany'>>`,
-    statements: (writer) => {
+export function addFindManyMethod(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine(`async findMany<Q extends Prisma.Args<Prisma.${model.name}Delegate, "findMany">>(`)
+    .writeLine(`query?: Q,`)
+    .writeLine(`tx?: IDBUtils.TransactionType,`)
+    .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "findMany">>`)
+    .block(() => {
       getRecords(writer, model);
       applyRelationsToRecords(writer, model);
       applySelectClauseToRecords(writer);
       applyDistinctClauseToRecords(writer);
       returnRecords(writer, model);
-    },
-  });
+    });
 }
 
 function getRecords(writer: CodeBlockWriter, model: Model) {

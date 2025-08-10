@@ -1,27 +1,18 @@
-import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
+import { CodeBlockWriter } from "ts-morph";
 import { Model } from "../../../../../fileCreators/types";
-import { ClassDeclaration, CodeBlockWriter } from "ts-morph";
+import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
 
-export function addDeleteMethod(modelClass: ClassDeclaration, model: Model, models: readonly Model[]) {
-  modelClass.addMethod({
-    name: "delete",
-    isAsync: true,
-    typeParameters: [{ name: "Q", constraint: `Prisma.Args<Prisma.${model.name}Delegate, 'delete'>` }],
-    parameters: [
-      { name: "query", type: "Q" },
-      {
-        name: "tx",
-        hasQuestionToken: true,
-        type: "IDBUtils.ReadwriteTransactionType",
-      },
-    ],
-    returnType: `Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'delete'>>`,
-    statements: (writer) => {
+export function addDeleteMethod(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+  writer
+    .writeLine(`async delete<Q extends Prisma.Args<Prisma.${model.name}Delegate, "delete">>(`)
+    .writeLine(`query: Q,`)
+    .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
+    .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "delete">>`)
+    .block(() => {
       createTxAndGetRecord(writer);
       handleCascadeDeletes(writer, model, models);
       deleteAndReturnRecord(writer, model);
-    },
-  });
+    });
 }
 
 function createTxAndGetRecord(writer: CodeBlockWriter) {

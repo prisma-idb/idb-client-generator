@@ -1,14 +1,14 @@
 import { Model } from "src/fileCreators/types";
-import { ClassDeclaration, CodeBlockWriter, Scope } from "ts-morph";
+import { CodeBlockWriter } from "ts-morph";
 
-export function addPreprocessListFields(modelClass: ClassDeclaration, model: Model) {
-  modelClass.addMethod({
-    name: "_preprocessListFields",
-    scope: Scope.Private,
-    parameters: [{ name: "records", type: `Prisma.Result<Prisma.${model.name}Delegate, object, "findMany">` }],
-    returnType: "void",
-    statements: (writer) => addUndefinedScalarListPreprocessing(writer, model),
-  });
+export function addPreprocessListFields(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine(
+      `private _preprocessListFields(records: Prisma.Result<Prisma.${model.name}Delegate, object, "findMany">): void`,
+    )
+    .block(() => {
+      addUndefinedScalarListPreprocessing(writer, model);
+    });
 }
 
 function addUndefinedScalarListPreprocessing(writer: CodeBlockWriter, model: Model) {

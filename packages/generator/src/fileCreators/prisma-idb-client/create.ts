@@ -1,65 +1,42 @@
 import { DMMF } from "@prisma/generator-helper";
-import { SourceFile, VariableDeclarationKind } from "ts-morph";
-import { addClientClass } from "./classes/PrismaIDBClient";
+import { CodeBlockWriter } from "ts-morph";
+import type { Model } from "../types";
 import { addBaseModelClass } from "./classes/BaseIDBModelClass";
 import { addIDBModelClass } from "./classes/models/IDBModelClass";
-import type { Model } from "../types";
+import { addClientClass } from "./classes/PrismaIDBClient";
 
-function addImports(file: SourceFile, models: readonly Model[]) {
-  file.addImportDeclaration({
-    moduleSpecifier: "idb",
-    namedImports: ["openDB"],
-    trailingTrivia: (writer) => writer.writeLine("/* eslint-disable @typescript-eslint/no-unused-vars */"),
-  });
-  file.addImportDeclaration({
-    moduleSpecifier: "idb",
-    namedImports: ["IDBPDatabase", "IDBPTransaction", "StoreNames"],
-    isTypeOnly: true,
-  });
-  file.addImportDeclaration({ moduleSpecifier: "@prisma/client", namedImports: ["Prisma"], isTypeOnly: true });
-
-  file.addImportDeclaration({ moduleSpecifier: "./idb-utils", namespaceImport: "IDBUtils" });
-  file.addImportDeclaration({
-    moduleSpecifier: "./idb-interface",
-    namedImports: ["PrismaIDBSchema"],
-    isTypeOnly: true,
-  });
+function addImports(writer: CodeBlockWriter, models: readonly Model[]) {
+  writer
+    .writeLine("/* eslint-disable @typescript-eslint/no-unused-vars */")
+    .writeLine(`import { openDB } from "idb";`)
+    .writeLine(`import type { IDBPDatabase, StoreNames, IDBPTransaction } from "idb";`)
+    .writeLine(`import type { Prisma } from "@prisma/client";`)
+    .writeLine(`import * as IDBUtils from "./idb-utils";`)
+    .writeLine(`import type { PrismaIDBSchema } from "./idb-interface";`);
 
   const cuidFieldExists = models
     .flatMap((model) => model.fields)
     .some((field) => typeof field.default === "object" && "name" in field.default && field.default.name == "cuid");
-  if (cuidFieldExists) {
-    file.addImportDeclaration({
-      moduleSpecifier: "@paralleldrive/cuid2",
-      namedImports: ["createId"],
-    });
-  }
+
+  if (cuidFieldExists) writer.writeLine(`import { createId } from "@paralleldrive/cuid2";`);
 
   const uuidFieldExists = models
     .flatMap((model) => model.fields)
     .some((field) => typeof field.default === "object" && "name" in field.default && field.default.name == "uuid");
-  if (uuidFieldExists) {
-    file.addImportDeclaration({
-      moduleSpecifier: "uuid",
-      namedImports: ["v4 as uuidv4"],
-    });
-  }
+
+  if (uuidFieldExists) writer.writeLine(`import { v4 as uuidv4 } from "uuid";`);
 }
 
-function addVersionDeclaration(file: SourceFile) {
-  file.addVariableStatement({
-    declarationKind: VariableDeclarationKind.Const,
-    declarations: [{ name: "IDB_VERSION", initializer: "1" }],
-  });
+function addVersionDeclaration(writer: CodeBlockWriter) {
+  writer.writeLine(`const IDB_VERSION = 1;`);
 }
 
-export function createPrismaIDBClientFile(idbClientFile: SourceFile, models: DMMF.Datamodel["models"]) {
-  addImports(idbClientFile, models);
-  addVersionDeclaration(idbClientFile);
-  addClientClass(idbClientFile, models);
-  addBaseModelClass(idbClientFile);
-  models.forEach((model, idx) => {
-    addIDBModelClass(idbClientFile, model, models);
-    console.log(`${idx + 1}/${models.length}: ${model.name} done`);
+export function createPrismaIDBClientFile(writer: CodeBlockWriter, models: DMMF.Datamodel["models"]) {
+  addImports(writer, models);
+  addVersionDeclaration(writer);
+  addClientClass(writer, models);
+  addBaseModelClass(writer);
+  models.forEach((model) => {
+    addIDBModelClass(writer, model, models);
   });
 }
