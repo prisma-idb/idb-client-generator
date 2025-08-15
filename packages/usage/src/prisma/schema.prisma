@@ -128,7 +128,7 @@ model Child {
 }
 
 model ModelWithEnum {
-  id           Int     @id @default(autoincrement())
+  id           Int      @id @default(autoincrement())
   enum         MyEnum
   nullableEnum MyEnum?
   enumArray    MyEnum[]
@@ -143,4 +143,16 @@ enum MyEnum {
 model TestUuid {
   id   String @id @default(uuid())
   name String
+}
+
+model ModelWithOptionalRelationToUniqueAttributes {
+  id     String                     @id @default(uuid())
+  link   ModelWithUniqueAttributes? @relation(fields: [linkId], references: [id])
+  linkId Int?
+}
+
+model ModelWithUniqueAttributes {
+  id    Int                                           @id @default(autoincrement())
+  code  String                                        @unique
+  links ModelWithOptionalRelationToUniqueAttributes[]
 }

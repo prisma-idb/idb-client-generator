@@ -1,6 +1,6 @@
 import { CodeBlockWriter } from "ts-morph";
 import { Field, Model } from "../../../../../fileCreators/types";
-import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
+import { getModelFieldData, getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
 
 export function addCreateMethod(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   writer
@@ -10,6 +10,7 @@ export function addCreateMethod(writer: CodeBlockWriter, model: Model, models: r
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "create">>`)
     .block(() => {
       createTx(writer);
+      createUndefinedReplacer(writer, model);
       createDependencies(writer, model, models);
       createCurrentModel(writer, model);
       createDependents(writer, model, models);
@@ -21,6 +22,13 @@ function createTx(writer: CodeBlockWriter) {
   writer
     .writeLine(`const storesNeeded = this._getNeededStoresForCreate(query.data);`)
     .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");`);
+}
+
+function createUndefinedReplacer(writer: CodeBlockWriter, model: Model) {
+  const { allRequiredFieldsHaveDefaults } = getModelFieldData(model);
+  if (!allRequiredFieldsHaveDefaults) return;
+
+  writer.writeLine(`query.data = query.data === undefined ? {} : query.data;`);
 }
 
 function createDependencies(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
@@ -256,7 +264,7 @@ function addOneToManyRelation(
               .writeLine(`await this.client.${toCamelCase(field.type)}.upsert({`)
               .writeLine(`where: connectOrCreate.where,`)
               .writeLine(
-                `create: { ...connectOrCreate.create, ${nestedDirectLine} } as Prisma.Args<Prisma.${field.type}Delegate, "create">["data"],`,
+                `create: { ...connectOrCreate.create, ${nestedDirectLine} } as NonNullable<Prisma.Args<Prisma.${field.type}Delegate, "create">["data"]>,`,
               )
               .writeLine(`update: { ${nestedDirectLine} },`)
               .writeLine(`}, tx);`);
