@@ -424,7 +424,7 @@ function handleOneToOneRelationMetaOnCurrentUpdate(writer: CodeBlockWriter, fiel
             `const deleteWhere = query.data.${field.name}.delete === true ? {} : query.data.${field.name}.delete;`,
           )
           .writeLine(
-            `await this.client.${toCamelCase(field.type)}.delete({ where: { ...deleteWhere, ${uniqueInput} } }, tx);`,
+            `await this.client.${toCamelCase(field.type)}.delete({ where: { ...deleteWhere, ${uniqueInput} } } as Prisma.${field.type}DeleteArgs, tx);`,
           );
         for (const _field of field.relationFromFields!) {
           writer.writeLine(`record.${_field} = null;`);

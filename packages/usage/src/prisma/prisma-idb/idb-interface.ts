@@ -59,4 +59,15 @@ export interface PrismaIDBSchema extends DBSchema {
     key: [id: Prisma.TestUuid["id"]];
     value: Prisma.TestUuid;
   };
+  ModelWithOptionalRelationToUniqueAttributes: {
+    key: [id: Prisma.ModelWithOptionalRelationToUniqueAttributes["id"]];
+    value: Prisma.ModelWithOptionalRelationToUniqueAttributes;
+  };
+  ModelWithUniqueAttributes: {
+    key: [id: Prisma.ModelWithUniqueAttributes["id"]];
+    value: Prisma.ModelWithUniqueAttributes;
+    indexes: {
+      codeIndex: [code: Prisma.ModelWithUniqueAttributes["code"]];
+    };
+  };
 }
