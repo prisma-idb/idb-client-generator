@@ -68,7 +68,8 @@ export function getModelFieldData(model: Model) {
 
   const optionalFields = model.fields.filter((field) => !field.isRequired);
   const fieldsWithDefaultValue = model.fields.filter((field) => field.hasDefaultValue);
-  const allRequiredFieldsHaveDefaults = fieldsWithDefaultValue.length === model.fields.length - optionalFields.length;
+  const nonDataRequiredFields = model.fields.filter((field) => !field.isRequired || field.hasDefaultValue);
+  const allRequiredFieldsHaveDefaults = model.fields.length === nonDataRequiredFields.length;
 
   return { optionalFields, fieldsWithDefaultValue, allRequiredFieldsHaveDefaults, nonKeyUniqueFields, storeName };
 }

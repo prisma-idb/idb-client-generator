@@ -8,7 +8,7 @@ import { toCamelCase } from "../../../../../helpers/utils";
 
 export function addApplyWhereClause(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   writer
-    .writeLine(`async private _applyWhereClause<`)
+    .writeLine(`private async _applyWhereClause<`)
     .writeLine(`W extends Prisma.Args<Prisma.${model.name}Delegate, 'findFirstOrThrow'>['where'],`)
     .writeLine(`R extends Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>,`)
     .writeLine(`>(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]>`)
