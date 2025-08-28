@@ -1,27 +1,22 @@
 import { DMMF } from "@prisma/generator-helper";
-import { CodeBlockWriter, SourceFile } from "ts-morph";
+import { CodeBlockWriter } from "ts-morph";
 import { getUniqueIdentifiers } from "../../helpers/utils";
 import { Model } from "../types";
 
-export function createIDBInterfaceFile(idbInterfaceFile: SourceFile, models: DMMF.Datamodel["models"]) {
-  idbInterfaceFile.addImportDeclaration({ isTypeOnly: true, namedImports: ["DBSchema"], moduleSpecifier: "idb" });
-  idbInterfaceFile.addImportDeclaration({ namespaceImport: "Prisma", moduleSpecifier: "@prisma/client" });
+export function createIDBInterfaceFile(writer: CodeBlockWriter, models: DMMF.Datamodel["models"]) {
+  writer
+    .writeLine(`import type { DBSchema } from 'idb';`)
+    .writeLine(`import * as Prisma from '@prisma/client';`)
+    .blankLine();
 
-  idbInterfaceFile.addInterface({
-    name: "PrismaIDBSchema",
-    extends: ["DBSchema"],
-    isExported: true,
-    properties: models.map((model) => ({
-      name: model.name,
-      type: (writer) => {
-        writer.block(() => {
-          writer
-            .writeLine(`key: ${getUniqueIdentifiers(model)[0].keyPathType};`)
-            .writeLine(`value: Prisma.${model.name};`);
-          createUniqueFieldIndexes(writer, model);
-        });
-      },
-    })),
+  writer.writeLine(`export interface PrismaIDBSchema extends DBSchema`).block(() => {
+    models.forEach((model) => {
+      writer.writeLine(`${model.name}:`).block(() => {
+        writer.writeLine(`key: ${getUniqueIdentifiers(model)[0].keyPathType};`);
+        writer.writeLine(`value: Prisma.${model.name};`);
+        createUniqueFieldIndexes(writer, model);
+      });
+    });
   });
 }
 

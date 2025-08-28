@@ -1,7 +1,7 @@
 import { Model } from "src/fileCreators/types";
-import type { SourceFile } from "ts-morph";
+import type { CodeBlockWriter } from "ts-morph";
 
-export function addEnumUpdateHandler(utilsFile: SourceFile, models: readonly Model[]) {
+export function addEnumUpdateHandler(writer: CodeBlockWriter, models: readonly Model[]) {
   const enumFields = models.flatMap(({ fields }) => fields).filter((field) => field.kind === "enum" && !field.isList);
   if (enumFields.length === 0) return;
 
@@ -19,19 +19,13 @@ export function addEnumUpdateHandler(utilsFile: SourceFile, models: readonly Mod
     fieldType += " | null";
   }
 
-  utilsFile.addFunction({
-    name: "handleEnumUpdateField",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      {
-        name: "enumUpdate",
-        type: updateOperationType,
-      },
-    ],
-    statements: (writer) => {
+  writer
+    .writeLine(`export function handleEnumUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(`)
+    .writeLine(`  record: R,`)
+    .writeLine(`  fieldName: keyof R,`)
+    .writeLine(`  enumUpdate: ${updateOperationType},`)
+    .writeLine(`): void`)
+    .block(() => {
       writer
         .writeLine(`if (enumUpdate === undefined) return;`)
         .write(`if (typeof enumUpdate === "string"`)
@@ -43,6 +37,5 @@ export function addEnumUpdateHandler(utilsFile: SourceFile, models: readonly Mod
       writer.writeLine(`else if (enumUpdate.set !== undefined)`).block(() => {
         writer.writeLine(`(record[fieldName] as ${fieldType}) = enumUpdate.set;`);
       });
-    },
-  });
+    });
 }

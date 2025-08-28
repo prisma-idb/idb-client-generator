@@ -1,25 +1,21 @@
 import type { Model } from "src/fileCreators/types";
-import type { SourceFile } from "ts-morph";
+import type { CodeBlockWriter } from "ts-morph";
 
-export function addScalarListUpdateHandler(utilsFile: SourceFile, models: readonly Model[]) {
+export function addScalarListUpdateHandler(writer: CodeBlockWriter, models: readonly Model[]) {
   const scalarListFields = models
     .flatMap(({ fields }) => fields)
     .filter((field) => field.isList && field.kind !== "object");
   if (scalarListFields.length === 0) return;
 
-  utilsFile.addFunction({
-    name: "handleScalarListUpdateField",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      {
-        name: "listUpdate",
-        type: "undefined | unknown[] | { set?: unknown[]; push?: unknown | unknown[] }",
-      },
-    ],
-    statements: (writer) => {
+  writer
+    .writeLine(
+      `export function handleScalarListUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(`,
+    )
+    .writeLine(`  record: R,`)
+    .writeLine(`  fieldName: keyof R,`)
+    .writeLine(`  listUpdate: undefined | unknown[] | { set?: unknown[]; push?: unknown | unknown[] },`)
+    .writeLine(`): void`)
+    .block(() => {
       writer
         .writeLine(`if (listUpdate === undefined) return;`)
         .write(`if (Array.isArray(listUpdate))`)
@@ -42,6 +38,5 @@ export function addScalarListUpdateHandler(utilsFile: SourceFile, models: readon
               writer.writeLine(`(record[fieldName] as unknown[]) = convertToArray(listUpdate.push);`);
             });
         });
-    },
-  });
+    });
 }

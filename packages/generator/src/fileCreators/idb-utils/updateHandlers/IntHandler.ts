@@ -1,7 +1,7 @@
 import { Model } from "src/fileCreators/types";
-import type { SourceFile } from "ts-morph";
+import type { CodeBlockWriter } from "ts-morph";
 
-export function addIntUpdateHandler(utilsFile: SourceFile, models: readonly Model[]) {
+export function addIntUpdateHandler(writer: CodeBlockWriter, models: readonly Model[]) {
   const intFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "Int");
   if (intFields.length === 0) return;
 
@@ -19,19 +19,13 @@ export function addIntUpdateHandler(utilsFile: SourceFile, models: readonly Mode
     fieldType += " | null";
   }
 
-  utilsFile.addFunction({
-    name: "handleIntUpdateField",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      {
-        name: "intUpdate",
-        type: updateOperationType,
-      },
-    ],
-    statements: (writer) => {
+  writer
+    .writeLine(`export function handleIntUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(`)
+    .writeLine(`  record: R,`)
+    .writeLine(`  fieldName: keyof R,`)
+    .writeLine(`  intUpdate: ${updateOperationType},`)
+    .writeLine(`): void`)
+    .block(() => {
       writer
         .writeLine(`if (intUpdate === undefined) return;`)
         .write(`if (typeof intUpdate === "number"`)
@@ -60,6 +54,5 @@ export function addIntUpdateHandler(utilsFile: SourceFile, models: readonly Mode
         .block(() => {
           writer.writeLine(`(record[fieldName] as number) /= intUpdate.divide;`);
         });
-    },
-  });
+    });
 }

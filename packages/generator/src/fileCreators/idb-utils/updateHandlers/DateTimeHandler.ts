@@ -1,7 +1,7 @@
 import { Model } from "src/fileCreators/types";
-import type { SourceFile } from "ts-morph";
+import type { CodeBlockWriter } from "ts-morph";
 
-export function addDateTimeUpdateHandler(utilsFile: SourceFile, models: readonly Model[]) {
+export function addDateTimeUpdateHandler(writer: CodeBlockWriter, models: readonly Model[]) {
   const dateTimeFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "DateTime");
   if (dateTimeFields.length === 0) return;
 
@@ -19,19 +19,13 @@ export function addDateTimeUpdateHandler(utilsFile: SourceFile, models: readonly
     fieldType += " | null";
   }
 
-  utilsFile.addFunction({
-    name: "handleDateTimeUpdateField",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      {
-        name: "dateTimeUpdate",
-        type: updateOperationType,
-      },
-    ],
-    statements: (writer) => {
+  writer
+    .writeLine(`export function handleDateTimeUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(`)
+    .writeLine(`  record: R,`)
+    .writeLine(`  fieldName: keyof R,`)
+    .writeLine(`  dateTimeUpdate: ${updateOperationType},`)
+    .writeLine(`): void`)
+    .block(() => {
       writer
         .writeLine(`if (dateTimeUpdate === undefined) return;`)
         .write(`if (typeof dateTimeUpdate === "string" || dateTimeUpdate instanceof Date`)
@@ -49,6 +43,5 @@ export function addDateTimeUpdateHandler(utilsFile: SourceFile, models: readonly
           .conditionalWrite(nullableDateTimeFieldPresent, () => `dateTimeUpdate.set === null ? null : `)
           .write(`new Date(dateTimeUpdate.set);`);
       });
-    },
-  });
+    });
 }

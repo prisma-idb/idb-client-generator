@@ -1,30 +1,22 @@
-import type { CodeBlockWriter, SourceFile } from "ts-morph";
+import type { CodeBlockWriter } from "ts-morph";
 
-export function addApplyLogicalFilters(utilsFile: SourceFile) {
-  utilsFile.addFunction({
-    name: "applyLogicalFilters",
-    isExported: true,
-    isAsync: true,
-    typeParameters: [
-      { name: "T" },
-      { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` },
-      { name: "W", constraint: `Prisma.Args<T, "findFirstOrThrow">["where"]` },
-    ],
-    parameters: [
-      { name: "records", type: "R[]" },
-      { name: "whereClause", type: "W" },
-      { name: "tx", type: "TransactionType" },
-      { name: "keyPath", type: "string[]" },
-      { name: "applyWhereFunction", type: `(records: R[], clause: W, tx: TransactionType) => Promise<R[]>` },
-    ],
-    returnType: "Promise<R[]>",
-    statements: (writer) => {
+export function addApplyLogicalFilters(writer: CodeBlockWriter) {
+  writer
+    .writeLine(
+      `export async function applyLogicalFilters<T, R extends Prisma.Result<T, object, "findFirstOrThrow">, W extends Prisma.Args<T, "findFirstOrThrow">["where"]>(`,
+    )
+    .writeLine(`records: R[],`)
+    .writeLine(`whereClause: W,`)
+    .writeLine(`tx: TransactionType,`)
+    .writeLine(`keyPath: string[],`)
+    .writeLine(`applyWhereFunction: (records: R[], clause: W, tx: TransactionType) => Promise<R[]>`)
+    .writeLine(`): Promise<R[]>`)
+    .block(() => {
       handleAndParameter(writer);
       handleOrParameter(writer);
       handleNotParameter(writer);
       writer.writeLine(`return records;`);
-    },
-  });
+    });
 }
 
 function handleAndParameter(writer: CodeBlockWriter) {
