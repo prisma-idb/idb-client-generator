@@ -1,4 +1,5 @@
 import { DMMF } from "@prisma/generator-helper";
+import { ExternalConfig } from "src/config";
 import { CodeBlockWriter } from "ts-morph";
 import type { Model } from "../types";
 import { addBaseModelClass } from "./classes/BaseIDBModelClass";
@@ -35,12 +36,13 @@ export function createPrismaIDBClientFile(
   writer: CodeBlockWriter,
   models: DMMF.Datamodel["models"],
   clientPath: string,
+  externalConfig: ExternalConfig,
 ) {
   addImports(writer, models, clientPath);
   addVersionDeclaration(writer);
   addClientClass(writer, models);
   addBaseModelClass(writer);
   models.forEach((model) => {
-    addIDBModelClass(writer, model, models);
+    addIDBModelClass(writer, model, models, externalConfig);
   });
 }

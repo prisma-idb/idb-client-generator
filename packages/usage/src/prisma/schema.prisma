@@ -8,8 +8,9 @@ generator client {
 }
 
 generator prismaIDB {
-  provider = "idb-client-generator"
-  output   = "./prisma-idb"
+  provider            = "idb-client-generator"
+  output              = "./prisma-idb"
+  autoDeletedAtFilter = true
 }
 
 model User {
@@ -155,4 +156,9 @@ model ModelWithUniqueAttributes {
   id    Int                                           @id @default(autoincrement())
   code  String                                        @unique
   links ModelWithOptionalRelationToUniqueAttributes[]
+}
+
+model ModelWithDeletedAt {
+  id        Int       @id @default(autoincrement())
+  deletedAt DateTime?
 }

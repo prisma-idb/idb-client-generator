@@ -2,16 +2,21 @@ import { CodeBlockWriter } from "ts-morph";
 import { Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers } from "../../../../../helpers/utils";
 
-export function addFindUniqueMethod(writer: CodeBlockWriter, model: Model) {
+export function addFindUniqueMethod(writer: CodeBlockWriter, model: Model, autoDeletedAtFilter: boolean) {
   writer
     .writeLine(`async findUnique<Q extends Prisma.Args<Prisma.${model.name}Delegate, "findUnique">>(`)
     .writeLine(`query: Q,`)
-    .writeLine(`tx?: IDBUtils.TransactionType,`)
+    .writeLine(`options?: `)
+    .block(() => {
+      writer
+        .writeLine(`tx?: IDBUtils.TransactionType,`)
+        .conditionalWriteLine(autoDeletedAtFilter, `skipAutoDeletedAtFilter?: boolean`);
+    })
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "findUnique">>`)
     .block(() => {
       writer
         .writeLine(
-          `tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`,
+          `const tx = options?.tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`,
         )
         .writeLine("let record;");
       getFromKeyIdentifier(writer, model);

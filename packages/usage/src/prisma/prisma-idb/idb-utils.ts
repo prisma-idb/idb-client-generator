@@ -343,7 +343,13 @@ export function whereBytesFilter<T, R extends Prisma.Result<T, object, "findFirs
 export function whereDateTimeFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  dateTimeFilter: undefined | Date | string | Prisma.DateTimeFilter<unknown>,
+  dateTimeFilter:
+    | undefined
+    | Date
+    | string
+    | Prisma.DateTimeFilter<unknown>
+    | null
+    | Prisma.DateTimeNullableFilter<unknown>,
 ): boolean {
   if (dateTimeFilter === undefined) return true;
 
@@ -589,13 +595,19 @@ export function handleBooleanUpdateField<T, R extends Prisma.Result<T, object, "
 export function handleDateTimeUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  dateTimeUpdate: undefined | Date | string | Prisma.DateTimeFieldUpdateOperationsInput,
+  dateTimeUpdate:
+    | undefined
+    | Date
+    | string
+    | Prisma.DateTimeFieldUpdateOperationsInput
+    | null
+    | Prisma.NullableDateTimeFieldUpdateOperationsInput,
 ): void {
   if (dateTimeUpdate === undefined) return;
-  if (typeof dateTimeUpdate === "string" || dateTimeUpdate instanceof Date) {
-    (record[fieldName] as Date) = new Date(dateTimeUpdate);
+  if (typeof dateTimeUpdate === "string" || dateTimeUpdate instanceof Date || dateTimeUpdate === null) {
+    (record[fieldName] as Date | null) = dateTimeUpdate === null ? null : new Date(dateTimeUpdate);
   } else if (dateTimeUpdate.set !== undefined) {
-    (record[fieldName] as Date) = new Date(dateTimeUpdate.set);
+    (record[fieldName] as Date | null) = dateTimeUpdate.set === null ? null : new Date(dateTimeUpdate.set);
   }
 }
 export function handleBytesUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(

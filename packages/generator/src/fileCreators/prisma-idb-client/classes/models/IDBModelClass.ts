@@ -1,3 +1,4 @@
+import { ExternalConfig } from "src/config";
 import { CodeBlockWriter } from "ts-morph";
 import { Model } from "../../../types";
 import { addAggregateMethod } from "./api/aggregate";
@@ -30,7 +31,12 @@ import { addRemoveNestedCreateDataMethod } from "./utils/_removeNestedCreateData
 import { addResolveOrderByKey } from "./utils/_resolveOrderByKey";
 import { addResolveSortOrder } from "./utils/_resolveSortOrder";
 
-export function addIDBModelClass(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+export function addIDBModelClass(
+  writer: CodeBlockWriter,
+  model: Model,
+  models: readonly Model[],
+  externalConfig: ExternalConfig,
+) {
   writer.writeLine(`class ${model.name}IDBClass extends BaseIDBModelClass<"${model.name}">`).block(() => {
     addApplyWhereClause(writer, model, models);
     addApplySelectClause(writer, model);
@@ -47,12 +53,12 @@ export function addIDBModelClass(writer: CodeBlockWriter, model: Model, models: 
     addRemoveNestedCreateDataMethod(writer, model);
     addPreprocessListFields(writer, model);
 
-    addFindManyMethod(writer, model);
-    addFindFirstMethod(writer, model);
-    addFindFirstOrThrow(writer, model);
-    addFindUniqueMethod(writer, model);
-    addFindUniqueOrThrow(writer, model);
-    addCountMethod(writer, model);
+    addFindManyMethod(writer, model, externalConfig.autoDeletedAtFilter);
+    addFindFirstMethod(writer, model, externalConfig.autoDeletedAtFilter);
+    addFindFirstOrThrow(writer, model, externalConfig.autoDeletedAtFilter);
+    addFindUniqueMethod(writer, model, externalConfig.autoDeletedAtFilter);
+    addFindUniqueOrThrow(writer, model, externalConfig.autoDeletedAtFilter);
+    addCountMethod(writer, model, externalConfig.autoDeletedAtFilter);
 
     addCreateMethod(writer, model, models);
     addCreateManyMethod(writer, model);

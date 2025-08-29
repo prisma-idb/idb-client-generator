@@ -232,7 +232,7 @@ function addOneToOneMetaOnFieldFiltering(writer: CodeBlockWriter, field: Field) 
       writer
         .conditionalWriteLine(!field.isRequired, () => `if (record.${fkName} === null) return null;`)
         .writeLine(
-          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ...is, ${fkMapping} } }, tx)`,
+          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ...is, ${fkMapping} } }, { tx })`,
         )
         .writeLine(`if (!relatedRecord) return null;`);
     });
@@ -246,7 +246,7 @@ function addOneToOneMetaOnFieldFiltering(writer: CodeBlockWriter, field: Field) 
       writer
         .conditionalWriteLine(!field.isRequired, () => `if (record.${fkName} === null) return null;`)
         .writeLine(
-          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ...isNot, ${fkMapping} } }, tx)`,
+          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ...isNot, ${fkMapping} } }, { tx })`,
         )
         .writeLine(`if (relatedRecord) return null;`);
     });
@@ -255,7 +255,7 @@ function addOneToOneMetaOnFieldFiltering(writer: CodeBlockWriter, field: Field) 
       writer
         .conditionalWriteLine(!field.isRequired, () => `if (record.${fkName} === null) return null;`)
         .writeLine(
-          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ...whereClause.${field.name}, ${fkMapping} } }, tx);`,
+          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ...whereClause.${field.name}, ${fkMapping} } }, { tx });`,
         )
         .writeLine(`if (!relatedRecord) return null;`);
     });
@@ -271,7 +271,7 @@ function addOneToOneMetaOnOtherFieldFiltering(writer: CodeBlockWriter, field: Fi
     writer.writeLine(`if (whereClause.${field.name} === null)`).block(() => {
       writer
         .writeLine(
-          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ${fkMapping} } }, tx)`,
+          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ${fkMapping} } }, { tx })`,
         )
         .writeLine(`if (relatedRecord) return null;`);
     });
@@ -283,7 +283,7 @@ function addOneToOneMetaOnOtherFieldFiltering(writer: CodeBlockWriter, field: Fi
       writer.writeLine(`if (is === null)`).block(() => {
         writer
           .writeLine(
-            `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ${fkMapping} } }, tx)`,
+            `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ${fkMapping} } }, { tx })`,
           )
           .writeLine(`if (relatedRecord) return null;`);
       });
@@ -291,7 +291,7 @@ function addOneToOneMetaOnOtherFieldFiltering(writer: CodeBlockWriter, field: Fi
     writer.writeLine(`if (is !== null && is !== undefined)`).block(() => {
       writer
         .writeLine(
-          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ...is, ${fkMapping} } }, tx)`,
+          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ...is, ${fkMapping} } }, { tx })`,
         )
         .writeLine(`if (!relatedRecord) return null;`);
     });
@@ -300,7 +300,7 @@ function addOneToOneMetaOnOtherFieldFiltering(writer: CodeBlockWriter, field: Fi
       writer.writeLine(`if (isNot === null)`).block(() => {
         writer
           .writeLine(
-            `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ${fkMapping} } }, tx)`,
+            `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ${fkMapping} } }, { tx })`,
           )
           .writeLine(`if (!relatedRecord) return null;`);
       });
@@ -308,7 +308,7 @@ function addOneToOneMetaOnOtherFieldFiltering(writer: CodeBlockWriter, field: Fi
     writer.writeLine(`if (isNot !== null && isNot !== undefined)`).block(() => {
       writer
         .writeLine(
-          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ...isNot, ${fkMapping} } }, tx)`,
+          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ...isNot, ${fkMapping} } }, { tx })`,
         )
         .writeLine(`if (relatedRecord) return null;`);
     });
@@ -320,7 +320,7 @@ function addOneToOneMetaOnOtherFieldFiltering(writer: CodeBlockWriter, field: Fi
           () => `if (record.${otherField.relationToFields?.at(0)} === null) return null;`,
         )
         .writeLine(
-          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ...whereClause.${field.name}, ${fkMapping} } }, tx);`,
+          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ...whereClause.${field.name}, ${fkMapping} } }, { tx });`,
         )
         .writeLine(`if (!relatedRecord) return null;`);
     });

@@ -70,4 +70,8 @@ export interface PrismaIDBSchema extends DBSchema {
       codeIndex: [code: Prisma.ModelWithUniqueAttributes["code"]];
     };
   };
+  ModelWithDeletedAt: {
+    key: [id: Prisma.ModelWithDeletedAt["id"]];
+    value: Prisma.ModelWithDeletedAt;
+  };
 }

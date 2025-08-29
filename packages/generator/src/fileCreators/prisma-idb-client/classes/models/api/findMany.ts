@@ -1,11 +1,16 @@
 import { CodeBlockWriter } from "ts-morph";
 import { Model } from "../../../../../fileCreators/types";
 
-export function addFindManyMethod(writer: CodeBlockWriter, model: Model) {
+export function addFindManyMethod(writer: CodeBlockWriter, model: Model, autoDeletedAtFilter: boolean) {
   writer
     .writeLine(`async findMany<Q extends Prisma.Args<Prisma.${model.name}Delegate, "findMany">>(`)
     .writeLine(`query?: Q,`)
-    .writeLine(`tx?: IDBUtils.TransactionType,`)
+    .writeLine(`options?: `)
+    .block(() => {
+      writer
+        .writeLine(`tx?: IDBUtils.TransactionType,`)
+        .conditionalWriteLine(autoDeletedAtFilter, `skipAutoDeletedAtFilter?: boolean`);
+    })
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "findMany">>`)
     .block(() => {
       getRecords(writer, model);
@@ -18,7 +23,9 @@ export function addFindManyMethod(writer: CodeBlockWriter, model: Model) {
 
 function getRecords(writer: CodeBlockWriter, model: Model) {
   writer
-    .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`)
+    .writeLine(
+      `const tx = options?.tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`,
+    )
     .writeLine(
       `const records = await this._applyWhereClause(await tx.objectStore("${model.name}").getAll(), query?.where, tx);`,
     )

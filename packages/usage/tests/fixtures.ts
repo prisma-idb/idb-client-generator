@@ -10,7 +10,8 @@ async function resetDatabase() {
       "Post", 
       "UserGroup", 
       "Group", 
-      "User" 
+      "User",
+      "ModelWithDeletedAt"
       RESTART IDENTITY CASCADE;`);
 }
 

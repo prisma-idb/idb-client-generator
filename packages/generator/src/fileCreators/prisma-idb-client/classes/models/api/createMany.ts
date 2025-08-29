@@ -7,7 +7,10 @@ export function addCreateManyMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async createMany<Q extends Prisma.Args<Prisma.${model.name}Delegate, "createMany">>(`)
     .writeLine(`query: Q,`)
-    .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
+    .writeLine(`options?: `)
+    .block(() => {
+      writer.writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`);
+    })
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "createMany">>`)
     .block(() => {
       setupDataAndTx(writer, model);
@@ -19,7 +22,7 @@ export function addCreateManyMethod(writer: CodeBlockWriter, model: Model) {
 function setupDataAndTx(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine("const createManyData = IDBUtils.convertToArray(query.data);")
-    .writeLine(`tx = tx ?? this.client._db.transaction(["${model.name}"], "readwrite");`);
+    .writeLine(`const tx = options?.tx ?? this.client._db.transaction(["${model.name}"], "readwrite");`);
 }
 
 function addTransactionalHandling(writer: CodeBlockWriter, model: Model) {

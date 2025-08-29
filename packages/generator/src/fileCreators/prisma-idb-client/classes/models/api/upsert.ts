@@ -6,7 +6,10 @@ export function addUpsertMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async upsert<Q extends Prisma.Args<Prisma.${model.name}Delegate, "upsert">>(`)
     .writeLine(`query: Q,`)
-    .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
+    .writeLine(`options?: `)
+    .block(() => {
+      writer.writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`);
+    })
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "upsert">>`)
     .block(() => {
       addGetAndUpsertRecord(writer, model);
@@ -19,10 +22,10 @@ function addGetAndUpsertRecord(writer: CodeBlockWriter, model: Model) {
     .writeLine(
       `const neededStores = this._getNeededStoresForUpdate({ ...query, data: { ...query.update, ...query.create } as Prisma.Args<Prisma.${model.name}Delegate, "update">["data"] });`,
     )
-    .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(neededStores), "readwrite");`)
-    .writeLine(`let record = await this.findUnique({ where: query.where }, tx);`)
-    .writeLine(`if (!record) record = await this.create({ data: query.create }, tx);`)
-    .writeLine(`else record = await this.update({ where: query.where, data: query.update }, tx);`);
+    .writeLine(`const tx = options?.tx ?? this.client._db.transaction(Array.from(neededStores), "readwrite");`)
+    .writeLine(`let record = await this.findUnique({ where: query.where }, { tx });`)
+    .writeLine(`if (!record) record = await this.create({ data: query.create }, { tx });`)
+    .writeLine(`else record = await this.update({ where: query.where, data: query.update }, { tx });`);
 }
 
 function addRefetchAndReturnRecord(writer: CodeBlockWriter, model: Model) {
@@ -40,7 +43,7 @@ function addRefetchAndReturnRecord(writer: CodeBlockWriter, model: Model) {
   recordFindQuery += ` }, select: query.select`;
 
   if (hasRelations) recordFindQuery += ", include: query.include";
-  recordFindQuery += " }, tx);";
+  recordFindQuery += " }, { tx });";
 
   writer
     .writeLine(recordFindQuery)

@@ -29,7 +29,7 @@ generatorHandler({
 
     await Promise.all([
       writeCodeFile("prisma-idb-client.ts", outputPath, (writer) => {
-        createPrismaIDBClientFile(writer, models, clientPath);
+        createPrismaIDBClientFile(writer, models, clientPath, config);
       }),
 
       writeCodeFile("idb-interface.ts", outputPath, (writer) => {
