@@ -1,5 +1,5 @@
 import type { IDBPTransaction, StoreNames } from "idb";
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "/home/anonjr/Programming/Web/idb-client-generator/node_modules/@prisma/client";
 import type { PrismaIDBSchema } from "./idb-interface";
 export function convertToArray<T>(arg: T | T[]): T[] {
   return Array.isArray(arg) ? arg : [arg];

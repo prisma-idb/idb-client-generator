@@ -26,10 +26,10 @@ import { addIntUpdateHandler } from "./updateHandlers/IntHandler";
 import { addScalarListUpdateHandler } from "./updateHandlers/ScalarListHandler";
 import { addStringUpdateHandler } from "./updateHandlers/StringHandler";
 
-export function createUtilsFile(writer: CodeBlockWriter, models: readonly Model[]) {
+export function createUtilsFile(writer: CodeBlockWriter, models: readonly Model[], clientPath: string) {
   writer
     .writeLine(`import type { IDBPTransaction, StoreNames } from 'idb';`)
-    .writeLine(`import type { Prisma } from '@prisma/client';`)
+    .writeLine(`import type { Prisma } from '${clientPath}';`)
     .writeLine(`import type { PrismaIDBSchema } from './idb-interface';`);
 
   writer.writeLine(`export function convertToArray<T>(arg: T | T[]): T[]`).block(() => {

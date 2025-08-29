@@ -3,10 +3,10 @@ import { CodeBlockWriter } from "ts-morph";
 import { getUniqueIdentifiers } from "../../helpers/utils";
 import { Model } from "../types";
 
-export function createIDBInterfaceFile(writer: CodeBlockWriter, models: DMMF.Datamodel["models"]) {
+export function createIDBInterfaceFile(writer: CodeBlockWriter, models: DMMF.Datamodel["models"], clientPath: string) {
   writer
     .writeLine(`import type { DBSchema } from 'idb';`)
-    .writeLine(`import * as Prisma from '@prisma/client';`)
+    .writeLine(`import * as Prisma from '${clientPath}';`)
     .blankLine();
 
   writer.writeLine(`export interface PrismaIDBSchema extends DBSchema`).block(() => {

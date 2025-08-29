@@ -73,14 +73,3 @@ export function getModelFieldData(model: Model) {
 
   return { optionalFields, fieldsWithDefaultValue, allRequiredFieldsHaveDefaults, nonKeyUniqueFields, storeName };
 }
-
-export function parseStringBoolean(stringBoolean: string | string[] | undefined) {
-  return stringBoolean === "true" ? true : stringBoolean === "false" ? false : undefined;
-}
-
-export function parseString(value: string | string[] | undefined, optionPropertyName: string) {
-  if (Array.isArray(value)) {
-    throw new Error(`Invalid "${optionPropertyName}" option value "${value}" provided for TypeGraphQL generator.`);
-  }
-  return value;
-}

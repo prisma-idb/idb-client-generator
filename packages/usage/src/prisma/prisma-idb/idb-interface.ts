@@ -1,5 +1,5 @@
 import type { DBSchema } from "idb";
-import * as Prisma from "@prisma/client";
+import * as Prisma from "/home/anonjr/Programming/Web/idb-client-generator/node_modules/@prisma/client";
 
 export interface PrismaIDBSchema extends DBSchema {
   User: {
