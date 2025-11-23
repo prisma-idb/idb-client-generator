@@ -12,11 +12,11 @@
   },
   "scripts": {
     "start": "node dist/bin.js",
-    "dev": "npx tsc -w",
-    "build": "npx tsc",
-    "prepack": "yarn build",
-    "lint": "npx prettier . --check && npx eslint .",
-    "format": "npx prettier . --write",
+    "dev": "pnpm exec tsc -w",
+    "build": "pnpm exec tsc",
+    "prepack": "pnpm build",
+    "lint": "pnpm exec prettier . --check && pnpm exec eslint .",
+    "format": "pnpm exec prettier . --write",
     "release": "release-it"
   },
   "dependencies": {

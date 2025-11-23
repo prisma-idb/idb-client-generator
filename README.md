@@ -16,8 +16,28 @@ This library is not fully ready yet. Check [issue #52](https://github.com/prisma
 ## Installation
 
 ```bash
-npm install @prisma-idb/idb-client-generator
+pnpm add @prisma-idb/idb-client-generator
 ```
+
+## Development Setup
+
+This project uses pnpm workspaces and includes a devcontainer configuration for a consistent development environment.
+
+### Using DevContainer (Recommended)
+
+1. Open the project in VS Code
+2. Install the "Dev Containers" extension if you haven't already
+3. Click "Reopen in Container" when prompted, or use the command palette: `Dev Containers: Reopen in Container`
+4. The container will automatically install dependencies using pnpm
+
+### Local Development
+
+If you prefer to develop locally:
+
+1. Install pnpm: `corepack enable` (Node.js 16.13+) or `npm install -g pnpm`
+2. Install dependencies: `pnpm install`
+3. Run development server: `pnpm dev`
+4. Run tests: `pnpm test`
 
 ## Usage
 
@@ -52,7 +72,7 @@ model User {
 Run the Prisma client generation command:
 
 ```bash
-npx prisma generate
+pnpm exec prisma generate
 ```
 
 This will generate a client in your project.

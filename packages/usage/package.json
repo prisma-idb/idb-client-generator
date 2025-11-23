@@ -14,7 +14,7 @@
     "format": "prettier --write .",
     "lint": "prettier --check . && eslint .",
     "test:e2e": "playwright test",
-    "test": "npm run test:e2e"
+    "test": "pnpm run test:e2e"
   },
   "devDependencies": {
     "@playwright/test": "^1.45.3",
