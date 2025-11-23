@@ -9,10 +9,14 @@
     }
   },
   "npm": {
+    "publish": false,
     "ignoreVersion": true
   },
   "git": {
-    "commit": false,
-    "push": false
+    "commit": true,
+    "commitMessage": "chore(release): ${version}",
+    "tag": true,
+    "tagName": "${version}",
+    "push": true
   }
 }
