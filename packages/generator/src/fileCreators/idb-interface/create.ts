@@ -3,9 +3,13 @@ import { CodeBlockWriter, SourceFile } from "ts-morph";
 import { getUniqueIdentifiers } from "../../helpers/utils";
 import { Model } from "../types";
 
-export function createIDBInterfaceFile(idbInterfaceFile: SourceFile, models: DMMF.Datamodel["models"]) {
+export function createIDBInterfaceFile(
+  idbInterfaceFile: SourceFile,
+  models: DMMF.Datamodel["models"],
+  prismaClientImport: string,
+) {
   idbInterfaceFile.addImportDeclaration({ isTypeOnly: true, namedImports: ["DBSchema"], moduleSpecifier: "idb" });
-  idbInterfaceFile.addImportDeclaration({ namespaceImport: "Prisma", moduleSpecifier: "@prisma/client" });
+  idbInterfaceFile.addImportDeclaration({ namespaceImport: "Prisma", moduleSpecifier: prismaClientImport });
 
   idbInterfaceFile.addInterface({
     name: "PrismaIDBSchema",

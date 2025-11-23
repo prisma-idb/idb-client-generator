@@ -1,7 +1,7 @@
-import { prisma } from "../src/lib/prisma";
+import type { Prisma } from "$lib/generated/prisma/client";
 import { expect, type Page } from "@playwright/test";
-import type { Prisma } from "@prisma/client";
-import type { Operation } from "@prisma/client/runtime/library";
+import { prisma } from "../src/lib/prisma";
+import type { Operation } from "@prisma/client/runtime/client";
 
 export async function runQuery<
   M extends Exclude<keyof typeof prisma, `$${string}` | symbol>,

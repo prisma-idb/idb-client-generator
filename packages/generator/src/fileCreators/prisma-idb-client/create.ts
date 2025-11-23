@@ -5,12 +5,12 @@ import { addBaseModelClass } from "./classes/BaseIDBModelClass";
 import { addIDBModelClass } from "./classes/models/IDBModelClass";
 import { addClientClass } from "./classes/PrismaIDBClient";
 
-function addImports(writer: CodeBlockWriter, models: readonly Model[]) {
+function addImports(writer: CodeBlockWriter, models: readonly Model[], prismaClientImport: string) {
   writer
     .writeLine("/* eslint-disable @typescript-eslint/no-unused-vars */")
     .writeLine(`import { openDB } from "idb";`)
     .writeLine(`import type { IDBPDatabase, StoreNames, IDBPTransaction } from "idb";`)
-    .writeLine(`import type { Prisma } from "@prisma/client";`)
+    .writeLine(`import type { Prisma } from "${prismaClientImport}";`)
     .writeLine(`import * as IDBUtils from "./idb-utils";`)
     .writeLine(`import type { PrismaIDBSchema } from "./idb-interface";`);
 
@@ -31,8 +31,12 @@ function addVersionDeclaration(writer: CodeBlockWriter) {
   writer.writeLine(`const IDB_VERSION = 1;`);
 }
 
-export function createPrismaIDBClientFile(writer: CodeBlockWriter, models: DMMF.Datamodel["models"]) {
-  addImports(writer, models);
+export function createPrismaIDBClientFile(
+  writer: CodeBlockWriter,
+  models: DMMF.Datamodel["models"],
+  prismaClientImport: string,
+) {
+  addImports(writer, models, prismaClientImport);
   addVersionDeclaration(writer);
   addClientClass(writer, models);
   addBaseModelClass(writer);

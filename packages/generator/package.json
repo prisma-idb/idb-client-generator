@@ -1,7 +1,7 @@
 {
   "name": "@prisma-idb/idb-client-generator",
   "description": "Generate types for idb from prisma schema",
-  "version": "0.0.0-semantically-released",
+  "version": "0.19.1",
   "main": "dist/generator.js",
   "license": "MIT",
   "bin": {
@@ -12,31 +12,34 @@
   },
   "scripts": {
     "start": "node dist/bin.js",
-    "dev": "npx tsc -w",
-    "build": "npx tsc",
-    "prepack": "yarn build",
-    "lint": "npx prettier . --check && npx eslint .",
-    "format": "npx prettier . --write",
+    "dev": "pnpm exec tsc -w",
+    "build": "pnpm exec tsc",
+    "prepack": "pnpm build",
+    "lint": "pnpm exec prettier . --check && pnpm exec eslint .",
+    "format": "pnpm exec prettier . --write",
     "release": "release-it"
   },
   "dependencies": {
-    "@prisma/generator-helper": "^6.0.0",
+    "@prisma/generator-helper": "^7.0.0",
     "code-block-writer": "^13.0.3",
-    "prettier": "^3.3.3",
-    "ts-morph": "^26.0.0"
+    "prettier": "^3.6.2",
+    "ts-morph": "^27.0.2"
   },
   "devDependencies": {
-    "@prisma/internals": "^6.0.0",
-    "@release-it/conventional-changelog": "^10.0.0",
-    "@types/node": "^24.2.1",
+    "@prisma/internals": "^7.0.0",
+    "@release-it/conventional-changelog": "^10.0.2",
+    "@types/node": "^24.10.1",
     "@types/prettier": "^2.7.3",
-    "release-it": "^19.0.0",
-    "typescript": "^5.6.3"
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0",
+    "release-it": "^19.0.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.4"
   },
   "peerDependencies": {
-    "@prisma/client": "^6.x.x",
+    "@prisma/client": "^6.x.x || ^7.x.x",
     "idb": "^8.x.x",
-    "prisma": "^6.x.x"
+    "prisma": "^6.x.x || ^7.x.x"
   },
   "homepage": "https://github.com/prisma-idb/idb-client-generator",
   "repository": {
