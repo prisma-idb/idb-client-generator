@@ -20,17 +20,17 @@ import { addBigIntUpdateHandler } from "./updateHandlers/BigIntHandler";
 import { addBooleanUpdateHandler } from "./updateHandlers/BooleanHandler";
 import { addBytesUpdateHandler } from "./updateHandlers/BytesHandler";
 import { addDateTimeUpdateHandler } from "./updateHandlers/DateTimeHandler";
+import { addEnumUpdateHandler } from "./updateHandlers/EnumHandler";
 import { addFloatUpdateHandler } from "./updateHandlers/FloatHandler";
 import { addIntUpdateHandler } from "./updateHandlers/IntHandler";
 import { addScalarListUpdateHandler } from "./updateHandlers/ScalarListHandler";
 import { addStringUpdateHandler } from "./updateHandlers/StringHandler";
-import { addEnumUpdateHandler } from "./updateHandlers/EnumHandler";
 
-export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model[]) {
+export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model[], prismaClientImport: string) {
   idbUtilsFile.addImportDeclarations([
     { moduleSpecifier: "idb", isTypeOnly: true, namedImports: ["IDBPTransaction", "StoreNames"] },
     { moduleSpecifier: "./idb-interface", isTypeOnly: true, namedImports: ["PrismaIDBSchema"] },
-    { moduleSpecifier: "@prisma/client", isTypeOnly: true, namedImports: ["Prisma"] },
+    { moduleSpecifier: prismaClientImport, isTypeOnly: true, namedImports: ["Prisma"] },
   ]);
 
   idbUtilsFile.addFunction({
