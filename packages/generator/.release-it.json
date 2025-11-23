@@ -13,10 +13,9 @@
     "ignoreVersion": true
   },
   "git": {
-    "commit": true,
-    "commitMessage": "chore(release): ${version}",
+    "commit": false,
     "tag": true,
     "tagName": "${version}",
-    "push": true
+    "push": false
   }
 }
