@@ -13,10 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/
-      - name: Lint generator
-        run: npm run lint --workspace=packages/generator
-      - name: Lint usage
-        run: npm run lint --workspace=packages/usage
+      - name: Lint both packages
+        run: pnpm lint
 
   svelte-check:
     runs-on: ubuntu-latest
@@ -25,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/
       - name: Run svelte-check
-        run: npm run check --workspace=packages/usage
+        run: pnpm check
 
   test:
     timeout-minutes: 60
@@ -55,9 +53,9 @@ jobs:
         run: echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5433/postgres" >> $GITHUB_ENV
       - uses: ./.github/actions/
       - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
+        run: pnpm exec playwright install --with-deps
       - name: Run Playwright tests
-        run: npm run test --workspace=packages/usage
+        run: pnpm test
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:

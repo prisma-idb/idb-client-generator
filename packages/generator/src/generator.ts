@@ -28,7 +28,7 @@ generatorHandler({
           `generator prismaIDB {` +
           `\tprovider           = "idb-client-generator"` +
           `\toutput             = "./prisma-idb"` +
-          `\tprismaClientImport = "resolvable/path/to/prisma/client"`
+          `\tprismaClientImport = "resolvable/path/to/prisma/client"`,
       );
     }
 
