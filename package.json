@@ -1,15 +1,5 @@
 {
   "private": true,
-  "devDependencies": {
-    "@eslint/js": "^9.13.0",
-    "eslint": "^9.13.0",
-    "eslint-plugin-import": "^2.31.0",
-    "eslint-plugin-n": "^17.11.1",
-    "eslint-plugin-promise": "^7.1.0",
-    "globals": "^16.0.0",
-    "prettier": "^3.3.3",
-    "typescript-eslint": "^8.11.0"
-  },
   "scripts": {
     "lint": "pnpm run -r lint",
     "format": "pnpm run -r format",

@@ -1,15 +1,16 @@
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
 }
 
 generator prismaIDB {
-  provider = "idb-client-generator"
-  output   = "./prisma-idb"
+  provider           = "idb-client-generator"
+  output             = "./prisma-idb"
+  prismaClientImport = "$lib/generated/prisma/client"
 }
 
 model User {

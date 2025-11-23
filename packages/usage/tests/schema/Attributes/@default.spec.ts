@@ -1,4 +1,4 @@
-import type { Comment, Post, UserGroup } from "@prisma/client";
+import type { Comment, Post, UserGroup } from "$lib/generated/prisma/client";
 import { expect, test } from "../../fixtures";
 import { expectQueryToSucceed, runQuery } from "../../queryRunnerHelper";
 
