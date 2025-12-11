@@ -52,7 +52,7 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxMo
 
   writer
     .writeLine(
-      `protected emit(event: "create" | "update" | "delete", keyPath: PrismaIDBSchema[T]["key"], oldKeyPath?: PrismaIDBSchema[T]["key"])`,
+      `protected emit(event: "create" | "update" | "delete", keyPath: PrismaIDBSchema[T]["key"], oldKeyPath?: PrismaIDBSchema[T]["key"], record?: Record<string, any>)`,
     )
     .block(() => {
       writer.writeLine(`if (event === "update")`).block(() => {
@@ -74,7 +74,7 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxMo
           .writeLine(`entityType: this.modelName,`)
           .writeLine(`entityId: entityId ?? null,`)
           .writeLine(`operation: event,`)
-          .writeLine(`payload: keyPath,`)
+          .writeLine(`payload: record ?? keyPath,`)
           .writeLine(`}`)
           .writeLine(`});`);
       });
