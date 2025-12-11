@@ -1,24 +1,45 @@
 import { CodeBlockWriter } from "ts-morph";
 import { getUniqueIdentifiers, toCamelCase } from "../../../helpers/utils";
 import { Model } from "../../types";
+import { shouldTrackModel } from "../../outbox/utils";
 
-export function addClientClass(writer: CodeBlockWriter, models: readonly Model[]) {
+export function addClientClass(
+  writer: CodeBlockWriter,
+  models: readonly Model[],
+  outboxSync: boolean = false,
+  outboxModelName: string = "OutboxEvent",
+  include: string[] = ["*"],
+  exclude: string[] = [],
+) {
   writer.writeLine(`export class PrismaIDBClient`).block(() => {
     writer
       .writeLine(`private static instance: PrismaIDBClient;`)
       .writeLine(`_db!: IDBPDatabase<PrismaIDBSchema>;`)
+      .writeLine(`private outboxEnabled: boolean = ${outboxSync};`)
+      .writeLine(`private includedModels: Set<string>;`)
       .blankLine()
-      .writeLine(`private constructor() {}`);
+      .writeLine(`private constructor() {`)
+      .writeLine(
+        `this.includedModels = new Set(${JSON.stringify(models.filter((m) => shouldTrackModel(m.name, include, exclude)).map((m) => m.name))});`,
+      )
+      .writeLine(`}`);
 
     addModelProperties(writer, models);
+    addOutboxProperty(writer, outboxSync, outboxModelName);
     addCreateInstanceMethod(writer);
     addResetDatabaseMethod(writer);
-    addInitializeMethod(writer, models);
+    addShouldTrackModelMethod(writer);
+    addInitializeMethod(writer, models, outboxSync, outboxModelName);
   });
 }
 
 function addModelProperties(writer: CodeBlockWriter, models: readonly Model[]) {
   models.forEach((model) => writer.writeLine(`${toCamelCase(model.name)}!: ${model.name}IDBClass;`));
+}
+
+function addOutboxProperty(writer: CodeBlockWriter, outboxSync: boolean, outboxModelName: string) {
+  if (!outboxSync) return;
+  writer.writeLine(`${toCamelCase(outboxModelName)}!: ${outboxModelName}IDBClass;`);
 }
 
 function addCreateInstanceMethod(writer: CodeBlockWriter) {
@@ -35,13 +56,21 @@ function addCreateInstanceMethod(writer: CodeBlockWriter) {
   });
 }
 
-function addInitializeMethod(writer: CodeBlockWriter, models: readonly Model[]) {
+function addInitializeMethod(
+  writer: CodeBlockWriter,
+  models: readonly Model[],
+  outboxSync: boolean = false,
+  outboxModelName: string = "OutboxEvent",
+) {
   writer.writeLine(`private async initialize()`).block(() => {
     writer
       .writeLine(`this._db = await openDB<PrismaIDBSchema>("prisma-idb", IDB_VERSION, `)
       .block(() => {
         writer.writeLine(`upgrade(db) `).block(() => {
           models.forEach((model) => addObjectStoreInitialization(model, writer));
+          if (outboxSync) {
+            addOutboxObjectStoreInitialization(writer, outboxModelName);
+          }
         });
       })
       .writeLine(`);`);
@@ -51,7 +80,21 @@ function addInitializeMethod(writer: CodeBlockWriter, models: readonly Model[]) 
         `this.${toCamelCase(model.name)} = new ${model.name}IDBClass(this, ${getUniqueIdentifiers(model)[0].keyPath});`,
       );
     });
+
+    if (outboxSync) {
+      writer.writeLine(
+        `this.${toCamelCase(outboxModelName)} = new ${outboxModelName}IDBClass(this, ['id']);`,
+      );
+    }
   });
+}
+
+function addShouldTrackModelMethod(writer: CodeBlockWriter) {
+  writer
+    .writeLine(`shouldTrackModel(modelName: string): boolean`)
+    .block(() => {
+      writer.writeLine(`return this.outboxEnabled && this.includedModels.has(modelName);`);
+    });
 }
 
 function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter) {
@@ -65,6 +108,10 @@ function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter) {
   nonKeyUniqueIdentifiers.forEach(({ name, keyPath }) =>
     writer.writeLine(`${model.name}Store.createIndex("${name}Index", ${keyPath}, { unique: true });`),
   );
+}
+
+function addOutboxObjectStoreInitialization(writer: CodeBlockWriter, outboxModelName: string) {
+  writer.writeLine(`db.createObjectStore('${outboxModelName}', { keyPath: 'id' });`);
 }
 
 function addResetDatabaseMethod(writer: CodeBlockWriter) {
