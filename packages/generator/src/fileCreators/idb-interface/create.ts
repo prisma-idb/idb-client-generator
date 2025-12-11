@@ -81,7 +81,6 @@ function addOutboxEventTypeDefinition(idbInterfaceFile: SourceFile, outboxModelN
           .writeLine(`lastError: string | null;`)
           .writeLine(`synced: boolean;`)
           .writeLine(`syncedAt: Date | null;`)
-          .writeLine(`namespace: string | null;`);
       });
     },
   });

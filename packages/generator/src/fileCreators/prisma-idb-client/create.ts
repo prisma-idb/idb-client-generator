@@ -4,6 +4,7 @@ import type { Model } from "../types";
 import { addBaseModelClass } from "./classes/BaseIDBModelClass";
 import { addIDBModelClass } from "./classes/models/IDBModelClass";
 import { addClientClass } from "./classes/PrismaIDBClient";
+import { addOutboxEventIDBClass } from "./classes/OutboxEventIDBClass";
 
 function addImports(writer: CodeBlockWriter, models: readonly Model[], prismaClientImport: string) {
   writer
@@ -12,7 +13,7 @@ function addImports(writer: CodeBlockWriter, models: readonly Model[], prismaCli
     .writeLine(`import type { IDBPDatabase, StoreNames, IDBPTransaction } from "idb";`)
     .writeLine(`import type { Prisma } from "${prismaClientImport}";`)
     .writeLine(`import * as IDBUtils from "./idb-utils";`)
-    .writeLine(`import type { PrismaIDBSchema } from "./idb-interface";`);
+    .writeLine(`import type { OutboxEventRecord, PrismaIDBSchema } from "./idb-interface";`);
 
   const cuidFieldExists = models
     .flatMap((model) => model.fields)
@@ -47,4 +48,7 @@ export function createPrismaIDBClientFile(
   models.forEach((model) => {
     addIDBModelClass(writer, model, models);
   });
+  if (outboxSync) {
+    addOutboxEventIDBClass(writer, outboxModelName);
+  }
 }

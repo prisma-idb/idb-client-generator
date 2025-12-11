@@ -39,7 +39,7 @@ function addModelProperties(writer: CodeBlockWriter, models: readonly Model[]) {
 
 function addOutboxProperty(writer: CodeBlockWriter, outboxSync: boolean, outboxModelName: string) {
   if (!outboxSync) return;
-  writer.writeLine(`${toCamelCase(outboxModelName)}!: ${outboxModelName}IDBClass;`);
+  writer.writeLine(`$outbox!: ${outboxModelName}IDBClass;`);
 }
 
 function addCreateInstanceMethod(writer: CodeBlockWriter) {
@@ -83,7 +83,7 @@ function addInitializeMethod(
 
     if (outboxSync) {
       writer.writeLine(
-        `this.${toCamelCase(outboxModelName)} = new ${outboxModelName}IDBClass(this, ['id']);`,
+        `this.$outbox = new ${outboxModelName}IDBClass(this, ['id']);`,
       );
     }
   });

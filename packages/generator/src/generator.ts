@@ -36,7 +36,6 @@ generatorHandler({
     // Parse config options
     const outboxSync = generatorConfig.outboxSync === "true";
     const outboxModelName = (generatorConfig.outboxModelName as string) || "OutboxEvent";
-    const outboxPrefix = (generatorConfig.outboxPrefix as string) || "__outbox";
     
     // Parse include/exclude - can be string or array
     let include: string[] = ["*"];

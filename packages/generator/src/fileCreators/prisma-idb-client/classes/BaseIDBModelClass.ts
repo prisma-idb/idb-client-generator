@@ -69,7 +69,7 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxMo
       writer.writeLine(`if (this.client.shouldTrackModel(this.modelName))`).block(() => {
         writer
           .writeLine(`const entityId = Array.isArray(keyPath) ? keyPath[0]?.toString() : keyPath?.toString();`)
-          .writeLine(`this.client.${outboxModelName.charAt(0).toLowerCase() + outboxModelName.slice(1)}.create({`)
+          .writeLine(`this.client.$outbox.create({`)
           .writeLine(`data: {`)
           .writeLine(`entityType: this.modelName,`)
           .writeLine(`entityId: entityId ?? null,`)
