@@ -70,4 +70,44 @@ export interface PrismaIDBSchema extends DBSchema {
       codeIndex: [code: Prisma.ModelWithUniqueAttributes["code"]];
     };
   };
+  Todo: {
+    key: [id: Prisma.Todo["id"]];
+    value: Prisma.Todo;
+  };
+  OutboxEvent: {
+    key: [id: string];
+    value: OutboxEventRecord;
+  };
 }
+
+export type OutboxEventRecord = {
+  id: string;
+  entityType: string;
+  entityId: string | null;
+  operation: "create" | "update" | "delete";
+  payload: unknown;
+  clientMeta?: unknown;
+  createdAt: Date;
+  tries: number;
+  lastError: string | null;
+  synced: boolean;
+  syncedAt: Date | null;
+};
+export type AppliedResult = {
+  id: string;
+  entityId?: string | null;
+  mergedRecord?: Record<string, any>;
+  serverVersion?: number | string;
+  error?: string | null;
+};
+export type SyncWorkerOptions = {
+  syncHandler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>;
+  batchSize?: number;
+  intervalMs?: number;
+  maxRetries?: number;
+  backoffBaseMs?: number;
+};
+export type SyncWorker = {
+  start(): void;
+  stop(): void;
+};

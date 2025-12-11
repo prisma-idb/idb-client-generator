@@ -778,3 +778,5 @@ export function genericComparator(
   }
   return returnValue * multiplier;
 }
+
+export type { AppliedResult, SyncWorker, SyncWorkerOptions } from "./idb-interface";

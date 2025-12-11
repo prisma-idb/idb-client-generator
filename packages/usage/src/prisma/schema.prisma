@@ -11,6 +11,7 @@ generator prismaIDB {
   provider           = "idb-client-generator"
   output             = "./prisma-idb"
   prismaClientImport = "$lib/generated/prisma/client"
+  outboxSync         = "true"
 }
 
 model User {
@@ -23,6 +24,7 @@ model User {
   Father   Father[]
   Mother   Mother[]
   groups   UserGroup[]
+  todos    Todo[]
 }
 
 model Group {
@@ -156,4 +158,13 @@ model ModelWithUniqueAttributes {
   id    Int                                           @id @default(autoincrement())
   code  String                                        @unique
   links ModelWithOptionalRelationToUniqueAttributes[]
+}
+
+model Todo {
+  id        String  @id @default(uuid())
+  title     String
+  completed Boolean @default(false)
+
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
 }
