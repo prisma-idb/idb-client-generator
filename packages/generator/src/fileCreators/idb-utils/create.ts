@@ -1,5 +1,6 @@
 import { SourceFile, VariableDeclarationKind } from "ts-morph";
 import { Model } from "../types";
+import { addSyncWorkerCode } from "./syncWorker/create";
 import { addGenericComparator } from "./comparator/genericComparator";
 import { addBigIntFilter } from "./filters/BigIntFilter";
 import { addBoolFilter } from "./filters/BoolFilter";
@@ -26,7 +27,7 @@ import { addIntUpdateHandler } from "./updateHandlers/IntHandler";
 import { addScalarListUpdateHandler } from "./updateHandlers/ScalarListHandler";
 import { addStringUpdateHandler } from "./updateHandlers/StringHandler";
 
-export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model[], prismaClientImport: string) {
+export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model[], prismaClientImport: string, outboxSync: boolean = false) {
   idbUtilsFile.addImportDeclarations([
     { moduleSpecifier: "idb", isTypeOnly: true, namedImports: ["IDBPTransaction", "StoreNames"] },
     { moduleSpecifier: "./idb-interface", isTypeOnly: true, namedImports: ["PrismaIDBSchema"] },
@@ -93,4 +94,8 @@ export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model
   addScalarListUpdateHandler(idbUtilsFile, models);
 
   addGenericComparator(idbUtilsFile);
+
+  if (outboxSync) {
+    addSyncWorkerCode(idbUtilsFile);
+  }
 }

@@ -6,14 +6,19 @@ import { addIDBModelClass } from "./classes/models/IDBModelClass";
 import { addClientClass } from "./classes/PrismaIDBClient";
 import { addOutboxEventIDBClass } from "./classes/OutboxEventIDBClass";
 
-function addImports(writer: CodeBlockWriter, models: readonly Model[], prismaClientImport: string) {
+function addImports(writer: CodeBlockWriter, models: readonly Model[], prismaClientImport: string, outboxSync: boolean = false) {
   writer
     .writeLine("/* eslint-disable @typescript-eslint/no-unused-vars */")
     .writeLine(`import { openDB } from "idb";`)
     .writeLine(`import type { IDBPDatabase, StoreNames, IDBPTransaction } from "idb";`)
     .writeLine(`import type { Prisma } from "${prismaClientImport}";`)
-    .writeLine(`import * as IDBUtils from "./idb-utils";`)
-    .writeLine(`import type { OutboxEventRecord, PrismaIDBSchema } from "./idb-interface";`);
+    .writeLine(`import * as IDBUtils from "./idb-utils";`);
+
+  if (outboxSync) {
+    writer.writeLine(`import type { OutboxEventRecord, PrismaIDBSchema, AppliedResult, SyncWorkerOptions, SyncWorker } from "./idb-interface";`);
+  } else {
+    writer.writeLine(`import type { PrismaIDBSchema } from "./idb-interface";`);
+  }
 
   const cuidFieldExists = models
     .flatMap((model) => model.fields)
@@ -41,7 +46,7 @@ export function createPrismaIDBClientFile(
   include: string[] = ["*"],
   exclude: string[] = [],
 ) {
-  addImports(writer, models, prismaClientImport);
+  addImports(writer, models, prismaClientImport, outboxSync);
   addVersionDeclaration(writer);
   addClientClass(writer, models, outboxSync, outboxModelName, include, exclude);
   addBaseModelClass(writer, outboxSync, outboxModelName);

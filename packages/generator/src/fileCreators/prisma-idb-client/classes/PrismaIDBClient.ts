@@ -1,5 +1,5 @@
 import { CodeBlockWriter } from "ts-morph";
-import { getUniqueIdentifiers, toCamelCase } from "../../../helpers/utils";
+import { getUniqueIdentifiers, toCamelCase as toCamelCaseUtil } from "../../../helpers/utils";
 import { Model } from "../../types";
 import { shouldTrackModel } from "../../outbox/utils";
 
@@ -29,12 +29,16 @@ export function addClientClass(
     addCreateInstanceMethod(writer);
     addResetDatabaseMethod(writer);
     addShouldTrackModelMethod(writer);
+    addToCamelCaseMethod(writer);
+    if (outboxSync) {
+      addCreateSyncWorkerMethod(writer, outboxModelName);
+    }
     addInitializeMethod(writer, models, outboxSync, outboxModelName);
   });
 }
 
 function addModelProperties(writer: CodeBlockWriter, models: readonly Model[]) {
-  models.forEach((model) => writer.writeLine(`${toCamelCase(model.name)}!: ${model.name}IDBClass;`));
+  models.forEach((model) => writer.writeLine(`${toCamelCaseUtil(model.name)}!: ${model.name}IDBClass;`));
 }
 
 function addOutboxProperty(writer: CodeBlockWriter, outboxSync: boolean, outboxModelName: string) {
@@ -77,7 +81,7 @@ function addInitializeMethod(
 
     models.forEach((model) => {
       writer.writeLine(
-        `this.${toCamelCase(model.name)} = new ${model.name}IDBClass(this, ${getUniqueIdentifiers(model)[0].keyPath});`,
+        `this.${toCamelCaseUtil(model.name)} = new ${model.name}IDBClass(this, ${getUniqueIdentifiers(model)[0].keyPath});`,
       );
     });
 
@@ -95,6 +99,119 @@ function addShouldTrackModelMethod(writer: CodeBlockWriter) {
     .block(() => {
       writer.writeLine(`return this.outboxEnabled && this.includedModels.has(modelName);`);
     });
+}
+
+function addToCamelCaseMethod(writer: CodeBlockWriter) {
+  writer
+    .writeLine(`private toCamelCase(str: string): string`)
+    .block(() => {
+      writer.writeLine(`return str.charAt(0).toLowerCase() + str.slice(1);`);
+    });
+}
+
+function addCreateSyncWorkerMethod(writer: CodeBlockWriter, outboxModelName: string) {
+  writer
+    .writeLine(`createSyncWorker(options: { syncHandler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>; batchSize?: number; intervalMs?: number; maxRetries?: number; backoffBaseMs?: number }): SyncWorker`)
+    .block(() => {
+      writer
+        .writeLine(`const { syncHandler, batchSize = 20, intervalMs = 8000, maxRetries = 5, backoffBaseMs = 1000 } = options;`)
+        .blankLine()
+        .writeLine(`let intervalId: ReturnType<typeof setInterval> | null = null;`)
+        .writeLine(`let isRunning = false;`)
+        .blankLine()
+        .writeLine(`const processBatch = async (): Promise<void> => {`)
+        .writeLine(`  if (!isRunning) return;`)
+        .blankLine()
+        .writeLine(`  try {`)
+        .writeLine(`    const batch = await this.$outbox.getNextBatch({ limit: batchSize });`)
+        .blankLine()
+        .writeLine(`    if (batch.length === 0) return;`)
+        .blankLine()
+        .writeLine(`    const toSync = batch.filter((event: OutboxEventRecord) => event.tries < maxRetries);`)
+        .writeLine(`    const abandoned = batch.filter((event: OutboxEventRecord) => event.tries >= maxRetries);`)
+        .blankLine()
+        .writeLine(`    for (const event of abandoned) {`)
+        .writeLine(`      await this.$outbox.markFailed(event.id, \`Abandoned after \${maxRetries} retries\`);`)
+        .writeLine(`    }`)
+        .blankLine()
+        .writeLine(`    if (toSync.length === 0) return;`)
+        .blankLine()
+        .writeLine(`    let results: AppliedResult[] = [];`)
+        .writeLine(`    try {`)
+        .writeLine(`      results = await syncHandler(toSync);`)
+        .writeLine(`    } catch (err) {`)
+        .writeLine(`      for (const event of toSync) {`)
+        .writeLine(`        const error = err instanceof Error ? err.message : String(err);`)
+        .writeLine(`        await this.$outbox.markFailed(event.id, error);`)
+        .writeLine(`      }`)
+        .writeLine(`      return;`)
+        .writeLine(`    }`)
+        .blankLine()
+        .writeLine(`    const successIds: string[] = [];`)
+        .writeLine(`    for (const result of results) {`)
+        .writeLine(`      if (result.error) {`)
+        .writeLine(`        await this.$outbox.markFailed(result.id, result.error);`)
+        .writeLine(`      } else {`)
+        .writeLine(`        successIds.push(result.id);`)
+        .blankLine()
+        .writeLine(`        if (result.mergedRecord && result.entityId) {`)
+        .writeLine(`          const originalEvent = toSync.find((e: OutboxEventRecord) => e.id === result.id);`)
+        .writeLine(`          if (originalEvent) {`)
+        .writeLine(`            const modelStore = (this as any)[this.toCamelCase(originalEvent.entityType)];`)
+        .writeLine(`            if (modelStore && modelStore.upsert) {`)
+        .writeLine(`              try {`)
+        .writeLine(`                await modelStore.upsert({`)
+        .writeLine(`                  where: { id: result.entityId },`)
+        .writeLine(`                  update: result.mergedRecord,`)
+        .writeLine(`                  create: {`)
+        .writeLine(`                    id: result.entityId,`)
+        .writeLine(`                    ...result.mergedRecord,`)
+        .writeLine(`                  },`)
+        .writeLine(`                });`)
+        .writeLine(`              } catch (upsertErr) {`)
+        .writeLine(`                console.warn(\`Failed to upsert merged record for event \${result.id}:\`, upsertErr);`)
+        .writeLine(`              }`)
+        .writeLine(`            }`)
+        .writeLine(`          }`)
+        .writeLine(`        }`)
+        .writeLine(`      }`)
+        .writeLine(`    }`)
+        .blankLine()
+        .writeLine(`    if (successIds.length > 0) {`)
+        .writeLine(`      await this.$outbox.markSynced(successIds, { syncedAt: new Date() });`)
+        .writeLine(`    }`)
+        .writeLine(`  } catch (err) {`)
+        .writeLine(`    console.error("Sync worker error:", err);`)
+        .writeLine(`  }`)
+        .writeLine(`};`)
+        .blankLine()
+        .writeLine(`const syncLoop = (): void => {`)
+        .writeLine(`  processBatch().catch((err) => {`)
+        .writeLine(`    console.error("Unhandled error in sync loop:", err);`)
+        .writeLine(`  });`)
+        .writeLine(`};`)
+        .blankLine()
+        .writeLine(`return {`)
+        .writeLine(`  start(): void {`)
+        .writeLine(`    if (isRunning) return;`)
+        .writeLine(`    isRunning = true;`)
+        .writeLine(`    syncLoop();`)
+        .writeLine(`    intervalId = setInterval(syncLoop, intervalMs);`)
+        .writeLine(`  },`)
+        .blankLine()
+        .writeLine(`  stop(): void {`)
+        .writeLine(`    isRunning = false;`)
+        .writeLine(`    if (intervalId !== null) {`)
+        .writeLine(`      clearInterval(intervalId);`)
+        .writeLine(`      intervalId = null;`)
+        .writeLine(`    }`)
+        .writeLine(`  },`)
+        .writeLine(`};`);
+    });
+}
+
+function toCamelCase(str: string): string {
+  return str.charAt(0).toLowerCase() + str.slice(1);
 }
 
 function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter) {

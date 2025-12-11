@@ -49,6 +49,7 @@ export function createIDBInterfaceFile(
   // Add type definition for OutboxEvent record
   if (outboxSync) {
     addOutboxEventTypeDefinition(idbInterfaceFile, outboxModelName);
+    addSyncWorkerTypes(idbInterfaceFile);
   }
 }
 
@@ -81,6 +82,50 @@ function addOutboxEventTypeDefinition(idbInterfaceFile: SourceFile, outboxModelN
           .writeLine(`lastError: string | null;`)
           .writeLine(`synced: boolean;`)
           .writeLine(`syncedAt: Date | null;`)
+      });
+    },
+  });
+}
+
+function addSyncWorkerTypes(idbInterfaceFile: SourceFile) {
+  idbInterfaceFile.addTypeAlias({
+    name: "AppliedResult",
+    isExported: true,
+    type: (writer) => {
+      writer.block(() => {
+        writer
+          .writeLine(`id: string;`)
+          .writeLine(`entityId?: string | null;`)
+          .writeLine(`mergedRecord?: Record<string, any>;`)
+          .writeLine(`serverVersion?: number | string;`)
+          .writeLine(`error?: string | null;`);
+      });
+    },
+  });
+
+  idbInterfaceFile.addTypeAlias({
+    name: "SyncWorkerOptions",
+    isExported: true,
+    type: (writer) => {
+      writer.block(() => {
+        writer
+          .writeLine(`syncHandler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>;`)
+          .writeLine(`batchSize?: number;`)
+          .writeLine(`intervalMs?: number;`)
+          .writeLine(`maxRetries?: number;`)
+          .writeLine(`backoffBaseMs?: number;`);
+      });
+    },
+  });
+
+  idbInterfaceFile.addTypeAlias({
+    name: "SyncWorker",
+    isExported: true,
+    type: (writer) => {
+      writer.block(() => {
+        writer
+          .writeLine(`start(): void;`)
+          .writeLine(`stop(): void;`);
       });
     },
   });

@@ -70,7 +70,7 @@ generatorHandler({
     });
 
     await writeSourceFile(project, "idb-utils.ts", outputPath, (file) => {
-      createUtilsFile(file, models, prismaClientImport);
+      createUtilsFile(file, models, prismaClientImport, outboxSync);
     });
   },
 });
