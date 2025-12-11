@@ -228,7 +228,7 @@ function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter) {
 }
 
 function addOutboxObjectStoreInitialization(writer: CodeBlockWriter, outboxModelName: string) {
-  writer.writeLine(`db.createObjectStore('${outboxModelName}', { keyPath: 'id' });`);
+  writer.writeLine(`db.createObjectStore('${outboxModelName}', { keyPath: ['id'] });`);
 }
 
 function addResetDatabaseMethod(writer: CodeBlockWriter) {
