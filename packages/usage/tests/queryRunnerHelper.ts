@@ -49,5 +49,5 @@ export async function expectQueryToFail<
 
   await page.getByTestId("query-input").fill(`${model}.${operation}(${JSON.stringify(query)})`);
   await page.getByRole("button", { name: "Run query" }).click();
-  await expect(page.getByRole("status").first()).toContainText(errorMessage);
+  await expect(page.getByRole("listitem").first()).toContainText(errorMessage);
 }
