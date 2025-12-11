@@ -24,20 +24,50 @@ generatorHandler({
     if (typeof prismaClientImport !== "string") {
       throw new Error(
         `@prisma-idb/idb-client-generator requires an import path for the Prisma client to be specified.\n` +
-          `If you have not provided an output value for the client generator, use "@prisma/client"` +
-          `generator prismaIDB {` +
-          `\tprovider           = "idb-client-generator"` +
-          `\toutput             = "./prisma-idb"` +
-          `\tprismaClientImport = "resolvable/path/to/prisma/client"`,
+        `If you have not provided an output value for the client generator, use "@prisma/client"\n\n` +
+        `generator prismaIDB {\n` +
+        `\tprovider           = "idb-client-generator"\n` +
+        `\toutput             = "./prisma-idb"\n` +
+        `\tprismaClientImport = "resolvable/path/to/prisma/client"\n` +
+        `}`
+      );
+    }
+
+    // Parse config options
+    const outboxSync = generatorConfig.outboxSync === "true";
+    const outboxModelName = (generatorConfig.outboxModelName as string) || "OutboxEvent";
+    const outboxPrefix = (generatorConfig.outboxPrefix as string) || "__outbox";
+    
+    // Parse include/exclude - can be string or array
+    let include: string[] = ["*"];
+    let exclude: string[] = [];
+    
+    if (typeof generatorConfig.include === "string") {
+      include = generatorConfig.include.split(",").map((s) => s.trim());
+    } else if (Array.isArray(generatorConfig.include)) {
+      include = generatorConfig.include;
+    }
+    
+    if (typeof generatorConfig.exclude === "string") {
+      exclude = generatorConfig.exclude.split(",").map((s) => s.trim());
+    } else if (Array.isArray(generatorConfig.exclude)) {
+      exclude = generatorConfig.exclude;
+    }
+
+    // Validate XOR: either include or exclude, not both
+    if (include.length > 0 && include[0] !== "*" && exclude.length > 0) {
+      throw new Error(
+        `@prisma-idb/idb-client-generator: "include" and "exclude" are mutually exclusive (XOR).\n` +
+        `You can use either "include" or "exclude", but not both.`
       );
     }
 
     await writeCodeFile("prisma-idb-client.ts", outputPath, (writer) => {
-      createPrismaIDBClientFile(writer, models, prismaClientImport);
+      createPrismaIDBClientFile(writer, models, prismaClientImport, outboxSync, outboxModelName, include, exclude);
     });
 
     await writeSourceFile(project, "idb-interface.ts", outputPath, (file) => {
-      createIDBInterfaceFile(file, models, prismaClientImport);
+      createIDBInterfaceFile(file, models, prismaClientImport, outboxSync, outboxModelName);
     });
 
     await writeSourceFile(project, "idb-utils.ts", outputPath, (file) => {
