@@ -7,9 +7,14 @@ generator client {
   output   = "../lib/generated/prisma"
 }
 
+generator zod {
+  provider = "prisma-zod-generator"
+  output   = "../lib/generated/prisma-zod-generator"
+}
+
 generator prismaIDB {
   provider           = "idb-client-generator"
-  output             = "./prisma-idb"
+  output             = "../lib/prisma-idb"
   prismaClientImport = "$lib/generated/prisma/client"
   outboxSync         = "true"
 }

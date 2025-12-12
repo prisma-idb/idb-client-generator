@@ -39,6 +39,7 @@
     "prettier-plugin-svelte": "^3.4.0",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "prisma": "^7.1.0",
+    "prisma-zod-generator": "^2.1.2",
     "svelte": "^5.45.8",
     "svelte-check": "^4.3.4",
     "svelte-sonner": "^1.0.7",
