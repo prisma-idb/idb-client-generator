@@ -1,7 +1,7 @@
 import { Model } from "src/fileCreators/types";
-import type { SourceFile } from "ts-morph";
+import type CodeBlockWriter from "code-block-writer";
 
-export function addEnumUpdateHandler(utilsFile: SourceFile, models: readonly Model[]) {
+export function addEnumUpdateHandler(writer: CodeBlockWriter, models: readonly Model[]) {
   const enumFields = models.flatMap(({ fields }) => fields).filter((field) => field.kind === "enum" && !field.isList);
   if (enumFields.length === 0) return;
 
@@ -19,30 +19,15 @@ export function addEnumUpdateHandler(utilsFile: SourceFile, models: readonly Mod
     fieldType += " | null";
   }
 
-  utilsFile.addFunction({
-    name: "handleEnumUpdateField",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      {
-        name: "enumUpdate",
-        type: updateOperationType,
-      },
-    ],
-    statements: (writer) => {
-      writer
-        .writeLine(`if (enumUpdate === undefined) return;`)
-        .write(`if (typeof enumUpdate === "string"`)
-        .conditionalWrite(nullableEnumFieldPresent, ` || enumUpdate === null`)
-        .writeLine(`)`)
-        .block(() => {
-          writer.writeLine(`(record[fieldName] as ${fieldType}) = enumUpdate;`);
-        });
-      writer.writeLine(`else if (enumUpdate.set !== undefined)`).block(() => {
-        writer.writeLine(`(record[fieldName] as ${fieldType}) = enumUpdate.set;`);
+  writer.writeLine(`export function handleEnumUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, enumUpdate: ${updateOperationType}): void`).block(() => {
+    writer
+      .writeLine(`if (enumUpdate === undefined) return;`)
+      .writeLine(`if (typeof enumUpdate === "string"${nullableEnumFieldPresent ? ` || enumUpdate === null` : ""})`)
+      .block(() => {
+        writer.writeLine(`(record[fieldName] as ${fieldType}) = enumUpdate;`);
       });
-    },
+    writer.writeLine(`else if (enumUpdate.set !== undefined)`).block(() => {
+      writer.writeLine(`(record[fieldName] as ${fieldType}) = enumUpdate.set;`);
+    });
   });
 }

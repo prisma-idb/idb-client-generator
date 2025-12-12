@@ -1,4 +1,4 @@
-import { CodeBlockWriter } from "ts-morph";
+import CodeBlockWriter from "code-block-writer";
 import { getUniqueIdentifiers, toCamelCase as toCamelCaseUtil } from "../../../helpers/utils";
 import { Model } from "../../types";
 import { shouldTrackModel } from "../../outbox/utils";

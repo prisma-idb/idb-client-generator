@@ -1,35 +1,24 @@
 import { Model } from "src/fileCreators/types";
-import type { CodeBlockWriter, SourceFile } from "ts-morph";
+import type CodeBlockWriter from "code-block-writer";
 
-export function addBytesListFilter(utilsFile: SourceFile, models: readonly Model[]) {
+export function addBytesListFilter(writer: CodeBlockWriter, models: readonly Model[]) {
   const bytesListFields = models
     .flatMap(({ fields }) => fields)
     .filter((field) => field.type === "Bytes" && field.isList);
   if (bytesListFields.length === 0) return;
 
-  utilsFile.addFunction({
-    name: "whereBytesListFilter",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      { name: "scalarListFilter", type: "undefined | Prisma.BytesNullableListFilter<unknown>" },
-    ],
-    returnType: "boolean",
-    statements: (writer) => {
-      writer
-        .writeLine(`if (scalarListFilter === undefined) return true;`)
-        .blankLine()
-        .writeLine(`const value = record[fieldName] as Uint8Array[] | undefined;`)
-        .writeLine(`if (value === undefined && Object.keys(scalarListFilter).length) return false;`);
-      addEqualsHandler(writer);
-      addHasHandler(writer);
-      addHasSomeHandler(writer);
-      addHasEveryHandler(writer);
-      addIsEmptyHandler(writer);
-      writer.writeLine(`return true;`);
-    },
+  writer.writeLine(`export function whereBytesListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: undefined | Prisma.BytesNullableListFilter<unknown>): boolean`).block(() => {
+    writer
+      .writeLine(`if (scalarListFilter === undefined) return true;`)
+      .blankLine()
+      .writeLine(`const value = record[fieldName] as Uint8Array[] | undefined;`)
+      .writeLine(`if (value === undefined && Object.keys(scalarListFilter).length) return false;`);
+    addEqualsHandler(writer);
+    addHasHandler(writer);
+    addHasSomeHandler(writer);
+    addHasEveryHandler(writer);
+    addIsEmptyHandler(writer);
+    writer.writeLine(`return true;`);
   });
 }
 

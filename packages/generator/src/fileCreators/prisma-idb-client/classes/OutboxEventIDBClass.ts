@@ -1,4 +1,4 @@
-import { CodeBlockWriter } from "ts-morph";
+import CodeBlockWriter from "code-block-writer";
 
 export function addOutboxEventIDBClass(writer: CodeBlockWriter, outboxModelName: string) {
   writer.writeLine(`class ${outboxModelName}IDBClass extends BaseIDBModelClass<"${outboxModelName}">`).block(() => {

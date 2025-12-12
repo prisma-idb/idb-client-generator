@@ -1,6 +1,5 @@
-import * as Prisma from "$lib/generated/prisma/client";
 import type { DBSchema } from "idb";
-
+import type * as Prisma from "$lib/generated/prisma/client";
 export interface PrismaIDBSchema extends DBSchema {
   User: {
     key: [id: Prisma.User["id"]];
@@ -79,8 +78,7 @@ export interface PrismaIDBSchema extends DBSchema {
     value: OutboxEventRecord;
   };
 }
-
-export type OutboxEventRecord = {
+export interface OutboxEventRecord {
   id: string;
   entityType: string;
   entityId: string | null;
@@ -92,22 +90,22 @@ export type OutboxEventRecord = {
   lastError: string | null;
   synced: boolean;
   syncedAt: Date | null;
-};
-export type AppliedResult = {
+}
+export interface AppliedResult {
   id: string;
   entityId?: string | null;
   mergedRecord?: Record<string, any>;
   serverVersion?: number | string;
   error?: string | null;
-};
-export type SyncWorkerOptions = {
+}
+export interface SyncWorkerOptions {
   syncHandler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>;
   batchSize?: number;
   intervalMs?: number;
   maxRetries?: number;
   backoffBaseMs?: number;
-};
-export type SyncWorker = {
+}
+export interface SyncWorker {
   start(): void;
   stop(): void;
-};
+}

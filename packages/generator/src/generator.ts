@@ -1,10 +1,9 @@
 import { generatorHandler, GeneratorOptions } from "@prisma/generator-helper";
-import { Project } from "ts-morph";
 import { version } from "../package.json";
 import { createIDBInterfaceFile } from "./fileCreators/idb-interface/create";
 import { createUtilsFile } from "./fileCreators/idb-utils/create";
 import { createPrismaIDBClientFile } from "./fileCreators/prisma-idb-client/create";
-import { writeCodeFile, writeSourceFile } from "./helpers/fileWriting";
+import { writeCodeFile } from "./helpers/fileWriting";
 
 generatorHandler({
   onManifest() {
@@ -15,7 +14,6 @@ generatorHandler({
   },
 
   onGenerate: async (options: GeneratorOptions) => {
-    const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { skipLibCheck: true } });
     const { models } = options.dmmf.datamodel;
     const outputPath = options.generator.output?.value as string;
 
@@ -36,17 +34,17 @@ generatorHandler({
     // Parse config options
     const outboxSync = generatorConfig.outboxSync === "true";
     const outboxModelName = (generatorConfig.outboxModelName as string) || "OutboxEvent";
-    
+
     // Parse include/exclude - can be string or array
     let include: string[] = ["*"];
     let exclude: string[] = [];
-    
+
     if (typeof generatorConfig.include === "string") {
       include = generatorConfig.include.split(",").map((s) => s.trim());
     } else if (Array.isArray(generatorConfig.include)) {
       include = generatorConfig.include;
     }
-    
+
     if (typeof generatorConfig.exclude === "string") {
       exclude = generatorConfig.exclude.split(",").map((s) => s.trim());
     } else if (Array.isArray(generatorConfig.exclude)) {
@@ -61,16 +59,16 @@ generatorHandler({
       );
     }
 
-    await writeCodeFile("prisma-idb-client.ts", outputPath, (writer) => {
+    await writeCodeFile("client/prisma-idb-client.ts", outputPath, (writer) => {
       createPrismaIDBClientFile(writer, models, prismaClientImport, outboxSync, outboxModelName, include, exclude);
     });
 
-    await writeSourceFile(project, "idb-interface.ts", outputPath, (file) => {
-      createIDBInterfaceFile(file, models, prismaClientImport, outboxSync, outboxModelName);
+    await writeCodeFile("client/idb-interface.ts", outputPath, (writer) => {
+      createIDBInterfaceFile(writer, models, prismaClientImport, outboxSync, outboxModelName);
     });
 
-    await writeSourceFile(project, "idb-utils.ts", outputPath, (file) => {
-      createUtilsFile(file, models, prismaClientImport, outboxSync);
+    await writeCodeFile("client/idb-utils.ts", outputPath, (writer) => {
+      createUtilsFile(writer, models, prismaClientImport, outboxSync);
     });
   },
 });

@@ -1,21 +1,7 @@
 import fs from "fs";
 import path from "path";
 import prettier from "prettier";
-import { Project, SourceFile } from "ts-morph";
 import CodeBlockWriter from "code-block-writer";
-
-export async function writeSourceFile(
-  project: Project,
-  filename: string,
-  outputPath: string,
-  callback: (file: SourceFile) => void,
-) {
-  const file = project.createSourceFile(filename, "", { overwrite: true });
-  callback(file);
-  file.organizeImports();
-  const writeLocation = path.join(outputPath, file.getBaseName());
-  await writeFileSafely(writeLocation, file.getText());
-}
 
 export async function writeCodeFile(filename: string, outputPath: string, callback: (writer: CodeBlockWriter) => void) {
   const writer = new CodeBlockWriter({

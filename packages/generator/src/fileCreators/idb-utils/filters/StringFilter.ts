@@ -1,7 +1,7 @@
 import { Model } from "src/fileCreators/types";
-import type { CodeBlockWriter, SourceFile } from "ts-morph";
+import type CodeBlockWriter from "code-block-writer";
 
-export function addStringFilter(utilsFile: SourceFile, models: readonly Model[]) {
+export function addStringFilter(writer: CodeBlockWriter, models: readonly Model[]) {
   const stringFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "String");
   if (stringFields.length === 0) return;
 
@@ -16,46 +16,32 @@ export function addStringFilter(utilsFile: SourceFile, models: readonly Model[])
     filterType += " | null | Prisma.StringNullableFilter<unknown>";
   }
 
-  utilsFile.addFunction({
-    name: "whereStringFilter",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      {
-        name: "stringFilter",
-        type: filterType,
-      },
-    ],
-    returnType: "boolean",
-    statements: (writer) => {
-      writer
-        .writeLine(`if (stringFilter === undefined) return true;`)
-        .blankLine()
-        .writeLine(`const value = record[fieldName] as string | null;`)
-        .writeLine(`if (stringFilter === null) return value === null;`)
-        .blankLine()
-        .writeLine(`if (typeof stringFilter === 'string')`)
-        .block(() => {
-          writer.writeLine(`if (value !== stringFilter) return false;`);
-        })
-        .writeLine(`else`)
-        .block(() => {
-          addEqualsHandler(writer);
-          addNotHandler(writer);
-          addInHandler(writer);
-          addNotInHandler(writer);
-          addLtHandler(writer);
-          addLteHandler(writer);
-          addGtHandler(writer);
-          addGteHandler(writer);
-          addContainsHandler(writer);
-          addStartsWithHandler(writer);
-          addEndsWithHandler(writer);
-        })
-        .writeLine(`return true;`);
-    },
+  writer.writeLine(`export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, stringFilter: ${filterType}): boolean`).block(() => {
+    writer
+      .writeLine(`if (stringFilter === undefined) return true;`)
+      .blankLine()
+      .writeLine(`const value = record[fieldName] as string | null;`)
+      .writeLine(`if (stringFilter === null) return value === null;`)
+      .blankLine()
+      .writeLine(`if (typeof stringFilter === 'string')`)
+      .block(() => {
+        writer.writeLine(`if (value !== stringFilter) return false;`);
+      })
+      .writeLine(`else`)
+      .block(() => {
+        addEqualsHandler(writer);
+        addNotHandler(writer);
+        addInHandler(writer);
+        addNotInHandler(writer);
+        addLtHandler(writer);
+        addLteHandler(writer);
+        addGtHandler(writer);
+        addGteHandler(writer);
+        addContainsHandler(writer);
+        addStartsWithHandler(writer);
+        addEndsWithHandler(writer);
+      })
+      .writeLine(`return true;`);
   });
 }
 

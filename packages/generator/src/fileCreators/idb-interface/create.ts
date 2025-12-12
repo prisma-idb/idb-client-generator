@@ -1,55 +1,43 @@
 import { DMMF } from "@prisma/generator-helper";
-import { CodeBlockWriter, SourceFile } from "ts-morph";
 import { getUniqueIdentifiers } from "../../helpers/utils";
 import { Model } from "../types";
+import CodeBlockWriter from "code-block-writer";
 
 export function createIDBInterfaceFile(
-  idbInterfaceFile: SourceFile,
+  writer: CodeBlockWriter,
   models: DMMF.Datamodel["models"],
   prismaClientImport: string,
   outboxSync: boolean = false,
   outboxModelName: string = "OutboxEvent",
 ) {
-  idbInterfaceFile.addImportDeclaration({ isTypeOnly: true, namedImports: ["DBSchema"], moduleSpecifier: "idb" });
-  idbInterfaceFile.addImportDeclaration({ namespaceImport: "Prisma", moduleSpecifier: prismaClientImport });
+  writer.writeLine(`import type { DBSchema } from "idb";`);
+  writer.writeLine(`import type * as Prisma from "${prismaClientImport}";`);
 
-  idbInterfaceFile.addInterface({
-    name: "PrismaIDBSchema",
-    extends: ["DBSchema"],
-    isExported: true,
-    properties: [
-      ...models.map((model) => ({
-        name: model.name,
-        type: (writer: CodeBlockWriter) => {
-          writer.block(() => {
-            writer
-              .writeLine(`key: ${getUniqueIdentifiers(model)[0].keyPathType};`)
-              .writeLine(`value: Prisma.${model.name};`);
-            createUniqueFieldIndexes(writer, model);
-          });
-        },
-      })),
-      ...(outboxSync
-        ? [
-            {
-              name: outboxModelName,
-              type: (writer: CodeBlockWriter) => {
-                writer.block(() => {
-                  writer
-                    .writeLine(`key: [id: string];`)
-                    .writeLine(`value: OutboxEventRecord;`);
-                });
-              },
-            },
-          ]
-        : []),
-    ],
+  writer.writeLine(`export interface PrismaIDBSchema extends DBSchema`).block(() => {
+    models.forEach((model) => {
+      writer.writeLine(`${model.name}: `).block(() => {
+        const uniqueIdentifiers = getUniqueIdentifiers(model);
+        const primaryIdentifier = uniqueIdentifiers[0];
+
+        writer.writeLine(`key: ${primaryIdentifier.keyPathType};`);
+        writer.writeLine(`value: Prisma.${model.name};`);
+
+        createUniqueFieldIndexes(writer, model);
+      });
+    });
+
+    if (outboxSync) {
+      writer.writeLine(`${outboxModelName}: `).block(() => {
+        writer.writeLine(`key: [id: string];`);
+        writer.writeLine(`value: OutboxEventRecord;`);
+      });
+    }
   });
 
   // Add type definition for OutboxEvent record
   if (outboxSync) {
-    addOutboxEventTypeDefinition(idbInterfaceFile, outboxModelName);
-    addSyncWorkerTypes(idbInterfaceFile);
+    addOutboxEventTypeDefinition(writer);
+    addSyncWorkerTypes(writer);
   }
 }
 
@@ -64,69 +52,45 @@ function createUniqueFieldIndexes(writer: CodeBlockWriter, model: Model) {
   });
 }
 
-function addOutboxEventTypeDefinition(idbInterfaceFile: SourceFile, outboxModelName: string) {
-  idbInterfaceFile.addTypeAlias({
-    name: "OutboxEventRecord",
-    isExported: true,
-    type: (writer) => {
-      writer.block(() => {
-        writer
-          .writeLine(`id: string;`)
-          .writeLine(`entityType: string;`)
-          .writeLine(`entityId: string | null;`)
-          .writeLine(`operation: "create" | "update" | "delete";`)
-          .writeLine(`payload: unknown;`)
-          .writeLine(`clientMeta?: unknown;`)
-          .writeLine(`createdAt: Date;`)
-          .writeLine(`tries: number;`)
-          .writeLine(`lastError: string | null;`)
-          .writeLine(`synced: boolean;`)
-          .writeLine(`syncedAt: Date | null;`)
-      });
-    },
+function addOutboxEventTypeDefinition(writer: CodeBlockWriter) {
+  writer.writeLine(`export interface OutboxEventRecord`).block(() => {
+    writer
+      .writeLine(`id: string;`)
+      .writeLine(`entityType: string;`)
+      .writeLine(`entityId: string | null;`)
+      .writeLine(`operation: "create" | "update" | "delete";`)
+      .writeLine(`payload: unknown;`)
+      .writeLine(`clientMeta?: unknown;`)
+      .writeLine(`createdAt: Date;`)
+      .writeLine(`tries: number;`)
+      .writeLine(`lastError: string | null;`)
+      .writeLine(`synced: boolean;`)
+      .writeLine(`syncedAt: Date | null;`);
   });
 }
 
-function addSyncWorkerTypes(idbInterfaceFile: SourceFile) {
-  idbInterfaceFile.addTypeAlias({
-    name: "AppliedResult",
-    isExported: true,
-    type: (writer) => {
-      writer.block(() => {
-        writer
-          .writeLine(`id: string;`)
-          .writeLine(`entityId?: string | null;`)
-          .writeLine(`mergedRecord?: Record<string, any>;`)
-          .writeLine(`serverVersion?: number | string;`)
-          .writeLine(`error?: string | null;`);
-      });
-    },
+function addSyncWorkerTypes(writer: CodeBlockWriter) {
+  writer.writeLine(`export interface AppliedResult`).block(() => {
+    writer
+      .writeLine(`id: string;`)
+      .writeLine(`entityId?: string | null;`)
+      .writeLine(`mergedRecord?: Record<string, any>;`)
+      .writeLine(`serverVersion?: number | string;`)
+      .writeLine(`error?: string | null;`);
   });
 
-  idbInterfaceFile.addTypeAlias({
-    name: "SyncWorkerOptions",
-    isExported: true,
-    type: (writer) => {
-      writer.block(() => {
-        writer
-          .writeLine(`syncHandler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>;`)
-          .writeLine(`batchSize?: number;`)
-          .writeLine(`intervalMs?: number;`)
-          .writeLine(`maxRetries?: number;`)
-          .writeLine(`backoffBaseMs?: number;`);
-      });
-    },
+  writer.writeLine(`export interface SyncWorkerOptions`).block(() => {
+    writer
+      .writeLine(`syncHandler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>;`)
+      .writeLine(`batchSize?: number;`)
+      .writeLine(`intervalMs?: number;`)
+      .writeLine(`maxRetries?: number;`)
+      .writeLine(`backoffBaseMs?: number;`);
   });
 
-  idbInterfaceFile.addTypeAlias({
-    name: "SyncWorker",
-    isExported: true,
-    type: (writer) => {
-      writer.block(() => {
-        writer
-          .writeLine(`start(): void;`)
-          .writeLine(`stop(): void;`);
-      });
-    },
+  writer.writeLine(`export interface SyncWorker`).block(() => {
+    writer
+      .writeLine(`start(): void;`)
+      .writeLine(`stop(): void;`);
   });
 }

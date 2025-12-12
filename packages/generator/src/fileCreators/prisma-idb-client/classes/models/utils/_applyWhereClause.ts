@@ -1,5 +1,5 @@
 import type { Field, Model } from "src/fileCreators/types";
-import { CodeBlockWriter } from "ts-morph";
+import CodeBlockWriter from "code-block-writer";
 import { toCamelCase } from "../../../../../helpers/utils";
 
 // TODO: composite key handling in _applyWhereClause, _resolveOrderByKey, _applyRelations

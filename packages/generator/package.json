@@ -22,8 +22,7 @@
   "dependencies": {
     "@prisma/generator-helper": "^7.1.0",
     "code-block-writer": "^13.0.3",
-    "prettier": "^3.7.4",
-    "ts-morph": "^27.0.2"
+    "prettier": "^3.7.4"
   },
   "devDependencies": {
     "@prisma/internals": "^7.1.0",

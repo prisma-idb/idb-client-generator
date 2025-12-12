@@ -1,7 +1,7 @@
 import type { Model } from "src/fileCreators/types";
-import type { CodeBlockWriter, SourceFile } from "ts-morph";
+import type CodeBlockWriter from "code-block-writer";
 
-export function addBigIntFilter(utilsFile: SourceFile, models: readonly Model[]) {
+export function addBigIntFilter(writer: CodeBlockWriter, models: readonly Model[]) {
   const bigIntFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "BigInt");
   if (bigIntFields.length === 0) return;
 
@@ -16,43 +16,29 @@ export function addBigIntFilter(utilsFile: SourceFile, models: readonly Model[])
     filterType += " | null | Prisma.BigIntNullableFilter<unknown>";
   }
 
-  utilsFile.addFunction({
-    name: "whereBigIntFilter",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      {
-        name: "bigIntFilter",
-        type: filterType,
-      },
-    ],
-    returnType: "boolean",
-    statements: (writer) => {
-      writer
-        .writeLine(`if (bigIntFilter === undefined) return true;`)
-        .blankLine()
-        .writeLine(`const value = record[fieldName] as number | null;`)
-        .writeLine(`if (bigIntFilter === null) return value === null;`)
-        .blankLine()
-        .writeLine(`if (typeof bigIntFilter === 'number' || typeof bigIntFilter === 'bigint')`)
-        .block(() => {
-          writer.writeLine(`if (value !== bigIntFilter) return false;`);
-        })
-        .writeLine(`else`)
-        .block(() => {
-          addEqualsHandler(writer);
-          addNotHandler(writer);
-          addInHandler(writer);
-          addNotInHandler(writer);
-          addLtHandler(writer);
-          addLteHandler(writer);
-          addGtHandler(writer);
-          addGteHandler(writer);
-        })
-        .writeLine(`return true;`);
-    },
+  writer.writeLine(`export function whereBigIntFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, bigIntFilter: ${filterType}): boolean`).block(() => {
+    writer
+      .writeLine(`if (bigIntFilter === undefined) return true;`)
+      .blankLine()
+      .writeLine(`const value = record[fieldName] as number | null;`)
+      .writeLine(`if (bigIntFilter === null) return value === null;`)
+      .blankLine()
+      .writeLine(`if (typeof bigIntFilter === 'number' || typeof bigIntFilter === 'bigint')`)
+      .block(() => {
+        writer.writeLine(`if (value !== bigIntFilter) return false;`);
+      })
+      .writeLine(`else`)
+      .block(() => {
+        addEqualsHandler(writer);
+        addNotHandler(writer);
+        addInHandler(writer);
+        addNotInHandler(writer);
+        addLtHandler(writer);
+        addLteHandler(writer);
+        addGtHandler(writer);
+        addGteHandler(writer);
+      })
+      .writeLine(`return true;`);
   });
 }
 

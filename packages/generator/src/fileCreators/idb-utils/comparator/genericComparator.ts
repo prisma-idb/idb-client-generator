@@ -1,33 +1,19 @@
-import { CodeBlockWriter, SourceFile } from "ts-morph";
+import CodeBlockWriter from "code-block-writer";
 
-export function addGenericComparator(utilsFile: SourceFile) {
-  utilsFile.addFunction({
-    name: "genericComparator",
-    isExported: true,
-    parameters: [
-      { name: "a", type: "unknown" },
-      { name: "b", type: "unknown" },
-      {
-        name: "sortOrder",
-        type: `Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" }`,
-        initializer: `"asc"`,
-      },
-    ],
-    returnType: "number",
-    statements: (writer) => {
-      handleNullsSorting(writer);
-      handleMultiplierAndReturnValueInit(writer);
+export function addGenericComparator(writer: CodeBlockWriter) {
+  writer.writeLine(`export function genericComparator(a: unknown, b: unknown, sortOrder: Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } = "asc"): number`).block(() => {
+    handleNullsSorting(writer);
+    handleMultiplierAndReturnValueInit(writer);
 
-      handleStringComparison(writer);
-      handleNumberComparison(writer);
-      handleBigIntComparison(writer);
-      handleDateTimeComparison(writer);
-      handleBytesComparison(writer);
-      handleBooleanComparison(writer);
-      // TODO: decimal, json
+    handleStringComparison(writer);
+    handleNumberComparison(writer);
+    handleBigIntComparison(writer);
+    handleDateTimeComparison(writer);
+    handleBytesComparison(writer);
+    handleBooleanComparison(writer);
+    // TODO: decimal, json
 
-      handleComparisonTypeErrorAndReturn(writer);
-    },
+    handleComparisonTypeErrorAndReturn(writer);
   });
 }
 

@@ -1,4 +1,4 @@
-import { CodeBlockWriter } from "ts-morph";
+import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
 
 export function addCreateManyAndReturn(writer: CodeBlockWriter, model: Model) {

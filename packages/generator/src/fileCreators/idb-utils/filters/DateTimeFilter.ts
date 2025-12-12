@@ -1,7 +1,7 @@
 import type { Model } from "src/fileCreators/types";
-import type { CodeBlockWriter, SourceFile } from "ts-morph";
+import type CodeBlockWriter from "code-block-writer";
 
-export function addDateTimeFilter(utilsFile: SourceFile, models: readonly Model[]) {
+export function addDateTimeFilter(writer: CodeBlockWriter, models: readonly Model[]) {
   const dateTimeFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "DateTime");
   if (dateTimeFields.length === 0) return;
 
@@ -16,45 +16,31 @@ export function addDateTimeFilter(utilsFile: SourceFile, models: readonly Model[
     filterType += " | null | Prisma.DateTimeNullableFilter<unknown>";
   }
 
-  utilsFile.addFunction({
-    name: "whereDateTimeFilter",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      {
-        name: "dateTimeFilter",
-        type: filterType,
-      },
-    ],
-    returnType: "boolean",
-    statements: (writer) => {
-      writer
-        .writeLine(`if (dateTimeFilter === undefined) return true;`)
-        .blankLine()
-        .writeLine(`const value = record[fieldName] as Date | null;`)
-        .writeLine(`if (dateTimeFilter === null) return value === null;`)
-        .blankLine()
-        .writeLine(`if (typeof dateTimeFilter === "string" || dateTimeFilter instanceof Date)`)
-        .block(() => {
-          writer
-            .writeLine(`if (value === null) return false;`)
-            .writeLine(`if (new Date(dateTimeFilter).getTime() !== value.getTime()) return false;`);
-        })
-        .writeLine(`else`)
-        .block(() => {
-          addEqualsHandler(writer);
-          addNotHandler(writer);
-          addInHandler(writer);
-          addNotInHandler(writer);
-          addLtHandler(writer);
-          addLteHandler(writer);
-          addGtHandler(writer);
-          addGteHandler(writer);
-        })
-        .writeLine(`return true;`);
-    },
+  writer.writeLine(`export function whereDateTimeFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, dateTimeFilter: ${filterType}): boolean`).block(() => {
+    writer
+      .writeLine(`if (dateTimeFilter === undefined) return true;`)
+      .blankLine()
+      .writeLine(`const value = record[fieldName] as Date | null;`)
+      .writeLine(`if (dateTimeFilter === null) return value === null;`)
+      .blankLine()
+      .writeLine(`if (typeof dateTimeFilter === "string" || dateTimeFilter instanceof Date)`)
+      .block(() => {
+        writer
+          .writeLine(`if (value === null) return false;`)
+          .writeLine(`if (new Date(dateTimeFilter).getTime() !== value.getTime()) return false;`);
+      })
+      .writeLine(`else`)
+      .block(() => {
+        addEqualsHandler(writer);
+        addNotHandler(writer);
+        addInHandler(writer);
+        addNotInHandler(writer);
+        addLtHandler(writer);
+        addLteHandler(writer);
+        addGtHandler(writer);
+        addGteHandler(writer);
+      })
+      .writeLine(`return true;`);
   });
 }
 

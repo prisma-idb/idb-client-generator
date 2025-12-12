@@ -1,5 +1,5 @@
 import { DMMF } from "@prisma/generator-helper";
-import { CodeBlockWriter } from "ts-morph";
+import CodeBlockWriter from "code-block-writer";
 import type { Model } from "../types";
 import { addBaseModelClass } from "./classes/BaseIDBModelClass";
 import { addIDBModelClass } from "./classes/models/IDBModelClass";

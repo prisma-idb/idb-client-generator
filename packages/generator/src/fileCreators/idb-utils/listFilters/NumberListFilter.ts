@@ -1,7 +1,7 @@
 import { Model } from "src/fileCreators/types";
-import type { CodeBlockWriter, SourceFile } from "ts-morph";
+import type CodeBlockWriter from "code-block-writer";
 
-export function addNumberListFilter(utilsFile: SourceFile, models: readonly Model[]) {
+export function addNumberListFilter(writer: CodeBlockWriter, models: readonly Model[]) {
   const allFields = models.flatMap(({ fields }) => fields);
   const numberListFields = allFields.filter(
     (field) => (field.type === "Int" || field.type === "Float") && field.isList,
@@ -16,32 +16,18 @@ export function addNumberListFilter(utilsFile: SourceFile, models: readonly Mode
     listFilterType += " | Prisma.FloatNullableListFilter<unknown>";
   }
 
-  utilsFile.addFunction({
-    name: "whereNumberListFilter",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      {
-        name: "scalarListFilter",
-        type: listFilterType,
-      },
-    ],
-    returnType: "boolean",
-    statements: (writer) => {
-      writer
-        .writeLine(`if (scalarListFilter === undefined) return true;`)
-        .blankLine()
-        .writeLine(`const value = record[fieldName] as number[] | undefined;`)
-        .writeLine(`if (value === undefined && Object.keys(scalarListFilter).length) return false;`);
-      addEqualsHandler(writer);
-      addHasHandler(writer);
-      addHasSomeHandler(writer);
-      addHasEveryHandler(writer);
-      addIsEmptyHandler(writer);
-      writer.writeLine(`return true;`);
-    },
+  writer.writeLine(`export function whereNumberListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: ${listFilterType}): boolean`).block(() => {
+    writer
+      .writeLine(`if (scalarListFilter === undefined) return true;`)
+      .blankLine()
+      .writeLine(`const value = record[fieldName] as number[] | undefined;`)
+      .writeLine(`if (value === undefined && Object.keys(scalarListFilter).length) return false;`);
+    addEqualsHandler(writer);
+    addHasHandler(writer);
+    addHasSomeHandler(writer);
+    addHasEveryHandler(writer);
+    addIsEmptyHandler(writer);
+    writer.writeLine(`return true;`);
   });
 }
 

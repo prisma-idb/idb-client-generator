@@ -1,4 +1,4 @@
-import { CodeBlockWriter } from "ts-morph";
+import CodeBlockWriter from "code-block-writer";
 import { Field, Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
 

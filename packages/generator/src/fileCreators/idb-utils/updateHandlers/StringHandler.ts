@@ -1,7 +1,7 @@
 import { Model } from "src/fileCreators/types";
-import type { SourceFile } from "ts-morph";
+import type CodeBlockWriter from "code-block-writer";
 
-export function addStringUpdateHandler(utilsFile: SourceFile, models: readonly Model[]) {
+export function addStringUpdateHandler(writer: CodeBlockWriter, models: readonly Model[]) {
   const stringFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "String");
   if (stringFields.length === 0) return;
 
@@ -19,30 +19,15 @@ export function addStringUpdateHandler(utilsFile: SourceFile, models: readonly M
     fieldType += " | null";
   }
 
-  utilsFile.addFunction({
-    name: "handleStringUpdateField",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      {
-        name: "stringUpdate",
-        type: updateOperationType,
-      },
-    ],
-    statements: (writer) => {
-      writer
-        .writeLine(`if (stringUpdate === undefined) return;`)
-        .write(`if (typeof stringUpdate === "string"`)
-        .conditionalWrite(nullableStringFieldPresent, ` || stringUpdate === null`)
-        .writeLine(`)`)
-        .block(() => {
-          writer.writeLine(`(record[fieldName] as ${fieldType}) = stringUpdate;`);
-        });
-      writer.writeLine(`else if (stringUpdate.set !== undefined)`).block(() => {
-        writer.writeLine(`(record[fieldName] as ${fieldType}) = stringUpdate.set;`);
+  writer.writeLine(`export function handleStringUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, stringUpdate: ${updateOperationType}): void`).block(() => {
+    writer
+      .writeLine(`if (stringUpdate === undefined) return;`)
+      .writeLine(`if (typeof stringUpdate === "string"${nullableStringFieldPresent ? ` || stringUpdate === null` : ""})`)
+      .block(() => {
+        writer.writeLine(`(record[fieldName] as ${fieldType}) = stringUpdate;`);
       });
-    },
+    writer.writeLine(`else if (stringUpdate.set !== undefined)`).block(() => {
+      writer.writeLine(`(record[fieldName] as ${fieldType}) = stringUpdate.set;`);
+    });
   });
 }

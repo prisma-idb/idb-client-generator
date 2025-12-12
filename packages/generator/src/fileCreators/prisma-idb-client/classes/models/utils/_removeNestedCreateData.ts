@@ -1,4 +1,4 @@
-import { CodeBlockWriter } from "ts-morph";
+import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../types";
 
 export function addRemoveNestedCreateDataMethod(writer: CodeBlockWriter, model: Model) {
