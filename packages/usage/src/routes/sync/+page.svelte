@@ -7,8 +7,8 @@
   import { CheckCircle2, Circle, Trash2 } from "@lucide/svelte";
   import { onMount } from "svelte";
   import { toast } from "svelte-sonner";
-  import type { AppliedResult, SyncWorker } from "../../prisma/prisma-idb/idb-interface";
-  import { PrismaIDBClient } from "../../prisma/prisma-idb/prisma-idb-client";
+  import type { AppliedResult, SyncWorker } from "$lib/prisma-idb/client/idb-interface";
+  import { PrismaIDBClient } from "$lib/prisma-idb/client/prisma-idb-client";
 
   let client = $state<PrismaIDBClient>();
   let userId = $state(1);
