@@ -1,5 +1,6 @@
 import { generatorHandler, GeneratorOptions } from "@prisma/generator-helper";
 import { version } from "../package.json";
+import { createBatchProcessorFile } from "./fileCreators/batch-processor/create";
 import { createIDBInterfaceFile } from "./fileCreators/idb-interface/create";
 import { createUtilsFile } from "./fileCreators/idb-utils/create";
 import { createPrismaIDBClientFile } from "./fileCreators/prisma-idb-client/create";
@@ -59,6 +60,8 @@ generatorHandler({
       );
     }
 
+    const usePrismaZodGenerator = generatorConfig.usePrismaZodGenerator === "true";
+
     await writeCodeFile("client/prisma-idb-client.ts", outputPath, (writer) => {
       createPrismaIDBClientFile(writer, models, prismaClientImport, outboxSync, outboxModelName, include, exclude);
     });
@@ -70,5 +73,11 @@ generatorHandler({
     await writeCodeFile("client/idb-utils.ts", outputPath, (writer) => {
       createUtilsFile(writer, models, prismaClientImport, outboxSync);
     });
+
+    if (outboxSync) {
+      await writeCodeFile("server/batch-processor.ts", outputPath, (writer) => {
+        createBatchProcessorFile(writer, models, prismaClientImport, usePrismaZodGenerator, include, exclude);
+      });
+    }
   },
 });
