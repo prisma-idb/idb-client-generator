@@ -1,4 +1,5 @@
 import type CodeBlockWriter from "code-block-writer";
+import { getUniqueIdentifiers } from "../../helpers/utils";
 import { Model } from "../types";
 
 export function createBatchProcessorFile(
@@ -31,11 +32,12 @@ export function createBatchProcessorFile(
   };
 
   const includedModelNames = getIncludedModels(models, include, exclude);
+  const includedModels = models.filter((m) => includedModelNames.includes(m.name));
 
   // Write imports
-  writer.writeLine(`import type { StoreNames } from "idb";`);
   writer.writeLine(`import { z, type ZodTypeAny } from "zod";`);
   writer.writeLine(`import type { OutboxEventRecord, PrismaIDBSchema } from "../client/idb-interface";`);
+  writer.writeLine(`import { prisma } from "$lib/prisma";`);
 
   if (usePrismaZodGenerator) {
     writer.writeLine(
@@ -73,46 +75,147 @@ export function createBatchProcessorFile(
   writer.writeLine(`} as const;`);
   writer.blankLine();
 
-  // Write allModels set
-  writer.writeLine(`const allModels = new Set<string>([`);
-  includedModelNames.forEach((modelName) => {
-    writer.writeLine(`"${modelName}",`);
-  });
-  writer.writeLine(`]);`);
+  // Write sync handler type
+  writer.writeLine(`export interface SyncResult {`);
+  writer.writeLine(`  id: string;`);
+  writer.writeLine(`  entityKeyPath: PrismaIDBSchema[keyof PrismaIDBSchema]["key"];`);
+  writer.writeLine(`  mergedRecord?: any;`);
+  writer.writeLine(`  serverVersion?: number;`);
+  writer.writeLine(`  error?: string | null;`);
+  writer.writeLine(`}`);
   writer.blankLine();
 
-  // Write processBatch function
-  writer.writeLine(`export function processBatch(`);
-  writer.writeLine(`  batch: OutboxEventRecord[],`);
+  // Write applySyncBatch function with switch cases per model
+  writer.writeLine(`export async function applySyncBatch(`);
+  writer.writeLine(`  events: OutboxEventRecord[],`);
   writer.writeLine(`  customValidation?: (event: EventsFor<typeof validators>) => boolean | Promise<boolean>,`);
-  writer.writeLine(`)`);
+  writer.writeLine(`): Promise<SyncResult[]> {`);
   writer.block(() => {
-    writer.writeLine(`return batch.map((event) => {`);
-    writer.writeLine(`if (!allModels.has(event.entityType)) {`);
-    writer.writeLine(`  throw new Error(\`Unknown entity type: \${event.entityType}\`);`);
-    writer.writeLine(`}`);
-    writer.blankLine();
+    writer.writeLine(`const results: SyncResult[] = [];`);
+    writer.writeLine(`for (const event of events) {`);
+    writer.writeLine(`  try {`);
+    writer.writeLine(`    switch (event.entityType) {`);
 
-    writer
-      .writeLine(`const modelName = event.entityType as StoreNames<PrismaIDBSchema>;`)
-      .writeLine(`const validator = validators[modelName as keyof typeof validators];`)
-      .writeLine(`if (!validator) throw new Error(\`No validator for model \${modelName}\`);`);
-    writer.blankLine();
+    // Generate switch case for each model
+    includedModels.forEach((model) => {
+      generateModelSwitchCase(writer, model);
+    });
 
-    writer.writeLine(`const result = validator.safeParse(event.payload);`);
-    writer.writeLine(`if (!result.success) throw new Error(\`Validation failed: \${result.error.message}\`);`);
-    writer.blankLine();
-
-    writer.writeLine(`if (customValidation) {`);
-    writer.writeLine(`  const ok = customValidation(event as unknown as EventsFor<typeof validators>);`);
-    writer.writeLine(`  if (ok instanceof Promise) {`);
-    writer.writeLine(`    throw new Error("async customValidation used but processBatch is sync");`);
+    writer.writeLine(`        default:`);
+    writer.writeLine(`          throw new Error(\`No sync handler for \${event.entityType}\`);`);
+    writer.writeLine(`      }`);
+    writer.writeLine(`  } catch (err) {`);
+    writer.writeLine(`    const errorMessage = err instanceof Error ? err.message : "Unknown error";`);
+    writer.writeLine(`    results.push({ id: event.id, error: errorMessage, entityKeyPath: event.entityKeyPath });`);
     writer.writeLine(`  }`);
+    writer.writeLine(`}`);
+    writer.writeLine(`return results;`);
+  });
+  writer.writeLine(`}`);
+  writer.blankLine();
+
+  // Generate sync handler functions for each model
+  includedModels.forEach((model) => {
+    generateModelSyncHandler(writer, model);
+  });
+}
+
+function generateModelSwitchCase(writer: CodeBlockWriter, model: Model) {
+  const pk = getUniqueIdentifiers(model)[0];
+  const pkFields = JSON.parse(pk.keyPath) as string[];
+
+  writer.writeLine(`      case "${model.name}": {`);
+  writer.block(() => {
+    writer.writeLine(`const validation = validators.${model.name}.safeParse(event.payload);`);
+    writer.writeLine(`if (!validation.success) throw new Error(\`Validation failed: \${validation.error.message}\`);`);
+    writer.blankLine();
+    writer.writeLine(`if (customValidation) {`);
+    writer.writeLine(`  const ok = await customValidation(event as EventsFor<typeof validators>);`);
     writer.writeLine(`  if (!ok) throw new Error("custom validation failed");`);
     writer.writeLine(`}`);
     writer.blankLine();
-
-    writer.writeLine(`return event;`);
-    writer.writeLine(`});`);
+    writer.writeLine(`const result = await sync${model.name}(event, validation.data);`);
+    writer.writeLine(`results.push(result);`);
   });
+  writer.writeLine(`      break;`);
+  writer.writeLine(`      }`);
+}
+
+function generateModelSyncHandler(writer: CodeBlockWriter, model: Model) {
+  const modelNameLower = model.name.charAt(0).toLowerCase() + model.name.slice(1);
+  const pk = getUniqueIdentifiers(model)[0];
+  const pkFields = JSON.parse(pk.keyPath) as string[];
+
+  writer.writeLine(
+    `async function sync${model.name}(event: OutboxEventRecord, data: z.infer<typeof validators.${model.name}>): Promise<SyncResult>`,
+  );
+  writer.block(() => {
+    writer.writeLine(`const { id, entityKeyPath, operation } = event;`);
+    writer.writeLine(
+      `const keyPathValidation = z.safeParse(z.tuple([${pkFields.map((_, i) => `z.${pk.keyPathTypes[i]}()`).join(", ")}]), entityKeyPath);`,
+    );
+    writer.writeLine(`if (!keyPathValidation.success) {`);
+    writer.writeLine(`  throw new Error("Invalid entityKeyPath for ${model.name}");`);
+    writer.writeLine(`}`);
+    writer.blankLine();
+    writer.writeLine(`const validKeyPath = keyPathValidation.data;`);
+    writer.blankLine();
+    writer.writeLine(`switch (operation) {`);
+
+    // CREATE
+    writer.writeLine(`  case "create": {`);
+    writer.writeLine(`    const result = await prisma.${modelNameLower}.create({ data });`);
+
+    if (pkFields.length === 1) {
+      writer.writeLine(`    return { id, entityKeyPath: [result.${pkFields[0]}], mergedRecord: result };`);
+    } else {
+      writer.writeLine(
+        `    return { id, entityKeyPath: [${pkFields.map((f) => `result.${f}`).join(", ")}], mergedRecord: result };`,
+      );
+    }
+    writer.writeLine(`  }`);
+    writer.blankLine();
+
+    // UPDATE
+    writer.writeLine(`  case "update": {`);
+    writer.writeLine(`    if (!entityKeyPath) throw new Error("Missing entityKeyPath for update");`);
+    writer.writeLine(`    const result = await prisma.${modelNameLower}.update({`);
+    writer.writeLine(`      where: ${generateWhereClause(pk.name, pkFields)},`);
+    writer.writeLine(`      data,`);
+    writer.writeLine(`    });`);
+
+    if (pkFields.length === 1) {
+      writer.writeLine(`    return { id, entityKeyPath: [result.${pkFields[0]}], mergedRecord: result };`);
+    } else {
+      writer.writeLine(
+        `    return { id, entityKeyPath: [${pkFields.map((f) => `result.${f}`).join(", ")}], mergedRecord: result };`,
+      );
+    }
+    writer.writeLine(`  }`);
+    writer.blankLine();
+
+    // DELETE
+    writer.writeLine(`  case "delete": {`);
+    writer.writeLine(`    if (!entityKeyPath) throw new Error("Missing entityKeyPath for delete");`);
+    writer.writeLine(`    await prisma.${modelNameLower}.delete({`);
+    writer.writeLine(`      where: ${generateWhereClause(pk.name, pkFields)},`);
+    writer.writeLine(`    });`);
+    writer.writeLine(`    return { id, entityKeyPath };`);
+    writer.writeLine(`  }`);
+    writer.blankLine();
+
+    writer.writeLine(`  default:`);
+    writer.writeLine(`    throw new Error(\`Unknown operation: \${operation}\`);`);
+    writer.writeLine(`}`);
+  });
+  writer.blankLine();
+}
+
+function generateWhereClause(pkName: string, pkFields: string[]): string {
+  if (pkFields.length === 1) {
+    return `{ ${pkFields[0]}: validKeyPath[0] }`;
+  } else {
+    const compositeKey = pkFields.map((field, i) => `${field}: validKeyPath[${i}]`).join(", ");
+    return `{ ${pkName}: { ${compositeKey} } }`;
+  }
 }

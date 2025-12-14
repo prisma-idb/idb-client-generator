@@ -3,14 +3,14 @@ import { openDB } from "idb";
 import type { IDBPDatabase, StoreNames, IDBPTransaction } from "idb";
 import type { Prisma } from "$lib/generated/prisma/client";
 import * as IDBUtils from "./idb-utils";
-import type { OutboxEventRecord, PrismaIDBSchema, AppliedResult, SyncWorkerOptions, SyncWorker } from "./idb-interface";
+import type { PrismaIDBSchema } from "./idb-interface";
 import { createId } from "@paralleldrive/cuid2";
 import { v4 as uuidv4 } from "uuid";
 const IDB_VERSION = 1;
 export class PrismaIDBClient {
   private static instance: PrismaIDBClient;
   _db!: IDBPDatabase<PrismaIDBSchema>;
-  private outboxEnabled: boolean = true;
+  private outboxEnabled: boolean = false;
   private includedModels: Set<string>;
 
   private constructor() {
@@ -47,7 +47,6 @@ export class PrismaIDBClient {
   modelWithOptionalRelationToUniqueAttributes!: ModelWithOptionalRelationToUniqueAttributesIDBClass;
   modelWithUniqueAttributes!: ModelWithUniqueAttributesIDBClass;
   todo!: TodoIDBClass;
-  $outbox!: OutboxEventIDBClass;
   public static async createClient(): Promise<PrismaIDBClient> {
     if (!PrismaIDBClient.instance) {
       const client = new PrismaIDBClient();
@@ -66,107 +65,6 @@ export class PrismaIDBClient {
   }
   private toCamelCase(str: string): string {
     return str.charAt(0).toLowerCase() + str.slice(1);
-  }
-  createSyncWorker(options: {
-    syncHandler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>;
-    batchSize?: number;
-    intervalMs?: number;
-    maxRetries?: number;
-    backoffBaseMs?: number;
-  }): SyncWorker {
-    const { syncHandler, batchSize = 20, intervalMs = 8000, maxRetries = 5, backoffBaseMs = 1000 } = options;
-
-    let intervalId: ReturnType<typeof setInterval> | null = null;
-    let isRunning = false;
-
-    const processBatch = async (): Promise<void> => {
-      if (!isRunning) return;
-
-      try {
-        const batch = await this.$outbox.getNextBatch({ limit: batchSize });
-
-        if (batch.length === 0) return;
-
-        const toSync = batch.filter((event: OutboxEventRecord) => event.tries < maxRetries);
-        const abandoned = batch.filter((event: OutboxEventRecord) => event.tries >= maxRetries);
-
-        for (const event of abandoned) {
-          await this.$outbox.markFailed(event.id, `Abandoned after ${maxRetries} retries`);
-        }
-
-        if (toSync.length === 0) return;
-
-        let results: AppliedResult[] = [];
-        try {
-          results = await syncHandler(toSync);
-        } catch (err) {
-          for (const event of toSync) {
-            const error = err instanceof Error ? err.message : String(err);
-            await this.$outbox.markFailed(event.id, error);
-          }
-          return;
-        }
-
-        const successIds: string[] = [];
-        for (const result of results) {
-          if (result.error) {
-            await this.$outbox.markFailed(result.id, result.error);
-          } else {
-            successIds.push(result.id);
-
-            if (result.mergedRecord && result.entityId) {
-              const originalEvent = toSync.find((e: OutboxEventRecord) => e.id === result.id);
-              if (originalEvent) {
-                const modelStore = (this as any)[this.toCamelCase(originalEvent.entityType)];
-                if (modelStore && modelStore.upsert) {
-                  try {
-                    await modelStore.upsert({
-                      where: { id: result.entityId },
-                      update: result.mergedRecord,
-                      create: {
-                        id: result.entityId,
-                        ...result.mergedRecord,
-                      },
-                    });
-                  } catch (upsertErr) {
-                    console.warn(`Failed to upsert merged record for event ${result.id}:`, upsertErr);
-                  }
-                }
-              }
-            }
-          }
-        }
-
-        if (successIds.length > 0) {
-          await this.$outbox.markSynced(successIds, { syncedAt: new Date() });
-        }
-      } catch (err) {
-        console.error("Sync worker error:", err);
-      }
-    };
-
-    const syncLoop = (): void => {
-      processBatch().catch((err) => {
-        console.error("Unhandled error in sync loop:", err);
-      });
-    };
-
-    return {
-      start(): void {
-        if (isRunning) return;
-        isRunning = true;
-        syncLoop();
-        intervalId = setInterval(syncLoop, intervalMs);
-      },
-
-      stop(): void {
-        isRunning = false;
-        if (intervalId !== null) {
-          clearInterval(intervalId);
-          intervalId = null;
-        }
-      },
-    };
   }
   private async initialize() {
     this._db = await openDB<PrismaIDBSchema>("prisma-idb", IDB_VERSION, {
@@ -191,7 +89,6 @@ export class PrismaIDBClient {
         const ModelWithUniqueAttributesStore = db.createObjectStore("ModelWithUniqueAttributes", { keyPath: ["id"] });
         ModelWithUniqueAttributesStore.createIndex("codeIndex", ["code"], { unique: true });
         db.createObjectStore("Todo", { keyPath: ["id"] });
-        db.createObjectStore("OutboxEvent", { keyPath: ["id"] });
       },
     });
     this.user = new UserIDBClass(this, ["id"]);
@@ -211,7 +108,6 @@ export class PrismaIDBClient {
     ]);
     this.modelWithUniqueAttributes = new ModelWithUniqueAttributesIDBClass(this, ["id"]);
     this.todo = new TodoIDBClass(this, ["id"]);
-    this.$outbox = new OutboxEventIDBClass(this, ["id"]);
   }
 }
 class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
@@ -261,18 +157,6 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
       return;
     }
     this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath } }));
-
-    if (this.client.shouldTrackModel(this.modelName)) {
-      const entityId = Array.isArray(keyPath) ? keyPath[0]?.toString() : keyPath?.toString();
-      this.client.$outbox.create({
-        data: {
-          entityType: this.modelName,
-          entityId: entityId ?? null,
-          operation: event,
-          payload: record ?? keyPath,
-        },
-      });
-    }
   }
 }
 class UserIDBClass extends BaseIDBModelClass<"User"> {
@@ -14818,116 +14702,5 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       result._sum = sumResult;
     }
     return result as unknown as Prisma.Result<Prisma.TodoDelegate, Q, "aggregate">;
-  }
-}
-class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
-  constructor(client: PrismaIDBClient, keyPath: string[]) {
-    super(client, keyPath, "OutboxEvent");
-  }
-
-  async create(query: {
-    data: Pick<OutboxEventRecord, "entityId" | "entityType" | "operation" | "payload">;
-  }): Promise<OutboxEventRecord> {
-    const tx = this.client._db.transaction("OutboxEvent", "readwrite");
-    const store = tx.objectStore("OutboxEvent");
-
-    const event: OutboxEventRecord = {
-      id: crypto.randomUUID(),
-      createdAt: new Date(),
-      synced: false,
-      syncedAt: null,
-      tries: 0,
-      lastError: null,
-      ...query.data,
-    };
-
-    await store.add(event);
-    await tx.done;
-
-    return event;
-  }
-
-  async getNextBatch(options?: { limit?: number }): Promise<OutboxEventRecord[]> {
-    const limit = options?.limit ?? 20;
-    const tx = this.client._db.transaction("OutboxEvent", "readonly");
-    const store = tx.objectStore("OutboxEvent");
-
-    // Get all unsynced events, ordered by createdAt
-    const allEvents = await store.getAll();
-    const unsynced = allEvents
-      .filter((e) => !e.synced)
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-
-    return unsynced.slice(0, limit);
-  }
-
-  async markSynced(eventIds: string[], meta?: { syncedAt?: Date }): Promise<void> {
-    const syncedAt = meta?.syncedAt ?? new Date();
-    const tx = this.client._db.transaction("OutboxEvent", "readwrite");
-    const store = tx.objectStore("OutboxEvent");
-
-    for (const id of eventIds) {
-      const event = await store.get([id]);
-      if (event) {
-        await store.put({
-          ...event,
-          synced: true,
-          syncedAt,
-        });
-      }
-    }
-
-    await tx.done;
-  }
-
-  async markFailed(eventId: string, error: string): Promise<void> {
-    const tx = this.client._db.transaction("OutboxEvent", "readwrite");
-    const store = tx.objectStore("OutboxEvent");
-
-    const event = await store.get([eventId]);
-    if (event) {
-      await store.put({
-        ...event,
-        tries: (event.tries ?? 0) + 1,
-        lastError: error,
-      });
-    }
-
-    await tx.done;
-  }
-
-  async stats(): Promise<{ unsynced: number; failed: number; lastError?: string }> {
-    const tx = this.client._db.transaction("OutboxEvent", "readonly");
-    const store = tx.objectStore("OutboxEvent");
-    const allEvents = await store.getAll();
-
-    const unsynced = allEvents.filter((e) => !e.synced).length;
-    const failed = allEvents.filter((e) => e.lastError !== null && e.lastError !== undefined).length;
-    const lastError = allEvents
-      .filter((e) => e.lastError)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]?.lastError;
-
-    return { unsynced, failed, lastError: lastError ?? undefined };
-  }
-
-  async clearSynced(options?: { olderThanDays?: number }): Promise<number> {
-    const olderThanDays = options?.olderThanDays ?? 7;
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
-
-    const tx = this.client._db.transaction("OutboxEvent", "readwrite");
-    const store = tx.objectStore("OutboxEvent");
-    const allEvents = await store.getAll();
-
-    let deletedCount = 0;
-    for (const event of allEvents) {
-      if (event.synced && new Date(event.createdAt) < cutoffDate) {
-        await store.delete([event.id]);
-        deletedCount++;
-      }
-    }
-
-    await tx.done;
-    return deletedCount;
   }
 }

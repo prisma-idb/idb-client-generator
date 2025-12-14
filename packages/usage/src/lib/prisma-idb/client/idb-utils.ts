@@ -1,6 +1,6 @@
 import type { IDBPTransaction, StoreNames } from "idb";
 import type { PrismaIDBSchema } from "./idb-interface";
-import { Prisma } from "$lib/generated/prisma/client";
+import type { Prisma } from "$lib/generated/prisma/client";
 
 export function convertToArray<T>(arg: T | T[]): T[] {
   return Array.isArray(arg) ? arg : [arg];
@@ -751,4 +751,3 @@ export function genericComparator(
   }
   return returnValue * multiplier;
 }
-export type { AppliedResult, SyncWorkerOptions, SyncWorker } from "./idb-interface";

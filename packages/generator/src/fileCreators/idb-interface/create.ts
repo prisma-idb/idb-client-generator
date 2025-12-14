@@ -56,8 +56,8 @@ function addOutboxEventTypeDefinition(writer: CodeBlockWriter) {
   writer.writeLine(`export interface OutboxEventRecord`).block(() => {
     writer
       .writeLine(`id: string;`)
-      .writeLine(`entityType: string;`)
-      .writeLine(`entityId: string | null;`)
+      .writeLine(`entityType: keyof PrismaIDBSchema;`)
+      .writeLine(`entityKeyPath: PrismaIDBSchema[keyof PrismaIDBSchema]["key"];`)
       .writeLine(`operation: "create" | "update" | "delete";`)
       .writeLine(`payload: unknown;`)
       .writeLine(`clientMeta?: unknown;`)
@@ -73,7 +73,7 @@ function addSyncWorkerTypes(writer: CodeBlockWriter) {
   writer.writeLine(`export interface AppliedResult`).block(() => {
     writer
       .writeLine(`id: string;`)
-      .writeLine(`entityId?: string | null;`)
+      .writeLine(`entityKeyPath: PrismaIDBSchema[keyof PrismaIDBSchema]["key"];`)
       .writeLine(`mergedRecord?: Record<string, any>;`)
       .writeLine(`serverVersion?: number | string;`)
       .writeLine(`error?: string | null;`);

@@ -30,7 +30,7 @@ import { addStringUpdateHandler } from "./updateHandlers/StringHandler";
 export function createUtilsFile(writer: CodeBlockWriter, models: readonly Model[], prismaClientImport: string, outboxSync: boolean = false) {
   writer.writeLine(`import type { IDBPTransaction, StoreNames } from "idb";`);
   writer.writeLine(`import type { PrismaIDBSchema } from "./idb-interface";`);
-  writer.writeLine(`import { Prisma } from "${prismaClientImport}";`);
+  writer.writeLine(`import type { Prisma } from "${prismaClientImport}";`);
   writer.blankLine();
 
   writer.writeLine("export function convertToArray<T>(arg: T | T[]): T[]").block(() => {

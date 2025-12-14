@@ -14,11 +14,9 @@ generator zod {
 }
 
 generator prismaIDB {
-  provider               = "idb-client-generator"
-  output                 = "../lib/prisma-idb"
-  prismaClientImport     = "$lib/generated/prisma/client"
-  outboxSync             = "true"
-  usePrismaZodGenerator  = "true"
+  provider              = "idb-client-generator"
+  output                = "../lib/prisma-idb"
+  prismaClientImport    = "$lib/generated/prisma/client"
 }
 
 model User {

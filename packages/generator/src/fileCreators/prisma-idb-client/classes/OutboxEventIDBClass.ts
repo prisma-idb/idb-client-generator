@@ -23,7 +23,7 @@ function addConstructor(writer: CodeBlockWriter, outboxModelName: string) {
 
 function addCreateMethod(writer: CodeBlockWriter, outboxModelName: string) {
   writer
-    .writeLine(`async create(query: { data: Pick<OutboxEventRecord, "entityId" | "entityType" | "operation" | "payload"> }): Promise<OutboxEventRecord>`)
+    .writeLine(`async create(query: { data: Pick<OutboxEventRecord, "entityKeyPath" | "entityType" | "operation" | "payload"> }): Promise<OutboxEventRecord>`)
     .block(() => {
       writer
         .writeLine(`const tx = this.client._db.transaction("${outboxModelName}", "readwrite");`)
