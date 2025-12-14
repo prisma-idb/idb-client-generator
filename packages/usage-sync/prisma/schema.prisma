@@ -6,9 +6,37 @@
 
 generator client {
   provider = "prisma-client"
-  output   = "../../generated/prisma"
+  output   = "../src/lib/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+generator prismaIDB {
+  provider           = "idb-client-generator"
+  output             = "../src/lib/prisma-idb"
+  prismaClientImport = "$lib/generated/prisma/client"
+  outboxSync         = "true"
+}
+
+generator zod {
+  provider = "prisma-zod-generator"
+  output   = "../src/lib/generated/prisma-zod-generator"
+  config   = "./zod-generator.config.json"
+}
+
+model User {
+  id    String @id @default(uuid())
+  name  String
+  todos Todo[]
+}
+
+model Todo {
+  id        String  @id @default(uuid())
+  title     String
+  completed Boolean @default(false)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
 }
