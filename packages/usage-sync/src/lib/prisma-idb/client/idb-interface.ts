@@ -16,8 +16,8 @@ export interface PrismaIDBSchema extends DBSchema {
 }
 export interface OutboxEventRecord {
 	id: string;
-	entityType: keyof PrismaIDBSchema;
-	entityKeyPath: PrismaIDBSchema[keyof PrismaIDBSchema]['key'];
+	entityType: string;
+	entityKeyPath: Array<string | number>;
 	operation: 'create' | 'update' | 'delete';
 	payload: unknown;
 	clientMeta?: unknown;

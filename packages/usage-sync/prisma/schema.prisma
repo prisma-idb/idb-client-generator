@@ -14,10 +14,11 @@ datasource db {
 }
 
 generator prismaIDB {
-  provider           = "idb-client-generator"
-  output             = "../src/lib/prisma-idb"
-  prismaClientImport = "$lib/generated/prisma/client"
-  outboxSync         = "true"
+  provider              = "idb-client-generator"
+  output                = "../src/lib/prisma-idb"
+  prismaClientImport    = "$lib/generated/prisma/client"
+  outboxSync            = "true"
+  usePrismaZodGenerator = "true"
 }
 
 generator zod {

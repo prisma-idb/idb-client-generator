@@ -56,8 +56,8 @@ function addOutboxEventTypeDefinition(writer: CodeBlockWriter) {
   writer.writeLine(`export interface OutboxEventRecord`).block(() => {
     writer
       .writeLine(`id: string;`)
-      .writeLine(`entityType: keyof PrismaIDBSchema;`)
-      .writeLine(`entityKeyPath: PrismaIDBSchema[keyof PrismaIDBSchema]["key"];`)
+      .writeLine(`entityType: string;`)
+      .writeLine(`entityKeyPath: Array<string | number>;`)
       .writeLine(`operation: "create" | "update" | "delete";`)
       .writeLine(`payload: unknown;`)
       .writeLine(`clientMeta?: unknown;`)
