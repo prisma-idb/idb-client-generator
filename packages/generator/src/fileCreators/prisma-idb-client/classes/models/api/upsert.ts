@@ -7,6 +7,7 @@ export function addUpsertMethod(writer: CodeBlockWriter, model: Model) {
     .writeLine(`async upsert<Q extends Prisma.Args<Prisma.${model.name}Delegate, "upsert">>(`)
     .writeLine(`query: Q,`)
     .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
+    .writeLine(`silent?: boolean`)
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "upsert">>`)
     .block(() => {
       addGetAndUpsertRecord(writer, model);
@@ -21,8 +22,8 @@ function addGetAndUpsertRecord(writer: CodeBlockWriter, model: Model) {
     )
     .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(neededStores), "readwrite");`)
     .writeLine(`let record = await this.findUnique({ where: query.where }, tx);`)
-    .writeLine(`if (!record) record = await this.create({ data: query.create }, tx);`)
-    .writeLine(`else record = await this.update({ where: query.where, data: query.update }, tx);`);
+    .writeLine(`if (!record) record = await this.create({ data: query.create }, tx, silent);`)
+    .writeLine(`else record = await this.update({ where: query.where, data: query.update }, tx, silent);`);
 }
 
 function addRefetchAndReturnRecord(writer: CodeBlockWriter, model: Model) {

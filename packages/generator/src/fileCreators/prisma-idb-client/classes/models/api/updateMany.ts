@@ -7,6 +7,7 @@ export function addUpdateMany(writer: CodeBlockWriter, model: Model) {
     .writeLine(`async updateMany<Q extends Prisma.Args<Prisma.${model.name}Delegate, "updateMany">>(`)
     .writeLine(`query: Q,`)
     .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
+    .writeLine(`silent?: boolean`)
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "updateMany">>`)
     .block(() => {
       const pk = getUniqueIdentifiers(model)[0];
@@ -20,12 +21,12 @@ export function addUpdateMany(writer: CodeBlockWriter, model: Model) {
         .block(() => {
           if (keyPath.length === 1) {
             writer.writeLine(
-              `await this.update({ where: { ${pk.name}: record.${keyPath[0]} }, data: query.data }, tx);`,
+              `await this.update({ where: { ${pk.name}: record.${keyPath[0]} }, data: query.data }, tx, silent);`,
             );
           } else {
             const compositeKey = keyPath.map((field) => `${field}: record.${field}`).join(", ");
             writer.writeLine(
-              `await this.update({ where: { ${pk.name}: { ${compositeKey} } }, data: query.data }, tx);`,
+              `await this.update({ where: { ${pk.name}: { ${compositeKey} } }, data: query.data }, tx, silent);`,
             );
           }
         })

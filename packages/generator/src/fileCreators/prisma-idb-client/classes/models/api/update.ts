@@ -7,6 +7,7 @@ export function addUpdateMethod(writer: CodeBlockWriter, model: Model, models: r
     .writeLine(`async update<Q extends Prisma.Args<Prisma.${model.name}Delegate, "update">>(`)
     .writeLine(`query: Q,`)
     .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
+    .writeLine(`silent?: boolean`)
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "update">>`)
     .block(() => {
       addGetRecord(writer, model);
@@ -63,7 +64,7 @@ function addPutAndReturn(writer: CodeBlockWriter, model: Model, models: readonly
       });
     })
     .writeLine(`const keyPath = await tx.objectStore("${model.name}").put(record);`)
-    .writeLine(`this.emit("update", keyPath, startKeyPath, record);`);
+    .writeLine(`this.emit("update", keyPath, startKeyPath, record, silent);`);
 
   addReferentialUpdateHandling(writer, model, models);
   writer

@@ -6,7 +6,8 @@ export function addCreateMethod(writer: CodeBlockWriter, model: Model, models: r
   writer
     .writeLine(`async create<Q extends Prisma.Args<Prisma.${model.name}Delegate, "create">>(`)
     .writeLine(`query: Q,`)
-    .writeLine(`tx?: IDBUtils.ReadwriteTransactionType`)
+    .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
+    .writeLine(`silent?: boolean`)
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "create">>`)
     .block(() => {
       createTx(writer);
@@ -100,7 +101,7 @@ function applyClausesAndReturnRecords(writer: CodeBlockWriter, model: Model) {
     .write(`const recordsWithRelations = this._applySelectClause`)
     .write(`(await this._applyRelations<object>([data], tx, query), query.select)[0];`)
     .writeLine(`this._preprocessListFields([recordsWithRelations]);`)
-    .writeLine(`this.emit("create", keyPath, undefined, data);`)
+    .writeLine(`this.emit("create", keyPath, undefined, data, silent);`)
     .writeLine(`return recordsWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "create">;`);
 }
 
