@@ -60,23 +60,42 @@ generatorHandler({
       );
     }
 
+    // Filter models based on include/exclude patterns
+    const matchPattern = (name: string, pattern: string): boolean => {
+      const globToRegex = (glob: string): RegExp => {
+        const escaped = glob.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+        const withWildcard = escaped.replace(/\\\*/g, ".*");
+        return new RegExp(`^${withWildcard}$`);
+      };
+      return globToRegex(pattern).test(name);
+    };
+
+    const isIncluded = (modelName: string) => {
+      if (include[0] !== "*") {
+        return include.some((pattern) => matchPattern(modelName, pattern));
+      }
+      return !exclude.some((pattern) => matchPattern(modelName, pattern));
+    };
+
+    const filteredModels = models.filter((model) => isIncluded(model.name));
+
     const usePrismaZodGenerator = generatorConfig.usePrismaZodGenerator === "true";
 
     await writeCodeFile("client/prisma-idb-client.ts", outputPath, (writer) => {
-      createPrismaIDBClientFile(writer, models, prismaClientImport, outboxSync, outboxModelName, include, exclude);
+      createPrismaIDBClientFile(writer, filteredModels, prismaClientImport, outboxSync, outboxModelName);
     });
 
     await writeCodeFile("client/idb-interface.ts", outputPath, (writer) => {
-      createIDBInterfaceFile(writer, models, prismaClientImport, outboxSync, outboxModelName);
+      createIDBInterfaceFile(writer, filteredModels, prismaClientImport, outboxSync, outboxModelName);
     });
 
     await writeCodeFile("client/idb-utils.ts", outputPath, (writer) => {
-      createUtilsFile(writer, models, prismaClientImport, outboxSync);
+      createUtilsFile(writer, filteredModels, prismaClientImport, outboxSync);
     });
 
     if (outboxSync) {
       await writeCodeFile("server/batch-processor.ts", outputPath, (writer) => {
-        createBatchProcessorFile(writer, models, prismaClientImport, usePrismaZodGenerator, include, exclude);
+        createBatchProcessorFile(writer, filteredModels, prismaClientImport, usePrismaZodGenerator);
       });
     }
   },

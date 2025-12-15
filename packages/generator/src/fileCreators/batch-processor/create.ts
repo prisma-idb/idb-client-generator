@@ -7,32 +7,8 @@ export function createBatchProcessorFile(
   models: readonly Model[],
   prismaClientImport: string,
   usePrismaZodGenerator: boolean,
-  include: string[] = ["*"],
-  exclude: string[] = [],
 ) {
-  // Determine which models to include based on include/exclude patterns
-  const getIncludedModels = (models: readonly Model[], include: string[], exclude: string[]): string[] => {
-    const isIncluded = (modelName: string) => {
-      if (include[0] !== "*") {
-        return include.some((pattern) => matchPattern(modelName, pattern));
-      }
-      return !exclude.some((pattern) => matchPattern(modelName, pattern));
-    };
-
-    return models.filter((m) => isIncluded(m.name)).map((m) => m.name);
-  };
-
-  const matchPattern = (name: string, pattern: string): boolean => {
-    const globToRegex = (glob: string): RegExp => {
-      const escaped = glob.replace(/[.+^${}()|[\]\\]/g, "\\$&");
-      const withWildcard = escaped.replace(/\\\*/g, ".*");
-      return new RegExp(`^${withWildcard}$`);
-    };
-    return globToRegex(pattern).test(name);
-  };
-
-  const includedModelNames = getIncludedModels(models, include, exclude);
-  const includedModels = models.filter((m) => includedModelNames.includes(m.name));
+  const modelNames = models.map((m) => m.name);
 
   // Write imports
   writer.writeLine(`import { z, type ZodTypeAny } from "zod";`);
@@ -41,7 +17,7 @@ export function createBatchProcessorFile(
 
   if (usePrismaZodGenerator) {
     writer.writeLine(
-      `import { ${includedModelNames.map((name) => `${name}Schema`).join(", ")} } from "$lib/generated/prisma-zod-generator/schemas/models";`,
+      `import { ${modelNames.map((name) => `${name}Schema`).join(", ")} } from "$lib/generated/prisma-zod-generator/schemas/models";`,
     );
   }
 
@@ -65,7 +41,7 @@ export function createBatchProcessorFile(
 
   // Write validators constant
   writer.writeLine(`const validators = {`);
-  includedModelNames.forEach((modelName) => {
+  modelNames.forEach((modelName) => {
     if (usePrismaZodGenerator) {
       writer.writeLine(`  ${modelName}: ${modelName}Schema,`);
     } else {
@@ -97,7 +73,7 @@ export function createBatchProcessorFile(
     writer.writeLine(`    switch (event.entityType) {`);
 
     // Generate switch case for each model
-    includedModels.forEach((model) => {
+    models.forEach((model) => {
       generateModelSwitchCase(writer, model);
     });
 
@@ -115,7 +91,7 @@ export function createBatchProcessorFile(
   writer.blankLine();
 
   // Generate sync handler functions for each model
-  includedModels.forEach((model) => {
+  models.forEach((model) => {
     generateModelSyncHandler(writer, model);
   });
 }

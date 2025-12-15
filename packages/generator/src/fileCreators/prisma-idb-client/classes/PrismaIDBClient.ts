@@ -192,6 +192,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Mod
         .writeLine(`                  where: whereClause,`)
         .writeLine(`                  update: result.mergedRecord,`)
         .writeLine(`                  create: result.mergedRecord,`)
+        .writeLine(`                  silent: true,`)
         .writeLine(`                });`)
         .writeLine(`              } catch (upsertErr) {`)
         .writeLine(

@@ -19,6 +19,7 @@ generator prismaIDB {
   prismaClientImport    = "$lib/generated/prisma/client"
   outboxSync            = "true"
   usePrismaZodGenerator = "true"
+  exclude               = ["ChangeLog"]
 }
 
 generator zod {
@@ -40,4 +41,21 @@ model Todo {
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String
+}
+
+model ChangeLog {
+  id        BigInt          @id @default(autoincrement())
+  model     String
+  keyPath   Json
+  operation ChangeOperation
+  version   Int?
+  createdAt DateTime        @default(now())
+
+  @@index([model, id])
+}
+
+enum ChangeOperation {
+  create
+  update
+  delete
 }
