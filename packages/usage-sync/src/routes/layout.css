@@ -113,7 +113,9 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
+    font-family: "JetBrains Mono", monospace;
+    font-optical-sizing: auto;
   }
   body {
     @apply bg-background text-foreground;
