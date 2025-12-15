@@ -31,11 +31,15 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxMo
       `subscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: (e: CustomEventInit<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>) => void)`,
     )
     .block(() => {
-      writer.writeLine(`if (Array.isArray(event))`).block(() => {
-        writer.writeLine(`event.forEach((event) => this.eventEmitter.addEventListener(event, callback));`);
-        writer.writeLine(`return;`);
-      });
-      writer.writeLine(`this.eventEmitter.addEventListener(event, callback);`);
+      writer
+        .writeLine(`if (Array.isArray(event))`)
+        .block(() => {
+          writer.writeLine(`event.forEach((event) => this.eventEmitter.addEventListener(event, callback));`);
+        })
+        .writeLine(`else`)
+        .block(() => {
+          writer.writeLine(`this.eventEmitter.addEventListener(event, callback);`);
+        });
     });
 
   writer
@@ -55,13 +59,17 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxMo
       `protected emit(event: "create" | "update" | "delete", keyPath: PrismaIDBSchema[T]["key"], oldKeyPath?: PrismaIDBSchema[T]["key"], record?: Record<string, any>)`,
     )
     .block(() => {
-      writer.writeLine(`if (event === "update")`).block(() => {
-        writer.writeLine(
-          `this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath, oldKeyPath } }));`,
-        );
-        writer.writeLine(`return;`);
-      });
-      writer.writeLine(`this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath } }));`);
+      writer
+        .writeLine(`if (event === "update")`)
+        .block(() => {
+          writer.writeLine(
+            `this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath, oldKeyPath } }));`,
+          );
+        })
+        .writeLine(`else`)
+        .block(() => {
+          writer.writeLine(`this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath } }));`);
+        });
 
       if (!outboxSync) return;
 
@@ -71,7 +79,7 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxMo
           .writeLine(`this.client.$outbox.create({`)
           .writeLine(`data: {`)
           .writeLine(`entityType: this.modelName,`)
-          .writeLine(`entityKeyPath: keyPath,`)
+          .writeLine(`entityKeyPath: keyPath as Array<string | number>,`)
           .writeLine(`operation: event,`)
           .writeLine(`payload: record ?? keyPath,`)
           .writeLine(`}`)

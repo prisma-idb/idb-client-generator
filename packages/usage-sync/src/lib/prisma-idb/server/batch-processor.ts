@@ -1,6 +1,7 @@
 import { z, type ZodTypeAny } from 'zod';
 import type { OutboxEventRecord, PrismaIDBSchema } from '../client/idb-interface';
 import { prisma } from '$lib/prisma';
+import { UserSchema, TodoSchema } from '$lib/generated/prisma-zod-generator/schemas/models';
 
 type Op = 'create' | 'update' | 'delete';
 
@@ -15,13 +16,13 @@ type EventsFor<V extends Partial<Record<string, ZodTypeAny>>> = {
 }[keyof V & string];
 
 const validators = {
-	// User: z.object({ /* define schema */ }),
-	// Todo: z.object({ /* define schema */ }),
+	User: UserSchema,
+	Todo: TodoSchema
 } as const;
 
 export interface SyncResult {
 	id: string;
-	entityKeyPath: PrismaIDBSchema[keyof PrismaIDBSchema]['key'];
+	entityKeyPath: Array<string | number>;
 	mergedRecord?: any;
 	serverVersion?: number;
 	error?: string | null;

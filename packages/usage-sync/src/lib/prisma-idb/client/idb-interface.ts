@@ -29,7 +29,7 @@ export interface OutboxEventRecord {
 }
 export interface AppliedResult {
 	id: string;
-	entityKeyPath: PrismaIDBSchema[keyof PrismaIDBSchema]['key'];
+	entityKeyPath: Array<string | number>;
 	mergedRecord?: Record<string, any>;
 	serverVersion?: number | string;
 	error?: string | null;

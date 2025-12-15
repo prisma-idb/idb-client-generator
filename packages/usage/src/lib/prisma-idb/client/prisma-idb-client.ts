@@ -130,7 +130,6 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
   ) {
     if (Array.isArray(event)) {
       event.forEach((event) => this.eventEmitter.addEventListener(event, callback));
-      return;
     }
     this.eventEmitter.addEventListener(event, callback);
   }
@@ -154,9 +153,9 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
   ) {
     if (event === "update") {
       this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath, oldKeyPath } }));
-      return;
+    } else {
+      this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath } }));
     }
-    this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath } }));
   }
 }
 class UserIDBClass extends BaseIDBModelClass<"User"> {

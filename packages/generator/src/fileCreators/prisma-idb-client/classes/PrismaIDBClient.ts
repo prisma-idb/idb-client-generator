@@ -1,7 +1,7 @@
 import CodeBlockWriter from "code-block-writer";
 import { getUniqueIdentifiers, toCamelCase as toCamelCaseUtil } from "../../../helpers/utils";
-import { Model } from "../../types";
 import { shouldTrackModel } from "../../outbox/utils";
+import { Model } from "../../types";
 
 export function addClientClass(
   writer: CodeBlockWriter,
@@ -31,7 +31,7 @@ export function addClientClass(
     addShouldTrackModelMethod(writer);
     addToCamelCaseMethod(writer);
     if (outboxSync) {
-      addCreateSyncWorkerMethod(writer, outboxModelName);
+      addCreateSyncWorkerMethod(writer, models, outboxModelName);
     }
     addInitializeMethod(writer, models, outboxSync, outboxModelName);
   });
@@ -86,35 +86,50 @@ function addInitializeMethod(
     });
 
     if (outboxSync) {
-      writer.writeLine(
-        `this.$outbox = new ${outboxModelName}IDBClass(this, ['id']);`,
-      );
+      writer.writeLine(`this.$outbox = new ${outboxModelName}IDBClass(this, ['id']);`);
     }
   });
 }
 
 function addShouldTrackModelMethod(writer: CodeBlockWriter) {
-  writer
-    .writeLine(`shouldTrackModel(modelName: string): boolean`)
-    .block(() => {
-      writer.writeLine(`return this.outboxEnabled && this.includedModels.has(modelName);`);
-    });
+  writer.writeLine(`shouldTrackModel(modelName: string): boolean`).block(() => {
+    writer.writeLine(`return this.outboxEnabled && this.includedModels.has(modelName);`);
+  });
 }
 
 function addToCamelCaseMethod(writer: CodeBlockWriter) {
-  writer
-    .writeLine(`private toCamelCase(str: string): string`)
-    .block(() => {
-      writer.writeLine(`return str.charAt(0).toLowerCase() + str.slice(1);`);
-    });
+  writer.writeLine(`private toCamelCase(str: string): string`).block(() => {
+    writer.writeLine(`return str.charAt(0).toLowerCase() + str.slice(1);`);
+  });
 }
 
-function addCreateSyncWorkerMethod(writer: CodeBlockWriter, outboxModelName: string) {
+function generateModelUpsertCase(writer: CodeBlockWriter, model: Model) {
+  const pk = getUniqueIdentifiers(model)[0];
+  const pkFields = JSON.parse(pk.keyPath) as string[];
+
+  writer.writeLine(`                  case "${model.name}": {`);
+  writer.block(() => {
+    if (pkFields.length === 1) {
+      writer.writeLine(`                    whereClause = { ${pkFields[0]}: result.entityKeyPath[0] };`);
+    } else {
+      const compositeKey = pkFields.map((field, i) => `${field}: result.entityKeyPath[${i}]`).join(", ");
+      writer.writeLine(`                    whereClause = { ${pk.name}: { ${compositeKey} } };`);
+    }
+  });
+  writer.writeLine(`                    break;`);
+  writer.writeLine(`                  }`);
+}
+
+function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Model[], outboxModelName: string) {
   writer
-    .writeLine(`createSyncWorker(options: { syncHandler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>; batchSize?: number; intervalMs?: number; maxRetries?: number; backoffBaseMs?: number }): SyncWorker`)
+    .writeLine(
+      `createSyncWorker(options: { syncHandler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>; batchSize?: number; intervalMs?: number; maxRetries?: number; backoffBaseMs?: number }): SyncWorker`,
+    )
     .block(() => {
       writer
-        .writeLine(`const { syncHandler, batchSize = 20, intervalMs = 8000, maxRetries = 5, backoffBaseMs = 1000 } = options;`)
+        .writeLine(
+          `const { syncHandler, batchSize = 20, intervalMs = 8000, maxRetries = 5, backoffBaseMs = 1000 } = options;`,
+        )
         .blankLine()
         .writeLine(`let intervalId: ReturnType<typeof setInterval> | null = null;`)
         .writeLine(`let isRunning = false;`)
@@ -160,16 +175,28 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, outboxModelName: str
         .writeLine(`            const modelStore = (this as any)[this.toCamelCase(originalEvent.entityType)];`)
         .writeLine(`            if (modelStore && modelStore.upsert) {`)
         .writeLine(`              try {`)
+        .writeLine(`                let whereClause: any;`)
+        .writeLine(`                switch (originalEvent.entityType) {`);
+
+      // Generate model-specific cases
+      models.forEach((model) => {
+        generateModelUpsertCase(writer, model);
+      });
+
+      writer
+        .writeLine(`                  default:`)
+        .writeLine(`                    throw new Error(\`No upsert handler for \${originalEvent.entityType}\`);`)
+        .writeLine(`                }`)
+        .blankLine()
         .writeLine(`                await modelStore.upsert({`)
-        .writeLine(`                  where: { id: result.entityKeyPath },`)
+        .writeLine(`                  where: whereClause,`)
         .writeLine(`                  update: result.mergedRecord,`)
-        .writeLine(`                  create: {`)
-        .writeLine(`                    id: result.entityKeyPath,`)
-        .writeLine(`                    ...result.mergedRecord,`)
-        .writeLine(`                  },`)
+        .writeLine(`                  create: result.mergedRecord,`)
         .writeLine(`                });`)
         .writeLine(`              } catch (upsertErr) {`)
-        .writeLine(`                console.warn(\`Failed to upsert merged record for event \${result.id}:\`, upsertErr);`)
+        .writeLine(
+          `                console.warn(\`Failed to upsert merged record for event \${result.id}:\`, upsertErr);`,
+        )
         .writeLine(`              }`)
         .writeLine(`            }`)
         .writeLine(`          }`)

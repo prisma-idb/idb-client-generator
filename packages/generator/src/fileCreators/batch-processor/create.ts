@@ -78,7 +78,7 @@ export function createBatchProcessorFile(
   // Write sync handler type
   writer.writeLine(`export interface SyncResult {`);
   writer.writeLine(`  id: string;`);
-  writer.writeLine(`  entityKeyPath: PrismaIDBSchema[keyof PrismaIDBSchema]["key"];`);
+  writer.writeLine(`  entityKeyPath: Array<string | number>;`);
   writer.writeLine(`  mergedRecord?: any;`);
   writer.writeLine(`  serverVersion?: number;`);
   writer.writeLine(`  error?: string | null;`);

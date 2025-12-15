@@ -73,7 +73,7 @@ function addSyncWorkerTypes(writer: CodeBlockWriter) {
   writer.writeLine(`export interface AppliedResult`).block(() => {
     writer
       .writeLine(`id: string;`)
-      .writeLine(`entityKeyPath: PrismaIDBSchema[keyof PrismaIDBSchema]["key"];`)
+      .writeLine(`entityKeyPath: Array<string | number>;`)
       .writeLine(`mergedRecord?: Record<string, any>;`)
       .writeLine(`serverVersion?: number | string;`)
       .writeLine(`error?: string | null;`);

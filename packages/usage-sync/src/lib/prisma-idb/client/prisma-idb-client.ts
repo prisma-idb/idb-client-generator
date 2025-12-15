@@ -102,13 +102,28 @@ export class PrismaIDBClient {
 								const modelStore = (this as any)[this.toCamelCase(originalEvent.entityType)];
 								if (modelStore && modelStore.upsert) {
 									try {
-										await modelStore.upsert({
-											where: { id: result.entityKeyPath },
-											update: result.mergedRecord,
-											create: {
-												id: result.entityKeyPath,
-												...result.mergedRecord
+										let whereClause: any;
+										switch (originalEvent.entityType) {
+											case 'User': {
+												{
+													whereClause = { id: result.entityKeyPath[0] };
+												}
+												break;
 											}
+											case 'Todo': {
+												{
+													whereClause = { id: result.entityKeyPath[0] };
+												}
+												break;
+											}
+											default:
+												throw new Error(`No upsert handler for ${originalEvent.entityType}`);
+										}
+
+										await modelStore.upsert({
+											where: whereClause,
+											update: result.mergedRecord,
+											create: result.mergedRecord
 										});
 									} catch (upsertErr) {
 										console.warn(
@@ -189,9 +204,9 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
 	) {
 		if (Array.isArray(event)) {
 			event.forEach((event) => this.eventEmitter.addEventListener(event, callback));
-			return;
+		} else {
+			this.eventEmitter.addEventListener(event, callback);
 		}
-		this.eventEmitter.addEventListener(event, callback);
 	}
 	unsubscribe(
 		event: 'create' | 'update' | 'delete' | ('create' | 'update' | 'delete')[],
@@ -216,15 +231,15 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
 	) {
 		if (event === 'update') {
 			this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath, oldKeyPath } }));
-			return;
+		} else {
+			this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath } }));
 		}
-		this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath } }));
 
 		if (this.client.shouldTrackModel(this.modelName)) {
 			this.client.$outbox.create({
 				data: {
 					entityType: this.modelName,
-					entityKeyPath: keyPath,
+					entityKeyPath: keyPath as Array<string | number>,
 					operation: event,
 					payload: record ?? keyPath
 				}
