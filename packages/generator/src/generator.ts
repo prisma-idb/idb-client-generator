@@ -23,12 +23,12 @@ generatorHandler({
     if (typeof prismaClientImport !== "string") {
       throw new Error(
         `@prisma-idb/idb-client-generator requires an import path for the Prisma client to be specified.\n` +
-        `If you have not provided an output value for the client generator, use "@prisma/client"\n\n` +
-        `generator prismaIDB {\n` +
-        `\tprovider           = "idb-client-generator"\n` +
-        `\toutput             = "./prisma-idb"\n` +
-        `\tprismaClientImport = "resolvable/path/to/prisma/client"\n` +
-        `}`
+          `If you have not provided an output value for the client generator, use "@prisma/client"\n\n` +
+          `generator prismaIDB {\n` +
+          `\tprovider           = "idb-client-generator"\n` +
+          `\toutput             = "./prisma-idb"\n` +
+          `\tprismaClientImport = "resolvable/path/to/prisma/client"\n` +
+          `}`,
       );
     }
 
@@ -56,7 +56,7 @@ generatorHandler({
     if (include.length > 0 && include[0] !== "*" && exclude.length > 0) {
       throw new Error(
         `@prisma-idb/idb-client-generator: "include" and "exclude" are mutually exclusive (XOR).\n` +
-        `You can use either "include" or "exclude", but not both.`
+          `You can use either "include" or "exclude", but not both.`,
       );
     }
 

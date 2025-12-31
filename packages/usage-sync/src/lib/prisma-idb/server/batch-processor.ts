@@ -22,6 +22,7 @@ const validators = {
 
 export interface SyncResult {
 	id: string;
+	oldKeyPath?: Array<string | number>;
 	entityKeyPath: Array<string | number>;
 	mergedRecord?: any;
 	serverVersion?: number;
@@ -30,12 +31,15 @@ export interface SyncResult {
 
 export async function applySyncBatch(
 	events: OutboxEventRecord[],
+	scopeKey: string | ((event: OutboxEventRecord) => string),
 	customValidation?: (event: EventsFor<typeof validators>) => boolean | Promise<boolean>
 ): Promise<SyncResult[]> {
 	{
 		const results: SyncResult[] = [];
 		for (const event of events) {
 			try {
+				const resolvedScopeKey = typeof scopeKey === 'function' ? scopeKey(event) : scopeKey;
+				let result: SyncResult;
 				switch (event.entityType) {
 					case 'User': {
 						{
@@ -48,10 +52,9 @@ export async function applySyncBatch(
 								if (!ok) throw new Error('custom validation failed');
 							}
 
-							const result = await syncUser(event, validation.data);
-							results.push(result);
+							result = await syncUser(event, validation.data, resolvedScopeKey);
+							break;
 						}
-						break;
 					}
 					case 'Todo': {
 						{
@@ -64,14 +67,14 @@ export async function applySyncBatch(
 								if (!ok) throw new Error('custom validation failed');
 							}
 
-							const result = await syncTodo(event, validation.data);
-							results.push(result);
+							result = await syncTodo(event, validation.data, resolvedScopeKey);
+							break;
 						}
-						break;
 					}
 					default:
 						throw new Error(`No sync handler for ${event.entityType}`);
 				}
+				results.push(result);
 			} catch (err) {
 				const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 				results.push({ id: event.id, error: errorMessage, entityKeyPath: event.entityKeyPath });
@@ -83,7 +86,8 @@ export async function applySyncBatch(
 
 async function syncUser(
 	event: OutboxEventRecord,
-	data: z.infer<typeof validators.User>
+	data: z.infer<typeof validators.User>,
+	scopeKey: string
 ): Promise<SyncResult> {
 	const { id, entityKeyPath, operation } = event;
 	const keyPathValidation = z.safeParse(z.tuple([z.string()]), entityKeyPath);
@@ -95,25 +99,59 @@ async function syncUser(
 
 	switch (operation) {
 		case 'create': {
-			const result = await prisma.user.create({ data });
-			return { id, entityKeyPath: [result.id], mergedRecord: result };
+			const [result] = await prisma.$transaction([
+				prisma.user.create({ data }),
+				prisma.changeLog.create({
+					data: {
+						model: 'User',
+						keyPath: validKeyPath,
+						operation: 'create',
+						scopeKey
+					}
+				})
+			]);
+			const newKeyPath = [result.id];
+			return { id, entityKeyPath: newKeyPath, mergedRecord: result };
 		}
 
 		case 'update': {
 			if (!entityKeyPath) throw new Error('Missing entityKeyPath for update');
-			const result = await prisma.user.update({
-				where: { id: validKeyPath[0] },
-				data
-			});
-			return { id, entityKeyPath: [result.id], mergedRecord: result };
+			const oldKeyPath = [...validKeyPath];
+			const [result] = await prisma.$transaction([
+				prisma.user.update({
+					where: { id: validKeyPath[0] },
+					data
+				}),
+				prisma.changeLog.create({
+					data: {
+						model: 'User',
+						keyPath: validKeyPath,
+						oldKeyPath,
+						operation: 'update',
+						scopeKey
+					}
+				})
+			]);
+			const newKeyPath = [result.id];
+			return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: result };
 		}
 
 		case 'delete': {
 			if (!entityKeyPath) throw new Error('Missing entityKeyPath for delete');
-			await prisma.user.delete({
-				where: { id: validKeyPath[0] }
-			});
-			return { id, entityKeyPath };
+			await prisma.$transaction([
+				prisma.user.delete({
+					where: { id: validKeyPath[0] }
+				}),
+				prisma.changeLog.create({
+					data: {
+						model: 'User',
+						keyPath: validKeyPath,
+						operation: 'delete',
+						scopeKey
+					}
+				})
+			]);
+			return { id, entityKeyPath: validKeyPath };
 		}
 
 		default:
@@ -123,7 +161,8 @@ async function syncUser(
 
 async function syncTodo(
 	event: OutboxEventRecord,
-	data: z.infer<typeof validators.Todo>
+	data: z.infer<typeof validators.Todo>,
+	scopeKey: string
 ): Promise<SyncResult> {
 	const { id, entityKeyPath, operation } = event;
 	const keyPathValidation = z.safeParse(z.tuple([z.string()]), entityKeyPath);
@@ -135,25 +174,59 @@ async function syncTodo(
 
 	switch (operation) {
 		case 'create': {
-			const result = await prisma.todo.create({ data });
-			return { id, entityKeyPath: [result.id], mergedRecord: result };
+			const [result] = await prisma.$transaction([
+				prisma.todo.create({ data }),
+				prisma.changeLog.create({
+					data: {
+						model: 'Todo',
+						keyPath: validKeyPath,
+						operation: 'create',
+						scopeKey
+					}
+				})
+			]);
+			const newKeyPath = [result.id];
+			return { id, entityKeyPath: newKeyPath, mergedRecord: result };
 		}
 
 		case 'update': {
 			if (!entityKeyPath) throw new Error('Missing entityKeyPath for update');
-			const result = await prisma.todo.update({
-				where: { id: validKeyPath[0] },
-				data
-			});
-			return { id, entityKeyPath: [result.id], mergedRecord: result };
+			const oldKeyPath = [...validKeyPath];
+			const [result] = await prisma.$transaction([
+				prisma.todo.update({
+					where: { id: validKeyPath[0] },
+					data
+				}),
+				prisma.changeLog.create({
+					data: {
+						model: 'Todo',
+						keyPath: validKeyPath,
+						oldKeyPath,
+						operation: 'update',
+						scopeKey
+					}
+				})
+			]);
+			const newKeyPath = [result.id];
+			return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: result };
 		}
 
 		case 'delete': {
 			if (!entityKeyPath) throw new Error('Missing entityKeyPath for delete');
-			await prisma.todo.delete({
-				where: { id: validKeyPath[0] }
-			});
-			return { id, entityKeyPath };
+			await prisma.$transaction([
+				prisma.todo.delete({
+					where: { id: validKeyPath[0] }
+				}),
+				prisma.changeLog.create({
+					data: {
+						model: 'Todo',
+						keyPath: validKeyPath,
+						operation: 'delete',
+						scopeKey
+					}
+				})
+			]);
+			return { id, entityKeyPath: validKeyPath };
 		}
 
 		default:

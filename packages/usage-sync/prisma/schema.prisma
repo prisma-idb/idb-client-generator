@@ -44,12 +44,14 @@ model Todo {
 }
 
 model ChangeLog {
-  id        BigInt          @id @default(autoincrement())
-  model     String
-  keyPath   Json
-  operation ChangeOperation
-  version   Int?
-  createdAt DateTime        @default(now())
+  id         BigInt          @id @default(autoincrement())
+  model      String
+  oldKeyPath Json?
+  keyPath    Json
+  operation  ChangeOperation
+  version    Int?
+  scopeKey   String
+  createdAt  DateTime        @default(now())
 
   @@index([model, id])
 }

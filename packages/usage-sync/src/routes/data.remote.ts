@@ -17,5 +17,14 @@ const batchRecordSchema = z.object({
 });
 
 export const syncBatch = command(z.array(batchRecordSchema), async (events) => {
-	return await applySyncBatch(events);
+	return await applySyncBatch(events, (event) => {
+		if (event.entityType === 'User') {
+			return 'public';
+		}
+		if (event.entityType === 'Todo') {
+			const userId = (event.payload as any).userId;
+			return `user-${userId}`;
+		}
+		return 'default';
+	});
 });

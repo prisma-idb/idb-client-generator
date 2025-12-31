@@ -54,6 +54,7 @@ export function createBatchProcessorFile(
   // Write sync handler type
   writer.writeLine(`export interface SyncResult {`);
   writer.writeLine(`  id: string;`);
+  writer.writeLine(`  oldKeyPath?: Array<string | number>;`);
   writer.writeLine(`  entityKeyPath: Array<string | number>;`);
   writer.writeLine(`  mergedRecord?: any;`);
   writer.writeLine(`  serverVersion?: number;`);
@@ -64,12 +65,15 @@ export function createBatchProcessorFile(
   // Write applySyncBatch function with switch cases per model
   writer.writeLine(`export async function applySyncBatch(`);
   writer.writeLine(`  events: OutboxEventRecord[],`);
+  writer.writeLine(`  scopeKey: string | ((event: OutboxEventRecord) => string),`);
   writer.writeLine(`  customValidation?: (event: EventsFor<typeof validators>) => boolean | Promise<boolean>,`);
   writer.writeLine(`): Promise<SyncResult[]> {`);
   writer.block(() => {
     writer.writeLine(`const results: SyncResult[] = [];`);
     writer.writeLine(`for (const event of events) {`);
     writer.writeLine(`  try {`);
+    writer.writeLine(`    const resolvedScopeKey = typeof scopeKey === "function" ? scopeKey(event) : scopeKey;`);
+    writer.writeLine(`    let result: SyncResult;`);
     writer.writeLine(`    switch (event.entityType) {`);
 
     // Generate switch case for each model
@@ -77,9 +81,10 @@ export function createBatchProcessorFile(
       generateModelSwitchCase(writer, model);
     });
 
-    writer.writeLine(`        default:`);
-    writer.writeLine(`          throw new Error(\`No sync handler for \${event.entityType}\`);`);
-    writer.writeLine(`      }`);
+    writer.writeLine(`      default:`);
+    writer.writeLine(`        throw new Error(\`No sync handler for \${event.entityType}\`);`);
+    writer.writeLine(`    }`);
+    writer.writeLine(`    results.push(result);`);
     writer.writeLine(`  } catch (err) {`);
     writer.writeLine(`    const errorMessage = err instanceof Error ? err.message : "Unknown error";`);
     writer.writeLine(`    results.push({ id: event.id, error: errorMessage, entityKeyPath: event.entityKeyPath });`);
@@ -97,9 +102,6 @@ export function createBatchProcessorFile(
 }
 
 function generateModelSwitchCase(writer: CodeBlockWriter, model: Model) {
-  const pk = getUniqueIdentifiers(model)[0];
-  const pkFields = JSON.parse(pk.keyPath) as string[];
-
   writer.writeLine(`      case "${model.name}": {`);
   writer.block(() => {
     writer.writeLine(`const validation = validators.${model.name}.safeParse(event.payload);`);
@@ -110,10 +112,9 @@ function generateModelSwitchCase(writer: CodeBlockWriter, model: Model) {
     writer.writeLine(`  if (!ok) throw new Error("custom validation failed");`);
     writer.writeLine(`}`);
     writer.blankLine();
-    writer.writeLine(`const result = await sync${model.name}(event, validation.data);`);
-    writer.writeLine(`results.push(result);`);
+    writer.writeLine(`result = await sync${model.name}(event, validation.data, resolvedScopeKey);`);
+    writer.writeLine(`break;`);
   });
-  writer.writeLine(`      break;`);
   writer.writeLine(`      }`);
 }
 
@@ -123,7 +124,7 @@ function generateModelSyncHandler(writer: CodeBlockWriter, model: Model) {
   const pkFields = JSON.parse(pk.keyPath) as string[];
 
   writer.writeLine(
-    `async function sync${model.name}(event: OutboxEventRecord, data: z.infer<typeof validators.${model.name}>): Promise<SyncResult>`,
+    `async function sync${model.name}(event: OutboxEventRecord, data: z.infer<typeof validators.${model.name}>, scopeKey: string): Promise<SyncResult>`,
   );
   writer.block(() => {
     writer.writeLine(`const { id, entityKeyPath, operation } = event;`);
@@ -140,43 +141,72 @@ function generateModelSyncHandler(writer: CodeBlockWriter, model: Model) {
 
     // CREATE
     writer.writeLine(`  case "create": {`);
-    writer.writeLine(`    const result = await prisma.${modelNameLower}.create({ data });`);
-
+    writer.writeLine(`    const [result] = await prisma.$transaction([`);
+    writer.writeLine(`      prisma.${modelNameLower}.create({ data }),`);
+    writer.writeLine(`      prisma.changeLog.create({`);
+    writer.writeLine(`        data: {`);
+    writer.writeLine(`          model: "${model.name}",`);
+    writer.writeLine(`          keyPath: validKeyPath,`);
+    writer.writeLine(`          operation: "create",`);
+    writer.writeLine(`          scopeKey,`);
+    writer.writeLine(`        },`);
+    writer.writeLine(`      }),`);
+    writer.writeLine(`    ]);`);
     if (pkFields.length === 1) {
-      writer.writeLine(`    return { id, entityKeyPath: [result.${pkFields[0]}], mergedRecord: result };`);
+      writer.writeLine(`    const newKeyPath = [result.${pkFields[0]}];`);
     } else {
-      writer.writeLine(
-        `    return { id, entityKeyPath: [${pkFields.map((f) => `result.${f}`).join(", ")}], mergedRecord: result };`,
-      );
+      writer.writeLine(`    const newKeyPath = [${pkFields.map((f) => `result.${f}`).join(", ")}];`);
     }
+    writer.writeLine(`    return { id, entityKeyPath: newKeyPath, mergedRecord: result };`);
     writer.writeLine(`  }`);
     writer.blankLine();
 
     // UPDATE
     writer.writeLine(`  case "update": {`);
     writer.writeLine(`    if (!entityKeyPath) throw new Error("Missing entityKeyPath for update");`);
-    writer.writeLine(`    const result = await prisma.${modelNameLower}.update({`);
-    writer.writeLine(`      where: ${generateWhereClause(pk.name, pkFields)},`);
-    writer.writeLine(`      data,`);
-    writer.writeLine(`    });`);
+    writer.writeLine(`    const oldKeyPath = [...validKeyPath];`);
+    writer.writeLine(`    const [result] = await prisma.$transaction([`);
+    writer.writeLine(`      prisma.${modelNameLower}.update({`);
+    writer.writeLine(`        where: ${generateWhereClause(pk.name, pkFields)},`);
+    writer.writeLine(`        data,`);
+    writer.writeLine(`      }),`);
+    writer.writeLine(`      prisma.changeLog.create({`);
+    writer.writeLine(`        data: {`);
+    writer.writeLine(`          model: "${model.name}",`);
+    writer.writeLine(`          keyPath: validKeyPath,`);
+    writer.writeLine(`          oldKeyPath,`);
+    writer.writeLine(`          operation: "update",`);
+    writer.writeLine(`          scopeKey,`);
+    writer.writeLine(`        },`);
+    writer.writeLine(`      }),`);
+    writer.writeLine(`    ]);`);
 
     if (pkFields.length === 1) {
-      writer.writeLine(`    return { id, entityKeyPath: [result.${pkFields[0]}], mergedRecord: result };`);
+      writer.writeLine(`    const newKeyPath = [result.${pkFields[0]}];`);
     } else {
-      writer.writeLine(
-        `    return { id, entityKeyPath: [${pkFields.map((f) => `result.${f}`).join(", ")}], mergedRecord: result };`,
-      );
+      writer.writeLine(`    const newKeyPath = [${pkFields.map((f) => `result.${f}`).join(", ")}];`);
     }
+    writer.writeLine(`    return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: result };`);
     writer.writeLine(`  }`);
     writer.blankLine();
 
     // DELETE
     writer.writeLine(`  case "delete": {`);
     writer.writeLine(`    if (!entityKeyPath) throw new Error("Missing entityKeyPath for delete");`);
-    writer.writeLine(`    await prisma.${modelNameLower}.delete({`);
-    writer.writeLine(`      where: ${generateWhereClause(pk.name, pkFields)},`);
-    writer.writeLine(`    });`);
-    writer.writeLine(`    return { id, entityKeyPath };`);
+    writer.writeLine(`    await prisma.$transaction([`);
+    writer.writeLine(`      prisma.${modelNameLower}.delete({`);
+    writer.writeLine(`        where: ${generateWhereClause(pk.name, pkFields)},`);
+    writer.writeLine(`      }),`);
+    writer.writeLine(`      prisma.changeLog.create({`);
+    writer.writeLine(`        data: {`);
+    writer.writeLine(`          model: "${model.name}",`);
+    writer.writeLine(`          keyPath: validKeyPath,`);
+    writer.writeLine(`          operation: "delete",`);
+    writer.writeLine(`          scopeKey,`);
+    writer.writeLine(`        },`);
+    writer.writeLine(`      }),`);
+    writer.writeLine(`    ]);`);
+    writer.writeLine(`    return { id, entityKeyPath: validKeyPath };`);
     writer.writeLine(`  }`);
     writer.blankLine();
 
