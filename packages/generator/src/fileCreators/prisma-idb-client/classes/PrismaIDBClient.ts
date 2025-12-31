@@ -192,8 +192,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Mod
         .writeLine(`                  where: whereClause,`)
         .writeLine(`                  update: result.mergedRecord,`)
         .writeLine(`                  create: result.mergedRecord,`)
-        .writeLine(`                  silent: true,`)
-        .writeLine(`                });`)
+        .writeLine(`                }, undefined, true);`)
         .writeLine(`              } catch (upsertErr) {`)
         .writeLine(
           `                console.warn(\`Failed to upsert merged record for event \${result.id}:\`, upsertErr);`,

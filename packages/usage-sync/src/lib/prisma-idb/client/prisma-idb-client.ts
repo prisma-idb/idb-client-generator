@@ -120,12 +120,15 @@ export class PrismaIDBClient {
 												throw new Error(`No upsert handler for ${originalEvent.entityType}`);
 										}
 
-										await modelStore.upsert({
-											where: whereClause,
-											update: result.mergedRecord,
-											create: result.mergedRecord,
-											silent: true
-										});
+										await modelStore.upsert(
+											{
+												where: whereClause,
+												update: result.mergedRecord,
+												create: result.mergedRecord
+											},
+											undefined,
+											true
+										);
 									} catch (upsertErr) {
 										console.warn(
 											`Failed to upsert merged record for event ${result.id}:`,
