@@ -1,5 +1,6 @@
 import { command } from '$app/server';
-import { applySyncBatch } from '$lib/prisma-idb/server/batch-processor';
+import { prisma } from '$lib/prisma';
+import { applySyncBatch, attachRecordsToLogs } from '$lib/prisma-idb/server/batch-processor';
 import z from 'zod';
 
 const batchRecordSchema = z.object({
@@ -28,3 +29,29 @@ export const syncBatch = command(z.array(batchRecordSchema), async (events) => {
 		return 'default';
 	});
 });
+
+export const pullChanges = command(
+	z
+		.object({
+			since: z.number().int().optional(),
+			scopeKey: z.string().optional()
+		})
+		.optional(),
+	async (input) => {
+		const logs = await prisma.changeLog.findMany({
+			where: {
+				scopeKey: input?.scopeKey,
+				id: { gt: input?.since ?? 0 }
+			},
+			orderBy: { id: 'asc' },
+			take: 500 // paginate, don’t be greedy
+		});
+
+		const logsWithRecords = await attachRecordsToLogs(logs);
+
+		return {
+			cursor: logs.at(-1)?.id ?? input?.since,
+			logsWithRecords
+		};
+	}
+);

@@ -6,6 +6,7 @@
   import TodosTab from "./components/TodosTab.svelte";
   import UsersTab from "./components/UsersTab.svelte";
   import SyncTab from "./components/SyncTab.svelte";
+	import PullTab from "./components/PullTab.svelte";
 
   const state = createAppState();
 
@@ -26,7 +27,7 @@
   </div>
 
   <Tabs.Root value={state.activeTab} onValueChange={(value) => (state.activeTab = value as "users" | "todos" | "sync")}>
-    <Tabs.List class="grid w-full grid-cols-3">
+    <Tabs.List class="grid w-full grid-cols-4">
       <Tabs.Trigger value="users">
         Users
         {#if state.allUsers.length > 0}
@@ -45,21 +46,29 @@
           <span class="ml-2 text-xs opacity-60">({state.syncStats.unsynced + state.syncStats.failed})</span>
         {/if}
       </Tabs.Trigger>
+      <Tabs.Trigger value="pull">
+        Pull
+      </Tabs.Trigger>
     </Tabs.List>
 
     <!-- Users Tab -->
     <Tabs.Content value="users">
-      <UsersTab {state} />
+      <UsersTab appState={state} />
     </Tabs.Content>
 
     <!-- Todos Tab -->
     <Tabs.Content value="todos">
-      <TodosTab {state} />
+      <TodosTab appState={state} />
     </Tabs.Content>
 
     <!-- Sync Tab -->
     <Tabs.Content value="sync">
-      <SyncTab {state} />
+      <SyncTab appState={state} />
     </Tabs.Content>
-  </Tabs.Root>
+
+    <!-- Pull tab -->
+    <Tabs.Content value="pull">
+      <PullTab appState={state} />
+    </Tabs.Content>
+  </Tabs.Root>   
 </div>

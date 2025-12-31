@@ -3,23 +3,23 @@
   import type { AppState } from "$lib/store.svelte";
   import { toast } from "svelte-sonner";
 
-  let {
-    state,
-  }: {
-    state: AppState;
-  } = $props();
+  type PropsType = {
+    appState: AppState;
+  };
+
+  let { appState }: PropsType = $props();
 
   async function syncWithServer() {
-    if (!state.client) return;
+    if (!appState.client) return;
     try {
-      state.isLoading = true;
+      appState.isLoading = true;
 
       // Stop any existing sync worker
-      if (state.syncWorker) {
-        state.syncWorker.stop();
+      if (appState.syncWorker) {
+        appState.syncWorker.stop();
       }
 
-      const syncWorker = state.client.createSyncWorker({
+      const syncWorker = appState.client.createSyncWorker({
         syncHandler: async (events) => {
           try {
             const { syncBatch } = await import("../data.remote");
@@ -38,21 +38,21 @@
         maxRetries: 5,
       });
 
-      state.setSyncWorker(syncWorker);
+      appState.setSyncWorker(syncWorker);
       syncWorker.start();
       toast.success("Sync started! Processing outbox events...");
     } catch (error) {
       console.error("Error starting sync worker:", error);
       toast.error("Failed to start sync worker");
-      state.setSyncWorker(null);
+      appState.setSyncWorker(null);
     } finally {
-      state.isLoading = false;
+      appState.isLoading = false;
     }
   }
 
   async function handleClearSyncedEvents() {
     try {
-      const deletedCount = await state.clearSyncedEvents();
+      const deletedCount = await appState.clearSyncedEvents();
       toast.success(`Cleared ${deletedCount} synced events older than 7 days`);
     } catch (error) {
       console.error("Error clearing synced events:", error);
@@ -62,7 +62,7 @@
 
   async function handleRetrySyncedFailed() {
     try {
-      const retryCount = await state.retrySyncedFailed();
+      const retryCount = await appState.retrySyncedFailed();
       if (retryCount === 0) {
         toast.info("No failed events to retry");
         return;
@@ -70,7 +70,7 @@
       toast.success(`Reset ${retryCount} failed events for retry`);
 
       // Auto-start sync if not already running
-      if (!state.syncWorker) {
+      if (!appState.syncWorker) {
         await syncWithServer();
       }
     } catch (error) {
@@ -81,13 +81,26 @@
 
   async function handleRefreshStats() {
     try {
-      state.isLoading = true;
-      await state.loadSyncStats();
+      appState.isLoading = true;
+      await appState.loadSyncStats();
       toast.success("Sync stats refreshed");
     } catch {
       toast.error("Failed to refresh stats");
     } finally {
-      state.isLoading = false;
+      appState.isLoading = false;
+    }
+  }
+
+  async function clearLocalDatabase() {
+    try {
+      appState.isLoading = true;
+      await appState.client?.resetDatabase();
+      toast.success("Local database cleared");
+    } catch (error) {
+      console.error("Error clearing local database:", error);
+      toast.error("Failed to clear local database");
+    } finally {
+      appState.isLoading = false;
     }
   }
 </script>
@@ -98,18 +111,18 @@
     <h2 class="mb-4 text-lg font-semibold">Sync Control</h2>
     <div class="flex gap-2">
       <Button
-        disabled={!state.client || state.isLoading || !!state.syncWorker}
+        disabled={!appState.client || appState.isLoading || !!appState.syncWorker}
         class="flex-1"
         onclick={syncWithServer}
       >
-        {state.syncWorker ? "Syncing..." : "Start Sync"}
+        {appState.syncWorker ? "Syncing..." : "Start Sync"}
       </Button>
-      {#if state.syncWorker}
+      {#if appState.syncWorker}
         <Button
           variant="outline"
           class="flex-1"
           onclick={() => {
-            state.stopSync();
+            appState.stopSync();
             toast.success("Sync stopped");
           }}
         >
@@ -124,23 +137,23 @@
     <h2 class="mb-4 text-lg font-semibold">Sync Status</h2>
     <div class="grid grid-cols-3 gap-2">
       <div class="rounded-lg border p-3 text-center">
-        <div class="text-2xl font-bold">{state.syncStats.unsynced}</div>
+        <div class="text-2xl font-bold">{appState.syncStats.unsynced}</div>
         <div class="text-xs text-muted-foreground">Unsynced</div>
       </div>
       <div class="rounded-lg border p-3 text-center">
-        <div class="text-2xl font-bold">{state.syncStats.failed}</div>
+        <div class="text-2xl font-bold">{appState.syncStats.failed}</div>
         <div class="text-xs text-muted-foreground">Failed</div>
       </div>
       <div class="rounded-lg border p-3 text-center">
-        <div class="text-2xl font-bold">{state.syncStats.unsynced + state.syncStats.failed}</div>
+        <div class="text-2xl font-bold">{appState.syncStats.unsynced + appState.syncStats.failed}</div>
         <div class="text-xs text-muted-foreground">Total</div>
       </div>
     </div>
 
-    {#if state.syncStats.lastError}
+    {#if appState.syncStats.lastError}
       <div class="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
         <p class="text-xs font-medium text-red-900">Last Error</p>
-        <p class="mt-1 text-xs text-red-800">{state.syncStats.lastError}</p>
+        <p class="mt-1 text-xs text-red-800">{appState.syncStats.lastError}</p>
       </div>
     {/if}
   </div>
@@ -151,27 +164,35 @@
     <div class="space-y-2">
       <Button
         variant="outline"
-        disabled={!state.client || state.isLoading || state.syncStats.failed === 0}
+        disabled={!appState.client || appState.isLoading || appState.syncStats.failed === 0}
         class="w-full"
         onclick={handleRetrySyncedFailed}
       >
-        {state.isLoading ? "Resetting..." : "Retry Failed Events"}
+        {appState.isLoading ? "Resetting..." : "Retry Failed Events"}
       </Button>
       <Button
         variant="outline"
-        disabled={!state.client || state.clearingSynced}
+        disabled={!appState.client || appState.clearingSynced}
         class="w-full"
         onclick={handleClearSyncedEvents}
       >
-        {state.clearingSynced ? "Clearing..." : "Clear Synced (7+ days)"}
+        {appState.clearingSynced ? "Clearing..." : "Clear Synced (7+ days)"}
       </Button>
       <Button
         variant="outline"
-        disabled={!state.client || state.isLoading}
+        disabled={!appState.client || appState.isLoading}
         class="w-full"
         onclick={handleRefreshStats}
       >
         Refresh Stats
+      </Button>
+      <Button
+        variant="destructive"
+        disabled={!appState.client || appState.isLoading}
+        class="w-full"
+        onclick={clearLocalDatabase}
+      >
+        Clear local database
       </Button>
     </div>
   </div>

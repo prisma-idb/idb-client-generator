@@ -5,16 +5,16 @@
   import { CheckCircle2, Circle, Trash2 } from "@lucide/svelte";
   import { toast } from "svelte-sonner";
 
-  let {
-    state,
-  }: {
-    state: AppState;
-  } = $props();
+  type PropsType = {
+    appState: AppState;
+  };
+
+  let { appState }: PropsType = $props();
 
   async function handleAddTodo(e: SubmitEvent) {
     e.preventDefault();
     try {
-      await state.addTodo(state.newTodoTitle);
+      await appState.addTodo(appState.newTodoTitle);
       toast.success("Todo added!");
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Failed to add todo";
@@ -24,7 +24,7 @@
 
   async function handleToggleTodo(id: string, completed: boolean) {
     try {
-      await state.toggleTodo(id, completed);
+      await appState.toggleTodo(id, completed);
       toast.success("Todo updated!");
     } catch {
       toast.error("Failed to update todo");
@@ -33,7 +33,7 @@
 
   async function handleDeleteTodo(id: string) {
     try {
-      await state.deleteTodo(id);
+      await appState.deleteTodo(id);
       toast.success("Todo deleted!");
     } catch {
       toast.error("Failed to delete todo");
@@ -41,7 +41,7 @@
   }
 </script>
 
-{#if !state.userId}
+{#if !appState.userId}
   <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
     <p class="text-sm text-amber-900">Please select a user first in the Users tab</p>
   </div>
@@ -55,17 +55,17 @@
           <Input
             type="text"
             placeholder="What needs to be done?"
-            value={state.newTodoTitle}
-            onchange={(e) => (state.newTodoTitle = (e.target as HTMLInputElement).value)}
-            disabled={state.isLoading || !state.client}
+            value={appState.newTodoTitle}
+            onchange={(e) => (appState.newTodoTitle = (e.target as HTMLInputElement).value)}
+            disabled={appState.isLoading || !appState.client}
             class="w-full"
           />
         </div>
         <Button
           type="submit"
-          disabled={state.isLoading || !state.client || !state.newTodoTitle.trim()}
+          disabled={appState.isLoading || !appState.client || !appState.newTodoTitle.trim()}
         >
-          {state.isLoading ? "Adding..." : "Add"}
+          {appState.isLoading ? "Adding..." : "Add"}
         </Button>
       </form>
     </div>
@@ -73,25 +73,25 @@
     <!-- Todo Stats -->
     <div class="grid grid-cols-2 gap-4">
       <div class="rounded-lg border p-4 text-center">
-        <div class="text-2xl font-bold">{state.getActiveTodoCount()}</div>
+        <div class="text-2xl font-bold">{appState.getActiveTodoCount()}</div>
         <div class="text-xs text-muted-foreground">Active</div>
       </div>
       <div class="rounded-lg border p-4 text-center">
-        <div class="text-2xl font-bold">{state.getCompletedTodoCount()}</div>
+        <div class="text-2xl font-bold">{appState.getCompletedTodoCount()}</div>
         <div class="text-xs text-muted-foreground">Completed</div>
       </div>
     </div>
 
     <!-- Todo List -->
     <div class="rounded-lg border p-6">
-      <h2 class="mb-4 text-lg font-semibold">Todos for {state.currentUser?.name}</h2>
-      {#if state.todos.length === 0}
+      <h2 class="mb-4 text-lg font-semibold">Todos for {appState.currentUser?.name}</h2>
+      {#if appState.todos.length === 0}
         <div class="flex items-center justify-center rounded-lg bg-muted/50 py-8">
           <p class="text-sm text-muted-foreground">No todos yet. Add one to get started!</p>
         </div>
       {:else}
         <div class="space-y-2">
-          {#each state.todos as todo (todo.id)}
+          {#each appState.todos as todo (todo.id)}
             <div class="flex items-center gap-3 rounded-md border p-3 transition-colors hover:bg-accent">
               <!-- Toggle Complete -->
               <button
