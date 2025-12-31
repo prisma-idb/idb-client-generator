@@ -1,5 +1,6 @@
 import { z, type ZodTypeAny } from 'zod';
 import type { OutboxEventRecord, PrismaIDBSchema } from '../client/idb-interface';
+import type { ChangeLog } from '$lib/generated/prisma/client';
 import { prisma } from '$lib/prisma';
 import { UserSchema, TodoSchema } from '$lib/generated/prisma-zod-generator/schemas/models';
 
@@ -13,6 +14,14 @@ type EventsFor<V extends Partial<Record<string, ZodTypeAny>>> = {
 			payload: z.infer<V[M]>;
 		};
 	}[Op];
+}[keyof V & string];
+
+export type LogsWithRecords<V extends Partial<Record<string, ZodTypeAny>>> = {
+	[M in keyof V & string]: Omit<ChangeLog, 'model' | 'keyPath'> & {
+		model: M;
+		keyPath: Array<string | number>;
+		record?: z.infer<V[M]> | null;
+	};
 }[keyof V & string];
 
 const validators = {
@@ -78,6 +87,52 @@ export async function applySyncBatch(
 			} catch (err) {
 				const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 				results.push({ id: event.id, error: errorMessage, entityKeyPath: event.entityKeyPath });
+			}
+		}
+		return results;
+	}
+}
+
+export async function attachRecordsToLogs(
+	logs: Array<ChangeLog>
+): Promise<Array<LogsWithRecords<typeof validators>>> {
+	{
+		const validModelNames = ['User', 'Todo'];
+		const results: Array<LogsWithRecords<typeof validators>> = [];
+		for (const log of logs) {
+			if (!validModelNames.includes(log.model)) {
+				throw new Error(`Unknown model: ${log.model}`);
+			}
+			try {
+				switch (log.model) {
+					case 'User': {
+						const keyPathValidation = z.safeParse(z.tuple([z.string()]), log.keyPath);
+						if (!keyPathValidation.success) {
+							throw new Error('Invalid keyPath for User');
+						}
+						const validKeyPath = keyPathValidation.data;
+						const record = await prisma.user.findUnique({
+							where: { id: validKeyPath[0] }
+						});
+						results.push({ ...log, model: 'User', keyPath: validKeyPath, record });
+						break;
+					}
+					case 'Todo': {
+						const keyPathValidation = z.safeParse(z.tuple([z.string()]), log.keyPath);
+						if (!keyPathValidation.success) {
+							throw new Error('Invalid keyPath for Todo');
+						}
+						const validKeyPath = keyPathValidation.data;
+						const record = await prisma.todo.findUnique({
+							where: { id: validKeyPath[0] }
+						});
+						results.push({ ...log, model: 'Todo', keyPath: validKeyPath, record });
+						break;
+					}
+				}
+			} catch (err) {
+				const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+				console.error(`Failed to fetch record for ${log.model}:`, errorMessage);
 			}
 		}
 		return results;

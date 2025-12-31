@@ -13,6 +13,7 @@ export function createBatchProcessorFile(
   // Write imports
   writer.writeLine(`import { z, type ZodTypeAny } from "zod";`);
   writer.writeLine(`import type { OutboxEventRecord, PrismaIDBSchema } from "../client/idb-interface";`);
+  writer.writeLine(`import type { ChangeLog } from "${prismaClientImport}";`);
   writer.writeLine(`import { prisma } from "$lib/prisma";`);
 
   if (usePrismaZodGenerator) {
@@ -36,6 +37,16 @@ export function createBatchProcessorFile(
   writer.writeLine(`      payload: z.infer<V[M]>;`);
   writer.writeLine(`    };`);
   writer.writeLine(`  }[Op];`);
+  writer.writeLine(`}[keyof V & string];`);
+  writer.blankLine();
+
+  // Write LogsWithRecords type - maps model names to their record types
+  writer.writeLine(`type LogsWithRecords<V extends Partial<Record<string, ZodTypeAny>>> = {`);
+  writer.writeLine(`  [M in keyof V & string]: Omit<ChangeLog, "model" | "keyPath"> & {`);
+  writer.writeLine(`    model: M;`);
+  writer.writeLine(`    keyPath: Array<string | number>;`);
+  writer.writeLine(`    record?: z.infer<V[M]> | null;`);
+  writer.writeLine(`  };`);
   writer.writeLine(`}[keyof V & string];`);
   writer.blankLine();
 
@@ -88,6 +99,54 @@ export function createBatchProcessorFile(
     writer.writeLine(`  } catch (err) {`);
     writer.writeLine(`    const errorMessage = err instanceof Error ? err.message : "Unknown error";`);
     writer.writeLine(`    results.push({ id: event.id, error: errorMessage, entityKeyPath: event.entityKeyPath });`);
+    writer.writeLine(`  }`);
+    writer.writeLine(`}`);
+    writer.writeLine(`return results;`);
+  });
+  writer.writeLine(`}`);
+  writer.blankLine();
+
+  // Write attachRecordsToLogs helper function
+  writer.writeLine(`export async function attachRecordsToLogs(`);
+  writer.writeLine(`  logs: Array<ChangeLog>,`);
+  writer.writeLine(`): Promise<Array<LogsWithRecords<typeof validators>>> {`);
+  writer.block(() => {
+    writer.writeLine(`const validModelNames = [${modelNames.map((name) => `"${name}"`).join(", ")}];`);
+    writer.writeLine(`const results: Array<LogsWithRecords<typeof validators>> = [];`);
+    writer.writeLine(`for (const log of logs) {`);
+    writer.writeLine(`  if (!validModelNames.includes(log.model)) {`);
+    writer.writeLine(`    throw new Error(\`Unknown model: \${log.model}\`);`);
+    writer.writeLine(`  }`);
+    writer.writeLine(`  try {`);
+    writer.writeLine(`    switch (log.model) {`);
+
+    // Generate switch cases for fetching records
+    models.forEach((model) => {
+      const modelNameLower = model.name.charAt(0).toLowerCase() + model.name.slice(1);
+      const pk = getUniqueIdentifiers(model)[0];
+      const pkFields = JSON.parse(pk.keyPath) as string[];
+
+      writer.writeLine(`      case "${model.name}": {`);
+      writer.writeLine(
+        `        const keyPathValidation = z.safeParse(z.tuple([${pkFields.map((_, i) => `z.${pk.keyPathTypes[i]}()`).join(", ")}]), log.keyPath);`,
+      );
+      writer.writeLine(`        if (!keyPathValidation.success) {`);
+      writer.writeLine(`          throw new Error("Invalid keyPath for ${model.name}");`);
+      writer.writeLine(`        }`);
+      writer.writeLine(`        const validKeyPath = keyPathValidation.data;`);
+      writer.writeLine(`        const record = await prisma.${modelNameLower}.findUnique({`);
+      writer.writeLine(`          where: ${generateWhereClause(pk.name, pkFields)},`);
+      writer.writeLine(`        });`);
+      writer.writeLine(`        results.push({ ...log, model: "${model.name}", keyPath: validKeyPath, record });`);
+      writer.writeLine(`        break;`);
+      writer.writeLine(`      }`);
+    });
+
+    writer.writeLine(`    }`);
+    writer.writeLine(`  } catch (err) {`);
+    writer.writeLine(`    const errorMessage = err instanceof Error ? err.message : "Unknown error";`);
+    writer.writeLine(`    console.error(\`Failed to fetch record for \${log.model}:\`, errorMessage);`);
+
     writer.writeLine(`  }`);
     writer.writeLine(`}`);
     writer.writeLine(`return results;`);
