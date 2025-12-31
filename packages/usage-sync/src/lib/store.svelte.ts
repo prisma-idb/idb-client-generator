@@ -17,6 +17,32 @@ export class AppState {
   showSyncDetails = $state(false);
   clearingSynced = $state(false);
   activeTab = $state<"users" | "todos" | "sync">("users");
+  pullCursor = $state<number | undefined>(undefined);
+
+  constructor() {
+    // Load cursor from localStorage on initialization
+    if (typeof window !== 'undefined') {
+      const savedCursor = localStorage.getItem('pullCursor');
+      if (savedCursor) {
+        this.pullCursor = parseInt(savedCursor, 10);
+      }
+    }
+  }
+
+  savePullCursor(cursor: number | undefined) {
+    this.pullCursor = cursor;
+    if (typeof window !== 'undefined') {
+      if (cursor !== undefined) {
+        localStorage.setItem('pullCursor', cursor.toString());
+      } else {
+        localStorage.removeItem('pullCursor');
+      }
+    }
+  }
+
+  clearPullCursor() {
+    this.savePullCursor(undefined);
+  }
 
   async initializeClient() {
     this.client = await PrismaIDBClient.createClient();

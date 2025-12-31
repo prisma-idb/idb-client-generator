@@ -41,7 +41,7 @@ export function createBatchProcessorFile(
   writer.blankLine();
 
   // Write LogsWithRecords type - maps model names to their record types
-  writer.writeLine(`type LogsWithRecords<V extends Partial<Record<string, ZodTypeAny>>> = {`);
+  writer.writeLine(`export type LogsWithRecords<V extends Partial<Record<string, ZodTypeAny>>> = {`);
   writer.writeLine(`  [M in keyof V & string]: Omit<ChangeLog, "model" | "keyPath"> & {`);
   writer.writeLine(`    model: M;`);
   writer.writeLine(`    keyPath: Array<string | number>;`);
@@ -51,7 +51,7 @@ export function createBatchProcessorFile(
   writer.blankLine();
 
   // Write validators constant
-  writer.writeLine(`const validators = {`);
+  writer.writeLine(`export const validators = {`);
   modelNames.forEach((modelName) => {
     if (usePrismaZodGenerator) {
       writer.writeLine(`  ${modelName}: ${modelName}Schema,`);

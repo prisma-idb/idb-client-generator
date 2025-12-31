@@ -2,7 +2,9 @@
 	import Button from "$lib/components/ui/button/button.svelte";
 	import { Input } from "$lib/components/ui/input";
 	import { Label } from "$lib/components/ui/label";
+	import { applyRemoteChanges } from "$lib/prisma-idb/client/apply-remote-changes";
 	import type { AppState } from "$lib/store.svelte";
+	import { toast } from "svelte-sonner";
 	import { pullChanges } from "../data.remote";
 
 	type PropsType = {
@@ -17,16 +19,19 @@
     if (!appState.client) return;
     const parsedScopeKey = scopeKey.trim() === '' ? undefined : scopeKey.trim();
 
-		const allChanges = await pullChanges({ scopeKey: parsedScopeKey });
-    for (const { record, model, operation } of allChanges.logsWithRecords) {
-      switch (model) {
-        case "User":
-          switch (operation) {
-            case "create":
-              appState.client.user.create({ data: record! })
-          }
-      }
-    }
+		const { cursor, logsWithRecords } = await pullChanges({ 
+			scopeKey: parsedScopeKey,
+			since: appState.pullCursor
+		});
+   	const { totalAppliedRecords } = await applyRemoteChanges(appState.client, logsWithRecords);
+		
+		// Save the cursor for next pull (convert bigint to number if needed)
+		const cursorValue = cursor !== undefined ? (typeof cursor === 'bigint' ? Number(cursor) : cursor) : undefined;
+		appState.savePullCursor(cursorValue);
+
+		toast.success("Pulled changes successfully!", {
+			description: `Applied ${totalAppliedRecords} records. Cursor: ${cursorValue ?? 'N/A'}`
+		});
 	}
 </script>
 
@@ -47,9 +52,18 @@
 				/>
 			</div>
 
-			<Button onclick={handlePull} class="w-full">
-				Fetch Changes
-			</Button>
+			<div class="text-sm text-muted-foreground">
+				Current cursor: {appState.pullCursor ?? 'Not set (will fetch all)'}
+			</div>
+
+			<div class="flex gap-2">
+				<Button onclick={handlePull} class="flex-1">
+					Fetch Changes
+				</Button>
+				<Button onclick={() => appState.clearPullCursor()} variant="outline">
+					Reset Cursor
+				</Button>
+			</div>
 		</div>
 	</div>
 </div>

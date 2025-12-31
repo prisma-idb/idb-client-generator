@@ -24,7 +24,7 @@ export type LogsWithRecords<V extends Partial<Record<string, ZodTypeAny>>> = {
 	};
 }[keyof V & string];
 
-const validators = {
+export const validators = {
 	User: UserSchema,
 	Todo: TodoSchema
 } as const;
