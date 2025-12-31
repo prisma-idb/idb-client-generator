@@ -38,7 +38,7 @@ export interface SyncResult {
 	error?: string | null;
 }
 
-export async function applySyncBatch(
+export async function applyPush(
 	events: OutboxEventRecord[],
 	scopeKey: string | ((event: OutboxEventRecord) => string),
 	customValidation?: (event: EventsFor<typeof validators>) => boolean | Promise<boolean>
@@ -93,7 +93,7 @@ export async function applySyncBatch(
 	}
 }
 
-export async function attachRecordsToLogs(
+export async function materializeLogs(
 	logs: Array<ChangeLog>
 ): Promise<Array<LogsWithRecords<typeof validators>>> {
 	{

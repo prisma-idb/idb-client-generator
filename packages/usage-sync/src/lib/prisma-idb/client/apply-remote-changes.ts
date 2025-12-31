@@ -20,7 +20,7 @@ const handlerMap = {
 			client.todo.delete({ where: { id: record.id } }, undefined, true)
 	}
 };
-export async function applyRemoteChanges(
+export async function applyPull(
 	idbClient: PrismaIDBClient,
 	logsWithRecords: LogsWithRecords<typeof validators>[]
 ) {

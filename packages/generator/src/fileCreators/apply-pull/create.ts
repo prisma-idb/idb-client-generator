@@ -2,7 +2,7 @@ import CodeBlockWriter from "code-block-writer";
 import { Model } from "../types";
 import { getUniqueIdentifiers } from "../../helpers/utils";
 
-export function createApplyRemoteChangesFile(writer: CodeBlockWriter, models: Model[], prismaClientImport: string) {
+export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], prismaClientImport: string) {
   // Write imports
   writer.writeLine(`import type { LogsWithRecords, validators } from '../server/batch-processor';`);
   writer.writeLine(`import type { PrismaIDBClient } from './prisma-idb-client';`);
@@ -41,8 +41,8 @@ export function createApplyRemoteChangesFile(writer: CodeBlockWriter, models: Mo
   writer.write(";");
   writer.blankLine();
 
-  // Write applyRemoteChanges function
-  writer.writeLine(`export async function applyRemoteChanges(`);
+  // Write applyPull function
+  writer.writeLine(`export async function applyPull(`);
   writer.writeLine(`	idbClient: PrismaIDBClient,`);
   writer.writeLine(`	logsWithRecords: LogsWithRecords<typeof validators>[]`);
   writer.writeLine(`) `).block(() => {

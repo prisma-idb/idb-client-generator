@@ -73,8 +73,8 @@ export function createBatchProcessorFile(
   writer.writeLine(`}`);
   writer.blankLine();
 
-  // Write applySyncBatch function with switch cases per model
-  writer.writeLine(`export async function applySyncBatch(`);
+  // Write applyPush function with switch cases per model
+  writer.writeLine(`export async function applyPush(`);
   writer.writeLine(`  events: OutboxEventRecord[],`);
   writer.writeLine(`  scopeKey: string | ((event: OutboxEventRecord) => string),`);
   writer.writeLine(`  customValidation?: (event: EventsFor<typeof validators>) => boolean | Promise<boolean>,`);
@@ -106,8 +106,8 @@ export function createBatchProcessorFile(
   writer.writeLine(`}`);
   writer.blankLine();
 
-  // Write attachRecordsToLogs helper function
-  writer.writeLine(`export async function attachRecordsToLogs(`);
+  // Write materializeLogs helper function
+  writer.writeLine(`export async function materializeLogs(`);
   writer.writeLine(`  logs: Array<ChangeLog>,`);
   writer.writeLine(`): Promise<Array<LogsWithRecords<typeof validators>>> {`);
   writer.block(() => {

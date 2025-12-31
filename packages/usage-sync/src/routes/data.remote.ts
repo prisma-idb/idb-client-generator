@@ -1,6 +1,6 @@
 import { command } from '$app/server';
 import { prisma } from '$lib/prisma';
-import { applySyncBatch, attachRecordsToLogs } from '$lib/prisma-idb/server/batch-processor';
+import { applyPush, materializeLogs } from '$lib/prisma-idb/server/batch-processor';
 import z from 'zod';
 
 const batchRecordSchema = z.object({
@@ -18,7 +18,7 @@ const batchRecordSchema = z.object({
 });
 
 export const syncBatch = command(z.array(batchRecordSchema), async (events) => {
-	return await applySyncBatch(events, (event) => {
+	return await applyPush(events, (event) => {
 		if (event.entityType === 'User') {
 			return 'public';
 		}
@@ -47,7 +47,7 @@ export const pullChanges = command(
 			take: 500 // paginate, don’t be greedy
 		});
 
-		const logsWithRecords = await attachRecordsToLogs(logs);
+		const logsWithRecords = await materializeLogs(logs);
 
 		return {
 			cursor: logs.at(-1)?.id ?? input?.since,

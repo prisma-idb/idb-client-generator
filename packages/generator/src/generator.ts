@@ -5,7 +5,7 @@ import { createIDBInterfaceFile } from "./fileCreators/idb-interface/create";
 import { createUtilsFile } from "./fileCreators/idb-utils/create";
 import { createPrismaIDBClientFile } from "./fileCreators/prisma-idb-client/create";
 import { writeCodeFile } from "./helpers/fileWriting";
-import { createApplyRemoteChangesFile } from "./fileCreators/apply-remote-changes/create";
+import { createApplyPullFile } from "./fileCreators/apply-pull/create";
 
 generatorHandler({
   onManifest() {
@@ -100,7 +100,7 @@ generatorHandler({
       });
 
       await writeCodeFile("client/apply-remote-changes.ts", outputPath, (writer) => {
-        createApplyRemoteChangesFile(writer, filteredModels, prismaClientImport);
+        createApplyPullFile(writer, filteredModels, prismaClientImport);
       });
     }
   },

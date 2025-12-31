@@ -2,7 +2,7 @@
 	import Button from "$lib/components/ui/button/button.svelte";
 	import { Input } from "$lib/components/ui/input";
 	import { Label } from "$lib/components/ui/label";
-	import { applyRemoteChanges } from "$lib/prisma-idb/client/apply-remote-changes";
+	import { applyPull } from "$lib/prisma-idb/client/apply-remote-changes";
 	import type { AppState } from "$lib/store.svelte";
 	import { toast } from "svelte-sonner";
 	import { pullChanges } from "../data.remote";
@@ -23,7 +23,7 @@
 			scopeKey: parsedScopeKey,
 			since: appState.pullCursor
 		});
-   	const { totalAppliedRecords } = await applyRemoteChanges(appState.client, logsWithRecords);
+   	const { totalAppliedRecords } = await applyPull(appState.client, logsWithRecords);
 		
 		// Save the cursor for next pull (convert bigint to number if needed)
 		const cursorValue = cursor !== undefined ? (typeof cursor === 'bigint' ? Number(cursor) : cursor) : undefined;
