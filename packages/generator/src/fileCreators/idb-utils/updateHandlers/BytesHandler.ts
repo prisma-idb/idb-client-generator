@@ -19,15 +19,21 @@ export function addBytesUpdateHandler(writer: CodeBlockWriter, models: readonly 
     fieldType += " | null";
   }
 
-  writer.writeLine(`export function handleBytesUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, bytesUpdate: ${updateOperationType}): void`).block(() => {
-    writer
-      .writeLine(`if (bytesUpdate === undefined) return;`)
-      .writeLine(`if (bytesUpdate instanceof Uint8Array${nullableBytesFieldPresent ? ` || bytesUpdate === null` : ""})`)
-      .block(() => {
-        writer.writeLine(`(record[fieldName] as ${fieldType}) = bytesUpdate;`);
+  writer
+    .writeLine(
+      `export function handleBytesUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, bytesUpdate: ${updateOperationType}): void`,
+    )
+    .block(() => {
+      writer
+        .writeLine(`if (bytesUpdate === undefined) return;`)
+        .writeLine(
+          `if (bytesUpdate instanceof Uint8Array${nullableBytesFieldPresent ? ` || bytesUpdate === null` : ""})`,
+        )
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as ${fieldType}) = bytesUpdate;`);
+        });
+      writer.writeLine(`else if (bytesUpdate.set !== undefined)`).block(() => {
+        writer.writeLine(`(record[fieldName] as ${fieldType}) = bytesUpdate.set;`);
       });
-    writer.writeLine(`else if (bytesUpdate.set !== undefined)`).block(() => {
-      writer.writeLine(`(record[fieldName] as ${fieldType}) = bytesUpdate.set;`);
     });
-  });
 }

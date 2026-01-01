@@ -7,19 +7,23 @@ export function addDateTimeListFilter(writer: CodeBlockWriter, models: readonly 
     .filter((field) => field.type === "DateTime" && field.isList);
   if (dateTimeListFields.length === 0) return;
 
-  writer.writeLine(`export function whereDateTimeListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: undefined | Prisma.DateTimeNullableListFilter<unknown>): boolean`).block(() => {
-    writer
-      .writeLine(`if (scalarListFilter === undefined) return true;`)
-      .blankLine()
-      .writeLine(`const value = record[fieldName] as Date[] | undefined;`)
-      .writeLine(`if (value === undefined && Object.keys(scalarListFilter).length) return false;`);
-    addEqualsHandler(writer);
-    addHasHandler(writer);
-    addHasSomeHandler(writer);
-    addHasEveryHandler(writer);
-    addIsEmptyHandler(writer);
-    writer.writeLine(`return true;`);
-  });
+  writer
+    .writeLine(
+      `export function whereDateTimeListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: undefined | Prisma.DateTimeNullableListFilter<unknown>): boolean`,
+    )
+    .block(() => {
+      writer
+        .writeLine(`if (scalarListFilter === undefined) return true;`)
+        .blankLine()
+        .writeLine(`const value = record[fieldName] as Date[] | undefined;`)
+        .writeLine(`if (value === undefined && Object.keys(scalarListFilter).length) return false;`);
+      addEqualsHandler(writer);
+      addHasHandler(writer);
+      addHasSomeHandler(writer);
+      addHasEveryHandler(writer);
+      addIsEmptyHandler(writer);
+      writer.writeLine(`return true;`);
+    });
 }
 
 function addEqualsHandler(writer: CodeBlockWriter) {

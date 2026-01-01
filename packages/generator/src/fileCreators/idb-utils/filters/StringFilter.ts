@@ -16,33 +16,37 @@ export function addStringFilter(writer: CodeBlockWriter, models: readonly Model[
     filterType += " | null | Prisma.StringNullableFilter<unknown>";
   }
 
-  writer.writeLine(`export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, stringFilter: ${filterType}): boolean`).block(() => {
-    writer
-      .writeLine(`if (stringFilter === undefined) return true;`)
-      .blankLine()
-      .writeLine(`const value = record[fieldName] as string | null;`)
-      .writeLine(`if (stringFilter === null) return value === null;`)
-      .blankLine()
-      .writeLine(`if (typeof stringFilter === 'string')`)
-      .block(() => {
-        writer.writeLine(`if (value !== stringFilter) return false;`);
-      })
-      .writeLine(`else`)
-      .block(() => {
-        addEqualsHandler(writer);
-        addNotHandler(writer);
-        addInHandler(writer);
-        addNotInHandler(writer);
-        addLtHandler(writer);
-        addLteHandler(writer);
-        addGtHandler(writer);
-        addGteHandler(writer);
-        addContainsHandler(writer);
-        addStartsWithHandler(writer);
-        addEndsWithHandler(writer);
-      })
-      .writeLine(`return true;`);
-  });
+  writer
+    .writeLine(
+      `export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, stringFilter: ${filterType}): boolean`,
+    )
+    .block(() => {
+      writer
+        .writeLine(`if (stringFilter === undefined) return true;`)
+        .blankLine()
+        .writeLine(`const value = record[fieldName] as string | null;`)
+        .writeLine(`if (stringFilter === null) return value === null;`)
+        .blankLine()
+        .writeLine(`if (typeof stringFilter === 'string')`)
+        .block(() => {
+          writer.writeLine(`if (value !== stringFilter) return false;`);
+        })
+        .writeLine(`else`)
+        .block(() => {
+          addEqualsHandler(writer);
+          addNotHandler(writer);
+          addInHandler(writer);
+          addNotInHandler(writer);
+          addLtHandler(writer);
+          addLteHandler(writer);
+          addGtHandler(writer);
+          addGteHandler(writer);
+          addContainsHandler(writer);
+          addStartsWithHandler(writer);
+          addEndsWithHandler(writer);
+        })
+        .writeLine(`return true;`);
+    });
 }
 
 function addEqualsHandler(writer: CodeBlockWriter) {

@@ -18,30 +18,34 @@ export function addNumberFilter(writer: CodeBlockWriter, models: readonly Model[
     filterType += " | null";
   }
 
-  writer.writeLine(`export function whereNumberFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, numberFilter: ${filterType}): boolean`).block(() => {
-    writer
-      .writeLine(`if (numberFilter === undefined) return true;`)
-      .blankLine()
-      .writeLine(`const value = record[fieldName] as number | null;`)
-      .writeLine(`if (numberFilter === null) return value === null;`)
-      .blankLine()
-      .writeLine(`if (typeof numberFilter === 'number')`)
-      .block(() => {
-        writer.writeLine(`if (value !== numberFilter) return false;`);
-      })
-      .writeLine(`else`)
-      .block(() => {
-        addEqualsHandler(writer);
-        addNotHandler(writer);
-        addInHandler(writer);
-        addNotInHandler(writer);
-        addLtHandler(writer);
-        addLteHandler(writer);
-        addGtHandler(writer);
-        addGteHandler(writer);
-      })
-      .writeLine(`return true;`);
-  });
+  writer
+    .writeLine(
+      `export function whereNumberFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, numberFilter: ${filterType}): boolean`,
+    )
+    .block(() => {
+      writer
+        .writeLine(`if (numberFilter === undefined) return true;`)
+        .blankLine()
+        .writeLine(`const value = record[fieldName] as number | null;`)
+        .writeLine(`if (numberFilter === null) return value === null;`)
+        .blankLine()
+        .writeLine(`if (typeof numberFilter === 'number')`)
+        .block(() => {
+          writer.writeLine(`if (value !== numberFilter) return false;`);
+        })
+        .writeLine(`else`)
+        .block(() => {
+          addEqualsHandler(writer);
+          addNotHandler(writer);
+          addInHandler(writer);
+          addNotInHandler(writer);
+          addLtHandler(writer);
+          addLteHandler(writer);
+          addGtHandler(writer);
+          addGteHandler(writer);
+        })
+        .writeLine(`return true;`);
+    });
 }
 
 function addEqualsHandler(writer: CodeBlockWriter) {

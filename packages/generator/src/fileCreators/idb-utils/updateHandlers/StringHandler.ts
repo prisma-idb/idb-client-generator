@@ -19,15 +19,21 @@ export function addStringUpdateHandler(writer: CodeBlockWriter, models: readonly
     fieldType += " | null";
   }
 
-  writer.writeLine(`export function handleStringUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, stringUpdate: ${updateOperationType}): void`).block(() => {
-    writer
-      .writeLine(`if (stringUpdate === undefined) return;`)
-      .writeLine(`if (typeof stringUpdate === "string"${nullableStringFieldPresent ? ` || stringUpdate === null` : ""})`)
-      .block(() => {
-        writer.writeLine(`(record[fieldName] as ${fieldType}) = stringUpdate;`);
+  writer
+    .writeLine(
+      `export function handleStringUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, stringUpdate: ${updateOperationType}): void`,
+    )
+    .block(() => {
+      writer
+        .writeLine(`if (stringUpdate === undefined) return;`)
+        .writeLine(
+          `if (typeof stringUpdate === "string"${nullableStringFieldPresent ? ` || stringUpdate === null` : ""})`,
+        )
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as ${fieldType}) = stringUpdate;`);
+        });
+      writer.writeLine(`else if (stringUpdate.set !== undefined)`).block(() => {
+        writer.writeLine(`(record[fieldName] as ${fieldType}) = stringUpdate.set;`);
       });
-    writer.writeLine(`else if (stringUpdate.set !== undefined)`).block(() => {
-      writer.writeLine(`(record[fieldName] as ${fieldType}) = stringUpdate.set;`);
     });
-  });
 }

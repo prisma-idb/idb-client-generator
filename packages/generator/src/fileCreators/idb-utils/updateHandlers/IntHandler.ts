@@ -19,32 +19,36 @@ export function addIntUpdateHandler(writer: CodeBlockWriter, models: readonly Mo
     fieldType += " | null";
   }
 
-  writer.writeLine(`export function handleIntUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, intUpdate: ${updateOperationType}): void`).block(() => {
-    writer
-      .writeLine(`if (intUpdate === undefined) return;`)
-      .writeLine(`if (typeof intUpdate === "number"${nullableIntFieldPresent ? ` || intUpdate === null` : ""})`)
-      .block(() => {
-        writer.writeLine(`(record[fieldName] as ${fieldType}) = intUpdate;`);
-      })
-      .writeLine(`else if (intUpdate.set !== undefined)`)
-      .block(() => {
-        writer.writeLine(`(record[fieldName] as ${fieldType}) = intUpdate.set;`);
-      })
-      .writeLine(`else if (intUpdate.increment !== undefined && record[fieldName] !== null)`)
-      .block(() => {
-        writer.writeLine(`(record[fieldName] as number) += intUpdate.increment;`);
-      })
-      .writeLine(`else if (intUpdate.decrement !== undefined && record[fieldName] !== null)`)
-      .block(() => {
-        writer.writeLine(`(record[fieldName] as number) -= intUpdate.decrement;`);
-      })
-      .writeLine(`else if (intUpdate.multiply !== undefined && record[fieldName] !== null)`)
-      .block(() => {
-        writer.writeLine(`(record[fieldName] as number) *= intUpdate.multiply;`);
-      })
-      .writeLine(`else if (intUpdate.divide !== undefined && record[fieldName] !== null)`)
-      .block(() => {
-        writer.writeLine(`(record[fieldName] as number) /= intUpdate.divide;`);
-      });
-  });
+  writer
+    .writeLine(
+      `export function handleIntUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, intUpdate: ${updateOperationType}): void`,
+    )
+    .block(() => {
+      writer
+        .writeLine(`if (intUpdate === undefined) return;`)
+        .writeLine(`if (typeof intUpdate === "number"${nullableIntFieldPresent ? ` || intUpdate === null` : ""})`)
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as ${fieldType}) = intUpdate;`);
+        })
+        .writeLine(`else if (intUpdate.set !== undefined)`)
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as ${fieldType}) = intUpdate.set;`);
+        })
+        .writeLine(`else if (intUpdate.increment !== undefined && record[fieldName] !== null)`)
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as number) += intUpdate.increment;`);
+        })
+        .writeLine(`else if (intUpdate.decrement !== undefined && record[fieldName] !== null)`)
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as number) -= intUpdate.decrement;`);
+        })
+        .writeLine(`else if (intUpdate.multiply !== undefined && record[fieldName] !== null)`)
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as number) *= intUpdate.multiply;`);
+        })
+        .writeLine(`else if (intUpdate.divide !== undefined && record[fieldName] !== null)`)
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as number) /= intUpdate.divide;`);
+        });
+    });
 }

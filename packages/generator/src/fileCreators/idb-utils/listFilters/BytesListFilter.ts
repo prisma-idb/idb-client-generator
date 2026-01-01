@@ -7,19 +7,23 @@ export function addBytesListFilter(writer: CodeBlockWriter, models: readonly Mod
     .filter((field) => field.type === "Bytes" && field.isList);
   if (bytesListFields.length === 0) return;
 
-  writer.writeLine(`export function whereBytesListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: undefined | Prisma.BytesNullableListFilter<unknown>): boolean`).block(() => {
-    writer
-      .writeLine(`if (scalarListFilter === undefined) return true;`)
-      .blankLine()
-      .writeLine(`const value = record[fieldName] as Uint8Array[] | undefined;`)
-      .writeLine(`if (value === undefined && Object.keys(scalarListFilter).length) return false;`);
-    addEqualsHandler(writer);
-    addHasHandler(writer);
-    addHasSomeHandler(writer);
-    addHasEveryHandler(writer);
-    addIsEmptyHandler(writer);
-    writer.writeLine(`return true;`);
-  });
+  writer
+    .writeLine(
+      `export function whereBytesListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: undefined | Prisma.BytesNullableListFilter<unknown>): boolean`,
+    )
+    .block(() => {
+      writer
+        .writeLine(`if (scalarListFilter === undefined) return true;`)
+        .blankLine()
+        .writeLine(`const value = record[fieldName] as Uint8Array[] | undefined;`)
+        .writeLine(`if (value === undefined && Object.keys(scalarListFilter).length) return false;`);
+      addEqualsHandler(writer);
+      addHasHandler(writer);
+      addHasSomeHandler(writer);
+      addHasEveryHandler(writer);
+      addIsEmptyHandler(writer);
+      writer.writeLine(`return true;`);
+    });
 }
 
 function addEqualsHandler(writer: CodeBlockWriter) {

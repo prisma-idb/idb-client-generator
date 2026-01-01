@@ -14,6 +14,9 @@ export default ts.config(
   prettier,
   ...svelte.configs["flat/prettier"],
   {
+    ignores: ["src/lib/components/ui/**"],
+  },
+  {
     languageOptions: {
       globals: {
         ...globals.browser,

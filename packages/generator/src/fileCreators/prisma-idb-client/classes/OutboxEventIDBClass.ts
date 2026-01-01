@@ -23,7 +23,9 @@ function addConstructor(writer: CodeBlockWriter, outboxModelName: string) {
 
 function addCreateMethod(writer: CodeBlockWriter, outboxModelName: string) {
   writer
-    .writeLine(`async create(query: { data: Pick<OutboxEventRecord, "entityKeyPath" | "entityType" | "operation" | "payload"> }): Promise<OutboxEventRecord>`)
+    .writeLine(
+      `async create(query: { data: Pick<OutboxEventRecord, "entityKeyPath" | "entityType" | "operation" | "payload"> }): Promise<OutboxEventRecord>`,
+    )
     .block(() => {
       writer
         .writeLine(`const tx = this.client._db.transaction("${outboxModelName}", "readwrite");`)
@@ -58,7 +60,9 @@ function addGetNextBatchMethod(writer: CodeBlockWriter, outboxModelName: string)
         .blankLine()
         .writeLine(`// Get all unsynced events, ordered by createdAt`)
         .writeLine(`const allEvents = await store.getAll();`)
-        .writeLine(`const unsynced = allEvents.filter((e) => !e.synced).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());`)
+        .writeLine(
+          `const unsynced = allEvents.filter((e) => !e.synced).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());`,
+        )
         .blankLine()
         .writeLine(`return unsynced.slice(0, limit);`);
     })
@@ -123,7 +127,9 @@ function addStatsMethod(writer: CodeBlockWriter, outboxModelName: string) {
         .blankLine()
         .writeLine(`const unsynced = allEvents.filter((e) => !e.synced).length;`)
         .writeLine(`const failed = allEvents.filter((e) => e.lastError !== null && e.lastError !== undefined).length;`)
-        .writeLine(`const lastError = allEvents.filter((e) => e.lastError).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]?.lastError;`)
+        .writeLine(
+          `const lastError = allEvents.filter((e) => e.lastError).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]?.lastError;`,
+        )
         .blankLine()
         .writeLine(`return { unsynced, failed, lastError: lastError ?? undefined };`);
     })

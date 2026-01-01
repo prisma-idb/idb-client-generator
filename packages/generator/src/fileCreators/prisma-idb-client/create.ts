@@ -6,7 +6,12 @@ import { addIDBModelClass } from "./classes/models/IDBModelClass";
 import { addClientClass } from "./classes/PrismaIDBClient";
 import { addOutboxEventIDBClass } from "./classes/OutboxEventIDBClass";
 
-function addImports(writer: CodeBlockWriter, models: readonly Model[], prismaClientImport: string, outboxSync: boolean = false) {
+function addImports(
+  writer: CodeBlockWriter,
+  models: readonly Model[],
+  prismaClientImport: string,
+  outboxSync: boolean = false,
+) {
   writer
     .writeLine("/* eslint-disable @typescript-eslint/no-unused-vars */")
     .writeLine(`import { openDB } from "idb";`)
@@ -15,7 +20,9 @@ function addImports(writer: CodeBlockWriter, models: readonly Model[], prismaCli
     .writeLine(`import * as IDBUtils from "./idb-utils";`);
 
   if (outboxSync) {
-    writer.writeLine(`import type { OutboxEventRecord, PrismaIDBSchema, AppliedResult, SyncWorkerOptions, SyncWorker } from "./idb-interface";`);
+    writer.writeLine(
+      `import type { OutboxEventRecord, PrismaIDBSchema, AppliedResult, SyncWorkerOptions, SyncWorker } from "./idb-interface";`,
+    );
   } else {
     writer.writeLine(`import type { PrismaIDBSchema } from "./idb-interface";`);
   }
@@ -49,7 +56,7 @@ export function createPrismaIDBClientFile(
   addImports(writer, models, prismaClientImport, outboxSync);
   addVersionDeclaration(writer);
   addClientClass(writer, models, outboxSync, outboxModelName, include, exclude);
-  addBaseModelClass(writer, outboxSync, outboxModelName);
+  addBaseModelClass(writer, outboxSync);
   models.forEach((model) => {
     addIDBModelClass(writer, model, models);
   });

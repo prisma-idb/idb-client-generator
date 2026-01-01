@@ -31,7 +31,7 @@ export function addClientClass(
     addShouldTrackModelMethod(writer);
     addToCamelCaseMethod(writer);
     if (outboxSync) {
-      addCreateSyncWorkerMethod(writer, models, outboxModelName);
+      addCreateSyncWorkerMethod(writer, models);
     }
     addInitializeMethod(writer, models, outboxSync, outboxModelName);
   });
@@ -120,7 +120,7 @@ function generateModelUpsertCase(writer: CodeBlockWriter, model: Model) {
   writer.writeLine(`                  }`);
 }
 
-function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Model[], outboxModelName: string) {
+function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Model[]) {
   writer
     .writeLine(
       `createSyncWorker(options: { syncHandler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>; batchSize?: number; intervalMs?: number; maxRetries?: number; backoffBaseMs?: number }): SyncWorker`,
@@ -235,10 +235,6 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Mod
         .writeLine(`  },`)
         .writeLine(`};`);
     });
-}
-
-function toCamelCase(str: string): string {
-  return str.charAt(0).toLowerCase() + str.slice(1);
 }
 
 function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter) {

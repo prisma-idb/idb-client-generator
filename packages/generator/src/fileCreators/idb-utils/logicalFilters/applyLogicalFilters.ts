@@ -1,12 +1,16 @@
 import type CodeBlockWriter from "code-block-writer";
 
 export function addApplyLogicalFilters(writer: CodeBlockWriter) {
-  writer.writeLine(`export async function applyLogicalFilters<T, R extends Prisma.Result<T, object, "findFirstOrThrow">, W extends Prisma.Args<T, "findFirstOrThrow">["where"]>(records: R[], whereClause: W, tx: TransactionType, keyPath: string[], applyWhereFunction: (records: R[], clause: W, tx: TransactionType) => Promise<R[]>): Promise<R[]>`).block(() => {
-    handleAndParameter(writer);
-    handleOrParameter(writer);
-    handleNotParameter(writer);
-    writer.writeLine(`return records;`);
-  });
+  writer
+    .writeLine(
+      `export async function applyLogicalFilters<T, R extends Prisma.Result<T, object, "findFirstOrThrow">, W extends Prisma.Args<T, "findFirstOrThrow">["where"]>(records: R[], whereClause: W, tx: TransactionType, keyPath: string[], applyWhereFunction: (records: R[], clause: W, tx: TransactionType) => Promise<R[]>): Promise<R[]>`,
+    )
+    .block(() => {
+      handleAndParameter(writer);
+      handleOrParameter(writer);
+      handleNotParameter(writer);
+      writer.writeLine(`return records;`);
+    });
 }
 
 function handleAndParameter(writer: CodeBlockWriter) {

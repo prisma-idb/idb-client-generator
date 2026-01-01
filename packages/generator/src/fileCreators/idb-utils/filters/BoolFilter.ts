@@ -16,24 +16,28 @@ export function addBoolFilter(writer: CodeBlockWriter, models: readonly Model[])
     filterType += " | null | Prisma.BoolNullableFilter<unknown>";
   }
 
-  writer.writeLine(`export function whereBoolFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, boolFilter: ${filterType}): boolean`).block(() => {
-    writer
-      .writeLine(`if (boolFilter === undefined) return true;`)
-      .blankLine()
-      .writeLine(`const value = record[fieldName] as boolean | null;`)
-      .writeLine(`if (boolFilter === null) return value === null;`)
-      .blankLine()
-      .writeLine(`if (typeof boolFilter === 'boolean')`)
-      .block(() => {
-        writer.writeLine(`if (value !== boolFilter) return false;`);
-      })
-      .writeLine(`else`)
-      .block(() => {
-        addEqualsHandler(writer);
-        addNotHandler(writer);
-      })
-      .writeLine(`return true;`);
-  });
+  writer
+    .writeLine(
+      `export function whereBoolFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, boolFilter: ${filterType}): boolean`,
+    )
+    .block(() => {
+      writer
+        .writeLine(`if (boolFilter === undefined) return true;`)
+        .blankLine()
+        .writeLine(`const value = record[fieldName] as boolean | null;`)
+        .writeLine(`if (boolFilter === null) return value === null;`)
+        .blankLine()
+        .writeLine(`if (typeof boolFilter === 'boolean')`)
+        .block(() => {
+          writer.writeLine(`if (value !== boolFilter) return false;`);
+        })
+        .writeLine(`else`)
+        .block(() => {
+          addEqualsHandler(writer);
+          addNotHandler(writer);
+        })
+        .writeLine(`return true;`);
+    });
 }
 
 function addEqualsHandler(writer: CodeBlockWriter) {

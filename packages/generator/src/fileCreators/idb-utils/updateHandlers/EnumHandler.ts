@@ -19,15 +19,19 @@ export function addEnumUpdateHandler(writer: CodeBlockWriter, models: readonly M
     fieldType += " | null";
   }
 
-  writer.writeLine(`export function handleEnumUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, enumUpdate: ${updateOperationType}): void`).block(() => {
-    writer
-      .writeLine(`if (enumUpdate === undefined) return;`)
-      .writeLine(`if (typeof enumUpdate === "string"${nullableEnumFieldPresent ? ` || enumUpdate === null` : ""})`)
-      .block(() => {
-        writer.writeLine(`(record[fieldName] as ${fieldType}) = enumUpdate;`);
+  writer
+    .writeLine(
+      `export function handleEnumUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, enumUpdate: ${updateOperationType}): void`,
+    )
+    .block(() => {
+      writer
+        .writeLine(`if (enumUpdate === undefined) return;`)
+        .writeLine(`if (typeof enumUpdate === "string"${nullableEnumFieldPresent ? ` || enumUpdate === null` : ""})`)
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as ${fieldType}) = enumUpdate;`);
+        });
+      writer.writeLine(`else if (enumUpdate.set !== undefined)`).block(() => {
+        writer.writeLine(`(record[fieldName] as ${fieldType}) = enumUpdate.set;`);
       });
-    writer.writeLine(`else if (enumUpdate.set !== undefined)`).block(() => {
-      writer.writeLine(`(record[fieldName] as ${fieldType}) = enumUpdate.set;`);
     });
-  });
 }

@@ -7,19 +7,23 @@ export function addBigIntListFilter(writer: CodeBlockWriter, models: readonly Mo
     .filter((field) => field.type === "BigInt" && field.isList);
   if (bigIntListFields.length === 0) return;
 
-  writer.writeLine(`export function whereBigIntListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: undefined | Prisma.BigIntNullableListFilter<unknown>): boolean`).block(() => {
-    writer
-      .writeLine(`if (scalarListFilter === undefined) return true;`)
-      .blankLine()
-      .writeLine(`const value = record[fieldName] as bigint[] | undefined;`)
-      .writeLine(`if (value === undefined && Object.keys(scalarListFilter).length) return false;`);
-    addEqualsHandler(writer);
-    addHasHandler(writer);
-    addHasSomeHandler(writer);
-    addHasEveryHandler(writer);
-    addIsEmptyHandler(writer);
-    writer.writeLine(`return true;`);
-  });
+  writer
+    .writeLine(
+      `export function whereBigIntListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: undefined | Prisma.BigIntNullableListFilter<unknown>): boolean`,
+    )
+    .block(() => {
+      writer
+        .writeLine(`if (scalarListFilter === undefined) return true;`)
+        .blankLine()
+        .writeLine(`const value = record[fieldName] as bigint[] | undefined;`)
+        .writeLine(`if (value === undefined && Object.keys(scalarListFilter).length) return false;`);
+      addEqualsHandler(writer);
+      addHasHandler(writer);
+      addHasSomeHandler(writer);
+      addHasEveryHandler(writer);
+      addIsEmptyHandler(writer);
+      writer.writeLine(`return true;`);
+    });
 }
 
 function addEqualsHandler(writer: CodeBlockWriter) {

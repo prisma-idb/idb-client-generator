@@ -18,7 +18,8 @@ generatorHandler({
 
   onGenerate: async (options: GeneratorOptions) => {
     const outputPath = options.generator.output?.value as string;
-    const { prismaClientImport, prismaSingletonImport, outboxSync, outboxModelName, filteredModels } = parseGeneratorConfig(options);
+    const { prismaClientImport, prismaSingletonImport, outboxSync, outboxModelName, filteredModels } =
+      parseGeneratorConfig(options);
 
     await writeCodeFile("client/prisma-idb-client.ts", outputPath, (writer) => {
       createPrismaIDBClientFile(writer, filteredModels, prismaClientImport, outboxSync, outboxModelName);
@@ -38,7 +39,7 @@ generatorHandler({
       });
 
       await writeCodeFile("client/apply-remote-changes.ts", outputPath, (writer) => {
-        createApplyPullFile(writer, filteredModels, prismaClientImport);
+        createApplyPullFile(writer, filteredModels);
       });
     }
   },

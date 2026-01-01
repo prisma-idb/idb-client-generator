@@ -16,19 +16,23 @@ export function addNumberListFilter(writer: CodeBlockWriter, models: readonly Mo
     listFilterType += " | Prisma.FloatNullableListFilter<unknown>";
   }
 
-  writer.writeLine(`export function whereNumberListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: ${listFilterType}): boolean`).block(() => {
-    writer
-      .writeLine(`if (scalarListFilter === undefined) return true;`)
-      .blankLine()
-      .writeLine(`const value = record[fieldName] as number[] | undefined;`)
-      .writeLine(`if (value === undefined && Object.keys(scalarListFilter).length) return false;`);
-    addEqualsHandler(writer);
-    addHasHandler(writer);
-    addHasSomeHandler(writer);
-    addHasEveryHandler(writer);
-    addIsEmptyHandler(writer);
-    writer.writeLine(`return true;`);
-  });
+  writer
+    .writeLine(
+      `export function whereNumberListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: ${listFilterType}): boolean`,
+    )
+    .block(() => {
+      writer
+        .writeLine(`if (scalarListFilter === undefined) return true;`)
+        .blankLine()
+        .writeLine(`const value = record[fieldName] as number[] | undefined;`)
+        .writeLine(`if (value === undefined && Object.keys(scalarListFilter).length) return false;`);
+      addEqualsHandler(writer);
+      addHasHandler(writer);
+      addHasSomeHandler(writer);
+      addHasEveryHandler(writer);
+      addIsEmptyHandler(writer);
+      writer.writeLine(`return true;`);
+    });
 }
 
 function addEqualsHandler(writer: CodeBlockWriter) {

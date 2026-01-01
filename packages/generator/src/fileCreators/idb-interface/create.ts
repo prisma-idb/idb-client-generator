@@ -89,8 +89,6 @@ function addSyncWorkerTypes(writer: CodeBlockWriter) {
   });
 
   writer.writeLine(`export interface SyncWorker`).block(() => {
-    writer
-      .writeLine(`start(): void;`)
-      .writeLine(`stop(): void;`);
+    writer.writeLine(`start(): void;`).writeLine(`stop(): void;`);
   });
 }

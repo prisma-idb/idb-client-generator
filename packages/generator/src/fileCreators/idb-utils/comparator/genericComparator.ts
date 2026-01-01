@@ -1,20 +1,24 @@
 import CodeBlockWriter from "code-block-writer";
 
 export function addGenericComparator(writer: CodeBlockWriter) {
-  writer.writeLine(`export function genericComparator(a: unknown, b: unknown, sortOrder: Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } = "asc"): number`).block(() => {
-    handleNullsSorting(writer);
-    handleMultiplierAndReturnValueInit(writer);
+  writer
+    .writeLine(
+      `export function genericComparator(a: unknown, b: unknown, sortOrder: Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } = "asc"): number`,
+    )
+    .block(() => {
+      handleNullsSorting(writer);
+      handleMultiplierAndReturnValueInit(writer);
 
-    handleStringComparison(writer);
-    handleNumberComparison(writer);
-    handleBigIntComparison(writer);
-    handleDateTimeComparison(writer);
-    handleBytesComparison(writer);
-    handleBooleanComparison(writer);
-    // TODO: decimal, json
+      handleStringComparison(writer);
+      handleNumberComparison(writer);
+      handleBigIntComparison(writer);
+      handleDateTimeComparison(writer);
+      handleBytesComparison(writer);
+      handleBooleanComparison(writer);
+      // TODO: decimal, json
 
-    handleComparisonTypeErrorAndReturn(writer);
-  });
+      handleComparisonTypeErrorAndReturn(writer);
+    });
 }
 
 function handleNullsSorting(writer: CodeBlockWriter) {

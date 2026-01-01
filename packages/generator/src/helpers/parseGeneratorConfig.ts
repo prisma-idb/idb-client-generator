@@ -53,14 +53,11 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
     const baseImport = relPath.startsWith("..") || relPath.startsWith(".") ? relPath : `./${relPath}`;
 
     // For prisma-client provider, append /client to the path
-    prismaClientImport =
-      clientGenerator.provider.value === "prisma-client" ? `${baseImport}/client` : baseImport;
+    prismaClientImport = clientGenerator.provider.value === "prisma-client" ? `${baseImport}/client` : baseImport;
   } catch {
     // Fallback to absolute path if relative path computation fails
     prismaClientImport =
-      clientGenerator.provider.value === "prisma-client"
-        ? `${clientOutputPath}/client`
-        : clientOutputPath;
+      clientGenerator.provider.value === "prisma-client" ? `${clientOutputPath}/client` : clientOutputPath;
   }
 
   // === Parse outbox settings ===

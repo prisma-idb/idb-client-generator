@@ -16,30 +16,34 @@ export function addBigIntFilter(writer: CodeBlockWriter, models: readonly Model[
     filterType += " | null | Prisma.BigIntNullableFilter<unknown>";
   }
 
-  writer.writeLine(`export function whereBigIntFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, bigIntFilter: ${filterType}): boolean`).block(() => {
-    writer
-      .writeLine(`if (bigIntFilter === undefined) return true;`)
-      .blankLine()
-      .writeLine(`const value = record[fieldName] as number | null;`)
-      .writeLine(`if (bigIntFilter === null) return value === null;`)
-      .blankLine()
-      .writeLine(`if (typeof bigIntFilter === 'number' || typeof bigIntFilter === 'bigint')`)
-      .block(() => {
-        writer.writeLine(`if (value !== bigIntFilter) return false;`);
-      })
-      .writeLine(`else`)
-      .block(() => {
-        addEqualsHandler(writer);
-        addNotHandler(writer);
-        addInHandler(writer);
-        addNotInHandler(writer);
-        addLtHandler(writer);
-        addLteHandler(writer);
-        addGtHandler(writer);
-        addGteHandler(writer);
-      })
-      .writeLine(`return true;`);
-  });
+  writer
+    .writeLine(
+      `export function whereBigIntFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, bigIntFilter: ${filterType}): boolean`,
+    )
+    .block(() => {
+      writer
+        .writeLine(`if (bigIntFilter === undefined) return true;`)
+        .blankLine()
+        .writeLine(`const value = record[fieldName] as number | null;`)
+        .writeLine(`if (bigIntFilter === null) return value === null;`)
+        .blankLine()
+        .writeLine(`if (typeof bigIntFilter === 'number' || typeof bigIntFilter === 'bigint')`)
+        .block(() => {
+          writer.writeLine(`if (value !== bigIntFilter) return false;`);
+        })
+        .writeLine(`else`)
+        .block(() => {
+          addEqualsHandler(writer);
+          addNotHandler(writer);
+          addInHandler(writer);
+          addNotInHandler(writer);
+          addLtHandler(writer);
+          addLteHandler(writer);
+          addGtHandler(writer);
+          addGteHandler(writer);
+        })
+        .writeLine(`return true;`);
+    });
 }
 
 function addEqualsHandler(writer: CodeBlockWriter) {

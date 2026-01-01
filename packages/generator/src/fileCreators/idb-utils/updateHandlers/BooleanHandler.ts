@@ -19,15 +19,21 @@ export function addBooleanUpdateHandler(writer: CodeBlockWriter, models: readonl
     fieldType += " | null";
   }
 
-  writer.writeLine(`export function handleBooleanUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, booleanUpdate: ${updateOperationType}): void`).block(() => {
-    writer
-      .writeLine(`if (booleanUpdate === undefined) return;`)
-      .writeLine(`if (typeof booleanUpdate === "boolean"${nullableBooleanFieldPresent ? ` || booleanUpdate === null` : ""})`)
-      .block(() => {
-        writer.writeLine(`(record[fieldName] as ${fieldType}) = booleanUpdate;`);
+  writer
+    .writeLine(
+      `export function handleBooleanUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, booleanUpdate: ${updateOperationType}): void`,
+    )
+    .block(() => {
+      writer
+        .writeLine(`if (booleanUpdate === undefined) return;`)
+        .writeLine(
+          `if (typeof booleanUpdate === "boolean"${nullableBooleanFieldPresent ? ` || booleanUpdate === null` : ""})`,
+        )
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as ${fieldType}) = booleanUpdate;`);
+        });
+      writer.writeLine(`else if (booleanUpdate.set !== undefined)`).block(() => {
+        writer.writeLine(`(record[fieldName] as ${fieldType}) = booleanUpdate.set;`);
       });
-    writer.writeLine(`else if (booleanUpdate.set !== undefined)`).block(() => {
-      writer.writeLine(`(record[fieldName] as ${fieldType}) = booleanUpdate.set;`);
     });
-  });
 }

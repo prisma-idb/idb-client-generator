@@ -16,36 +16,40 @@ export function addBytesFilter(writer: CodeBlockWriter, models: readonly Model[]
     filterType += " | null | Prisma.BytesNullableFilter<unknown>";
   }
 
-  writer.writeLine(`export function whereBytesFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, bytesFilter: ${filterType}): boolean`).block(() => {
-    writer
-      .writeLine(`if (bytesFilter === undefined) return true;`)
-      .blankLine()
-      .writeLine(`function areUint8ArraysEqual(arr1: Uint8Array, arr2: Uint8Array)`)
-      .block(() => {
-        writer
-          .writeLine(`if (arr1.length !== arr2.length) return false;`)
-          .writeLine(`for (let i = 0; i < arr1.length; i++) if (arr1[i] !== arr2[i]) return false;`)
-          .writeLine(`return true;`);
-      })
-      .blankLine()
-      .writeLine(`const value = record[fieldName] as Uint8Array | null;`)
-      .writeLine(`if (bytesFilter === null) return value === null;`)
-      .blankLine()
-      .writeLine(`if (bytesFilter instanceof Uint8Array)`)
-      .block(() => {
-        writer
-          .writeLine(`if (value === null) return false;`)
-          .writeLine(`if (!areUint8ArraysEqual(bytesFilter, value)) return false;`);
-      })
-      .writeLine(`else`)
-      .block(() => {
-        addEqualsHandler(writer);
-        addNotHandler(writer);
-        addInHandler(writer);
-        addNotInHandler(writer);
-      })
-      .writeLine(`return true;`);
-  });
+  writer
+    .writeLine(
+      `export function whereBytesFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, bytesFilter: ${filterType}): boolean`,
+    )
+    .block(() => {
+      writer
+        .writeLine(`if (bytesFilter === undefined) return true;`)
+        .blankLine()
+        .writeLine(`function areUint8ArraysEqual(arr1: Uint8Array, arr2: Uint8Array)`)
+        .block(() => {
+          writer
+            .writeLine(`if (arr1.length !== arr2.length) return false;`)
+            .writeLine(`for (let i = 0; i < arr1.length; i++) if (arr1[i] !== arr2[i]) return false;`)
+            .writeLine(`return true;`);
+        })
+        .blankLine()
+        .writeLine(`const value = record[fieldName] as Uint8Array | null;`)
+        .writeLine(`if (bytesFilter === null) return value === null;`)
+        .blankLine()
+        .writeLine(`if (bytesFilter instanceof Uint8Array)`)
+        .block(() => {
+          writer
+            .writeLine(`if (value === null) return false;`)
+            .writeLine(`if (!areUint8ArraysEqual(bytesFilter, value)) return false;`);
+        })
+        .writeLine(`else`)
+        .block(() => {
+          addEqualsHandler(writer);
+          addNotHandler(writer);
+          addInHandler(writer);
+          addNotInHandler(writer);
+        })
+        .writeLine(`return true;`);
+    });
 }
 
 function addEqualsHandler(writer: CodeBlockWriter) {

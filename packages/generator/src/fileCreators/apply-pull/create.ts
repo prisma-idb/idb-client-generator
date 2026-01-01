@@ -2,7 +2,7 @@ import CodeBlockWriter from "code-block-writer";
 import { Model } from "../types";
 import { getUniqueIdentifiers } from "../../helpers/utils";
 
-export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], prismaClientImport: string) {
+export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
   // Write imports
   writer.writeLine(`import type { LogsWithRecords, validators } from '../server/batch-processor';`);
   writer.writeLine(`import type { PrismaIDBClient } from './prisma-idb-client';`);

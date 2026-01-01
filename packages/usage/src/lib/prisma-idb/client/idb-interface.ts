@@ -1,5 +1,5 @@
 import type { DBSchema } from "idb";
-import type * as Prisma from "$lib/generated/prisma/client";
+import type * as Prisma from "../../generated/prisma/client";
 export interface PrismaIDBSchema extends DBSchema {
   User: {
     key: [id: Prisma.User["id"]];

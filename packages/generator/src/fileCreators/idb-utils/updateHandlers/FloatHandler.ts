@@ -19,32 +19,36 @@ export function addFloatUpdateHandler(writer: CodeBlockWriter, models: readonly 
     fieldType += " | null";
   }
 
-  writer.writeLine(`export function handleFloatUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, floatUpdate: ${updateOperationType}): void`).block(() => {
-    writer
-      .writeLine(`if (floatUpdate === undefined) return;`)
-      .writeLine(`if (typeof floatUpdate === "number"${nullableFloatFieldPresent ? ` || floatUpdate === null` : ""})`)
-      .block(() => {
-        writer.writeLine(`(record[fieldName] as ${fieldType}) = floatUpdate;`);
-      })
-      .writeLine(`else if (floatUpdate.set !== undefined)`)
-      .block(() => {
-        writer.writeLine(`(record[fieldName] as ${fieldType}) = floatUpdate.set;`);
-      })
-      .writeLine(`else if (floatUpdate.increment !== undefined && record[fieldName] !== null)`)
-      .block(() => {
-        writer.writeLine(`(record[fieldName] as number) += floatUpdate.increment;`);
-      })
-      .writeLine(`else if (floatUpdate.decrement !== undefined && record[fieldName] !== null)`)
-      .block(() => {
-        writer.writeLine(`(record[fieldName] as number) -= floatUpdate.decrement;`);
-      })
-      .writeLine(`else if (floatUpdate.multiply !== undefined && record[fieldName] !== null)`)
-      .block(() => {
-        writer.writeLine(`(record[fieldName] as number) *= floatUpdate.multiply;`);
-      })
-      .writeLine(`else if (floatUpdate.divide !== undefined && record[fieldName] !== null)`)
-      .block(() => {
-        writer.writeLine(`(record[fieldName] as number) /= floatUpdate.divide;`);
-      });
-  });
+  writer
+    .writeLine(
+      `export function handleFloatUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, floatUpdate: ${updateOperationType}): void`,
+    )
+    .block(() => {
+      writer
+        .writeLine(`if (floatUpdate === undefined) return;`)
+        .writeLine(`if (typeof floatUpdate === "number"${nullableFloatFieldPresent ? ` || floatUpdate === null` : ""})`)
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as ${fieldType}) = floatUpdate;`);
+        })
+        .writeLine(`else if (floatUpdate.set !== undefined)`)
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as ${fieldType}) = floatUpdate.set;`);
+        })
+        .writeLine(`else if (floatUpdate.increment !== undefined && record[fieldName] !== null)`)
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as number) += floatUpdate.increment;`);
+        })
+        .writeLine(`else if (floatUpdate.decrement !== undefined && record[fieldName] !== null)`)
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as number) -= floatUpdate.decrement;`);
+        })
+        .writeLine(`else if (floatUpdate.multiply !== undefined && record[fieldName] !== null)`)
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as number) *= floatUpdate.multiply;`);
+        })
+        .writeLine(`else if (floatUpdate.divide !== undefined && record[fieldName] !== null)`)
+        .block(() => {
+          writer.writeLine(`(record[fieldName] as number) /= floatUpdate.divide;`);
+        });
+    });
 }

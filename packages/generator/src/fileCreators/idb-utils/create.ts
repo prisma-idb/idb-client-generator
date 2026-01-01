@@ -27,7 +27,12 @@ import { addIntUpdateHandler } from "./updateHandlers/IntHandler";
 import { addScalarListUpdateHandler } from "./updateHandlers/ScalarListHandler";
 import { addStringUpdateHandler } from "./updateHandlers/StringHandler";
 
-export function createUtilsFile(writer: CodeBlockWriter, models: readonly Model[], prismaClientImport: string, outboxSync: boolean = false) {
+export function createUtilsFile(
+  writer: CodeBlockWriter,
+  models: readonly Model[],
+  prismaClientImport: string,
+  outboxSync: boolean = false,
+) {
   writer.writeLine(`import type { IDBPTransaction, StoreNames } from "idb";`);
   writer.writeLine(`import type { PrismaIDBSchema } from "./idb-interface";`);
   writer.writeLine(`import type { Prisma } from "${prismaClientImport}";`);
@@ -37,8 +42,12 @@ export function createUtilsFile(writer: CodeBlockWriter, models: readonly Model[
     writer.writeLine("return Array.isArray(arg) ? arg : [arg];");
   });
 
-  writer.writeLine(`export type ReadwriteTransactionType = IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readwrite">;`);
-  writer.writeLine(`export type ReadonlyTransactionType = IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readonly">;`);
+  writer.writeLine(
+    `export type ReadwriteTransactionType = IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readwrite">;`,
+  );
+  writer.writeLine(
+    `export type ReadonlyTransactionType = IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readonly">;`,
+  );
   writer.writeLine(`export type TransactionType = ReadonlyTransactionType | ReadwriteTransactionType;`);
   writer.blankLine();
 

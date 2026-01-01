@@ -16,32 +16,36 @@ export function addDateTimeFilter(writer: CodeBlockWriter, models: readonly Mode
     filterType += " | null | Prisma.DateTimeNullableFilter<unknown>";
   }
 
-  writer.writeLine(`export function whereDateTimeFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, dateTimeFilter: ${filterType}): boolean`).block(() => {
-    writer
-      .writeLine(`if (dateTimeFilter === undefined) return true;`)
-      .blankLine()
-      .writeLine(`const value = record[fieldName] as Date | null;`)
-      .writeLine(`if (dateTimeFilter === null) return value === null;`)
-      .blankLine()
-      .writeLine(`if (typeof dateTimeFilter === "string" || dateTimeFilter instanceof Date)`)
-      .block(() => {
-        writer
-          .writeLine(`if (value === null) return false;`)
-          .writeLine(`if (new Date(dateTimeFilter).getTime() !== value.getTime()) return false;`);
-      })
-      .writeLine(`else`)
-      .block(() => {
-        addEqualsHandler(writer);
-        addNotHandler(writer);
-        addInHandler(writer);
-        addNotInHandler(writer);
-        addLtHandler(writer);
-        addLteHandler(writer);
-        addGtHandler(writer);
-        addGteHandler(writer);
-      })
-      .writeLine(`return true;`);
-  });
+  writer
+    .writeLine(
+      `export function whereDateTimeFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, dateTimeFilter: ${filterType}): boolean`,
+    )
+    .block(() => {
+      writer
+        .writeLine(`if (dateTimeFilter === undefined) return true;`)
+        .blankLine()
+        .writeLine(`const value = record[fieldName] as Date | null;`)
+        .writeLine(`if (dateTimeFilter === null) return value === null;`)
+        .blankLine()
+        .writeLine(`if (typeof dateTimeFilter === "string" || dateTimeFilter instanceof Date)`)
+        .block(() => {
+          writer
+            .writeLine(`if (value === null) return false;`)
+            .writeLine(`if (new Date(dateTimeFilter).getTime() !== value.getTime()) return false;`);
+        })
+        .writeLine(`else`)
+        .block(() => {
+          addEqualsHandler(writer);
+          addNotHandler(writer);
+          addInHandler(writer);
+          addNotInHandler(writer);
+          addLtHandler(writer);
+          addLteHandler(writer);
+          addGtHandler(writer);
+          addGteHandler(writer);
+        })
+        .writeLine(`return true;`);
+    });
 }
 
 function addEqualsHandler(writer: CodeBlockWriter) {

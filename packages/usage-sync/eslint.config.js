@@ -18,6 +18,7 @@ export default defineConfig(
 	...svelte.configs.recommended,
 	prettier,
 	...svelte.configs.prettier,
+	{ ignores: ['src/lib/components/ui/**'] },
 	{
 		languageOptions: { globals: { ...globals.browser, ...globals.node } },
 
