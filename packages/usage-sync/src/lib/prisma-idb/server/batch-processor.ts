@@ -1,7 +1,7 @@
 import { z, type ZodTypeAny } from 'zod';
 import type { OutboxEventRecord } from '../client/idb-interface';
 import type { ChangeLog } from '../../generated/prisma/client';
-import { prisma } from '$lib/prisma';
+import { prisma } from '../../prisma';
 
 type Op = 'create' | 'update' | 'delete';
 

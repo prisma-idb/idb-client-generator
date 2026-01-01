@@ -3,6 +3,7 @@ import type { GeneratorOptions, DMMF } from "@prisma/generator-helper";
 
 export interface ParsedGeneratorConfig {
   prismaClientImport: string;
+  prismaSingletonImport: string | null;
   outboxSync: boolean;
   outboxModelName: string;
   include: string[];
@@ -17,6 +18,8 @@ export interface ParsedGeneratorConfig {
 export function parseGeneratorConfig(options: GeneratorOptions): ParsedGeneratorConfig {
   const { models } = options.dmmf.datamodel;
   const outputPath = options.generator.output?.value as string;
+  const schemaPath = options.schemaPath;
+  const schemaDir = path.dirname(schemaPath);
   const generatorConfig = options.generator.config;
 
   // === Infer Prisma client import path ===
@@ -64,6 +67,30 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
   const outboxSync = generatorConfig.outboxSync === "true";
   const outboxModelName = (generatorConfig.outboxModelName as string) || "OutboxEvent";
 
+  // === Parse Prisma singleton import path ===
+  let prismaSingletonImport: string | null = null;
+  const prismaSingletonImportConfig = generatorConfig.prismaSingletonImport as string | undefined;
+
+  if (prismaSingletonImportConfig) {
+    try {
+      // Resolve both paths to absolute, then calculate relative
+      const serverDir = path.isAbsolute(outputPath)
+        ? path.join(outputPath, "server")
+        : path.resolve(schemaDir, outputPath, "server");
+
+      const singletonAbsPath = path.isAbsolute(prismaSingletonImportConfig)
+        ? prismaSingletonImportConfig
+        : path.resolve(schemaDir, prismaSingletonImportConfig);
+
+      // Calculate relative path from server directory to singleton
+      const relPath = path.relative(serverDir, singletonAbsPath).replace(/\\/g, "/");
+      prismaSingletonImport = relPath.startsWith("..") || relPath.startsWith(".") ? relPath : `./${relPath}`;
+    } catch {
+      // Fallback to the configured path if relative path computation fails
+      prismaSingletonImport = prismaSingletonImportConfig;
+    }
+  }
+
   // === Parse include/exclude patterns ===
   let include: string[] = ["*"];
   let exclude: string[] = [];
@@ -109,6 +136,7 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
 
   return {
     prismaClientImport,
+    prismaSingletonImport,
     outboxSync,
     outboxModelName,
     include,

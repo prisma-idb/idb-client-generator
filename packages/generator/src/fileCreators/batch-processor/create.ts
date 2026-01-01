@@ -7,6 +7,7 @@ export function createBatchProcessorFile(
   writer: CodeBlockWriter,
   models: readonly Model[],
   prismaClientImport: string,
+  prismaSingletonImport: string | null = null,
 ) {
   const modelNames = models.map((m) => m.name);
 
@@ -14,7 +15,7 @@ export function createBatchProcessorFile(
   writer.writeLine(`import { z, type ZodTypeAny } from "zod";`);
   writer.writeLine(`import type { OutboxEventRecord } from "../client/idb-interface";`);
   writer.writeLine(`import type { ChangeLog } from "${prismaClientImport}";`);
-  writer.writeLine(`import { prisma } from "$lib/prisma";`);
+  writer.writeLine(`import { prisma } from "${prismaSingletonImport || "$lib/prisma"}";`);
   writer.blankLine();
 
   // Write Op type
