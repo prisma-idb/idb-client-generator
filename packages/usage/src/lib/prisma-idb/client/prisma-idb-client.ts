@@ -150,7 +150,7 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
     event: "create" | "update" | "delete",
     keyPath: PrismaIDBSchema[T]["key"],
     oldKeyPath?: PrismaIDBSchema[T]["key"],
-    record?: Record<string, any>,
+    record?: unknown,
     silent?: boolean,
   ) {
     if (silent) return;
