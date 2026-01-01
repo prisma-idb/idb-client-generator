@@ -10,6 +10,7 @@ import type {
 	SyncWorkerOptions,
 	SyncWorker
 } from './idb-interface';
+import { validators, keyPathValidators } from '../validators';
 import { v4 as uuidv4 } from 'uuid';
 const IDB_VERSION = 1;
 export class PrismaIDBClient {
@@ -99,42 +100,69 @@ export class PrismaIDBClient {
 						if (result.mergedRecord && result.entityKeyPath) {
 							const originalEvent = toSync.find((e: OutboxEventRecord) => e.id === result.id);
 							if (originalEvent) {
-								const modelStore = (this as any)[this.toCamelCase(originalEvent.entityType)];
-								if (modelStore && modelStore.upsert) {
-									try {
-										let whereClause: any;
-										switch (originalEvent.entityType) {
-											case 'User': {
-												{
-													whereClause = { id: result.entityKeyPath[0] };
-												}
-												break;
-											}
-											case 'Todo': {
-												{
-													whereClause = { id: result.entityKeyPath[0] };
-												}
-												break;
-											}
-											default:
-												throw new Error(`No upsert handler for ${originalEvent.entityType}`);
-										}
-
-										await modelStore.upsert(
+								try {
+									switch (originalEvent.entityType) {
+										case 'User': {
 											{
-												where: whereClause,
-												update: result.mergedRecord,
-												create: result.mergedRecord
-											},
-											undefined,
-											true
-										);
-									} catch (upsertErr) {
-										console.warn(
-											`Failed to upsert merged record for event ${result.id}:`,
-											upsertErr
-										);
+												const recordValidation = validators.User.safeParse(result.mergedRecord);
+												if (!recordValidation.success) {
+													throw new Error(
+														`Record validation failed: ${recordValidation.error.message}`
+													);
+												}
+												const keyPathValidation = keyPathValidators.User.safeParse(
+													result.entityKeyPath
+												);
+												if (!keyPathValidation.success) {
+													throw new Error(
+														`KeyPath validation failed: ${keyPathValidation.error.message}`
+													);
+												}
+												await this.user.upsert(
+													{
+														where: { id: keyPathValidation.data[0] },
+														update: recordValidation.data,
+														create: recordValidation.data
+													},
+													undefined,
+													true
+												);
+												break;
+											}
+										}
+										case 'Todo': {
+											{
+												const recordValidation = validators.Todo.safeParse(result.mergedRecord);
+												if (!recordValidation.success) {
+													throw new Error(
+														`Record validation failed: ${recordValidation.error.message}`
+													);
+												}
+												const keyPathValidation = keyPathValidators.Todo.safeParse(
+													result.entityKeyPath
+												);
+												if (!keyPathValidation.success) {
+													throw new Error(
+														`KeyPath validation failed: ${keyPathValidation.error.message}`
+													);
+												}
+												await this.todo.upsert(
+													{
+														where: { id: keyPathValidation.data[0] },
+														update: recordValidation.data,
+														create: recordValidation.data
+													},
+													undefined,
+													true
+												);
+												break;
+											}
+										}
+										default:
+											throw new Error(`No upsert handler for ${originalEvent.entityType}`);
 									}
+								} catch (upsertErr) {
+									console.warn(`Failed to upsert merged record for event ${result.id}:`, upsertErr);
 								}
 							}
 						}
@@ -231,7 +259,7 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
 		event: 'create' | 'update' | 'delete',
 		keyPath: PrismaIDBSchema[T]['key'],
 		oldKeyPath?: PrismaIDBSchema[T]['key'],
-		record?: Record<string, any>,
+		record?: unknown,
 		silent?: boolean
 	) {
 		if (silent) return;

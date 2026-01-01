@@ -2,6 +2,7 @@ import { z, type ZodTypeAny } from 'zod';
 import type { OutboxEventRecord } from '../client/idb-interface';
 import type { ChangeLog } from '../../generated/prisma/client';
 import { prisma } from '../../prisma';
+import { validators, keyPathValidators } from '../validators';
 
 type Op = 'create' | 'update' | 'delete';
 
@@ -23,24 +24,11 @@ export type LogsWithRecords<V extends Partial<Record<string, ZodTypeAny>>> = {
 	};
 }[keyof V & string];
 
-export const validators = {
-	User: z.strictObject({
-		id: z.string(),
-		name: z.string()
-	}),
-	Todo: z.strictObject({
-		id: z.string(),
-		title: z.string(),
-		completed: z.boolean(),
-		userId: z.string()
-	})
-} as const;
-
 export interface SyncResult {
 	id: string;
 	oldKeyPath?: Array<string | number>;
 	entityKeyPath: Array<string | number>;
-	mergedRecord?: any;
+	mergedRecord?: unknown;
 	serverVersion?: number;
 	error?: string | null;
 }
@@ -113,7 +101,7 @@ export async function materializeLogs(
 			try {
 				switch (log.model) {
 					case 'User': {
-						const keyPathValidation = z.safeParse(z.tuple([z.string()]), log.keyPath);
+						const keyPathValidation = keyPathValidators.User.safeParse(log.keyPath);
 						if (!keyPathValidation.success) {
 							throw new Error('Invalid keyPath for User');
 						}
@@ -125,7 +113,7 @@ export async function materializeLogs(
 						break;
 					}
 					case 'Todo': {
-						const keyPathValidation = z.safeParse(z.tuple([z.string()]), log.keyPath);
+						const keyPathValidation = keyPathValidators.Todo.safeParse(log.keyPath);
 						if (!keyPathValidation.success) {
 							throw new Error('Invalid keyPath for Todo');
 						}
@@ -152,7 +140,7 @@ async function syncUser(
 	scopeKey: string
 ): Promise<SyncResult> {
 	const { id, entityKeyPath, operation } = event;
-	const keyPathValidation = z.safeParse(z.tuple([z.string()]), entityKeyPath);
+	const keyPathValidation = keyPathValidators.User.safeParse(entityKeyPath);
 	if (!keyPathValidation.success) {
 		throw new Error('Invalid entityKeyPath for User');
 	}
@@ -227,7 +215,7 @@ async function syncTodo(
 	scopeKey: string
 ): Promise<SyncResult> {
 	const { id, entityKeyPath, operation } = event;
-	const keyPathValidation = z.safeParse(z.tuple([z.string()]), entityKeyPath);
+	const keyPathValidation = keyPathValidators.Todo.safeParse(entityKeyPath);
 	if (!keyPathValidation.success) {
 		throw new Error('Invalid entityKeyPath for Todo');
 	}

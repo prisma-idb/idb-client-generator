@@ -106,18 +106,43 @@ function addToCamelCaseMethod(writer: CodeBlockWriter) {
 function generateModelUpsertCase(writer: CodeBlockWriter, model: Model) {
   const pk = getUniqueIdentifiers(model)[0];
   const pkFields = JSON.parse(pk.keyPath) as string[];
+  const modelProperty = toCamelCaseUtil(model.name);
 
-  writer.writeLine(`                  case "${model.name}": {`);
+  writer.writeLine(`                case "${model.name}": {`);
   writer.block(() => {
+    writer.writeLine(
+      `                  const recordValidation = validators.${model.name}.safeParse(result.mergedRecord);`,
+    );
+    writer.writeLine(`                  if (!recordValidation.success) {`);
+    writer.writeLine(
+      `                    throw new Error(\`Record validation failed: \${recordValidation.error.message}\`);`,
+    );
+    writer.writeLine(`                  }`);
+    writer.writeLine(
+      `                  const keyPathValidation = keyPathValidators.${model.name}.safeParse(result.entityKeyPath);`,
+    );
+    writer.writeLine(`                  if (!keyPathValidation.success) {`);
+    writer.writeLine(
+      `                    throw new Error(\`KeyPath validation failed: \${keyPathValidation.error.message}\`);`,
+    );
+    writer.writeLine(`                  }`);
+
+    let whereClause: string;
     if (pkFields.length === 1) {
-      writer.writeLine(`                    whereClause = { ${pkFields[0]}: result.entityKeyPath[0] };`);
+      whereClause = `{ ${pkFields[0]}: keyPathValidation.data[0] }`;
     } else {
-      const compositeKey = pkFields.map((field, i) => `${field}: result.entityKeyPath[${i}]`).join(", ");
-      writer.writeLine(`                    whereClause = { ${pk.name}: { ${compositeKey} } };`);
+      const compositeKey = pkFields.map((field, i) => `${field}: keyPathValidation.data[${i}]`).join(", ");
+      whereClause = `{ ${pk.name}: { ${compositeKey} } }`;
     }
+
+    writer.writeLine(`                  await this.${modelProperty}.upsert({`);
+    writer.writeLine(`                    where: ${whereClause},`);
+    writer.writeLine(`                    update: recordValidation.data,`);
+    writer.writeLine(`                    create: recordValidation.data,`);
+    writer.writeLine(`                  }, undefined, true);`);
+    writer.writeLine(`                  break;`);
   });
-  writer.writeLine(`                    break;`);
-  writer.writeLine(`                  }`);
+  writer.writeLine(`                }`);
 }
 
 function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Model[]) {
@@ -172,32 +197,22 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Mod
         .writeLine(`        if (result.mergedRecord && result.entityKeyPath) {`)
         .writeLine(`          const originalEvent = toSync.find((e: OutboxEventRecord) => e.id === result.id);`)
         .writeLine(`          if (originalEvent) {`)
-        .writeLine(`            const modelStore = (this as any)[this.toCamelCase(originalEvent.entityType)];`)
-        .writeLine(`            if (modelStore && modelStore.upsert) {`)
-        .writeLine(`              try {`)
-        .writeLine(`                let whereClause: any;`)
-        .writeLine(`                switch (originalEvent.entityType) {`);
+        .writeLine(`            try {`)
+        .writeLine(`              switch (originalEvent.entityType) {`);
 
-      // Generate model-specific cases
+      // Generate model-specific cases with upsert logic
       models.forEach((model) => {
         generateModelUpsertCase(writer, model);
       });
 
       writer
-        .writeLine(`                  default:`)
-        .writeLine(`                    throw new Error(\`No upsert handler for \${originalEvent.entityType}\`);`)
-        .writeLine(`                }`)
-        .blankLine()
-        .writeLine(`                await modelStore.upsert({`)
-        .writeLine(`                  where: whereClause,`)
-        .writeLine(`                  update: result.mergedRecord,`)
-        .writeLine(`                  create: result.mergedRecord,`)
-        .writeLine(`                }, undefined, true);`)
-        .writeLine(`              } catch (upsertErr) {`)
-        .writeLine(
-          `                console.warn(\`Failed to upsert merged record for event \${result.id}:\`, upsertErr);`,
-        )
+        .writeLine(`                default:`)
+        .writeLine(`                  throw new Error(\`No upsert handler for \${originalEvent.entityType}\`);`)
         .writeLine(`              }`)
+        .writeLine(`            } catch (upsertErr) {`)
+        .writeLine(
+          `              console.warn(\`Failed to upsert merged record for event \${result.id}:\`, upsertErr);`,
+        )
         .writeLine(`            }`)
         .writeLine(`          }`)
         .writeLine(`        }`)

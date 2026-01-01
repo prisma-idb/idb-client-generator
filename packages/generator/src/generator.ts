@@ -7,6 +7,7 @@ import { createPrismaIDBClientFile } from "./fileCreators/prisma-idb-client/crea
 import { writeCodeFile } from "./helpers/fileWriting";
 import { createApplyPullFile } from "./fileCreators/apply-pull/create";
 import { parseGeneratorConfig } from "./helpers/parseGeneratorConfig";
+import { createValidatorsFile } from "./fileCreators/validators/create";
 
 generatorHandler({
   onManifest() {
@@ -34,6 +35,10 @@ generatorHandler({
     });
 
     if (outboxSync) {
+      await writeCodeFile("validators.ts", outputPath, (writer) => {
+        createValidatorsFile(writer, filteredModels);
+      });
+
       await writeCodeFile("server/batch-processor.ts", outputPath, (writer) => {
         createBatchProcessorFile(writer, filteredModels, prismaClientImport, prismaSingletonImport);
       });

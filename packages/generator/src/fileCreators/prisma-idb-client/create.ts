@@ -20,9 +20,11 @@ function addImports(
     .writeLine(`import * as IDBUtils from "./idb-utils";`);
 
   if (outboxSync) {
-    writer.writeLine(
-      `import type { OutboxEventRecord, PrismaIDBSchema, AppliedResult, SyncWorkerOptions, SyncWorker } from "./idb-interface";`,
-    );
+    writer
+      .writeLine(
+        `import type { OutboxEventRecord, PrismaIDBSchema, AppliedResult, SyncWorkerOptions, SyncWorker } from "./idb-interface";`,
+      )
+      .writeLine(`import { validators, keyPathValidators } from "../validators";`);
   } else {
     writer.writeLine(`import type { PrismaIDBSchema } from "./idb-interface";`);
   }

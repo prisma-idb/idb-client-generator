@@ -52,7 +52,7 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean) {
 
   writer
     .writeLine(
-      `protected emit(event: "create" | "update" | "delete", keyPath: PrismaIDBSchema[T]["key"], oldKeyPath?: PrismaIDBSchema[T]["key"], record?: Record<string, any>, silent?: boolean)`,
+      `protected emit(event: "create" | "update" | "delete", keyPath: PrismaIDBSchema[T]["key"], oldKeyPath?: PrismaIDBSchema[T]["key"], record?: unknown, silent?: boolean)`,
     )
     .block(() => {
       writer.writeLine(`if (silent) return;`).blankLine();

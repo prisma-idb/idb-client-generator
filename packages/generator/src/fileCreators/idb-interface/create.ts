@@ -74,7 +74,7 @@ function addSyncWorkerTypes(writer: CodeBlockWriter) {
     writer
       .writeLine(`id: string;`)
       .writeLine(`entityKeyPath: Array<string | number>;`)
-      .writeLine(`mergedRecord?: Record<string, any>;`)
+      .writeLine(`mergedRecord?: unknown;`)
       .writeLine(`serverVersion?: number | string;`)
       .writeLine(`error?: string | null;`);
   });

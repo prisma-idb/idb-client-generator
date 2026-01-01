@@ -30,7 +30,7 @@ export interface OutboxEventRecord {
 export interface AppliedResult {
 	id: string;
 	entityKeyPath: Array<string | number>;
-	mergedRecord?: Record<string, any>;
+	mergedRecord?: unknown;
 	serverVersion?: number | string;
 	error?: string | null;
 }

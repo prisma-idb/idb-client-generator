@@ -1,7 +1,6 @@
 import type CodeBlockWriter from "code-block-writer";
 import { getUniqueIdentifiers } from "../../helpers/utils";
 import { Model } from "../types";
-import { generateSlimModelValidator } from "./model-validator";
 
 export function createBatchProcessorFile(
   writer: CodeBlockWriter,
@@ -16,6 +15,7 @@ export function createBatchProcessorFile(
   writer.writeLine(`import type { OutboxEventRecord } from "../client/idb-interface";`);
   writer.writeLine(`import type { ChangeLog } from "${prismaClientImport}";`);
   writer.writeLine(`import { prisma } from "${prismaSingletonImport || "$lib/prisma"}";`);
+  writer.writeLine(`import { validators, keyPathValidators } from "../validators";`);
   writer.blankLine();
 
   // Write Op type
@@ -44,29 +44,12 @@ export function createBatchProcessorFile(
   writer.writeLine(`}[keyof V & string];`);
   writer.blankLine();
 
-  // Write validators constant
-  writer.writeLine(`export const validators = {`);
-  modelNames.forEach((modelName) => {
-    writer
-      .writeLine(`  ${modelName}: z.strictObject(`)
-      .block(() => {
-        const model = models.find((m) => m.name === modelName)!;
-        const fieldValidators = generateSlimModelValidator(model);
-        fieldValidators.forEach(({ field, zodType }) => {
-          writer.writeLine(`${field.name}: ${zodType},`);
-        });
-      })
-      .writeLine(`),`);
-  });
-  writer.writeLine(`} as const;`);
-  writer.blankLine();
-
   // Write sync handler type
   writer.writeLine(`export interface SyncResult {`);
   writer.writeLine(`  id: string;`);
   writer.writeLine(`  oldKeyPath?: Array<string | number>;`);
   writer.writeLine(`  entityKeyPath: Array<string | number>;`);
-  writer.writeLine(`  mergedRecord?: any;`);
+  writer.writeLine(`  mergedRecord?: unknown;`);
   writer.writeLine(`  serverVersion?: number;`);
   writer.writeLine(`  error?: string | null;`);
   writer.writeLine(`}`);
@@ -126,9 +109,7 @@ export function createBatchProcessorFile(
       const pkFields = JSON.parse(pk.keyPath) as string[];
 
       writer.writeLine(`      case "${model.name}": {`);
-      writer.writeLine(
-        `        const keyPathValidation = z.safeParse(z.tuple([${pkFields.map((_, i) => `z.${pk.keyPathTypes[i]}()`).join(", ")}]), log.keyPath);`,
-      );
+      writer.writeLine(`        const keyPathValidation = keyPathValidators.${model.name}.safeParse(log.keyPath);`);
       writer.writeLine(`        if (!keyPathValidation.success) {`);
       writer.writeLine(`          throw new Error("Invalid keyPath for ${model.name}");`);
       writer.writeLine(`        }`);
@@ -186,9 +167,7 @@ function generateModelSyncHandler(writer: CodeBlockWriter, model: Model) {
   );
   writer.block(() => {
     writer.writeLine(`const { id, entityKeyPath, operation } = event;`);
-    writer.writeLine(
-      `const keyPathValidation = z.safeParse(z.tuple([${pkFields.map((_, i) => `z.${pk.keyPathTypes[i]}()`).join(", ")}]), entityKeyPath);`,
-    );
+    writer.writeLine(`const keyPathValidation = keyPathValidators.${model.name}.safeParse(entityKeyPath);`);
     writer.writeLine(`if (!keyPathValidation.success) {`);
     writer.writeLine(`  throw new Error("Invalid entityKeyPath for ${model.name}");`);
     writer.writeLine(`}`);
