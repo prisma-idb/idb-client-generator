@@ -1,8 +1,7 @@
 import { z, type ZodTypeAny } from 'zod';
-import type { OutboxEventRecord, PrismaIDBSchema } from '../client/idb-interface';
-import type { ChangeLog } from '$lib/generated/prisma/client';
+import type { OutboxEventRecord } from '../client/idb-interface';
+import type { ChangeLog } from '../../generated/prisma/client';
 import { prisma } from '$lib/prisma';
-import { UserSchema, TodoSchema } from '$lib/generated/prisma-zod-generator/schemas/models';
 
 type Op = 'create' | 'update' | 'delete';
 
@@ -25,8 +24,16 @@ export type LogsWithRecords<V extends Partial<Record<string, ZodTypeAny>>> = {
 }[keyof V & string];
 
 export const validators = {
-	User: UserSchema,
-	Todo: TodoSchema
+	User: z.strictObject({
+		id: z.string(),
+		name: z.string()
+	}),
+	Todo: z.strictObject({
+		id: z.string(),
+		title: z.string(),
+		completed: z.boolean(),
+		userId: z.string()
+	})
 } as const;
 
 export interface SyncResult {

@@ -1,27 +1,20 @@
 import type CodeBlockWriter from "code-block-writer";
 import { getUniqueIdentifiers } from "../../helpers/utils";
 import { Model } from "../types";
+import { generateSlimModelValidator } from "./model-validator";
 
 export function createBatchProcessorFile(
   writer: CodeBlockWriter,
   models: readonly Model[],
   prismaClientImport: string,
-  usePrismaZodGenerator: boolean,
 ) {
   const modelNames = models.map((m) => m.name);
 
   // Write imports
   writer.writeLine(`import { z, type ZodTypeAny } from "zod";`);
-  writer.writeLine(`import type { OutboxEventRecord, PrismaIDBSchema } from "../client/idb-interface";`);
+  writer.writeLine(`import type { OutboxEventRecord } from "../client/idb-interface";`);
   writer.writeLine(`import type { ChangeLog } from "${prismaClientImport}";`);
   writer.writeLine(`import { prisma } from "$lib/prisma";`);
-
-  if (usePrismaZodGenerator) {
-    writer.writeLine(
-      `import { ${modelNames.map((name) => `${name}Schema`).join(", ")} } from "$lib/generated/prisma-zod-generator/schemas/models";`,
-    );
-  }
-
   writer.blankLine();
 
   // Write Op type
@@ -53,11 +46,16 @@ export function createBatchProcessorFile(
   // Write validators constant
   writer.writeLine(`export const validators = {`);
   modelNames.forEach((modelName) => {
-    if (usePrismaZodGenerator) {
-      writer.writeLine(`  ${modelName}: ${modelName}Schema,`);
-    } else {
-      writer.writeLine(`  // ${modelName}: z.object({ /* define schema */ }),`);
-    }
+    writer
+      .writeLine(`  ${modelName}: z.strictObject(`)
+      .block(() => {
+        const model = models.find((m) => m.name === modelName)!;
+        const fieldValidators = generateSlimModelValidator(model);
+        fieldValidators.forEach(({ field, zodType }) => {
+          writer.writeLine(`${field.name}: ${zodType},`);
+        });
+      })
+      .writeLine(`),`);
   });
   writer.writeLine(`} as const;`);
   writer.blankLine();

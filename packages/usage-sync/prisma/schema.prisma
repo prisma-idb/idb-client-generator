@@ -16,16 +16,8 @@ datasource db {
 generator prismaIDB {
   provider              = "idb-client-generator"
   output                = "../src/lib/prisma-idb"
-  prismaClientImport    = "$lib/generated/prisma/client"
   outboxSync            = "true"
-  usePrismaZodGenerator = "true"
   exclude               = ["ChangeLog"]
-}
-
-generator zod {
-  provider = "prisma-zod-generator"
-  output   = "../src/lib/generated/prisma-zod-generator"
-  config   = "./zod-generator.config.json"
 }
 
 model User {
