@@ -46,8 +46,15 @@ export class PrismaIDBClient {
 		batchSize?: number;
 		intervalMs?: number;
 		maxRetries?: number;
+		backoffBaseMs?: number;
 	}): SyncWorker {
-		const { syncHandler, batchSize = 20, intervalMs = 8000, maxRetries = 5 } = options;
+		const {
+			syncHandler,
+			batchSize = 20,
+			intervalMs = 8000,
+			maxRetries = 5,
+			backoffBaseMs = 1000
+		} = options;
 
 		let intervalId: ReturnType<typeof setInterval | typeof setTimeout> | null = null;
 		let isRunning = false;

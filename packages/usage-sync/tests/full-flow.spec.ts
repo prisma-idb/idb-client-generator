@@ -1,7 +1,10 @@
 import { test, expect } from './fixtures';
 
+test.beforeEach(async ({ page }) => {
+	await page.goto('http://localhost:4173/');
+});
+
 test('basic flow', async ({ page }) => {
-	await page.goto('http://localhost:5173/');
 	await page.getByRole('textbox', { name: 'User name' }).click();
 	await page.getByRole('textbox', { name: 'User name' }).fill('Yash');
 	await page.getByRole('textbox', { name: 'User name' }).press('Tab');
@@ -52,7 +55,6 @@ test('basic flow', async ({ page }) => {
 });
 
 test('delete propagation', async ({ page }) => {
-	await page.goto('http://localhost:5173/');
 	await page.getByRole('textbox', { name: 'User name' }).click();
 	await page.getByRole('textbox', { name: 'User name' }).fill('DeleteTest');
 	await page.getByRole('textbox', { name: 'User name' }).press('Tab');
@@ -133,7 +135,6 @@ test('delete propagation', async ({ page }) => {
 });
 
 test('update after create (ordering)', async ({ page }) => {
-	await page.goto('http://localhost:5173/');
 	await page.getByRole('textbox', { name: 'User name' }).click();
 	await page.getByRole('textbox', { name: 'User name' }).fill('UpdateTest');
 	await page.getByRole('textbox', { name: 'User name' }).press('Tab');
@@ -190,7 +191,6 @@ test('update after create (ordering)', async ({ page }) => {
 });
 
 test('retry / idempotency (resilience)', async ({ page }) => {
-	await page.goto('http://localhost:5173/');
 	await page.getByRole('textbox', { name: 'User name' }).click();
 	await page.getByRole('textbox', { name: 'User name' }).fill('IdempotencyTest');
 	await page.getByRole('textbox', { name: 'User name' }).press('Tab');
