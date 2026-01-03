@@ -29,7 +29,6 @@ export function addClientClass(
     addCreateInstanceMethod(writer);
     addResetDatabaseMethod(writer);
     addShouldTrackModelMethod(writer);
-    addToCamelCaseMethod(writer);
     if (outboxSync) {
       addCreateSyncWorkerMethod(writer, models);
     }
@@ -94,12 +93,6 @@ function addInitializeMethod(
 function addShouldTrackModelMethod(writer: CodeBlockWriter) {
   writer.writeLine(`shouldTrackModel(modelName: string): boolean`).block(() => {
     writer.writeLine(`return this.outboxEnabled && this.includedModels.has(modelName);`);
-  });
-}
-
-function addToCamelCaseMethod(writer: CodeBlockWriter) {
-  writer.writeLine(`private toCamelCase(str: string): string`).block(() => {
-    writer.writeLine(`return str.charAt(0).toLowerCase() + str.slice(1);`);
   });
 }
 

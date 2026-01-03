@@ -41,9 +41,6 @@ export class PrismaIDBClient {
 	shouldTrackModel(modelName: string): boolean {
 		return this.outboxEnabled && this.includedModels.has(modelName);
 	}
-	private toCamelCase(str: string): string {
-		return str.charAt(0).toLowerCase() + str.slice(1);
-	}
 	createSyncWorker(options: {
 		syncHandler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>;
 		batchSize?: number;

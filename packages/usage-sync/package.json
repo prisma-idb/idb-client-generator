@@ -13,7 +13,7 @@
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint .",
 		"test:e2e": "playwright test",
-		"test": "npm run test:e2e"
+		"generate": "prisma generate"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.4.1",

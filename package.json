@@ -4,7 +4,8 @@
     "format": "pnpm run -r format",
     "test": "pnpm run --filter @prisma-idb/idb-client-generator build && pnpm run --filter usage test",
     "dev": "pnpm run --filter usage dev",
-    "check": "pnpm run --filter usage check"
+    "check": "pnpm run --filter usage check",
+    "generate": "pnpm run --filter @prisma-idb/idb-client-generator build && pnpm run --filter usage generate && pnpm run --filter usage-sync generate"
   },
   "repository": {
     "type": "git",

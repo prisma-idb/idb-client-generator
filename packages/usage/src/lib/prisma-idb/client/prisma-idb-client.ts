@@ -63,9 +63,6 @@ export class PrismaIDBClient {
   shouldTrackModel(modelName: string): boolean {
     return this.outboxEnabled && this.includedModels.has(modelName);
   }
-  private toCamelCase(str: string): string {
-    return str.charAt(0).toLowerCase() + str.slice(1);
-  }
   private async initialize() {
     this._db = await openDB<PrismaIDBSchema>("prisma-idb", IDB_VERSION, {
       upgrade(db) {
