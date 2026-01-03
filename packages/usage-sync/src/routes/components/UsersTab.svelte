@@ -42,8 +42,7 @@
 				<Input
 					type="text"
 					placeholder="User name"
-					value={appState.newUserName}
-					onchange={(e) => (appState.newUserName = (e.target as HTMLInputElement).value)}
+					bind:value={appState.newUserName}
 					disabled={appState.isCreatingUser || !appState.client}
 					class="w-full"
 				/>

@@ -2,6 +2,7 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import type { AppState } from '$lib/store.svelte';
 	import { toast } from 'svelte-sonner';
+	import { syncBatch } from '../data.remote';
 
 	type PropsType = {
 		appState: AppState;
@@ -22,7 +23,6 @@
 			const syncWorker = appState.client.createSyncWorker({
 				syncHandler: async (events) => {
 					try {
-						const { syncBatch } = await import('../data.remote');
 						return await syncBatch(events);
 					} catch (err) {
 						const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -34,7 +34,7 @@
 					}
 				},
 				batchSize: 20,
-				intervalMs: 8000,
+				intervalMs: 0,
 				maxRetries: 5
 			});
 
@@ -93,14 +93,11 @@
 
 	async function clearLocalDatabase() {
 		try {
-			appState.isLoading = true;
-			await appState.client?.resetDatabase();
+			await appState.clearDatabaseAndRefresh();
 			toast.success('Local database cleared');
 		} catch (error) {
 			console.error('Error clearing local database:', error);
 			toast.error('Failed to clear local database');
-		} finally {
-			appState.isLoading = false;
 		}
 	}
 </script>
@@ -114,6 +111,7 @@
 				disabled={!appState.client || appState.isLoading || !!appState.syncWorker}
 				class="flex-1"
 				onclick={syncWithServer}
+				data-testid="start-sync-button"
 			>
 				{appState.syncWorker ? 'Syncing...' : 'Start Sync'}
 			</Button>
@@ -125,6 +123,7 @@
 						appState.stopSync();
 						toast.success('Sync stopped');
 					}}
+					data-testid="stop-sync-button"
 				>
 					Stop Sync
 				</Button>
@@ -137,15 +136,19 @@
 		<h2 class="mb-4 text-lg font-semibold">Sync Status</h2>
 		<div class="grid grid-cols-3 gap-2">
 			<div class="rounded-lg border p-3 text-center">
-				<div class="text-2xl font-bold">{appState.syncStats.unsynced}</div>
+				<div class="text-2xl font-bold" data-testid="sync-unsynced-count">
+					{appState.syncStats.unsynced}
+				</div>
 				<div class="text-xs text-muted-foreground">Unsynced</div>
 			</div>
 			<div class="rounded-lg border p-3 text-center">
-				<div class="text-2xl font-bold">{appState.syncStats.failed}</div>
+				<div class="text-2xl font-bold" data-testid="sync-failed-count">
+					{appState.syncStats.failed}
+				</div>
 				<div class="text-xs text-muted-foreground">Failed</div>
 			</div>
 			<div class="rounded-lg border p-3 text-center">
-				<div class="text-2xl font-bold">
+				<div class="text-2xl font-bold" data-testid="sync-total-count">
 					{appState.syncStats.unsynced + appState.syncStats.failed}
 				</div>
 				<div class="text-xs text-muted-foreground">Total</div>
@@ -169,6 +172,7 @@
 				disabled={!appState.client || appState.isLoading || appState.syncStats.failed === 0}
 				class="w-full"
 				onclick={handleRetrySyncedFailed}
+				data-testid="retry-failed-events-button"
 			>
 				{appState.isLoading ? 'Resetting...' : 'Retry Failed Events'}
 			</Button>
@@ -177,6 +181,7 @@
 				disabled={!appState.client || appState.clearingSynced}
 				class="w-full"
 				onclick={handleClearSyncedEvents}
+				data-testid="clear-synced-button"
 			>
 				{appState.clearingSynced ? 'Clearing...' : 'Clear Synced (7+ days)'}
 			</Button>
@@ -185,6 +190,7 @@
 				disabled={!appState.client || appState.isLoading}
 				class="w-full"
 				onclick={handleRefreshStats}
+				data-testid="refresh-stats-button"
 			>
 				Refresh Stats
 			</Button>
@@ -193,6 +199,7 @@
 				disabled={!appState.client || appState.isLoading}
 				class="w-full"
 				onclick={clearLocalDatabase}
+				data-testid="clear-database-button"
 			>
 				Clear local database
 			</Button>

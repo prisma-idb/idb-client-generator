@@ -55,8 +55,7 @@
 					<Input
 						type="text"
 						placeholder="What needs to be done?"
-						value={appState.newTodoTitle}
-						onchange={(e) => (appState.newTodoTitle = (e.target as HTMLInputElement).value)}
+						bind:value={appState.newTodoTitle}
 						disabled={appState.isLoading || !appState.client}
 						class="w-full"
 					/>
@@ -91,7 +90,7 @@
 				</div>
 			{:else}
 				<div class="space-y-2">
-					{#each appState.todos as todo (todo.id)}
+					{#each appState.todos.toSorted( (a, b) => a.title.localeCompare(b.title) ) as todo (todo.id)}
 						<div
 							class="flex items-center gap-3 rounded-md border p-3 transition-colors hover:bg-accent"
 						>
@@ -101,6 +100,7 @@
 								onclick={() => handleToggleTodo(todo.id, todo.completed)}
 								class="shrink-0 transition-colors hover:opacity-70"
 								title={todo.completed ? 'Mark as incomplete' : 'Mark as complete'}
+								data-testid="mark-as-{todo.completed ? 'complete' : 'incomplete'}-{todo.title}"
 							>
 								{#if todo.completed}
 									<CheckCircle2 class="h-5 w-5" />
@@ -120,6 +120,7 @@
 							<button
 								type="button"
 								onclick={() => handleDeleteTodo(todo.id)}
+								data-testid="delete-todo-{todo.title}"
 								class="shrink-0 transition-colors hover:text-destructive"
 								title="Delete todo"
 							>

@@ -46,22 +46,17 @@ export class PrismaIDBClient {
 		batchSize?: number;
 		intervalMs?: number;
 		maxRetries?: number;
-		backoffBaseMs?: number;
 	}): SyncWorker {
-		const {
-			syncHandler,
-			batchSize = 20,
-			intervalMs = 8000,
-			maxRetries = 5,
-			backoffBaseMs = 1000
-		} = options;
+		const { syncHandler, batchSize = 20, intervalMs = 8000, maxRetries = 5 } = options;
 
-		let intervalId: ReturnType<typeof setInterval> | null = null;
+		let intervalId: ReturnType<typeof setInterval | typeof setTimeout> | null = null;
 		let isRunning = false;
+		let isProcessing = false;
 
 		const processBatch = async (): Promise<void> => {
-			if (!isRunning) return;
+			if (!isRunning || isProcessing) return;
 
+			isProcessing = true;
 			try {
 				const batch = await this.$outbox.getNextBatch({ limit: batchSize });
 
@@ -171,27 +166,33 @@ export class PrismaIDBClient {
 				}
 			} catch (err) {
 				console.error('Sync worker error:', err);
+			} finally {
+				isProcessing = false;
 			}
 		};
 
-		const syncLoop = (): void => {
-			processBatch().catch((err) => {
+		const syncLoop = async (): Promise<void> => {
+			await processBatch().catch((err) => {
 				console.error('Unhandled error in sync loop:', err);
 			});
+			if (isRunning) {
+				intervalId = setTimeout(syncLoop, intervalMs);
+			}
 		};
 
 		return {
 			start(): void {
 				if (isRunning) return;
 				isRunning = true;
-				syncLoop();
-				intervalId = setInterval(syncLoop, intervalMs);
+				syncLoop().catch((err) => {
+					console.error('Unhandled error starting sync loop:', err);
+				});
 			},
 
 			stop(): void {
 				isRunning = false;
 				if (intervalId !== null) {
-					clearInterval(intervalId);
+					clearTimeout(intervalId);
 					intervalId = null;
 				}
 			}

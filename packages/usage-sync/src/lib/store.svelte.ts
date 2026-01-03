@@ -1,6 +1,9 @@
 import type { Prisma } from '$lib/generated/prisma/client';
 import type { SyncWorker } from '$lib/prisma-idb/client/idb-interface';
 import { PrismaIDBClient } from '$lib/prisma-idb/client/prisma-idb-client';
+import { applyPull } from '$lib/prisma-idb/client/apply-remote-changes';
+import type { LogsWithRecords } from './prisma-idb/server/batch-processor';
+import type { validators } from './prisma-idb/validators';
 
 export class AppState {
 	client = $state<PrismaIDBClient>();
@@ -263,6 +266,62 @@ export class AppState {
 
 	getCompletedTodoCount(): number {
 		return this.todos.filter((t) => t.completed).length;
+	}
+
+	async clearDatabaseAndRefresh() {
+		if (!this.client) return;
+		try {
+			this.isLoading = true;
+			await this.client.resetDatabase();
+
+			// Refresh all state
+			await Promise.all([
+				this.loadAllUsers(),
+				this.loadCurrentUser(),
+				this.loadTodos(),
+				this.loadSyncStats()
+			]);
+		} finally {
+			this.isLoading = false;
+		}
+	}
+
+	async pullChangesAndRefresh(
+		pullChangesFunc: (params: { scopeKey?: string; since?: number }) => Promise<{
+			cursor: number | bigint | undefined;
+			logsWithRecords: LogsWithRecords<typeof validators>[];
+		}>,
+		scopeKey?: string
+	): Promise<{ totalAppliedRecords: number; cursor: number | undefined }> {
+		if (!this.client) throw new Error('Client not initialized');
+
+		try {
+			this.isLoading = true;
+
+			const { cursor, logsWithRecords } = await pullChangesFunc({
+				scopeKey,
+				since: this.pullCursor
+			});
+
+			const { totalAppliedRecords } = await applyPull(this.client, logsWithRecords);
+
+			// Save the cursor for next pull (convert bigint to number if needed)
+			const cursorValue =
+				cursor !== undefined ? (typeof cursor === 'bigint' ? Number(cursor) : cursor) : undefined;
+			this.savePullCursor(cursorValue);
+
+			// Refresh all state
+			await Promise.all([
+				this.loadAllUsers(),
+				this.loadCurrentUser(),
+				this.loadTodos(),
+				this.loadSyncStats()
+			]);
+
+			return { totalAppliedRecords, cursor: cursorValue };
+		} finally {
+			this.isLoading = false;
+		}
 	}
 }
 

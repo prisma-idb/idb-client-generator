@@ -2,7 +2,6 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import { applyPull } from '$lib/prisma-idb/client/apply-remote-changes';
 	import type { AppState } from '$lib/store.svelte';
 	import { toast } from 'svelte-sonner';
 	import { pullChanges } from '../data.remote';
@@ -17,22 +16,21 @@
 
 	async function handlePull() {
 		if (!appState.client) return;
-		const parsedScopeKey = scopeKey.trim() === '' ? undefined : scopeKey.trim();
+		try {
+			const parsedScopeKey = scopeKey.trim() === '' ? undefined : scopeKey.trim();
 
-		const { cursor, logsWithRecords } = await pullChanges({
-			scopeKey: parsedScopeKey,
-			since: appState.pullCursor
-		});
-		const { totalAppliedRecords } = await applyPull(appState.client, logsWithRecords);
+			const { totalAppliedRecords, cursor } = await appState.pullChangesAndRefresh(
+				pullChanges,
+				parsedScopeKey
+			);
 
-		// Save the cursor for next pull (convert bigint to number if needed)
-		const cursorValue =
-			cursor !== undefined ? (typeof cursor === 'bigint' ? Number(cursor) : cursor) : undefined;
-		appState.savePullCursor(cursorValue);
-
-		toast.success('Pulled changes successfully!', {
-			description: `Applied ${totalAppliedRecords} records. Cursor: ${cursorValue ?? 'N/A'}`
-		});
+			toast.success('Pulled changes successfully!', {
+				description: `Applied ${totalAppliedRecords} records. Cursor: ${cursor ?? 'N/A'}`
+			});
+		} catch (error) {
+			console.error('Error pulling changes:', error);
+			toast.error('Failed to pull changes');
+		}
 	}
 </script>
 
@@ -48,16 +46,27 @@
 					bind:value={scopeKey}
 					placeholder="Enter scope key..."
 					class="w-full"
+					data-testid="scope-key-input"
 				/>
 			</div>
 
-			<div class="text-sm text-muted-foreground">
+			<div class="text-sm text-muted-foreground" data-testid="current-cursor-display">
 				Current cursor: {appState.pullCursor ?? 'Not set (will fetch all)'}
 			</div>
 
 			<div class="flex gap-2">
-				<Button onclick={handlePull} class="flex-1">Fetch Changes</Button>
-				<Button onclick={() => appState.clearPullCursor()} variant="outline">Reset Cursor</Button>
+				<Button
+					onclick={handlePull}
+					class="flex-1"
+					data-testid="fetch-changes-button"
+					disabled={appState.isLoading}
+					>{appState.isLoading ? 'Fetching...' : 'Fetch Changes'}</Button
+				>
+				<Button
+					onclick={() => appState.clearPullCursor()}
+					variant="outline"
+					data-testid="reset-cursor-button">Reset Cursor</Button
+				>
 			</div>
 		</div>
 	</div>
