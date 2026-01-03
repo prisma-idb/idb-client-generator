@@ -2,7 +2,9 @@
   "scripts": {
     "lint": "pnpm run -r lint",
     "format": "pnpm run -r format",
-    "test": "pnpm run --filter @prisma-idb/idb-client-generator build && pnpm run --filter usage test",
+    "test:client": "pnpm run --filter @prisma-idb/idb-client-generator build && pnpm run --filter usage test",
+    "test:sync": "pnpm run --filter @prisma-idb/idb-client-generator build && pnpm run --filter usage-sync test",
+    "test": "pnpm run test:client && pnpm run test:sync",
     "dev": "pnpm run --filter usage dev",
     "check": "pnpm run --filter usage check",
     "generate": "pnpm run --filter @prisma-idb/idb-client-generator build && pnpm run --filter usage generate && pnpm run --filter usage-sync generate"
