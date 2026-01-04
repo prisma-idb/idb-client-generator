@@ -19,10 +19,7 @@ export function generateSlimModelValidator(model: Model, enums: readonly DMMF.Da
     if (field.kind === "scalar") {
       return handleScalarField(model, field);
     }
-    if (field.kind === "enum") {
-      return handleEnumField(field, enums);
-    }
-    throw new Error(`Unsupported field kind: ${field.kind} in model: ${model.name}`);
+    return handleEnumField(field, enums);
   });
 }
 

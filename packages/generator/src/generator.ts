@@ -45,6 +45,10 @@ generatorHandler({
     }
 
     if (outboxSync) {
+      if (!prismaClientImport) {
+        throw new Error("Prisma Client import path is required when Outbox Sync is enabled.");
+      }
+
       await writeCodeFile("validators.ts", outputPath, (writer) => {
         createValidatorsFile(writer, filteredModels, options.dmmf.datamodel.enums);
       });
