@@ -7676,7 +7676,8 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
       for (const field of booleanFields) {
         if (!query._min[field]) continue;
         const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);
-        (minResult[field as keyof typeof minResult] as boolean) = values.includes(true);
+        (minResult[field as keyof typeof minResult] as boolean) =
+          values.length === 0 ? false : values.includes(false) ? false : true;
       }
       result._min = minResult;
     }
@@ -7704,7 +7705,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
       for (const field of booleanFields) {
         if (!query._max[field]) continue;
         const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);
-        (maxResult[field as keyof typeof maxResult] as boolean) = values.includes(true);
+        (maxResult[field as keyof typeof maxResult] as boolean) = values.length === 0 ? false : values.includes(true);
       }
       result._max = maxResult;
     }
@@ -14840,7 +14841,8 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       for (const field of booleanFields) {
         if (!query._min[field]) continue;
         const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);
-        (minResult[field as keyof typeof minResult] as boolean) = values.includes(true);
+        (minResult[field as keyof typeof minResult] as boolean) =
+          values.length === 0 ? false : values.includes(false) ? false : true;
       }
       result._min = minResult;
     }
@@ -14862,7 +14864,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       for (const field of booleanFields) {
         if (!query._max[field]) continue;
         const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);
-        (maxResult[field as keyof typeof maxResult] as boolean) = values.includes(true);
+        (maxResult[field as keyof typeof maxResult] as boolean) = values.length === 0 ? false : values.includes(true);
       }
       result._max = maxResult;
     }

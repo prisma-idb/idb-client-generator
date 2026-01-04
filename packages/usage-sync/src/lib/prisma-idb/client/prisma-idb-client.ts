@@ -1780,7 +1780,8 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 				const values = records
 					.map((record) => record[field] as boolean)
 					.filter((value) => value !== undefined);
-				(minResult[field as keyof typeof minResult] as boolean) = values.includes(true);
+				(minResult[field as keyof typeof minResult] as boolean) =
+					values.length === 0 ? false : values.includes(false) ? false : true;
 			}
 			result._min = minResult;
 		}
@@ -1800,7 +1801,8 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 				const values = records
 					.map((record) => record[field] as boolean)
 					.filter((value) => value !== undefined);
-				(maxResult[field as keyof typeof maxResult] as boolean) = values.includes(true);
+				(maxResult[field as keyof typeof maxResult] as boolean) =
+					values.length === 0 ? false : values.includes(true);
 			}
 			result._max = maxResult;
 		}
