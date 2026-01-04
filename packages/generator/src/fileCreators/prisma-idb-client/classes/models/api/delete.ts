@@ -86,6 +86,6 @@ function deleteAndReturnRecord(writer: CodeBlockWriter, model: Model) {
   const keyPath = pk.map((field) => `record.${field}`).join(", ");
   writer
     .writeLine(`await tx.objectStore("${model.name}").delete([${keyPath}]);`)
-    .writeLine(`this.emit("delete", [${keyPath}], undefined, record, silent);`)
+    .writeLine(`await this.emit("delete", [${keyPath}], undefined, record, silent);`)
     .writeLine(`return record;`);
 }

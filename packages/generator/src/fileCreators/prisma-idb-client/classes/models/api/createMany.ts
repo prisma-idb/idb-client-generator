@@ -28,7 +28,7 @@ function addTransactionalHandling(writer: CodeBlockWriter, model: Model) {
     writer
       .writeLine(`const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));`)
       .writeLine(`const keyPath = await tx.objectStore("${model.name}").add(record);`)
-      .writeLine(`this.emit("create", keyPath, undefined, record, silent);`);
+      .writeLine(`await this.emit("create", keyPath, undefined, record, silent);`);
   });
 }
 
