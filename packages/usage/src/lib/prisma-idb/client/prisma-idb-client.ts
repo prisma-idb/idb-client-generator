@@ -1465,10 +1465,11 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           >["data"],
         },
         tx,
+        silent,
       );
     }
     if (query.data.profile?.connect) {
-      await this.client.profile.update({ where: query.data.profile.connect, data: { userId: keyPath[0] } }, tx);
+      await this.client.profile.update({ where: query.data.profile.connect, data: { userId: keyPath[0] } }, tx, silent);
     }
     if (query.data.profile?.connectOrCreate) {
       if (query.data.profile?.connectOrCreate) {
@@ -1482,6 +1483,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
             update: { userId: keyPath[0] },
           },
           tx,
+          silent,
         );
       }
     }
@@ -1495,13 +1497,14 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
             >["data"],
           },
           tx,
+          silent,
         );
       }
     }
     if (query.data?.posts?.connect) {
       await Promise.all(
         IDBUtils.convertToArray(query.data.posts.connect).map(async (connectWhere) => {
-          await this.client.post.update({ where: connectWhere, data: { authorId: keyPath[0] } }, tx);
+          await this.client.post.update({ where: connectWhere, data: { authorId: keyPath[0] } }, tx, silent);
         }),
       );
     }
@@ -1517,6 +1520,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
               update: { authorId: keyPath[0] },
             },
             tx,
+            silent,
           );
         }),
       );
@@ -1530,6 +1534,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           })),
         },
         tx,
+        silent,
       );
     }
     if (query.data?.comments?.create) {
@@ -1545,13 +1550,14 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
             >["data"],
           },
           tx,
+          silent,
         );
       }
     }
     if (query.data?.comments?.connect) {
       await Promise.all(
         IDBUtils.convertToArray(query.data.comments.connect).map(async (connectWhere) => {
-          await this.client.comment.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx);
+          await this.client.comment.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx, silent);
         }),
       );
     }
@@ -1567,6 +1573,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
               update: { userId: keyPath[0] },
             },
             tx,
+            silent,
           );
         }),
       );
@@ -1580,6 +1587,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           })),
         },
         tx,
+        silent,
       );
     }
     if (query.data?.Mother?.create) {
@@ -1592,13 +1600,14 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
             >["data"],
           },
           tx,
+          silent,
         );
       }
     }
     if (query.data?.Mother?.connect) {
       await Promise.all(
         IDBUtils.convertToArray(query.data.Mother.connect).map(async (connectWhere) => {
-          await this.client.mother.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx);
+          await this.client.mother.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx, silent);
         }),
       );
     }
@@ -1614,6 +1623,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
               update: { userId: keyPath[0] },
             },
             tx,
+            silent,
           );
         }),
       );
@@ -1627,6 +1637,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           })),
         },
         tx,
+        silent,
       );
     }
     if (query.data?.Father?.create) {
@@ -1642,13 +1653,14 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
             >["data"],
           },
           tx,
+          silent,
         );
       }
     }
     if (query.data?.Father?.connect) {
       await Promise.all(
         IDBUtils.convertToArray(query.data.Father.connect).map(async (connectWhere) => {
-          await this.client.father.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx);
+          await this.client.father.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx, silent);
         }),
       );
     }
@@ -1664,6 +1676,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
               update: { userId: keyPath[0] },
             },
             tx,
+            silent,
           );
         }),
       );
@@ -1677,6 +1690,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           })),
         },
         tx,
+        silent,
       );
     }
     if (query.data?.Child?.create) {
@@ -1690,13 +1704,14 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
             >["data"],
           },
           tx,
+          silent,
         );
       }
     }
     if (query.data?.Child?.connect) {
       await Promise.all(
         IDBUtils.convertToArray(query.data.Child.connect).map(async (connectWhere) => {
-          await this.client.child.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx);
+          await this.client.child.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx, silent);
         }),
       );
     }
@@ -1712,6 +1727,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
               update: { userId: keyPath[0] },
             },
             tx,
+            silent,
           );
         }),
       );
@@ -1725,6 +1741,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           })),
         },
         tx,
+        silent,
       );
     }
     if (query.data?.groups?.create) {
@@ -1740,13 +1757,14 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
             >["data"],
           },
           tx,
+          silent,
         );
       }
     }
     if (query.data?.groups?.connect) {
       await Promise.all(
         IDBUtils.convertToArray(query.data.groups.connect).map(async (connectWhere) => {
-          await this.client.userGroup.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx);
+          await this.client.userGroup.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx, silent);
         }),
       );
     }
@@ -1762,6 +1780,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
               update: { userId: keyPath[0] },
             },
             tx,
+            silent,
           );
         }),
       );
@@ -1775,6 +1794,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           })),
         },
         tx,
+        silent,
       );
     }
     if (query.data?.todos?.create) {
@@ -1787,13 +1807,14 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
             >["data"],
           },
           tx,
+          silent,
         );
       }
     }
     if (query.data?.todos?.connect) {
       await Promise.all(
         IDBUtils.convertToArray(query.data.todos.connect).map(async (connectWhere) => {
-          await this.client.todo.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx);
+          await this.client.todo.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx, silent);
         }),
       );
     }
@@ -1809,6 +1830,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
               update: { userId: keyPath[0] },
             },
             tx,
+            silent,
           );
         }),
       );
@@ -1822,6 +1844,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           })),
         },
         tx,
+        silent,
       );
     }
     const data = (await tx.objectStore("User").get(keyPath))!;
@@ -3236,13 +3259,14 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
             >["data"],
           },
           tx,
+          silent,
         );
       }
     }
     if (query.data?.userGroups?.connect) {
       await Promise.all(
         IDBUtils.convertToArray(query.data.userGroups.connect).map(async (connectWhere) => {
-          await this.client.userGroup.update({ where: connectWhere, data: { groupId: keyPath[0] } }, tx);
+          await this.client.userGroup.update({ where: connectWhere, data: { groupId: keyPath[0] } }, tx, silent);
         }),
       );
     }
@@ -3258,6 +3282,7 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
               update: { groupId: keyPath[0] },
             },
             tx,
+            silent,
           );
         }),
       );
@@ -3271,6 +3296,7 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
           })),
         },
         tx,
+        silent,
       );
     }
     const data = (await tx.objectStore("Group").get(keyPath))!;
@@ -4072,7 +4098,7 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     if (query.data.group) {
       const fk: Partial<PrismaIDBSchema["Group"]["key"]> = [];
       if (query.data.group?.create) {
-        const record = await this.client.group.create({ data: query.data.group.create }, tx);
+        const record = await this.client.group.create({ data: query.data.group.create }, tx, silent);
         fk[0] = record.id;
       }
       if (query.data.group?.connect) {
@@ -4088,6 +4114,7 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
             update: {},
           },
           tx,
+          silent,
         );
         fk[0] = record.id;
       }
@@ -4105,7 +4132,7 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     if (query.data.user) {
       const fk: Partial<PrismaIDBSchema["User"]["key"]> = [];
       if (query.data.user?.create) {
-        const record = await this.client.user.create({ data: query.data.user.create }, tx);
+        const record = await this.client.user.create({ data: query.data.user.create }, tx, silent);
         fk[0] = record.id;
       }
       if (query.data.user?.connect) {
@@ -4121,6 +4148,7 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
             update: {},
           },
           tx,
+          silent,
         );
         fk[0] = record.id;
       }
@@ -4843,7 +4871,7 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     if (query.data.user) {
       const fk: Partial<PrismaIDBSchema["User"]["key"]> = [];
       if (query.data.user?.create) {
-        const record = await this.client.user.create({ data: query.data.user.create }, tx);
+        const record = await this.client.user.create({ data: query.data.user.create }, tx, silent);
         fk[0] = record.id;
       }
       if (query.data.user?.connect) {
@@ -4859,6 +4887,7 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
             update: {},
           },
           tx,
+          silent,
         );
         fk[0] = record.id;
       }
@@ -5702,7 +5731,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     if (query.data.author) {
       const fk: Partial<PrismaIDBSchema["User"]["key"]> = [];
       if (query.data.author?.create) {
-        const record = await this.client.user.create({ data: query.data.author.create }, tx);
+        const record = await this.client.user.create({ data: query.data.author.create }, tx, silent);
         fk[0] = record.id;
       }
       if (query.data.author?.connect) {
@@ -5718,6 +5747,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
             update: {},
           },
           tx,
+          silent,
         );
         fk[0] = record.id;
       }
@@ -5747,13 +5777,14 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
             >["data"],
           },
           tx,
+          silent,
         );
       }
     }
     if (query.data?.comments?.connect) {
       await Promise.all(
         IDBUtils.convertToArray(query.data.comments.connect).map(async (connectWhere) => {
-          await this.client.comment.update({ where: connectWhere, data: { postId: keyPath[0] } }, tx);
+          await this.client.comment.update({ where: connectWhere, data: { postId: keyPath[0] } }, tx, silent);
         }),
       );
     }
@@ -5769,6 +5800,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
               update: { postId: keyPath[0] },
             },
             tx,
+            silent,
           );
         }),
       );
@@ -5782,6 +5814,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
           })),
         },
         tx,
+        silent,
       );
     }
     const data = (await tx.objectStore("Post").get(keyPath))!;
@@ -6639,7 +6672,7 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     if (query.data.post) {
       const fk: Partial<PrismaIDBSchema["Post"]["key"]> = [];
       if (query.data.post?.create) {
-        const record = await this.client.post.create({ data: query.data.post.create }, tx);
+        const record = await this.client.post.create({ data: query.data.post.create }, tx, silent);
         fk[0] = record.id;
       }
       if (query.data.post?.connect) {
@@ -6655,6 +6688,7 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
             update: {},
           },
           tx,
+          silent,
         );
         fk[0] = record.id;
       }
@@ -6672,7 +6706,7 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     if (query.data.user) {
       const fk: Partial<PrismaIDBSchema["User"]["key"]> = [];
       if (query.data.user?.create) {
-        const record = await this.client.user.create({ data: query.data.user.create }, tx);
+        const record = await this.client.user.create({ data: query.data.user.create }, tx, silent);
         fk[0] = record.id;
       }
       if (query.data.user?.connect) {
@@ -6688,6 +6722,7 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
             update: {},
           },
           tx,
+          silent,
         );
         fk[0] = record.id;
       }
@@ -8364,7 +8399,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     if (query.data.wife) {
       const fk: Partial<PrismaIDBSchema["Mother"]["key"]> = [];
       if (query.data.wife?.create) {
-        const record = await this.client.mother.create({ data: query.data.wife.create }, tx);
+        const record = await this.client.mother.create({ data: query.data.wife.create }, tx, silent);
         fk[0] = record.firstName;
         fk[1] = record.lastName;
       }
@@ -8382,6 +8417,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
             update: {},
           },
           tx,
+          silent,
         );
         fk[0] = record.firstName;
         fk[1] = record.lastName;
@@ -8401,7 +8437,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     if (query.data.user) {
       const fk: Partial<PrismaIDBSchema["User"]["key"]> = [];
       if (query.data.user?.create) {
-        const record = await this.client.user.create({ data: query.data.user.create }, tx);
+        const record = await this.client.user.create({ data: query.data.user.create }, tx, silent);
         fk[0] = record.id;
       }
       if (query.data.user?.connect) {
@@ -8417,6 +8453,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
             update: {},
           },
           tx,
+          silent,
         );
         fk[0] = record.id;
       }
@@ -8446,6 +8483,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
             } as Prisma.Args<Prisma.ChildDelegate, "create">["data"],
           },
           tx,
+          silent,
         );
       }
     }
@@ -8455,6 +8493,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
           await this.client.child.update(
             { where: connectWhere, data: { fatherLastName: keyPath[1], fatherFirstName: keyPath[0] } },
             tx,
+            silent,
           );
         }),
       );
@@ -8473,6 +8512,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
               update: { fatherLastName: keyPath[1], fatherFirstName: keyPath[0] },
             },
             tx,
+            silent,
           );
         }),
       );
@@ -8487,6 +8527,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
           })),
         },
         tx,
+        silent,
       );
     }
     const data = (await tx.objectStore("Father").get(keyPath))!;
@@ -9663,7 +9704,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     if (query.data.user) {
       const fk: Partial<PrismaIDBSchema["User"]["key"]> = [];
       if (query.data.user?.create) {
-        const record = await this.client.user.create({ data: query.data.user.create }, tx);
+        const record = await this.client.user.create({ data: query.data.user.create }, tx, silent);
         fk[0] = record.id;
       }
       if (query.data.user?.connect) {
@@ -9679,6 +9720,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
             update: {},
           },
           tx,
+          silent,
         );
         fk[0] = record.id;
       }
@@ -9705,12 +9747,14 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
           } as Prisma.Args<Prisma.FatherDelegate, "create">["data"],
         },
         tx,
+        silent,
       );
     }
     if (query.data.husband?.connect) {
       await this.client.father.update(
         { where: query.data.husband.connect, data: { motherFirstName: keyPath[0], motherLastName: keyPath[1] } },
         tx,
+        silent,
       );
     }
     if (query.data.husband?.connectOrCreate) {
@@ -9726,6 +9770,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
             update: { motherFirstName: keyPath[0], motherLastName: keyPath[1] },
           },
           tx,
+          silent,
         );
       }
     }
@@ -9742,6 +9787,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
             } as Prisma.Args<Prisma.ChildDelegate, "create">["data"],
           },
           tx,
+          silent,
         );
       }
     }
@@ -9751,6 +9797,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
           await this.client.child.update(
             { where: connectWhere, data: { motherFirstName: keyPath[0], motherLastName: keyPath[1] } },
             tx,
+            silent,
           );
         }),
       );
@@ -9769,6 +9816,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
               update: { motherFirstName: keyPath[0], motherLastName: keyPath[1] },
             },
             tx,
+            silent,
           );
         }),
       );
@@ -9783,6 +9831,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
           })),
         },
         tx,
+        silent,
       );
     }
     const data = (await tx.objectStore("Mother").get(keyPath))!;
@@ -10964,7 +11013,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     if (query.data.user) {
       const fk: Partial<PrismaIDBSchema["User"]["key"]> = [];
       if (query.data.user?.create) {
-        const record = await this.client.user.create({ data: query.data.user.create }, tx);
+        const record = await this.client.user.create({ data: query.data.user.create }, tx, silent);
         fk[0] = record.id;
       }
       if (query.data.user?.connect) {
@@ -10980,6 +11029,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
             update: {},
           },
           tx,
+          silent,
         );
         fk[0] = record.id;
       }
@@ -10997,7 +11047,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     if (query.data.mother) {
       const fk: Partial<PrismaIDBSchema["Mother"]["key"]> = [];
       if (query.data.mother?.create) {
-        const record = await this.client.mother.create({ data: query.data.mother.create }, tx);
+        const record = await this.client.mother.create({ data: query.data.mother.create }, tx, silent);
         fk[0] = record.firstName;
         fk[1] = record.lastName;
       }
@@ -11015,6 +11065,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
             update: {},
           },
           tx,
+          silent,
         );
         fk[0] = record.firstName;
         fk[1] = record.lastName;
@@ -11034,7 +11085,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     if (query.data.father) {
       const fk: Partial<PrismaIDBSchema["Father"]["key"]> = [];
       if (query.data.father?.create) {
-        const record = await this.client.father.create({ data: query.data.father.create }, tx);
+        const record = await this.client.father.create({ data: query.data.father.create }, tx, silent);
         fk[0] = record.firstName;
         fk[1] = record.lastName;
       }
@@ -11052,6 +11103,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
             update: {},
           },
           tx,
+          silent,
         );
         fk[0] = record.firstName;
         fk[1] = record.lastName;
@@ -12928,7 +12980,7 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     if (query.data.link) {
       const fk: Partial<PrismaIDBSchema["ModelWithUniqueAttributes"]["key"]> = [];
       if (query.data.link?.create) {
-        const record = await this.client.modelWithUniqueAttributes.create({ data: query.data.link.create }, tx);
+        const record = await this.client.modelWithUniqueAttributes.create({ data: query.data.link.create }, tx, silent);
         fk[0] = record.id;
       }
       if (query.data.link?.connect) {
@@ -12947,6 +12999,7 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
             update: {},
           },
           tx,
+          silent,
         );
         fk[0] = record.id;
       }
@@ -13738,6 +13791,7 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
             >["data"],
           },
           tx,
+          silent,
         );
       }
     }
@@ -13747,6 +13801,7 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
           await this.client.modelWithOptionalRelationToUniqueAttributes.update(
             { where: connectWhere, data: { linkId: keyPath[0] } },
             tx,
+            silent,
           );
         }),
       );
@@ -13763,6 +13818,7 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
               update: { linkId: keyPath[0] },
             },
             tx,
+            silent,
           );
         }),
       );
@@ -13776,6 +13832,7 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
           })),
         },
         tx,
+        silent,
       );
     }
     const data = (await tx.objectStore("ModelWithUniqueAttributes").get(keyPath))!;
@@ -14509,7 +14566,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     if (query.data.user) {
       const fk: Partial<PrismaIDBSchema["User"]["key"]> = [];
       if (query.data.user?.create) {
-        const record = await this.client.user.create({ data: query.data.user.create }, tx);
+        const record = await this.client.user.create({ data: query.data.user.create }, tx, silent);
         fk[0] = record.id;
       }
       if (query.data.user?.connect) {
@@ -14525,6 +14582,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
             update: {},
           },
           tx,
+          silent,
         );
         fk[0] = record.id;
       }

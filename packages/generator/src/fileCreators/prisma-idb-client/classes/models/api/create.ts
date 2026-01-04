@@ -114,7 +114,7 @@ function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field, m
     .writeLine(`if (query.data.${field.name}?.create)`)
     .block(() => {
       writer.writeLine(
-        `const record = await this.client.${toCamelCase(field.type)}.create({ data: query.data.${field.name}.create }, tx);`,
+        `const record = await this.client.${toCamelCase(field.type)}.create({ data: query.data.${field.name}.create }, tx, silent);`,
       );
       for (let i = 0; i < otherModelKeyPath!.length; i++) {
         writer.writeLine(`fk[${i}] = record.${otherModelKeyPath?.at(i)}`);
@@ -138,7 +138,7 @@ function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field, m
       .writeLine(`where: query.data.${field.name}.connectOrCreate.where,`)
       .writeLine(`create: query.data.${field.name}.connectOrCreate.create,`)
       .writeLine(`update: {},`)
-      .writeLine(`}, tx);`);
+      .writeLine(`}, tx, silent);`);
     for (let i = 0; i < otherModelKeyPath!.length; i++) {
       writer.writeLine(`fk[${i}] = record.${otherModelKeyPath?.at(i)};`);
     }
@@ -168,11 +168,11 @@ function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Fie
           `data: { ...query.data.${field.name}.create, ${keyPathMapping} } as Prisma.Args<Prisma.${field.type}Delegate, "create">["data"]`,
         );
       })
-      .writeLine(`, tx)`);
+      .writeLine(`, tx, silent)`);
   });
   writer.writeLine(`if (query.data.${field.name}?.connect)`).block(() => {
     writer.writeLine(
-      `await this.client.${toCamelCase(field.type)}.update({ where: query.data.${field.name}.connect, data: { ${keyPathMapping} } }, tx);`,
+      `await this.client.${toCamelCase(field.type)}.update({ where: query.data.${field.name}.connect, data: { ${keyPathMapping} } }, tx, silent);`,
     );
   });
   writer.writeLine(`if (query.data.${field.name}?.connectOrCreate)`).block(() => {
@@ -184,7 +184,7 @@ function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Fie
           `create: { ...query.data.${field.name}.connectOrCreate.create, ${keyPathMapping} } as Prisma.Args<Prisma.${field.type}Delegate, "create">["data"],`,
         )
         .writeLine(`update: { ${keyPathMapping} },`)
-        .writeLine(`}, tx);`);
+        .writeLine(`}, tx, silent);`);
     });
   });
 }
@@ -197,7 +197,7 @@ function addOneToManyRelation(
   model: Model,
 ) {
   const getCreateQuery = (extraDataFields: string) =>
-    `await this.client.${toCamelCase(field.type)}.create({ data: { ...elem, ${extraDataFields} } as Prisma.Args<Prisma.${field.type}Delegate, "create">['data'] }, tx);`;
+    `await this.client.${toCamelCase(field.type)}.create({ data: { ...elem, ${extraDataFields} } as Prisma.Args<Prisma.${field.type}Delegate, "create">['data'] }, tx, silent);`;
 
   const modelPk = getUniqueIdentifiers(model)[0];
   const modelPkFields = JSON.parse(modelPk.keyPath) as string[];
@@ -245,7 +245,7 @@ function addOneToManyRelation(
           .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.connect).map(async (connectWhere) => `)
           .block(() => {
             writer.writeLine(
-              `await this.client.${toCamelCase(field.type)}.update({ where: connectWhere, data: { ${nestedDirectLine} } }, tx);`,
+              `await this.client.${toCamelCase(field.type)}.update({ where: connectWhere, data: { ${nestedDirectLine} } }, tx, silent);`,
             );
           })
           .writeLine(`),`);
@@ -268,7 +268,7 @@ function addOneToManyRelation(
                 `create: { ...connectOrCreate.create, ${nestedDirectLine} } as NonNullable<Prisma.Args<Prisma.${field.type}Delegate, "create">["data"]>,`,
               )
               .writeLine(`update: { ${nestedDirectLine} },`)
-              .writeLine(`}, tx);`);
+              .writeLine(`}, tx, silent);`);
           })
           .writeLine(`),`);
       })
@@ -285,7 +285,7 @@ function addOneToManyRelation(
           })
           .writeLine(`)),`);
       })
-      .writeLine(`, tx)`);
+      .writeLine(`, tx, silent)`);
   });
 }
 

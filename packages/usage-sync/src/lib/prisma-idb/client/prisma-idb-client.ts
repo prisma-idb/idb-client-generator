@@ -724,14 +724,19 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 							'create'
 						>['data']
 					},
-					tx
+					tx,
+					silent
 				);
 			}
 		}
 		if (query.data?.todos?.connect) {
 			await Promise.all(
 				IDBUtils.convertToArray(query.data.todos.connect).map(async (connectWhere) => {
-					await this.client.todo.update({ where: connectWhere, data: { userId: keyPath[0] } }, tx);
+					await this.client.todo.update(
+						{ where: connectWhere, data: { userId: keyPath[0] } },
+						tx,
+						silent
+					);
 				})
 			);
 		}
@@ -746,7 +751,8 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 							>,
 							update: { userId: keyPath[0] }
 						},
-						tx
+						tx,
+						silent
 					);
 				})
 			);
@@ -759,7 +765,8 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 						userId: keyPath[0]
 					}))
 				},
-				tx
+				tx,
+				silent
 			);
 		}
 		const data = (await tx.objectStore('User').get(keyPath))!;
@@ -1486,7 +1493,7 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 		if (query.data.user) {
 			const fk: Partial<PrismaIDBSchema['User']['key']> = [];
 			if (query.data.user?.create) {
-				const record = await this.client.user.create({ data: query.data.user.create }, tx);
+				const record = await this.client.user.create({ data: query.data.user.create }, tx, silent);
 				fk[0] = record.id;
 			}
 			if (query.data.user?.connect) {
@@ -1504,7 +1511,8 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 						create: query.data.user.connectOrCreate.create,
 						update: {}
 					},
-					tx
+					tx,
+					silent
 				);
 				fk[0] = record.id;
 			}
