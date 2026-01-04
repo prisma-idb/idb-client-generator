@@ -19,8 +19,6 @@ export interface ParsedGeneratorConfig {
 export function parseGeneratorConfig(options: GeneratorOptions): ParsedGeneratorConfig {
   const { models } = options.dmmf.datamodel;
   const outputPath = options.generator.output?.value as string;
-  const schemaPath = options.schemaPath;
-  const schemaDir = path.dirname(schemaPath);
   const generatorConfig = options.generator.config;
 
   // === Infer Prisma client import path ===
@@ -69,7 +67,7 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
   const exportEnums = generatorConfig.exportEnums === "true";
 
   // === Parse Prisma singleton import path ===
-  let prismaSingletonImport = (generatorConfig.prismaSingletonImport as string) ?? null;
+  const prismaSingletonImport = (generatorConfig.prismaSingletonImport as string) ?? null;
 
   // === Parse include/exclude patterns ===
   let include: string[] = ["*"];
