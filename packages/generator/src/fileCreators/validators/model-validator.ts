@@ -31,7 +31,7 @@ function handleScalarField(model: Model, field: Field) {
   }
 
   if (field.isList) {
-    zodType += `array(${mappedType})`;
+    zodType += `array(z.${mappedType})`;
   } else {
     zodType += mappedType;
   }
