@@ -745,7 +745,17 @@ export function genericComparator(
     returnValue = a.getTime() - b.getTime();
   }
   if (a instanceof Uint8Array && b instanceof Uint8Array) {
-    returnValue = a.length - b.length;
+    const n = Math.min(a.length, b.length);
+    for (let i = 0; i < n; i++) {
+      const diff = a[i] - b[i];
+      if (diff !== 0) {
+        returnValue = diff;
+        break;
+      }
+    }
+    if (returnValue === undefined) {
+      returnValue = a.length - b.length;
+    }
   }
   if (typeof a === "boolean" && typeof b === "boolean") {
     returnValue = a === b ? 0 : a ? 1 : -1;
