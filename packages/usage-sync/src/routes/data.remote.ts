@@ -24,8 +24,10 @@ export const syncBatch = command(z.array(batchRecordSchema), async (events) => {
 			return 'public';
 		}
 		if (event.entityType === 'Todo') {
-			const userId = (event.payload as Todo).userId;
-			return `user-${userId}`;
+			const validation = z.object({ userId: z.string() }).safeParse(event.payload);
+			if (validation.success) {
+				return `user-${validation.data.userId}`;
+			}
 		}
 		return 'default';
 	});

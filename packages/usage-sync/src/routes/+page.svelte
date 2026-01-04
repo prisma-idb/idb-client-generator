@@ -28,7 +28,7 @@
 
 	<Tabs.Root
 		value={state.activeTab}
-		onValueChange={(value) => (state.activeTab = value as 'users' | 'todos' | 'sync')}
+		onValueChange={(value) => (state.activeTab = value as 'users' | 'todos' | 'sync' | 'pull')}
 	>
 		<Tabs.List class="grid w-full grid-cols-4">
 			<Tabs.Trigger value="users">

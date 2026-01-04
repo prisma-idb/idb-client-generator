@@ -24,7 +24,7 @@ export class AppState {
 	});
 	showSyncDetails = $state(false);
 	clearingSynced = $state(false);
-	activeTab = $state<'users' | 'todos' | 'sync'>('users');
+	activeTab = $state<'users' | 'todos' | 'sync' | 'pull'>('users');
 	pullCursor = $state<number | undefined>(undefined);
 
 	constructor() {
