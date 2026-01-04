@@ -19,8 +19,6 @@ export interface ParsedGeneratorConfig {
 export function parseGeneratorConfig(options: GeneratorOptions): ParsedGeneratorConfig {
   const { models } = options.dmmf.datamodel;
   const outputPath = options.generator.output?.value as string;
-  const schemaPath = options.schemaPath;
-  const schemaDir = path.dirname(schemaPath);
   const generatorConfig = options.generator.config;
 
   // === Infer Prisma client import path ===
@@ -69,28 +67,7 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
   const exportEnums = generatorConfig.exportEnums === "true";
 
   // === Parse Prisma singleton import path ===
-  let prismaSingletonImport: string | null = null;
-  const prismaSingletonImportConfig = generatorConfig.prismaSingletonImport as string | undefined;
-
-  if (prismaSingletonImportConfig) {
-    try {
-      // Resolve both paths to absolute, then calculate relative
-      const serverDir = path.isAbsolute(outputPath)
-        ? path.join(outputPath, "server")
-        : path.resolve(schemaDir, outputPath, "server");
-
-      const singletonAbsPath = path.isAbsolute(prismaSingletonImportConfig)
-        ? prismaSingletonImportConfig
-        : path.resolve(schemaDir, prismaSingletonImportConfig);
-
-      // Calculate relative path from server directory to singleton
-      const relPath = path.relative(serverDir, singletonAbsPath).replace(/\\/g, "/");
-      prismaSingletonImport = relPath.startsWith("..") || relPath.startsWith(".") ? relPath : `./${relPath}`;
-    } catch {
-      // Fallback to the configured path if relative path computation fails
-      prismaSingletonImport = prismaSingletonImportConfig;
-    }
-  }
+  const prismaSingletonImport = (generatorConfig.prismaSingletonImport as string) ?? null;
 
   // === Parse include/exclude patterns ===
   let include: string[] = ["*"];

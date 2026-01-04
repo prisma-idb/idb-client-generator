@@ -16,7 +16,7 @@ datasource db {
 generator prismaIDB {
   provider              = "idb-client-generator"
   output                = "../src/lib/prisma-idb"
-  prismaSingletonImport = "../src/lib/prisma"
+  prismaSingletonImport = "$lib/prisma"
   outboxSync            = "true"
   exclude               = ["ChangeLog"]
 }

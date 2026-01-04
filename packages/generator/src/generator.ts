@@ -45,15 +45,19 @@ generatorHandler({
     }
 
     if (outboxSync) {
+      if (!prismaClientImport) {
+        throw new Error("Prisma Client import path is required when Outbox Sync is enabled.");
+      }
+
       await writeCodeFile("validators.ts", outputPath, (writer) => {
-        createValidatorsFile(writer, filteredModels);
+        createValidatorsFile(writer, filteredModels, options.dmmf.datamodel.enums);
       });
 
       await writeCodeFile("server/batch-processor.ts", outputPath, (writer) => {
         createBatchProcessorFile(writer, filteredModels, prismaClientImport, prismaSingletonImport);
       });
 
-      await writeCodeFile("client/apply-remote-changes.ts", outputPath, (writer) => {
+      await writeCodeFile("client/apply-pull.ts", outputPath, (writer) => {
         createApplyPullFile(writer, filteredModels);
       });
     }
