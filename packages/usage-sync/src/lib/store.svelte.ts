@@ -1,7 +1,7 @@
 import type { Prisma } from '$lib/generated/prisma/client';
 import type { SyncWorker } from '$lib/prisma-idb/client/idb-interface';
 import { PrismaIDBClient } from '$lib/prisma-idb/client/prisma-idb-client';
-import { applyPull } from '$lib/prisma-idb/client/apply-remote-changes';
+import { applyPull } from '$lib/prisma-idb/client/apply-pull';
 import type { LogsWithRecords } from './prisma-idb/server/batch-processor';
 import type { validators } from './prisma-idb/validators';
 

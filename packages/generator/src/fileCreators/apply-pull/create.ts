@@ -4,7 +4,8 @@ import { getUniqueIdentifiers } from "../../helpers/utils";
 
 export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
   // Write imports
-  writer.writeLine(`import type { LogsWithRecords, validators } from '../server/batch-processor';`);
+  writer.writeLine(`import type { LogsWithRecords } from '../server/batch-processor';`);
+  writer.writeLine(`import { validators } from '../validators';`);
   writer.writeLine(`import type { PrismaIDBClient } from './prisma-idb-client';`);
   writer.writeLine(`import { z } from 'zod';`);
   writer.blankLine();

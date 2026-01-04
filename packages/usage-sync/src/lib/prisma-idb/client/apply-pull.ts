@@ -1,4 +1,5 @@
-import type { LogsWithRecords, validators } from '../server/batch-processor';
+import type { LogsWithRecords } from '../server/batch-processor';
+import { validators } from '../validators';
 import type { PrismaIDBClient } from './prisma-idb-client';
 import { z } from 'zod';
 

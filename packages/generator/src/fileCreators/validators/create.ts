@@ -1,9 +1,14 @@
 import type CodeBlockWriter from "code-block-writer";
 import { getUniqueIdentifiers } from "../../helpers/utils";
 import { Model } from "../types";
-import { generateSlimModelValidator } from "../batch-processor/model-validator";
+import { generateSlimModelValidator } from "./model-validator";
+import type { DMMF } from "@prisma/generator-helper";
 
-export function createValidatorsFile(writer: CodeBlockWriter, models: readonly Model[]) {
+export function createValidatorsFile(
+  writer: CodeBlockWriter,
+  models: readonly Model[],
+  enums: readonly DMMF.DatamodelEnum[],
+) {
   const modelNames = models.map((m) => m.name);
 
   // Write imports
@@ -17,7 +22,7 @@ export function createValidatorsFile(writer: CodeBlockWriter, models: readonly M
       .writeLine(`  ${modelName}: z.strictObject(`)
       .block(() => {
         const model = models.find((m) => m.name === modelName)!;
-        const fieldValidators = generateSlimModelValidator(model);
+        const fieldValidators = generateSlimModelValidator(model, enums);
         fieldValidators.forEach(({ field, zodType }) => {
           writer.writeLine(`${field.name}: ${zodType},`);
         });
