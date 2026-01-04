@@ -11,11 +11,14 @@ export function createEnumsFile(writer: CodeBlockWriter, enums: readonly DMMF.Da
   writer.blankLine();
 
   enums.forEach((enumType) => {
-    writer.writeLine(`export const ${enumType.name} =`).block(() => {
-      enumType.values.forEach((value) => {
-        writer.writeLine(`${value.name}: "${value.name}",`);
-      });
-    });
+    writer
+      .writeLine(`export const ${enumType.name} = {`)
+      .indent(() => {
+        enumType.values.forEach((value) => {
+          writer.writeLine(`${value.name}: "${value.name}",`);
+        });
+      })
+      .writeLine("} as const;");
     writer.blankLine();
   });
 }

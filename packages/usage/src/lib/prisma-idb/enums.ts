@@ -4,4 +4,4 @@ export const MyEnum = {
   A: "A",
   B: "B",
   C: "C",
-};
+} as const;

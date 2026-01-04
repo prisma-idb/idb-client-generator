@@ -37,9 +37,11 @@ generatorHandler({
 
     if (exportEnums) {
       const enums = options.dmmf.datamodel.enums;
-      await writeCodeFile("enums.ts", outputPath, (writer) => {
-        createEnumsFile(writer, enums);
-      });
+      if (enums.length > 0) {
+        await writeCodeFile("enums.ts", outputPath, (writer) => {
+          createEnumsFile(writer, enums);
+        });
+      }
     }
 
     if (outboxSync) {
