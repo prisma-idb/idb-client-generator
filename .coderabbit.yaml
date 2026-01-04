@@ -1,0 +1,4 @@
+reviews:
+  path_filters:
+    - "!packages/usage/src/lib/ui/components/**"
+    - "!packages/usage-sync/src/lib/ui/components/**"

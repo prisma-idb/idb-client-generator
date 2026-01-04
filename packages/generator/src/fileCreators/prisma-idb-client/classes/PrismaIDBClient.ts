@@ -141,13 +141,11 @@ function generateModelUpsertCase(writer: CodeBlockWriter, model: Model) {
 function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Model[]) {
   writer
     .writeLine(
-      `createSyncWorker(options: { syncHandler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>; batchSize?: number; intervalMs?: number; maxRetries?: number; backoffBaseMs?: number }): SyncWorker`,
+      `createSyncWorker(options: { syncHandler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>; batchSize?: number; intervalMs?: number; maxRetries?: number }): SyncWorker`,
     )
     .block(() => {
       writer
-        .writeLine(
-          `const { syncHandler, batchSize = 20, intervalMs = 8000, maxRetries = 5, backoffBaseMs = 1000 } = options;`,
-        )
+        .writeLine(`const { syncHandler, batchSize = 20, intervalMs = 8000, maxRetries = 5 } = options;`)
         .blankLine()
         .writeLine(`let intervalId: ReturnType<typeof setInterval | typeof setTimeout> | null = null;`)
         .writeLine(`let isRunning = false;`)

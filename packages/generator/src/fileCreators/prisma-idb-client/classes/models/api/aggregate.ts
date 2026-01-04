@@ -226,8 +226,7 @@ function addMaxHandling(writer: CodeBlockWriter, model: Model) {
               `const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);`,
             )
             .writeLine(`(maxResult[field as keyof typeof maxResult] as boolean) = values.includes(true);`);
-        })
-        .writeLine(`result._max = maxResult;`);
+        });
     }
     writer.writeLine(`result._max = maxResult;`);
   });

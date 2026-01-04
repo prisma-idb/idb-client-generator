@@ -7672,7 +7672,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
         (maxResult[field as keyof typeof maxResult] as boolean) = values.includes(true);
       }
       result._max = maxResult;
-      result._max = maxResult;
     }
     if (query?._avg) {
       const avgResult = {} as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "aggregate">["_avg"];
@@ -14807,7 +14806,6 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
         const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);
         (maxResult[field as keyof typeof maxResult] as boolean) = values.includes(true);
       }
-      result._max = maxResult;
       result._max = maxResult;
     }
     if (query?._avg) {
