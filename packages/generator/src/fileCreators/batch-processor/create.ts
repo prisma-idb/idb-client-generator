@@ -14,7 +14,7 @@ export function createBatchProcessorFile(
   writer.writeLine(`import { z, type ZodTypeAny } from "zod";`);
   writer.writeLine(`import type { OutboxEventRecord } from "../client/idb-interface";`);
   writer.writeLine(`import type { ChangeLog } from "${prismaClientImport}";`);
-  writer.writeLine(`import { prisma } from "${prismaSingletonImport || "$lib/prisma"}";`);
+  writer.writeLine(`import { prisma } from "${prismaSingletonImport}";`);
   writer.writeLine(`import { validators, keyPathValidators } from "../validators";`);
   writer.blankLine();
 
