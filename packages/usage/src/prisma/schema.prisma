@@ -8,8 +8,9 @@ generator client {
 }
 
 generator prismaIDB {
-  provider              = "idb-client-generator"
-  output                = "../lib/prisma-idb"
+  provider    = "idb-client-generator"
+  output      = "../lib/prisma-idb"
+  exportEnums = true
 }
 
 model User {

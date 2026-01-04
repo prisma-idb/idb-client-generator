@@ -8,6 +8,7 @@ import { writeCodeFile } from "./helpers/fileWriting";
 import { createApplyPullFile } from "./fileCreators/apply-pull/create";
 import { parseGeneratorConfig } from "./helpers/parseGeneratorConfig";
 import { createValidatorsFile } from "./fileCreators/validators/create";
+import { createEnumsFile } from "./fileCreators/enums/create";
 
 generatorHandler({
   onManifest() {
@@ -19,7 +20,7 @@ generatorHandler({
 
   onGenerate: async (options: GeneratorOptions) => {
     const outputPath = options.generator.output?.value as string;
-    const { prismaClientImport, prismaSingletonImport, outboxSync, outboxModelName, filteredModels } =
+    const { prismaClientImport, prismaSingletonImport, outboxSync, outboxModelName, filteredModels, exportEnums } =
       parseGeneratorConfig(options);
 
     await writeCodeFile("client/prisma-idb-client.ts", outputPath, (writer) => {
@@ -33,6 +34,13 @@ generatorHandler({
     await writeCodeFile("client/idb-utils.ts", outputPath, (writer) => {
       createUtilsFile(writer, filteredModels, prismaClientImport, outboxSync);
     });
+
+    if (exportEnums) {
+      const enums = options.dmmf.datamodel.enums;
+      await writeCodeFile("enums.ts", outputPath, (writer) => {
+        createEnumsFile(writer, enums);
+      });
+    }
 
     if (outboxSync) {
       await writeCodeFile("validators.ts", outputPath, (writer) => {
