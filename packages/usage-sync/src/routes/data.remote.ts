@@ -1,5 +1,4 @@
 import { command } from '$app/server';
-import type { Todo } from '$lib/generated/prisma/client';
 import { prisma } from '$lib/prisma';
 import { applyPush, materializeLogs } from '$lib/prisma-idb/server/batch-processor';
 import z from 'zod';

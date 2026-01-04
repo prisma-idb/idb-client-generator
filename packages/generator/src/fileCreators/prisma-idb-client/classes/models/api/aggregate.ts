@@ -157,7 +157,9 @@ function addMinHandling(writer: CodeBlockWriter, model: Model) {
             .writeLine(
               `const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);`,
             )
-            .writeLine(`(minResult[field as keyof typeof minResult] as boolean) = values.length === 0 ? false : values.includes(false) ? false : true;`);
+            .writeLine(
+              `(minResult[field as keyof typeof minResult] as boolean) = values.length === 0 ? false : values.includes(false) ? false : true;`,
+            );
         });
     }
     writer.writeLine(`result._min = minResult;`);
@@ -225,7 +227,9 @@ function addMaxHandling(writer: CodeBlockWriter, model: Model) {
             .writeLine(
               `const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);`,
             )
-            .writeLine(`(maxResult[field as keyof typeof maxResult] as boolean) = values.length === 0 ? false : values.includes(true);`);
+            .writeLine(
+              `(maxResult[field as keyof typeof maxResult] as boolean) = values.length === 0 ? false : values.includes(true);`,
+            );
         });
     }
     writer.writeLine(`result._max = maxResult;`);
