@@ -1,23 +1,17 @@
 import { Model } from "src/fileCreators/types";
-import type { CodeBlockWriter, SourceFile } from "ts-morph";
+import type CodeBlockWriter from "code-block-writer";
 
-export function addStringListFilter(utilsFile: SourceFile, models: readonly Model[]) {
+export function addStringListFilter(writer: CodeBlockWriter, models: readonly Model[]) {
   const stringListFields = models
     .flatMap(({ fields }) => fields)
     .filter((field) => field.type === "String" && field.isList);
   if (stringListFields.length === 0) return;
 
-  utilsFile.addFunction({
-    name: "whereStringListFilter",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      { name: "scalarListFilter", type: "undefined | Prisma.StringNullableListFilter<unknown>" },
-    ],
-    returnType: "boolean",
-    statements: (writer) => {
+  writer
+    .writeLine(
+      `export function whereStringListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: undefined | Prisma.StringNullableListFilter<unknown>): boolean`,
+    )
+    .block(() => {
       writer
         .writeLine(`if (scalarListFilter === undefined) return true;`)
         .blankLine()
@@ -29,8 +23,7 @@ export function addStringListFilter(utilsFile: SourceFile, models: readonly Mode
       addHasEveryHandler(writer);
       addIsEmptyHandler(writer);
       writer.writeLine(`return true;`);
-    },
-  });
+    });
 }
 
 function addEqualsHandler(writer: CodeBlockWriter) {

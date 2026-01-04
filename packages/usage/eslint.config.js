@@ -1,8 +1,11 @@
 import prettier from "eslint-config-prettier";
+import { fileURLToPath } from "node:url";
 import js from "@eslint/js";
 import svelte from "eslint-plugin-svelte";
 import globals from "globals";
 import ts from "typescript-eslint";
+
+const tsconfigRootDir = fileURLToPath(new URL(".", import.meta.url));
 
 export default ts.config(
   js.configs.recommended,
@@ -10,6 +13,9 @@ export default ts.config(
   ...svelte.configs["flat/recommended"],
   prettier,
   ...svelte.configs["flat/prettier"],
+  {
+    ignores: ["src/lib/components/ui/**"],
+  },
   {
     languageOptions: {
       globals: {
@@ -24,6 +30,7 @@ export default ts.config(
     languageOptions: {
       parserOptions: {
         parser: ts.parser,
+        tsconfigRootDir,
       },
     },
   },

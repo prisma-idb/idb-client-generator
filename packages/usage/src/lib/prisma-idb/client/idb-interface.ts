@@ -1,6 +1,5 @@
-import * as Prisma from "$lib/generated/prisma/client";
 import type { DBSchema } from "idb";
-
+import type * as Prisma from "../../generated/prisma/client";
 export interface PrismaIDBSchema extends DBSchema {
   User: {
     key: [id: Prisma.User["id"]];
@@ -69,5 +68,9 @@ export interface PrismaIDBSchema extends DBSchema {
     indexes: {
       codeIndex: [code: Prisma.ModelWithUniqueAttributes["code"]];
     };
+  };
+  Todo: {
+    key: [id: Prisma.Todo["id"]];
+    value: Prisma.Todo;
   };
 }

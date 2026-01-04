@@ -15,8 +15,20 @@ function createIdentifierTuple(fieldNames: readonly string[], model: Model) {
   ).replaceAll('"', "");
 }
 
+const prismaToPrimitiveTypesMap = {
+  Int: "number",
+  Float: "number",
+  String: "string",
+  Boolean: "boolean",
+  DateTime: "Date",
+  Json: "Prisma.InputJsonValue",
+  BigInt: "bigint",
+  Decimal: "Prisma.Decimal",
+  Bytes: "Uint8Array",
+};
+
 export function getUniqueIdentifiers(model: Model) {
-  const uniqueIdentifiers: { name: string; keyPath: string; keyPathType: string }[] = [];
+  const uniqueIdentifiers: { name: string; keyPath: string; keyPathType: string; keyPathTypes: string[] }[] = [];
 
   if (model.primaryKey) {
     const name = model.primaryKey.name ?? model.primaryKey.fields.join("_");
@@ -24,6 +36,10 @@ export function getUniqueIdentifiers(model: Model) {
       name,
       keyPath: JSON.stringify(model.primaryKey.fields),
       keyPathType: createIdentifierTuple(model.primaryKey.fields, model),
+      keyPathTypes: model.primaryKey.fields.map((fieldName) => {
+        const field = model.fields.find(({ name }) => name === fieldName)!;
+        return prismaToPrimitiveTypesMap[field.type as keyof typeof prismaToPrimitiveTypesMap];
+      }),
     });
   }
 
@@ -33,6 +49,7 @@ export function getUniqueIdentifiers(model: Model) {
       name: idField.name,
       keyPath: JSON.stringify([idField.name]),
       keyPathType: createIdentifierTuple([idField.name], model),
+      keyPathTypes: [prismaToPrimitiveTypesMap[idField.type as keyof typeof prismaToPrimitiveTypesMap]],
     });
   }
 
@@ -43,6 +60,7 @@ export function getUniqueIdentifiers(model: Model) {
       name: uniqueField.name,
       keyPath: JSON.stringify([uniqueField.name]),
       keyPathType: createIdentifierTuple([uniqueField.name], model),
+      keyPathTypes: [prismaToPrimitiveTypesMap[uniqueField.type as keyof typeof prismaToPrimitiveTypesMap]],
     });
   });
 
@@ -54,6 +72,10 @@ export function getUniqueIdentifiers(model: Model) {
       name,
       keyPath: JSON.stringify(fields),
       keyPathType: createIdentifierTuple(fields, model),
+      keyPathTypes: fields.map((fieldName) => {
+        const field = model.fields.find(({ name }) => name === fieldName)!;
+        return prismaToPrimitiveTypesMap[field.type as keyof typeof prismaToPrimitiveTypesMap];
+      }),
     });
   });
 

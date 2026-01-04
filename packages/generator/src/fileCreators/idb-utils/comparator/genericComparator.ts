@@ -1,20 +1,11 @@
-import { CodeBlockWriter, SourceFile } from "ts-morph";
+import CodeBlockWriter from "code-block-writer";
 
-export function addGenericComparator(utilsFile: SourceFile) {
-  utilsFile.addFunction({
-    name: "genericComparator",
-    isExported: true,
-    parameters: [
-      { name: "a", type: "unknown" },
-      { name: "b", type: "unknown" },
-      {
-        name: "sortOrder",
-        type: `Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" }`,
-        initializer: `"asc"`,
-      },
-    ],
-    returnType: "number",
-    statements: (writer) => {
+export function addGenericComparator(writer: CodeBlockWriter) {
+  writer
+    .writeLine(
+      `export function genericComparator(a: unknown, b: unknown, sortOrder: Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } = "asc"): number`,
+    )
+    .block(() => {
       handleNullsSorting(writer);
       handleMultiplierAndReturnValueInit(writer);
 
@@ -27,8 +18,7 @@ export function addGenericComparator(utilsFile: SourceFile) {
       // TODO: decimal, json
 
       handleComparisonTypeErrorAndReturn(writer);
-    },
-  });
+    });
 }
 
 function handleNullsSorting(writer: CodeBlockWriter) {
@@ -88,7 +78,17 @@ function handleDateTimeComparison(writer: CodeBlockWriter) {
 
 function handleBytesComparison(writer: CodeBlockWriter) {
   writer.writeLine(`if (a instanceof Uint8Array && b instanceof Uint8Array)`).block(() => {
-    writer.writeLine(`returnValue = a.length - b.length;`);
+    writer.writeLine(`const n = Math.min(a.length, b.length);`);
+    writer.writeLine(`for (let i = 0; i < n; i++)`).block(() => {
+      writer.writeLine(`const diff = a[i] - b[i];`);
+      writer.writeLine(`if (diff !== 0)`).block(() => {
+        writer.writeLine(`returnValue = diff;`);
+        writer.writeLine(`break;`);
+      });
+    });
+    writer.writeLine(`if (returnValue === undefined)`).block(() => {
+      writer.writeLine(`returnValue = a.length - b.length;`);
+    });
   });
 }
 

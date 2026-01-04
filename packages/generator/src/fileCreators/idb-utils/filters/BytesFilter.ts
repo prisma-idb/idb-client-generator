@@ -1,7 +1,7 @@
 import type { Model } from "src/fileCreators/types";
-import type { CodeBlockWriter, SourceFile } from "ts-morph";
+import type CodeBlockWriter from "code-block-writer";
 
-export function addBytesFilter(utilsFile: SourceFile, models: readonly Model[]) {
+export function addBytesFilter(writer: CodeBlockWriter, models: readonly Model[]) {
   const bytesFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "Bytes");
   if (bytesFields.length === 0) return;
 
@@ -16,20 +16,11 @@ export function addBytesFilter(utilsFile: SourceFile, models: readonly Model[]) 
     filterType += " | null | Prisma.BytesNullableFilter<unknown>";
   }
 
-  utilsFile.addFunction({
-    name: "whereBytesFilter",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      {
-        name: "bytesFilter",
-        type: filterType,
-      },
-    ],
-    returnType: "boolean",
-    statements: (writer) => {
+  writer
+    .writeLine(
+      `export function whereBytesFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, bytesFilter: ${filterType}): boolean`,
+    )
+    .block(() => {
       writer
         .writeLine(`if (bytesFilter === undefined) return true;`)
         .blankLine()
@@ -58,8 +49,7 @@ export function addBytesFilter(utilsFile: SourceFile, models: readonly Model[]) 
           addNotInHandler(writer);
         })
         .writeLine(`return true;`);
-    },
-  });
+    });
 }
 
 function addEqualsHandler(writer: CodeBlockWriter) {

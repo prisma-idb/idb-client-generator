@@ -1,23 +1,17 @@
 import { Model } from "src/fileCreators/types";
-import type { CodeBlockWriter, SourceFile } from "ts-morph";
+import type CodeBlockWriter from "code-block-writer";
 
-export function addBigIntListFilter(utilsFile: SourceFile, models: readonly Model[]) {
+export function addBigIntListFilter(writer: CodeBlockWriter, models: readonly Model[]) {
   const bigIntListFields = models
     .flatMap(({ fields }) => fields)
     .filter((field) => field.type === "BigInt" && field.isList);
   if (bigIntListFields.length === 0) return;
 
-  utilsFile.addFunction({
-    name: "whereBigIntListFilter",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      { name: "scalarListFilter", type: "undefined | Prisma.BigIntNullableListFilter<unknown>" },
-    ],
-    returnType: "boolean",
-    statements: (writer) => {
+  writer
+    .writeLine(
+      `export function whereBigIntListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: undefined | Prisma.BigIntNullableListFilter<unknown>): boolean`,
+    )
+    .block(() => {
       writer
         .writeLine(`if (scalarListFilter === undefined) return true;`)
         .blankLine()
@@ -29,8 +23,7 @@ export function addBigIntListFilter(utilsFile: SourceFile, models: readonly Mode
       addHasEveryHandler(writer);
       addIsEmptyHandler(writer);
       writer.writeLine(`return true;`);
-    },
-  });
+    });
 }
 
 function addEqualsHandler(writer: CodeBlockWriter) {

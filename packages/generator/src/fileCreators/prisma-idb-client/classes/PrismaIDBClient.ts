@@ -1,24 +1,48 @@
-import { CodeBlockWriter } from "ts-morph";
-import { getUniqueIdentifiers, toCamelCase } from "../../../helpers/utils";
+import CodeBlockWriter from "code-block-writer";
+import { getUniqueIdentifiers, toCamelCase as toCamelCaseUtil } from "../../../helpers/utils";
+import { shouldTrackModel } from "../../outbox/utils";
 import { Model } from "../../types";
 
-export function addClientClass(writer: CodeBlockWriter, models: readonly Model[]) {
+export function addClientClass(
+  writer: CodeBlockWriter,
+  models: readonly Model[],
+  outboxSync: boolean = false,
+  outboxModelName: string = "OutboxEvent",
+  include: string[] = ["*"],
+  exclude: string[] = [],
+) {
   writer.writeLine(`export class PrismaIDBClient`).block(() => {
     writer
       .writeLine(`private static instance: PrismaIDBClient;`)
       .writeLine(`_db!: IDBPDatabase<PrismaIDBSchema>;`)
+      .writeLine(`private outboxEnabled: boolean = ${outboxSync};`)
+      .writeLine(`private includedModels: Set<string>;`)
       .blankLine()
-      .writeLine(`private constructor() {}`);
+      .writeLine(`private constructor() {`)
+      .writeLine(
+        `this.includedModels = new Set(${JSON.stringify(models.filter((m) => shouldTrackModel(m.name, include, exclude)).map((m) => m.name))});`,
+      )
+      .writeLine(`}`);
 
     addModelProperties(writer, models);
+    addOutboxProperty(writer, outboxSync, outboxModelName);
     addCreateInstanceMethod(writer);
     addResetDatabaseMethod(writer);
-    addInitializeMethod(writer, models);
+    addShouldTrackModelMethod(writer);
+    if (outboxSync) {
+      addCreateSyncWorkerMethod(writer, models);
+    }
+    addInitializeMethod(writer, models, outboxSync, outboxModelName);
   });
 }
 
 function addModelProperties(writer: CodeBlockWriter, models: readonly Model[]) {
-  models.forEach((model) => writer.writeLine(`${toCamelCase(model.name)}!: ${model.name}IDBClass;`));
+  models.forEach((model) => writer.writeLine(`${toCamelCaseUtil(model.name)}!: ${model.name}IDBClass;`));
+}
+
+function addOutboxProperty(writer: CodeBlockWriter, outboxSync: boolean, outboxModelName: string) {
+  if (!outboxSync) return;
+  writer.writeLine(`$outbox!: ${outboxModelName}IDBClass;`);
 }
 
 function addCreateInstanceMethod(writer: CodeBlockWriter) {
@@ -35,23 +59,196 @@ function addCreateInstanceMethod(writer: CodeBlockWriter) {
   });
 }
 
-function addInitializeMethod(writer: CodeBlockWriter, models: readonly Model[]) {
+function addInitializeMethod(
+  writer: CodeBlockWriter,
+  models: readonly Model[],
+  outboxSync: boolean = false,
+  outboxModelName: string = "OutboxEvent",
+) {
   writer.writeLine(`private async initialize()`).block(() => {
     writer
       .writeLine(`this._db = await openDB<PrismaIDBSchema>("prisma-idb", IDB_VERSION, `)
       .block(() => {
         writer.writeLine(`upgrade(db) `).block(() => {
           models.forEach((model) => addObjectStoreInitialization(model, writer));
+          if (outboxSync) {
+            addOutboxObjectStoreInitialization(writer, outboxModelName);
+          }
         });
       })
       .writeLine(`);`);
 
     models.forEach((model) => {
       writer.writeLine(
-        `this.${toCamelCase(model.name)} = new ${model.name}IDBClass(this, ${getUniqueIdentifiers(model)[0].keyPath});`,
+        `this.${toCamelCaseUtil(model.name)} = new ${model.name}IDBClass(this, ${getUniqueIdentifiers(model)[0].keyPath});`,
       );
     });
+
+    if (outboxSync) {
+      writer.writeLine(`this.$outbox = new ${outboxModelName}IDBClass(this, ['id']);`);
+    }
   });
+}
+
+function addShouldTrackModelMethod(writer: CodeBlockWriter) {
+  writer.writeLine(`shouldTrackModel(modelName: string): boolean`).block(() => {
+    writer.writeLine(`return this.outboxEnabled && this.includedModels.has(modelName);`);
+  });
+}
+
+function generateModelUpsertCase(writer: CodeBlockWriter, model: Model) {
+  const pk = getUniqueIdentifiers(model)[0];
+  const pkFields = JSON.parse(pk.keyPath) as string[];
+  const modelProperty = toCamelCaseUtil(model.name);
+
+  writer.writeLine(`                case "${model.name}": {`);
+  writer.block(() => {
+    writer.writeLine(
+      `                  const recordValidation = validators.${model.name}.safeParse(result.mergedRecord);`,
+    );
+    writer.writeLine(`                  if (!recordValidation.success) {`);
+    writer.writeLine(
+      `                    throw new Error(\`Record validation failed: \${recordValidation.error.message}\`);`,
+    );
+    writer.writeLine(`                  }`);
+    writer.writeLine(
+      `                  const keyPathValidation = keyPathValidators.${model.name}.safeParse(result.entityKeyPath);`,
+    );
+    writer.writeLine(`                  if (!keyPathValidation.success) {`);
+    writer.writeLine(
+      `                    throw new Error(\`KeyPath validation failed: \${keyPathValidation.error.message}\`);`,
+    );
+    writer.writeLine(`                  }`);
+
+    let whereClause: string;
+    if (pkFields.length === 1) {
+      whereClause = `{ ${pkFields[0]}: keyPathValidation.data[0] }`;
+    } else {
+      const compositeKey = pkFields.map((field, i) => `${field}: keyPathValidation.data[${i}]`).join(", ");
+      whereClause = `{ ${pk.name}: { ${compositeKey} } }`;
+    }
+
+    writer.writeLine(`                  await this.${modelProperty}.upsert({`);
+    writer.writeLine(`                    where: ${whereClause},`);
+    writer.writeLine(`                    update: recordValidation.data,`);
+    writer.writeLine(`                    create: recordValidation.data,`);
+    writer.writeLine(`                  }, undefined, true);`);
+    writer.writeLine(`                  break;`);
+  });
+  writer.writeLine(`                }`);
+}
+
+function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Model[]) {
+  writer
+    .writeLine(
+      `createSyncWorker(options: { syncHandler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>; batchSize?: number; intervalMs?: number; maxRetries?: number }): SyncWorker`,
+    )
+    .block(() => {
+      writer
+        .writeLine(`const { syncHandler, batchSize = 20, intervalMs = 8000, maxRetries = 5 } = options;`)
+        .blankLine()
+        .writeLine(`let intervalId: ReturnType<typeof setInterval | typeof setTimeout> | null = null;`)
+        .writeLine(`let isRunning = false;`)
+        .writeLine(`let isProcessing = false;`)
+        .blankLine()
+        .writeLine(`const processBatch = async (): Promise<void> => {`)
+        .writeLine(`  if (!isRunning || isProcessing) return;`)
+        .blankLine()
+        .writeLine(`  isProcessing = true;`)
+        .writeLine(`  try {`)
+        .writeLine(`    const batch = await this.$outbox.getNextBatch({ limit: batchSize });`)
+        .blankLine()
+        .writeLine(`    if (batch.length === 0) return;`)
+        .blankLine()
+        .writeLine(`    const toSync = batch.filter((event: OutboxEventRecord) => event.tries < maxRetries);`)
+        .writeLine(`    const abandoned = batch.filter((event: OutboxEventRecord) => event.tries >= maxRetries);`)
+        .blankLine()
+        .writeLine(`    for (const event of abandoned) {`)
+        .writeLine(`      await this.$outbox.markFailed(event.id, \`Abandoned after \${maxRetries} retries\`);`)
+        .writeLine(`    }`)
+        .blankLine()
+        .writeLine(`    if (toSync.length === 0) return;`)
+        .blankLine()
+        .writeLine(`    let results: AppliedResult[] = [];`)
+        .writeLine(`    try {`)
+        .writeLine(`      results = await syncHandler(toSync);`)
+        .writeLine(`    } catch (err) {`)
+        .writeLine(`      for (const event of toSync) {`)
+        .writeLine(`        const error = err instanceof Error ? err.message : String(err);`)
+        .writeLine(`        await this.$outbox.markFailed(event.id, error);`)
+        .writeLine(`      }`)
+        .writeLine(`      return;`)
+        .writeLine(`    }`)
+        .blankLine()
+        .writeLine(`    const successIds: string[] = [];`)
+        .writeLine(`    for (const result of results) {`)
+        .writeLine(`      if (result.error) {`)
+        .writeLine(`        await this.$outbox.markFailed(result.id, result.error);`)
+        .writeLine(`      } else {`)
+        .writeLine(`        successIds.push(result.id);`)
+        .blankLine()
+        .writeLine(`        if (result.mergedRecord && result.entityKeyPath) {`)
+        .writeLine(`          const originalEvent = toSync.find((e: OutboxEventRecord) => e.id === result.id);`)
+        .writeLine(`          if (originalEvent) {`)
+        .writeLine(`            try {`)
+        .writeLine(`              switch (originalEvent.entityType) {`);
+
+      // Generate model-specific cases with upsert logic
+      models.forEach((model) => {
+        generateModelUpsertCase(writer, model);
+      });
+
+      writer
+        .writeLine(`                default:`)
+        .writeLine(`                  throw new Error(\`No upsert handler for \${originalEvent.entityType}\`);`)
+        .writeLine(`              }`)
+        .writeLine(`            } catch (upsertErr) {`)
+        .writeLine(
+          `              console.warn(\`Failed to upsert merged record for event \${result.id}:\`, upsertErr);`,
+        )
+        .writeLine(`            }`)
+        .writeLine(`          }`)
+        .writeLine(`        }`)
+        .writeLine(`      }`)
+        .writeLine(`    }`)
+        .blankLine()
+        .writeLine(`    if (successIds.length > 0) {`)
+        .writeLine(`      await this.$outbox.markSynced(successIds, { syncedAt: new Date() });`)
+        .writeLine(`    }`)
+        .writeLine(`  } catch (err) {`)
+        .writeLine(`    console.error("Sync worker error:", err);`)
+        .writeLine(`  } finally {`)
+        .writeLine(`    isProcessing = false;`)
+        .writeLine(`  }`)
+        .writeLine(`};`)
+        .blankLine()
+        .writeLine(`const syncLoop = async (): Promise<void> => {`)
+        .writeLine(`  await processBatch().catch((err) => {`)
+        .writeLine(`    console.error("Unhandled error in sync loop:", err);`)
+        .writeLine(`  });`)
+        .writeLine(`  if (isRunning) {`)
+        .writeLine(`    intervalId = setTimeout(syncLoop, intervalMs);`)
+        .writeLine(`  }`)
+        .writeLine(`};`)
+        .blankLine()
+        .writeLine(`return {`)
+        .writeLine(`  start(): void {`)
+        .writeLine(`    if (isRunning) return;`)
+        .writeLine(`    isRunning = true;`)
+        .writeLine(`    syncLoop().catch((err) => {`)
+        .writeLine(`      console.error("Unhandled error starting sync loop:", err);`)
+        .writeLine(`    });`)
+        .writeLine(`  },`)
+        .blankLine()
+        .writeLine(`  stop(): void {`)
+        .writeLine(`    isRunning = false;`)
+        .writeLine(`    if (intervalId !== null) {`)
+        .writeLine(`      clearTimeout(intervalId);`)
+        .writeLine(`      intervalId = null;`)
+        .writeLine(`    }`)
+        .writeLine(`  },`)
+        .writeLine(`};`);
+    });
 }
 
 function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter) {
@@ -65,6 +262,10 @@ function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter) {
   nonKeyUniqueIdentifiers.forEach(({ name, keyPath }) =>
     writer.writeLine(`${model.name}Store.createIndex("${name}Index", ${keyPath}, { unique: true });`),
   );
+}
+
+function addOutboxObjectStoreInitialization(writer: CodeBlockWriter, outboxModelName: string) {
+  writer.writeLine(`db.createObjectStore('${outboxModelName}', { keyPath: ['id'] });`);
 }
 
 function addResetDatabaseMethod(writer: CodeBlockWriter) {

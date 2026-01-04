@@ -41,7 +41,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: "npx prisma db push --force-reset && npm run build && npm run preview",
+    command: "pnpm exec prisma db push --force-reset && pnpm build && pnpm preview",
     port: 4173,
     reuseExistingServer: false,
   },

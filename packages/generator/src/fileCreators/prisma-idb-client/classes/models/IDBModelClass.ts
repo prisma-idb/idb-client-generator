@@ -1,4 +1,4 @@
-import { CodeBlockWriter } from "ts-morph";
+import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../types";
 import { addAggregateMethod } from "./api/aggregate";
 import { addCountMethod } from "./api/count";
@@ -32,6 +32,7 @@ import { addResolveSortOrder } from "./utils/_resolveSortOrder";
 
 export function addIDBModelClass(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   writer.writeLine(`class ${model.name}IDBClass extends BaseIDBModelClass<"${model.name}">`).block(() => {
+    addConstructor(writer, model);
     addApplyWhereClause(writer, model, models);
     addApplySelectClause(writer, model);
     addApplyRelations(writer, model, models);
@@ -67,4 +68,13 @@ export function addIDBModelClass(writer: CodeBlockWriter, model: Model, models: 
 
     addAggregateMethod(writer, model);
   });
+}
+
+function addConstructor(writer: CodeBlockWriter, model: Model) {
+  writer
+    .writeLine(`constructor(client: PrismaIDBClient, keyPath: string[])`)
+    .block(() => {
+      writer.writeLine(`super(client, keyPath, "${model.name}");`);
+    })
+    .blankLine();
 }

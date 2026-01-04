@@ -5,7 +5,7 @@
   import { cn } from "$lib/utils";
   import { onMount } from "svelte";
   import { toast } from "svelte-sonner";
-  import { PrismaIDBClient } from "../prisma/prisma-idb/prisma-idb-client";
+  import { PrismaIDBClient } from "$lib/prisma-idb/client/prisma-idb-client";
 
   let client = $state<PrismaIDBClient>();
   let query = $state("");

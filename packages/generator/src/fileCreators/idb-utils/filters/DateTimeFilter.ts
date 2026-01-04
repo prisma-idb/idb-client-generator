@@ -1,7 +1,7 @@
 import type { Model } from "src/fileCreators/types";
-import type { CodeBlockWriter, SourceFile } from "ts-morph";
+import type CodeBlockWriter from "code-block-writer";
 
-export function addDateTimeFilter(utilsFile: SourceFile, models: readonly Model[]) {
+export function addDateTimeFilter(writer: CodeBlockWriter, models: readonly Model[]) {
   const dateTimeFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "DateTime");
   if (dateTimeFields.length === 0) return;
 
@@ -16,20 +16,11 @@ export function addDateTimeFilter(utilsFile: SourceFile, models: readonly Model[
     filterType += " | null | Prisma.DateTimeNullableFilter<unknown>";
   }
 
-  utilsFile.addFunction({
-    name: "whereDateTimeFilter",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      {
-        name: "dateTimeFilter",
-        type: filterType,
-      },
-    ],
-    returnType: "boolean",
-    statements: (writer) => {
+  writer
+    .writeLine(
+      `export function whereDateTimeFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, dateTimeFilter: ${filterType}): boolean`,
+    )
+    .block(() => {
       writer
         .writeLine(`if (dateTimeFilter === undefined) return true;`)
         .blankLine()
@@ -54,8 +45,7 @@ export function addDateTimeFilter(utilsFile: SourceFile, models: readonly Model[
           addGteHandler(writer);
         })
         .writeLine(`return true;`);
-    },
-  });
+    });
 }
 
 function addEqualsHandler(writer: CodeBlockWriter) {

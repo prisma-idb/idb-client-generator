@@ -1,4 +1,4 @@
-import { SourceFile, VariableDeclarationKind } from "ts-morph";
+import CodeBlockWriter from "code-block-writer";
 import { Model } from "../types";
 import { addGenericComparator } from "./comparator/genericComparator";
 import { addBigIntFilter } from "./filters/BigIntFilter";
@@ -16,6 +16,7 @@ import { addStringListFilter } from "./listFilters/StringListFilter";
 import { addApplyLogicalFilters } from "./logicalFilters/applyLogicalFilters";
 import { addIntersectArraysByNestedKeyFunction } from "./logicalFilters/intersectArraysByNestedKey";
 import { addRemoveDuplicatesByKeyPath } from "./logicalFilters/removeDuplicatesByKeyPath";
+import { addSyncWorkerCode } from "./syncWorker/create";
 import { addBigIntUpdateHandler } from "./updateHandlers/BigIntHandler";
 import { addBooleanUpdateHandler } from "./updateHandlers/BooleanHandler";
 import { addBytesUpdateHandler } from "./updateHandlers/BytesHandler";
@@ -26,71 +27,64 @@ import { addIntUpdateHandler } from "./updateHandlers/IntHandler";
 import { addScalarListUpdateHandler } from "./updateHandlers/ScalarListHandler";
 import { addStringUpdateHandler } from "./updateHandlers/StringHandler";
 
-export function createUtilsFile(idbUtilsFile: SourceFile, models: readonly Model[], prismaClientImport: string) {
-  idbUtilsFile.addImportDeclarations([
-    { moduleSpecifier: "idb", isTypeOnly: true, namedImports: ["IDBPTransaction", "StoreNames"] },
-    { moduleSpecifier: "./idb-interface", isTypeOnly: true, namedImports: ["PrismaIDBSchema"] },
-    { moduleSpecifier: prismaClientImport, isTypeOnly: true, namedImports: ["Prisma"] },
-  ]);
+export function createUtilsFile(
+  writer: CodeBlockWriter,
+  models: readonly Model[],
+  prismaClientImport: string,
+  outboxSync: boolean = false,
+) {
+  writer.writeLine(`import type { IDBPTransaction, StoreNames } from "idb";`);
+  writer.writeLine(`import type { PrismaIDBSchema } from "./idb-interface";`);
+  writer.writeLine(`import type { Prisma } from "${prismaClientImport}";`);
+  writer.blankLine();
 
-  idbUtilsFile.addFunction({
-    name: "convertToArray",
-    typeParameters: [{ name: "T" }],
-    parameters: [{ name: "arg", type: "T | T[]" }],
-    returnType: "T[]",
-    isExported: true,
-    statements: (writer) => writer.writeLine("return Array.isArray(arg) ? arg : [arg];"),
+  writer.writeLine("export function convertToArray<T>(arg: T | T[]): T[]").block(() => {
+    writer.writeLine("return Array.isArray(arg) ? arg : [arg];");
   });
 
-  idbUtilsFile.addTypeAlias({
-    isExported: true,
-    name: "ReadwriteTransactionType",
-    type: `IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readwrite">;`,
-  });
-  idbUtilsFile.addTypeAlias({
-    isExported: true,
-    name: "ReadonlyTransactionType",
-    type: `IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readonly">;`,
-  });
-  idbUtilsFile.addTypeAlias({
-    isExported: true,
-    name: "TransactionType",
-    type: `ReadonlyTransactionType | ReadwriteTransactionType;`,
-  });
+  writer.writeLine(
+    `export type ReadwriteTransactionType = IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readwrite">;`,
+  );
+  writer.writeLine(
+    `export type ReadonlyTransactionType = IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readonly">;`,
+  );
+  writer.writeLine(`export type TransactionType = ReadonlyTransactionType | ReadwriteTransactionType;`);
+  writer.blankLine();
 
-  idbUtilsFile.addVariableStatement({
-    declarations: [{ name: "LogicalParams", initializer: `["AND", "OR", "NOT"] as const` }],
-    declarationKind: VariableDeclarationKind.Const,
-    isExported: true,
-  });
+  writer.writeLine(`export const LogicalParams = ["AND", "OR", "NOT"] as const;`);
+  writer.blankLine();
 
-  addIntersectArraysByNestedKeyFunction(idbUtilsFile);
-  addRemoveDuplicatesByKeyPath(idbUtilsFile);
-  addApplyLogicalFilters(idbUtilsFile);
+  addIntersectArraysByNestedKeyFunction(writer);
+  addRemoveDuplicatesByKeyPath(writer);
+  addApplyLogicalFilters(writer);
 
-  addStringFilter(idbUtilsFile, models);
-  addNumberFilter(idbUtilsFile, models);
-  addBigIntFilter(idbUtilsFile, models);
-  addBoolFilter(idbUtilsFile, models);
-  addBytesFilter(idbUtilsFile, models);
-  addDateTimeFilter(idbUtilsFile, models);
+  addStringFilter(writer, models);
+  addNumberFilter(writer, models);
+  addBigIntFilter(writer, models);
+  addBoolFilter(writer, models);
+  addBytesFilter(writer, models);
+  addDateTimeFilter(writer, models);
 
-  addStringListFilter(idbUtilsFile, models);
-  addNumberListFilter(idbUtilsFile, models);
-  addBigIntListFilter(idbUtilsFile, models);
-  addBooleanListFilter(idbUtilsFile, models);
-  addBytesListFilter(idbUtilsFile, models);
-  addDateTimeListFilter(idbUtilsFile, models);
+  addStringListFilter(writer, models);
+  addNumberListFilter(writer, models);
+  addBigIntListFilter(writer, models);
+  addBooleanListFilter(writer, models);
+  addBytesListFilter(writer, models);
+  addDateTimeListFilter(writer, models);
 
-  addStringUpdateHandler(idbUtilsFile, models);
-  addBooleanUpdateHandler(idbUtilsFile, models);
-  addDateTimeUpdateHandler(idbUtilsFile, models);
-  addBytesUpdateHandler(idbUtilsFile, models);
-  addIntUpdateHandler(idbUtilsFile, models);
-  addBigIntUpdateHandler(idbUtilsFile, models);
-  addFloatUpdateHandler(idbUtilsFile, models);
-  addEnumUpdateHandler(idbUtilsFile, models);
-  addScalarListUpdateHandler(idbUtilsFile, models);
+  addStringUpdateHandler(writer, models);
+  addBooleanUpdateHandler(writer, models);
+  addDateTimeUpdateHandler(writer, models);
+  addBytesUpdateHandler(writer, models);
+  addIntUpdateHandler(writer, models);
+  addBigIntUpdateHandler(writer, models);
+  addFloatUpdateHandler(writer, models);
+  addEnumUpdateHandler(writer, models);
+  addScalarListUpdateHandler(writer, models);
 
-  addGenericComparator(idbUtilsFile);
+  addGenericComparator(writer);
+
+  if (outboxSync) {
+    addSyncWorkerCode(writer);
+  }
 }

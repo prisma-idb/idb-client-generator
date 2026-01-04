@@ -1,7 +1,7 @@
 import { Model } from "src/fileCreators/types";
-import type { SourceFile } from "ts-morph";
+import type CodeBlockWriter from "code-block-writer";
 
-export function addBigIntUpdateHandler(utilsFile: SourceFile, models: readonly Model[]) {
+export function addBigIntUpdateHandler(writer: CodeBlockWriter, models: readonly Model[]) {
   const bigIntFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "BigInt");
   if (bigIntFields.length === 0) return;
 
@@ -19,24 +19,16 @@ export function addBigIntUpdateHandler(utilsFile: SourceFile, models: readonly M
     fieldType += " | null";
   }
 
-  utilsFile.addFunction({
-    name: "handleBigIntUpdateField",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      {
-        name: "bigIntUpdate",
-        type: updateOperationType,
-      },
-    ],
-    statements: (writer) => {
+  writer
+    .writeLine(
+      `export function handleBigIntUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, bigIntUpdate: ${updateOperationType}): void`,
+    )
+    .block(() => {
       writer
         .writeLine(`if (bigIntUpdate === undefined) return;`)
-        .write(`if (typeof bigIntUpdate === "bigint" || typeof bigIntUpdate === "number"`)
-        .conditionalWrite(nullableBigIntFieldPresent, ` || bigIntUpdate === null`)
-        .writeLine(`)`)
+        .writeLine(
+          `if (typeof bigIntUpdate === "bigint" || typeof bigIntUpdate === "number"${nullableBigIntFieldPresent ? ` || bigIntUpdate === null` : ""})`,
+        )
         .block(() => {
           if (nullableBigIntFieldPresent) {
             writer.writeLine(
@@ -72,6 +64,5 @@ export function addBigIntUpdateHandler(utilsFile: SourceFile, models: readonly M
         .block(() => {
           writer.writeLine(`(record[fieldName] as bigint) /= BigInt(bigIntUpdate.divide);`);
         });
-    },
-  });
+    });
 }

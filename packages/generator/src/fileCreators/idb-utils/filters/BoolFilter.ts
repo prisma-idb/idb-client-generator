@@ -1,7 +1,7 @@
 import type { Model } from "src/fileCreators/types";
-import type { CodeBlockWriter, SourceFile } from "ts-morph";
+import type CodeBlockWriter from "code-block-writer";
 
-export function addBoolFilter(utilsFile: SourceFile, models: readonly Model[]) {
+export function addBoolFilter(writer: CodeBlockWriter, models: readonly Model[]) {
   const booleanFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "Boolean");
   if (booleanFields.length === 0) return;
 
@@ -16,20 +16,11 @@ export function addBoolFilter(utilsFile: SourceFile, models: readonly Model[]) {
     filterType += " | null | Prisma.BoolNullableFilter<unknown>";
   }
 
-  utilsFile.addFunction({
-    name: "whereBoolFilter",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      {
-        name: "boolFilter",
-        type: filterType,
-      },
-    ],
-    returnType: "boolean",
-    statements: (writer) => {
+  writer
+    .writeLine(
+      `export function whereBoolFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, boolFilter: ${filterType}): boolean`,
+    )
+    .block(() => {
       writer
         .writeLine(`if (boolFilter === undefined) return true;`)
         .blankLine()
@@ -46,8 +37,7 @@ export function addBoolFilter(utilsFile: SourceFile, models: readonly Model[]) {
           addNotHandler(writer);
         })
         .writeLine(`return true;`);
-    },
-  });
+    });
 }
 
 function addEqualsHandler(writer: CodeBlockWriter) {

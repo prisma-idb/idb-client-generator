@@ -1,0 +1,5 @@
+{
+  "$schema": "../../node_modules/prisma-zod-generator/lib/config/schema.json",
+  "pureModels": true,
+  "pureModelsIncludeRelations": false
+}

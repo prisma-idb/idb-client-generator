@@ -1,7 +1,7 @@
 import { Model } from "src/fileCreators/types";
-import type { SourceFile } from "ts-morph";
+import type CodeBlockWriter from "code-block-writer";
 
-export function addBooleanUpdateHandler(utilsFile: SourceFile, models: readonly Model[]) {
+export function addBooleanUpdateHandler(writer: CodeBlockWriter, models: readonly Model[]) {
   const booleanFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "Boolean");
   if (booleanFields.length === 0) return;
 
@@ -19,30 +19,21 @@ export function addBooleanUpdateHandler(utilsFile: SourceFile, models: readonly 
     fieldType += " | null";
   }
 
-  utilsFile.addFunction({
-    name: "handleBooleanUpdateField",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      {
-        name: "booleanUpdate",
-        type: updateOperationType,
-      },
-    ],
-    statements: (writer) => {
+  writer
+    .writeLine(
+      `export function handleBooleanUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, booleanUpdate: ${updateOperationType}): void`,
+    )
+    .block(() => {
       writer
         .writeLine(`if (booleanUpdate === undefined) return;`)
-        .write(`if (typeof booleanUpdate === "boolean"`)
-        .conditionalWrite(nullableBooleanFieldPresent, ` || booleanUpdate === null`)
-        .writeLine(`)`)
+        .writeLine(
+          `if (typeof booleanUpdate === "boolean"${nullableBooleanFieldPresent ? ` || booleanUpdate === null` : ""})`,
+        )
         .block(() => {
           writer.writeLine(`(record[fieldName] as ${fieldType}) = booleanUpdate;`);
         });
       writer.writeLine(`else if (booleanUpdate.set !== undefined)`).block(() => {
         writer.writeLine(`(record[fieldName] as ${fieldType}) = booleanUpdate.set;`);
       });
-    },
-  });
+    });
 }

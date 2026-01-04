@@ -1,4 +1,4 @@
-import { CodeBlockWriter } from "ts-morph";
+import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
 
 // TODO: skipDuplicates
@@ -8,6 +8,7 @@ export function addCreateManyMethod(writer: CodeBlockWriter, model: Model) {
     .writeLine(`async createMany<Q extends Prisma.Args<Prisma.${model.name}Delegate, "createMany">>(`)
     .writeLine(`query: Q,`)
     .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
+    .writeLine(`silent?: boolean`)
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "createMany">>`)
     .block(() => {
       setupDataAndTx(writer, model);
@@ -27,7 +28,7 @@ function addTransactionalHandling(writer: CodeBlockWriter, model: Model) {
     writer
       .writeLine(`const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));`)
       .writeLine(`const keyPath = await tx.objectStore("${model.name}").add(record);`)
-      .writeLine(`this.emit("create", keyPath);`);
+      .writeLine(`await this.emit("create", keyPath, undefined, record, silent);`);
   });
 }
 

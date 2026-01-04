@@ -1,10 +1,13 @@
 import { generatorHandler, GeneratorOptions } from "@prisma/generator-helper";
-import { Project } from "ts-morph";
 import { version } from "../package.json";
+import { createBatchProcessorFile } from "./fileCreators/batch-processor/create";
 import { createIDBInterfaceFile } from "./fileCreators/idb-interface/create";
 import { createUtilsFile } from "./fileCreators/idb-utils/create";
 import { createPrismaIDBClientFile } from "./fileCreators/prisma-idb-client/create";
-import { writeCodeFile, writeSourceFile } from "./helpers/fileWriting";
+import { writeCodeFile } from "./helpers/fileWriting";
+import { createApplyPullFile } from "./fileCreators/apply-pull/create";
+import { parseGeneratorConfig } from "./helpers/parseGeneratorConfig";
+import { createValidatorsFile } from "./fileCreators/validators/create";
 
 generatorHandler({
   onManifest() {
@@ -15,33 +18,34 @@ generatorHandler({
   },
 
   onGenerate: async (options: GeneratorOptions) => {
-    const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { skipLibCheck: true } });
-    const { models } = options.dmmf.datamodel;
     const outputPath = options.generator.output?.value as string;
+    const { prismaClientImport, prismaSingletonImport, outboxSync, outboxModelName, filteredModels } =
+      parseGeneratorConfig(options);
 
-    const generatorConfig = options.generator.config;
-    const prismaClientImport = generatorConfig.prismaClientImport;
-    if (typeof prismaClientImport !== "string") {
-      throw new Error(
-        `@prisma-idb/idb-client-generator requires an import path for the Prisma client to be specified.\n` +
-          `If you have not provided an output value for the client generator, use "@prisma/client"` +
-          `generator prismaIDB {` +
-          `\tprovider           = "idb-client-generator"` +
-          `\toutput             = "./prisma-idb"` +
-          `\tprismaClientImport = "resolvable/path/to/prisma/client"`,
-      );
+    await writeCodeFile("client/prisma-idb-client.ts", outputPath, (writer) => {
+      createPrismaIDBClientFile(writer, filteredModels, prismaClientImport, outboxSync, outboxModelName);
+    });
+
+    await writeCodeFile("client/idb-interface.ts", outputPath, (writer) => {
+      createIDBInterfaceFile(writer, filteredModels, prismaClientImport, outboxSync, outboxModelName);
+    });
+
+    await writeCodeFile("client/idb-utils.ts", outputPath, (writer) => {
+      createUtilsFile(writer, filteredModels, prismaClientImport, outboxSync);
+    });
+
+    if (outboxSync) {
+      await writeCodeFile("validators.ts", outputPath, (writer) => {
+        createValidatorsFile(writer, filteredModels);
+      });
+
+      await writeCodeFile("server/batch-processor.ts", outputPath, (writer) => {
+        createBatchProcessorFile(writer, filteredModels, prismaClientImport, prismaSingletonImport);
+      });
+
+      await writeCodeFile("client/apply-remote-changes.ts", outputPath, (writer) => {
+        createApplyPullFile(writer, filteredModels);
+      });
     }
-
-    await writeCodeFile("prisma-idb-client.ts", outputPath, (writer) => {
-      createPrismaIDBClientFile(writer, models, prismaClientImport);
-    });
-
-    await writeSourceFile(project, "idb-interface.ts", outputPath, (file) => {
-      createIDBInterfaceFile(file, models, prismaClientImport);
-    });
-
-    await writeSourceFile(project, "idb-utils.ts", outputPath, (file) => {
-      createUtilsFile(file, models, prismaClientImport);
-    });
   },
 });

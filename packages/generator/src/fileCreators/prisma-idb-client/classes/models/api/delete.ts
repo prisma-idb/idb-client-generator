@@ -1,4 +1,4 @@
-import { CodeBlockWriter } from "ts-morph";
+import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
 
@@ -7,6 +7,7 @@ export function addDeleteMethod(writer: CodeBlockWriter, model: Model, models: r
     .writeLine(`async delete<Q extends Prisma.Args<Prisma.${model.name}Delegate, "delete">>(`)
     .writeLine(`query: Q,`)
     .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
+    .writeLine(`silent?: boolean`)
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "delete">>`)
     .block(() => {
       createTxAndGetRecord(writer);
@@ -85,6 +86,6 @@ function deleteAndReturnRecord(writer: CodeBlockWriter, model: Model) {
   const keyPath = pk.map((field) => `record.${field}`).join(", ");
   writer
     .writeLine(`await tx.objectStore("${model.name}").delete([${keyPath}]);`)
-    .writeLine(`this.emit("delete", [${keyPath}]);`)
+    .writeLine(`await this.emit("delete", [${keyPath}], undefined, record, silent);`)
     .writeLine(`return record;`);
 }

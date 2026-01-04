@@ -1,7 +1,7 @@
 import { Model } from "src/fileCreators/types";
-import type { SourceFile } from "ts-morph";
+import type CodeBlockWriter from "code-block-writer";
 
-export function addDateTimeUpdateHandler(utilsFile: SourceFile, models: readonly Model[]) {
+export function addDateTimeUpdateHandler(writer: CodeBlockWriter, models: readonly Model[]) {
   const dateTimeFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "DateTime");
   if (dateTimeFields.length === 0) return;
 
@@ -19,36 +19,33 @@ export function addDateTimeUpdateHandler(utilsFile: SourceFile, models: readonly
     fieldType += " | null";
   }
 
-  utilsFile.addFunction({
-    name: "handleDateTimeUpdateField",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      {
-        name: "dateTimeUpdate",
-        type: updateOperationType,
-      },
-    ],
-    statements: (writer) => {
+  writer
+    .writeLine(
+      `export function handleDateTimeUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, dateTimeUpdate: ${updateOperationType}): void`,
+    )
+    .block(() => {
       writer
         .writeLine(`if (dateTimeUpdate === undefined) return;`)
-        .write(`if (typeof dateTimeUpdate === "string" || dateTimeUpdate instanceof Date`)
-        .conditionalWrite(nullableDateTimeFieldPresent, ` || dateTimeUpdate === null`)
-        .writeLine(`)`)
+        .writeLine(
+          `if (typeof dateTimeUpdate === "string" || dateTimeUpdate instanceof Date${nullableDateTimeFieldPresent ? ` || dateTimeUpdate === null` : ""})`,
+        )
         .block(() => {
-          writer
-            .writeLine(`(record[fieldName] as ${fieldType}) = `)
-            .conditionalWrite(nullableDateTimeFieldPresent, () => `dateTimeUpdate === null ? null : `)
-            .write(`new Date(dateTimeUpdate);`);
+          if (nullableDateTimeFieldPresent) {
+            writer.writeLine(
+              `(record[fieldName] as ${fieldType}) = dateTimeUpdate === null ? null : new Date(dateTimeUpdate);`,
+            );
+          } else {
+            writer.writeLine(`(record[fieldName] as ${fieldType}) = new Date(dateTimeUpdate);`);
+          }
         });
       writer.writeLine(`else if (dateTimeUpdate.set !== undefined)`).block(() => {
-        writer
-          .writeLine(`(record[fieldName] as ${fieldType}) = `)
-          .conditionalWrite(nullableDateTimeFieldPresent, () => `dateTimeUpdate.set === null ? null : `)
-          .write(`new Date(dateTimeUpdate.set);`);
+        if (nullableDateTimeFieldPresent) {
+          writer.writeLine(
+            `(record[fieldName] as ${fieldType}) = dateTimeUpdate.set === null ? null : new Date(dateTimeUpdate.set);`,
+          );
+        } else {
+          writer.writeLine(`(record[fieldName] as ${fieldType}) = new Date(dateTimeUpdate.set);`);
+        }
       });
-    },
-  });
+    });
 }

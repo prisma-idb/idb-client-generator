@@ -1,22 +1,14 @@
-import type { SourceFile } from "ts-morph";
+import CodeBlockWriter from "code-block-writer";
 
-export function addIntersectArraysByNestedKeyFunction(utilsFile: SourceFile) {
-  utilsFile.addFunction({
-    name: "intersectArraysByNestedKey",
-    isExported: true,
-    typeParameters: [{ name: "T" }],
-    parameters: [
-      { name: "arrays", type: "T[][]" },
-      { name: "keyPath", type: "string[]" },
-    ],
-    returnType: "T[]",
-    statements: (writer) => {
-      writer
-        .writeLine(`return arrays.reduce((acc, array) =>`)
-        .writeLine(
-          `acc.filter((item) => array.some((el) => keyPath.every((key) => el[key as keyof T] === item[key as keyof T]))),`,
-        )
-        .writeLine(`);`);
-    },
+export function addIntersectArraysByNestedKeyFunction(writer: CodeBlockWriter) {
+  writer.writeLine(`export function intersectArraysByNestedKey<T>(arrays: T[][], keyPath: string[]): T[]`).block(() => {
+    writer
+      .writeLine(`const safeArrays = arrays ?? [];`)
+      .writeLine(`if (safeArrays.length === 0) return [];`)
+      .writeLine(`return safeArrays.reduce((acc, array) =>`)
+      .writeLine(
+        `acc.filter((item) => array.some((el) => keyPath.every((key) => el[key as keyof T] === item[key as keyof T]))),`,
+      )
+      .writeLine(`safeArrays[0] ?? []);`);
   });
 }

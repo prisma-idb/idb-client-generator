@@ -1,7 +1,7 @@
 import type { Model } from "src/fileCreators/types";
-import type { SourceFile } from "ts-morph";
+import type CodeBlockWriter from "code-block-writer";
 
-export function addFloatUpdateHandler(utilsFile: SourceFile, models: readonly Model[]) {
+export function addFloatUpdateHandler(writer: CodeBlockWriter, models: readonly Model[]) {
   const floatFields = models.flatMap(({ fields }) => fields).filter((field) => field.type === "Float");
   if (floatFields.length === 0) return;
 
@@ -19,24 +19,14 @@ export function addFloatUpdateHandler(utilsFile: SourceFile, models: readonly Mo
     fieldType += " | null";
   }
 
-  utilsFile.addFunction({
-    name: "handleFloatUpdateField",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      {
-        name: "floatUpdate",
-        type: updateOperationType,
-      },
-    ],
-    statements: (writer) => {
+  writer
+    .writeLine(
+      `export function handleFloatUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, floatUpdate: ${updateOperationType}): void`,
+    )
+    .block(() => {
       writer
         .writeLine(`if (floatUpdate === undefined) return;`)
-        .write(`if (typeof floatUpdate === "number"`)
-        .conditionalWrite(nullableFloatFieldPresent, ` || floatUpdate === null`)
-        .writeLine(`)`)
+        .writeLine(`if (typeof floatUpdate === "number"${nullableFloatFieldPresent ? ` || floatUpdate === null` : ""})`)
         .block(() => {
           writer.writeLine(`(record[fieldName] as ${fieldType}) = floatUpdate;`);
         })
@@ -60,6 +50,5 @@ export function addFloatUpdateHandler(utilsFile: SourceFile, models: readonly Mo
         .block(() => {
           writer.writeLine(`(record[fieldName] as number) /= floatUpdate.divide;`);
         });
-    },
-  });
+    });
 }

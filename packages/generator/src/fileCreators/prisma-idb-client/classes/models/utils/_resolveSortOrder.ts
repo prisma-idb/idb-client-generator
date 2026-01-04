@@ -1,5 +1,5 @@
 import type { Model } from "src/fileCreators/types";
-import { CodeBlockWriter } from "ts-morph";
+import CodeBlockWriter from "code-block-writer";
 import { toCamelCase } from "../../../../../helpers/utils";
 
 export function addResolveSortOrder(writer: CodeBlockWriter, model: Model) {

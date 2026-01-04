@@ -1,5 +1,5 @@
 import { Model } from "src/fileCreators/types";
-import { CodeBlockWriter } from "ts-morph";
+import CodeBlockWriter from "code-block-writer";
 
 export function addApplySelectClause(writer: CodeBlockWriter, model: Model) {
   writer

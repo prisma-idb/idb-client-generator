@@ -1,7 +1,7 @@
 import type { Model } from "src/fileCreators/types";
-import type { CodeBlockWriter, SourceFile } from "ts-morph";
+import type CodeBlockWriter from "code-block-writer";
 
-export function addNumberFilter(utilsFile: SourceFile, models: readonly Model[]) {
+export function addNumberFilter(writer: CodeBlockWriter, models: readonly Model[]) {
   const allFields = models.flatMap(({ fields }) => fields);
   const intFields = allFields.filter((field) => field.type === "Int");
   const floatFields = allFields.filter((field) => field.type === "Float");
@@ -18,20 +18,11 @@ export function addNumberFilter(utilsFile: SourceFile, models: readonly Model[])
     filterType += " | null";
   }
 
-  utilsFile.addFunction({
-    name: "whereNumberFilter",
-    isExported: true,
-    typeParameters: [{ name: "T" }, { name: "R", constraint: `Prisma.Result<T, object, "findFirstOrThrow">` }],
-    parameters: [
-      { name: "record", type: `R` },
-      { name: "fieldName", type: "keyof R" },
-      {
-        name: "numberFilter",
-        type: filterType,
-      },
-    ],
-    returnType: "boolean",
-    statements: (writer) => {
+  writer
+    .writeLine(
+      `export function whereNumberFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, numberFilter: ${filterType}): boolean`,
+    )
+    .block(() => {
       writer
         .writeLine(`if (numberFilter === undefined) return true;`)
         .blankLine()
@@ -54,8 +45,7 @@ export function addNumberFilter(utilsFile: SourceFile, models: readonly Model[])
           addGteHandler(writer);
         })
         .writeLine(`return true;`);
-    },
-  });
+    });
 }
 
 function addEqualsHandler(writer: CodeBlockWriter) {
