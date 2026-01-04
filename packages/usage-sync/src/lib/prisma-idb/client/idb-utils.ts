@@ -21,12 +21,13 @@ export const LogicalParams = ['AND', 'OR', 'NOT'] as const;
 
 export function intersectArraysByNestedKey<T>(arrays: T[][], keyPath: string[]): T[] {
 	const safeArrays = arrays ?? [];
+	if (safeArrays.length === 0) return [];
 	return safeArrays.reduce(
 		(acc, array) =>
 			acc.filter((item) =>
 				array.some((el) => keyPath.every((key) => el[key as keyof T] === item[key as keyof T]))
 			),
-		[]
+		safeArrays[0] ?? []
 	);
 }
 export function removeDuplicatesByKeyPath<T>(arrays: T[][], keyPath: string[]): T[] {
