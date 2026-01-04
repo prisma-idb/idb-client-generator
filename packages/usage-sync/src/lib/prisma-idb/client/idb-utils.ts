@@ -20,10 +20,13 @@ export type TransactionType = ReadonlyTransactionType | ReadwriteTransactionType
 export const LogicalParams = ['AND', 'OR', 'NOT'] as const;
 
 export function intersectArraysByNestedKey<T>(arrays: T[][], keyPath: string[]): T[] {
-	return arrays.reduce((acc, array) =>
-		acc.filter((item) =>
-			array.some((el) => keyPath.every((key) => el[key as keyof T] === item[key as keyof T]))
-		)
+	const safeArrays = arrays ?? [];
+	return safeArrays.reduce(
+		(acc, array) =>
+			acc.filter((item) =>
+				array.some((el) => keyPath.every((key) => el[key as keyof T] === item[key as keyof T]))
+			),
+		[]
 	);
 }
 export function removeDuplicatesByKeyPath<T>(arrays: T[][], keyPath: string[]): T[] {
