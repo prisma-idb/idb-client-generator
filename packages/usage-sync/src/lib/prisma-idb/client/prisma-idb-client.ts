@@ -259,12 +259,16 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
 		silent?: boolean,
 		addToOutbox?: boolean
 	) {
-		if (silent) return;
+		const shouldEmit = !silent;
 
-		if (event === 'update') {
-			this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath, oldKeyPath } }));
-		} else {
-			this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath } }));
+		if (shouldEmit) {
+			if (event === 'update') {
+				this.eventEmitter.dispatchEvent(
+					new CustomEvent(event, { detail: { keyPath, oldKeyPath } })
+				);
+			} else {
+				this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath } }));
+			}
 		}
 
 		if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {

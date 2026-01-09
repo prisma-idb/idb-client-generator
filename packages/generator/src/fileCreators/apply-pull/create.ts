@@ -25,13 +25,17 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
 
       writer.writeLine(`${modelName}: `).block(() => {
         writer.writeLine(`create: async (client: PrismaIDBClient, record: z.infer<typeof validators.${modelName}>) =>`);
-        writer.writeLine(`	client.${camelCaseName}.create({ data: record }, undefined, true),`);
+        writer.writeLine(`	client.${camelCaseName}.create({ data: record }, { silent: true, addToOutbox: false }),`);
 
         writer.writeLine(`update: async (client: PrismaIDBClient, record: z.infer<typeof validators.${modelName}>) =>`);
-        writer.writeLine(`	client.${camelCaseName}.update({ where: ${whereClause}, data: record }, undefined, true),`);
+        writer.writeLine(
+          `	client.${camelCaseName}.update({ where: ${whereClause}, data: record }, { silent: true, addToOutbox: false }),`,
+        );
 
         writer.writeLine(`delete: async (client: PrismaIDBClient, record: z.infer<typeof validators.${modelName}>) =>`);
-        writer.writeLine(`	client.${camelCaseName}.delete({ where: ${whereClause} }, undefined, true)`);
+        writer.writeLine(
+          `	client.${camelCaseName}.delete({ where: ${whereClause} }, { silent: true, addToOutbox: false })`,
+        );
       });
 
       if (index < models.length - 1) {
