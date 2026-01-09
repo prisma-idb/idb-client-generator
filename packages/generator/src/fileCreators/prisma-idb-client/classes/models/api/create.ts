@@ -183,16 +183,14 @@ function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Fie
     );
   });
   writer.writeLine(`if (query.data.${field.name}?.connectOrCreate)`).block(() => {
-    writer.writeLine(`if (query.data.${field.name}?.connectOrCreate)`).block(() => {
-      writer
-        .writeLine(`await this.client.${toCamelCase(field.type)}.upsert({`)
-        .writeLine(`where: query.data.${field.name}.connectOrCreate.where,`)
-        .writeLine(
-          `create: { ...query.data.${field.name}.connectOrCreate.create, ${keyPathMapping} } as Prisma.Args<Prisma.${field.type}Delegate, "create">["data"],`,
-        )
-        .writeLine(`update: { ${keyPathMapping} },`)
-        .writeLine(`}, { tx, silent, addToOutbox });`);
-    });
+    writer
+      .writeLine(`await this.client.${toCamelCase(field.type)}.upsert({`)
+      .writeLine(`where: query.data.${field.name}.connectOrCreate.where,`)
+      .writeLine(
+        `create: { ...query.data.${field.name}.connectOrCreate.create, ${keyPathMapping} } as Prisma.Args<Prisma.${field.type}Delegate, "create">["data"],`,
+      )
+      .writeLine(`update: { ${keyPathMapping} },`)
+      .writeLine(`}, { tx, silent, addToOutbox });`);
   });
 }
 
