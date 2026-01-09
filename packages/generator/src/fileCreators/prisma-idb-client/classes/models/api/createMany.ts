@@ -21,7 +21,11 @@ export function addCreateManyMethod(writer: CodeBlockWriter, model: Model) {
 function setupDataAndTx(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine("const createManyData = IDBUtils.convertToArray(query.data);")
-    .writeLine(`tx = tx ?? this.client._db.transaction(["${model.name}"], "readwrite");`);
+    .writeLine(`const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["${model.name}"]);`)
+    .writeLine(`if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {`)
+    .writeLine(`storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);`)
+    .writeLine(`}`)
+    .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");`);
 }
 
 function addTransactionalHandling(writer: CodeBlockWriter, model: Model) {
@@ -29,7 +33,7 @@ function addTransactionalHandling(writer: CodeBlockWriter, model: Model) {
     writer
       .writeLine(`const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));`)
       .writeLine(`const keyPath = await tx.objectStore("${model.name}").add(record);`)
-      .writeLine(`await this.emit("create", keyPath, undefined, record, silent, addToOutbox);`);
+      .writeLine(`await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });`);
   });
 }
 

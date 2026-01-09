@@ -102,7 +102,7 @@ function applyClausesAndReturnRecords(writer: CodeBlockWriter, model: Model) {
     .write(`const recordsWithRelations = this._applySelectClause`)
     .write(`(await this._applyRelations<object>([data], tx, query), query.select)[0];`)
     .writeLine(`this._preprocessListFields([recordsWithRelations]);`)
-    .writeLine(`await this.emit("create", keyPath, undefined, data, silent, addToOutbox);`)
+    .writeLine(`await this.emit("create", keyPath, undefined, data, { silent, addToOutbox, tx });`)
     .writeLine(`return recordsWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "create">;`);
 }
 

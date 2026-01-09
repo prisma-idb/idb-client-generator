@@ -15,5 +15,9 @@ export function addGetNeededStoresForNestedDelete(writer: CodeBlockWriter, model
       for (const field of cascadingDeletes) {
         writer.writeLine(`this.client.${toCamelCase(field.type)}._getNeededStoresForNestedDelete(neededStores);`);
       }
+      writer
+        .writeLine(`if (this.client.shouldTrackModel(this.modelName)) {`)
+        .writeLine(`neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);`)
+        .writeLine(`}`);
     });
 }

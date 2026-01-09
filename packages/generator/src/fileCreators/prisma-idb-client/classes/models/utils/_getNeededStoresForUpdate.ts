@@ -14,6 +14,10 @@ export function addGetNeededStoresForUpdate(writer: CodeBlockWriter, model: Mode
       addNestedQueryStores(writer, model);
       addNestedDeleteStores(writer, model);
       addUpdateCascadingStores(writer, model, models);
+      writer
+        .writeLine(`if (this.client.shouldTrackModel(this.modelName)) {`)
+        .writeLine(`neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);`)
+        .writeLine(`}`);
       writer.writeLine(`return neededStores;`);
     });
 }

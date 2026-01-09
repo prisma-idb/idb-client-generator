@@ -14,6 +14,10 @@ export function addGetNeededStoresForCreate(writer: CodeBlockWriter, model: Mode
         .writeLine(`const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();`)
         .writeLine(`neededStores.add("${model.name}");`);
       processRelationsInData(writer, model);
+      writer
+        .writeLine(`if (this.client.shouldTrackModel(this.modelName)) {`)
+        .writeLine(`neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);`)
+        .writeLine(`}`);
       writer.writeLine("return neededStores;");
     });
 }

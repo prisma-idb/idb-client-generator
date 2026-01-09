@@ -256,10 +256,9 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
 		keyPath: PrismaIDBSchema[T]['key'],
 		oldKeyPath?: PrismaIDBSchema[T]['key'],
 		record?: unknown,
-		silent?: boolean,
-		addToOutbox?: boolean
+		opts?: { silent?: boolean; addToOutbox?: boolean; tx?: IDBUtils.ReadwriteTransactionType }
 	) {
-		const shouldEmit = !silent;
+		const shouldEmit = !opts?.silent;
 
 		if (shouldEmit) {
 			if (event === 'update') {
@@ -271,15 +270,23 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
 			}
 		}
 
-		if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-			await this.client.$outbox.create({
-				data: {
+		if (opts?.addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
+			if (opts?.tx) {
+				const outboxStore = opts.tx.objectStore('OutboxEvent');
+				const outboxEvent: OutboxEventRecord = {
+					id: crypto.randomUUID(),
+					createdAt: new Date(),
+					synced: false,
+					syncedAt: null,
+					tries: 0,
+					lastError: null,
 					entityType: this.modelName,
 					entityKeyPath: keyPath as Array<string | number>,
 					operation: event,
 					payload: record ?? keyPath
-				}
-			});
+				};
+				await outboxStore.add(outboxEvent);
+			}
 		}
 	}
 }
@@ -523,6 +530,9 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 				);
 			}
 		}
+		if (this.client.shouldTrackModel(this.modelName)) {
+			neededStores.add('OutboxEvent' as StoreNames<PrismaIDBSchema>);
+		}
 		return neededStores;
 	}
 	_getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.UserDelegate, 'update'>>(
@@ -579,11 +589,17 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 		if (query.data?.id !== undefined) {
 			neededStores.add('Todo');
 		}
+		if (this.client.shouldTrackModel(this.modelName)) {
+			neededStores.add('OutboxEvent' as StoreNames<PrismaIDBSchema>);
+		}
 		return neededStores;
 	}
 	_getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
 		neededStores.add('User');
 		this.client.todo._getNeededStoresForNestedDelete(neededStores);
+		if (this.client.shouldTrackModel(this.modelName)) {
+			neededStores.add('OutboxEvent' as StoreNames<PrismaIDBSchema>);
+		}
 	}
 	private _removeNestedCreateData<D extends Prisma.Args<Prisma.UserDelegate, 'create'>['data']>(
 		data: D
@@ -816,7 +832,7 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 			query.select
 		)[0];
 		this._preprocessListFields([recordsWithRelations]);
-		await this.emit('create', keyPath, undefined, data, silent, addToOutbox);
+		await this.emit('create', keyPath, undefined, data, { silent, addToOutbox, tx });
 		return recordsWithRelations as Prisma.Result<Prisma.UserDelegate, Q, 'create'>;
 	}
 	async createMany<Q extends Prisma.Args<Prisma.UserDelegate, 'createMany'>>(
@@ -830,11 +846,15 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 		const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
 		let tx = txOption;
 		const createManyData = IDBUtils.convertToArray(query.data);
-		tx = tx ?? this.client._db.transaction(['User'], 'readwrite');
+		const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(['User']);
+		if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
+			storesNeeded.add('OutboxEvent' as StoreNames<PrismaIDBSchema>);
+		}
+		tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), 'readwrite');
 		for (const createData of createManyData) {
 			const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
 			const keyPath = await tx.objectStore('User').add(record);
-			await this.emit('create', keyPath, undefined, record, silent, addToOutbox);
+			await this.emit('create', keyPath, undefined, record, { silent, addToOutbox, tx });
 		}
 		return { count: createManyData.length };
 	}
@@ -850,11 +870,15 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 		let tx = txOption;
 		const createManyData = IDBUtils.convertToArray(query.data);
 		const records: Prisma.Result<Prisma.UserDelegate, object, 'findMany'> = [];
-		tx = tx ?? this.client._db.transaction(['User'], 'readwrite');
+		const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(['User']);
+		if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
+			storesNeeded.add('OutboxEvent' as StoreNames<PrismaIDBSchema>);
+		}
+		tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), 'readwrite');
 		for (const createData of createManyData) {
 			const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
 			const keyPath = await tx.objectStore('User').add(record);
-			await this.emit('create', keyPath, undefined, record, silent, addToOutbox);
+			await this.emit('create', keyPath, undefined, record, { silent, addToOutbox, tx });
 			records.push(this._applySelectClause([record], query.select)[0]);
 		}
 		this._preprocessListFields(records);
@@ -882,7 +906,7 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 			{ tx, silent, addToOutbox }
 		);
 		await tx.objectStore('User').delete([record.id]);
-		await this.emit('delete', [record.id], undefined, record, silent, addToOutbox);
+		await this.emit('delete', [record.id], undefined, record, { silent, addToOutbox, tx });
 		return record;
 	}
 	async deleteMany<Q extends Prisma.Args<Prisma.UserDelegate, 'deleteMany'>>(
@@ -1044,7 +1068,7 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 			}
 		}
 		const keyPath = await tx.objectStore('User').put(record);
-		await this.emit('update', keyPath, startKeyPath, record, silent, addToOutbox);
+		await this.emit('update', keyPath, startKeyPath, record, { silent, addToOutbox, tx });
 		for (let i = 0; i < startKeyPath.length; i++) {
 			if (startKeyPath[i] !== endKeyPath[i]) {
 				await this.client.todo.updateMany(
@@ -1414,6 +1438,9 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 		if (data?.userId !== undefined) {
 			neededStores.add('User');
 		}
+		if (this.client.shouldTrackModel(this.modelName)) {
+			neededStores.add('OutboxEvent' as StoreNames<PrismaIDBSchema>);
+		}
 		return neededStores;
 	}
 	_getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.TodoDelegate, 'update'>>(
@@ -1450,10 +1477,16 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 					.forEach((store) => neededStores.add(store));
 			});
 		}
+		if (this.client.shouldTrackModel(this.modelName)) {
+			neededStores.add('OutboxEvent' as StoreNames<PrismaIDBSchema>);
+		}
 		return neededStores;
 	}
 	_getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
 		neededStores.add('Todo');
+		if (this.client.shouldTrackModel(this.modelName)) {
+			neededStores.add('OutboxEvent' as StoreNames<PrismaIDBSchema>);
+		}
 	}
 	private _removeNestedCreateData<D extends Prisma.Args<Prisma.TodoDelegate, 'create'>['data']>(
 		data: D
@@ -1675,7 +1708,7 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 			query.select
 		)[0];
 		this._preprocessListFields([recordsWithRelations]);
-		await this.emit('create', keyPath, undefined, data, silent, addToOutbox);
+		await this.emit('create', keyPath, undefined, data, { silent, addToOutbox, tx });
 		return recordsWithRelations as Prisma.Result<Prisma.TodoDelegate, Q, 'create'>;
 	}
 	async createMany<Q extends Prisma.Args<Prisma.TodoDelegate, 'createMany'>>(
@@ -1689,11 +1722,15 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 		const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
 		let tx = txOption;
 		const createManyData = IDBUtils.convertToArray(query.data);
-		tx = tx ?? this.client._db.transaction(['Todo'], 'readwrite');
+		const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(['Todo']);
+		if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
+			storesNeeded.add('OutboxEvent' as StoreNames<PrismaIDBSchema>);
+		}
+		tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), 'readwrite');
 		for (const createData of createManyData) {
 			const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
 			const keyPath = await tx.objectStore('Todo').add(record);
-			await this.emit('create', keyPath, undefined, record, silent, addToOutbox);
+			await this.emit('create', keyPath, undefined, record, { silent, addToOutbox, tx });
 		}
 		return { count: createManyData.length };
 	}
@@ -1709,11 +1746,15 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 		let tx = txOption;
 		const createManyData = IDBUtils.convertToArray(query.data);
 		const records: Prisma.Result<Prisma.TodoDelegate, object, 'findMany'> = [];
-		tx = tx ?? this.client._db.transaction(['Todo'], 'readwrite');
+		const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(['Todo']);
+		if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
+			storesNeeded.add('OutboxEvent' as StoreNames<PrismaIDBSchema>);
+		}
+		tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), 'readwrite');
 		for (const createData of createManyData) {
 			const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
 			const keyPath = await tx.objectStore('Todo').add(record);
-			await this.emit('create', keyPath, undefined, record, silent, addToOutbox);
+			await this.emit('create', keyPath, undefined, record, { silent, addToOutbox, tx });
 			records.push(this._applySelectClause([record], query.select)[0]);
 		}
 		this._preprocessListFields(records);
@@ -1735,7 +1776,7 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 		const record = await this.findUnique(query, { tx });
 		if (!record) throw new Error('Record not found');
 		await tx.objectStore('Todo').delete([record.id]);
-		await this.emit('delete', [record.id], undefined, record, silent, addToOutbox);
+		await this.emit('delete', [record.id], undefined, record, { silent, addToOutbox, tx });
 		return record;
 	}
 	async deleteMany<Q extends Prisma.Args<Prisma.TodoDelegate, 'deleteMany'>>(
@@ -1857,7 +1898,7 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 			}
 		}
 		const keyPath = await tx.objectStore('Todo').put(record);
-		await this.emit('update', keyPath, startKeyPath, record, silent, addToOutbox);
+		await this.emit('update', keyPath, startKeyPath, record, { silent, addToOutbox, tx });
 		for (let i = 0; i < startKeyPath.length; i++) {
 			if (startKeyPath[i] !== endKeyPath[i]) {
 				break;

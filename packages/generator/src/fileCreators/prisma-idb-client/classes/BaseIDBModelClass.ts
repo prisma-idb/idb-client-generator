@@ -1,6 +1,10 @@
 import CodeBlockWriter from "code-block-writer";
 
-export function addBaseModelClass(writer: CodeBlockWriter, outboxSync: boolean = false) {
+export function addBaseModelClass(
+  writer: CodeBlockWriter,
+  outboxSync: boolean = false,
+  outboxModelName: string = "OutboxEvent",
+) {
   writer.writeLine(`class BaseIDBModelClass<T extends keyof PrismaIDBSchema>`).block(() => {
     writer
       .writeLine(`protected client: PrismaIDBClient;`)
@@ -17,11 +21,11 @@ export function addBaseModelClass(writer: CodeBlockWriter, outboxSync: boolean =
         .writeLine(`this.eventEmitter = new EventTarget();`);
     });
 
-    addEventEmitters(writer, outboxSync);
+    addEventEmitters(writer, outboxSync, outboxModelName);
   });
 }
 
-function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean) {
+function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxModelName: string = "OutboxEvent") {
   writer
     .writeLine(
       `subscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: (e: CustomEventInit<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>) => void)`,
@@ -52,10 +56,10 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean) {
 
   writer
     .writeLine(
-      `protected async emit(event: "create" | "update" | "delete", keyPath: PrismaIDBSchema[T]["key"], oldKeyPath?: PrismaIDBSchema[T]["key"], record?: unknown, silent?: boolean, addToOutbox?: boolean)`,
+      `protected async emit(event: "create" | "update" | "delete", keyPath: PrismaIDBSchema[T]["key"], oldKeyPath?: PrismaIDBSchema[T]["key"], record?: unknown, opts?: { silent?: boolean; addToOutbox?: boolean; tx?: IDBUtils.ReadwriteTransactionType })`,
     )
     .block(() => {
-      writer.writeLine(`const shouldEmit = !silent;`).blankLine();
+      writer.writeLine(`const shouldEmit = !opts?.silent;`).blankLine();
 
       writer.writeLine(`if (shouldEmit)`).block(() => {
         writer
@@ -74,16 +78,24 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean) {
       if (!outboxSync) return;
 
       writer.blankLine();
-      writer.writeLine(`if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName))`).block(() => {
+      writer.writeLine(`if (opts?.addToOutbox !== false && this.client.shouldTrackModel(this.modelName))`).block(() => {
         writer
-          .writeLine(`await this.client.$outbox.create({`)
-          .writeLine(`data: {`)
+          .writeLine(`if (opts?.tx) {`)
+          .writeLine(`const outboxStore = opts.tx.objectStore("${outboxModelName}");`)
+          .writeLine(`const outboxEvent: OutboxEventRecord = {`)
+          .writeLine(`id: crypto.randomUUID(),`)
+          .writeLine(`createdAt: new Date(),`)
+          .writeLine(`synced: false,`)
+          .writeLine(`syncedAt: null,`)
+          .writeLine(`tries: 0,`)
+          .writeLine(`lastError: null,`)
           .writeLine(`entityType: this.modelName,`)
           .writeLine(`entityKeyPath: keyPath as Array<string | number>,`)
           .writeLine(`operation: event,`)
           .writeLine(`payload: record ?? keyPath,`)
-          .writeLine(`}`)
-          .writeLine(`});`);
+          .writeLine(`};`)
+          .writeLine(`await outboxStore.add(outboxEvent);`)
+          .writeLine(`}`);
       });
     });
 }
