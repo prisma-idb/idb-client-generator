@@ -2,7 +2,11 @@ import { Model } from "src/fileCreators/types";
 import CodeBlockWriter from "code-block-writer";
 import { toCamelCase } from "../../../../../helpers/utils";
 
-export function addGetNeededStoresForCreate(writer: CodeBlockWriter, model: Model) {
+export function addGetNeededStoresForCreate(
+  writer: CodeBlockWriter,
+  model: Model,
+  outboxModelName: string = "OutboxEvent",
+) {
   writer
     .writeLine(
       `_getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]>>(`,
@@ -16,7 +20,7 @@ export function addGetNeededStoresForCreate(writer: CodeBlockWriter, model: Mode
       processRelationsInData(writer, model);
       writer
         .writeLine(`if (this.client.shouldTrackModel(this.modelName)) {`)
-        .writeLine(`neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);`)
+        .writeLine(`neededStores.add("${outboxModelName}" as StoreNames<PrismaIDBSchema>);`)
         .writeLine(`}`);
       writer.writeLine("return neededStores;");
     });
