@@ -675,13 +675,11 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 		const { tx: txOption } = options ?? {};
 		let tx = txOption;
 
-		const localCreatedTx = txOption == null;
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
 		const record = await this.findFirst(query, { tx });
 		if (!record) {
-			if (localCreatedTx) tx.abort();
 			throw new Error('Record not found');
 		}
 		return record;
@@ -724,13 +722,11 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 		const { tx: txOption } = options ?? {};
 		let tx = txOption;
 
-		const localCreatedTx = txOption == null;
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
 		const record = await this.findUnique(query, { tx });
 		if (!record) {
-			if (localCreatedTx) tx.abort();
 			throw new Error('Record not found');
 		}
 		return record;
@@ -1562,13 +1558,11 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 		const { tx: txOption } = options ?? {};
 		let tx = txOption;
 
-		const localCreatedTx = txOption == null;
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
 		const record = await this.findFirst(query, { tx });
 		if (!record) {
-			if (localCreatedTx) tx.abort();
 			throw new Error('Record not found');
 		}
 		return record;
@@ -1611,13 +1605,11 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 		const { tx: txOption } = options ?? {};
 		let tx = txOption;
 
-		const localCreatedTx = txOption == null;
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
 		const record = await this.findUnique(query, { tx });
 		if (!record) {
-			if (localCreatedTx) tx.abort();
 			throw new Error('Record not found');
 		}
 		return record;
