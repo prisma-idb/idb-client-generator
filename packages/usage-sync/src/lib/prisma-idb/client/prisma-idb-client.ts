@@ -1850,7 +1850,7 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 						} as Prisma.Args<Prisma.UserDelegate, 'upsert'>['create'],
 						update: { id: record.userId! }
 					},
-					{ tx: tx, silent, addToOutbox }
+					{ tx, silent, addToOutbox }
 				);
 			}
 		}

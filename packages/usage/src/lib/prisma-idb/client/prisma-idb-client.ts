@@ -4728,7 +4728,7 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
             >["create"],
             update: { id: record.groupId! },
           },
-          { tx: tx, silent, addToOutbox },
+          { tx, silent, addToOutbox },
         );
       }
     }
@@ -4774,7 +4774,7 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
             >["create"],
             update: { id: record.userId! },
           },
-          { tx: tx, silent, addToOutbox },
+          { tx, silent, addToOutbox },
         );
       }
     }
@@ -5550,7 +5550,7 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
             >["create"],
             update: { id: record.userId! },
           },
-          { tx: tx, silent, addToOutbox },
+          { tx, silent, addToOutbox },
         );
       }
     }
@@ -6563,7 +6563,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
             >["create"],
             update: { id: record.authorId! },
           },
-          { tx: tx, silent, addToOutbox },
+          { tx, silent, addToOutbox },
         );
       }
       if (query.data.author.disconnect) {
@@ -7580,7 +7580,7 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
             >["create"],
             update: { id: record.postId! },
           },
-          { tx: tx, silent, addToOutbox },
+          { tx, silent, addToOutbox },
         );
       }
     }
@@ -7626,7 +7626,7 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
             >["create"],
             update: { id: record.userId! },
           },
-          { tx: tx, silent, addToOutbox },
+          { tx, silent, addToOutbox },
         );
       }
     }
@@ -9678,7 +9678,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
             } as Prisma.Args<Prisma.MotherDelegate, "upsert">["create"],
             update: { firstName: record.motherFirstName!, lastName: record.motherLastName! },
           },
-          { tx: tx, silent, addToOutbox },
+          { tx, silent, addToOutbox },
         );
       }
     }
@@ -9724,7 +9724,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
             >["create"],
             update: { id: record.userId! },
           },
-          { tx: tx, silent, addToOutbox },
+          { tx, silent, addToOutbox },
         );
       }
       if (query.data.user.disconnect) {
@@ -11148,7 +11148,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
             >["create"],
             update: { id: record.userId! },
           },
-          { tx: tx, silent, addToOutbox },
+          { tx, silent, addToOutbox },
         );
       }
       if (query.data.user.disconnect) {
@@ -12325,7 +12325,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
             >["create"],
             update: { id: record.userId! },
           },
-          { tx: tx, silent, addToOutbox },
+          { tx, silent, addToOutbox },
         );
       }
       if (query.data.user.disconnect) {
@@ -12396,7 +12396,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
             } as Prisma.Args<Prisma.FatherDelegate, "upsert">["create"],
             update: { lastName: record.fatherLastName!, firstName: record.fatherFirstName! },
           },
-          { tx: tx, silent, addToOutbox },
+          { tx, silent, addToOutbox },
         );
       }
     }
@@ -12455,7 +12455,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
             } as Prisma.Args<Prisma.MotherDelegate, "upsert">["create"],
             update: { firstName: record.motherFirstName!, lastName: record.motherLastName! },
           },
-          { tx: tx, silent, addToOutbox },
+          { tx, silent, addToOutbox },
         );
       }
     }
@@ -14474,7 +14474,7 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
             >["create"],
             update: { id: record.linkId! },
           },
-          { tx: tx, silent, addToOutbox },
+          { tx, silent, addToOutbox },
         );
       }
       if (query.data.link.disconnect) {
@@ -16221,7 +16221,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
             >["create"],
             update: { id: record.userId! },
           },
-          { tx: tx, silent, addToOutbox },
+          { tx, silent, addToOutbox },
         );
       }
     }

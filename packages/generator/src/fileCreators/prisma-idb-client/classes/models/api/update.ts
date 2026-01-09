@@ -412,7 +412,7 @@ function handleOneToOneRelationMetaOnCurrentUpdate(writer: CodeBlockWriter, fiel
             )
             .writeLine(`update: { ${fkFields} },`);
         })
-        .writeLine(`, { tx: tx, silent, addToOutbox });`);
+        .writeLine(`, { tx, silent, addToOutbox });`);
     });
 
   if (!field.isRequired) {
