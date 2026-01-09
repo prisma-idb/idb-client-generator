@@ -25,7 +25,7 @@ export function getOptionsTypeWrite(): string {
  * Use with writer chaining: .write(getOptionsParameterRead())
  */
 export function getOptionsParameterRead(): string {
-  return `options?: {\ntx?: IDBUtils.TransactionType\n}`;
+  return `options?: ${getOptionsTypeRead()}`;
 }
 
 /**
@@ -33,7 +33,7 @@ export function getOptionsParameterRead(): string {
  * Use with writer chaining: .write(getOptionsParameterWrite())
  */
 export function getOptionsParameterWrite(): string {
-  return `options?: {\ntx?: IDBUtils.ReadwriteTransactionType,\nsilent?: boolean,\naddToOutbox?: boolean\n}`;
+  return `options?: ${getOptionsTypeWrite()}`;
 }
 
 /**
