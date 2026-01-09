@@ -3,6 +3,14 @@ import { Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers } from "../../../../../helpers/utils";
 import { getOptionsParameterWrite, getOptionsSetupWrite } from "../helpers/methodOptions";
 
+/**
+ * Writes an async `updateMany` method for the specified model into the given CodeBlockWriter.
+ *
+ * The generated method accepts a Prisma-style `query` and an `options` object (`tx?: IDBUtils.ReadwriteTransactionType`, `silent?: boolean`, `addToOutbox?: boolean`), ensures or creates a read/write transaction, loads matching records via `findMany`, performs per-record `update` operations in parallel (handling single-field and composite primary keys), and returns an object with the updated `count`.
+ *
+ * @param writer - Destination CodeBlockWriter to emit the method code into
+ * @param model - Model metadata used to shape the generated `updateMany` implementation
+ */
 export function addUpdateMany(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async updateMany<Q extends Prisma.Args<Prisma.${model.name}Delegate, "updateMany">>(`)

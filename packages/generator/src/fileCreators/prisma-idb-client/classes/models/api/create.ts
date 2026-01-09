@@ -3,6 +3,18 @@ import { Field, Model } from "../../../../../fileCreators/types";
 import { getModelFieldData, getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
 import { getOptionsParameterWrite, getOptionsSetupWrite } from "../helpers/methodOptions";
 
+/**
+ * Adds a `create` method to the generated delegate for the specified model.
+ *
+ * The generated method accepts a Prisma-style `query` and an optional `options`
+ * object (supports `{ tx?, silent?, addToOutbox? }`) and returns the created
+ * record(s) shaped as the Prisma `Result` for the model's `create` operation.
+ *
+ * @param writer - The CodeBlockWriter used to emit method source code
+ * @param model - The model definition for which the `create` method is generated
+ * @param models - All model definitions in the schema (used to resolve relations)
+ * @returns The created record(s) as `Prisma.Result<Prisma.<Model>Delegate, Q, "create">`
+ */
 export function addCreateMethod(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   writer
     .writeLine(`async create<Q extends Prisma.Args<Prisma.${model.name}Delegate, "create">>(`)
@@ -96,6 +108,13 @@ function createDependents(writer: CodeBlockWriter, model: Model, models: readonl
   });
 }
 
+/**
+ * Apply relation and select clauses to the newly created record, emit a "create" event, and return the processed result.
+ *
+ * Emits a "create" event with the stored raw data before returning.
+ *
+ * @returns The created record with relations and select clauses applied, typed as `Prisma.Result<Prisma.${model.name}Delegate, Q, "create">`.
+ */
 function applyClausesAndReturnRecords(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`const data = (await tx.objectStore("${model.name}").get(keyPath))!;`)
@@ -106,6 +125,16 @@ function applyClausesAndReturnRecords(writer: CodeBlockWriter, model: Model) {
     .writeLine(`return recordsWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "create">;`);
 }
 
+/**
+ * Injects foreign key values for a one-to-one relation nested in `query.data` and removes the nested relation object.
+ *
+ * Handles nested `create`, `connect`, and `connectOrCreate` on the given relation field by creating or resolving the related record,
+ * extracting its primary key values, assigning those values to the current model's foreign key fields (based on `relationFromFields`),
+ * and removing the nested relation payload from `query.data`.
+ *
+ * @param field - The relation field on the current model; must include `relationFromFields` and `relationToFields` used for key mapping.
+ * @param models - All models in the schema; used to resolve the related model and its primary key path.
+ */
 function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field, models: readonly Model[]) {
   const otherModel = models.find(({ name }) => name === field.type)!;
   const otherModelKeyPath = JSON.parse(getUniqueIdentifiers(otherModel)[0].keyPath) as string[];
@@ -152,6 +181,20 @@ function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field, m
   writer.writeLine(`delete unsafeData.${field.name};`);
 }
 
+/**
+ * Emits code that ensures the related record on the opposite side of a one-to-one relation is created, connected, or upserted when the current model's nested `create` payload includes that relation.
+ *
+ * Writes conditional blocks to the provided writer to:
+ * - create the related record and inject mapped foreign key values,
+ * - update an existing related record to set the foreign keys for connect,
+ * - or upsert the related record for connectOrCreate,
+ * using the key path mapping between the current model and the related model.
+ *
+ * @param writer - CodeBlockWriter used to emit the generated TypeScript code
+ * @param field - The field on the current model that holds the nested relation input
+ * @param otherField - The corresponding field on the related model used to map foreign key fields
+ * @param model - The current model metadata used to derive key path indexes for mapping foreign keys
+ */
 function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Field, otherField: Field, model: Model) {
   const modelKeyPath = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
 
@@ -188,6 +231,19 @@ function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Fie
   });
 }
 
+/**
+ * Generates code that implements nested one-to-many relation handling for create operations.
+ *
+ * Writes code into the provided CodeBlockWriter to process nested `create`, `connect`, `connectOrCreate`,
+ * and `createMany` instructions for a one-to-many relation, mapping primary/foreign keys and passing
+ * transaction and outbox options through to the related-model operations.
+ *
+ * @param writer - CodeBlockWriter used to emit the generated code
+ * @param field - The relation field on the current model representing the one-to-many relation
+ * @param otherField - The corresponding field on the related model (the inverse side of the relation)
+ * @param fkFields - Foreign key fields on the related model that reference the current model
+ * @param model - The current model definition that owns `field`
+ */
 function addOneToManyRelation(
   writer: CodeBlockWriter,
   field: Field,
@@ -288,6 +344,15 @@ function addOneToManyRelation(
   });
 }
 
+/**
+ * Writes an `else if` validation block that checks whether a provided foreign key value
+ * refers to an existing record on the related model and emits a call to `findUniqueOrThrow`.
+ *
+ * @param writer - The code writer used to emit TypeScript/JS code blocks.
+ * @param field - The relation field on the current model (contains `relationToFields` / `relationFromFields`) used to build the `where` clause.
+ * @param fkField - The scalar foreign key field on the current model whose presence triggers the validation.
+ * @param models - All models in the schema, used to locate the related model and its primary key definition.
+ */
 function handleForeignKeyValidation(writer: CodeBlockWriter, field: Field, fkField: Field, models: readonly Model[]) {
   const otherModel = models.find(({ name }) => name === field.type)!;
   const otherModelPk = getUniqueIdentifiers(otherModel)[0];

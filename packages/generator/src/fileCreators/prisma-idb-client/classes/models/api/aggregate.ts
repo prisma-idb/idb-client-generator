@@ -2,6 +2,16 @@ import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
 import { getOptionsParameterRead } from "../helpers/methodOptions";
 
+/**
+ * Emit an aggregate method implementation for the given model into the provided writer.
+ *
+ * Writes a TypeScript async `aggregate` method that initializes a read-only transaction (optionally from `options`),
+ * fetches records, and populates a Prisma-style aggregate result object with any requested aggregations
+ * (_count, _avg, _sum, _min, _max) based on the model's fields and the provided query shape.
+ *
+ * @param writer - The CodeBlockWriter used to write the generated method source.
+ * @param model - Metadata for the model (name and fields) used to determine which aggregations to generate.
+ */
 export function addAggregateMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async aggregate<Q extends Prisma.Args<Prisma.${model.name}Delegate, "aggregate">>(`)
@@ -32,6 +42,12 @@ export function addAggregateMethod(writer: CodeBlockWriter, model: Model) {
     });
 }
 
+/**
+ * Emits code that ensures a read-only transaction, fetches matching records, and initializes an empty partial aggregate result.
+ *
+ * @param writer - CodeBlockWriter used to write the generated code lines
+ * @param model - The model whose records and aggregate result initialization are being generated
+ */
 function addTxAndRecordSetup(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`tx = tx ?? this.client._db.transaction(["${model.name}"], "readonly");`)
@@ -39,6 +55,13 @@ function addTxAndRecordSetup(writer: CodeBlockWriter, model: Model) {
     .writeLine(`const result: Partial<Prisma.Result<Prisma.${model.name}Delegate, Q, "aggregate">> = {};`);
 }
 
+/**
+ * Populate the aggregate result's `_count` field when the query requests counts.
+ *
+ * If `query._count` is `true`, assigns the total number of fetched records to `result._count`.
+ * If `query._count` is an object, computes counts for each requested key: `_all` is treated as the total record count;
+ * for other keys the function computes the number of records where that field is not `null` by querying the datastore and assigns each count to `result._count`.
+ */
 function addCountHandling(writer: CodeBlockWriter) {
   writer.writeLine(`if (query?._count)`).block(() => {
     writer

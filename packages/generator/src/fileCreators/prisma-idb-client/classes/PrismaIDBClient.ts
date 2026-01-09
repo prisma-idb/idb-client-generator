@@ -96,6 +96,12 @@ function addShouldTrackModelMethod(writer: CodeBlockWriter) {
   });
 }
 
+/**
+ * Writes a switch-case block that upserts a merged record for the specified model into the generated sync handler.
+ *
+ * @param writer - The CodeBlockWriter used to emit the generated code lines.
+ * @param model - Model metadata (including name and keyPath) used to build validation and the upsert where-clause.
+ */
 function generateModelUpsertCase(writer: CodeBlockWriter, model: Model) {
   const pk = getUniqueIdentifiers(model)[0];
   const pkFields = JSON.parse(pk.keyPath) as string[];

@@ -2,7 +2,16 @@ import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
 import { getOptionsParameterWrite, getOptionsSetupWrite } from "../helpers/methodOptions";
 
-// TODO: skipDuplicates
+/**
+ * Emit a TypeScript async `createMany` method for the specified model into the given writer.
+ *
+ * The generated method normalizes input to an array, prepares a read/write transaction for the
+ * model's store, processes and inserts each record while emitting per-record "create" events,
+ * and returns an object with the number of processed items.
+ *
+ * @param writer - The CodeBlockWriter to write the method source into
+ * @param model - Model metadata used to tailor the generated method for the specific store
+ */
 
 export function addCreateManyMethod(writer: CodeBlockWriter, model: Model) {
   writer
@@ -24,6 +33,12 @@ function setupDataAndTx(writer: CodeBlockWriter, model: Model) {
     .writeLine(`tx = tx ?? this.client._db.transaction(["${model.name}"], "readwrite");`);
 }
 
+/**
+ * Writes a loop that persists each item in `createManyData` and emits a create event within the current transaction.
+ *
+ * @param writer - The CodeBlockWriter used to emit the generated TypeScript code
+ * @param model - The model whose object store name is used for inserts
+ */
 function addTransactionalHandling(writer: CodeBlockWriter, model: Model) {
   writer.writeLine(`for (const createData of createManyData)`).block(() => {
     writer

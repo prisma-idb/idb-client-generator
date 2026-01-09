@@ -2,6 +2,16 @@ import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
 import { getOptionsParameterRead } from "../helpers/methodOptions";
 
+/**
+ * Writes a `findMany` async method for the specified model into the provided code writer.
+ *
+ * The generated method is a generic Prisma-style `findMany` delegate that accepts an optional
+ * query and an `options` object (used to pass a `tx` transaction), then loads records, applies
+ * relations, applies `select` and `distinct` clauses, preprocesses list fields, and returns the result.
+ *
+ * @param writer - CodeBlockWriter used to emit the method source
+ * @param model - Model descriptor for which the `findMany` method will be generated
+ */
 export function addFindManyMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async findMany<Q extends Prisma.Args<Prisma.${model.name}Delegate, "findMany">>(`)
