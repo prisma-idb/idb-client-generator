@@ -1446,6 +1446,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, { tx }))[0] ?? null;
   }
@@ -1480,6 +1481,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
     if (query.where.id !== undefined) {
@@ -1525,6 +1527,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(["User"], "readonly");
     if (!query?.select || query.select === true) {
       const records = await this.findMany({ where: query?.where }, { tx });
@@ -3443,6 +3446,7 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
   ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, { tx }))[0] ?? null;
   }
@@ -3477,6 +3481,7 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
   ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
     if (query.where.id !== undefined) {
@@ -3522,6 +3527,7 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
   ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(["Group"], "readonly");
     if (!query?.select || query.select === true) {
       const records = await this.findMany({ where: query?.where }, { tx });
@@ -4395,6 +4401,7 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
   ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, { tx }))[0] ?? null;
   }
@@ -4429,6 +4436,7 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
   ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
     if (query.where.groupId_userId !== undefined) {
@@ -4476,6 +4484,7 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
   ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(["UserGroup"], "readonly");
     if (!query?.select || query.select === true) {
       const records = await this.findMany({ where: query?.where }, { tx });
@@ -5253,6 +5262,7 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, { tx }))[0] ?? null;
   }
@@ -5287,6 +5297,7 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
     if (query.where.id !== undefined) {
@@ -5334,6 +5345,7 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(["Profile"], "readonly");
     if (!query?.select || query.select === true) {
       const records = await this.findMany({ where: query?.where }, { tx });
@@ -6205,6 +6217,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, { tx }))[0] ?? null;
   }
@@ -6239,6 +6252,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
     if (query.where.id !== undefined) {
@@ -6284,6 +6298,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(["Post"], "readonly");
     if (!query?.select || query.select === true) {
       const records = await this.findMany({ where: query?.where }, { tx });
@@ -7252,6 +7267,7 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, { tx }))[0] ?? null;
   }
@@ -7286,6 +7302,7 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
     if (query.where.id !== undefined) {
@@ -7331,6 +7348,7 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(["Comment"], "readonly");
     if (!query?.select || query.select === true) {
       const records = await this.findMany({ where: query?.where }, { tx });
@@ -8131,6 +8149,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, { tx }))[0] ?? null;
   }
@@ -8165,6 +8184,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
     if (query.where.id !== undefined) {
@@ -8210,6 +8230,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(["AllFieldScalarTypes"], "readonly");
     if (!query?.select || query.select === true) {
       const records = await this.findMany({ where: query?.where }, { tx });
@@ -9149,6 +9170,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
   ): Promise<Prisma.Result<Prisma.FatherDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, { tx }))[0] ?? null;
   }
@@ -9183,6 +9205,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
   ): Promise<Prisma.Result<Prisma.FatherDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
     if (query.where.firstName_lastName !== undefined) {
@@ -9238,6 +9261,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
   ): Promise<Prisma.Result<Prisma.FatherDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(["Father"], "readonly");
     if (!query?.select || query.select === true) {
       const records = await this.findMany({ where: query?.where }, { tx });
@@ -10551,6 +10575,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
   ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, { tx }))[0] ?? null;
   }
@@ -10585,6 +10610,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
   ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
     if (query.where.firstName_lastName !== undefined) {
@@ -10632,6 +10658,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
   ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(["Mother"], "readonly");
     if (!query?.select || query.select === true) {
       const records = await this.findMany({ where: query?.where }, { tx });
@@ -11934,6 +11961,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
   ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, { tx }))[0] ?? null;
   }
@@ -11968,6 +11996,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
   ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
     if (query.where.childFirstName_childLastName !== undefined) {
@@ -12018,6 +12047,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
   ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(["Child"], "readonly");
     if (!query?.select || query.select === true) {
       const records = await this.findMany({ where: query?.where }, { tx });
@@ -12871,6 +12901,7 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
   ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, { tx }))[0] ?? null;
   }
@@ -12905,6 +12936,7 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
   ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
     if (query.where.id !== undefined) {
@@ -12950,6 +12982,7 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
   ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(["ModelWithEnum"], "readonly");
     if (!query?.select || query.select === true) {
       const records = await this.findMany({ where: query?.where }, { tx });
@@ -13426,6 +13459,7 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
   ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, { tx }))[0] ?? null;
   }
@@ -13460,6 +13494,7 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
   ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
     if (query.where.id !== undefined) {
@@ -13505,6 +13540,7 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
   ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(["TestUuid"], "readonly");
     if (!query?.select || query.select === true) {
       const records = await this.findMany({ where: query?.where }, { tx });
@@ -14140,6 +14176,7 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
   ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, { tx }))[0] ?? null;
   }
@@ -14176,6 +14213,7 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
   ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
     if (query.where.id !== undefined) {
@@ -14227,6 +14265,7 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
   ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(["ModelWithOptionalRelationToUniqueAttributes"], "readonly");
     if (!query?.select || query.select === true) {
       const records = await this.findMany({ where: query?.where }, { tx });
@@ -15047,6 +15086,7 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
   ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, { tx }))[0] ?? null;
   }
@@ -15081,6 +15121,7 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
   ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
     if (query.where.id !== undefined) {
@@ -15128,6 +15169,7 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
   ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(["ModelWithUniqueAttributes"], "readonly");
     if (!query?.select || query.select === true) {
       const records = await this.findMany({ where: query?.where }, { tx });
@@ -15922,6 +15964,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
   ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, { tx }))[0] ?? null;
   }
@@ -15956,6 +15999,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
   ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
     if (query.where.id !== undefined) {
@@ -16001,6 +16045,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
   ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
+
     tx = tx ?? this.client._db.transaction(["Todo"], "readonly");
     if (!query?.select || query.select === true) {
       const records = await this.findMany({ where: query?.where }, { tx });

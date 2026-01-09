@@ -644,6 +644,7 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'findFirst'>> {
 		const { tx: txOption } = options ?? {};
 		let tx = txOption;
+
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
@@ -682,6 +683,7 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'findUnique'>> {
 		const { tx: txOption } = options ?? {};
 		let tx = txOption;
+
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
@@ -735,6 +737,7 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'count'>> {
 		const { tx: txOption } = options ?? {};
 		let tx = txOption;
+
 		tx = tx ?? this.client._db.transaction(['User'], 'readonly');
 		if (!query?.select || query.select === true) {
 			const records = await this.findMany({ where: query?.where }, { tx });
@@ -1521,6 +1524,7 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'findFirst'>> {
 		const { tx: txOption } = options ?? {};
 		let tx = txOption;
+
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
@@ -1559,6 +1563,7 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'findUnique'>> {
 		const { tx: txOption } = options ?? {};
 		let tx = txOption;
+
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
@@ -1612,6 +1617,7 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'count'>> {
 		const { tx: txOption } = options ?? {};
 		let tx = txOption;
+
 		tx = tx ?? this.client._db.transaction(['Todo'], 'readonly');
 		if (!query?.select || query.select === true) {
 			const records = await this.findMany({ where: query?.where }, { tx });

@@ -196,7 +196,7 @@ function addOneToManyRelation(
   model: Model,
 ) {
   const getCreateQuery = (extraDataFields: string) =>
-    `await this.client.${toCamelCase(field.type)}.create({ data: { ...elem, ${extraDataFields} } as Prisma.Args<Prisma.${field.type}Delegate, \"create\">['data'] }, { tx, silent, addToOutbox });`;
+    `await this.client.${toCamelCase(field.type)}.create({ data: { ...elem, ${extraDataFields} } as Prisma.Args<Prisma.${field.type}Delegate, "create">['data'] }, { tx, silent, addToOutbox });`;
 
   const modelPk = getUniqueIdentifiers(model)[0];
   const modelPkFields = JSON.parse(modelPk.keyPath) as string[];

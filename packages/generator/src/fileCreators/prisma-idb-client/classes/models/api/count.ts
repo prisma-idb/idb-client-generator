@@ -1,6 +1,6 @@
 import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
-import { getOptionsParameterRead } from "../helpers/methodOptions";
+import { getOptionsParameterRead, getOptionsSetupRead } from "../helpers/methodOptions";
 
 export function addCountMethod(writer: CodeBlockWriter, model: Model) {
   writer
@@ -10,8 +10,7 @@ export function addCountMethod(writer: CodeBlockWriter, model: Model) {
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "count">>`)
     .block(() => {
       writer
-        .writeLine(`const { tx: txOption } = options ?? {};`)
-        .writeLine(`let tx = txOption;`)
+        .writeLine(getOptionsSetupRead())
         .writeLine(`tx = tx ?? this.client._db.transaction(["${model.name}"], "readonly");`);
       handleWithoutSelect(writer, model);
       handleWithSelect(writer, model);
