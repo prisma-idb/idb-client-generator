@@ -6,19 +6,25 @@ import { z } from 'zod';
 const handlerMap = {
 	User: {
 		create: async (client: PrismaIDBClient, record: z.infer<typeof validators.User>) =>
-			client.user.create({ data: record }, undefined, true),
+			client.user.create({ data: record }, { silent: true, addToOutbox: false }),
 		update: async (client: PrismaIDBClient, record: z.infer<typeof validators.User>) =>
-			client.user.update({ where: { id: record.id }, data: record }, undefined, true),
+			client.user.update(
+				{ where: { id: record.id }, data: record },
+				{ silent: true, addToOutbox: false }
+			),
 		delete: async (client: PrismaIDBClient, record: z.infer<typeof validators.User>) =>
-			client.user.delete({ where: { id: record.id } }, undefined, true)
+			client.user.delete({ where: { id: record.id } }, { silent: true, addToOutbox: false })
 	},
 	Todo: {
 		create: async (client: PrismaIDBClient, record: z.infer<typeof validators.Todo>) =>
-			client.todo.create({ data: record }, undefined, true),
+			client.todo.create({ data: record }, { silent: true, addToOutbox: false }),
 		update: async (client: PrismaIDBClient, record: z.infer<typeof validators.Todo>) =>
-			client.todo.update({ where: { id: record.id }, data: record }, undefined, true),
+			client.todo.update(
+				{ where: { id: record.id }, data: record },
+				{ silent: true, addToOutbox: false }
+			),
 		delete: async (client: PrismaIDBClient, record: z.infer<typeof validators.Todo>) =>
-			client.todo.delete({ where: { id: record.id } }, undefined, true)
+			client.todo.delete({ where: { id: record.id } }, { silent: true, addToOutbox: false })
 	}
 };
 export async function applyPull(

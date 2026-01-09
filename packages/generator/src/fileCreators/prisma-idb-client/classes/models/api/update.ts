@@ -1,15 +1,16 @@
 import CodeBlockWriter from "code-block-writer";
 import { Field, Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
+import { getOptionsParameterWrite, getOptionsSetupWrite } from "../helpers/methodOptions";
 
 export function addUpdateMethod(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   writer
     .writeLine(`async update<Q extends Prisma.Args<Prisma.${model.name}Delegate, "update">>(`)
     .writeLine(`query: Q,`)
-    .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
-    .writeLine(`silent?: boolean`)
+    .write(getOptionsParameterWrite())
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "update">>`)
     .block(() => {
+      writer.write(getOptionsSetupWrite());
       addGetRecord(writer, model);
       addStringUpdateHandling(writer, model);
       addDateTimeUpdateHandling(writer, model);
@@ -32,7 +33,7 @@ function addGetRecord(writer: CodeBlockWriter, model: Model) {
   writer
     .write(`tx = tx ?? this.client._db.transaction(`)
     .writeLine(`Array.from(this._getNeededStoresForUpdate(query)), "readwrite");`)
-    .writeLine(`const record = await this.findUnique({ where: query.where }, tx);`)
+    .writeLine(`const record = await this.findUnique({ where: query.where }, { tx });`)
     .writeLine(`if (record === null)`)
     .block(() => {
       writer.writeLine(`tx.abort();`).writeLine(`throw new Error("Record not found");`);
@@ -64,7 +65,7 @@ function addPutAndReturn(writer: CodeBlockWriter, model: Model, models: readonly
       });
     })
     .writeLine(`const keyPath = await tx.objectStore("${model.name}").put(record);`)
-    .writeLine(`await this.emit("update", keyPath, startKeyPath, record, silent);`);
+    .writeLine(`await this.emit("update", keyPath, startKeyPath, record, { silent, addToOutbox, tx });`);
 
   addReferentialUpdateHandling(writer, model, models);
   writer
@@ -72,7 +73,7 @@ function addPutAndReturn(writer: CodeBlockWriter, model: Model, models: readonly
     .block(() => {
       writer.writeLine(`where: ${whereUnique},`);
     })
-    .writeLine(`, tx))!;`)
+    .writeLine(`, { tx }))!;`)
     .writeLine(`return recordWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "update">;`);
 }
 
@@ -221,7 +222,7 @@ function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, ot
         .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.connect).map(async (connectWhere) => `)
         .block(() => {
           writer.writeLine(
-            `await this.client.${toCamelCase(field.type)}.update({ where: connectWhere, data: { ${fkFields} } }, tx);`,
+            `await this.client.${toCamelCase(field.type)}.update({ where: connectWhere, data: { ${fkFields} } }, { tx, silent, addToOutbox });`,
           );
         })
         .writeLine(`))`);
@@ -236,7 +237,7 @@ function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, ot
           .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.disconnect).map(async (connectWhere) => `)
           .block(() => {
             writer.writeLine(
-              `await this.client.${toCamelCase(field.type)}.update({ where: connectWhere, data: { ${fkFieldsNull} } }, tx);`,
+              `await this.client.${toCamelCase(field.type)}.update({ where: connectWhere, data: { ${fkFieldsNull} } }, { tx, silent, addToOutbox });`,
             );
           })
           .writeLine(`))`);
@@ -252,7 +253,7 @@ function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, ot
         .block(() => {
           writer
             .write(`await this.client.${toCamelCase(field.type)}.create({ data: { ...elem, ${fkFields} }`)
-            .write(`as Prisma.Args<Prisma.${field.type}Delegate, "create">["data"] }, tx);`);
+            .write(`as Prisma.Args<Prisma.${field.type}Delegate, "create">["data"] }, { tx, silent, addToOutbox });`);
         });
     })
     .writeLine(`if (query.data.${field.name}.createMany)`)
@@ -262,7 +263,7 @@ function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, ot
         .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.createMany.data).map(async (createData) => `)
         .block(() => {
           writer.writeLine(
-            `await this.client.${toCamelCase(field.type)}.create({ data: { ...createData, ${fkFields} } }, tx);`,
+            `await this.client.${toCamelCase(field.type)}.create({ data: { ...createData, ${fkFields} } }, { tx, silent, addToOutbox });`,
           );
         })
         .writeLine(`))`);
@@ -273,7 +274,9 @@ function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, ot
         .writeLine(`await Promise.all(`)
         .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.update).map(async (updateData) => `)
         .block(() => {
-          writer.writeLine(`await this.client.${toCamelCase(field.type)}.update(updateData, tx);`);
+          writer.writeLine(
+            `await this.client.${toCamelCase(field.type)}.update(updateData, { tx, silent, addToOutbox });`,
+          );
         })
         .writeLine(`))`);
     })
@@ -283,7 +286,9 @@ function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, ot
         .writeLine(`await Promise.all(`)
         .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.updateMany).map(async (updateData) => `)
         .block(() => {
-          writer.writeLine(`await this.client.${toCamelCase(field.type)}.updateMany(updateData, tx);`);
+          writer.writeLine(
+            `await this.client.${toCamelCase(field.type)}.updateMany(updateData, { tx, silent, addToOutbox });`,
+          );
         })
         .writeLine(`))`);
     })
@@ -294,7 +299,7 @@ function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, ot
         .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.upsert).map(async (upsertData) => `)
         .block(() => {
           writer.writeLine(
-            `await this.client.${toCamelCase(field.type)}.upsert({ ...upsertData, where: { ...upsertData.where, ${fkFields} }, create: { ...upsertData.create, ${fkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'] }, tx);`,
+            `await this.client.${toCamelCase(field.type)}.upsert({ ...upsertData, where: { ...upsertData.where, ${fkFields} }, create: { ...upsertData.create, ${fkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'] }, { tx, silent, addToOutbox });`,
           );
         })
         .writeLine(`))`);
@@ -306,7 +311,7 @@ function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, ot
         .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.delete).map(async (deleteData) => `)
         .block(() => {
           writer.writeLine(
-            `await this.client.${toCamelCase(field.type)}.delete({ where: { ...deleteData, ${fkFields} } }, tx);`,
+            `await this.client.${toCamelCase(field.type)}.delete({ where: { ...deleteData, ${fkFields} } }, { tx, silent, addToOutbox });`,
           );
         })
         .writeLine(`))`);
@@ -318,7 +323,7 @@ function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, ot
         .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.deleteMany).map(async (deleteData) => `)
         .block(() => {
           writer.writeLine(
-            `await this.client.${toCamelCase(field.type)}.deleteMany({ where: { ...deleteData, ${fkFields} } }, tx);`,
+            `await this.client.${toCamelCase(field.type)}.deleteMany({ where: { ...deleteData, ${fkFields} } }, { tx, silent, addToOutbox });`,
           );
         })
         .writeLine(`))`);
@@ -327,7 +332,7 @@ function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, ot
     .block(() => {
       writer
         .writeLine(
-          `const existing = await this.client.${toCamelCase(field.type)}.findMany({ where: { ${fkFields} } }, tx);`,
+          `const existing = await this.client.${toCamelCase(field.type)}.findMany({ where: { ${fkFields} } }, { tx });`,
         )
         .writeLine(`if (existing.length > 0)`)
         .block(() => {
@@ -335,7 +340,7 @@ function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, ot
             writer.writeLine(`throw new Error("Cannot set required relation");`);
           } else {
             writer.writeLine(
-              `await this.client.${toCamelCase(field.type)}.updateMany({ where: { ${fkFields} }, data: { ${fkFieldsNull} } }, tx);`,
+              `await this.client.${toCamelCase(field.type)}.updateMany({ where: { ${fkFields} }, data: { ${fkFieldsNull} } }, { tx, silent, addToOutbox });`,
             );
           }
         })
@@ -343,7 +348,7 @@ function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, ot
         .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.set).map(async (setData) => `)
         .block(() => {
           writer.writeLine(
-            `await this.client.${toCamelCase(field.type)}.update({ where: setData, data: { ${fkFields} } }, tx);`,
+            `await this.client.${toCamelCase(field.type)}.update({ where: setData, data: { ${fkFields} } }, { tx, silent, addToOutbox });`,
           );
         })
         .writeLine(`))`);
@@ -366,7 +371,7 @@ function handleOneToOneRelationMetaOnCurrentUpdate(writer: CodeBlockWriter, fiel
     .writeLine(`if (query.data.${field.name}.connect)`)
     .block(() => {
       writer.writeLine(
-        `const other = await this.client.${toCamelCase(field.type)}.findUniqueOrThrow({ where: query.data.${field.name}.connect }, tx);`,
+        `const other = await this.client.${toCamelCase(field.type)}.findUniqueOrThrow({ where: query.data.${field.name}.connect }, { tx });`,
       );
       for (let i = 0; i < field.relationFromFields!.length; i++) {
         writer.writeLine(`record.${field.relationFromFields?.at(i)} = other.${field.relationToFields?.at(i)};`);
@@ -375,7 +380,7 @@ function handleOneToOneRelationMetaOnCurrentUpdate(writer: CodeBlockWriter, fiel
     .writeLine(`if (query.data.${field.name}.create)`)
     .block(() => {
       writer.writeLine(
-        `const other = await this.client.${toCamelCase(field.type)}.create({ data: query.data.${field.name}.create }, tx);`,
+        `const other = await this.client.${toCamelCase(field.type)}.create({ data: query.data.${field.name}.create }, { tx, silent, addToOutbox });`,
       );
       for (let i = 0; i < field.relationFromFields!.length; i++) {
         writer.writeLine(`record.${field.relationFromFields?.at(i)} = other.${field.relationToFields?.at(i)};`);
@@ -386,13 +391,13 @@ function handleOneToOneRelationMetaOnCurrentUpdate(writer: CodeBlockWriter, fiel
       writer
         .writeLine(`const updateData = query.data.${field.name}.update.data ?? query.data.${field.name}.update;`)
         .writeLine(
-          `await this.client.${toCamelCase(field.type)}.update({ where: { ...query.data.${field.name}.update.where, ${uniqueInput} } as Prisma.${field.type}WhereUniqueInput, data: updateData }, tx);`,
+          `await this.client.${toCamelCase(field.type)}.update({ where: { ...query.data.${field.name}.update.where, ${uniqueInput} } as Prisma.${field.type}WhereUniqueInput, data: updateData }, { tx, silent, addToOutbox });`,
         );
     })
     .writeLine(`if (query.data.${field.name}.upsert)`)
     .block(() => {
       writer.writeLine(
-        `await this.client.${toCamelCase(field.type)}.upsert({ where: { ...query.data.${field.name}.upsert.where, ${uniqueInput} } as Prisma.${field.type}WhereUniqueInput, create: { ...query.data.${field.name}.upsert.create, ${fkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'], update: query.data.${field.name}.upsert.update, }, tx);`,
+        `await this.client.${toCamelCase(field.type)}.upsert({ where: { ...query.data.${field.name}.upsert.where, ${uniqueInput} } as Prisma.${field.type}WhereUniqueInput, create: { ...query.data.${field.name}.upsert.create, ${fkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'], update: query.data.${field.name}.upsert.update, }, { tx, silent, addToOutbox });`,
       );
     })
     .writeLine(`if (query.data.${field.name}.connectOrCreate)`)
@@ -407,7 +412,7 @@ function handleOneToOneRelationMetaOnCurrentUpdate(writer: CodeBlockWriter, fiel
             )
             .writeLine(`update: { ${fkFields} },`);
         })
-        .writeLine(`, tx);`);
+        .writeLine(`, { tx, silent, addToOutbox });`);
     });
 
   if (!field.isRequired) {
@@ -425,7 +430,7 @@ function handleOneToOneRelationMetaOnCurrentUpdate(writer: CodeBlockWriter, fiel
             `const deleteWhere = query.data.${field.name}.delete === true ? {} : query.data.${field.name}.delete;`,
           )
           .writeLine(
-            `await this.client.${toCamelCase(field.type)}.delete({ where: { ...deleteWhere, ${uniqueInput} } } as Prisma.${field.type}DeleteArgs, tx);`,
+            `await this.client.${toCamelCase(field.type)}.delete({ where: { ...deleteWhere, ${uniqueInput} } } as Prisma.${field.type}DeleteArgs, { tx, silent, addToOutbox });`,
           );
         for (const _field of field.relationFromFields!) {
           writer.writeLine(`record.${_field} = null;`);
@@ -441,7 +446,7 @@ function handleOneToOneRelationMetaOnOtherUpdate(writer: CodeBlockWriter, field:
     .writeLine(`if (query.data.${field.name}.connect)`)
     .block(() => {
       writer.writeLine(
-        `await this.client.${toCamelCase(field.type)}.update({ where: query.data.${field.name}.connect, data: { ${otherFkFields} } }, tx);`,
+        `await this.client.${toCamelCase(field.type)}.update({ where: query.data.${field.name}.connect, data: { ${otherFkFields} } }, { tx, silent, addToOutbox });`,
       );
     })
     .writeLine(`if (query.data.${field.name}.disconnect)`)
@@ -450,14 +455,14 @@ function handleOneToOneRelationMetaOnOtherUpdate(writer: CodeBlockWriter, field:
         writer.writeLine(`throw new Error("Cannot disconnect required relation");`);
       } else {
         writer.writeLine(
-          `await this.client.${toCamelCase(field.type)}.update({ where: query.data.${field.name}.disconnect, data: { ${otherFkFieldsNull} } }, tx);`,
+          `await this.client.${toCamelCase(field.type)}.update({ where: query.data.${field.name}.disconnect, data: { ${otherFkFieldsNull} } }, { tx, silent, addToOutbox });`,
         );
       }
     })
     .writeLine(`if (query.data.${field.name}.create)`)
     .block(() => {
       writer.writeLine(
-        `await this.client.${toCamelCase(field.type)}.create({ data: { ...query.data.${field.name}.create, ${otherFkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "create">["data"] }, tx);`,
+        `await this.client.${toCamelCase(field.type)}.create({ data: { ...query.data.${field.name}.create, ${otherFkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "create">["data"] }, { tx, silent, addToOutbox });`,
       );
     })
     .writeLine(`if (query.data.${field.name}.delete)`)
@@ -467,7 +472,7 @@ function handleOneToOneRelationMetaOnOtherUpdate(writer: CodeBlockWriter, field:
           `const deleteWhere = query.data.${field.name}.delete === true ? {} : query.data.${field.name}.delete;`,
         )
         .writeLine(
-          `await this.client.${toCamelCase(field.type)}.delete({ where: { ...deleteWhere, ${otherFkFields} } as Prisma.${field.type}WhereUniqueInput }, tx);`,
+          `await this.client.${toCamelCase(field.type)}.delete({ where: { ...deleteWhere, ${otherFkFields} } as Prisma.${field.type}WhereUniqueInput }, { tx, silent, addToOutbox });`,
         );
     })
     .writeLine(`if (query.data.${field.name}.update)`)
@@ -475,19 +480,19 @@ function handleOneToOneRelationMetaOnOtherUpdate(writer: CodeBlockWriter, field:
       writer
         .writeLine(`const updateData = query.data.${field.name}.update.data ?? query.data.${field.name}.update;`)
         .writeLine(
-          `await this.client.${toCamelCase(field.type)}.update({ where: { ...query.data.${field.name}.update.where, ${otherFkFields} } as Prisma.${field.type}WhereUniqueInput, data: updateData }, tx);`,
+          `await this.client.${toCamelCase(field.type)}.update({ where: { ...query.data.${field.name}.update.where, ${otherFkFields} } as Prisma.${field.type}WhereUniqueInput, data: updateData }, { tx, silent, addToOutbox });`,
         );
     })
     .writeLine(`if (query.data.${field.name}.upsert)`)
     .block(() => {
       writer.writeLine(
-        `await this.client.${toCamelCase(field.type)}.upsert({ ...query.data.${field.name}.upsert, where: { ...query.data.${field.name}.upsert.where, ${otherFkFields} } as Prisma.${field.type}WhereUniqueInput, create: { ...query.data.${field.name}.upsert.create, ${otherFkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'] }, tx);`,
+        `await this.client.${toCamelCase(field.type)}.upsert({ ...query.data.${field.name}.upsert, where: { ...query.data.${field.name}.upsert.where, ${otherFkFields} } as Prisma.${field.type}WhereUniqueInput, create: { ...query.data.${field.name}.upsert.create, ${otherFkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'] }, { tx, silent, addToOutbox });`,
       );
     })
     .writeLine(`if (query.data.${field.name}.connectOrCreate)`)
     .block(() => {
       writer.writeLine(
-        `await this.client.${toCamelCase(field.type)}.upsert({ where: { ...query.data.${field.name}.connectOrCreate.where, ${otherFkFields} } as Prisma.${field.type}WhereUniqueInput, create: { ...query.data.${field.name}.connectOrCreate.create, ${otherFkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'], update: { ${otherFkFields} } }, tx);`,
+        `await this.client.${toCamelCase(field.type)}.upsert({ where: { ...query.data.${field.name}.connectOrCreate.where, ${otherFkFields} } as Prisma.${field.type}WhereUniqueInput, create: { ...query.data.${field.name}.connectOrCreate.create, ${otherFkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'], update: { ${otherFkFields} } }, { tx, silent, addToOutbox });`,
       );
     });
 }
@@ -522,7 +527,7 @@ function addReferentialUpdateHandling(writer: CodeBlockWriter, model: Model, mod
           .block(() => {
             writer.writeLine(`where: { ${whereClause} },`).writeLine(`data: { ${dataClause} },`);
           })
-          .writeLine(`, tx);`);
+          .writeLine(`, { tx, silent, addToOutbox });`);
       }
       writer.writeLine(`break;`);
     });
@@ -551,7 +556,7 @@ function addFkValidation(writer: CodeBlockWriter, model: Model, models: readonly
 
     writer.writeLine(`if (${condition})`).block(() => {
       writer.writeLine(
-        `const related = await this.client.${toCamelCase(dependentModelField.type)}.findUnique({ where: ${whereUnique} }, tx);`,
+        `const related = await this.client.${toCamelCase(dependentModelField.type)}.findUnique({ where: ${whereUnique} }, { tx });`,
       );
       writer.writeLine(`if (!related) throw new Error("Related record not found");`);
     });

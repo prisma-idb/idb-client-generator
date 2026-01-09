@@ -116,8 +116,7 @@ export class PrismaIDBClient {
 														update: recordValidation.data,
 														create: recordValidation.data
 													},
-													undefined,
-													true
+													{ silent: true, addToOutbox: false }
 												);
 												break;
 											}
@@ -144,8 +143,7 @@ export class PrismaIDBClient {
 														update: recordValidation.data,
 														create: recordValidation.data
 													},
-													undefined,
-													true
+													{ silent: true, addToOutbox: false }
 												);
 												break;
 											}
@@ -258,25 +256,37 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
 		keyPath: PrismaIDBSchema[T]['key'],
 		oldKeyPath?: PrismaIDBSchema[T]['key'],
 		record?: unknown,
-		silent?: boolean
+		opts?: { silent?: boolean; addToOutbox?: boolean; tx?: IDBUtils.ReadwriteTransactionType }
 	) {
-		if (silent) return;
+		const shouldEmit = !opts?.silent;
 
-		if (event === 'update') {
-			this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath, oldKeyPath } }));
-		} else {
-			this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath } }));
+		if (shouldEmit) {
+			if (event === 'update') {
+				this.eventEmitter.dispatchEvent(
+					new CustomEvent(event, { detail: { keyPath, oldKeyPath } })
+				);
+			} else {
+				this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath } }));
+			}
 		}
 
-		if (this.client.shouldTrackModel(this.modelName)) {
-			await this.client.$outbox.create({
-				data: {
+		if (opts?.addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
+			if (opts?.tx) {
+				const outboxStore = opts.tx.objectStore('OutboxEvent');
+				const outboxEvent: OutboxEventRecord = {
+					id: crypto.randomUUID(),
+					createdAt: new Date(),
+					synced: false,
+					syncedAt: null,
+					tries: 0,
+					lastError: null,
 					entityType: this.modelName,
 					entityKeyPath: keyPath as Array<string | number>,
 					operation: event,
 					payload: record ?? keyPath
-				}
-			});
+				};
+				await outboxStore.add(outboxEvent);
+			}
 		}
 	}
 }
@@ -306,24 +316,30 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 					}
 					if (whereClause.todos) {
 						if (whereClause.todos.every) {
-							const violatingRecord = await this.client.todo.findFirst({
-								where: { NOT: { ...whereClause.todos.every }, userId: record.id },
-								tx
-							});
+							const violatingRecord = await this.client.todo.findFirst(
+								{
+									where: { NOT: { ...whereClause.todos.every }, userId: record.id }
+								},
+								{ tx }
+							);
 							if (violatingRecord !== null) return null;
 						}
 						if (whereClause.todos.some) {
-							const relatedRecords = await this.client.todo.findMany({
-								where: { ...whereClause.todos.some, userId: record.id },
-								tx
-							});
+							const relatedRecords = await this.client.todo.findMany(
+								{
+									where: { ...whereClause.todos.some, userId: record.id }
+								},
+								{ tx }
+							);
 							if (relatedRecords.length === 0) return null;
 						}
 						if (whereClause.todos.none) {
-							const violatingRecord = await this.client.todo.findFirst({
-								where: { ...whereClause.todos.none, userId: record.id },
-								tx
-							});
+							const violatingRecord = await this.client.todo.findFirst(
+								{
+									where: { ...whereClause.todos.none, userId: record.id }
+								},
+								{ tx }
+							);
 							if (violatingRecord !== null) return null;
 						}
 					}
@@ -363,7 +379,7 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 						...(attach_todos === true ? {} : attach_todos),
 						where: { userId: record.id! }
 					},
-					tx
+					{ tx }
 				);
 			}
 			return unsafeRecord;
@@ -412,7 +428,7 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 		const scalarFields = ['id', 'name'] as const;
 		for (const field of scalarFields) if (orderByInput[field]) return record[field];
 		if (orderByInput.todos) {
-			return await this.client.todo.count({ where: { userId: record.id } }, tx);
+			return await this.client.todo.count({ where: { userId: record.id } }, { tx });
 		}
 	}
 	_resolveSortOrder(
@@ -514,6 +530,9 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 				);
 			}
 		}
+		if (this.client.shouldTrackModel(this.modelName)) {
+			neededStores.add('OutboxEvent' as StoreNames<PrismaIDBSchema>);
+		}
 		return neededStores;
 	}
 	_getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.UserDelegate, 'update'>>(
@@ -570,11 +589,17 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 		if (query.data?.id !== undefined) {
 			neededStores.add('Todo');
 		}
+		if (this.client.shouldTrackModel(this.modelName)) {
+			neededStores.add('OutboxEvent' as StoreNames<PrismaIDBSchema>);
+		}
 		return neededStores;
 	}
 	_getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
 		neededStores.add('User');
 		this.client.todo._getNeededStoresForNestedDelete(neededStores);
+		if (this.client.shouldTrackModel(this.modelName)) {
+			neededStores.add('OutboxEvent' as StoreNames<PrismaIDBSchema>);
+		}
 	}
 	private _removeNestedCreateData<D extends Prisma.Args<Prisma.UserDelegate, 'create'>['data']>(
 		data: D
@@ -592,8 +617,12 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 	): void {}
 	async findMany<Q extends Prisma.Args<Prisma.UserDelegate, 'findMany'>>(
 		query?: Q,
-		tx?: IDBUtils.TransactionType
+		options?: {
+			tx?: IDBUtils.TransactionType;
+		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'findMany'>> {
+		const { tx: txOption } = options ?? {};
+		let tx = txOption;
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
@@ -625,31 +654,45 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 	}
 	async findFirst<Q extends Prisma.Args<Prisma.UserDelegate, 'findFirst'>>(
 		query?: Q,
-		tx?: IDBUtils.TransactionType
+		options?: {
+			tx?: IDBUtils.TransactionType;
+		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'findFirst'>> {
+		const { tx: txOption } = options ?? {};
+		let tx = txOption;
+
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
-		return (await this.findMany(query, tx))[0] ?? null;
+		return (await this.findMany(query, { tx }))[0] ?? null;
 	}
 	async findFirstOrThrow<Q extends Prisma.Args<Prisma.UserDelegate, 'findFirstOrThrow'>>(
 		query?: Q,
-		tx?: IDBUtils.TransactionType
+		options?: {
+			tx?: IDBUtils.TransactionType;
+		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'findFirstOrThrow'>> {
+		const { tx: txOption } = options ?? {};
+		let tx = txOption;
+
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
-		const record = await this.findFirst(query, tx);
+		const record = await this.findFirst(query, { tx });
 		if (!record) {
-			tx.abort();
 			throw new Error('Record not found');
 		}
 		return record;
 	}
 	async findUnique<Q extends Prisma.Args<Prisma.UserDelegate, 'findUnique'>>(
 		query: Q,
-		tx?: IDBUtils.TransactionType
+		options?: {
+			tx?: IDBUtils.TransactionType;
+		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'findUnique'>> {
+		const { tx: txOption } = options ?? {};
+		let tx = txOption;
+
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
@@ -672,45 +715,59 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 	}
 	async findUniqueOrThrow<Q extends Prisma.Args<Prisma.UserDelegate, 'findUniqueOrThrow'>>(
 		query: Q,
-		tx?: IDBUtils.TransactionType
+		options?: {
+			tx?: IDBUtils.TransactionType;
+		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'findUniqueOrThrow'>> {
+		const { tx: txOption } = options ?? {};
+		let tx = txOption;
+
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
-		const record = await this.findUnique(query, tx);
+		const record = await this.findUnique(query, { tx });
 		if (!record) {
-			tx.abort();
 			throw new Error('Record not found');
 		}
 		return record;
 	}
 	async count<Q extends Prisma.Args<Prisma.UserDelegate, 'count'>>(
 		query?: Q,
-		tx?: IDBUtils.TransactionType
+		options?: {
+			tx?: IDBUtils.TransactionType;
+		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'count'>> {
+		const { tx: txOption } = options ?? {};
+		let tx = txOption;
+
 		tx = tx ?? this.client._db.transaction(['User'], 'readonly');
 		if (!query?.select || query.select === true) {
-			const records = await this.findMany({ where: query?.where }, tx);
+			const records = await this.findMany({ where: query?.where }, { tx });
 			return records.length as Prisma.Result<Prisma.UserDelegate, Q, 'count'>;
 		}
 		const result: Partial<Record<keyof Prisma.UserCountAggregateInputType, number>> = {};
 		for (const key of Object.keys(query.select)) {
 			const typedKey = key as keyof typeof query.select;
 			if (typedKey === '_all') {
-				result[typedKey] = (await this.findMany({ where: query.where }, tx)).length;
+				result[typedKey] = (await this.findMany({ where: query.where }, { tx })).length;
 				continue;
 			}
 			result[typedKey] = (
-				await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)
+				await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })
 			).length;
 		}
 		return result as Prisma.Result<Prisma.UserDelegate, Q, 'count'>;
 	}
 	async create<Q extends Prisma.Args<Prisma.UserDelegate, 'create'>>(
 		query: Q,
-		tx?: IDBUtils.ReadwriteTransactionType,
-		silent?: boolean
+		options?: {
+			tx?: IDBUtils.ReadwriteTransactionType;
+			silent?: boolean;
+			addToOutbox?: boolean;
+		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'create'>> {
+		const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+		let tx = txOption;
 		const storesNeeded = this._getNeededStoresForCreate(query.data);
 		tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), 'readwrite');
 		const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
@@ -724,8 +781,7 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 							'create'
 						>['data']
 					},
-					tx,
-					silent
+					{ tx, silent, addToOutbox }
 				);
 			}
 		}
@@ -734,8 +790,7 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 				IDBUtils.convertToArray(query.data.todos.connect).map(async (connectWhere) => {
 					await this.client.todo.update(
 						{ where: connectWhere, data: { userId: keyPath[0] } },
-						tx,
-						silent
+						{ tx, silent, addToOutbox }
 					);
 				})
 			);
@@ -751,8 +806,7 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 							>,
 							update: { userId: keyPath[0] }
 						},
-						tx,
-						silent
+						{ tx, silent, addToOutbox }
 					);
 				})
 			);
@@ -765,8 +819,7 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 						userId: keyPath[0]
 					}))
 				},
-				tx,
-				silent
+				{ tx, silent, addToOutbox }
 			);
 		}
 		const data = (await tx.objectStore('User').get(keyPath))!;
@@ -775,35 +828,53 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 			query.select
 		)[0];
 		this._preprocessListFields([recordsWithRelations]);
-		await this.emit('create', keyPath, undefined, data, silent);
+		await this.emit('create', keyPath, undefined, data, { silent, addToOutbox, tx });
 		return recordsWithRelations as Prisma.Result<Prisma.UserDelegate, Q, 'create'>;
 	}
 	async createMany<Q extends Prisma.Args<Prisma.UserDelegate, 'createMany'>>(
 		query: Q,
-		tx?: IDBUtils.ReadwriteTransactionType,
-		silent?: boolean
+		options?: {
+			tx?: IDBUtils.ReadwriteTransactionType;
+			silent?: boolean;
+			addToOutbox?: boolean;
+		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'createMany'>> {
+		const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+		let tx = txOption;
 		const createManyData = IDBUtils.convertToArray(query.data);
-		tx = tx ?? this.client._db.transaction(['User'], 'readwrite');
+		const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(['User']);
+		if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
+			storesNeeded.add('OutboxEvent' as StoreNames<PrismaIDBSchema>);
+		}
+		tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), 'readwrite');
 		for (const createData of createManyData) {
 			const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
 			const keyPath = await tx.objectStore('User').add(record);
-			await this.emit('create', keyPath, undefined, record, silent);
+			await this.emit('create', keyPath, undefined, record, { silent, addToOutbox, tx });
 		}
 		return { count: createManyData.length };
 	}
 	async createManyAndReturn<Q extends Prisma.Args<Prisma.UserDelegate, 'createManyAndReturn'>>(
 		query: Q,
-		tx?: IDBUtils.ReadwriteTransactionType,
-		silent?: boolean
+		options?: {
+			tx?: IDBUtils.ReadwriteTransactionType;
+			silent?: boolean;
+			addToOutbox?: boolean;
+		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'createManyAndReturn'>> {
+		const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+		let tx = txOption;
 		const createManyData = IDBUtils.convertToArray(query.data);
 		const records: Prisma.Result<Prisma.UserDelegate, object, 'findMany'> = [];
-		tx = tx ?? this.client._db.transaction(['User'], 'readwrite');
+		const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(['User']);
+		if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
+			storesNeeded.add('OutboxEvent' as StoreNames<PrismaIDBSchema>);
+		}
+		tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), 'readwrite');
 		for (const createData of createManyData) {
 			const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
 			const keyPath = await tx.objectStore('User').add(record);
-			await this.emit('create', keyPath, undefined, record, silent);
+			await this.emit('create', keyPath, undefined, record, { silent, addToOutbox, tx });
 			records.push(this._applySelectClause([record], query.select)[0]);
 		}
 		this._preprocessListFields(records);
@@ -811,47 +882,62 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 	}
 	async delete<Q extends Prisma.Args<Prisma.UserDelegate, 'delete'>>(
 		query: Q,
-		tx?: IDBUtils.ReadwriteTransactionType,
-		silent?: boolean
+		options?: {
+			tx?: IDBUtils.ReadwriteTransactionType;
+			silent?: boolean;
+			addToOutbox?: boolean;
+		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'delete'>> {
+		const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+		let tx = txOption;
 		const storesNeeded = this._getNeededStoresForFind(query);
 		this._getNeededStoresForNestedDelete(storesNeeded);
 		tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), 'readwrite');
-		const record = await this.findUnique(query, tx);
+		const record = await this.findUnique(query, { tx });
 		if (!record) throw new Error('Record not found');
 		await this.client.todo.deleteMany(
 			{
 				where: { userId: record.id }
 			},
-			tx
+			{ tx, silent, addToOutbox }
 		);
 		await tx.objectStore('User').delete([record.id]);
-		await this.emit('delete', [record.id], undefined, record, silent);
+		await this.emit('delete', [record.id], undefined, record, { silent, addToOutbox, tx });
 		return record;
 	}
 	async deleteMany<Q extends Prisma.Args<Prisma.UserDelegate, 'deleteMany'>>(
 		query?: Q,
-		tx?: IDBUtils.ReadwriteTransactionType,
-		silent?: boolean
+		options?: {
+			tx?: IDBUtils.ReadwriteTransactionType;
+			silent?: boolean;
+			addToOutbox?: boolean;
+		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'deleteMany'>> {
+		const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+		let tx = txOption;
 		const storesNeeded = this._getNeededStoresForFind(query);
 		this._getNeededStoresForNestedDelete(storesNeeded);
 		tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), 'readwrite');
-		const records = await this.findMany(query, tx);
+		const records = await this.findMany(query, { tx });
 		for (const record of records) {
-			await this.delete({ where: { id: record.id } }, tx, silent);
+			await this.delete({ where: { id: record.id } }, { tx, silent, addToOutbox });
 		}
 		return { count: records.length };
 	}
 	async update<Q extends Prisma.Args<Prisma.UserDelegate, 'update'>>(
 		query: Q,
-		tx?: IDBUtils.ReadwriteTransactionType,
-		silent?: boolean
+		options?: {
+			tx?: IDBUtils.ReadwriteTransactionType;
+			silent?: boolean;
+			addToOutbox?: boolean;
+		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'update'>> {
+		const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+		let tx = txOption;
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), 'readwrite');
-		const record = await this.findUnique({ where: query.where }, tx);
+		const record = await this.findUnique({ where: query.where }, { tx });
 		if (record === null) {
 			tx.abort();
 			throw new Error('Record not found');
@@ -865,7 +951,10 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 			if (query.data.todos.connect) {
 				await Promise.all(
 					IDBUtils.convertToArray(query.data.todos.connect).map(async (connectWhere) => {
-						await this.client.todo.update({ where: connectWhere, data: { userId: record.id } }, tx);
+						await this.client.todo.update(
+							{ where: connectWhere, data: { userId: record.id } },
+							{ tx, silent, addToOutbox }
+						);
 					})
 				);
 			}
@@ -884,28 +973,31 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 								'create'
 							>['data']
 						},
-						tx
+						{ tx, silent, addToOutbox }
 					);
 				}
 			}
 			if (query.data.todos.createMany) {
 				await Promise.all(
 					IDBUtils.convertToArray(query.data.todos.createMany.data).map(async (createData) => {
-						await this.client.todo.create({ data: { ...createData, userId: record.id } }, tx);
+						await this.client.todo.create(
+							{ data: { ...createData, userId: record.id } },
+							{ tx, silent, addToOutbox }
+						);
 					})
 				);
 			}
 			if (query.data.todos.update) {
 				await Promise.all(
 					IDBUtils.convertToArray(query.data.todos.update).map(async (updateData) => {
-						await this.client.todo.update(updateData, tx);
+						await this.client.todo.update(updateData, { tx, silent, addToOutbox });
 					})
 				);
 			}
 			if (query.data.todos.updateMany) {
 				await Promise.all(
 					IDBUtils.convertToArray(query.data.todos.updateMany).map(async (updateData) => {
-						await this.client.todo.updateMany(updateData, tx);
+						await this.client.todo.updateMany(updateData, { tx, silent, addToOutbox });
 					})
 				);
 			}
@@ -921,7 +1013,7 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 									'upsert'
 								>['create']
 							},
-							tx
+							{ tx, silent, addToOutbox }
 						);
 					})
 				);
@@ -929,25 +1021,34 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 			if (query.data.todos.delete) {
 				await Promise.all(
 					IDBUtils.convertToArray(query.data.todos.delete).map(async (deleteData) => {
-						await this.client.todo.delete({ where: { ...deleteData, userId: record.id } }, tx);
+						await this.client.todo.delete(
+							{ where: { ...deleteData, userId: record.id } },
+							{ tx, silent, addToOutbox }
+						);
 					})
 				);
 			}
 			if (query.data.todos.deleteMany) {
 				await Promise.all(
 					IDBUtils.convertToArray(query.data.todos.deleteMany).map(async (deleteData) => {
-						await this.client.todo.deleteMany({ where: { ...deleteData, userId: record.id } }, tx);
+						await this.client.todo.deleteMany(
+							{ where: { ...deleteData, userId: record.id } },
+							{ tx, silent, addToOutbox }
+						);
 					})
 				);
 			}
 			if (query.data.todos.set) {
-				const existing = await this.client.todo.findMany({ where: { userId: record.id } }, tx);
+				const existing = await this.client.todo.findMany({ where: { userId: record.id } }, { tx });
 				if (existing.length > 0) {
 					throw new Error('Cannot set required relation');
 				}
 				await Promise.all(
 					IDBUtils.convertToArray(query.data.todos.set).map(async (setData) => {
-						await this.client.todo.update({ where: setData, data: { userId: record.id } }, tx);
+						await this.client.todo.update(
+							{ where: setData, data: { userId: record.id } },
+							{ tx, silent, addToOutbox }
+						);
 					})
 				);
 			}
@@ -963,7 +1064,7 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 			}
 		}
 		const keyPath = await tx.objectStore('User').put(record);
-		await this.emit('update', keyPath, startKeyPath, record, silent);
+		await this.emit('update', keyPath, startKeyPath, record, { silent, addToOutbox, tx });
 		for (let i = 0; i < startKeyPath.length; i++) {
 			if (startKeyPath[i] !== endKeyPath[i]) {
 				await this.client.todo.updateMany(
@@ -971,7 +1072,7 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 						where: { userId: startKeyPath[0] },
 						data: { userId: endKeyPath[0] }
 					},
-					tx
+					{ tx, silent, addToOutbox }
 				);
 				break;
 			}
@@ -980,31 +1081,44 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 			{
 				where: { id: keyPath[0] }
 			},
-			tx
+			{ tx }
 		))!;
 		return recordWithRelations as Prisma.Result<Prisma.UserDelegate, Q, 'update'>;
 	}
 	async updateMany<Q extends Prisma.Args<Prisma.UserDelegate, 'updateMany'>>(
 		query: Q,
-		tx?: IDBUtils.ReadwriteTransactionType,
-		silent?: boolean
+		options?: {
+			tx?: IDBUtils.ReadwriteTransactionType;
+			silent?: boolean;
+			addToOutbox?: boolean;
+		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'updateMany'>> {
+		const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+		let tx = txOption;
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readwrite');
-		const records = await this.findMany({ where: query.where }, tx);
+		const records = await this.findMany({ where: query.where }, { tx });
 		await Promise.all(
 			records.map(async (record) => {
-				await this.update({ where: { id: record.id }, data: query.data }, tx, silent);
+				await this.update(
+					{ where: { id: record.id }, data: query.data },
+					{ tx, silent, addToOutbox }
+				);
 			})
 		);
 		return { count: records.length };
 	}
 	async upsert<Q extends Prisma.Args<Prisma.UserDelegate, 'upsert'>>(
 		query: Q,
-		tx?: IDBUtils.ReadwriteTransactionType,
-		silent?: boolean
+		options?: {
+			tx?: IDBUtils.ReadwriteTransactionType;
+			silent?: boolean;
+			addToOutbox?: boolean;
+		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'upsert'>> {
+		const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+		let tx = txOption;
 		const neededStores = this._getNeededStoresForUpdate({
 			...query,
 			data: { ...query.update, ...query.create } as Prisma.Args<
@@ -1013,21 +1127,29 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 			>['data']
 		});
 		tx = tx ?? this.client._db.transaction(Array.from(neededStores), 'readwrite');
-		let record = await this.findUnique({ where: query.where }, tx);
-		if (!record) record = await this.create({ data: query.create }, tx, silent);
-		else record = await this.update({ where: query.where, data: query.update }, tx, silent);
+		let record = await this.findUnique({ where: query.where }, { tx });
+		if (!record) record = await this.create({ data: query.create }, { tx, silent, addToOutbox });
+		else
+			record = await this.update(
+				{ where: query.where, data: query.update },
+				{ tx, silent, addToOutbox }
+			);
 		record = await this.findUniqueOrThrow(
 			{ where: { id: record.id }, select: query.select, include: query.include },
-			tx
+			{ tx }
 		);
 		return record as Prisma.Result<Prisma.UserDelegate, Q, 'upsert'>;
 	}
 	async aggregate<Q extends Prisma.Args<Prisma.UserDelegate, 'aggregate'>>(
 		query?: Q,
-		tx?: IDBUtils.TransactionType
+		options?: {
+			tx?: IDBUtils.TransactionType;
+		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'aggregate'>> {
+		const { tx: txOption } = options ?? {};
+		let tx = txOption;
 		tx = tx ?? this.client._db.transaction(['User'], 'readonly');
-		const records = await this.findMany({ where: query?.where }, tx);
+		const records = await this.findMany({ where: query?.where }, { tx });
 		const result: Partial<Prisma.Result<Prisma.UserDelegate, Q, 'aggregate'>> = {};
 		if (query?._count) {
 			if (query._count === true) {
@@ -1040,7 +1162,7 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 						continue;
 					}
 					(result._count as Record<string, number>)[typedKey] = (
-						await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)
+						await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })
 					).length;
 				}
 			}
@@ -1105,21 +1227,21 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 						if (is !== null && is !== undefined) {
 							const relatedRecord = await this.client.user.findFirst(
 								{ where: { ...is, id: record.userId } },
-								tx
+								{ tx }
 							);
 							if (!relatedRecord) return null;
 						}
 						if (isNot !== null && isNot !== undefined) {
 							const relatedRecord = await this.client.user.findFirst(
 								{ where: { ...isNot, id: record.userId } },
-								tx
+								{ tx }
 							);
 							if (relatedRecord) return null;
 						}
 						if (Object.keys(rest).length) {
 							const relatedRecord = await this.client.user.findFirst(
 								{ where: { ...whereClause.user, id: record.userId } },
-								tx
+								{ tx }
 							);
 							if (!relatedRecord) return null;
 						}
@@ -1160,7 +1282,7 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 						...(attach_user === true ? {} : attach_user),
 						where: { id: record.userId! }
 					},
-					tx
+					{ tx }
 				);
 			}
 			return unsafeRecord;
@@ -1312,6 +1434,9 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 		if (data?.userId !== undefined) {
 			neededStores.add('User');
 		}
+		if (this.client.shouldTrackModel(this.modelName)) {
+			neededStores.add('OutboxEvent' as StoreNames<PrismaIDBSchema>);
+		}
 		return neededStores;
 	}
 	_getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.TodoDelegate, 'update'>>(
@@ -1348,10 +1473,16 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 					.forEach((store) => neededStores.add(store));
 			});
 		}
+		if (this.client.shouldTrackModel(this.modelName)) {
+			neededStores.add('OutboxEvent' as StoreNames<PrismaIDBSchema>);
+		}
 		return neededStores;
 	}
 	_getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
 		neededStores.add('Todo');
+		if (this.client.shouldTrackModel(this.modelName)) {
+			neededStores.add('OutboxEvent' as StoreNames<PrismaIDBSchema>);
+		}
 	}
 	private _removeNestedCreateData<D extends Prisma.Args<Prisma.TodoDelegate, 'create'>['data']>(
 		data: D
@@ -1369,8 +1500,12 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 	): void {}
 	async findMany<Q extends Prisma.Args<Prisma.TodoDelegate, 'findMany'>>(
 		query?: Q,
-		tx?: IDBUtils.TransactionType
+		options?: {
+			tx?: IDBUtils.TransactionType;
+		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'findMany'>> {
+		const { tx: txOption } = options ?? {};
+		let tx = txOption;
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
@@ -1402,31 +1537,45 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 	}
 	async findFirst<Q extends Prisma.Args<Prisma.TodoDelegate, 'findFirst'>>(
 		query?: Q,
-		tx?: IDBUtils.TransactionType
+		options?: {
+			tx?: IDBUtils.TransactionType;
+		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'findFirst'>> {
+		const { tx: txOption } = options ?? {};
+		let tx = txOption;
+
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
-		return (await this.findMany(query, tx))[0] ?? null;
+		return (await this.findMany(query, { tx }))[0] ?? null;
 	}
 	async findFirstOrThrow<Q extends Prisma.Args<Prisma.TodoDelegate, 'findFirstOrThrow'>>(
 		query?: Q,
-		tx?: IDBUtils.TransactionType
+		options?: {
+			tx?: IDBUtils.TransactionType;
+		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'findFirstOrThrow'>> {
+		const { tx: txOption } = options ?? {};
+		let tx = txOption;
+
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
-		const record = await this.findFirst(query, tx);
+		const record = await this.findFirst(query, { tx });
 		if (!record) {
-			tx.abort();
 			throw new Error('Record not found');
 		}
 		return record;
 	}
 	async findUnique<Q extends Prisma.Args<Prisma.TodoDelegate, 'findUnique'>>(
 		query: Q,
-		tx?: IDBUtils.TransactionType
+		options?: {
+			tx?: IDBUtils.TransactionType;
+		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'findUnique'>> {
+		const { tx: txOption } = options ?? {};
+		let tx = txOption;
+
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
@@ -1449,57 +1598,74 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 	}
 	async findUniqueOrThrow<Q extends Prisma.Args<Prisma.TodoDelegate, 'findUniqueOrThrow'>>(
 		query: Q,
-		tx?: IDBUtils.TransactionType
+		options?: {
+			tx?: IDBUtils.TransactionType;
+		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'findUniqueOrThrow'>> {
+		const { tx: txOption } = options ?? {};
+		let tx = txOption;
+
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
-		const record = await this.findUnique(query, tx);
+		const record = await this.findUnique(query, { tx });
 		if (!record) {
-			tx.abort();
 			throw new Error('Record not found');
 		}
 		return record;
 	}
 	async count<Q extends Prisma.Args<Prisma.TodoDelegate, 'count'>>(
 		query?: Q,
-		tx?: IDBUtils.TransactionType
+		options?: {
+			tx?: IDBUtils.TransactionType;
+		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'count'>> {
+		const { tx: txOption } = options ?? {};
+		let tx = txOption;
+
 		tx = tx ?? this.client._db.transaction(['Todo'], 'readonly');
 		if (!query?.select || query.select === true) {
-			const records = await this.findMany({ where: query?.where }, tx);
+			const records = await this.findMany({ where: query?.where }, { tx });
 			return records.length as Prisma.Result<Prisma.TodoDelegate, Q, 'count'>;
 		}
 		const result: Partial<Record<keyof Prisma.TodoCountAggregateInputType, number>> = {};
 		for (const key of Object.keys(query.select)) {
 			const typedKey = key as keyof typeof query.select;
 			if (typedKey === '_all') {
-				result[typedKey] = (await this.findMany({ where: query.where }, tx)).length;
+				result[typedKey] = (await this.findMany({ where: query.where }, { tx })).length;
 				continue;
 			}
 			result[typedKey] = (
-				await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)
+				await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })
 			).length;
 		}
 		return result as Prisma.Result<Prisma.TodoDelegate, Q, 'count'>;
 	}
 	async create<Q extends Prisma.Args<Prisma.TodoDelegate, 'create'>>(
 		query: Q,
-		tx?: IDBUtils.ReadwriteTransactionType,
-		silent?: boolean
+		options?: {
+			tx?: IDBUtils.ReadwriteTransactionType;
+			silent?: boolean;
+			addToOutbox?: boolean;
+		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'create'>> {
+		const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+		let tx = txOption;
 		const storesNeeded = this._getNeededStoresForCreate(query.data);
 		tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), 'readwrite');
 		if (query.data.user) {
 			const fk: Partial<PrismaIDBSchema['User']['key']> = [];
 			if (query.data.user?.create) {
-				const record = await this.client.user.create({ data: query.data.user.create }, tx, silent);
+				const record = await this.client.user.create(
+					{ data: query.data.user.create },
+					{ tx, silent, addToOutbox }
+				);
 				fk[0] = record.id;
 			}
 			if (query.data.user?.connect) {
 				const record = await this.client.user.findUniqueOrThrow(
 					{ where: query.data.user.connect },
-					tx
+					{ tx }
 				);
 				delete query.data.user.connect;
 				fk[0] = record.id;
@@ -1511,8 +1677,7 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 						create: query.data.user.connectOrCreate.create,
 						update: {}
 					},
-					tx,
-					silent
+					{ tx, silent, addToOutbox }
 				);
 				fk[0] = record.id;
 			}
@@ -1524,7 +1689,7 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 				{
 					where: { id: query.data.userId }
 				},
-				tx
+				{ tx }
 			);
 		}
 		const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
@@ -1535,35 +1700,53 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 			query.select
 		)[0];
 		this._preprocessListFields([recordsWithRelations]);
-		await this.emit('create', keyPath, undefined, data, silent);
+		await this.emit('create', keyPath, undefined, data, { silent, addToOutbox, tx });
 		return recordsWithRelations as Prisma.Result<Prisma.TodoDelegate, Q, 'create'>;
 	}
 	async createMany<Q extends Prisma.Args<Prisma.TodoDelegate, 'createMany'>>(
 		query: Q,
-		tx?: IDBUtils.ReadwriteTransactionType,
-		silent?: boolean
+		options?: {
+			tx?: IDBUtils.ReadwriteTransactionType;
+			silent?: boolean;
+			addToOutbox?: boolean;
+		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'createMany'>> {
+		const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+		let tx = txOption;
 		const createManyData = IDBUtils.convertToArray(query.data);
-		tx = tx ?? this.client._db.transaction(['Todo'], 'readwrite');
+		const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(['Todo']);
+		if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
+			storesNeeded.add('OutboxEvent' as StoreNames<PrismaIDBSchema>);
+		}
+		tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), 'readwrite');
 		for (const createData of createManyData) {
 			const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
 			const keyPath = await tx.objectStore('Todo').add(record);
-			await this.emit('create', keyPath, undefined, record, silent);
+			await this.emit('create', keyPath, undefined, record, { silent, addToOutbox, tx });
 		}
 		return { count: createManyData.length };
 	}
 	async createManyAndReturn<Q extends Prisma.Args<Prisma.TodoDelegate, 'createManyAndReturn'>>(
 		query: Q,
-		tx?: IDBUtils.ReadwriteTransactionType,
-		silent?: boolean
+		options?: {
+			tx?: IDBUtils.ReadwriteTransactionType;
+			silent?: boolean;
+			addToOutbox?: boolean;
+		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'createManyAndReturn'>> {
+		const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+		let tx = txOption;
 		const createManyData = IDBUtils.convertToArray(query.data);
 		const records: Prisma.Result<Prisma.TodoDelegate, object, 'findMany'> = [];
-		tx = tx ?? this.client._db.transaction(['Todo'], 'readwrite');
+		const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(['Todo']);
+		if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
+			storesNeeded.add('OutboxEvent' as StoreNames<PrismaIDBSchema>);
+		}
+		tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), 'readwrite');
 		for (const createData of createManyData) {
 			const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
 			const keyPath = await tx.objectStore('Todo').add(record);
-			await this.emit('create', keyPath, undefined, record, silent);
+			await this.emit('create', keyPath, undefined, record, { silent, addToOutbox, tx });
 			records.push(this._applySelectClause([record], query.select)[0]);
 		}
 		this._preprocessListFields(records);
@@ -1571,41 +1754,56 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 	}
 	async delete<Q extends Prisma.Args<Prisma.TodoDelegate, 'delete'>>(
 		query: Q,
-		tx?: IDBUtils.ReadwriteTransactionType,
-		silent?: boolean
+		options?: {
+			tx?: IDBUtils.ReadwriteTransactionType;
+			silent?: boolean;
+			addToOutbox?: boolean;
+		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'delete'>> {
+		const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+		let tx = txOption;
 		const storesNeeded = this._getNeededStoresForFind(query);
 		this._getNeededStoresForNestedDelete(storesNeeded);
 		tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), 'readwrite');
-		const record = await this.findUnique(query, tx);
+		const record = await this.findUnique(query, { tx });
 		if (!record) throw new Error('Record not found');
 		await tx.objectStore('Todo').delete([record.id]);
-		await this.emit('delete', [record.id], undefined, record, silent);
+		await this.emit('delete', [record.id], undefined, record, { silent, addToOutbox, tx });
 		return record;
 	}
 	async deleteMany<Q extends Prisma.Args<Prisma.TodoDelegate, 'deleteMany'>>(
 		query?: Q,
-		tx?: IDBUtils.ReadwriteTransactionType,
-		silent?: boolean
+		options?: {
+			tx?: IDBUtils.ReadwriteTransactionType;
+			silent?: boolean;
+			addToOutbox?: boolean;
+		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'deleteMany'>> {
+		const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+		let tx = txOption;
 		const storesNeeded = this._getNeededStoresForFind(query);
 		this._getNeededStoresForNestedDelete(storesNeeded);
 		tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), 'readwrite');
-		const records = await this.findMany(query, tx);
+		const records = await this.findMany(query, { tx });
 		for (const record of records) {
-			await this.delete({ where: { id: record.id } }, tx, silent);
+			await this.delete({ where: { id: record.id } }, { tx, silent, addToOutbox });
 		}
 		return { count: records.length };
 	}
 	async update<Q extends Prisma.Args<Prisma.TodoDelegate, 'update'>>(
 		query: Q,
-		tx?: IDBUtils.ReadwriteTransactionType,
-		silent?: boolean
+		options?: {
+			tx?: IDBUtils.ReadwriteTransactionType;
+			silent?: boolean;
+			addToOutbox?: boolean;
+		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'update'>> {
+		const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+		let tx = txOption;
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), 'readwrite');
-		const record = await this.findUnique({ where: query.where }, tx);
+		const record = await this.findUnique({ where: query.where }, { tx });
 		if (record === null) {
 			tx.abort();
 			throw new Error('Record not found');
@@ -1623,12 +1821,15 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 			if (query.data.user.connect) {
 				const other = await this.client.user.findUniqueOrThrow(
 					{ where: query.data.user.connect },
-					tx
+					{ tx }
 				);
 				record.userId = other.id;
 			}
 			if (query.data.user.create) {
-				const other = await this.client.user.create({ data: query.data.user.create }, tx);
+				const other = await this.client.user.create(
+					{ data: query.data.user.create },
+					{ tx, silent, addToOutbox }
+				);
 				record.userId = other.id;
 			}
 			if (query.data.user.update) {
@@ -1641,7 +1842,7 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 						} as Prisma.UserWhereUniqueInput,
 						data: updateData
 					},
-					tx
+					{ tx, silent, addToOutbox }
 				);
 			}
 			if (query.data.user.upsert) {
@@ -1657,7 +1858,7 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 						>['create'],
 						update: query.data.user.upsert.update
 					},
-					tx
+					{ tx, silent, addToOutbox }
 				);
 			}
 			if (query.data.user.connectOrCreate) {
@@ -1670,12 +1871,12 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 						} as Prisma.Args<Prisma.UserDelegate, 'upsert'>['create'],
 						update: { id: record.userId! }
 					},
-					tx
+					{ tx, silent, addToOutbox }
 				);
 			}
 		}
 		if (query.data.userId !== undefined) {
-			const related = await this.client.user.findUnique({ where: { id: record.userId } }, tx);
+			const related = await this.client.user.findUnique({ where: { id: record.userId } }, { tx });
 			if (!related) throw new Error('Related record not found');
 		}
 		const endKeyPath: PrismaIDBSchema['Todo']['key'] = [record.id];
@@ -1689,7 +1890,7 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 			}
 		}
 		const keyPath = await tx.objectStore('Todo').put(record);
-		await this.emit('update', keyPath, startKeyPath, record, silent);
+		await this.emit('update', keyPath, startKeyPath, record, { silent, addToOutbox, tx });
 		for (let i = 0; i < startKeyPath.length; i++) {
 			if (startKeyPath[i] !== endKeyPath[i]) {
 				break;
@@ -1699,31 +1900,44 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 			{
 				where: { id: keyPath[0] }
 			},
-			tx
+			{ tx }
 		))!;
 		return recordWithRelations as Prisma.Result<Prisma.TodoDelegate, Q, 'update'>;
 	}
 	async updateMany<Q extends Prisma.Args<Prisma.TodoDelegate, 'updateMany'>>(
 		query: Q,
-		tx?: IDBUtils.ReadwriteTransactionType,
-		silent?: boolean
+		options?: {
+			tx?: IDBUtils.ReadwriteTransactionType;
+			silent?: boolean;
+			addToOutbox?: boolean;
+		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'updateMany'>> {
+		const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+		let tx = txOption;
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readwrite');
-		const records = await this.findMany({ where: query.where }, tx);
+		const records = await this.findMany({ where: query.where }, { tx });
 		await Promise.all(
 			records.map(async (record) => {
-				await this.update({ where: { id: record.id }, data: query.data }, tx, silent);
+				await this.update(
+					{ where: { id: record.id }, data: query.data },
+					{ tx, silent, addToOutbox }
+				);
 			})
 		);
 		return { count: records.length };
 	}
 	async upsert<Q extends Prisma.Args<Prisma.TodoDelegate, 'upsert'>>(
 		query: Q,
-		tx?: IDBUtils.ReadwriteTransactionType,
-		silent?: boolean
+		options?: {
+			tx?: IDBUtils.ReadwriteTransactionType;
+			silent?: boolean;
+			addToOutbox?: boolean;
+		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'upsert'>> {
+		const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+		let tx = txOption;
 		const neededStores = this._getNeededStoresForUpdate({
 			...query,
 			data: { ...query.update, ...query.create } as Prisma.Args<
@@ -1732,21 +1946,29 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 			>['data']
 		});
 		tx = tx ?? this.client._db.transaction(Array.from(neededStores), 'readwrite');
-		let record = await this.findUnique({ where: query.where }, tx);
-		if (!record) record = await this.create({ data: query.create }, tx, silent);
-		else record = await this.update({ where: query.where, data: query.update }, tx, silent);
+		let record = await this.findUnique({ where: query.where }, { tx });
+		if (!record) record = await this.create({ data: query.create }, { tx, silent, addToOutbox });
+		else
+			record = await this.update(
+				{ where: query.where, data: query.update },
+				{ tx, silent, addToOutbox }
+			);
 		record = await this.findUniqueOrThrow(
 			{ where: { id: record.id }, select: query.select, include: query.include },
-			tx
+			{ tx }
 		);
 		return record as Prisma.Result<Prisma.TodoDelegate, Q, 'upsert'>;
 	}
 	async aggregate<Q extends Prisma.Args<Prisma.TodoDelegate, 'aggregate'>>(
 		query?: Q,
-		tx?: IDBUtils.TransactionType
+		options?: {
+			tx?: IDBUtils.TransactionType;
+		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'aggregate'>> {
+		const { tx: txOption } = options ?? {};
+		let tx = txOption;
 		tx = tx ?? this.client._db.transaction(['Todo'], 'readonly');
-		const records = await this.findMany({ where: query?.where }, tx);
+		const records = await this.findMany({ where: query?.where }, { tx });
 		const result: Partial<Prisma.Result<Prisma.TodoDelegate, Q, 'aggregate'>> = {};
 		if (query?._count) {
 			if (query._count === true) {
@@ -1759,7 +1981,7 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 						continue;
 					}
 					(result._count as Record<string, number>)[typedKey] = (
-						await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)
+						await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })
 					).length;
 				}
 			}

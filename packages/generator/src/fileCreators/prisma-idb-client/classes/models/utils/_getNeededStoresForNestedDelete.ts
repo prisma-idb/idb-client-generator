@@ -2,7 +2,12 @@ import { Model } from "src/fileCreators/types";
 import CodeBlockWriter from "code-block-writer";
 import { toCamelCase } from "../../../../../helpers/utils";
 
-export function addGetNeededStoresForNestedDelete(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+export function addGetNeededStoresForNestedDelete(
+  writer: CodeBlockWriter,
+  model: Model,
+  models: readonly Model[],
+  outboxModelName: string = "OutboxEvent",
+) {
   writer
     .writeLine(`_getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void`)
     .block(() => {
@@ -15,5 +20,9 @@ export function addGetNeededStoresForNestedDelete(writer: CodeBlockWriter, model
       for (const field of cascadingDeletes) {
         writer.writeLine(`this.client.${toCamelCase(field.type)}._getNeededStoresForNestedDelete(neededStores);`);
       }
+      writer
+        .writeLine(`if (this.client.shouldTrackModel(this.modelName)) {`)
+        .writeLine(`neededStores.add("${outboxModelName}" as StoreNames<PrismaIDBSchema>);`)
+        .writeLine(`}`);
     });
 }

@@ -2,7 +2,12 @@ import { Model } from "src/fileCreators/types";
 import CodeBlockWriter from "code-block-writer";
 import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
 
-export function addGetNeededStoresForUpdate(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+export function addGetNeededStoresForUpdate(
+  writer: CodeBlockWriter,
+  model: Model,
+  models: readonly Model[],
+  outboxModelName: string = "OutboxEvent",
+) {
   writer
     .writeLine(`_getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.${model.name}Delegate, "update">>(`)
     .writeLine(`query: Partial<Q>,`)
@@ -14,6 +19,10 @@ export function addGetNeededStoresForUpdate(writer: CodeBlockWriter, model: Mode
       addNestedQueryStores(writer, model);
       addNestedDeleteStores(writer, model);
       addUpdateCascadingStores(writer, model, models);
+      writer
+        .writeLine(`if (this.client.shouldTrackModel(this.modelName)) {`)
+        .writeLine(`neededStores.add("${outboxModelName}" as StoreNames<PrismaIDBSchema>);`)
+        .writeLine(`}`);
       writer.writeLine(`return neededStores;`);
     });
 }

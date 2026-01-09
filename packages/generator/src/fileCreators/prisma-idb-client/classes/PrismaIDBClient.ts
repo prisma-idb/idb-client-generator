@@ -132,7 +132,7 @@ function generateModelUpsertCase(writer: CodeBlockWriter, model: Model) {
     writer.writeLine(`                    where: ${whereClause},`);
     writer.writeLine(`                    update: recordValidation.data,`);
     writer.writeLine(`                    create: recordValidation.data,`);
-    writer.writeLine(`                  }, undefined, true);`);
+    writer.writeLine(`                  }, { silent: true, addToOutbox: false });`);
     writer.writeLine(`                  break;`);
   });
   writer.writeLine(`                }`);
