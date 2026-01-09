@@ -25,5 +25,5 @@ export function getOptionsParameter(isReadwrite: boolean): string {
  * Use with writer chaining: .write(getOptionsSetup())
  */
 export function getOptionsSetup(): string {
-  return `const {\ntx: txOption,\nsilent = false,\naddToOutbox = true\n} = options ?? {};\nlet tx = txOption;`;
+  return `const {\ntx: txOption,\nsilent = false,\naddToOutbox = true\n} = options ?? {};\nlet tx = txOption;\n`;
 }

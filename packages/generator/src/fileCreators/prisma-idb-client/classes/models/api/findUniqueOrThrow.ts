@@ -11,6 +11,7 @@ export function addFindUniqueOrThrow(writer: CodeBlockWriter, model: Model) {
     .block(() => {
       writer
         .writeLine(`const { tx: txOption } = options ?? {};`)
+        .writeLine(`const localCreatedTx = !txOption;`)
         .writeLine(`let tx = txOption;`)
         .writeLine(
           `tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`,
@@ -18,7 +19,7 @@ export function addFindUniqueOrThrow(writer: CodeBlockWriter, model: Model) {
         .writeLine(`const record = await this.findUnique(query, { tx });`)
         .writeLine(`if (!record)`)
         .block(() => {
-          writer.writeLine(`tx.abort();`).writeLine(`throw new Error("Record not found");`);
+          writer.writeLine(`if (localCreatedTx) tx.abort();`).writeLine(`throw new Error("Record not found");`);
         })
         .writeLine(`return record;`);
     });
