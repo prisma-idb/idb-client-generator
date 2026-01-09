@@ -527,7 +527,7 @@ function addReferentialUpdateHandling(writer: CodeBlockWriter, model: Model, mod
           .block(() => {
             writer.writeLine(`where: { ${whereClause} },`).writeLine(`data: { ${dataClause} },`);
           })
-          .writeLine(`, { tx: tx });`);
+          .writeLine(`, { tx, silent, addToOutbox });`);
       }
       writer.writeLine(`break;`);
     });
