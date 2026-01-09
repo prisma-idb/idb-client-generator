@@ -55,19 +55,21 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean) {
       `protected async emit(event: "create" | "update" | "delete", keyPath: PrismaIDBSchema[T]["key"], oldKeyPath?: PrismaIDBSchema[T]["key"], record?: unknown, silent?: boolean, addToOutbox?: boolean)`,
     )
     .block(() => {
-      writer.writeLine(`if (silent) return;`).blankLine();
+      writer.writeLine(`const shouldEmit = !silent;`).blankLine();
 
-      writer
-        .writeLine(`if (event === "update")`)
-        .block(() => {
-          writer.writeLine(
-            `this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath, oldKeyPath } }));`,
-          );
-        })
-        .writeLine(`else`)
-        .block(() => {
-          writer.writeLine(`this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath } }));`);
-        });
+      writer.writeLine(`if (shouldEmit)`).block(() => {
+        writer
+          .writeLine(`if (event === "update")`)
+          .block(() => {
+            writer.writeLine(
+              `this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath, oldKeyPath } }));`,
+            );
+          })
+          .writeLine(`else`)
+          .block(() => {
+            writer.writeLine(`this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath } }));`);
+          });
+      });
 
       if (!outboxSync) return;
 
