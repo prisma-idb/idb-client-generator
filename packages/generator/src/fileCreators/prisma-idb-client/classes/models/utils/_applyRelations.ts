@@ -84,7 +84,7 @@ function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field, m
         writer.writeLine(`where: { ${compositeKeyName}: { ${compositeKey} } }`);
       }
     })
-    .writeLine(`, tx)`);
+    .writeLine(`, { tx })`);
 }
 
 function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Field, otherField: Field) {
@@ -103,7 +103,7 @@ function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Fie
         writer.writeLine(`where: { ${compositeKeyName}: { ${compositeKey} } }`);
       }
     })
-    .writeLine(`, tx)`);
+    .writeLine(`, { tx })`);
 }
 
 function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField: Field) {
@@ -118,7 +118,7 @@ function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField:
         .writeLine(`...(attach_${field.name} === true ? {} : attach_${field.name}),`)
         .writeLine(`where: { ${fkMapping} }`);
     })
-    .writeLine(`, tx)`);
+    .writeLine(`, { tx })`);
 }
 
 function addReturn(writer: CodeBlockWriter, model: Model) {

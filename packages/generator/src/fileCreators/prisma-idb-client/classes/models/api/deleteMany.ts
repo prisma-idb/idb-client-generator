@@ -6,10 +6,16 @@ export function addDeleteManyMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async deleteMany<Q extends Prisma.Args<Prisma.${model.name}Delegate, "deleteMany">>(`)
     .writeLine(`query?: Q,`)
+    .write(`options?: {`)
     .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
-    .writeLine(`silent?: boolean`)
+    .writeLine(`silent?: boolean,`)
+    .writeLine(`addToOutbox?: boolean`)
+    .writeLine(`}`)
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "deleteMany">>`)
     .block(() => {
+      writer
+        .writeLine(`const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};`)
+        .writeLine(`let tx = txOption;`);
       createTxAndGetRecord(writer);
       deleteRecords(writer, model);
       writer.writeLine(`return { count: records.length };`);
@@ -21,7 +27,7 @@ function createTxAndGetRecord(writer: CodeBlockWriter) {
     .writeLine(`const storesNeeded = this._getNeededStoresForFind(query);`)
     .writeLine(`this._getNeededStoresForNestedDelete(storesNeeded);`)
     .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");`)
-    .writeLine(`const records = await this.findMany(query, tx);`);
+    .writeLine(`const records = await this.findMany(query, { tx });`);
 }
 
 function deleteRecords(writer: CodeBlockWriter, model: Model) {
@@ -29,10 +35,14 @@ function deleteRecords(writer: CodeBlockWriter, model: Model) {
   const keyPath = JSON.parse(pk.keyPath) as string[];
   writer.writeLine(`for (const record of records)`).block(() => {
     if (keyPath.length === 1) {
-      writer.writeLine(`await this.delete({ where: { ${pk.name}: record.${keyPath[0]} } }, tx, silent);`);
+      writer.writeLine(
+        `await this.delete({ where: { ${pk.name}: record.${keyPath[0]} } }, { tx, silent, addToOutbox });`,
+      );
     } else {
       const compositeKey = keyPath.map((field) => `${field}: record.${field}`).join(", ");
-      writer.writeLine(`await this.delete({ where: { ${pk.name}: { ${compositeKey} } } }, tx, silent);`);
+      writer.writeLine(
+        `await this.delete({ where: { ${pk.name}: { ${compositeKey} } } }, { tx, silent, addToOutbox });`,
+      );
     }
   });
 }

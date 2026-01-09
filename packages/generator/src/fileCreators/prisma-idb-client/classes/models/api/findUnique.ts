@@ -6,10 +6,14 @@ export function addFindUniqueMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async findUnique<Q extends Prisma.Args<Prisma.${model.name}Delegate, "findUnique">>(`)
     .writeLine(`query: Q,`)
-    .writeLine(`tx?: IDBUtils.TransactionType,`)
+    .write(`options?: {`)
+    .writeLine(`tx?: IDBUtils.TransactionType`)
+    .writeLine(`}`)
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "findUnique">>`)
     .block(() => {
       writer
+        .writeLine(`const { tx: txOption } = options ?? {};`)
+        .writeLine(`let tx = txOption;`)
         .writeLine(
           `tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`,
         )

@@ -52,7 +52,7 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean) {
 
   writer
     .writeLine(
-      `protected async emit(event: "create" | "update" | "delete", keyPath: PrismaIDBSchema[T]["key"], oldKeyPath?: PrismaIDBSchema[T]["key"], record?: unknown, silent?: boolean)`,
+      `protected async emit(event: "create" | "update" | "delete", keyPath: PrismaIDBSchema[T]["key"], oldKeyPath?: PrismaIDBSchema[T]["key"], record?: unknown, silent?: boolean, addToOutbox?: boolean)`,
     )
     .block(() => {
       writer.writeLine(`if (silent) return;`).blankLine();
@@ -72,7 +72,7 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean) {
       if (!outboxSync) return;
 
       writer.blankLine();
-      writer.writeLine(`if (this.client.shouldTrackModel(this.modelName))`).block(() => {
+      writer.writeLine(`if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName))`).block(() => {
         writer
           .writeLine(`await this.client.$outbox.create({`)
           .writeLine(`data: {`)

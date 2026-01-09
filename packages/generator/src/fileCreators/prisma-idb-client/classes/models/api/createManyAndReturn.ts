@@ -5,10 +5,16 @@ export function addCreateManyAndReturn(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async createManyAndReturn<Q extends Prisma.Args<Prisma.${model.name}Delegate, "createManyAndReturn">>(`)
     .writeLine(`query: Q,`)
+    .write(`options?: {`)
     .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
-    .writeLine(`silent?: boolean`)
+    .writeLine(`silent?: boolean,`)
+    .writeLine(`addToOutbox?: boolean`)
+    .writeLine(`}`)
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "createManyAndReturn">>`)
     .block(() => {
+      writer
+        .writeLine(`const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};`)
+        .writeLine(`let tx = txOption;`);
       writer
         .writeLine(`const createManyData = IDBUtils.convertToArray(query.data);`)
         .writeLine(`const records: Prisma.Result<Prisma.${model.name}Delegate, object, "findMany"> = [];`)
@@ -18,7 +24,7 @@ export function addCreateManyAndReturn(writer: CodeBlockWriter, model: Model) {
           writer
             .writeLine(`const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));`)
             .writeLine(`const keyPath = await tx.objectStore("${model.name}").add(record);`)
-            .writeLine(`await this.emit("create", keyPath, undefined, record, silent);`)
+            .writeLine(`await this.emit("create", keyPath, undefined, record, silent, addToOutbox);`)
             .writeLine(`records.push(this._applySelectClause([record], query.select)[0]);`);
         })
         .writeLine(`this._preprocessListFields(records);`)

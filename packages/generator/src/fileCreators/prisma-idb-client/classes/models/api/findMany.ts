@@ -5,9 +5,12 @@ export function addFindManyMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async findMany<Q extends Prisma.Args<Prisma.${model.name}Delegate, "findMany">>(`)
     .writeLine(`query?: Q,`)
-    .writeLine(`tx?: IDBUtils.TransactionType,`)
+    .write(`options?: {`)
+    .writeLine(`tx?: IDBUtils.TransactionType`)
+    .writeLine(`}`)
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "findMany">>`)
     .block(() => {
+      writer.writeLine(`const { tx: txOption } = options ?? {};`).writeLine(`let tx = txOption;`);
       getRecords(writer, model);
       applyRelationsToRecords(writer, model);
       applySelectClauseToRecords(writer);
