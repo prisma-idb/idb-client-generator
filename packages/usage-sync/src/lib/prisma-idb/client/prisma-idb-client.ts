@@ -657,20 +657,15 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'findFirstOrThrow'>> {
 		const { tx: txOption } = options ?? {};
-		const localCreatedTx = txOption == null;
 		let tx = txOption;
+
+		const localCreatedTx = txOption == null;
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
-		const record = await this.findFirst(query, { ...(options ?? {}), tx });
+		const record = await this.findFirst(query, { tx });
 		if (!record) {
-			if (localCreatedTx) {
-				try {
-					tx.abort();
-				} catch {
-					// Transaction may already be inactive
-				}
-			}
+			if (localCreatedTx) tx.abort();
 			throw new Error('Record not found');
 		}
 		return record;
@@ -711,20 +706,15 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'findUniqueOrThrow'>> {
 		const { tx: txOption } = options ?? {};
-		const localCreatedTx = txOption == null;
 		let tx = txOption;
+
+		const localCreatedTx = txOption == null;
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
-		const record = await this.findUnique(query, { ...(options ?? {}), tx });
+		const record = await this.findUnique(query, { tx });
 		if (!record) {
-			if (localCreatedTx) {
-				try {
-					tx.abort();
-				} catch {
-					// Transaction may already be inactive
-				}
-			}
+			if (localCreatedTx) tx.abort();
 			throw new Error('Record not found');
 		}
 		return record;
@@ -1537,20 +1527,15 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'findFirstOrThrow'>> {
 		const { tx: txOption } = options ?? {};
-		const localCreatedTx = txOption == null;
 		let tx = txOption;
+
+		const localCreatedTx = txOption == null;
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
-		const record = await this.findFirst(query, { ...(options ?? {}), tx });
+		const record = await this.findFirst(query, { tx });
 		if (!record) {
-			if (localCreatedTx) {
-				try {
-					tx.abort();
-				} catch {
-					// Transaction may already be inactive
-				}
-			}
+			if (localCreatedTx) tx.abort();
 			throw new Error('Record not found');
 		}
 		return record;
@@ -1591,20 +1576,15 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'findUniqueOrThrow'>> {
 		const { tx: txOption } = options ?? {};
-		const localCreatedTx = txOption == null;
 		let tx = txOption;
+
+		const localCreatedTx = txOption == null;
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
-		const record = await this.findUnique(query, { ...(options ?? {}), tx });
+		const record = await this.findUnique(query, { tx });
 		if (!record) {
-			if (localCreatedTx) {
-				try {
-					tx.abort();
-				} catch {
-					// Transaction may already be inactive
-				}
-			}
+			if (localCreatedTx) tx.abort();
 			throw new Error('Record not found');
 		}
 		return record;
