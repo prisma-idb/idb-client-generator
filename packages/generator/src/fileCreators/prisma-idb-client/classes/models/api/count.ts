@@ -2,6 +2,12 @@ import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
 import { getOptionsParameterRead } from "../helpers/methodOptions";
 
+/**
+ * Generates an async `count` method implementation for the specified Prisma model and writes it to the provided CodeBlockWriter.
+ *
+ * @param writer - CodeBlockWriter used to emit the generated method source
+ * @param model - Model descriptor for which the `count` method is generated
+ */
 export function addCountMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async count<Q extends Prisma.Args<Prisma.${model.name}Delegate, "count">>(`)
@@ -18,6 +24,12 @@ export function addCountMethod(writer: CodeBlockWriter, model: Model) {
     });
 }
 
+/**
+ * Writes an if-block that handles counting when no `select` projection is provided or `select` is `true`.
+ *
+ * @param writer - CodeBlockWriter used to emit the generated code
+ * @param model - Model descriptor for which the count logic is generated
+ */
 function handleWithoutSelect(writer: CodeBlockWriter, model: Model) {
   writer.writeLine(`if (!query?.select || query.select === true)`).block(() => {
     writer
@@ -26,6 +38,17 @@ function handleWithoutSelect(writer: CodeBlockWriter, model: Model) {
   });
 }
 
+/**
+ * Emits TypeScript code that implements count logic for explicit `select` projections.
+ *
+ * Writes a partial `result` object and a loop over `query.select` keys that:
+ * - counts all matching records when the selected key is `"_all"`,
+ * - otherwise counts non-null values for the selected field,
+ * then returns the `result` cast to the appropriate Prisma `count` result type for the provided model.
+ *
+ * @param writer - CodeBlockWriter used to emit the generated code
+ * @param model - Model metadata used to reference the model-specific Prisma types in the generated code
+ */
 function handleWithSelect(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`const result: Partial<Record<keyof Prisma.${model.name}CountAggregateInputType, number>> = {};`)

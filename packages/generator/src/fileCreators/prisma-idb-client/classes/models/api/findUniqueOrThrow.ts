@@ -2,6 +2,14 @@ import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
 import { getOptionsParameterRead } from "../helpers/methodOptions";
 
+/**
+ * Emits an async `findUniqueOrThrow` method implementation for the specified model to the provided writer.
+ *
+ * The generated method fetches a unique record using the provided query, creates a read-only transaction when no transaction is supplied via options, aborts a locally created transaction (ignoring abort errors) and throws `Error("Record not found")` if no record is found, and returns the found record otherwise.
+ *
+ * @param writer - CodeBlockWriter to which the method implementation will be written
+ * @param model - Model metadata used to specialize the method signature and result type
+ */
 export function addFindUniqueOrThrow(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async findUniqueOrThrow<Q extends Prisma.Args<Prisma.${model.name}Delegate, "findUniqueOrThrow">>(`)

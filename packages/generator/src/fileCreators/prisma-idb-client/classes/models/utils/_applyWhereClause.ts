@@ -89,6 +89,17 @@ function addNumberFiltering(writer: CodeBlockWriter, model: Model) {
   }
 }
 
+/**
+ * Emits code that adds BigInt-based where-clause filtering for a model.
+ *
+ * Writes const arrays of scalar and list BigInt field names (when present) and
+ * generates per-field loops that call `IDBUtils.whereBigIntFilter` for scalar
+ * fields and `IDBUtils.whereBigIntListFilter` for list fields; if a filter
+ * fails for a record the generated code returns `null` for that record.
+ *
+ * @param writer - The CodeBlockWriter used to emit TypeScript code.
+ * @param model - Metadata for the model whose BigInt fields should be processed.
+ */
 function addBigIntFiltering(writer: CodeBlockWriter, model: Model) {
   const bigIntFields = model.fields.filter((field) => field.type === "BigInt" && !field.isList).map(({ name }) => name);
   if (bigIntFields.length > 0) {
@@ -209,6 +220,15 @@ function addRelationFiltering(writer: CodeBlockWriter, model: Model, models: rea
   });
 }
 
+/**
+ * Emits code to apply one-to-one relation filters for a relation defined on the given field.
+ *
+ * Generates checks that enforce `is`, `isNot`, and other nested where conditions for the related record,
+ * respects the field's required/optional semantics (including explicit `null` handling), and emits Prisma
+ * lookups that validate the existence or absence of the related record using the transaction context.
+ *
+ * @param field - Metadata for the one-to-one relation field on the current model used to build foreign-key mappings and nullable behavior
+ */
 function addOneToOneMetaOnFieldFiltering(writer: CodeBlockWriter, field: Field) {
   const fkName = field.relationFromFields?.at(0);
   const fkMapping = field.relationToFields
@@ -262,6 +282,15 @@ function addOneToOneMetaOnFieldFiltering(writer: CodeBlockWriter, field: Field) 
   });
 }
 
+/**
+ * Emits code to enforce a one-to-one relation filter for a relation defined on the opposite model field.
+ *
+ * Generates conditional checks for nullable vs required relations and for `is`, `isNot`, and remaining nested criteria from the provided where clause; when necessary it emits Prisma client queries (using the transaction `tx`) to verify the existence or absence of the related record and causes the current record to be filtered out by emitting `return null` checks.
+ *
+ * @param writer - Code emitter used to write the generated TypeScript code
+ * @param field - The relation field on the current model being filtered
+ * @param otherField - The corresponding relation field on the related model used to build the foreign-key mapping
+ */
 function addOneToOneMetaOnOtherFieldFiltering(writer: CodeBlockWriter, field: Field, otherField: Field) {
   const fkMapping = otherField.relationFromFields
     ?.map((fk, idx) => `${fk}: record.${otherField.relationToFields?.at(idx)}`)
@@ -329,6 +358,15 @@ function addOneToOneMetaOnOtherFieldFiltering(writer: CodeBlockWriter, field: Fi
   });
 }
 
+/**
+ * Generates code that applies `every`, `some`, and `none` one-to-many relation filters for the given relation field.
+ *
+ * Emits checks that query the related model using the foreign-key mapping and cause the current record to be excluded when a relation operator's condition is not satisfied.
+ *
+ * @param writer - The code writer used to emit the filtering logic
+ * @param field - The relation field on the current model that holds the list of related records
+ * @param otherField - The corresponding relation field on the related model used to build the foreign-key mapping
+ */
 function addOneToManyFiltering(writer: CodeBlockWriter, field: Field, otherField: Field) {
   const fkMapping = otherField.relationFromFields
     ?.map((fk, idx) => `${fk}: record.${otherField.relationToFields?.at(idx)}`)

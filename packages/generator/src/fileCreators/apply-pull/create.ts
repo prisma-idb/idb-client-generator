@@ -2,6 +2,17 @@ import CodeBlockWriter from "code-block-writer";
 import { Model } from "../types";
 import { getUniqueIdentifiers } from "../../helpers/utils";
 
+/**
+ * Generates and writes a TypeScript file that declares per-model CRUD handlers and an `applyPull` function.
+ *
+ * The emitted file includes runtime/imports, a `handlerMap` object with `create`, `update`, and `delete`
+ * handlers for each model (each handler calls the corresponding `PrismaIDBClient` operation with
+ * `{ silent: true, addToOutbox: false }`), and an `applyPull` function that iterates `LogsWithRecords`,
+ * counts missing records, dispatches each change to the appropriate handler based on `model` and `operation`,
+ * and returns `{ missingRecords, totalAppliedRecords }`.
+ *
+ * @param models - Array of model metadata used to generate the per-model handlers and conditional dispatch logic
+ */
 export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
   // Write imports
   writer.writeLine(`import type { LogsWithRecords } from '../server/batch-processor';`);

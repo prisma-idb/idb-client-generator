@@ -27,6 +27,14 @@ const handlerMap = {
 			client.todo.delete({ where: { id: record.id } }, { silent: true, addToOutbox: false })
 	}
 };
+/**
+ * Apply a sequence of pulled change logs to the local Prisma IDB client.
+ *
+ * @param logsWithRecords - Array of change logs (model, operation, record); entries with a falsy `record` are counted as missing and skipped
+ * @returns An object containing:
+ *   - `missingRecords`: the number of changes that had no `record`
+ *   - `totalAppliedRecords`: the number of changes that were applied
+ */
 export async function applyPull(
 	idbClient: PrismaIDBClient,
 	logsWithRecords: LogsWithRecords<typeof validators>[]

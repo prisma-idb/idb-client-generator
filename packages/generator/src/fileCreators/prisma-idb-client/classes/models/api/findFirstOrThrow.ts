@@ -2,6 +2,12 @@ import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
 import { getOptionsParameterRead } from "../helpers/methodOptions";
 
+/**
+ * Writes a TypeScript `findFirstOrThrow` method implementation for the specified Prisma model into the provided writer.
+ *
+ * @param writer - CodeBlockWriter used to emit the method source
+ * @param model - Model metadata used to specialize the generated method for the target Prisma delegate
+ */
 export function addFindFirstOrThrow(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async findFirstOrThrow<Q extends Prisma.Args<Prisma.${model.name}Delegate, "findFirstOrThrow">>(`)

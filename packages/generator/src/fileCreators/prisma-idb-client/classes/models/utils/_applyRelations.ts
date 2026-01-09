@@ -63,6 +63,14 @@ function handleVariousRelationships(
   }
 }
 
+/**
+ * Emits code that attaches a one-to-one related record to `unsafeRecord[field.name]` when the relation is declared on the field itself.
+ *
+ * The generated code performs a conditional null-check for optional relations, builds the appropriate composite key (single- or multi-field), and emits a Prisma `findUnique` call against the related model including the transaction context.
+ *
+ * @param field - Metadata for the relation field on the current model; used to resolve relation columns, nullability, and target model.
+ * @param models - All available models used to locate the related model and its unique identifier key path.
+ */
 function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field, models: readonly Model[]) {
   const otherModel = models.find(({ name }) => name === field.type)!;
   const otherModelKeyPath = JSON.parse(getUniqueIdentifiers(otherModel)[0].keyPath) as string[];
@@ -87,6 +95,19 @@ function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field, m
     .writeLine(`, { tx })`);
 }
 
+/**
+ * Emits code to attach a one-to-one relation when the relation is defined on the other model's field.
+ *
+ * Generates an assignment that sets `unsafeRecord[field.name]` to the related record returned by a
+ * `findUnique` call on the related model. The generated `where` clause maps `otherField.relationFromFields`
+ * to the corresponding values on the current record via `otherField.relationToFields`, handling single-field
+ * and composite keys. The emitted call also conditionally spreads `attach_{field.name}` and passes the
+ * transaction context `{ tx }`.
+ *
+ * @param field - The relation field on the current model to populate
+ * @param otherField - The corresponding relation field on the related model whose `relationFromFields`
+ *   and `relationToFields` determine the `where` mapping
+ */
 function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Field, otherField: Field) {
   const compositeKeyName = otherField.relationFromFields!.join("_");
   const compositeKey = otherField
@@ -106,6 +127,13 @@ function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Fie
     .writeLine(`, { tx })`);
 }
 
+/**
+ * Generates code that assigns the result of a one-to-many query to the specified relation field on a record.
+ *
+ * @param writer - The code writer used to emit the assignment and Prisma query.
+ * @param field - The relation field on the current model that will receive the related records.
+ * @param otherField - The opposite relation field on the related model whose relationFromFields/relationToFields are used to build the foreign-key mapping.
+ */
 function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField: Field) {
   const fkMapping = otherField
     .relationFromFields!.map((fromField, idx) => `${fromField}: record.${otherField.relationToFields?.at(idx)}!`)
@@ -121,6 +149,11 @@ function addOneToManyRelation(writer: CodeBlockWriter, field: Field, otherField:
     .writeLine(`, { tx })`);
 }
 
+/**
+ * Emit a return statement that resolves all per-record relation promises and casts the result to the model's Prisma result array type.
+ *
+ * @returns An array of results typed as `Prisma.Result<Prisma.{ModelName}Delegate, Q, 'findFirstOrThrow'>` for the provided model
+ */
 function addReturn(writer: CodeBlockWriter, model: Model) {
   writer
     .write(`return (await Promise.all(recordsWithRelations)) as `)

@@ -3,6 +3,11 @@ import { Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers } from "../../../../../helpers/utils";
 import { getOptionsParameterRead } from "../helpers/methodOptions";
 
+/**
+ * Generates and writes an async `findUnique` method for the given model on the Prisma-like delegate.
+ *
+ * The emitted method loads a single record by primary or other unique identifiers, ensures a read-only transaction is available (or uses one provided via options), loads related data, applies where/relations/select clauses, preprocesses list fields, and returns the record cast to the corresponding Prisma result type.
+ */
 export function addFindUniqueMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async findUnique<Q extends Prisma.Args<Prisma.${model.name}Delegate, "findUnique">>(`)

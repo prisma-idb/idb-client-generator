@@ -2,6 +2,12 @@ import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
 import { getOptionsParameterRead } from "../helpers/methodOptions";
 
+/**
+ * Writes a TypeScript `findFirst` method implementation for the given Prisma-like model into the provided writer.
+ *
+ * @param writer - The CodeBlockWriter instance to emit the method code into
+ * @param model - The model metadata used to compose the method signature and types
+ */
 export function addFindFirstMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async findFirst<Q extends Prisma.Args<Prisma.${model.name}Delegate, "findFirst">>(`)

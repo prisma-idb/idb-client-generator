@@ -3,6 +3,18 @@ import { Field, Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
 import { getOptionsParameterWrite, getOptionsSetupWrite } from "../helpers/methodOptions";
 
+/**
+ * Emits an async `update` method for the given model's Prisma delegate into the provided writer.
+ *
+ * The generated method accepts a Prisma update query and an options object ({ tx?, silent?, addToOutbox? }),
+ * initializes option handling, loads the existing record, applies scalar and relation update handlers,
+ * validates foreign keys, persists changes, updates referential relationships, emits update events, and
+ * returns the updated record result.
+ *
+ * @param writer - CodeBlockWriter used to write the method source
+ * @param model - Model metadata for which the update method is generated
+ * @param models - All models in the schema (used to resolve relations and referential updates)
+ */
 export function addUpdateMethod(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   writer
     .writeLine(`async update<Q extends Prisma.Args<Prisma.${model.name}Delegate, "update">>(`)
@@ -28,6 +40,12 @@ export function addUpdateMethod(writer: CodeBlockWriter, model: Model, models: r
     });
 }
 
+/**
+ * Emits code that initializes a read/write transaction if missing, loads the current model record by the provided query, aborts and throws if not found, and sets `startKeyPath` to the record's primary key values.
+ *
+ * @param writer - CodeBlockWriter used to emit the update method code
+ * @param model - Model whose primary key fields are used to build `startKeyPath`
+ */
 function addGetRecord(writer: CodeBlockWriter, model: Model) {
   const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
   writer
@@ -43,6 +61,15 @@ function addGetRecord(writer: CodeBlockWriter, model: Model) {
     );
 }
 
+/**
+ * Generate code that persists an updated record, reconciles primary-key changes, emits an update event, updates referential integrity, and returns the updated record with relations.
+ *
+ * The generated code:
+ * - Computes the record's end key path and, if any primary-key component changed, ensures no conflicting record exists, deletes the old entry, and stops further key-path comparison.
+ * - Persists the updated record to the model's object store and emits an "update" event with the appropriate options.
+ * - Applies referential updates to other models that reference this model.
+ * - Reads and returns the updated record including its relations using a unique where clause derived from the model's primary key.
+ */
 function addPutAndReturn(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
   const whereUnique =
@@ -210,6 +237,17 @@ function addRelationUpdateHandling(writer: CodeBlockWriter, model: Model, models
   }
 }
 
+/**
+ * Emits code that applies update operations for a one-to-many relation field.
+ *
+ * Generates code handling connect, disconnect, create, createMany, update, updateMany,
+ * upsert, delete, deleteMany, and set operations on the related model so that foreign
+ * keys on the related records are synchronized with the current record.
+ *
+ * @param writer - The code writer used to emit TypeScript statements.
+ * @param field - The relation field on the current model representing the one-to-many relation.
+ * @param otherField - The corresponding field on the related model that stores the foreign key(s) referencing the current model.
+ */
 function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, otherField: Field) {
   const fkFields = `${otherField.relationFromFields!.map((_field, idx) => `${_field}: record.${otherField.relationToFields?.at(idx)}`).join(", ")}`;
   const fkFieldsNull = `${otherField.relationFromFields!.map((_field) => `${_field}: null`).join(", ")}`;
@@ -355,6 +393,15 @@ function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, ot
     });
 }
 
+/**
+ * Apply updates for a one-to-one relation where the current model owns the relation and propagate foreign key changes to the in-memory record.
+ *
+ * Handles `connect`, `create`, `update`, `upsert`, and `connectOrCreate` operations for the related entity by invoking the related model's client methods and copying that entity's key fields onto the current record's relation-from fields. If the relation is optional, also handles `disconnect` and `delete` by clearing the current record's foreign key fields and deleting the related entity when requested.
+ *
+ * @param writer - CodeBlockWriter used to emit generated update-handling code
+ * @param field - Relation field metadata describing relationFromFields/relationToFields and cardinality
+ * @param models - All models in the schema, used to resolve composite unique identifiers when building unique input objects
+ */
 function handleOneToOneRelationMetaOnCurrentUpdate(writer: CodeBlockWriter, field: Field, models: readonly Model[]) {
   const fkFields = `${field.relationToFields!.map((_field, idx) => `${_field}: record.${field.relationFromFields?.at(idx)}!`).join(", ")}`;
 
@@ -439,6 +486,16 @@ function handleOneToOneRelationMetaOnCurrentUpdate(writer: CodeBlockWriter, fiel
   }
 }
 
+/**
+ * Emits code to synchronize the other side of a one-to-one relation when the current model's relation field is updated.
+ *
+ * Generates update/create/delete/upsert/connect/connectOrCreate/disconnect handlers against the related model that
+ * propagate the current record's key fields into the related record's foreign key fields and enforce required-relation constraints.
+ *
+ * @param writer - A CodeBlockWriter used to output the generated code blocks.
+ * @param field - The relation field on the current model that targets the related model.
+ * @param otherField - The corresponding relation field on the related model whose foreign key fields (relationFromFields) are updated.
+ */
 function handleOneToOneRelationMetaOnOtherUpdate(writer: CodeBlockWriter, field: Field, otherField: Field) {
   const otherFkFields = `${otherField.relationFromFields!.map((_field, idx) => `${_field}: record.${otherField.relationToFields?.at(idx)}`).join(", ")}`;
   const otherFkFieldsNull = `${otherField.relationFromFields!.map((_field) => `${_field}: null`).join(", ")}`;
@@ -497,7 +554,17 @@ function handleOneToOneRelationMetaOnOtherUpdate(writer: CodeBlockWriter, field:
     });
 }
 
-// NoAction is the same as Restrict for this package
+/**
+ * Emits code that updates foreign-key fields on models which reference the given model when its primary key changes.
+ *
+ * Traverses all models that hold object relations to the provided model and generates an updateMany call for each
+ * referencing model to replace old key path segments with new ones when a divergence between `startKeyPath` and
+ * `endKeyPath` is detected. Stops after applying updates for the first differing key path segment.
+ *
+ * @param writer - A CodeBlockWriter used to output the generated update logic.
+ * @param model - The model whose key-path changes are being reconciled.
+ * @param models - All models in the schema, used to discover and emit updates for referencing models.
+ */
 function addReferentialUpdateHandling(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   const modelKeyPath = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
   const getIndexOfKeyPart = (fieldName: string) => modelKeyPath.indexOf(fieldName);
@@ -534,6 +601,19 @@ function addReferentialUpdateHandling(writer: CodeBlockWriter, model: Model, mod
   });
 }
 
+/**
+ * Emits code that validates foreign-key targets exist when related fields are updated.
+ *
+ * For each object relation on the model that uses `relationFromFields`, writes a runtime
+ * check into the generated code that runs when any of the relation-from fields are present
+ * in `query.data`. The check looks up the related record using the related model's unique
+ * identifier built from its key path and throws an error if the related record is not found.
+ * If the relation is optional, the check is skipped when the current record's relation fields
+ * are null.
+ *
+ * @param model - The model whose update validations are being generated
+ * @param models - All available models (used to locate the related model and its key path)
+ */
 function addFkValidation(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   const dependentModelFields = model.fields.filter(
     (field) => field.kind === "object" && field.relationFromFields?.length,

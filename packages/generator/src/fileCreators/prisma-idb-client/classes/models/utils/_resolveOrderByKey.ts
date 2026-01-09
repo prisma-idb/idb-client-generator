@@ -51,6 +51,16 @@ function addOneToOneResolution(writer: CodeBlockWriter, model: Model, models: re
   }
 }
 
+/**
+ * Emits code to resolve order-by keys for one-to-many relation fields of `model`.
+ *
+ * For each one-to-many relation, writes an `if (orderByInput.<field>)` block that returns
+ * a count of related records filtered by the foreign-key mapping and using the provided transaction.
+ *
+ * @param writer - CodeBlockWriter used to append the generated code
+ * @param model - The model whose one-to-many relation fields are processed
+ * @param models - All models used to locate the corresponding relation fields for foreign-key mapping
+ */
 function addOneToManyResolution(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   const oneToManyRelationFields = model.fields.filter(({ kind, isList }) => kind === "object" && isList);
   for (const field of oneToManyRelationFields) {
