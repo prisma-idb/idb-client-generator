@@ -2918,56 +2918,56 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
             where: { userId: startKeyPath[0] },
             data: { userId: endKeyPath[0] },
           },
-          { tx: tx },
+          { tx, silent, addToOutbox },
         );
         await this.client.profile.updateMany(
           {
             where: { userId: startKeyPath[0] },
             data: { userId: endKeyPath[0] },
           },
-          { tx: tx },
+          { tx, silent, addToOutbox },
         );
         await this.client.post.updateMany(
           {
             where: { authorId: startKeyPath[0] },
             data: { authorId: endKeyPath[0] },
           },
-          { tx: tx },
+          { tx, silent, addToOutbox },
         );
         await this.client.comment.updateMany(
           {
             where: { userId: startKeyPath[0] },
             data: { userId: endKeyPath[0] },
           },
-          { tx: tx },
+          { tx, silent, addToOutbox },
         );
         await this.client.father.updateMany(
           {
             where: { userId: startKeyPath[0] },
             data: { userId: endKeyPath[0] },
           },
-          { tx: tx },
+          { tx, silent, addToOutbox },
         );
         await this.client.mother.updateMany(
           {
             where: { userId: startKeyPath[0] },
             data: { userId: endKeyPath[0] },
           },
-          { tx: tx },
+          { tx, silent, addToOutbox },
         );
         await this.client.child.updateMany(
           {
             where: { userId: startKeyPath[0] },
             data: { userId: endKeyPath[0] },
           },
-          { tx: tx },
+          { tx, silent, addToOutbox },
         );
         await this.client.todo.updateMany(
           {
             where: { userId: startKeyPath[0] },
             data: { userId: endKeyPath[0] },
           },
-          { tx: tx },
+          { tx, silent, addToOutbox },
         );
         break;
       }
@@ -3838,7 +3838,7 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
             where: { groupId: startKeyPath[0] },
             data: { groupId: endKeyPath[0] },
           },
-          { tx: tx },
+          { tx, silent, addToOutbox },
         );
         break;
       }
@@ -6703,7 +6703,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
             where: { postId: startKeyPath[0] },
             data: { postId: endKeyPath[0] },
           },
-          { tx: tx },
+          { tx, silent, addToOutbox },
         );
         break;
       }
@@ -9770,7 +9770,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
             where: { fatherLastName: startKeyPath[1], fatherFirstName: startKeyPath[0] },
             data: { fatherLastName: endKeyPath[1], fatherFirstName: endKeyPath[0] },
           },
-          { tx: tx },
+          { tx, silent, addToOutbox },
         );
         break;
       }
@@ -11187,14 +11187,14 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
             where: { motherFirstName: startKeyPath[0], motherLastName: startKeyPath[1] },
             data: { motherFirstName: endKeyPath[0], motherLastName: endKeyPath[1] },
           },
-          { tx: tx },
+          { tx, silent, addToOutbox },
         );
         await this.client.child.updateMany(
           {
             where: { motherFirstName: startKeyPath[0], motherLastName: startKeyPath[1] },
             data: { motherFirstName: endKeyPath[0], motherLastName: endKeyPath[1] },
           },
-          { tx: tx },
+          { tx, silent, addToOutbox },
         );
         break;
       }
@@ -15470,7 +15470,7 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
             where: { linkId: startKeyPath[0] },
             data: { linkId: endKeyPath[0] },
           },
-          { tx: tx },
+          { tx, silent, addToOutbox },
         );
         break;
       }

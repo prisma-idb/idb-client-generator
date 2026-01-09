@@ -116,7 +116,7 @@ export class PrismaIDBClient {
 														update: recordValidation.data,
 														create: recordValidation.data
 													},
-													{ silent: true }
+													{ silent: true, addToOutbox: false }
 												);
 												break;
 											}
@@ -143,7 +143,7 @@ export class PrismaIDBClient {
 														update: recordValidation.data,
 														create: recordValidation.data
 													},
-													{ silent: true }
+													{ silent: true, addToOutbox: false }
 												);
 												break;
 											}
@@ -1057,7 +1057,7 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 						where: { userId: startKeyPath[0] },
 						data: { userId: endKeyPath[0] }
 					},
-					{ tx: tx }
+					{ tx, silent, addToOutbox }
 				);
 				break;
 			}
