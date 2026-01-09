@@ -603,8 +603,6 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 		query?: Q,
 		options?: {
 			tx?: IDBUtils.TransactionType;
-			silent?: boolean;
-			addToOutbox?: boolean;
 		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'findMany'>> {
 		const { tx: txOption } = options ?? {};
@@ -642,8 +640,6 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 		query?: Q,
 		options?: {
 			tx?: IDBUtils.TransactionType;
-			silent?: boolean;
-			addToOutbox?: boolean;
 		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'findFirst'>> {
 		const { tx: txOption } = options ?? {};
@@ -657,8 +653,6 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 		query?: Q,
 		options?: {
 			tx?: IDBUtils.TransactionType;
-			silent?: boolean;
-			addToOutbox?: boolean;
 		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'findFirstOrThrow'>> {
 		const { tx: txOption } = options ?? {};
@@ -684,8 +678,6 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 		query: Q,
 		options?: {
 			tx?: IDBUtils.TransactionType;
-			silent?: boolean;
-			addToOutbox?: boolean;
 		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'findUnique'>> {
 		const { tx: txOption } = options ?? {};
@@ -714,8 +706,6 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 		query: Q,
 		options?: {
 			tx?: IDBUtils.TransactionType;
-			silent?: boolean;
-			addToOutbox?: boolean;
 		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'findUniqueOrThrow'>> {
 		const { tx: txOption } = options ?? {};
@@ -741,8 +731,6 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 		query?: Q,
 		options?: {
 			tx?: IDBUtils.TransactionType;
-			silent?: boolean;
-			addToOutbox?: boolean;
 		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'count'>> {
 		const { tx: txOption } = options ?? {};
@@ -1143,8 +1131,6 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 		query?: Q,
 		options?: {
 			tx?: IDBUtils.TransactionType;
-			silent?: boolean;
-			addToOutbox?: boolean;
 		}
 	): Promise<Prisma.Result<Prisma.UserDelegate, Q, 'aggregate'>> {
 		const { tx: txOption } = options ?? {};
@@ -1494,8 +1480,6 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 		query?: Q,
 		options?: {
 			tx?: IDBUtils.TransactionType;
-			silent?: boolean;
-			addToOutbox?: boolean;
 		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'findMany'>> {
 		const { tx: txOption } = options ?? {};
@@ -1533,8 +1517,6 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 		query?: Q,
 		options?: {
 			tx?: IDBUtils.TransactionType;
-			silent?: boolean;
-			addToOutbox?: boolean;
 		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'findFirst'>> {
 		const { tx: txOption } = options ?? {};
@@ -1548,8 +1530,6 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 		query?: Q,
 		options?: {
 			tx?: IDBUtils.TransactionType;
-			silent?: boolean;
-			addToOutbox?: boolean;
 		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'findFirstOrThrow'>> {
 		const { tx: txOption } = options ?? {};
@@ -1575,8 +1555,6 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 		query: Q,
 		options?: {
 			tx?: IDBUtils.TransactionType;
-			silent?: boolean;
-			addToOutbox?: boolean;
 		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'findUnique'>> {
 		const { tx: txOption } = options ?? {};
@@ -1605,8 +1583,6 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 		query: Q,
 		options?: {
 			tx?: IDBUtils.TransactionType;
-			silent?: boolean;
-			addToOutbox?: boolean;
 		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'findUniqueOrThrow'>> {
 		const { tx: txOption } = options ?? {};
@@ -1632,8 +1608,6 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 		query?: Q,
 		options?: {
 			tx?: IDBUtils.TransactionType;
-			silent?: boolean;
-			addToOutbox?: boolean;
 		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'count'>> {
 		const { tx: txOption } = options ?? {};
@@ -1970,8 +1944,6 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 		query?: Q,
 		options?: {
 			tx?: IDBUtils.TransactionType;
-			silent?: boolean;
-			addToOutbox?: boolean;
 		}
 	): Promise<Prisma.Result<Prisma.TodoDelegate, Q, 'aggregate'>> {
 		const { tx: txOption } = options ?? {};

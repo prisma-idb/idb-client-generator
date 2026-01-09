@@ -1,29 +1,53 @@
 /**
- * Generates the secondary options parameter type signature for API methods
- * Handles both read-only and read-write transaction types
+ * Generates the secondary options parameter type signature for READ API methods
+ * Only includes transaction type since read operations don't emit events or use outbox
  */
-export function getSecondaryOptionsType(isReadwrite: boolean): string {
-  const txType = isReadwrite ? "IDBUtils.ReadwriteTransactionType" : "IDBUtils.TransactionType";
+export function getOptionsTypeRead(): string {
   return `{
-    tx?: ${txType},
+    tx?: IDBUtils.TransactionType
+  }`;
+}
+
+/**
+ * Generates the secondary options parameter type signature for WRITE API methods
+ * Includes transaction type, silent flag, and addToOutbox flag
+ */
+export function getOptionsTypeWrite(): string {
+  return `{
+    tx?: IDBUtils.ReadwriteTransactionType,
     silent?: boolean,
     addToOutbox?: boolean
   }`;
 }
 
 /**
- * Returns the options parameter string for method signatures
- * Use with writer chaining: .write(getOptionsParameter(false))
+ * Returns the options parameter string for READ method signatures
+ * Use with writer chaining: .write(getOptionsParameterRead())
  */
-export function getOptionsParameter(isReadwrite: boolean): string {
-  const txType = isReadwrite ? "IDBUtils.ReadwriteTransactionType" : "IDBUtils.TransactionType";
-  return `options?: {\ntx?: ${txType},\nsilent?: boolean,\naddToOutbox?: boolean\n}`;
+export function getOptionsParameterRead(): string {
+  return `options?: {\ntx?: IDBUtils.TransactionType\n}`;
 }
 
 /**
- * Returns the options setup code string for the beginning of methods
- * Use with writer chaining: .write(getOptionsSetup())
+ * Returns the options parameter string for WRITE method signatures
+ * Use with writer chaining: .write(getOptionsParameterWrite())
  */
-export function getOptionsSetup(): string {
+export function getOptionsParameterWrite(): string {
+  return `options?: {\ntx?: IDBUtils.ReadwriteTransactionType,\nsilent?: boolean,\naddToOutbox?: boolean\n}`;
+}
+
+/**
+ * Returns the options setup code string for the beginning of READ methods
+ * Use with writer chaining: .write(getOptionsSetupRead())
+ */
+export function getOptionsSetupRead(): string {
+  return `const { tx: txOption } = options ?? {};\nlet tx = txOption;\n`;
+}
+
+/**
+ * Returns the options setup code string for the beginning of WRITE methods
+ * Use with writer chaining: .write(getOptionsSetupWrite())
+ */
+export function getOptionsSetupWrite(): string {
   return `const {\ntx: txOption,\nsilent = false,\naddToOutbox = true\n} = options ?? {};\nlet tx = txOption;\n`;
 }

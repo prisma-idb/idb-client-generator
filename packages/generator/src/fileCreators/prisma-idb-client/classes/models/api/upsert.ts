@@ -1,16 +1,16 @@
 import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers } from "../../../../../helpers/utils";
-import { getOptionsParameter, getOptionsSetup } from "../helpers/methodOptions";
+import { getOptionsParameterWrite, getOptionsSetupWrite } from "../helpers/methodOptions";
 
 export function addUpsertMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async upsert<Q extends Prisma.Args<Prisma.${model.name}Delegate, "upsert">>(`)
     .writeLine(`query: Q,`)
-    .write(getOptionsParameter(true))
+    .write(getOptionsParameterWrite())
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "upsert">>`)
     .block(() => {
-      writer.write(getOptionsSetup());
+      writer.write(getOptionsSetupWrite());
       addGetAndUpsertRecord(writer, model);
       addRefetchAndReturnRecord(writer, model);
     });

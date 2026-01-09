@@ -1,16 +1,16 @@
 import CodeBlockWriter from "code-block-writer";
 import { Field, Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
-import { getOptionsParameter, getOptionsSetup } from "../helpers/methodOptions";
+import { getOptionsParameterWrite, getOptionsSetupWrite } from "../helpers/methodOptions";
 
 export function addUpdateMethod(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   writer
     .writeLine(`async update<Q extends Prisma.Args<Prisma.${model.name}Delegate, "update">>(`)
     .writeLine(`query: Q,`)
-    .write(getOptionsParameter(true))
+    .write(getOptionsParameterWrite())
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "update">>`)
     .block(() => {
-      writer.write(getOptionsSetup());
+      writer.write(getOptionsSetupWrite());
       addGetRecord(writer, model);
       addStringUpdateHandling(writer, model);
       addDateTimeUpdateHandling(writer, model);

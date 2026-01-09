@@ -1,12 +1,12 @@
 import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
-import { getOptionsParameter } from "../helpers/methodOptions";
+import { getOptionsParameterRead } from "../helpers/methodOptions";
 
 export function addFindManyMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async findMany<Q extends Prisma.Args<Prisma.${model.name}Delegate, "findMany">>(`)
     .writeLine(`query?: Q,`)
-    .write(getOptionsParameter(false))
+    .write(getOptionsParameterRead())
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "findMany">>`)
     .block(() => {
       writer.writeLine(`const { tx: txOption } = options ?? {};`).writeLine(`let tx = txOption;`);

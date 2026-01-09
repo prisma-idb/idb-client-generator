@@ -1411,8 +1411,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findMany">> {
     const { tx: txOption } = options ?? {};
@@ -1444,8 +1442,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
@@ -1457,8 +1453,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -1482,8 +1476,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
@@ -1506,8 +1498,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findUniqueOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -1531,8 +1521,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
@@ -3041,8 +3029,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "aggregate">> {
     const { tx: txOption } = options ?? {};
@@ -3422,8 +3408,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "findMany">> {
     const { tx: txOption } = options ?? {};
@@ -3455,8 +3439,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
@@ -3468,8 +3450,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "findFirstOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -3493,8 +3473,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
@@ -3517,8 +3495,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "findUniqueOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -3542,8 +3518,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
@@ -3926,8 +3900,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "aggregate">> {
     const { tx: txOption } = options ?? {};
@@ -4388,8 +4360,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findMany">> {
     const { tx: txOption } = options ?? {};
@@ -4421,8 +4391,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
@@ -4434,8 +4402,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirstOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -4459,8 +4425,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
@@ -4485,8 +4449,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findUniqueOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -4510,8 +4472,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
@@ -4907,8 +4867,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">> {
     const { tx: txOption } = options ?? {};
@@ -5260,8 +5218,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findMany">> {
     const { tx: txOption } = options ?? {};
@@ -5293,8 +5249,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
@@ -5306,8 +5260,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -5331,8 +5283,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
@@ -5357,8 +5307,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findUniqueOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -5382,8 +5330,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
@@ -5686,8 +5632,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "aggregate">> {
     const { tx: txOption } = options ?? {};
@@ -6226,8 +6170,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findMany">> {
     const { tx: txOption } = options ?? {};
@@ -6259,8 +6201,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
@@ -6272,8 +6212,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findFirstOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -6297,8 +6235,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
@@ -6321,8 +6257,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findUniqueOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -6346,8 +6280,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
@@ -6833,8 +6765,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "aggregate">> {
     const { tx: txOption } = options ?? {};
@@ -7287,8 +7217,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findMany">> {
     const { tx: txOption } = options ?? {};
@@ -7320,8 +7248,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
@@ -7333,8 +7259,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -7358,8 +7282,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
@@ -7382,8 +7304,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findUniqueOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -7407,8 +7327,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
@@ -7794,8 +7712,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "aggregate">> {
     const { tx: txOption } = options ?? {};
@@ -8176,8 +8092,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findMany">> {
     const { tx: txOption } = options ?? {};
@@ -8213,8 +8127,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
@@ -8226,8 +8138,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirstOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -8251,8 +8161,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
@@ -8275,8 +8183,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findUniqueOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -8300,8 +8206,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
@@ -8542,8 +8446,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "aggregate">> {
     const { tx: txOption } = options ?? {};
@@ -9212,8 +9114,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.FatherDelegate, Q, "findMany">> {
     const { tx: txOption } = options ?? {};
@@ -9245,8 +9145,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.FatherDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
@@ -9258,8 +9156,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.FatherDelegate, Q, "findFirstOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -9283,8 +9179,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.FatherDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
@@ -9317,8 +9211,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.FatherDelegate, Q, "findUniqueOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -9342,8 +9234,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.FatherDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
@@ -9952,8 +9842,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.FatherDelegate, Q, "aggregate">> {
     const { tx: txOption } = options ?? {};
@@ -10628,8 +10516,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "findMany">> {
     const { tx: txOption } = options ?? {};
@@ -10661,8 +10547,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
@@ -10674,8 +10558,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "findFirstOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -10699,8 +10581,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
@@ -10725,8 +10605,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "findUniqueOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -10750,8 +10628,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
@@ -11390,8 +11266,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "aggregate">> {
     const { tx: txOption } = options ?? {};
@@ -12025,8 +11899,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "findMany">> {
     const { tx: txOption } = options ?? {};
@@ -12058,8 +11930,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
@@ -12071,8 +11941,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "findFirstOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -12096,8 +11964,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
@@ -12125,8 +11991,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "findUniqueOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -12150,8 +12014,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
@@ -12706,8 +12568,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "aggregate">> {
     const { tx: txOption } = options ?? {};
@@ -12976,8 +12836,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findMany">> {
     const { tx: txOption } = options ?? {};
@@ -13009,8 +12867,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
@@ -13022,8 +12878,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findFirstOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -13047,8 +12901,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
@@ -13071,8 +12923,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findUniqueOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -13096,8 +12946,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
@@ -13318,8 +13166,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "aggregate">> {
     const { tx: txOption } = options ?? {};
@@ -13545,8 +13391,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findMany">> {
     const { tx: txOption } = options ?? {};
@@ -13578,8 +13422,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
@@ -13591,8 +13433,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirstOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -13616,8 +13456,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
@@ -13640,8 +13478,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findUniqueOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -13665,8 +13501,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
@@ -13879,8 +13713,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "aggregate">> {
     const { tx: txOption } = options ?? {};
@@ -14265,8 +14097,6 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "findMany">> {
     const { tx: txOption } = options ?? {};
@@ -14306,8 +14136,6 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
@@ -14321,8 +14149,6 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "findFirstOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -14346,8 +14172,6 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
@@ -14376,8 +14200,6 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "findUniqueOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -14401,8 +14223,6 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
@@ -14754,8 +14574,6 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "aggregate">> {
     const { tx: txOption } = options ?? {};
@@ -15190,8 +15008,6 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findMany">> {
     const { tx: txOption } = options ?? {};
@@ -15227,8 +15043,6 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
@@ -15240,8 +15054,6 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findFirstOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -15265,8 +15077,6 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
@@ -15291,8 +15101,6 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findUniqueOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -15316,8 +15124,6 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
@@ -15729,8 +15535,6 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "aggregate">> {
     const { tx: txOption } = options ?? {};
@@ -16083,8 +15887,6 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findMany">> {
     const { tx: txOption } = options ?? {};
@@ -16116,8 +15918,6 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
@@ -16129,8 +15929,6 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -16154,8 +15952,6 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
@@ -16178,8 +15974,6 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findUniqueOrThrow">> {
     const { tx: txOption } = options ?? {};
@@ -16203,8 +15997,6 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
@@ -16511,8 +16303,6 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
     },
   ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "aggregate">> {
     const { tx: txOption } = options ?? {};

@@ -1,16 +1,16 @@
 import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers } from "../../../../../helpers/utils";
-import { getOptionsParameter, getOptionsSetup } from "../helpers/methodOptions";
+import { getOptionsParameterWrite, getOptionsSetupWrite } from "../helpers/methodOptions";
 
 export function addDeleteManyMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async deleteMany<Q extends Prisma.Args<Prisma.${model.name}Delegate, "deleteMany">>(`)
     .writeLine(`query?: Q,`)
-    .write(getOptionsParameter(true))
+    .write(getOptionsParameterWrite())
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "deleteMany">>`)
     .block(() => {
-      writer.write(getOptionsSetup());
+      writer.write(getOptionsSetupWrite());
       createTxAndGetRecord(writer);
       deleteRecords(writer, model);
       writer.writeLine(`return { count: records.length };`);

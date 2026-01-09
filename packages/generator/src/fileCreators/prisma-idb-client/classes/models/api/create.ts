@@ -1,16 +1,16 @@
 import CodeBlockWriter from "code-block-writer";
 import { Field, Model } from "../../../../../fileCreators/types";
 import { getModelFieldData, getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
-import { getOptionsParameter, getOptionsSetup } from "../helpers/methodOptions";
+import { getOptionsParameterWrite, getOptionsSetupWrite } from "../helpers/methodOptions";
 
 export function addCreateMethod(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   writer
     .writeLine(`async create<Q extends Prisma.Args<Prisma.${model.name}Delegate, "create">>(`)
     .writeLine(`query: Q,`)
-    .write(getOptionsParameter(true))
+    .write(getOptionsParameterWrite())
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "create">>`)
     .block(() => {
-      writer.write(getOptionsSetup());
+      writer.write(getOptionsSetupWrite());
       createTx(writer);
       createUndefinedReplacer(writer, model);
       createDependencies(writer, model, models);

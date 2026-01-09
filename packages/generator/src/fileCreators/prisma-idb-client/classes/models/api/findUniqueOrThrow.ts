@@ -1,12 +1,12 @@
 import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
-import { getOptionsParameter } from "../helpers/methodOptions";
+import { getOptionsParameterRead } from "../helpers/methodOptions";
 
 export function addFindUniqueOrThrow(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async findUniqueOrThrow<Q extends Prisma.Args<Prisma.${model.name}Delegate, "findUniqueOrThrow">>(`)
     .writeLine(`query: Q,`)
-    .write(getOptionsParameter(false))
+    .write(getOptionsParameterRead())
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "findUniqueOrThrow">>`)
     .block(() => {
       writer

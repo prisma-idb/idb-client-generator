@@ -1,12 +1,12 @@
 import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
-import { getOptionsParameter } from "../helpers/methodOptions";
+import { getOptionsParameterRead } from "../helpers/methodOptions";
 
 export function addCountMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async count<Q extends Prisma.Args<Prisma.${model.name}Delegate, "count">>(`)
     .writeLine(`query?: Q,`)
-    .write(getOptionsParameter(false))
+    .write(getOptionsParameterRead())
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "count">>`)
     .block(() => {
       writer

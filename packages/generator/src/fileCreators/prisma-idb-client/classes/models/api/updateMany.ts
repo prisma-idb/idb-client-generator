@@ -1,21 +1,16 @@
 import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers } from "../../../../../helpers/utils";
+import { getOptionsParameterWrite, getOptionsSetupWrite } from "../helpers/methodOptions";
 
 export function addUpdateMany(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async updateMany<Q extends Prisma.Args<Prisma.${model.name}Delegate, "updateMany">>(`)
     .writeLine(`query: Q,`)
-    .write(`options?: {`)
-    .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
-    .writeLine(`silent?: boolean,`)
-    .writeLine(`addToOutbox?: boolean`)
-    .writeLine(`}`)
+    .write(getOptionsParameterWrite())
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "updateMany">>`)
     .block(() => {
-      writer
-        .writeLine(`const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};`)
-        .writeLine(`let tx = txOption;`);
+      writer.write(getOptionsSetupWrite());
       const pk = getUniqueIdentifiers(model)[0];
       const keyPath = JSON.parse(pk.keyPath) as string[];
       writer
