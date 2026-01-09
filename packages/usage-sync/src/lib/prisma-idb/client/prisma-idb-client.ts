@@ -667,7 +667,7 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
-		const record = await this.findFirst(query, { tx });
+		const record = await this.findFirst(query, { ...(options ?? {}), tx });
 		if (!record) {
 			if (localCreatedTx) {
 				try {
@@ -724,7 +724,7 @@ class UserIDBClass extends BaseIDBModelClass<'User'> {
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
-		const record = await this.findUnique(query, { tx });
+		const record = await this.findUnique(query, { ...(options ?? {}), tx });
 		if (!record) {
 			if (localCreatedTx) {
 				try {
@@ -1558,7 +1558,7 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
-		const record = await this.findFirst(query, { tx });
+		const record = await this.findFirst(query, { ...(options ?? {}), tx });
 		if (!record) {
 			if (localCreatedTx) {
 				try {
@@ -1615,7 +1615,7 @@ class TodoIDBClass extends BaseIDBModelClass<'Todo'> {
 		tx =
 			tx ??
 			this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), 'readonly');
-		const record = await this.findUnique(query, { tx });
+		const record = await this.findUnique(query, { ...(options ?? {}), tx });
 		if (!record) {
 			if (localCreatedTx) {
 				try {

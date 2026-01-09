@@ -16,7 +16,7 @@ export function addFindUniqueOrThrow(writer: CodeBlockWriter, model: Model) {
         .writeLine(
           `tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`,
         )
-        .writeLine(`const record = await this.findUnique(query, { tx });`)
+        .writeLine(`const record = await this.findUnique(query, { ...(options ?? {}), tx });`)
         .writeLine(`if (!record)`)
         .block(() => {
           writer

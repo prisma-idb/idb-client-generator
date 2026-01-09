@@ -1465,7 +1465,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findFirst(query, { tx });
+    const record = await this.findFirst(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -1514,7 +1514,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findUnique(query, { tx });
+    const record = await this.findUnique(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -3476,7 +3476,7 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findFirst(query, { tx });
+    const record = await this.findFirst(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -3525,7 +3525,7 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findUnique(query, { tx });
+    const record = await this.findUnique(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -4442,7 +4442,7 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findFirst(query, { tx });
+    const record = await this.findFirst(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -4493,7 +4493,7 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findUnique(query, { tx });
+    const record = await this.findUnique(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -5314,7 +5314,7 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findFirst(query, { tx });
+    const record = await this.findFirst(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -5365,7 +5365,7 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findUnique(query, { tx });
+    const record = await this.findUnique(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -6280,7 +6280,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findFirst(query, { tx });
+    const record = await this.findFirst(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -6329,7 +6329,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findUnique(query, { tx });
+    const record = await this.findUnique(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -7341,7 +7341,7 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findFirst(query, { tx });
+    const record = await this.findFirst(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -7390,7 +7390,7 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findUnique(query, { tx });
+    const record = await this.findUnique(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -8234,7 +8234,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findFirst(query, { tx });
+    const record = await this.findFirst(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -8283,7 +8283,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findUnique(query, { tx });
+    const record = await this.findUnique(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -9266,7 +9266,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findFirst(query, { tx });
+    const record = await this.findFirst(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -9325,7 +9325,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findUnique(query, { tx });
+    const record = await this.findUnique(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -10682,7 +10682,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findFirst(query, { tx });
+    const record = await this.findFirst(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -10733,7 +10733,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findUnique(query, { tx });
+    const record = await this.findUnique(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -12079,7 +12079,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findFirst(query, { tx });
+    const record = await this.findFirst(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -12133,7 +12133,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findUnique(query, { tx });
+    const record = await this.findUnique(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -13030,7 +13030,7 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findFirst(query, { tx });
+    const record = await this.findFirst(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -13079,7 +13079,7 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findUnique(query, { tx });
+    const record = await this.findUnique(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -13599,7 +13599,7 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findFirst(query, { tx });
+    const record = await this.findFirst(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -13648,7 +13648,7 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findUnique(query, { tx });
+    const record = await this.findUnique(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -14329,7 +14329,7 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findFirst(query, { tx });
+    const record = await this.findFirst(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -14384,7 +14384,7 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findUnique(query, { tx });
+    const record = await this.findUnique(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -15248,7 +15248,7 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findFirst(query, { tx });
+    const record = await this.findFirst(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -15299,7 +15299,7 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findUnique(query, { tx });
+    const record = await this.findUnique(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -16137,7 +16137,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findFirst(query, { tx });
+    const record = await this.findFirst(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
@@ -16186,7 +16186,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     const localCreatedTx = txOption == null;
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findUnique(query, { tx });
+    const record = await this.findUnique(query, { ...(options ?? {}), tx });
     if (!record) {
       if (localCreatedTx) {
         try {
