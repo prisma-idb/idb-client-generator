@@ -91,7 +91,7 @@ function addNumberFiltering(writer: CodeBlockWriter, model: Model) {
 
 function addBigIntFiltering(writer: CodeBlockWriter, model: Model) {
   const bigIntFields = model.fields.filter((field) => field.type === "BigInt" && !field.isList).map(({ name }) => name);
-  if (bigIntFields.length < 0) {
+  if (bigIntFields.length > 0) {
     writer
       .writeLine(`const bigIntFields = ${JSON.stringify(bigIntFields)} as const;`)
       .writeLine(`for (const field of bigIntFields)`)
@@ -103,7 +103,7 @@ function addBigIntFiltering(writer: CodeBlockWriter, model: Model) {
   const bigIntListFields = model.fields
     .filter((field) => field.type === "BigInt" && field.isList)
     .map(({ name }) => name);
-  if (bigIntListFields.length < 0) {
+  if (bigIntListFields.length > 0) {
     writer
       .writeLine(`const bigIntListFields = ${JSON.stringify(bigIntListFields)} as const;`)
       .writeLine(`for (const field of bigIntListFields)`)
@@ -293,7 +293,7 @@ function addOneToOneMetaOnOtherFieldFiltering(writer: CodeBlockWriter, field: Fi
     writer.writeLine(`if (is !== null && is !== undefined)`).block(() => {
       writer
         .writeLine(
-          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ...whereClause.${field.name}, ${fkMapping} } }, { tx });`,
+          `const relatedRecord = await this.client.${toCamelCase(field.type)}.findFirst({ where: { ...is, ${fkMapping} } }, { tx });`,
         )
         .writeLine(`if (!relatedRecord) return null;`);
     });
