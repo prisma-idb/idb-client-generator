@@ -1,5 +1,6 @@
 import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
+import { getOptionsParameter, getOptionsSetup } from "../helpers/methodOptions";
 
 // TODO: skipDuplicates
 
@@ -7,16 +8,10 @@ export function addCreateManyMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async createMany<Q extends Prisma.Args<Prisma.${model.name}Delegate, "createMany">>(`)
     .writeLine(`query: Q,`)
-    .write(`options?: {`)
-    .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
-    .writeLine(`silent?: boolean,`)
-    .writeLine(`addToOutbox?: boolean`)
-    .writeLine(`}`)
+    .write(getOptionsParameter(true))
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "createMany">>`)
     .block(() => {
-      writer
-        .writeLine(`const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};`)
-        .writeLine(`let tx = txOption;`);
+      writer.write(getOptionsSetup());
       setupDataAndTx(writer, model);
       addTransactionalHandling(writer, model);
       returnCount(writer);

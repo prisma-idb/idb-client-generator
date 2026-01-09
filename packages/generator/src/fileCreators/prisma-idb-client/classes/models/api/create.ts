@@ -1,22 +1,16 @@
 import CodeBlockWriter from "code-block-writer";
 import { Field, Model } from "../../../../../fileCreators/types";
 import { getModelFieldData, getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
+import { getOptionsParameter, getOptionsSetup } from "../helpers/methodOptions";
 
 export function addCreateMethod(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   writer
     .writeLine(`async create<Q extends Prisma.Args<Prisma.${model.name}Delegate, "create">>(`)
     .writeLine(`query: Q,`)
-    .write(`options?: {`);
-  writer
-    .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
-    .writeLine(`silent?: boolean,`)
-    .writeLine(`addToOutbox?: boolean`)
-    .writeLine(`}`)
+    .write(getOptionsParameter(true))
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "create">>`)
     .block(() => {
-      writer
-        .writeLine(`const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};`)
-        .writeLine(`let tx = txOption;`);
+      writer.write(getOptionsSetup());
       createTx(writer);
       createUndefinedReplacer(writer, model);
       createDependencies(writer, model, models);

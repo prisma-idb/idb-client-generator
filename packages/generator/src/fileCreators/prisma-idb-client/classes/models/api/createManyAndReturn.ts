@@ -1,20 +1,15 @@
 import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
+import { getOptionsParameter, getOptionsSetup } from "../helpers/methodOptions";
 
 export function addCreateManyAndReturn(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async createManyAndReturn<Q extends Prisma.Args<Prisma.${model.name}Delegate, "createManyAndReturn">>(`)
     .writeLine(`query: Q,`)
-    .write(`options?: {`)
-    .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
-    .writeLine(`silent?: boolean,`)
-    .writeLine(`addToOutbox?: boolean`)
-    .writeLine(`}`)
+    .write(getOptionsParameter(true))
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "createManyAndReturn">>`)
     .block(() => {
-      writer
-        .writeLine(`const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};`)
-        .writeLine(`let tx = txOption;`);
+      writer.write(getOptionsSetup());
       writer
         .writeLine(`const createManyData = IDBUtils.convertToArray(query.data);`)
         .writeLine(`const records: Prisma.Result<Prisma.${model.name}Delegate, object, "findMany"> = [];`)

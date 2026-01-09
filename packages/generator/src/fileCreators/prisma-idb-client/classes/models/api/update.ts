@@ -1,21 +1,16 @@
 import CodeBlockWriter from "code-block-writer";
 import { Field, Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
+import { getOptionsParameter, getOptionsSetup } from "../helpers/methodOptions";
 
 export function addUpdateMethod(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   writer
     .writeLine(`async update<Q extends Prisma.Args<Prisma.${model.name}Delegate, "update">>(`)
     .writeLine(`query: Q,`)
-    .write(`options?: {`)
-    .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
-    .writeLine(`silent?: boolean,`)
-    .writeLine(`addToOutbox?: boolean`)
-    .writeLine(`}`)
+    .write(getOptionsParameter(true))
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "update">>`)
     .block(() => {
-      writer
-        .writeLine(`const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};`)
-        .writeLine(`let tx = txOption;`);
+      writer.write(getOptionsSetup());
       addGetRecord(writer, model);
       addStringUpdateHandling(writer, model);
       addDateTimeUpdateHandling(writer, model);

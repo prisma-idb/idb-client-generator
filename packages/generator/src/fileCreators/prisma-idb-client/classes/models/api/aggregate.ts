@@ -1,13 +1,12 @@
 import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
+import { getOptionsParameter } from "../helpers/methodOptions";
 
 export function addAggregateMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async aggregate<Q extends Prisma.Args<Prisma.${model.name}Delegate, "aggregate">>(`)
     .writeLine(`query?: Q,`)
-    .write(`options?: {`)
-    .writeLine(`tx?: IDBUtils.TransactionType`)
-    .writeLine(`}`)
+    .write(getOptionsParameter(false))
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "aggregate">>`)
     .block(() => {
       writer.writeLine(`const { tx: txOption } = options ?? {};`).writeLine(`let tx = txOption;`);

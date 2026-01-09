@@ -1,13 +1,12 @@
 import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
+import { getOptionsParameter } from "../helpers/methodOptions";
 
 export function addFindFirstMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async findFirst<Q extends Prisma.Args<Prisma.${model.name}Delegate, "findFirst">>(`)
     .writeLine(`query?: Q,`)
-    .write(`options?: {`)
-    .writeLine(`tx?: IDBUtils.TransactionType`)
-    .writeLine(`}`)
+    .write(getOptionsParameter(false))
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "findFirst">>`)
     .block(() => {
       writer
