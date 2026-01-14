@@ -1,7 +1,7 @@
 import { z, type ZodTypeAny } from 'zod';
 import type { OutboxEventRecord } from '../client/idb-interface';
 import type { ChangeLog } from '../../generated/prisma/client';
-import { prisma } from '$lib/prisma';
+import { PrismaClient } from '../../generated/prisma/client';
 import { validators, keyPathValidators } from '../validators';
 
 type Op = 'create' | 'update' | 'delete';
@@ -33,11 +33,17 @@ export interface SyncResult {
 	error?: string | null;
 }
 
-export async function applyPush(
-	events: OutboxEventRecord[],
-	scopeKey: string | ((event: OutboxEventRecord) => string),
-	customValidation?: (event: EventsFor<typeof validators>) => boolean | Promise<boolean>
-): Promise<SyncResult[]> {
+export async function applyPush({
+	events,
+	scopeKey,
+	prisma,
+	customValidation
+}: {
+	events: OutboxEventRecord[];
+	scopeKey: string | ((event: OutboxEventRecord) => string);
+	prisma: PrismaClient;
+	customValidation?: (event: EventsFor<typeof validators>) => boolean | Promise<boolean>;
+}): Promise<SyncResult[]> {
 	{
 		const results: SyncResult[] = [];
 		for (const event of events) {
@@ -56,7 +62,7 @@ export async function applyPush(
 								if (!ok) throw new Error('custom validation failed');
 							}
 
-							result = await syncUser(event, validation.data, resolvedScopeKey);
+							result = await syncUser(event, validation.data, resolvedScopeKey, prisma);
 							break;
 						}
 					}
@@ -71,7 +77,7 @@ export async function applyPush(
 								if (!ok) throw new Error('custom validation failed');
 							}
 
-							result = await syncTodo(event, validation.data, resolvedScopeKey);
+							result = await syncTodo(event, validation.data, resolvedScopeKey, prisma);
 							break;
 						}
 					}
@@ -88,9 +94,13 @@ export async function applyPush(
 	}
 }
 
-export async function materializeLogs(
-	logs: Array<ChangeLog>
-): Promise<Array<LogsWithRecords<typeof validators>>> {
+export async function materializeLogs({
+	logs,
+	prisma
+}: {
+	logs: Array<ChangeLog>;
+	prisma: PrismaClient;
+}): Promise<Array<LogsWithRecords<typeof validators>>> {
 	{
 		const validModelNames = ['User', 'Todo'];
 		const results: Array<LogsWithRecords<typeof validators>> = [];
@@ -137,7 +147,8 @@ export async function materializeLogs(
 async function syncUser(
 	event: OutboxEventRecord,
 	data: z.infer<typeof validators.User>,
-	scopeKey: string
+	scopeKey: string,
+	prisma: PrismaClient
 ): Promise<SyncResult> {
 	const { id, entityKeyPath, operation } = event;
 	const keyPathValidation = keyPathValidators.User.safeParse(entityKeyPath);
@@ -212,7 +223,8 @@ async function syncUser(
 async function syncTodo(
 	event: OutboxEventRecord,
 	data: z.infer<typeof validators.Todo>,
-	scopeKey: string
+	scopeKey: string,
+	prisma: PrismaClient
 ): Promise<SyncResult> {
 	const { id, entityKeyPath, operation } = event;
 	const keyPathValidation = keyPathValidators.Todo.safeParse(entityKeyPath);
