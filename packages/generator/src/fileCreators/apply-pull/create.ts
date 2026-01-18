@@ -4,7 +4,7 @@ import { getUniqueIdentifiers } from "../../helpers/utils";
 
 export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
   // Write imports
-  writer.writeLine(`import type { LogsWithRecords } from '../server/batch-processor';`);
+  writer.writeLine(`import type { LogWithRecord } from '../server/batch-processor';`);
   writer.writeLine(`import { validators } from '../validators';`);
   writer.writeLine(`import type { PrismaIDBClient } from './prisma-idb-client';`);
   writer.writeLine(`import { z } from 'zod';`);
@@ -49,7 +49,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
   // Write applyPull function
   writer.writeLine(`export async function applyPull(`);
   writer.writeLine(`	idbClient: PrismaIDBClient,`);
-  writer.writeLine(`	logsWithRecords: LogsWithRecords<typeof validators>[]`);
+  writer.writeLine(`	logsWithRecords: LogWithRecord<typeof validators>[]`);
   writer.writeLine(`) `).block(() => {
     writer.writeLine(`let missingRecords = 0;`);
     writer.blankLine();

@@ -1,4 +1,4 @@
-import type { LogsWithRecords } from '../server/batch-processor';
+import type { LogWithRecord } from '../server/batch-processor';
 import { validators } from '../validators';
 import type { PrismaIDBClient } from './prisma-idb-client';
 import { z } from 'zod';
@@ -29,7 +29,7 @@ const handlerMap = {
 };
 export async function applyPull(
 	idbClient: PrismaIDBClient,
-	logsWithRecords: LogsWithRecords<typeof validators>[]
+	logsWithRecords: LogWithRecord<typeof validators>[]
 ) {
 	let missingRecords = 0;
 
