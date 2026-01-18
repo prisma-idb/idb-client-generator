@@ -20,19 +20,19 @@
     "release": "release-it"
   },
   "dependencies": {
-    "@prisma/generator-helper": "^7.1.0",
+    "@prisma/generator-helper": "^7.2.0",
     "code-block-writer": "^13.0.3",
-    "prettier": "^3.7.4"
+    "prettier": "^3.8.0"
   },
   "devDependencies": {
-    "@prisma/internals": "^7.1.0",
-    "@release-it/conventional-changelog": "^10.0.3",
-    "@types/node": "^24.10.3",
-    "eslint": "^9.39.1",
+    "@prisma/internals": "^7.2.0",
+    "@release-it/conventional-changelog": "^10.0.4",
+    "@types/node": "^24.10.9",
+    "eslint": "^9.39.2",
     "globals": "^16.5.0",
-    "release-it": "^19.1.0",
+    "release-it": "^19.2.3",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.49.0"
+    "typescript-eslint": "^8.53.0"
   },
   "peerDependencies": {
     "@prisma/client": "^6.x.x || ^7.x.x",
