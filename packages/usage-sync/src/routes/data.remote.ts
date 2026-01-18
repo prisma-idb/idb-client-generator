@@ -18,17 +18,21 @@ const batchRecordSchema = z.object({
 });
 
 export const syncBatch = command(z.array(batchRecordSchema), async (events) => {
-	return await applyPush(events, (event) => {
-		if (event.entityType === 'User') {
-			return 'public';
-		}
-		if (event.entityType === 'Todo') {
-			const validation = z.object({ userId: z.string() }).safeParse(event.payload);
-			if (validation.success) {
-				return `user-${validation.data.userId}`;
+	return await applyPush({
+		events,
+		scopeKey: (event) => {
+			if (event.entityType === 'User') {
+				return 'public';
 			}
-		}
-		return 'default';
+			if (event.entityType === 'Todo') {
+				const validation = z.object({ userId: z.string() }).safeParse(event.payload);
+				if (validation.success) {
+					return `user-${validation.data.userId}`;
+				}
+			}
+			return 'default';
+		},
+		prisma
 	});
 });
 
@@ -49,7 +53,7 @@ export const pullChanges = command(
 			take: 500 // paginate, don’t be greedy
 		});
 
-		const logsWithRecords = await materializeLogs(logs);
+		const logsWithRecords = await materializeLogs({ logs, prisma });
 
 		return {
 			cursor: logs.at(-1)?.id ?? input?.since,

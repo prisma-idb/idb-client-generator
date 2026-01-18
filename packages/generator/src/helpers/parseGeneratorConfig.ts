@@ -3,7 +3,6 @@ import type { GeneratorOptions, DMMF } from "@prisma/generator-helper";
 
 export interface ParsedGeneratorConfig {
   prismaClientImport: string;
-  prismaSingletonImport: string | null;
   outboxSync: boolean;
   outboxModelName: string;
   exportEnums: boolean;
@@ -66,9 +65,6 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
   // === Parse exportEnums setting ===
   const exportEnums = generatorConfig.exportEnums === "true";
 
-  // === Parse Prisma singleton import path ===
-  const prismaSingletonImport = (generatorConfig.prismaSingletonImport as string) ?? null;
-
   // === Parse include/exclude patterns ===
   let include: string[] = ["*"];
   let exclude: string[] = [];
@@ -114,7 +110,6 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
 
   return {
     prismaClientImport,
-    prismaSingletonImport,
     outboxSync,
     outboxModelName,
     exportEnums,

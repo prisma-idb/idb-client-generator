@@ -1,13 +1,15 @@
 import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
+import { getOptionsParameterRead, getOptionsSetupRead } from "../helpers/methodOptions";
 
 export function addFindManyMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async findMany<Q extends Prisma.Args<Prisma.${model.name}Delegate, "findMany">>(`)
     .writeLine(`query?: Q,`)
-    .writeLine(`tx?: IDBUtils.TransactionType,`)
+    .write(getOptionsParameterRead())
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "findMany">>`)
     .block(() => {
+      writer.write(getOptionsSetupRead());
       getRecords(writer, model);
       applyRelationsToRecords(writer, model);
       applySelectClauseToRecords(writer);

@@ -4,7 +4,7 @@ import { getUniqueIdentifiers } from "../../helpers/utils";
 
 export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
   // Write imports
-  writer.writeLine(`import type { LogsWithRecords } from '../server/batch-processor';`);
+  writer.writeLine(`import type { LogWithRecord } from '../server/batch-processor';`);
   writer.writeLine(`import { validators } from '../validators';`);
   writer.writeLine(`import type { PrismaIDBClient } from './prisma-idb-client';`);
   writer.writeLine(`import { z } from 'zod';`);
@@ -25,13 +25,17 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
 
       writer.writeLine(`${modelName}: `).block(() => {
         writer.writeLine(`create: async (client: PrismaIDBClient, record: z.infer<typeof validators.${modelName}>) =>`);
-        writer.writeLine(`	client.${camelCaseName}.create({ data: record }, undefined, true),`);
+        writer.writeLine(`	client.${camelCaseName}.create({ data: record }, { silent: true, addToOutbox: false }),`);
 
         writer.writeLine(`update: async (client: PrismaIDBClient, record: z.infer<typeof validators.${modelName}>) =>`);
-        writer.writeLine(`	client.${camelCaseName}.update({ where: ${whereClause}, data: record }, undefined, true),`);
+        writer.writeLine(
+          `	client.${camelCaseName}.update({ where: ${whereClause}, data: record }, { silent: true, addToOutbox: false }),`,
+        );
 
         writer.writeLine(`delete: async (client: PrismaIDBClient, record: z.infer<typeof validators.${modelName}>) =>`);
-        writer.writeLine(`	client.${camelCaseName}.delete({ where: ${whereClause} }, undefined, true)`);
+        writer.writeLine(
+          `	client.${camelCaseName}.delete({ where: ${whereClause} }, { silent: true, addToOutbox: false })`,
+        );
       });
 
       if (index < models.length - 1) {
@@ -45,7 +49,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
   // Write applyPull function
   writer.writeLine(`export async function applyPull(`);
   writer.writeLine(`	idbClient: PrismaIDBClient,`);
-  writer.writeLine(`	logsWithRecords: LogsWithRecords<typeof validators>[]`);
+  writer.writeLine(`	logsWithRecords: LogWithRecord<typeof validators>[]`);
   writer.writeLine(`) `).block(() => {
     writer.writeLine(`let missingRecords = 0;`);
     writer.blankLine();

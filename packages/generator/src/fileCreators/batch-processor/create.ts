@@ -6,7 +6,6 @@ export function createBatchProcessorFile(
   writer: CodeBlockWriter,
   models: readonly Model[],
   prismaClientImport: string,
-  prismaSingletonImport: string | null = null,
 ) {
   const modelNames = models.map((m) => m.name);
 
@@ -14,7 +13,7 @@ export function createBatchProcessorFile(
   writer.writeLine(`import { z, type ZodTypeAny } from "zod";`);
   writer.writeLine(`import type { OutboxEventRecord } from "../client/idb-interface";`);
   writer.writeLine(`import type { ChangeLog } from "${prismaClientImport}";`);
-  writer.writeLine(`import { prisma } from "${prismaSingletonImport}";`);
+  writer.writeLine(`import type { PrismaClient } from "${prismaClientImport}";`);
   writer.writeLine(`import { validators, keyPathValidators } from "../validators";`);
   writer.blankLine();
 
@@ -34,8 +33,8 @@ export function createBatchProcessorFile(
   writer.writeLine(`}[keyof V & string];`);
   writer.blankLine();
 
-  // Write LogsWithRecords type - maps model names to their record types
-  writer.writeLine(`export type LogsWithRecords<V extends Partial<Record<string, ZodTypeAny>>> = {`);
+  // Write LogWithRecord type - maps model names to their record types
+  writer.writeLine(`export type LogWithRecord<V extends Partial<Record<string, ZodTypeAny>>> = {`);
   writer.writeLine(`  [M in keyof V & string]: Omit<ChangeLog, "model" | "keyPath"> & {`);
   writer.writeLine(`    model: M;`);
   writer.writeLine(`    keyPath: Array<string | number>;`);
@@ -56,11 +55,17 @@ export function createBatchProcessorFile(
   writer.blankLine();
 
   // Write applyPush function with switch cases per model
-  writer.writeLine(`export async function applyPush(`);
-  writer.writeLine(`  events: OutboxEventRecord[],`);
-  writer.writeLine(`  scopeKey: string | ((event: OutboxEventRecord) => string),`);
-  writer.writeLine(`  customValidation?: (event: EventsFor<typeof validators>) => boolean | Promise<boolean>,`);
-  writer.writeLine(`): Promise<SyncResult[]> {`);
+  writer.writeLine(`export async function applyPush({`);
+  writer.writeLine(`  events,`);
+  writer.writeLine(`  scopeKey,`);
+  writer.writeLine(`  prisma,`);
+  writer.writeLine(`  customValidation,`);
+  writer.writeLine(`}: {`);
+  writer.writeLine(`  events: OutboxEventRecord[];`);
+  writer.writeLine(`  scopeKey: string | ((event: OutboxEventRecord) => string);`);
+  writer.writeLine(`  prisma: PrismaClient;`);
+  writer.writeLine(`  customValidation?: (event: EventsFor<typeof validators>) => boolean | Promise<boolean>;`);
+  writer.writeLine(`}): Promise<SyncResult[]>`);
   writer.block(() => {
     writer.writeLine(`const results: SyncResult[] = [];`);
     writer.writeLine(`for (const event of events) {`);
@@ -85,21 +90,23 @@ export function createBatchProcessorFile(
     writer.writeLine(`}`);
     writer.writeLine(`return results;`);
   });
-  writer.writeLine(`}`);
   writer.blankLine();
 
   // Write materializeLogs helper function
-  writer.writeLine(`export async function materializeLogs(`);
-  writer.writeLine(`  logs: Array<ChangeLog>,`);
-  writer.writeLine(`): Promise<Array<LogsWithRecords<typeof validators>>> {`);
+  writer.writeLine(`export async function materializeLogs({`);
+  writer.writeLine(`  logs,`);
+  writer.writeLine(`  prisma,`);
+  writer.writeLine(`}: {`);
+  writer.writeLine(`  logs: Array<ChangeLog>;`);
+  writer.writeLine(`  prisma: PrismaClient;`);
+  writer.writeLine(`}): Promise<Array<LogWithRecord<typeof validators>>> {`);
   writer.block(() => {
     writer.writeLine(`const validModelNames = [${modelNames.map((name) => `"${name}"`).join(", ")}];`);
-    writer.writeLine(`const results: Array<LogsWithRecords<typeof validators>> = [];`);
+    writer.writeLine(`const results: Array<LogWithRecord<typeof validators>> = [];`);
     writer.writeLine(`for (const log of logs) {`);
     writer.writeLine(`  if (!validModelNames.includes(log.model)) {`);
     writer.writeLine(`    throw new Error(\`Unknown model: \${log.model}\`);`);
     writer.writeLine(`  }`);
-    writer.writeLine(`  try {`);
     writer.writeLine(`    switch (log.model) {`);
 
     // Generate switch cases for fetching records
@@ -121,13 +128,7 @@ export function createBatchProcessorFile(
       writer.writeLine(`        break;`);
       writer.writeLine(`      }`);
     });
-
     writer.writeLine(`    }`);
-    writer.writeLine(`  } catch (err) {`);
-    writer.writeLine(`    const errorMessage = err instanceof Error ? err.message : "Unknown error";`);
-    writer.writeLine(`    console.error(\`Failed to fetch record for \${log.model}:\`, errorMessage);`);
-
-    writer.writeLine(`  }`);
     writer.writeLine(`}`);
     writer.writeLine(`return results;`);
   });
@@ -151,7 +152,7 @@ function generateModelSwitchCase(writer: CodeBlockWriter, model: Model) {
     writer.writeLine(`  if (!ok) throw new Error("custom validation failed");`);
     writer.writeLine(`}`);
     writer.blankLine();
-    writer.writeLine(`result = await sync${model.name}(event, validation.data, resolvedScopeKey);`);
+    writer.writeLine(`result = await sync${model.name}(event, validation.data, resolvedScopeKey, prisma);`);
     writer.writeLine(`break;`);
   });
   writer.writeLine(`      }`);
@@ -163,7 +164,7 @@ function generateModelSyncHandler(writer: CodeBlockWriter, model: Model) {
   const pkFields = JSON.parse(pk.keyPath) as string[];
 
   writer.writeLine(
-    `async function sync${model.name}(event: OutboxEventRecord, data: z.infer<typeof validators.${model.name}>, scopeKey: string): Promise<SyncResult>`,
+    `async function sync${model.name}(event: OutboxEventRecord, data: z.infer<typeof validators.${model.name}>, scopeKey: string, prisma: PrismaClient): Promise<SyncResult>`,
   );
   writer.block(() => {
     writer.writeLine(`const { id, entityKeyPath, operation } = event;`);
@@ -200,7 +201,6 @@ function generateModelSyncHandler(writer: CodeBlockWriter, model: Model) {
 
     // UPDATE
     writer.writeLine(`  case "update": {`);
-    writer.writeLine(`    if (!entityKeyPath) throw new Error("Missing entityKeyPath for update");`);
     writer.writeLine(`    const oldKeyPath = [...validKeyPath];`);
     writer.writeLine(`    const [result] = await prisma.$transaction([`);
     writer.writeLine(`      prisma.${modelNameLower}.update({`);
@@ -229,7 +229,6 @@ function generateModelSyncHandler(writer: CodeBlockWriter, model: Model) {
 
     // DELETE
     writer.writeLine(`  case "delete": {`);
-    writer.writeLine(`    if (!entityKeyPath) throw new Error("Missing entityKeyPath for delete");`);
     writer.writeLine(`    await prisma.$transaction([`);
     writer.writeLine(`      prisma.${modelNameLower}.delete({`);
     writer.writeLine(`        where: ${generateWhereClause(pk.name, pkFields)},`);

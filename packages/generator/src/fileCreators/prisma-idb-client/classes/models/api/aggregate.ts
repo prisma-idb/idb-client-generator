@@ -1,13 +1,15 @@
 import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
+import { getOptionsParameterRead, getOptionsSetupRead } from "../helpers/methodOptions";
 
 export function addAggregateMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async aggregate<Q extends Prisma.Args<Prisma.${model.name}Delegate, "aggregate">>(`)
     .writeLine(`query?: Q,`)
-    .writeLine(`tx?: IDBUtils.TransactionType,`)
+    .write(getOptionsParameterRead())
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "aggregate">>`)
     .block(() => {
+      writer.write(getOptionsSetupRead());
       addTxAndRecordSetup(writer, model);
       addCountHandling(writer);
       const hasAvgOrSum = model.fields
@@ -33,7 +35,7 @@ export function addAggregateMethod(writer: CodeBlockWriter, model: Model) {
 function addTxAndRecordSetup(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`tx = tx ?? this.client._db.transaction(["${model.name}"], "readonly");`)
-    .writeLine(`const records = await this.findMany({ where: query?.where }, tx);`)
+    .writeLine(`const records = await this.findMany({ where: query?.where }, { tx });`)
     .writeLine(`const result: Partial<Prisma.Result<Prisma.${model.name}Delegate, Q, "aggregate">> = {};`);
 }
 
@@ -56,7 +58,7 @@ function addCountHandling(writer: CodeBlockWriter) {
                 .writeLine(`continue;`);
             })
             .writeLine(`(result._count as Record<string, number>)[typedKey] = (`)
-            .writeLine("await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, tx)")
+            .writeLine("await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })")
             .writeLine(`).length;`);
         });
       });

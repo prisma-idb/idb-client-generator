@@ -1,15 +1,16 @@
 import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
+import { getOptionsParameterWrite, getOptionsSetupWrite } from "../helpers/methodOptions";
 
 export function addDeleteMethod(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   writer
     .writeLine(`async delete<Q extends Prisma.Args<Prisma.${model.name}Delegate, "delete">>(`)
     .writeLine(`query: Q,`)
-    .writeLine(`tx?: IDBUtils.ReadwriteTransactionType,`)
-    .writeLine(`silent?: boolean`)
+    .write(getOptionsParameterWrite())
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "delete">>`)
     .block(() => {
+      writer.write(getOptionsSetupWrite());
       createTxAndGetRecord(writer);
       handleCascadeDeletes(writer, model, models);
       deleteAndReturnRecord(writer, model);
@@ -21,7 +22,7 @@ function createTxAndGetRecord(writer: CodeBlockWriter) {
     .writeLine(`const storesNeeded = this._getNeededStoresForFind(query);`)
     .writeLine(`this._getNeededStoresForNestedDelete(storesNeeded);`)
     .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");`)
-    .writeLine(`const record = await this.findUnique(query, tx);`)
+    .writeLine(`const record = await this.findUnique(query, { tx });`)
     .writeLine(`if (!record) throw new Error("Record not found");`);
 }
 
@@ -43,7 +44,7 @@ function handleCascadeDeletes(writer: CodeBlockWriter, model: Model, models: rea
           .block(() => {
             writer.write(`where: { ${whereClause} }`);
           })
-          .writeLine(`, tx)`);
+          .writeLine(`, { tx, silent, addToOutbox })`);
       } else if (
         cascadingFk.relationOnDelete === "SetNull" ||
         (cascadingFk.relationOnDelete === undefined && !cascadingFk.isRequired)
@@ -54,7 +55,7 @@ function handleCascadeDeletes(writer: CodeBlockWriter, model: Model, models: rea
           .block(() => {
             writer.write(`where: { ${whereClause} }, data: { ${setNullData} }`);
           })
-          .writeLine(`, tx)`);
+          .writeLine(`, { tx, silent, addToOutbox })`);
       } else if (cascadingFk.relationOnDelete === "SetDefault") {
         const setDefaultData = cascadingFk.relationFromFields
           ?.map((field) => {
@@ -67,11 +68,11 @@ function handleCascadeDeletes(writer: CodeBlockWriter, model: Model, models: rea
           .block(() => {
             writer.write(`where: { ${whereClause} }, data: { ${setDefaultData} }`);
           })
-          .writeLine(`, tx)`);
+          .writeLine(`, { tx, silent, addToOutbox })`);
       } else {
         writer
           .writeLine(
-            `const related${cascadeModel.name} = await this.client.${toCamelCase(cascadeModel.name)}.findMany({ where: { ${whereClause} } }, tx);`,
+            `const related${cascadeModel.name} = await this.client.${toCamelCase(cascadeModel.name)}.findMany({ where: { ${whereClause} } }, { tx });`,
           )
           .writeLine(
             `if (related${cascadeModel.name}.length) throw new Error("Cannot delete record, other records depend on it");`,
@@ -86,6 +87,6 @@ function deleteAndReturnRecord(writer: CodeBlockWriter, model: Model) {
   const keyPath = pk.map((field) => `record.${field}`).join(", ");
   writer
     .writeLine(`await tx.objectStore("${model.name}").delete([${keyPath}]);`)
-    .writeLine(`await this.emit("delete", [${keyPath}], undefined, record, silent);`)
+    .writeLine(`await this.emit("delete", [${keyPath}], undefined, record, { silent, addToOutbox, tx });`)
     .writeLine(`return record;`);
 }

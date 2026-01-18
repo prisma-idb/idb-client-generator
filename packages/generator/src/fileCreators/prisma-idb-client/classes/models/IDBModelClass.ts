@@ -30,7 +30,12 @@ import { addRemoveNestedCreateDataMethod } from "./utils/_removeNestedCreateData
 import { addResolveOrderByKey } from "./utils/_resolveOrderByKey";
 import { addResolveSortOrder } from "./utils/_resolveSortOrder";
 
-export function addIDBModelClass(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+export function addIDBModelClass(
+  writer: CodeBlockWriter,
+  model: Model,
+  models: readonly Model[],
+  outboxModelName: string = "OutboxEvent",
+) {
   writer.writeLine(`class ${model.name}IDBClass extends BaseIDBModelClass<"${model.name}">`).block(() => {
     addConstructor(writer, model);
     addApplyWhereClause(writer, model, models);
@@ -42,9 +47,9 @@ export function addIDBModelClass(writer: CodeBlockWriter, model: Model, models: 
     addFillDefaultsFunction(writer, model);
     addGetNeededStoresForWhere(writer, model);
     addGetNeededStoresForFind(writer, model);
-    addGetNeededStoresForCreate(writer, model);
-    addGetNeededStoresForUpdate(writer, model, models);
-    addGetNeededStoresForNestedDelete(writer, model, models);
+    addGetNeededStoresForCreate(writer, model, outboxModelName);
+    addGetNeededStoresForUpdate(writer, model, models, outboxModelName);
+    addGetNeededStoresForNestedDelete(writer, model, models, outboxModelName);
     addRemoveNestedCreateDataMethod(writer, model);
     addPreprocessListFields(writer, model);
 

@@ -1,7 +1,7 @@
 import { z, type ZodTypeAny } from 'zod';
 import type { OutboxEventRecord } from '../client/idb-interface';
 import type { ChangeLog } from '../../generated/prisma/client';
-import { prisma } from '$lib/prisma';
+import type { PrismaClient } from '../../generated/prisma/client';
 import { validators, keyPathValidators } from '../validators';
 
 type Op = 'create' | 'update' | 'delete';
@@ -16,7 +16,7 @@ type EventsFor<V extends Partial<Record<string, ZodTypeAny>>> = {
 	}[Op];
 }[keyof V & string];
 
-export type LogsWithRecords<V extends Partial<Record<string, ZodTypeAny>>> = {
+export type LogWithRecord<V extends Partial<Record<string, ZodTypeAny>>> = {
 	[M in keyof V & string]: Omit<ChangeLog, 'model' | 'keyPath'> & {
 		model: M;
 		keyPath: Array<string | number>;
@@ -33,101 +33,104 @@ export interface SyncResult {
 	error?: string | null;
 }
 
-export async function applyPush(
-	events: OutboxEventRecord[],
-	scopeKey: string | ((event: OutboxEventRecord) => string),
-	customValidation?: (event: EventsFor<typeof validators>) => boolean | Promise<boolean>
-): Promise<SyncResult[]> {
-	{
-		const results: SyncResult[] = [];
-		for (const event of events) {
-			try {
-				const resolvedScopeKey = typeof scopeKey === 'function' ? scopeKey(event) : scopeKey;
-				let result: SyncResult;
-				switch (event.entityType) {
-					case 'User': {
-						{
-							const validation = validators.User.safeParse(event.payload);
-							if (!validation.success)
-								throw new Error(`Validation failed: ${validation.error.message}`);
+export async function applyPush({
+	events,
+	scopeKey,
+	prisma,
+	customValidation
+}: {
+	events: OutboxEventRecord[];
+	scopeKey: string | ((event: OutboxEventRecord) => string);
+	prisma: PrismaClient;
+	customValidation?: (event: EventsFor<typeof validators>) => boolean | Promise<boolean>;
+}): Promise<SyncResult[]> {
+	const results: SyncResult[] = [];
+	for (const event of events) {
+		try {
+			const resolvedScopeKey = typeof scopeKey === 'function' ? scopeKey(event) : scopeKey;
+			let result: SyncResult;
+			switch (event.entityType) {
+				case 'User': {
+					{
+						const validation = validators.User.safeParse(event.payload);
+						if (!validation.success)
+							throw new Error(`Validation failed: ${validation.error.message}`);
 
-							if (customValidation) {
-								const ok = await customValidation(event as EventsFor<typeof validators>);
-								if (!ok) throw new Error('custom validation failed');
-							}
-
-							result = await syncUser(event, validation.data, resolvedScopeKey);
-							break;
+						if (customValidation) {
+							const ok = await customValidation(event as EventsFor<typeof validators>);
+							if (!ok) throw new Error('custom validation failed');
 						}
-					}
-					case 'Todo': {
-						{
-							const validation = validators.Todo.safeParse(event.payload);
-							if (!validation.success)
-								throw new Error(`Validation failed: ${validation.error.message}`);
 
-							if (customValidation) {
-								const ok = await customValidation(event as EventsFor<typeof validators>);
-								if (!ok) throw new Error('custom validation failed');
-							}
-
-							result = await syncTodo(event, validation.data, resolvedScopeKey);
-							break;
-						}
+						result = await syncUser(event, validation.data, resolvedScopeKey, prisma);
+						break;
 					}
-					default:
-						throw new Error(`No sync handler for ${event.entityType}`);
 				}
-				results.push(result);
-			} catch (err) {
-				const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-				results.push({ id: event.id, error: errorMessage, entityKeyPath: event.entityKeyPath });
+				case 'Todo': {
+					{
+						const validation = validators.Todo.safeParse(event.payload);
+						if (!validation.success)
+							throw new Error(`Validation failed: ${validation.error.message}`);
+
+						if (customValidation) {
+							const ok = await customValidation(event as EventsFor<typeof validators>);
+							if (!ok) throw new Error('custom validation failed');
+						}
+
+						result = await syncTodo(event, validation.data, resolvedScopeKey, prisma);
+						break;
+					}
+				}
+				default:
+					throw new Error(`No sync handler for ${event.entityType}`);
 			}
+			results.push(result);
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+			results.push({ id: event.id, error: errorMessage, entityKeyPath: event.entityKeyPath });
 		}
-		return results;
 	}
+	return results;
 }
 
-export async function materializeLogs(
-	logs: Array<ChangeLog>
-): Promise<Array<LogsWithRecords<typeof validators>>> {
+export async function materializeLogs({
+	logs,
+	prisma
+}: {
+	logs: Array<ChangeLog>;
+	prisma: PrismaClient;
+}): Promise<Array<LogWithRecord<typeof validators>>> {
 	{
 		const validModelNames = ['User', 'Todo'];
-		const results: Array<LogsWithRecords<typeof validators>> = [];
+		const results: Array<LogWithRecord<typeof validators>> = [];
 		for (const log of logs) {
 			if (!validModelNames.includes(log.model)) {
 				throw new Error(`Unknown model: ${log.model}`);
 			}
-			try {
-				switch (log.model) {
-					case 'User': {
-						const keyPathValidation = keyPathValidators.User.safeParse(log.keyPath);
-						if (!keyPathValidation.success) {
-							throw new Error('Invalid keyPath for User');
-						}
-						const validKeyPath = keyPathValidation.data;
-						const record = await prisma.user.findUnique({
-							where: { id: validKeyPath[0] }
-						});
-						results.push({ ...log, model: 'User', keyPath: validKeyPath, record });
-						break;
+			switch (log.model) {
+				case 'User': {
+					const keyPathValidation = keyPathValidators.User.safeParse(log.keyPath);
+					if (!keyPathValidation.success) {
+						throw new Error('Invalid keyPath for User');
 					}
-					case 'Todo': {
-						const keyPathValidation = keyPathValidators.Todo.safeParse(log.keyPath);
-						if (!keyPathValidation.success) {
-							throw new Error('Invalid keyPath for Todo');
-						}
-						const validKeyPath = keyPathValidation.data;
-						const record = await prisma.todo.findUnique({
-							where: { id: validKeyPath[0] }
-						});
-						results.push({ ...log, model: 'Todo', keyPath: validKeyPath, record });
-						break;
-					}
+					const validKeyPath = keyPathValidation.data;
+					const record = await prisma.user.findUnique({
+						where: { id: validKeyPath[0] }
+					});
+					results.push({ ...log, model: 'User', keyPath: validKeyPath, record });
+					break;
 				}
-			} catch (err) {
-				const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-				console.error(`Failed to fetch record for ${log.model}:`, errorMessage);
+				case 'Todo': {
+					const keyPathValidation = keyPathValidators.Todo.safeParse(log.keyPath);
+					if (!keyPathValidation.success) {
+						throw new Error('Invalid keyPath for Todo');
+					}
+					const validKeyPath = keyPathValidation.data;
+					const record = await prisma.todo.findUnique({
+						where: { id: validKeyPath[0] }
+					});
+					results.push({ ...log, model: 'Todo', keyPath: validKeyPath, record });
+					break;
+				}
 			}
 		}
 		return results;
@@ -137,7 +140,8 @@ export async function materializeLogs(
 async function syncUser(
 	event: OutboxEventRecord,
 	data: z.infer<typeof validators.User>,
-	scopeKey: string
+	scopeKey: string,
+	prisma: PrismaClient
 ): Promise<SyncResult> {
 	const { id, entityKeyPath, operation } = event;
 	const keyPathValidation = keyPathValidators.User.safeParse(entityKeyPath);
@@ -165,7 +169,6 @@ async function syncUser(
 		}
 
 		case 'update': {
-			if (!entityKeyPath) throw new Error('Missing entityKeyPath for update');
 			const oldKeyPath = [...validKeyPath];
 			const [result] = await prisma.$transaction([
 				prisma.user.update({
@@ -187,7 +190,6 @@ async function syncUser(
 		}
 
 		case 'delete': {
-			if (!entityKeyPath) throw new Error('Missing entityKeyPath for delete');
 			await prisma.$transaction([
 				prisma.user.delete({
 					where: { id: validKeyPath[0] }
@@ -212,7 +214,8 @@ async function syncUser(
 async function syncTodo(
 	event: OutboxEventRecord,
 	data: z.infer<typeof validators.Todo>,
-	scopeKey: string
+	scopeKey: string,
+	prisma: PrismaClient
 ): Promise<SyncResult> {
 	const { id, entityKeyPath, operation } = event;
 	const keyPathValidation = keyPathValidators.Todo.safeParse(entityKeyPath);
@@ -240,7 +243,6 @@ async function syncTodo(
 		}
 
 		case 'update': {
-			if (!entityKeyPath) throw new Error('Missing entityKeyPath for update');
 			const oldKeyPath = [...validKeyPath];
 			const [result] = await prisma.$transaction([
 				prisma.todo.update({
@@ -262,7 +264,6 @@ async function syncTodo(
 		}
 
 		case 'delete': {
-			if (!entityKeyPath) throw new Error('Missing entityKeyPath for delete');
 			await prisma.$transaction([
 				prisma.todo.delete({
 					where: { id: validKeyPath[0] }
