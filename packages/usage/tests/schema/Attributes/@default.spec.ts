@@ -70,7 +70,7 @@ test("@default(now()) - Creates new userGroup with current date", async ({ page 
   // joinedOn should be near current time
   expect(new Date((idbClientResult as UserGroup).joinedOn).getTime() / 1000).toBeCloseTo(
     new Date().getTime() / 1000,
-    0,
+    0
   );
 });
 

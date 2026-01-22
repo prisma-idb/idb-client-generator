@@ -17,7 +17,7 @@ export function intersectArraysByNestedKey<T>(arrays: T[][], keyPath: string[]):
   return safeArrays.reduce(
     (acc, array) =>
       acc.filter((item) => array.some((el) => keyPath.every((key) => el[key as keyof T] === item[key as keyof T]))),
-    safeArrays[0] ?? [],
+    safeArrays[0] ?? []
   );
 }
 export function removeDuplicatesByKeyPath<T>(arrays: T[][], keyPath: string[]): T[] {
@@ -40,32 +40,32 @@ export async function applyLogicalFilters<
   whereClause: W,
   tx: TransactionType,
   keyPath: string[],
-  applyWhereFunction: (records: R[], clause: W, tx: TransactionType) => Promise<R[]>,
+  applyWhereFunction: (records: R[], clause: W, tx: TransactionType) => Promise<R[]>
 ): Promise<R[]> {
   if (whereClause.AND) {
     records = intersectArraysByNestedKey(
       await Promise.all(
-        convertToArray(whereClause.AND).map(async (clause) => await applyWhereFunction(records, clause, tx)),
+        convertToArray(whereClause.AND).map(async (clause) => await applyWhereFunction(records, clause, tx))
       ),
-      keyPath,
+      keyPath
     );
   }
   if (whereClause.OR) {
     records = removeDuplicatesByKeyPath(
       await Promise.all(
-        convertToArray(whereClause.OR).map(async (clause) => await applyWhereFunction(records, clause, tx)),
+        convertToArray(whereClause.OR).map(async (clause) => await applyWhereFunction(records, clause, tx))
       ),
-      keyPath,
+      keyPath
     );
   }
   if (whereClause.NOT) {
     const excludedRecords = removeDuplicatesByKeyPath(
       await Promise.all(convertToArray(whereClause.NOT).map(async (clause) => applyWhereFunction(records, clause, tx))),
-      keyPath,
+      keyPath
     );
     records = records.filter(
       (item) =>
-        !excludedRecords.some((excluded) => keyPath.every((key) => excluded[key as keyof R] === item[key as keyof R])),
+        !excludedRecords.some((excluded) => keyPath.every((key) => excluded[key as keyof R] === item[key as keyof R]))
     );
   }
   return records;
@@ -73,7 +73,7 @@ export async function applyLogicalFilters<
 export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  stringFilter: undefined | string | Prisma.StringFilter<unknown> | null | Prisma.StringNullableFilter<unknown>,
+  stringFilter: undefined | string | Prisma.StringFilter<unknown> | null | Prisma.StringNullableFilter<unknown>
 ): boolean {
   if (stringFilter === undefined) return true;
 
@@ -173,7 +173,7 @@ export function whereNumberFilter<T, R extends Prisma.Result<T, object, "findFir
     | Prisma.IntFilter<unknown>
     | Prisma.FloatFilter<unknown>
     | Prisma.IntNullableFilter<unknown>
-    | null,
+    | null
 ): boolean {
   if (numberFilter === undefined) return true;
 
@@ -225,7 +225,7 @@ export function whereNumberFilter<T, R extends Prisma.Result<T, object, "findFir
 export function whereBigIntFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  bigIntFilter: undefined | number | bigint | Prisma.BigIntFilter<unknown>,
+  bigIntFilter: undefined | number | bigint | Prisma.BigIntFilter<unknown>
 ): boolean {
   if (bigIntFilter === undefined) return true;
 
@@ -277,7 +277,7 @@ export function whereBigIntFilter<T, R extends Prisma.Result<T, object, "findFir
 export function whereBoolFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  boolFilter: undefined | boolean | Prisma.BoolFilter<unknown>,
+  boolFilter: undefined | boolean | Prisma.BoolFilter<unknown>
 ): boolean {
   if (boolFilter === undefined) return true;
 
@@ -305,7 +305,7 @@ export function whereBoolFilter<T, R extends Prisma.Result<T, object, "findFirst
 export function whereBytesFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  bytesFilter: undefined | Uint8Array | Prisma.BytesFilter<unknown>,
+  bytesFilter: undefined | Uint8Array | Prisma.BytesFilter<unknown>
 ): boolean {
   if (bytesFilter === undefined) return true;
 
@@ -350,7 +350,7 @@ export function whereBytesFilter<T, R extends Prisma.Result<T, object, "findFirs
 export function whereDateTimeFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  dateTimeFilter: undefined | Date | string | Prisma.DateTimeFilter<unknown>,
+  dateTimeFilter: undefined | Date | string | Prisma.DateTimeFilter<unknown>
 ): boolean {
   if (dateTimeFilter === undefined) return true;
 
@@ -405,7 +405,7 @@ export function whereDateTimeFilter<T, R extends Prisma.Result<T, object, "findF
 export function whereStringListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  scalarListFilter: undefined | Prisma.StringNullableListFilter<unknown>,
+  scalarListFilter: undefined | Prisma.StringNullableListFilter<unknown>
 ): boolean {
   if (scalarListFilter === undefined) return true;
 
@@ -432,7 +432,7 @@ export function whereStringListFilter<T, R extends Prisma.Result<T, object, "fin
 export function whereNumberListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  scalarListFilter: undefined | Prisma.IntNullableListFilter<unknown> | Prisma.FloatNullableListFilter<unknown>,
+  scalarListFilter: undefined | Prisma.IntNullableListFilter<unknown> | Prisma.FloatNullableListFilter<unknown>
 ): boolean {
   if (scalarListFilter === undefined) return true;
 
@@ -459,7 +459,7 @@ export function whereNumberListFilter<T, R extends Prisma.Result<T, object, "fin
 export function whereBigIntListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  scalarListFilter: undefined | Prisma.BigIntNullableListFilter<unknown>,
+  scalarListFilter: undefined | Prisma.BigIntNullableListFilter<unknown>
 ): boolean {
   if (scalarListFilter === undefined) return true;
 
@@ -486,7 +486,7 @@ export function whereBigIntListFilter<T, R extends Prisma.Result<T, object, "fin
 export function whereBooleanListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  scalarListFilter: undefined | Prisma.BoolNullableListFilter<unknown>,
+  scalarListFilter: undefined | Prisma.BoolNullableListFilter<unknown>
 ): boolean {
   if (scalarListFilter === undefined) return true;
 
@@ -513,7 +513,7 @@ export function whereBooleanListFilter<T, R extends Prisma.Result<T, object, "fi
 export function whereBytesListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  scalarListFilter: undefined | Prisma.BytesNullableListFilter<unknown>,
+  scalarListFilter: undefined | Prisma.BytesNullableListFilter<unknown>
 ): boolean {
   if (scalarListFilter === undefined) return true;
 
@@ -540,7 +540,7 @@ export function whereBytesListFilter<T, R extends Prisma.Result<T, object, "find
 export function whereDateTimeListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  scalarListFilter: undefined | Prisma.DateTimeNullableListFilter<unknown>,
+  scalarListFilter: undefined | Prisma.DateTimeNullableListFilter<unknown>
 ): boolean {
   if (scalarListFilter === undefined) return true;
 
@@ -572,7 +572,7 @@ export function handleStringUpdateField<T, R extends Prisma.Result<T, object, "f
     | string
     | Prisma.StringFieldUpdateOperationsInput
     | null
-    | Prisma.NullableStringFieldUpdateOperationsInput,
+    | Prisma.NullableStringFieldUpdateOperationsInput
 ): void {
   if (stringUpdate === undefined) return;
   if (typeof stringUpdate === "string" || stringUpdate === null) {
@@ -584,7 +584,7 @@ export function handleStringUpdateField<T, R extends Prisma.Result<T, object, "f
 export function handleBooleanUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  booleanUpdate: undefined | boolean | Prisma.BoolFieldUpdateOperationsInput,
+  booleanUpdate: undefined | boolean | Prisma.BoolFieldUpdateOperationsInput
 ): void {
   if (booleanUpdate === undefined) return;
   if (typeof booleanUpdate === "boolean") {
@@ -596,7 +596,7 @@ export function handleBooleanUpdateField<T, R extends Prisma.Result<T, object, "
 export function handleDateTimeUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  dateTimeUpdate: undefined | Date | string | Prisma.DateTimeFieldUpdateOperationsInput,
+  dateTimeUpdate: undefined | Date | string | Prisma.DateTimeFieldUpdateOperationsInput
 ): void {
   if (dateTimeUpdate === undefined) return;
   if (typeof dateTimeUpdate === "string" || dateTimeUpdate instanceof Date) {
@@ -608,7 +608,7 @@ export function handleDateTimeUpdateField<T, R extends Prisma.Result<T, object, 
 export function handleBytesUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  bytesUpdate: undefined | Uint8Array | Prisma.BytesFieldUpdateOperationsInput,
+  bytesUpdate: undefined | Uint8Array | Prisma.BytesFieldUpdateOperationsInput
 ): void {
   if (bytesUpdate === undefined) return;
   if (bytesUpdate instanceof Uint8Array) {
@@ -625,7 +625,7 @@ export function handleIntUpdateField<T, R extends Prisma.Result<T, object, "find
     | number
     | Prisma.IntFieldUpdateOperationsInput
     | null
-    | Prisma.NullableIntFieldUpdateOperationsInput,
+    | Prisma.NullableIntFieldUpdateOperationsInput
 ): void {
   if (intUpdate === undefined) return;
   if (typeof intUpdate === "number" || intUpdate === null) {
@@ -645,7 +645,7 @@ export function handleIntUpdateField<T, R extends Prisma.Result<T, object, "find
 export function handleBigIntUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  bigIntUpdate: undefined | bigint | number | Prisma.BigIntFieldUpdateOperationsInput,
+  bigIntUpdate: undefined | bigint | number | Prisma.BigIntFieldUpdateOperationsInput
 ): void {
   if (bigIntUpdate === undefined) return;
   if (typeof bigIntUpdate === "bigint" || typeof bigIntUpdate === "number") {
@@ -665,7 +665,7 @@ export function handleBigIntUpdateField<T, R extends Prisma.Result<T, object, "f
 export function handleFloatUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  floatUpdate: undefined | number | Prisma.FloatFieldUpdateOperationsInput,
+  floatUpdate: undefined | number | Prisma.FloatFieldUpdateOperationsInput
 ): void {
   if (floatUpdate === undefined) return;
   if (typeof floatUpdate === "number") {
@@ -685,7 +685,7 @@ export function handleFloatUpdateField<T, R extends Prisma.Result<T, object, "fi
 export function handleEnumUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  enumUpdate: undefined | string | { set?: string } | null | { set?: string | null },
+  enumUpdate: undefined | string | { set?: string } | null | { set?: string | null }
 ): void {
   if (enumUpdate === undefined) return;
   if (typeof enumUpdate === "string" || enumUpdate === null) {
@@ -697,7 +697,7 @@ export function handleEnumUpdateField<T, R extends Prisma.Result<T, object, "fin
 export function handleScalarListUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  listUpdate: undefined | unknown[] | { set?: unknown[]; push?: unknown | unknown[] },
+  listUpdate: undefined | unknown[] | { set?: unknown[]; push?: unknown | unknown[] }
 ): void {
   if (listUpdate === undefined) return;
   if (Array.isArray(listUpdate)) {
@@ -715,7 +715,7 @@ export function handleScalarListUpdateField<T, R extends Prisma.Result<T, object
 export function genericComparator(
   a: unknown,
   b: unknown,
-  sortOrder: Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } = "asc",
+  sortOrder: Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } = "asc"
 ): number {
   if (typeof sortOrder !== "string" && sortOrder.nulls) {
     const nullMultiplier = sortOrder.nulls === "first" ? -1 : 1;
