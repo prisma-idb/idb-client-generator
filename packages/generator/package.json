@@ -33,11 +33,11 @@
     "typescript": "^5.9.3"
   },
   "peerDependencies": {
-    "@prisma/client": "^6.x.x || ^7.x.x",
-    "idb": "^8.x.x",
-    "prisma": "^6.x.x || ^7.x.x",
-    "uuid": "^9.x.x",
-    "@paralleldrive/cuid2": "^3.x.x"
+    "@prisma/client": "^6.0.0 || ^7.0.0",
+    "idb": "^8.0.0",
+    "prisma": "^6.0.0 || ^7.0.0",
+    "uuid": "^9.0.0",
+    "@paralleldrive/cuid2": "^3.0.0"
   },
   "homepage": "https://github.com/prisma-idb/idb-client-generator",
   "repository": {

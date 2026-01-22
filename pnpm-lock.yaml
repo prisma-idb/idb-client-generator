@@ -48,10 +48,10 @@ importers:
   packages/generator:
     dependencies:
       '@paralleldrive/cuid2':
-        specifier: ^3.x.x
+        specifier: ^3.0.0
         version: 3.0.6
       '@prisma/client':
-        specifier: ^6.x.x || ^7.x.x
+        specifier: ^6.0.0 || ^7.0.0
         version: 7.3.0(prisma@7.3.0(@types/react@19.2.8)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(typescript@5.9.3))(typescript@5.9.3)
       '@prisma/generator-helper':
         specifier: ^7.3.0
@@ -60,16 +60,16 @@ importers:
         specifier: ^13.0.3
         version: 13.0.3
       idb:
-        specifier: ^8.x.x
+        specifier: ^8.0.0
         version: 8.0.3
       prettier:
         specifier: ^3.8.1
         version: 3.8.1
       prisma:
-        specifier: ^6.x.x || ^7.x.x
+        specifier: ^6.0.0 || ^7.0.0
         version: 7.3.0(@types/react@19.2.8)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(typescript@5.9.3)
       uuid:
-        specifier: ^9.x.x
+        specifier: ^9.0.0
         version: 9.0.1
     devDependencies:
       '@prisma/internals':
