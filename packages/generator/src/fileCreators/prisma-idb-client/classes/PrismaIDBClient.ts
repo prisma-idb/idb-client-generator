@@ -160,11 +160,15 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Mod
     .writeLine(` *   Thrown errors stop pull phase gracefully; will retry next cycle.`)
     .writeLine(` * @param options.pull.getCursor Optional handler to retrieve persisted pull cursor.`)
     .writeLine(` *   If not provided, starts from undefined (first page). Use this to resume from checkpoint.`)
-    .writeLine(` * @param options.pull.setCursor Optional handler to persist pull cursor after successful page processing.`)
+    .writeLine(
+      ` * @param options.pull.setCursor Optional handler to persist pull cursor after successful page processing.`,
+    )
     .writeLine(` *   Called only after logsWithRecords are successfully applied to local state.`)
     .writeLine(` * @param options.schedule Scheduling configuration`)
     .writeLine(` * @param options.schedule.intervalMs Milliseconds between sync cycles (default: 5000)`)
-    .writeLine(` * @param options.schedule.maxRetries Max retry attempts for outbox events before abandoning (default: 5)`)
+    .writeLine(
+      ` * @param options.schedule.maxRetries Max retry attempts for outbox events before abandoning (default: 5)`,
+    )
     .writeLine(` *`)
     .writeLine(` * @returns SyncWorker with start() and stop() methods`)
     .writeLine(` *`)
@@ -255,9 +259,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Mod
         .writeLine(`                throw new Error(\`No upsert handler for \${originalEvent.entityType}\`);`)
         .writeLine(`            }`)
         .writeLine(`          } catch (upsertErr) {`)
-        .writeLine(
-          `            console.warn(\`Failed to upsert merged record for event \${result.id}:\`, upsertErr);`,
-        )
+        .writeLine(`            console.warn(\`Failed to upsert merged record for event \${result.id}:\`, upsertErr);`)
         .writeLine(`          }`)
         .writeLine(`        }`)
         .writeLine(`      }`)
