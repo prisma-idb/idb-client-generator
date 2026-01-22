@@ -20,7 +20,7 @@
     "@internationalized/date": "^3.10.1",
     "@lucide/svelte": "^0.560.0",
     "@playwright/test": "^1.57.0",
-    "@prisma-idb/idb-client-generator": "link:../generator",
+    "@prisma-idb/idb-client-generator": "workspace:*",
     "@prisma/client": "^7.2.0",
     "@sveltejs/adapter-auto": "^7.0.0",
     "@sveltejs/kit": "^2.50.0",

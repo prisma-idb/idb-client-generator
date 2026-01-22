@@ -1,7 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
-  "envMode": "strict",
   "globalDependencies": ["tsconfig.json", "eslint.config.js", ".prettierrc", ".prettierignore", "package.json"],
   "tasks": {
     "build": {
@@ -26,7 +25,8 @@
     },
     "generate": {
       "outputs": ["src/lib/generated/**", "prisma/generated/**"],
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "env": ["DATABASE_URL"]
     },
     "release": {
       "cache": false,

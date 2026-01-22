@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/
-      - name: Lint both packages
+      - name: Lint all packages
         run: pnpm lint
 
   svelte-check:
