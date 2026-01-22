@@ -21,7 +21,8 @@
     },
     "test": {
       "outputs": ["test-results/**", "playwright-report/**", "coverage/**"],
-      "dependsOn": ["generate"]
+      "dependsOn": ["generate"],
+      "env": ["DATABASE_URL"]
     },
     "generate": {
       "outputs": ["src/lib/generated/**", "prisma/generated/**"],
