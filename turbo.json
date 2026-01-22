@@ -1,115 +1,38 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
   "envMode": "strict",
-  "globalDependencies": [
-    "tsconfig.json",
-    "eslint.config.js",
-    ".prettierrc",
-    ".prettierignore",
-    "package.json"
-  ],
+  "globalDependencies": ["tsconfig.json", "eslint.config.js", ".prettierrc", ".prettierignore", "package.json"],
   "tasks": {
     "build": {
-      "description": "Build distribution artifacts",
-      "outputs": [
-        "dist/**",
-        ".svelte-kit/**",
-        ".next/**",
-        "build/**"
-      ],
-      "outputLogs": "new-only",
-      "dependsOn": [
-        "^build"
-      ],
-      "cache": true
+      "outputs": ["dist/**", ".svelte-kit/**", ".next/**", "build/**"],
+      "dependsOn": ["^build"]
     },
     "dev": {
-      "description": "Start development server",
       "cache": false,
       "persistent": true,
       "interactive": true
     },
-    "lint": {
-      "description": "Lint code using ESLint",
-      "outputs": [],
-      "outputLogs": "errors-only",
-      "dependsOn": [],
-      "cache": true
-    },
+    "lint": {},
     "format": {
-      "description": "Format code using Prettier",
-      "outputs": [],
-      "outputLogs": "errors-only",
       "cache": false
     },
     "check": {
-      "description": "Type check TypeScript and check code with SvelteKit",
-      "outputs": [
-        ".svelte-kit/**"
-      ],
-      "outputLogs": "errors-only",
-      "cache": true
+      "outputs": [".svelte-kit/**"]
     },
     "test": {
-      "description": "Run test suite",
-      "outputs": [
-        "test-results/**",
-        "playwright-report/**",
-        "coverage/**"
-      ],
-      "outputLogs": "errors-only",
-      "dependsOn": [
-        "build"
-      ],
-      "cache": true
-    },
-    "test:e2e": {
-      "description": "Run end-to-end tests",
-      "outputs": [
-        "test-results/**",
-        "playwright-report/**"
-      ],
-      "outputLogs": "errors-only",
-      "dependsOn": [
-        "build"
-      ],
-      "cache": true
-    },
-    "test:watch": {
-      "description": "Run tests in watch mode",
-      "cache": false,
-      "persistent": true,
-      "interactive": true
+      "outputs": ["test-results/**", "playwright-report/**", "coverage/**"],
+      "dependsOn": ["generate"]
     },
     "generate": {
-      "description": "Generate code from schemas",
-      "outputs": [
-        "src/lib/generated/**",
-        "prisma/generated/**"
-      ],
-      "outputLogs": "new-only",
-      "dependsOn": [
-        "^build"
-      ],
-      "cache": true
-    },
-    "start": {
-      "description": "Start application",
-      "cache": false,
-      "persistent": true,
-      "interactive": true
+      "outputs": ["src/lib/generated/**", "prisma/generated/**"],
+      "dependsOn": ["^build"]
     },
     "release": {
-      "description": "Release package versions",
       "cache": false,
-      "dependsOn": [
-        "build",
-        "test",
-        "lint"
-      ]
+      "dependsOn": ["build", "test", "lint"]
     },
     "preview": {
-      "description": "Preview production build",
       "cache": false,
       "persistent": true,
       "interactive": true

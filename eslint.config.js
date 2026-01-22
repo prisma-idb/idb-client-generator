@@ -1,44 +1,26 @@
 import prettier from "eslint-config-prettier";
+import { fileURLToPath } from "node:url";
+import { includeIgnoreFile } from "@eslint/compat";
 import js from "@eslint/js";
 import svelte from "eslint-plugin-svelte";
 import globals from "globals";
 import ts from "typescript-eslint";
 
-export default ts.config(
-  {
-    ignores: [
-      // Build outputs
-      "**/dist/**",
-      "**/build/**",
-      "**/.next/**",
-      "**/.svelte-kit/**",
-      // Dependencies
-      "**/node_modules/**",
-      // Testing outputs
-      "**/coverage/**",
-      "**/test-results/**",
-      "**/playwright-report/**",
-      // Env files
-      ".env*",
-      // Component libraries (from usage package)
-      "**/src/lib/components/ui/**",
-      // Turbo cache
-      ".turbo/**",
-    ],
-  },
+const gitignorePath = fileURLToPath(new URL("./.gitignore", import.meta.url));
+
+export default [
+  includeIgnoreFile(gitignorePath),
+  { ignores: ["**/src/lib/components/ui/**"] },
   js.configs.recommended,
   ...ts.configs.recommended,
+  ...svelte.configs.recommended,
+  prettier,
+  ...svelte.configs.prettier,
   {
-    files: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.mjs", "**/*.cjs"],
     languageOptions: {
       globals: {
         ...globals.browser,
         ...globals.node,
-      },
-      parser: ts.parser,
-      parserOptions: {
-        ecmaVersion: 2022,
-        sourceType: "module",
       },
     },
     rules: {
@@ -49,25 +31,18 @@ export default ts.config(
           varsIgnorePattern: "^_",
         },
       ],
+      "no-undef": "off",
     },
   },
   // Svelte-specific config
-  ...svelte.configs["flat/recommended"],
   {
-    files: ["**/*.svelte"],
+    files: ["**/*.svelte", "**/*.svelte.ts", "**/*.svelte.js"],
     languageOptions: {
-      globals: {
-        ...globals.browser,
-      },
-      parser: svelte.parser,
       parserOptions: {
+        projectService: true,
+        extraFileExtensions: [".svelte"],
         parser: ts.parser,
-        ecmaVersion: 2022,
-        sourceType: "module",
       },
     },
   },
-  // Prettier config - must be last
-  prettier,
-  ...svelte.configs["flat/prettier"],
-);
+];

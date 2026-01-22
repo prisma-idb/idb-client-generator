@@ -87,10 +87,7 @@ export class PrismaIDBClient {
    * worker.stop();    // gracefully stops
    */
   createSyncWorker(options: {
-    push: {
-      handler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>;
-      batchSize?: number;
-    };
+    push: { handler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>; batchSize?: number };
     pull: {
       handler: (cursor?: number) => Promise<{ cursor?: number; logsWithRecords: LogWithRecord<typeof validators>[] }>;
       getCursor?: () => Promise<number | undefined>;
@@ -344,10 +341,7 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
   subscribe(
     event: "create" | "update" | "delete" | ("create" | "update" | "delete")[],
     callback: (
-      e: CustomEventInit<{
-        keyPath: PrismaIDBSchema[T]["key"];
-        oldKeyPath?: PrismaIDBSchema[T]["key"];
-      }>
+      e: CustomEventInit<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>
     ) => void
   ) {
     if (Array.isArray(event)) {
@@ -359,10 +353,7 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
   unsubscribe(
     event: "create" | "update" | "delete" | ("create" | "update" | "delete")[],
     callback: (
-      e: CustomEventInit<{
-        keyPath: PrismaIDBSchema[T]["key"];
-        oldKeyPath?: PrismaIDBSchema[T]["key"];
-      }>
+      e: CustomEventInit<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>
     ) => void
   ) {
     if (Array.isArray(event)) {
@@ -674,10 +665,10 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     if (query.data?.todos?.upsert) {
       neededStores.add("Todo");
       IDBUtils.convertToArray(query.data.todos.upsert).forEach((upsert) => {
-        const update = {
-          where: upsert.where,
-          data: { ...upsert.update, ...upsert.create },
-        } as Prisma.Args<Prisma.TodoDelegate, "update">;
+        const update = { where: upsert.where, data: { ...upsert.update, ...upsert.create } } as Prisma.Args<
+          Prisma.TodoDelegate,
+          "update"
+        >;
         this.client.todo._getNeededStoresForUpdate(update).forEach((store) => neededStores.add(store));
       });
     }
@@ -1035,9 +1026,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         const createData = Array.isArray(query.data.todos.create) ? query.data.todos.create : [query.data.todos.create];
         for (const elem of createData) {
           await this.client.todo.create(
-            {
-              data: { ...elem, userId: record.id } as Prisma.Args<Prisma.TodoDelegate, "create">["data"],
-            },
+            { data: { ...elem, userId: record.id } as Prisma.Args<Prisma.TodoDelegate, "create">["data"] },
             { tx, silent, addToOutbox }
           );
         }
@@ -1485,10 +1474,10 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     if (query.data?.user?.upsert) {
       neededStores.add("User");
       IDBUtils.convertToArray(query.data.user.upsert).forEach((upsert) => {
-        const update = {
-          where: upsert.where,
-          data: { ...upsert.update, ...upsert.create },
-        } as Prisma.Args<Prisma.UserDelegate, "update">;
+        const update = { where: upsert.where, data: { ...upsert.update, ...upsert.create } } as Prisma.Args<
+          Prisma.UserDelegate,
+          "update"
+        >;
         this.client.user._getNeededStoresForUpdate(update).forEach((store) => neededStores.add(store));
       });
     }
@@ -1815,10 +1804,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
         const updateData = query.data.user.update.data ?? query.data.user.update;
         await this.client.user.update(
           {
-            where: {
-              ...query.data.user.update.where,
-              id: record.userId!,
-            } as Prisma.UserWhereUniqueInput,
+            where: { ...query.data.user.update.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
             data: updateData,
           },
           { tx, silent, addToOutbox }
@@ -1827,10 +1813,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       if (query.data.user.upsert) {
         await this.client.user.upsert(
           {
-            where: {
-              ...query.data.user.upsert.where,
-              id: record.userId!,
-            } as Prisma.UserWhereUniqueInput,
+            where: { ...query.data.user.upsert.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
             create: { ...query.data.user.upsert.create, id: record.userId! } as Prisma.Args<
               Prisma.UserDelegate,
               "upsert"
@@ -1844,10 +1827,10 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
         await this.client.user.upsert(
           {
             where: { ...query.data.user.connectOrCreate.where, id: record.userId! },
-            create: {
-              ...query.data.user.connectOrCreate.create,
-              id: record.userId!,
-            } as Prisma.Args<Prisma.UserDelegate, "upsert">["create"],
+            create: { ...query.data.user.connectOrCreate.create, id: record.userId! } as Prisma.Args<
+              Prisma.UserDelegate,
+              "upsert"
+            >["create"],
             update: { id: record.userId! },
           },
           { tx, silent, addToOutbox }
