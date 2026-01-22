@@ -56,7 +56,7 @@ export const pullChanges = command(
 		const logsWithRecords = await materializeLogs({ logs, prisma });
 
 		return {
-			cursor: logs.at(-1)?.id ?? input?.since,
+			cursor: Number(logs.at(-1)?.id ?? input?.since),
 			logsWithRecords
 		};
 	}

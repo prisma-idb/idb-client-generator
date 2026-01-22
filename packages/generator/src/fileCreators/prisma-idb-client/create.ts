@@ -24,7 +24,9 @@ function addImports(
       .writeLine(
         `import type { OutboxEventRecord, PrismaIDBSchema, AppliedResult, SyncWorkerOptions, SyncWorker } from "./idb-interface";`,
       )
-      .writeLine(`import { validators, keyPathValidators } from "../validators";`);
+      .writeLine(`import { validators, keyPathValidators } from "../validators";`)
+      .writeLine(`import type { LogWithRecord } from '../server/batch-processor';`)
+      .writeLine(`import { applyPull } from './apply-pull';`);
   } else {
     writer.writeLine(`import type { PrismaIDBSchema } from "./idb-interface";`);
   }

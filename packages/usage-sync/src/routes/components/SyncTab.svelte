@@ -2,7 +2,7 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import type { AppState } from '$lib/store.svelte';
 	import { toast } from 'svelte-sonner';
-	import { syncBatch } from '../data.remote';
+	import { pullChanges, syncBatch } from '../data.remote';
 
 	type PropsType = {
 		appState: AppState;
@@ -21,21 +21,17 @@
 			}
 
 			const syncWorker = appState.client.createSyncWorker({
-				syncHandler: async (events) => {
-					try {
-						return await syncBatch(events);
-					} catch (err) {
-						const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-						return events.map((event) => ({
-							id: event.id,
-							error: errorMessage,
-							entityKeyPath: event.entityKeyPath
-						}));
-					}
+				push: {
+					handler: syncBatch,
+					batchSize: 20
 				},
-				batchSize: 20,
-				intervalMs: 0,
-				maxRetries: 5
+				pull: {
+					handler: async (cursor) => await pullChanges({ since: cursor })
+				},
+				schedule: {
+					intervalMs: 0,
+					maxRetries: 5
+				}
 			});
 
 			appState.setSyncWorker(syncWorker);

@@ -11,6 +11,8 @@ import type {
 	SyncWorker
 } from './idb-interface';
 import { validators, keyPathValidators } from '../validators';
+import type { LogWithRecord } from '../server/batch-processor';
+import { applyPull } from './apply-pull';
 import { v4 as uuidv4 } from 'uuid';
 const IDB_VERSION = 1;
 export class PrismaIDBClient {
@@ -41,150 +43,288 @@ export class PrismaIDBClient {
 	shouldTrackModel(modelName: string): boolean {
 		return this.outboxEnabled && this.includedModels.has(modelName);
 	}
+	/**
+	 * Create a sync worker for bi-directional synchronization with remote server.
+	 *
+	 * The worker implements a structured sync pattern:
+	 * 1. **Push phase**: Drains all local events (outbox) to server until empty or abandoned
+	 * 2. **Pull phase**: Fetches remote changes incrementally using cursor-based pagination
+	 * 3. **Schedule**: Repeats cycles at fixed intervals with proper error handling
+	 *
+	 * @param options Sync configuration
+	 * @param options.push Push handler configuration
+	 * @param options.push.handler Function that receives batch of outbox events and returns sync results.
+	 *   Should return AppliedResult[] with status for each event. Thrown errors are caught internally
+	 *   and events are marked as failed with error message.
+	 * @param options.push.batchSize Maximum events to process in one push batch (default: 10)
+	 * @param options.pull Pull handler configuration
+	 * @param options.pull.handler Function that fetches remote changes since cursor.
+	 *   Must return { logsWithRecords, cursor } where cursor enables resumable pagination.
+	 *   Thrown errors stop pull phase gracefully; will retry next cycle.
+	 * @param options.pull.getCursor Optional handler to retrieve persisted pull cursor.
+	 *   If not provided, starts from undefined (first page). Use this to resume from checkpoint.
+	 * @param options.pull.setCursor Optional handler to persist pull cursor after successful page processing.
+	 *   Called only after logsWithRecords are successfully applied to local state.
+	 * @param options.schedule Scheduling configuration
+	 * @param options.schedule.intervalMs Milliseconds between sync cycles (default: 5000)
+	 * @param options.schedule.maxRetries Max retry attempts for outbox events before abandoning (default: 5)
+	 *
+	 * @returns SyncWorker with start() and stop() methods
+	 *
+	 * @example
+	 * const worker = client.createSyncWorker({
+	 *   push: {
+	 *     handler: async (events) => {
+	 *       return await api.syncBatch(events);  // send to server
+	 *     },
+	 *     batchSize: 20
+	 *   },
+	 *   pull: {
+	 *     handler: async (cursor) => {
+	 *       return await api.pullChanges({ since: cursor });
+	 *     },
+	 *     getCursor: async () => localStorage.getItem('syncCursor'),
+	 *     setCursor: async (cursor) => localStorage.setItem('syncCursor', cursor)
+	 *   },
+	 *   schedule: { intervalMs: 3000, maxRetries: 10 }
+	 * });
+	 *
+	 * worker.start();   // begins sync cycles
+	 * worker.stop();    // gracefully stops
+	 */
 	createSyncWorker(options: {
-		syncHandler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>;
-		batchSize?: number;
-		intervalMs?: number;
-		maxRetries?: number;
+		push: {
+			handler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>;
+			batchSize?: number;
+		};
+		pull: {
+			handler: (
+				cursor?: number
+			) => Promise<{ cursor?: number; logsWithRecords: LogWithRecord<typeof validators>[] }>;
+			getCursor?: () => Promise<number | undefined>;
+			setCursor?: (cursor: number | undefined) => Promise<void>;
+		};
+		schedule?: { intervalMs?: number; maxRetries?: number };
 	}): SyncWorker {
-		const { syncHandler, batchSize = 20, intervalMs = 8000, maxRetries = 5 } = options;
+		const { push, pull } = options;
+		const { handler: pushHandler, batchSize = 10 } = push;
+		const { handler: pullHandler, getCursor, setCursor } = pull;
+		const { intervalMs = 5000, maxRetries = 5 } = options.schedule || {};
 
 		let intervalId: ReturnType<typeof setInterval | typeof setTimeout> | null = null;
 		let isRunning = false;
 		let isProcessing = false;
 
-		const processBatch = async (): Promise<void> => {
-			if (!isRunning || isProcessing) return;
+		/**
+		 * Process a single batch of outbox events.
+		 * This is the core unit of push work.
+		 */
+		const pushOneBatch = async (): Promise<void> => {
+			const batch = await this.$outbox.getNextBatch({ limit: batchSize });
 
-			isProcessing = true;
+			if (batch.length === 0) return;
+
+			const toSync = batch.filter((event: OutboxEventRecord) => event.tries < maxRetries);
+			const abandoned = batch.filter((event: OutboxEventRecord) => event.tries >= maxRetries);
+
+			for (const event of abandoned) {
+				await this.$outbox.markFailed(event.id, `Abandoned after ${maxRetries} retries`);
+			}
+
+			if (toSync.length === 0) return;
+
+			let results: AppliedResult[] = [];
 			try {
-				const batch = await this.$outbox.getNextBatch({ limit: batchSize });
-
-				if (batch.length === 0) return;
-
-				const toSync = batch.filter((event: OutboxEventRecord) => event.tries < maxRetries);
-				const abandoned = batch.filter((event: OutboxEventRecord) => event.tries >= maxRetries);
-
-				for (const event of abandoned) {
-					await this.$outbox.markFailed(event.id, `Abandoned after ${maxRetries} retries`);
+				results = await pushHandler(toSync);
+			} catch (err) {
+				for (const event of toSync) {
+					const error = err instanceof Error ? err.message : String(err);
+					await this.$outbox.markFailed(event.id, error);
 				}
+				return;
+			}
 
-				if (toSync.length === 0) return;
+			const successIds: string[] = [];
+			for (const result of results) {
+				if (result.error) {
+					await this.$outbox.markFailed(result.id, result.error);
+				} else {
+					successIds.push(result.id);
 
-				let results: AppliedResult[] = [];
-				try {
-					results = await syncHandler(toSync);
-				} catch (err) {
-					for (const event of toSync) {
-						const error = err instanceof Error ? err.message : String(err);
-						await this.$outbox.markFailed(event.id, error);
-					}
-					return;
-				}
-
-				const successIds: string[] = [];
-				for (const result of results) {
-					if (result.error) {
-						await this.$outbox.markFailed(result.id, result.error);
-					} else {
-						successIds.push(result.id);
-
-						if (result.mergedRecord && result.entityKeyPath) {
-							const originalEvent = toSync.find((e: OutboxEventRecord) => e.id === result.id);
-							if (originalEvent) {
-								try {
-									switch (originalEvent.entityType) {
-										case 'User': {
-											{
-												const recordValidation = validators.User.safeParse(result.mergedRecord);
-												if (!recordValidation.success) {
-													throw new Error(
-														`Record validation failed: ${recordValidation.error.message}`
-													);
-												}
-												const keyPathValidation = keyPathValidators.User.safeParse(
-													result.entityKeyPath
+					if (result.mergedRecord && result.entityKeyPath) {
+						const originalEvent = toSync.find((e: OutboxEventRecord) => e.id === result.id);
+						if (originalEvent) {
+							try {
+								switch (originalEvent.entityType) {
+									case 'User': {
+										{
+											const recordValidation = validators.User.safeParse(result.mergedRecord);
+											if (!recordValidation.success) {
+												throw new Error(
+													`Record validation failed: ${recordValidation.error.message}`
 												);
-												if (!keyPathValidation.success) {
-													throw new Error(
-														`KeyPath validation failed: ${keyPathValidation.error.message}`
-													);
-												}
-												await this.user.upsert(
-													{
-														where: { id: keyPathValidation.data[0] },
-														update: recordValidation.data,
-														create: recordValidation.data
-													},
-													{ silent: true, addToOutbox: false }
-												);
-												break;
 											}
-										}
-										case 'Todo': {
-											{
-												const recordValidation = validators.Todo.safeParse(result.mergedRecord);
-												if (!recordValidation.success) {
-													throw new Error(
-														`Record validation failed: ${recordValidation.error.message}`
-													);
-												}
-												const keyPathValidation = keyPathValidators.Todo.safeParse(
-													result.entityKeyPath
+											const keyPathValidation = keyPathValidators.User.safeParse(
+												result.entityKeyPath
+											);
+											if (!keyPathValidation.success) {
+												throw new Error(
+													`KeyPath validation failed: ${keyPathValidation.error.message}`
 												);
-												if (!keyPathValidation.success) {
-													throw new Error(
-														`KeyPath validation failed: ${keyPathValidation.error.message}`
-													);
-												}
-												await this.todo.upsert(
-													{
-														where: { id: keyPathValidation.data[0] },
-														update: recordValidation.data,
-														create: recordValidation.data
-													},
-													{ silent: true, addToOutbox: false }
-												);
-												break;
 											}
+											await this.user.upsert(
+												{
+													where: { id: keyPathValidation.data[0] },
+													update: recordValidation.data,
+													create: recordValidation.data
+												},
+												{ silent: true, addToOutbox: false }
+											);
+											break;
 										}
-										default:
-											throw new Error(`No upsert handler for ${originalEvent.entityType}`);
 									}
-								} catch (upsertErr) {
-									console.warn(`Failed to upsert merged record for event ${result.id}:`, upsertErr);
+									case 'Todo': {
+										{
+											const recordValidation = validators.Todo.safeParse(result.mergedRecord);
+											if (!recordValidation.success) {
+												throw new Error(
+													`Record validation failed: ${recordValidation.error.message}`
+												);
+											}
+											const keyPathValidation = keyPathValidators.Todo.safeParse(
+												result.entityKeyPath
+											);
+											if (!keyPathValidation.success) {
+												throw new Error(
+													`KeyPath validation failed: ${keyPathValidation.error.message}`
+												);
+											}
+											await this.todo.upsert(
+												{
+													where: { id: keyPathValidation.data[0] },
+													update: recordValidation.data,
+													create: recordValidation.data
+												},
+												{ silent: true, addToOutbox: false }
+											);
+											break;
+										}
+									}
+									default:
+										throw new Error(`No upsert handler for ${originalEvent.entityType}`);
 								}
+							} catch (upsertErr) {
+								console.warn(`Failed to upsert merged record for event ${result.id}:`, upsertErr);
 							}
 						}
 					}
 				}
+			}
 
-				if (successIds.length > 0) {
-					await this.$outbox.markSynced(successIds, { syncedAt: new Date() });
+			if (successIds.length > 0) {
+				await this.$outbox.markSynced(successIds, { syncedAt: new Date() });
+			}
+		};
+
+		/**
+		 * Drain the push phase: keep pushing batches until outbox is empty
+		 * or all remaining events are abandoned (unrecoverable).
+		 *
+		 * Invariant: when this completes, there are no syncable events left.
+		 */
+		const drainPushPhase = async (): Promise<void> => {
+			while (isRunning) {
+				const batch = await this.$outbox.getNextBatch({ limit: batchSize });
+
+				if (batch.length === 0) break;
+
+				const hasSyncable = batch.some((e: OutboxEventRecord) => e.tries < maxRetries);
+				if (!hasSyncable) break;
+
+				await pushOneBatch();
+			}
+		};
+
+		/**
+		 * Drain the pull phase: keep pulling pages until no more data is available.
+		 *
+		 * Rules:
+		 * - Only executes after push phase completes
+		 * - Never writes to outbox
+		 * - Uses optional cursor state handlers provided by user
+		 * - Handles errors gracefully, stops pull on failure
+		 */
+		const drainPullPhase = async (): Promise<void> => {
+			let cursor = getCursor ? await getCursor() : undefined;
+
+			while (isRunning) {
+				try {
+					const res = await pullHandler(cursor);
+					const { logsWithRecords, cursor: nextCursor } = res;
+
+					if (logsWithRecords.length === 0) break;
+
+					await applyPull(this, logsWithRecords);
+
+					if (setCursor) {
+						await setCursor(nextCursor);
+					}
+
+					cursor = nextCursor;
+					if (!cursor) break;
+				} catch (err) {
+					const errorMessage = err instanceof Error ? err.message : String(err);
+					console.error('Pull failed:', errorMessage);
+					break;
 				}
+			}
+		};
+
+		/**
+		 * Execute one complete sync cycle:
+		 * 1. Drain push phase (all local events → server)
+		 * 2. Drain pull phase (server state → local)
+		 *
+		 * Guarantees:
+		 * - No overlapping sync cycles (guarded by isProcessing)
+		 * - Push fully completes before pull starts
+		 * - Order is unbreakable
+		 */
+		const syncOnce = async (): Promise<void> => {
+			if (!isRunning || isProcessing) return;
+
+			isProcessing = true;
+			try {
+				await drainPushPhase();
+				await drainPullPhase();
 			} catch (err) {
-				console.error('Sync worker error:', err);
+				console.error('Sync cycle failed:', err);
 			} finally {
 				isProcessing = false;
 			}
 		};
 
-		const syncLoop = async (): Promise<void> => {
-			await processBatch().catch((err) => {
-				console.error('Unhandled error in sync loop:', err);
-			});
-			if (isRunning) {
-				intervalId = setTimeout(syncLoop, intervalMs);
-			}
+		/**
+		 * Schedule the next sync cycle after the current one completes.
+		 * This prevents overlapping sync work and maintains proper spacing.
+		 */
+		const scheduleNext = (): void => {
+			if (!isRunning) return;
+			intervalId = setTimeout(async () => {
+				await syncOnce();
+				scheduleNext();
+			}, intervalMs);
 		};
 
 		return {
 			start(): void {
 				if (isRunning) return;
 				isRunning = true;
-				syncLoop().catch((err) => {
-					console.error('Unhandled error starting sync loop:', err);
-				});
+				syncOnce()
+					.catch((err) => {
+						console.error('Unhandled error starting sync:', err);
+					})
+					.finally(scheduleNext);
 			},
 
 			stop(): void {
