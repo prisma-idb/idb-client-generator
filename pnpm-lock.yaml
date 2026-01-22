@@ -62,6 +62,12 @@ importers:
       '@eslint/js':
         specifier: ^9.39.1
         version: 9.39.2
+      '@internationalized/date':
+        specifier: ^3.10.1
+        version: 3.10.1
+      '@lucide/svelte':
+        specifier: 0.561.0
+        version: 0.561.0(svelte@5.46.4)
       '@playwright/test':
         specifier: ^1.57.0
         version: 1.57.0
@@ -83,6 +89,12 @@ importers:
       '@types/node':
         specifier: ^24
         version: 24.10.9
+      bits-ui:
+        specifier: ^2.15.4
+        version: 2.15.4(@internationalized/date@3.10.1)(@sveltejs/kit@2.50.0(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.46.4)(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)))(svelte@5.46.4)(typescript@5.9.3)(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)))(svelte@5.46.4)
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
       eslint:
         specifier: ^9.39.1
         version: 9.39.2(jiti@2.6.1)
@@ -95,6 +107,9 @@ importers:
       globals:
         specifier: ^16.5.0
         version: 16.5.0
+      mode-watcher:
+        specifier: ^1.1.0
+        version: 1.1.0(svelte@5.46.4)
       prettier:
         specifier: ^3.7.4
         version: 3.8.0
@@ -110,9 +125,21 @@ importers:
       svelte-check:
         specifier: ^4.3.4
         version: 4.3.5(picomatch@4.0.3)(svelte@5.46.4)(typescript@5.9.3)
+      svelte-sonner:
+        specifier: ^1.0.7
+        version: 1.0.7(svelte@5.46.4)
+      tailwind-merge:
+        specifier: ^3.4.0
+        version: 3.4.0
+      tailwind-variants:
+        specifier: 3.2.2
+        version: 3.2.2(tailwind-merge@3.4.0)(tailwindcss@4.1.18)
       tailwindcss:
         specifier: ^4.1.17
         version: 4.1.18
+      tw-animate-css:
+        specifier: 1.4.0
+        version: 1.4.0
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -806,6 +833,11 @@ packages:
 
   '@lucide/svelte@0.560.0':
     resolution: {integrity: sha512-5z9W4srHj17RWj8HKBUl1lnaUIRE53oiKaPQFKK+TdH3xutyCAzEeTwLAiM7qGk5EeskfgHMhR5IEHhelnfp5A==}
+    peerDependencies:
+      svelte: ^5
+
+  '@lucide/svelte@0.561.0':
+    resolution: {integrity: sha512-vofKV2UFVrKE6I4ewKJ3dfCXSV6iP6nWVmiM83MLjsU91EeJcEg7LoWUABLp/aOTxj1HQNbJD1f3g3L0JQgH9A==}
     peerDependencies:
       svelte: ^5
 
@@ -3417,6 +3449,10 @@ snapshots:
       svelte: 5.46.4
 
   '@lucide/svelte@0.560.0(svelte@5.46.4)':
+    dependencies:
+      svelte: 5.46.4
+
+  '@lucide/svelte@0.561.0(svelte@5.46.4)':
     dependencies:
       svelte: 5.46.4
 
