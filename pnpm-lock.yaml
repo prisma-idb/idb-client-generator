@@ -81,12 +81,6 @@ importers:
 
   packages/pidb-kanban-example:
     devDependencies:
-      '@eslint/compat':
-        specifier: ^1.4.0
-        version: 1.4.1(eslint@9.39.2(jiti@2.6.1))
-      '@eslint/js':
-        specifier: ^9.39.1
-        version: 9.39.2
       '@internationalized/date':
         specifier: ^3.10.1
         version: 3.10.1
@@ -120,30 +114,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      eslint:
-        specifier: ^9.39.1
-        version: 9.39.2(jiti@2.6.1)
-      eslint-config-prettier:
-        specifier: ^10.1.8
-        version: 10.1.8(eslint@9.39.2(jiti@2.6.1))
-      eslint-plugin-svelte:
-        specifier: ^3.13.1
-        version: 3.14.0(eslint@9.39.2(jiti@2.6.1))(svelte@5.46.4)
-      globals:
-        specifier: ^16.5.0
-        version: 16.5.0
       mode-watcher:
         specifier: ^1.1.0
         version: 1.1.0(svelte@5.46.4)
-      prettier:
-        specifier: ^3.7.4
-        version: 3.8.0
-      prettier-plugin-svelte:
-        specifier: ^3.4.0
-        version: 3.4.1(prettier@3.8.0)(svelte@5.46.4)
-      prettier-plugin-tailwindcss:
-        specifier: ^0.7.2
-        version: 0.7.2(prettier-plugin-svelte@3.4.1(prettier@3.8.0)(svelte@5.46.4))(prettier@3.8.0)
       svelte:
         specifier: ^5.45.6
         version: 5.46.4
@@ -168,9 +141,6 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
-      typescript-eslint:
-        specifier: ^8.48.1
-        version: 8.53.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       vite:
         specifier: ^7.2.6
         version: 7.3.1(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)
@@ -196,12 +166,6 @@ importers:
         specifier: ^13.0.0
         version: 13.0.0
     devDependencies:
-      '@eslint/compat':
-        specifier: ^1.4.0
-        version: 1.4.1(eslint@9.39.2(jiti@2.6.1))
-      '@eslint/js':
-        specifier: ^9.39.1
-        version: 9.39.2
       '@internationalized/date':
         specifier: ^3.10.1
         version: 3.10.1
@@ -235,27 +199,12 @@ importers:
       '@types/eslint':
         specifier: ^9.6.1
         version: 9.6.1
-      '@types/node':
-        specifier: ^24
-        version: 24.10.9
       bits-ui:
         specifier: ^2.15.4
         version: 2.15.4(@internationalized/date@3.10.1)(@sveltejs/kit@2.50.0(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.46.4)(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)))(svelte@5.46.4)(typescript@5.9.3)(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)))(svelte@5.46.4)
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      eslint:
-        specifier: ^9.39.1
-        version: 9.39.2(jiti@2.6.1)
-      eslint-config-prettier:
-        specifier: ^10.1.8
-        version: 10.1.8(eslint@9.39.2(jiti@2.6.1))
-      eslint-plugin-svelte:
-        specifier: ^3.13.1
-        version: 3.14.0(eslint@9.39.2(jiti@2.6.1))(svelte@5.46.4)
-      globals:
-        specifier: ^16.5.0
-        version: 16.5.0
       mode-watcher:
         specifier: ^1.1.0
         version: 1.1.0(svelte@5.46.4)
@@ -286,9 +235,6 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
-      typescript-eslint:
-        specifier: ^8.48.1
-        version: 8.53.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       vite:
         specifier: ^7.3.1
         version: 7.3.1(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)
@@ -599,15 +545,6 @@ packages:
   '@eslint-community/regexpp@4.12.2':
     resolution: {integrity: sha512-EriSTlt5OC9/7SXkRSCAhfSxxoSUgBm33OH+IkwbdpgoqsSsUg7y3uh+IICI/Qg4BBWr3U2i39RpmycbxMq4ew==}
     engines: {node: ^12.0.0 || ^14.0.0 || >=16.0.0}
-
-  '@eslint/compat@1.4.1':
-    resolution: {integrity: sha512-cfO82V9zxxGBxcQDr1lfaYB7wykTa0b00mGa36FrJl7iTFd0Z2cHfEYuxcBRP/iNijCsWsEkA+jzT8hGYmv33w==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-    peerDependencies:
-      eslint: ^8.40 || 9
-    peerDependenciesMeta:
-      eslint:
-        optional: true
 
   '@eslint/config-array@0.21.1':
     resolution: {integrity: sha512-aw1gNayWpdI/jSYVgzN5pL0cfzU02GT3NBpeT/DXbx1/1x7ZKxFPd9bwrzygx/qiwIQiJ1sw/zD8qY/kRvlGHA==}
@@ -3253,12 +3190,6 @@ snapshots:
       eslint-visitor-keys: 3.4.3
 
   '@eslint-community/regexpp@4.12.2': {}
-
-  '@eslint/compat@1.4.1(eslint@9.39.2(jiti@2.6.1))':
-    dependencies:
-      '@eslint/core': 0.17.0
-    optionalDependencies:
-      eslint: 9.39.2(jiti@2.6.1)
 
   '@eslint/config-array@0.21.1':
     dependencies:
