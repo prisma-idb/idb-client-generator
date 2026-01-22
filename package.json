@@ -1,14 +1,33 @@
 {
+  "name": "@prisma-idb/monorepo",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
   "scripts": {
-    "lint": "pnpm run -r lint",
-    "build": "pnpm run --filter @prisma-idb/idb-client-generator build",
-    "format": "pnpm run -r format",
-    "test:client": "pnpm run --filter @prisma-idb/idb-client-generator build && pnpm run --filter usage test",
-    "test:sync": "pnpm run --filter @prisma-idb/idb-client-generator build && pnpm run --filter usage-sync test",
-    "test": "pnpm run --filter @prisma-idb/idb-client-generator build && pnpm run test:client && pnpm run test:sync",
-    "dev": "pnpm run --filter usage dev",
-    "check": "pnpm run --filter usage check",
-    "generate": "pnpm run --filter @prisma-idb/idb-client-generator build && pnpm run --filter usage generate && pnpm run --filter usage-sync generate"
+    "build": "turbo run build",
+    "dev": "turbo run dev --no-cache",
+    "check": "turbo run check",
+    "lint": "turbo run lint",
+    "format": "turbo run format --no-cache",
+    "test": "turbo run test",
+    "test:client": "turbo run test --filter=usage",
+    "test:sync": "turbo run test --filter=usage-sync",
+    "test:watch": "turbo run test:watch --no-cache",
+    "generate": "turbo run generate",
+    "clean": "turbo clean && rm -rf node_modules",
+    "preview": "turbo run preview"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-svelte": "^3.14.0",
+    "globals": "^16.5.0",
+    "prettier": "^3.8.0",
+    "prettier-plugin-svelte": "^3.4.1",
+    "prettier-plugin-tailwindcss": "^0.7.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.53.0"
   },
   "repository": {
     "type": "git",

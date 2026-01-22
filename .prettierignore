@@ -1,0 +1,35 @@
+# Dependencies
+node_modules
+pnpm-lock.yaml
+
+# Build outputs
+dist
+build
+.svelte-kit
+.next
+.turbo
+
+# Test outputs
+coverage
+test-results
+playwright-report
+
+# IDE and OS
+.DS_Store
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Package manager
+.pnpm-store
+
+# Generated files
+.turbo
+prisma/generated

@@ -1,10 +1,11 @@
-dist
 node_modules
-yarn-error.log
+.turbo
+
+dist
 build
-pnpm-debug.log
+
 .env*
+
 /test-results/
 /playwright-report/
-/blob-report/
 /playwright/.cache/
