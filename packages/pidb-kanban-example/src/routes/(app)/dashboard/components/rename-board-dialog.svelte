@@ -10,17 +10,20 @@
 
 	let { open = $bindable(false), board }: { open?: boolean; board: Board } = $props();
 
-	// svelte-ignore state_referenced_locally
-	let newName = $state(board.name);
+	let newName = $state('');
 
 	async function renameBoard(event: Event) {
 		event.preventDefault();
-		await client.board.update({
-			where: { id: board.id },
-			data: { name: newName }
-		});
-
-		toast.success('Board renamed successfully');
+		try {
+			await client.board.update({
+				where: { id: board.id },
+				data: { name: newName }
+			});
+			toast.success('Board renamed successfully');
+		} catch (error) {
+			toast.error('Failed to rename board');
+			console.error('Error renaming board:', error);
+		}
 		open = false;
 	}
 </script>
