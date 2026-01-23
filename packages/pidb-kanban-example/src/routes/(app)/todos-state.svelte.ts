@@ -78,7 +78,7 @@ export class TodosState {
 	}
 
 	async syncWithServer() {
-		if (!client || !this.syncWorker) return;
+		if (!this.syncWorker) return;
 		try {
 			this.syncWorker.start();
 			toast.success('Sync started! Processing outbox events...');
