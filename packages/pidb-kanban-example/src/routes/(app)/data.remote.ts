@@ -2,7 +2,7 @@ import { command, getRequestEvent } from '$app/server';
 import { applyPush, materializeLogs } from '$lib/generated/prisma-idb/server/batch-processor';
 import { prisma } from '$lib/server/prisma';
 import { error } from '@sveltejs/kit';
-import z, { bigint } from 'zod';
+import z from 'zod';
 
 const batchRecordSchema = z.object({
 	id: z.string(),
