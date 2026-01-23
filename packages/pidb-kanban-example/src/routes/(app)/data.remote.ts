@@ -22,10 +22,7 @@ export const syncPush = command(z.array(batchRecordSchema), async (events) => {
 	return await applyPush({
 		events,
 		scopeKey: (event) => {
-			if (event.entityType === 'User') {
-				return 'public';
-			}
-			if (event.entityType === 'Todo') {
+			if (event.entityType === 'Board') {
 				const validation = z.object({ userId: z.string() }).safeParse(event.payload);
 				if (validation.success) {
 					return `user-${validation.data.userId}`;
@@ -41,17 +38,18 @@ export const syncPull = command(
 	z.object({ lastChangelogId: z.bigint().optional() }).optional(),
 	async (input) => {
 		const { cookies } = getRequestEvent();
+
 		const sessionToken = cookies.get('better-auth.session_token')?.split('.')[0];
+		if (!sessionToken) throw error(401, 'Unauthorized');
 
 		const user = await prisma.user.findFirst({
 			where: { sessions: { some: { token: sessionToken } } }
 		});
-
-		if (!user) error(401, 'Unauthorized');
+		if (!user) throw error(401, 'Unauthorized');
 
 		const logs = await prisma.changeLog.findMany({
 			where: {
-				scopeKey: user.id,
+				scopeKey: `user-${user.id}`,
 				id: { gt: input?.lastChangelogId ?? 0n }
 			},
 			orderBy: { id: 'asc' },
