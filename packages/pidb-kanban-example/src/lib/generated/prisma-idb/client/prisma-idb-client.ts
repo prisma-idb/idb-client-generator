@@ -126,6 +126,7 @@ export class PrismaIDBClient {
 
 		let intervalId: ReturnType<typeof setInterval | typeof setTimeout> | null = null;
 		let isRunning = false;
+		let stopRequested = false;
 		let isProcessing = false;
 		let isPushing = false;
 		let isPulling = false;
@@ -366,7 +367,7 @@ export class PrismaIDBClient {
 			isPushing = true;
 			emitStatusChange();
 			try {
-				while (isRunning) {
+				while (!stopRequested) {
 					const batch = await this.$outbox.getNextBatch({ limit: batchSize });
 
 					if (batch.length === 0) break;
@@ -397,7 +398,7 @@ export class PrismaIDBClient {
 			try {
 				let cursor = getCursor ? await Promise.resolve(getCursor()) : undefined;
 
-				while (isRunning) {
+				while (!stopRequested) {
 					try {
 						const res = await pullHandler(cursor);
 						const { logsWithRecords, cursor: nextCursor } = res;
@@ -415,7 +416,7 @@ export class PrismaIDBClient {
 					} catch (err) {
 						const errorMessage = err instanceof Error ? err.message : String(err);
 						console.error('Pull failed:', errorMessage);
-						break;
+						throw err;
 					}
 				}
 			} finally {
@@ -467,7 +468,7 @@ export class PrismaIDBClient {
 		 * This prevents overlapping sync work and maintains proper spacing.
 		 */
 		const scheduleNext = (): void => {
-			if (!isRunning) return;
+			if (stopRequested) return;
 			intervalId = setTimeout(async () => {
 				await syncOnce();
 				scheduleNext();
@@ -485,6 +486,7 @@ export class PrismaIDBClient {
 					console.warn('start: worker is already running');
 					return;
 				}
+				stopRequested = false;
 				isRunning = true;
 				emitStatusChange();
 				syncOnce()
@@ -500,7 +502,7 @@ export class PrismaIDBClient {
 			 * Any in-progress sync will complete before fully stopping.
 			 */
 			stop(): void {
-				isRunning = false;
+				stopRequested = true;
 				if (intervalId !== null) {
 					clearTimeout(intervalId);
 					intervalId = null;
