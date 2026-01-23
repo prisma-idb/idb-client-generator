@@ -30,8 +30,8 @@ jobs:
         run: pnpm check
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5433/postgres"
-          GOOGLE_CLIENT_ID: ""
-          GOOGLE_CLIENT_SECRET: ""
+          GOOGLE_CLIENT_ID: "placeholder"
+          GOOGLE_CLIENT_SECRET: "placeholder"
 
   test-client:
     timeout-minutes: 60
