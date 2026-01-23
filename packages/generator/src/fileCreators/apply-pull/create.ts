@@ -52,6 +52,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
   writer.writeLine(`	logsWithRecords: LogWithRecord<typeof validators>[]`);
   writer.writeLine(`) `).block(() => {
     writer.writeLine(`let missingRecords = 0;`);
+    writer.writeLine(`const validationErrors: { model: string; error: unknown }[] = [];`);
     writer.blankLine();
 
     writer.writeLine(`for (const change of logsWithRecords) `).block(() => {
@@ -67,14 +68,26 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
         const condition = index === 0 ? "if" : "else if";
 
         writer.writeLine(`${condition} (model === '${modelName}') `).block(() => {
-          writer.writeLine(`const validatedRecord = validators.${modelName}.parse(record);`);
-          writer.writeLine(`const handler = handlerMap.${modelName}[operation];`);
-          writer.writeLine(`await handler(idbClient, validatedRecord);`);
+          writer.writeLine(`try `).block(() => {
+            writer.writeLine(`const validatedRecord = validators.${modelName}.parse(record);`);
+            writer.writeLine(`const handler = handlerMap.${modelName}[operation];`);
+            writer.writeLine(`if (!handler) `).block(() => {
+              writer.writeLine(`console.warn('Unknown operation for ${modelName}:', operation);`);
+              writer.writeLine(`continue;`);
+            });
+            writer.writeLine(`await handler(idbClient, validatedRecord);`);
+          });
+          writer.writeLine(`catch (error) `).block(() => {
+            writer.writeLine(`validationErrors.push({ model: '${modelName}', error });`);
+            writer.writeLine(`continue;`);
+          });
         });
       });
     });
 
     writer.blankLine();
-    writer.writeLine(`return { missingRecords, totalAppliedRecords: logsWithRecords.length - missingRecords };`);
+    writer.writeLine(
+      `return { missingRecords, totalAppliedRecords: logsWithRecords.length - missingRecords, validationErrors };`,
+    );
   });
 }

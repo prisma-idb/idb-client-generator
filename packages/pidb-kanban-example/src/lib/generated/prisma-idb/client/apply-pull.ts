@@ -76,6 +76,7 @@ export async function applyPull(
 	logsWithRecords: LogWithRecord<typeof validators>[]
 ) {
 	let missingRecords = 0;
+	const validationErrors: { model: string; error: unknown }[] = [];
 
 	for (const change of logsWithRecords) {
 		const { model, operation, record } = change;
@@ -85,31 +86,89 @@ export async function applyPull(
 		}
 
 		if (model === 'Board') {
-			const validatedRecord = validators.Board.parse(record);
-			const handler = handlerMap.Board[operation];
-			await handler(idbClient, validatedRecord);
+			try {
+				const validatedRecord = validators.Board.parse(record);
+				const handler = handlerMap.Board[operation];
+				if (!handler) {
+					console.warn('Unknown operation for Board:', operation);
+					continue;
+				}
+				await handler(idbClient, validatedRecord);
+			} catch (error) {
+				validationErrors.push({ model: 'Board', error });
+				continue;
+			}
 		} else if (model === 'Todo') {
-			const validatedRecord = validators.Todo.parse(record);
-			const handler = handlerMap.Todo[operation];
-			await handler(idbClient, validatedRecord);
+			try {
+				const validatedRecord = validators.Todo.parse(record);
+				const handler = handlerMap.Todo[operation];
+				if (!handler) {
+					console.warn('Unknown operation for Todo:', operation);
+					continue;
+				}
+				await handler(idbClient, validatedRecord);
+			} catch (error) {
+				validationErrors.push({ model: 'Todo', error });
+				continue;
+			}
 		} else if (model === 'User') {
-			const validatedRecord = validators.User.parse(record);
-			const handler = handlerMap.User[operation];
-			await handler(idbClient, validatedRecord);
+			try {
+				const validatedRecord = validators.User.parse(record);
+				const handler = handlerMap.User[operation];
+				if (!handler) {
+					console.warn('Unknown operation for User:', operation);
+					continue;
+				}
+				await handler(idbClient, validatedRecord);
+			} catch (error) {
+				validationErrors.push({ model: 'User', error });
+				continue;
+			}
 		} else if (model === 'Session') {
-			const validatedRecord = validators.Session.parse(record);
-			const handler = handlerMap.Session[operation];
-			await handler(idbClient, validatedRecord);
+			try {
+				const validatedRecord = validators.Session.parse(record);
+				const handler = handlerMap.Session[operation];
+				if (!handler) {
+					console.warn('Unknown operation for Session:', operation);
+					continue;
+				}
+				await handler(idbClient, validatedRecord);
+			} catch (error) {
+				validationErrors.push({ model: 'Session', error });
+				continue;
+			}
 		} else if (model === 'Account') {
-			const validatedRecord = validators.Account.parse(record);
-			const handler = handlerMap.Account[operation];
-			await handler(idbClient, validatedRecord);
+			try {
+				const validatedRecord = validators.Account.parse(record);
+				const handler = handlerMap.Account[operation];
+				if (!handler) {
+					console.warn('Unknown operation for Account:', operation);
+					continue;
+				}
+				await handler(idbClient, validatedRecord);
+			} catch (error) {
+				validationErrors.push({ model: 'Account', error });
+				continue;
+			}
 		} else if (model === 'Verification') {
-			const validatedRecord = validators.Verification.parse(record);
-			const handler = handlerMap.Verification[operation];
-			await handler(idbClient, validatedRecord);
+			try {
+				const validatedRecord = validators.Verification.parse(record);
+				const handler = handlerMap.Verification[operation];
+				if (!handler) {
+					console.warn('Unknown operation for Verification:', operation);
+					continue;
+				}
+				await handler(idbClient, validatedRecord);
+			} catch (error) {
+				validationErrors.push({ model: 'Verification', error });
+				continue;
+			}
 		}
 	}
 
-	return { missingRecords, totalAppliedRecords: logsWithRecords.length - missingRecords };
+	return {
+		missingRecords,
+		totalAppliedRecords: logsWithRecords.length - missingRecords,
+		validationErrors
+	};
 }

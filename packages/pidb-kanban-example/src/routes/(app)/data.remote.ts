@@ -18,9 +18,8 @@ const batchRecordSchema = z.object({
 	syncedAt: z.coerce.date().nullable()
 });
 
-export const syncPush = command(z.array(batchRecordSchema), async (events) => {
+async function getAuthenticatedUser() {
 	const { cookies } = getRequestEvent();
-
 	const sessionToken = cookies.get('better-auth.session_token')?.split('.')[0];
 	if (!sessionToken) throw error(401, 'Unauthorized');
 
@@ -28,6 +27,11 @@ export const syncPush = command(z.array(batchRecordSchema), async (events) => {
 		where: { sessions: { some: { token: sessionToken } } }
 	});
 	if (!user) throw error(401, 'Unauthorized');
+	return user;
+}
+
+export const syncPush = command(z.array(batchRecordSchema), async (events) => {
+	const user = await getAuthenticatedUser();
 
 	return await applyPush({
 		events,
@@ -47,15 +51,7 @@ export const syncPush = command(z.array(batchRecordSchema), async (events) => {
 export const syncPull = command(
 	z.object({ lastChangelogId: z.bigint().optional() }).optional(),
 	async (input) => {
-		const { cookies } = getRequestEvent();
-
-		const sessionToken = cookies.get('better-auth.session_token')?.split('.')[0];
-		if (!sessionToken) throw error(401, 'Unauthorized');
-
-		const user = await prisma.user.findFirst({
-			where: { sessions: { some: { token: sessionToken } } }
-		});
-		if (!user) throw error(401, 'Unauthorized');
+		const user = await getAuthenticatedUser();
 
 		const logs = await prisma.changeLog.findMany({
 			where: {
