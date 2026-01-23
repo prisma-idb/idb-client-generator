@@ -28,6 +28,13 @@ export class TodosState {
 				}
 			});
 			this.loadBoards();
+
+			client.board.subscribe(['create', 'update', 'delete'], () => {
+				this.loadBoards();
+			});
+			client.todo.subscribe(['create', 'update', 'delete'], () => {
+				this.loadBoards();
+			});
 		}
 	}
 
@@ -51,26 +58,18 @@ export class TodosState {
 	}
 
 	async addBoard(name: string) {
-		const newBoard = await client.board.create({
-			data: { name }
-		});
-		this.boards?.push({ ...newBoard, todos: [] });
+		await client.board.create({ data: { name } });
 	}
 
 	async deleteBoard(boardId: string) {
 		await client.board.delete({ where: { id: boardId } });
-		this.boards = this.boards?.filter((b) => b.id !== boardId);
 	}
 
-	async addTodoToBoard(boardId: string, title: string) {
+	async addTodoToBoard(boardId: string, title: string, description: string) {
 		const currentUser = await client.user.findFirstOrThrow();
-
-		const newTodo = await client.todo.create({
-			data: { title, boardId, userId: currentUser.id }
+		await client.todo.create({
+			data: { title, description, boardId, userId: currentUser.id }
 		});
-
-		const board = this.boards?.find((b) => b.id === boardId);
-		board?.todos.push(newTodo);
 	}
 
 	async syncWithServer() {

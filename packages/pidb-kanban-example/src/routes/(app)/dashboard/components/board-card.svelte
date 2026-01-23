@@ -4,11 +4,19 @@
 	import { MenuIcon, PencilIcon, PlusCircleIcon, TrashIcon } from '@lucide/svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import * as Item from '$lib/components/ui/item/index.js';
-	import type { Prisma } from '$lib/generated/prisma/client';
+	import type { Prisma, Todo } from '$lib/generated/prisma/client';
 	import { getTodosContext } from '../../todos-state.svelte';
+	import RenameBoardDialog from './rename-board-dialog.svelte';
+	import TodoDialog from './todo-dialog.svelte';
 
 	const todosState = getTodosContext();
 	let { board }: { board: Prisma.BoardGetPayload<{ include: { todos: true } }> } = $props();
+
+	let openRenameDialog = $state(false);
+	let todoDialogConfig = $state<{ open: boolean; action: 'create' | 'edit'; todo?: Todo }>({
+		open: false,
+		action: 'create'
+	});
 </script>
 
 <Card.Root>
@@ -31,12 +39,15 @@
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Group>
 						<DropdownMenu.Item
-							onclick={() => todosState.addTodoToBoard(board.id, `New Todo`)}
+							onclick={() => (todoDialogConfig = { open: true, action: 'create', todo: undefined })}
 							data-testid={`add-todo-${board.name}`}
 						>
 							<PlusCircleIcon /> Add todo
 						</DropdownMenu.Item>
-						<DropdownMenu.Item data-testid={`rename-${board.name}`}>
+						<DropdownMenu.Item
+							data-testid={`rename-${board.name}`}
+							onclick={() => (openRenameDialog = true)}
+						>
 							<PencilIcon /> Rename
 						</DropdownMenu.Item>
 						<DropdownMenu.Item
@@ -64,3 +75,6 @@
 		{/each}
 	</Card.Content>
 </Card.Root>
+
+<RenameBoardDialog {board} bind:open={openRenameDialog} />
+<TodoDialog bind:open={todoDialogConfig.open} action={todoDialogConfig.action} {board} />

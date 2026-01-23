@@ -4,12 +4,15 @@
 	import AppSidebar from './components/app-sidebar.svelte';
 	import CustomScrollArea from './components/custom-scroll-area.svelte';
 	import LinkBreadcrumbs from './components/link-breadcrumbs.svelte';
+	import SessionCacher from './components/session-cacher.svelte';
 	import { setTodosContext, TodosState } from './todos-state.svelte';
 
 	setTodosContext(new TodosState());
 
 	let { children } = $props();
 </script>
+
+<SessionCacher />
 
 <Sidebar.Provider>
 	<AppSidebar />
