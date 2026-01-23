@@ -91,10 +91,17 @@ export interface SyncWorker {
 	 */
 	stop(): void;
 	/**
-	 * Force an immediate sync cycle.
-	 * Returns immediately if a sync is already in progress.
+	 * Force an immediate sync cycle while worker is running.
+	 * Returns immediately if worker is stopped or a sync is already in progress.
+	 * Use syncNow() to trigger a one-off sync without starting the worker.
 	 */
 	forceSync(): Promise<void>;
+	/**
+	 * Execute a single sync cycle immediately without starting the worker.
+	 * Returns immediately if a sync is already in progress.
+	 * Does not require the worker to be running (started).
+	 */
+	syncNow(): Promise<void>;
 	/**
 	 * Get current sync worker status snapshot.
 	 * Listen to 'statuschange' events via .on() to get updates.

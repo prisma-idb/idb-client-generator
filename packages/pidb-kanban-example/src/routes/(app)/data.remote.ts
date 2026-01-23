@@ -40,6 +40,7 @@ export const syncPush = command(z.array(batchRecordSchema), async (events) => {
 export const syncPull = command(
 	z.object({ since: z.number().optional() }).optional(),
 	async (input) => {
+		console.log('Pull requested since cursor:', input?.since);
 		const { cookies } = getRequestEvent();
 		const sessionToken = cookies.get('better-auth.session_token')?.split('.')[0];
 

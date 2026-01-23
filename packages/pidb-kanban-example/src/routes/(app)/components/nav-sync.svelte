@@ -41,69 +41,71 @@
 	});
 </script>
 
-{#if browser && todosState.syncWorker}
-	<Sidebar.Menu>
-		<Sidebar.MenuItem>
-			<DropdownMenu.Root>
-				<DropdownMenu.Trigger>
-					{#snippet child({ props })}
-						<Sidebar.MenuButton
-							size="lg"
-							class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-							{...props}
-						>
-							{#if isRunning}
-								<CloudIcon class="mx-2 size-8 rounded-lg" />
-							{:else}
-								<CloudOffIcon class="mx-2 size-8 rounded-lg opacity-60" />
-							{/if}
-							<div class="grid flex-1 text-start text-sm leading-tight">
-								<span class="truncate font-medium">Sync status</span>
-								<span class="flex items-center gap-1 truncate text-xs">
-									{#if isProcessing && isPushing}
-										Pushing
-										<ArrowUpIcon class="size-3" />
-									{:else if isProcessing && isPulling}
-										Pulling
-										<ArrowDownIcon class="size-3" />
-									{:else if isProcessing}
-										Processing
-									{:else if isRunning}
-										Idle
-									{:else}
-										Stopped
-									{/if}
-								</span>
-							</div>
-							<ChevronsUpDownIcon class="ms-auto size-4" />
-						</Sidebar.MenuButton>
-					{/snippet}
-				</DropdownMenu.Trigger>
-				<DropdownMenu.Content
-					class="w-(--bits-dropdown-menu-anchor-width) min-w-56 rounded-lg"
-					side="top"
-					align="end"
-					sideOffset={4}
-				>
-					<DropdownMenu.Item
-						onclick={() => {
-							if (isRunning) {
-								todosState.syncWorker!.stop();
-							} else {
-								todosState.syncWithServer();
-							}
-						}}
+<Sidebar.Menu>
+	<Sidebar.MenuItem>
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger>
+				{#snippet child({ props })}
+					<Sidebar.MenuButton
+						size="lg"
+						class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+						{...props}
 					>
 						{#if isRunning}
-							<StopCircleIcon />
-							Stop Sync
+							<CloudIcon class="mx-2 size-8 rounded-lg" />
 						{:else}
-							<PlayIcon />
-							Start Sync
+							<CloudOffIcon class="mx-2 size-8 rounded-lg opacity-60" />
 						{/if}
-					</DropdownMenu.Item>
-				</DropdownMenu.Content>
-			</DropdownMenu.Root>
-		</Sidebar.MenuItem>
-	</Sidebar.Menu>
-{/if}
+						<div class="grid flex-1 text-start text-sm leading-tight">
+							<span class="truncate font-medium">Sync status</span>
+							<span class="flex items-center gap-1 truncate text-xs">
+								{#if isProcessing && isPushing}
+									Pushing
+									<ArrowUpIcon class="size-3" />
+								{:else if isProcessing && isPulling}
+									Pulling
+									<ArrowDownIcon class="size-3" />
+								{:else if isProcessing}
+									Processing
+								{:else if isRunning}
+									Idle
+								{:else}
+									Stopped
+								{/if}
+							</span>
+						</div>
+						<ChevronsUpDownIcon class="ms-auto size-4" />
+					</Sidebar.MenuButton>
+				{/snippet}
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content
+				class="w-(--bits-dropdown-menu-anchor-width) min-w-56 rounded-lg"
+				side="top"
+				align="end"
+				sideOffset={4}
+			>
+				<DropdownMenu.Item
+					onclick={() => {
+						if (isRunning) {
+							todosState.syncWorker!.stop();
+						} else {
+							todosState.syncWithServer();
+						}
+					}}
+				>
+					{#if isRunning}
+						<StopCircleIcon />
+						Stop auto-sync
+					{:else}
+						<PlayIcon />
+						Start auto-sync
+					{/if}
+				</DropdownMenu.Item>
+				<DropdownMenu.Item onclick={() => todosState.syncWorker?.syncNow()} disabled={isProcessing}>
+					<CloudIcon />
+					Sync now (once)
+				</DropdownMenu.Item>
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
+	</Sidebar.MenuItem>
+</Sidebar.Menu>

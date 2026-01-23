@@ -26,7 +26,7 @@
 <Sidebar.Menu>
 	<Sidebar.MenuItem>
 		{#if $auth.isPending}
-			<Sidebar.MenuButton class="justify-center" variant="outline">
+			<Sidebar.MenuButton class="justify-center h-12">
 				<Spinner />
 			</Sidebar.MenuButton>
 		{:else if !user}

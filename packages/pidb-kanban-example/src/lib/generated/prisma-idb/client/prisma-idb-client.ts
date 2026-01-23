@@ -436,7 +436,14 @@ export class PrismaIDBClient {
 		 * - Order is unbreakable
 		 */
 		const syncOnce = async (): Promise<void> => {
-			if (!isRunning || isProcessing) return;
+			if (!isRunning) {
+				console.warn('syncOnce: worker is not running');
+				return;
+			}
+			if (isProcessing) {
+				console.warn('syncOnce: sync already in progress');
+				return;
+			}
 
 			isProcessing = true;
 			emitStatusChange();
@@ -475,7 +482,10 @@ export class PrismaIDBClient {
 			 * Does nothing if already running.
 			 */
 			start(): void {
-				if (isRunning) return;
+				if (isRunning) {
+					console.warn('start: worker is already running');
+					return;
+				}
 				isRunning = true;
 				emitStatusChange();
 				syncOnce()
@@ -500,12 +510,41 @@ export class PrismaIDBClient {
 			},
 
 			/**
-			 * Force an immediate sync cycle.
-			 * Returns immediately if a sync is already in progress.
+			 * Force an immediate sync cycle while worker is running.
+			 * Returns immediately if worker is stopped or a sync is already in progress.
+			 * Use syncNow() to trigger a one-off sync without starting the worker.
 			 */
 			async forceSync(): Promise<void> {
-				if (!isRunning || isProcessing) return;
+				if (!isRunning) {
+					console.warn('forceSync: worker is not running');
+					return;
+				}
+				if (isProcessing) {
+					console.warn('forceSync: sync already in progress');
+					return;
+				}
 				await syncOnce();
+			},
+
+			/**
+			 * Execute a single sync cycle immediately without starting the worker.
+			 * Returns immediately if a sync is already in progress.
+			 * Does not require the worker to be running (started).
+			 */
+			async syncNow(): Promise<void> {
+				if (isProcessing) {
+					console.warn('syncNow: sync already in progress');
+					return;
+				}
+				const wasRunning = isRunning;
+				isRunning = true;
+				emitStatusChange();
+				try {
+					await syncOnce();
+				} finally {
+					isRunning = wasRunning;
+					emitStatusChange();
+				}
 			},
 
 			/**
