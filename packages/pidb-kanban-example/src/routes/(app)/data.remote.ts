@@ -32,7 +32,7 @@ export const syncPush = command(z.array(batchRecordSchema), async (events) => {
 	return await applyPush({
 		events,
 		scopeKey: (event) => {
-			if (event.entityType === 'Board') {
+			if (event.entityType === 'Board' || event.entityType === 'Todo') {
 				const validation = z.object({ userId: z.string() }).safeParse(event.payload);
 				if (validation.success && validation.data.userId === user.id) {
 					return `user-${user.id}`;
