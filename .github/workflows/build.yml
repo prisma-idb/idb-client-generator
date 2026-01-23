@@ -22,8 +22,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/
+
+      - name: Generate BETTER_AUTH_SECRET
+        run: echo "BETTER_AUTH_SECRET=$(openssl rand -base64 32 | tr '/+=' '_-')" >> $GITHUB_ENV
+
       - name: Run svelte-check
         run: pnpm check
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5433/postgres"
+          GOOGLE_CLIENT_ID: ""
+          GOOGLE_CLIENT_SECRET: ""
 
   test-client:
     timeout-minutes: 60
