@@ -16,7 +16,9 @@
 		if ($session.isPending || $session.isRefetching) return;
 
 		const sessionData = $session.data;
-		const existingUser = await client.user.findUnique({ where: { id: sessionData?.user.id } });
+		const existingUser = sessionData?.user?.id
+			? await client.user.findUnique({ where: { id: sessionData.user.id } })
+			: null;
 
 		if (!sessionData && !existingUser) {
 			if (!UNPROTECTED_ROUTES.includes(page.url.pathname)) {
