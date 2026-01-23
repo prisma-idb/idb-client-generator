@@ -2,7 +2,7 @@ import { command, getRequestEvent } from '$app/server';
 import { applyPush, materializeLogs } from '$lib/generated/prisma-idb/server/batch-processor';
 import { prisma } from '$lib/server/prisma';
 import { error } from '@sveltejs/kit';
-import z from 'zod';
+import z, { bigint } from 'zod';
 
 const batchRecordSchema = z.object({
 	id: z.string(),
@@ -38,7 +38,7 @@ export const syncPush = command(z.array(batchRecordSchema), async (events) => {
 });
 
 export const syncPull = command(
-	z.object({ since: z.number().optional() }).optional(),
+	z.object({ lastChangelogId: z.bigint().optional() }).optional(),
 	async (input) => {
 		const { cookies } = getRequestEvent();
 		const sessionToken = cookies.get('better-auth.session_token')?.split('.')[0];
@@ -52,7 +52,7 @@ export const syncPull = command(
 		const logs = await prisma.changeLog.findMany({
 			where: {
 				scopeKey: user.id,
-				createdAt: { gt: new Date(input?.since ?? 0) }
+				id: { gt: input?.lastChangelogId ?? 0n }
 			},
 			orderBy: { id: 'asc' },
 			take: 50
@@ -61,7 +61,7 @@ export const syncPull = command(
 		const logsWithRecords = await materializeLogs({ logs, prisma });
 
 		return {
-			cursor: Number(logs.at(-1)?.id ?? input?.since),
+			cursor: BigInt(logs.at(-1)?.id ?? input?.lastChangelogId ?? 0n),
 			logsWithRecords
 		};
 	}

@@ -89,8 +89,7 @@ export class PrismaIDBClient {
 	 *     },
 	 *     getCursor: async () => {
 	 *       const value = localStorage.getItem('syncCursor');
-	 *       const cursor = value ? parseInt(value, 10) : NaN;
-	 *       return isNaN(cursor) ? undefined : cursor;
+	 *       return value ? BigInt(value) : undefined;
 	 *     },
 	 *     setCursor: async (cursor) => {
 	 *       if (cursor !== undefined) {
@@ -113,10 +112,10 @@ export class PrismaIDBClient {
 		};
 		pull: {
 			handler: (
-				cursor?: number
-			) => Promise<{ cursor?: number; logsWithRecords: LogWithRecord<typeof validators>[] }>;
-			getCursor?: () => Promise<number | undefined> | number | undefined;
-			setCursor?: (cursor: number | undefined) => Promise<void> | void;
+				cursor?: bigint
+			) => Promise<{ cursor?: bigint; logsWithRecords: LogWithRecord<typeof validators>[] }>;
+			getCursor?: () => Promise<bigint | undefined> | bigint | undefined;
+			setCursor?: (cursor: bigint | undefined) => Promise<void> | void;
 		};
 		schedule?: { intervalMs?: number; maxRetries?: number };
 	}): SyncWorker {
@@ -412,7 +411,7 @@ export class PrismaIDBClient {
 						}
 
 						cursor = nextCursor;
-						if (typeof cursor !== 'number') break;
+						if (typeof cursor !== 'bigint') break;
 					} catch (err) {
 						const errorMessage = err instanceof Error ? err.message : String(err);
 						console.error('Pull failed:', errorMessage);

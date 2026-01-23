@@ -186,8 +186,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Mod
     .writeLine(` *     },`)
     .writeLine(` *     getCursor: async () => {`)
     .writeLine(` *       const value = localStorage.getItem('syncCursor');`)
-    .writeLine(` *       const cursor = value ? parseInt(value, 10) : NaN;`)
-    .writeLine(` *       return isNaN(cursor) ? undefined : cursor;`)
+    .writeLine(` *       return value ? BigInt(value) : undefined;`)
     .writeLine(` *     },`)
     .writeLine(` *     setCursor: async (cursor) => {`)
     .writeLine(` *       if (cursor !== undefined) {`)
@@ -204,7 +203,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Mod
     .writeLine(` * worker.stop();    // gracefully stops`)
     .writeLine(` */`)
     .writeLine(
-      `createSyncWorker(options: { push: { handler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>; batchSize?: number }; pull: { handler: (cursor?: number) => Promise<{ cursor?: number; logsWithRecords: LogWithRecord<typeof validators>[] }>; getCursor?: () => Promise<number | undefined> | number | undefined; setCursor?: (cursor: number | undefined) => Promise<void> | void }; schedule?: { intervalMs?: number; maxRetries?: number } }): SyncWorker`,
+      `createSyncWorker(options: { push: { handler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>; batchSize?: number }; pull: { handler: (cursor?: bigint) => Promise<{ cursor?: bigint; logsWithRecords: LogWithRecord<typeof validators>[] }>; getCursor?: () => Promise<bigint | undefined> | bigint | undefined; setCursor?: (cursor: bigint | undefined) => Promise<void> | void }; schedule?: { intervalMs?: number; maxRetries?: number } }): SyncWorker`,
     )
     .block(() => {
       writer
@@ -343,7 +342,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Mod
         .writeLine(`        }`)
         .blankLine()
         .writeLine(`        cursor = nextCursor;`)
-        .writeLine(`        if (typeof cursor !== 'number') break;`)
+        .writeLine(`        if (typeof cursor !== 'bigint') break;`)
         .writeLine(`      } catch (err) {`)
         .writeLine(`        const errorMessage = err instanceof Error ? err.message : String(err);`)
         .writeLine(`        console.error('Pull failed:', errorMessage);`)

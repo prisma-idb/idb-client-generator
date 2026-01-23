@@ -18,7 +18,7 @@ export class TodosState {
 					batchSize: 50
 				},
 				pull: {
-					handler: (cursor) => syncPull({ since: cursor }),
+					handler: (cursor) => syncPull({ lastChangelogId: cursor }),
 					getCursor: () => this.getCursor(),
 					setCursor: (cursor) => this.setCursor(cursor)
 				},
@@ -41,10 +41,10 @@ export class TodosState {
 	getCursor() {
 		if (!browser) throw new Error('Not in browser environment');
 		const lastSyncedAt = localStorage.getItem('lastSyncedAt');
-		return lastSyncedAt ? Number(lastSyncedAt) : undefined;
+		return lastSyncedAt ? BigInt(lastSyncedAt) : undefined;
 	}
 
-	setCursor(cursor: number | undefined) {
+	setCursor(cursor: bigint | undefined) {
 		if (!browser) throw new Error('Not in browser environment');
 		if (cursor) {
 			localStorage.setItem('lastSyncedAt', cursor.toString());
