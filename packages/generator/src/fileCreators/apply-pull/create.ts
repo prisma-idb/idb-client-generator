@@ -87,7 +87,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
 
     writer.blankLine();
     writer.writeLine(
-      `return { missingRecords, totalAppliedRecords: logsWithRecords.length - missingRecords, validationErrors };`,
+      `return { missingRecords, totalAppliedRecords: logsWithRecords.length - missingRecords - validationErrors.length, validationErrors };`,
     );
   });
 }

@@ -168,7 +168,7 @@ export async function applyPull(
 
 	return {
 		missingRecords,
-		totalAppliedRecords: logsWithRecords.length - missingRecords,
+		totalAppliedRecords: logsWithRecords.length - missingRecords - validationErrors.length,
 		validationErrors
 	};
 }

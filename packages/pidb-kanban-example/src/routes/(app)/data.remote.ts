@@ -33,17 +33,26 @@ async function getAuthenticatedUser() {
 export const syncPush = command(z.array(batchRecordSchema), async (events) => {
 	const user = await getAuthenticatedUser();
 
+	// Validate that all events have supported entity types and proper authorization
+	const validatedEvents: z.infer<typeof batchRecordSchema>[] = [];
+	for (const event of events) {
+		// Only allow Board and Todo entity types
+		if (event.entityType !== 'Board' && event.entityType !== 'Todo') {
+			throw error(400, `Unsupported entityType: ${event.entityType}`);
+		}
+
+		// Validate userId in payload matches authenticated user
+		const validation = z.object({ userId: z.string() }).safeParse(event.payload);
+		if (!validation.success || validation.data.userId !== user.id) {
+			throw error(401, 'Unauthorized: userId mismatch or missing');
+		}
+
+		validatedEvents.push(event);
+	}
+
 	return await applyPush({
-		events,
-		scopeKey: (event) => {
-			if (event.entityType === 'Board' || event.entityType === 'Todo') {
-				const validation = z.object({ userId: z.string() }).safeParse(event.payload);
-				if (validation.success && validation.data.userId === user.id) {
-					return `user-${user.id}`;
-				}
-			}
-			return 'default';
-		},
+		events: validatedEvents,
+		scopeKey: () => `user-${user.id}`,
 		prisma
 	});
 });
