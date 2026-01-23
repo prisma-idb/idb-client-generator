@@ -1,5 +1,4 @@
 @import 'tailwindcss';
-
 @import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
@@ -111,9 +110,17 @@
 	--color-sidebar-ring: var(--sidebar-ring);
 }
 
+@font-face {
+	font-family: 'Inter';
+	src: url('/fonts/Inter-VariableFont_slnt,wght.ttf') format('truetype');
+	font-style: normal;
+	font-display: swap;
+}
+
 @layer base {
 	* {
 		@apply border-border outline-ring/50;
+		font-family: 'Inter', sans-serif;
 	}
 	body {
 		@apply bg-background text-foreground;
