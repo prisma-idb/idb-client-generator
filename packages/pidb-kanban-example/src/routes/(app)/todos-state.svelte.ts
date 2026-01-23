@@ -8,12 +8,27 @@ import { syncPull, syncPush } from './data.remote';
 
 export class TodosState {
 	boards = $state<Prisma.BoardGetPayload<{ include: { todos: true } }>[]>();
-
-	isSyncing = $state(false);
-	syncWorker = $state<SyncWorker | null>(null);
+	syncWorker = $state<SyncWorker>();
 
 	constructor() {
-		if (browser) this.loadBoards();
+		if (browser) {
+			this.syncWorker = client.createSyncWorker({
+				push: {
+					handler: (events) => syncPush(events),
+					batchSize: 50
+				},
+				pull: {
+					handler: (cursor) => syncPull({ since: cursor }),
+					getCursor: () => this.getCursor(),
+					setCursor: (cursor) => this.setCursor(cursor)
+				},
+				schedule: {
+					intervalMs: 10000,
+					maxRetries: 3
+				}
+			});
+			this.loadBoards();
+		}
 	}
 
 	getCursor() {
@@ -59,35 +74,13 @@ export class TodosState {
 	}
 
 	async syncWithServer() {
-		if (!client) return;
+		if (!client || !this.syncWorker) return;
 		try {
-			this.isSyncing = true;
-
-			const syncWorker = client.createSyncWorker({
-				push: {
-					handler: (events) => syncPush(events),
-					batchSize: 50
-				},
-				pull: {
-					handler: (cursor) => syncPull({ since: cursor }),
-					getCursor: () => this.getCursor(),
-					setCursor: (cursor) => this.setCursor(cursor)
-				},
-				schedule: {
-					intervalMs: 10000,
-					maxRetries: 3
-				}
-			});
-
-			this.syncWorker = syncWorker;
-			syncWorker.start();
+			this.syncWorker.start();
 			toast.success('Sync started! Processing outbox events...');
 		} catch (error) {
 			console.error('Error starting sync worker:', error);
 			toast.error('Failed to start sync worker');
-			this.syncWorker = null;
-		} finally {
-			this.isSyncing = false;
 		}
 	}
 }

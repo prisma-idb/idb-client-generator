@@ -1,7 +1,5 @@
-import { command } from '$app/server';
-import type { OutboxEventRecord } from '$lib/generated/prisma-idb/client/idb-interface';
+import { command, getRequestEvent } from '$app/server';
 import { applyPush, materializeLogs } from '$lib/generated/prisma-idb/server/batch-processor';
-import { auth } from '$lib/server/auth';
 import { prisma } from '$lib/server/prisma';
 import { error } from '@sveltejs/kit';
 import z from 'zod';
@@ -42,12 +40,18 @@ export const syncPush = command(z.array(batchRecordSchema), async (events) => {
 export const syncPull = command(
 	z.object({ since: z.number().optional() }).optional(),
 	async (input) => {
-		const authData = await auth.api.getSession();
-		if (!authData?.user) error(401, 'Unauthorized');
+		const { cookies } = getRequestEvent();
+		const sessionToken = cookies.get('better-auth.session_token')?.split('.')[0];
+
+		const user = await prisma.user.findFirst({
+			where: { sessions: { some: { token: sessionToken } } }
+		});
+
+		if (!user) error(401, 'Unauthorized');
 
 		const logs = await prisma.changeLog.findMany({
 			where: {
-				scopeKey: authData.user.id,
+				scopeKey: user.id,
 				createdAt: { gt: new Date(input?.since ?? 0) }
 			},
 			orderBy: { id: 'asc' },

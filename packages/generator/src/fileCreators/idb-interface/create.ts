@@ -88,7 +88,57 @@ function addSyncWorkerTypes(writer: CodeBlockWriter) {
       .writeLine(`backoffBaseMs?: number;`);
   });
 
+  writer.writeLine(`export interface SyncWorkerStatus`).block(() => {
+    writer
+      .writeLine(`/** Whether the worker is currently active (started) */`)
+      .writeLine(`isRunning: boolean;`)
+      .writeLine(`/** Whether a sync cycle is currently in progress */`)
+      .writeLine(`isProcessing: boolean;`)
+      .writeLine(`/** Whether the push phase is currently active */`)
+      .writeLine(`isPushing: boolean;`)
+      .writeLine(`/** Whether the pull phase is currently active */`)
+      .writeLine(`isPulling: boolean;`)
+      .writeLine(`/** Timestamp of the last successful sync completion */`)
+      .writeLine(`lastSyncTime: Date | null;`)
+      .writeLine(`/** The last error encountered during sync, if any */`)
+      .writeLine(`lastError: Error | null;`);
+  });
+
   writer.writeLine(`export interface SyncWorker`).block(() => {
-    writer.writeLine(`start(): void;`).writeLine(`stop(): void;`);
+    writer
+      .writeLine(`/**`)
+      .writeLine(` * Start the sync worker.`)
+      .writeLine(` * Begins sync cycles at the configured interval.`)
+      .writeLine(` * Does nothing if already running.`)
+      .writeLine(` */`)
+      .writeLine(`start(): void;`)
+      .writeLine(`/**`)
+      .writeLine(` * Stop the sync worker.`)
+      .writeLine(` * Stops scheduling new sync cycles.`)
+      .writeLine(` * Any in-progress sync will complete before fully stopping.`)
+      .writeLine(` */`)
+      .writeLine(`stop(): void;`)
+      .writeLine(`/**`)
+      .writeLine(` * Force an immediate sync cycle.`)
+      .writeLine(` * Returns immediately if a sync is already in progress.`)
+      .writeLine(` */`)
+      .writeLine(`forceSync(): Promise<void>;`)
+      .writeLine(`/**`)
+      .writeLine(` * Get current sync worker status snapshot.`)
+      .writeLine(` * Listen to 'statuschange' events via .on() to get updates.`)
+      .writeLine(` */`)
+      .writeLine(`readonly status: SyncWorkerStatus;`)
+      .writeLine(`/**`)
+      .writeLine(` * Listen for status changes.`)
+      .writeLine(` * @param event Event name (only 'statuschange' supported)`)
+      .writeLine(` * @param callback Function called whenever status changes`)
+      .writeLine(` * @returns Unsubscribe function`)
+      .writeLine(` * @example`)
+      .writeLine(` * const unsubscribe = worker.on('statuschange', () => {`)
+      .writeLine(` *   console.log('Status:', worker.status);`)
+      .writeLine(` * });`)
+      .writeLine(` * // Later: unsubscribe()`)
+      .writeLine(` */`)
+      .writeLine(`on(event: 'statuschange', callback: () => void): () => void;`);
   });
 }

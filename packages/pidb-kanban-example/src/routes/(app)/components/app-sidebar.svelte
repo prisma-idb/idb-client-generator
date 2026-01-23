@@ -6,6 +6,7 @@
 	import { resolve } from '$app/paths';
 	import { getTodosContext } from '../todos-state.svelte';
 	import { PlusIcon } from '@lucide/svelte';
+	import NavSync from './nav-sync.svelte';
 
 	const sidebar = Sidebar.useSidebar();
 	const todosState = getTodosContext();
@@ -68,5 +69,6 @@
 	</Sidebar.Content>
 	<Sidebar.Footer>
 		<NavUser />
+		<NavSync />
 	</Sidebar.Footer>
 </Sidebar.Root>
