@@ -468,7 +468,11 @@ export class PrismaIDBClient {
 		 * This prevents overlapping sync work and maintains proper spacing.
 		 */
 		const scheduleNext = (): void => {
-			if (stopRequested) return;
+			if (stopRequested) {
+				isRunning = false;
+				emitStatusChange();
+				return;
+			}
 			intervalId = setTimeout(async () => {
 				await syncOnce();
 				scheduleNext();
@@ -506,6 +510,9 @@ export class PrismaIDBClient {
 				if (intervalId !== null) {
 					clearTimeout(intervalId);
 					intervalId = null;
+				} else {
+					// No active sync, immediately mark as stopped
+					isRunning = false;
 				}
 				emitStatusChange();
 			},
@@ -550,7 +557,9 @@ export class PrismaIDBClient {
 
 			/**
 			 * Get current sync worker status.
-			 * Properties are reactive getters - frameworks will automatically track changes.
+			 * The status object contains plain values that do not auto-update.
+			 * Frameworks will not automatically track changes; consumers must poll
+			 * worker.status or subscribe via worker.on('statuschange', ...) to receive updates.
 			 */
 			get status() {
 				return {

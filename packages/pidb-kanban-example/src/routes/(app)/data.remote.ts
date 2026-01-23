@@ -11,21 +11,31 @@ const batchRecordSchema = z.object({
 	operation: z.enum(['create', 'update', 'delete']),
 	payload: z.any(),
 	clientMeta: z.any().optional(),
-	createdAt: z.date(),
+	createdAt: z.coerce.date(),
 	tries: z.number(),
 	lastError: z.string().nullable(),
 	synced: z.boolean(),
-	syncedAt: z.date().nullable()
+	syncedAt: z.coerce.date().nullable()
 });
 
 export const syncPush = command(z.array(batchRecordSchema), async (events) => {
+	const { cookies } = getRequestEvent();
+
+	const sessionToken = cookies.get('better-auth.session_token')?.split('.')[0];
+	if (!sessionToken) throw error(401, 'Unauthorized');
+
+	const user = await prisma.user.findFirst({
+		where: { sessions: { some: { token: sessionToken } } }
+	});
+	if (!user) throw error(401, 'Unauthorized');
+
 	return await applyPush({
 		events,
 		scopeKey: (event) => {
 			if (event.entityType === 'Board') {
 				const validation = z.object({ userId: z.string() }).safeParse(event.payload);
-				if (validation.success) {
-					return `user-${validation.data.userId}`;
+				if (validation.success && validation.data.userId === user.id) {
+					return `user-${user.id}`;
 				}
 			}
 			return 'default';
