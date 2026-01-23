@@ -50,21 +50,6 @@ export async function applyPush({
 			const resolvedScopeKey = typeof scopeKey === 'function' ? scopeKey(event) : scopeKey;
 			let result: SyncResult;
 			switch (event.entityType) {
-				case 'Todo': {
-					{
-						const validation = validators.Todo.safeParse(event.payload);
-						if (!validation.success)
-							throw new Error(`Validation failed: ${validation.error.message}`);
-
-						if (customValidation) {
-							const ok = await customValidation(event as EventsFor<typeof validators>);
-							if (!ok) throw new Error('custom validation failed');
-						}
-
-						result = await syncTodo(event, validation.data, resolvedScopeKey, prisma);
-						break;
-					}
-				}
 				case 'Board': {
 					{
 						const validation = validators.Board.safeParse(event.payload);
@@ -77,6 +62,21 @@ export async function applyPush({
 						}
 
 						result = await syncBoard(event, validation.data, resolvedScopeKey, prisma);
+						break;
+					}
+				}
+				case 'Todo': {
+					{
+						const validation = validators.Todo.safeParse(event.payload);
+						if (!validation.success)
+							throw new Error(`Validation failed: ${validation.error.message}`);
+
+						if (customValidation) {
+							const ok = await customValidation(event as EventsFor<typeof validators>);
+							if (!ok) throw new Error('custom validation failed');
+						}
+
+						result = await syncTodo(event, validation.data, resolvedScopeKey, prisma);
 						break;
 					}
 				}
@@ -160,25 +160,13 @@ export async function materializeLogs({
 	prisma: PrismaClient;
 }): Promise<Array<LogWithRecord<typeof validators>>> {
 	{
-		const validModelNames = ['Todo', 'Board', 'User', 'Session', 'Account', 'Verification'];
+		const validModelNames = ['Board', 'Todo', 'User', 'Session', 'Account', 'Verification'];
 		const results: Array<LogWithRecord<typeof validators>> = [];
 		for (const log of logs) {
 			if (!validModelNames.includes(log.model)) {
 				throw new Error(`Unknown model: ${log.model}`);
 			}
 			switch (log.model) {
-				case 'Todo': {
-					const keyPathValidation = keyPathValidators.Todo.safeParse(log.keyPath);
-					if (!keyPathValidation.success) {
-						throw new Error('Invalid keyPath for Todo');
-					}
-					const validKeyPath = keyPathValidation.data;
-					const record = await prisma.todo.findUnique({
-						where: { id: validKeyPath[0] }
-					});
-					results.push({ ...log, model: 'Todo', keyPath: validKeyPath, record });
-					break;
-				}
 				case 'Board': {
 					const keyPathValidation = keyPathValidators.Board.safeParse(log.keyPath);
 					if (!keyPathValidation.success) {
@@ -189,6 +177,18 @@ export async function materializeLogs({
 						where: { id: validKeyPath[0] }
 					});
 					results.push({ ...log, model: 'Board', keyPath: validKeyPath, record });
+					break;
+				}
+				case 'Todo': {
+					const keyPathValidation = keyPathValidators.Todo.safeParse(log.keyPath);
+					if (!keyPathValidation.success) {
+						throw new Error('Invalid keyPath for Todo');
+					}
+					const validKeyPath = keyPathValidation.data;
+					const record = await prisma.todo.findUnique({
+						where: { id: validKeyPath[0] }
+					});
+					results.push({ ...log, model: 'Todo', keyPath: validKeyPath, record });
 					break;
 				}
 				case 'User': {
@@ -242,80 +242,6 @@ export async function materializeLogs({
 			}
 		}
 		return results;
-	}
-}
-
-async function syncTodo(
-	event: OutboxEventRecord,
-	data: z.infer<typeof validators.Todo>,
-	scopeKey: string,
-	prisma: PrismaClient
-): Promise<SyncResult> {
-	const { id, entityKeyPath, operation } = event;
-	const keyPathValidation = keyPathValidators.Todo.safeParse(entityKeyPath);
-	if (!keyPathValidation.success) {
-		throw new Error('Invalid entityKeyPath for Todo');
-	}
-
-	const validKeyPath = keyPathValidation.data;
-
-	switch (operation) {
-		case 'create': {
-			const [result] = await prisma.$transaction([
-				prisma.todo.create({ data }),
-				prisma.changeLog.create({
-					data: {
-						model: 'Todo',
-						keyPath: validKeyPath,
-						operation: 'create',
-						scopeKey
-					}
-				})
-			]);
-			const newKeyPath = [result.id];
-			return { id, entityKeyPath: newKeyPath, mergedRecord: result };
-		}
-
-		case 'update': {
-			const oldKeyPath = [...validKeyPath];
-			const [result] = await prisma.$transaction([
-				prisma.todo.update({
-					where: { id: validKeyPath[0] },
-					data
-				}),
-				prisma.changeLog.create({
-					data: {
-						model: 'Todo',
-						keyPath: validKeyPath,
-						oldKeyPath,
-						operation: 'update',
-						scopeKey
-					}
-				})
-			]);
-			const newKeyPath = [result.id];
-			return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: result };
-		}
-
-		case 'delete': {
-			await prisma.$transaction([
-				prisma.todo.delete({
-					where: { id: validKeyPath[0] }
-				}),
-				prisma.changeLog.create({
-					data: {
-						model: 'Todo',
-						keyPath: validKeyPath,
-						operation: 'delete',
-						scopeKey
-					}
-				})
-			]);
-			return { id, entityKeyPath: validKeyPath };
-		}
-
-		default:
-			throw new Error(`Unknown operation: ${operation}`);
 	}
 }
 
@@ -379,6 +305,80 @@ async function syncBoard(
 				prisma.changeLog.create({
 					data: {
 						model: 'Board',
+						keyPath: validKeyPath,
+						operation: 'delete',
+						scopeKey
+					}
+				})
+			]);
+			return { id, entityKeyPath: validKeyPath };
+		}
+
+		default:
+			throw new Error(`Unknown operation: ${operation}`);
+	}
+}
+
+async function syncTodo(
+	event: OutboxEventRecord,
+	data: z.infer<typeof validators.Todo>,
+	scopeKey: string,
+	prisma: PrismaClient
+): Promise<SyncResult> {
+	const { id, entityKeyPath, operation } = event;
+	const keyPathValidation = keyPathValidators.Todo.safeParse(entityKeyPath);
+	if (!keyPathValidation.success) {
+		throw new Error('Invalid entityKeyPath for Todo');
+	}
+
+	const validKeyPath = keyPathValidation.data;
+
+	switch (operation) {
+		case 'create': {
+			const [result] = await prisma.$transaction([
+				prisma.todo.create({ data }),
+				prisma.changeLog.create({
+					data: {
+						model: 'Todo',
+						keyPath: validKeyPath,
+						operation: 'create',
+						scopeKey
+					}
+				})
+			]);
+			const newKeyPath = [result.id];
+			return { id, entityKeyPath: newKeyPath, mergedRecord: result };
+		}
+
+		case 'update': {
+			const oldKeyPath = [...validKeyPath];
+			const [result] = await prisma.$transaction([
+				prisma.todo.update({
+					where: { id: validKeyPath[0] },
+					data
+				}),
+				prisma.changeLog.create({
+					data: {
+						model: 'Todo',
+						keyPath: validKeyPath,
+						oldKeyPath,
+						operation: 'update',
+						scopeKey
+					}
+				})
+			]);
+			const newKeyPath = [result.id];
+			return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: result };
+		}
+
+		case 'delete': {
+			await prisma.$transaction([
+				prisma.todo.delete({
+					where: { id: validKeyPath[0] }
+				}),
+				prisma.changeLog.create({
+					data: {
+						model: 'Todo',
 						keyPath: validKeyPath,
 						operation: 'delete',
 						scopeKey

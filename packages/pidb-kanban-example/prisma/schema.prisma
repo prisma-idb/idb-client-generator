@@ -24,7 +24,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
-  todos         Todo[]
+  boards        Board[]
 
   @@unique([email])
   @@map("user")

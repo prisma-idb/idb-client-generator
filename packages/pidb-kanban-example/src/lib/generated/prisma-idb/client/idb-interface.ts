@@ -1,13 +1,13 @@
 import type { DBSchema } from 'idb';
 import type * as Prisma from '../../prisma/client';
 export interface PrismaIDBSchema extends DBSchema {
-	Todo: {
-		key: [id: Prisma.Todo['id']];
-		value: Prisma.Todo;
-	};
 	Board: {
 		key: [id: Prisma.Board['id']];
 		value: Prisma.Board;
+	};
+	Todo: {
+		key: [id: Prisma.Todo['id']];
+		value: Prisma.Todo;
 	};
 	User: {
 		key: [id: Prisma.User['id']];

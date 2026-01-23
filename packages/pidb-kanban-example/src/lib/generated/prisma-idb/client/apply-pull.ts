@@ -4,17 +4,6 @@ import type { PrismaIDBClient } from './prisma-idb-client';
 import { z } from 'zod';
 
 const handlerMap = {
-	Todo: {
-		create: async (client: PrismaIDBClient, record: z.infer<typeof validators.Todo>) =>
-			client.todo.create({ data: record }, { silent: true, addToOutbox: false }),
-		update: async (client: PrismaIDBClient, record: z.infer<typeof validators.Todo>) =>
-			client.todo.update(
-				{ where: { id: record.id }, data: record },
-				{ silent: true, addToOutbox: false }
-			),
-		delete: async (client: PrismaIDBClient, record: z.infer<typeof validators.Todo>) =>
-			client.todo.delete({ where: { id: record.id } }, { silent: true, addToOutbox: false })
-	},
 	Board: {
 		create: async (client: PrismaIDBClient, record: z.infer<typeof validators.Board>) =>
 			client.board.create({ data: record }, { silent: true, addToOutbox: false }),
@@ -25,6 +14,17 @@ const handlerMap = {
 			),
 		delete: async (client: PrismaIDBClient, record: z.infer<typeof validators.Board>) =>
 			client.board.delete({ where: { id: record.id } }, { silent: true, addToOutbox: false })
+	},
+	Todo: {
+		create: async (client: PrismaIDBClient, record: z.infer<typeof validators.Todo>) =>
+			client.todo.create({ data: record }, { silent: true, addToOutbox: false }),
+		update: async (client: PrismaIDBClient, record: z.infer<typeof validators.Todo>) =>
+			client.todo.update(
+				{ where: { id: record.id }, data: record },
+				{ silent: true, addToOutbox: false }
+			),
+		delete: async (client: PrismaIDBClient, record: z.infer<typeof validators.Todo>) =>
+			client.todo.delete({ where: { id: record.id } }, { silent: true, addToOutbox: false })
 	},
 	User: {
 		create: async (client: PrismaIDBClient, record: z.infer<typeof validators.User>) =>
@@ -84,11 +84,11 @@ export async function applyPull(
 			continue;
 		}
 
-		if (model === 'Todo') {
-			const handler = handlerMap.Todo[operation];
-			await handler(idbClient, record);
-		} else if (model === 'Board') {
+		if (model === 'Board') {
 			const handler = handlerMap.Board[operation];
+			await handler(idbClient, record);
+		} else if (model === 'Todo') {
+			const handler = handlerMap.Todo[operation];
 			await handler(idbClient, record);
 		} else if (model === 'User') {
 			const handler = handlerMap.User[operation];

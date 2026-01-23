@@ -1,3 +1,13 @@
+model Board {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  todos     Todo[]
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+}
+
 model Todo {
   id          String   @id @default(uuid())
   title       String
@@ -5,16 +15,6 @@ model Todo {
   isCompleted Boolean  @default(false)
   createdAt   DateTime @default(now())
 
-  user   User   @relation(fields: [userId], references: [id])
-  userId String
-
-  board   Board  @relation(fields: [boardId], references: [id])
+  board   Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
   boardId String
-}
-
-model Board {
-  id        String   @id @default(uuid())
-  name      String
-  createdAt DateTime @default(now())
-  todos     Todo[]
 }
