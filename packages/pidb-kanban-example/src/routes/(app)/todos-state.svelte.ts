@@ -41,7 +41,13 @@ export class TodosState {
 	getCursor() {
 		if (!browser) throw new Error('Not in browser environment');
 		const lastSyncedAt = localStorage.getItem('lastSyncedAt');
-		return lastSyncedAt ? BigInt(lastSyncedAt) : undefined;
+		if (!lastSyncedAt) return undefined;
+		try {
+			return BigInt(lastSyncedAt);
+		} catch {
+			localStorage.removeItem('lastSyncedAt');
+			return undefined;
+		}
 	}
 
 	setCursor(cursor: bigint | undefined) {
