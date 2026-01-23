@@ -204,7 +204,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Mod
     .writeLine(` * worker.stop();    // gracefully stops`)
     .writeLine(` */`)
     .writeLine(
-      `createSyncWorker(options: { push: { handler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>; batchSize?: number }; pull: { handler: (cursor?: number) => Promise<{ cursor?: number; logsWithRecords: LogWithRecord<typeof validators>[] }>; getCursor?: () => Promise<number | undefined>; setCursor?: (cursor: number | undefined) => Promise<void> }; schedule?: { intervalMs?: number; maxRetries?: number } }): SyncWorker`,
+      `createSyncWorker(options: { push: { handler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>; batchSize?: number }; pull: { handler: (cursor?: number) => Promise<{ cursor?: number; logsWithRecords: LogWithRecord<typeof validators>[] }>; getCursor?: () => Promise<number | undefined> | number | undefined; setCursor?: (cursor: number | undefined) => Promise<void> | void }; schedule?: { intervalMs?: number; maxRetries?: number } }): SyncWorker`,
     )
     .block(() => {
       writer
@@ -308,7 +308,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Mod
         .writeLine(` * - Handles errors gracefully, stops pull on failure`)
         .writeLine(` */`)
         .writeLine(`const drainPullPhase = async (): Promise<void> => {`)
-        .writeLine(`  let cursor = getCursor ? await getCursor() : undefined;`)
+        .writeLine(`  let cursor = getCursor ? await Promise.resolve(getCursor()) : undefined;`)
         .blankLine()
         .writeLine(`  while (isRunning) {`)
         .writeLine(`    try {`)
@@ -320,7 +320,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Mod
         .writeLine(`      await applyPull(this, logsWithRecords);`)
         .blankLine()
         .writeLine(`      if (setCursor) {`)
-        .writeLine(`        await setCursor(nextCursor);`)
+        .writeLine(`        await Promise.resolve(setCursor(nextCursor));`)
         .writeLine(`      }`)
         .blankLine()
         .writeLine(`      cursor = nextCursor;`)

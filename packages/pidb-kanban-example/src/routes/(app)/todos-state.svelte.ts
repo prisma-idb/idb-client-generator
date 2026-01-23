@@ -19,7 +19,7 @@ export class TodosState {
 	getCursor() {
 		if (!browser) throw new Error('Not in browser environment');
 		const lastSyncedAt = localStorage.getItem('lastSyncedAt');
-		return lastSyncedAt ? Number(lastSyncedAt) : null;
+		return lastSyncedAt ? Number(lastSyncedAt) : undefined;
 	}
 
 	setCursor(cursor: number | undefined) {
