@@ -67,8 +67,9 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
         const condition = index === 0 ? "if" : "else if";
 
         writer.writeLine(`${condition} (model === '${modelName}') `).block(() => {
+          writer.writeLine(`const validatedRecord = validators.${modelName}.parse(record);`);
           writer.writeLine(`const handler = handlerMap.${modelName}[operation];`);
-          writer.writeLine(`await handler(idbClient, record);`);
+          writer.writeLine(`await handler(idbClient, validatedRecord);`);
         });
       });
     });

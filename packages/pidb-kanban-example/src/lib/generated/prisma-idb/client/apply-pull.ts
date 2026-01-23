@@ -85,23 +85,29 @@ export async function applyPull(
 		}
 
 		if (model === 'Board') {
+			const validatedRecord = validators.Board.parse(record);
 			const handler = handlerMap.Board[operation];
-			await handler(idbClient, record);
+			await handler(idbClient, validatedRecord);
 		} else if (model === 'Todo') {
+			const validatedRecord = validators.Todo.parse(record);
 			const handler = handlerMap.Todo[operation];
-			await handler(idbClient, record);
+			await handler(idbClient, validatedRecord);
 		} else if (model === 'User') {
+			const validatedRecord = validators.User.parse(record);
 			const handler = handlerMap.User[operation];
-			await handler(idbClient, record);
+			await handler(idbClient, validatedRecord);
 		} else if (model === 'Session') {
+			const validatedRecord = validators.Session.parse(record);
 			const handler = handlerMap.Session[operation];
-			await handler(idbClient, record);
+			await handler(idbClient, validatedRecord);
 		} else if (model === 'Account') {
+			const validatedRecord = validators.Account.parse(record);
 			const handler = handlerMap.Account[operation];
-			await handler(idbClient, record);
+			await handler(idbClient, validatedRecord);
 		} else if (model === 'Verification') {
+			const validatedRecord = validators.Verification.parse(record);
 			const handler = handlerMap.Verification[operation];
-			await handler(idbClient, record);
+			await handler(idbClient, validatedRecord);
 		}
 	}
 
