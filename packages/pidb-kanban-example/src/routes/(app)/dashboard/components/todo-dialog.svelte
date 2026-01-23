@@ -20,14 +20,14 @@
 
 	const todosState = getTodosContext();
 
-	// svelte-ignore state_referenced_locally
-	let newTitle = $state(todo?.title || '');
-	// svelte-ignore state_referenced_locally
-	let newDescription = $state(todo?.description || '');
+	let newTitle = $derived(todo?.title || '');
+	let newDescription = $derived(todo?.description || '');
 
 	async function updateTodo() {
+		if (!todo) return;
+
 		await client.todo.update({
-			where: { id: todo?.id },
+			where: { id: todo.id },
 			data: { title: newTitle, description: newDescription }
 		});
 
@@ -42,13 +42,16 @@
 		open = false;
 	}
 
-	function onSubmit(event: Event) {
+	async function onSubmit(event: Event) {
 		event.preventDefault();
-		if (action === 'edit') {
-			updateTodo();
-		} else {
-			createTodo();
+		try {
+			if (action === 'edit') await updateTodo();
+			else await createTodo();
+		} catch (error) {
+			toast.error('An error occurred while saving the todo');
+			console.error('Error in onSubmit:', error);
 		}
+		open = false;
 	}
 </script>
 

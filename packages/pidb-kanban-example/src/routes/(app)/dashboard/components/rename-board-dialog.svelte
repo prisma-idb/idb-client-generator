@@ -10,7 +10,7 @@
 
 	let { open = $bindable(false), board }: { open?: boolean; board: Board } = $props();
 
-	let newName = $state('');
+	let newName = $derived(board.name);
 
 	async function renameBoard(event: Event) {
 		event.preventDefault();
