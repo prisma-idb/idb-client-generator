@@ -42,7 +42,7 @@ export default defineConfig({
 
   webServer: {
     command: "pnpm exec prisma db push --force-reset && pnpm build && pnpm preview",
-    port: 4173,
+    port: 4174,
     reuseExistingServer: false,
   },
 });
