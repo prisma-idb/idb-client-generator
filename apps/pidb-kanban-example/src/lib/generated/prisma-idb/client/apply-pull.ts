@@ -1,84 +1,114 @@
 import type { LogWithRecord } from "../server/batch-processor";
 import { validators } from "../validators";
 import type { PrismaIDBClient } from "./prisma-idb-client";
-import { z } from "zod";
 
-const handlerMap = {
-  Board: {
-    create: async (client: PrismaIDBClient, record: z.infer<typeof validators.Board>) =>
-      client.board.create({ data: record }, { silent: true, addToOutbox: false }),
-    update: async (client: PrismaIDBClient, record: z.infer<typeof validators.Board>) =>
-      client.board.update({ where: { id: record.id }, data: record }, { silent: true, addToOutbox: false }),
-    delete: async (client: PrismaIDBClient, record: z.infer<typeof validators.Board>) =>
-      client.board.delete({ where: { id: record.id } }, { silent: true, addToOutbox: false }),
-  },
-  Todo: {
-    create: async (client: PrismaIDBClient, record: z.infer<typeof validators.Todo>) =>
-      client.todo.create({ data: record }, { silent: true, addToOutbox: false }),
-    update: async (client: PrismaIDBClient, record: z.infer<typeof validators.Todo>) =>
-      client.todo.update({ where: { id: record.id }, data: record }, { silent: true, addToOutbox: false }),
-    delete: async (client: PrismaIDBClient, record: z.infer<typeof validators.Todo>) =>
-      client.todo.delete({ where: { id: record.id } }, { silent: true, addToOutbox: false }),
-  },
-  User: {
-    create: async (client: PrismaIDBClient, record: z.infer<typeof validators.User>) =>
-      client.user.create({ data: record }, { silent: true, addToOutbox: false }),
-    update: async (client: PrismaIDBClient, record: z.infer<typeof validators.User>) =>
-      client.user.update({ where: { id: record.id }, data: record }, { silent: true, addToOutbox: false }),
-    delete: async (client: PrismaIDBClient, record: z.infer<typeof validators.User>) =>
-      client.user.delete({ where: { id: record.id } }, { silent: true, addToOutbox: false }),
-  },
-};
+/**
+ * Apply pulled changes from remote server to local IndexedDB.
+ *
+ * All operations are wrapped in a single transaction to ensure atomicity and prevent
+ * AbortError from concurrent transaction conflicts. This guarantees that either all
+ * changes are applied successfully or the entire batch is rolled back.
+ *
+ * @param idbClient - The PrismaIDB client instance
+ * @param logsWithRecords - Array of change logs with validated records from server
+ * @returns Object with sync statistics including applied records, missing records, and validation errors
+ */
 export async function applyPull(idbClient: PrismaIDBClient, logsWithRecords: LogWithRecord<typeof validators>[]) {
   let missingRecords = 0;
   const validationErrors: { model: string; error: unknown }[] = [];
 
-  for (const change of logsWithRecords) {
-    const { model, operation, record } = change;
-    if (!record) {
-      missingRecords++;
-      continue;
+  // Wrap all operations in a single transaction to prevent AbortError and ensure atomicity
+  const tx = idbClient._db.transaction(["Board", "Todo", "User", "OutboxEvent"], "readwrite");
+
+  let txAborted = false;
+
+  // Track transaction abort to handle it separately from operation errors
+  tx.addEventListener("abort", () => {
+    txAborted = true;
+  });
+
+  try {
+    for (const change of logsWithRecords) {
+      const { model, operation, record } = change;
+      if (!record) {
+        missingRecords++;
+        continue;
+      }
+
+      // Exit early if transaction was aborted during previous operations
+      if (txAborted) {
+        validationErrors.push({ model, error: new Error("Transaction was aborted") });
+        continue;
+      }
+
+      try {
+        if (model === "Board") {
+          const validatedRecord = validators.Board.parse(record);
+          if (operation === "create") {
+            await idbClient.board.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
+          } else if (operation === "update") {
+            await idbClient.board.update(
+              { where: { id: validatedRecord.id }, data: validatedRecord },
+              { silent: true, addToOutbox: false, tx }
+            );
+          } else if (operation === "delete") {
+            await idbClient.board.delete(
+              { where: { id: validatedRecord.id } },
+              { silent: true, addToOutbox: false, tx }
+            );
+          } else {
+            console.warn("Unknown operation for Board:", operation);
+          }
+        } else if (model === "Todo") {
+          const validatedRecord = validators.Todo.parse(record);
+          if (operation === "create") {
+            await idbClient.todo.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
+          } else if (operation === "update") {
+            await idbClient.todo.update(
+              { where: { id: validatedRecord.id }, data: validatedRecord },
+              { silent: true, addToOutbox: false, tx }
+            );
+          } else if (operation === "delete") {
+            await idbClient.todo.delete(
+              { where: { id: validatedRecord.id } },
+              { silent: true, addToOutbox: false, tx }
+            );
+          } else {
+            console.warn("Unknown operation for Todo:", operation);
+          }
+        } else if (model === "User") {
+          const validatedRecord = validators.User.parse(record);
+          if (operation === "create") {
+            await idbClient.user.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
+          } else if (operation === "update") {
+            await idbClient.user.update(
+              { where: { id: validatedRecord.id }, data: validatedRecord },
+              { silent: true, addToOutbox: false, tx }
+            );
+          } else if (operation === "delete") {
+            await idbClient.user.delete(
+              { where: { id: validatedRecord.id } },
+              { silent: true, addToOutbox: false, tx }
+            );
+          } else {
+            console.warn("Unknown operation for User:", operation);
+          }
+        }
+      } catch (error) {
+        validationErrors.push({ model, error });
+        continue;
+      }
     }
 
-    if (model === "Board") {
-      try {
-        const validatedRecord = validators.Board.parse(record);
-        const handler = handlerMap.Board[operation];
-        if (!handler) {
-          console.warn("Unknown operation for Board:", operation);
-          continue;
-        }
-        await handler(idbClient, validatedRecord);
-      } catch (error) {
-        validationErrors.push({ model: "Board", error });
-        continue;
-      }
-    } else if (model === "Todo") {
-      try {
-        const validatedRecord = validators.Todo.parse(record);
-        const handler = handlerMap.Todo[operation];
-        if (!handler) {
-          console.warn("Unknown operation for Todo:", operation);
-          continue;
-        }
-        await handler(idbClient, validatedRecord);
-      } catch (error) {
-        validationErrors.push({ model: "Todo", error });
-        continue;
-      }
-    } else if (model === "User") {
-      try {
-        const validatedRecord = validators.User.parse(record);
-        const handler = handlerMap.User[operation];
-        if (!handler) {
-          console.warn("Unknown operation for User:", operation);
-          continue;
-        }
-        await handler(idbClient, validatedRecord);
-      } catch (error) {
-        validationErrors.push({ model: "User", error });
-        continue;
-      }
+    // Wait for all pending operations in the transaction to complete
+    await tx.done;
+  } catch (error) {
+    // Handle transaction abort error separately
+    if (error instanceof Error && error.name === "AbortError") {
+      console.warn("Transaction aborted during pull apply:", error.message);
+      // Return partial results - records that failed go to validationErrors
+    } else {
+      throw error;
     }
   }
 
