@@ -1,1 +1,1 @@
-export const UNPROTECTED_ROUTES = ['/', '/login'];
+export const UNPROTECTED_ROUTES = ["/", "/login"];
