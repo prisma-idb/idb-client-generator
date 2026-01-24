@@ -230,7 +230,9 @@ function generateModelSyncHandler(
     writer.blankLine();
 
     // Helper function to verify ownership for this model using single Prisma query
-    writer.writeLine(`const verifyOwnership = async (keyPathArg: z.infer<typeof keyPathValidators.${model.name}>) => {`);
+    writer.writeLine(
+      `const verifyOwnership = async (keyPathArg: z.infer<typeof keyPathValidators.${model.name}>) => {`,
+    );
     writer.block(() => {
       if (isRootModel) {
         writer.writeLine(`if (keyPathArg[0] !== scopeKey) {`);
@@ -241,7 +243,7 @@ function generateModelSyncHandler(
         // For example: Todo -> Board -> User
         // authPath would be ['board', 'user']
 
-        const selectObj = buildSelectObject(authPath, rootModel, allModels);
+        const selectObj = buildSelectObject(authPath, rootModel);
         // Build the where clause dynamically based on keyPathArg
         if (pkFields.length === 1) {
           writer.writeLine(`const record = await prisma.${modelNameLower}.findUnique({`);
@@ -302,12 +304,12 @@ function generateModelSyncHandler(
         // Build the parent lookup with path to root
         const parentModelLower = parentModel.name.charAt(0).toLowerCase() + parentModel.name.slice(1);
         const remainingPath = authPath.slice(1);
-        
+
         if (remainingPath.length > 0) {
           // Parent is not root, need to trace to root
-          const parentSelectObj = buildSelectObject(remainingPath, rootModel, allModels);
+          const parentSelectObj = buildSelectObject(remainingPath, rootModel);
           writer.writeLine(`const parentRecord = await prisma.${parentModelLower}.findUnique({`);
-          
+
           // Build where clause for parent lookup
           const parentPk = getUniqueIdentifiers(parentModel)[0];
           const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
@@ -324,7 +326,7 @@ function generateModelSyncHandler(
           writer.writeLine(`  throw new Error(\`${parentModel.name} not found\`);`);
           writer.writeLine(`}`);
           writer.blankLine();
-          
+
           const accessChain = buildAccessChain(remainingPath);
           const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
           writer.writeLine(`const root = parentRecord${accessChain};`);
@@ -332,12 +334,14 @@ function generateModelSyncHandler(
           writer.writeLine(`  throw new Error(\`${parentModel.name} is not connected to ${rootModel.name}\`);`);
           writer.writeLine(`}`);
           writer.writeLine(`if (root.${rootPkFieldName} !== scopeKey) {`);
-          writer.writeLine(`  throw new Error(\`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`);
+          writer.writeLine(
+            `  throw new Error(\`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`,
+          );
           writer.writeLine(`}`);
         } else {
           // Parent is the root model
           writer.writeLine(`const parentRecord = await prisma.${parentModelLower}.findUnique({`);
-          
+
           const parentPk = getUniqueIdentifiers(parentModel)[0];
           const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
           if (parentPkFields.length === 1) {
@@ -354,7 +358,9 @@ function generateModelSyncHandler(
           writer.writeLine(`}`);
           const parentPkFieldName = getUniqueIdentifiers(parentModel)[0].name;
           writer.writeLine(`if (parentRecord.${parentPkFieldName} !== scopeKey) {`);
-          writer.writeLine(`  throw new Error(\`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`);
+          writer.writeLine(
+            `  throw new Error(\`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`,
+          );
           writer.writeLine(`}`);
         }
       } else {
@@ -450,7 +456,7 @@ function generateModelSyncHandler(
  * Build a Prisma select object that traces through the auth path
  * For example: { board: { select: { user: { select: { id: true } } } } }
  */
-function buildSelectObject(authPath: string[], rootModel: Model, allModels: readonly Model[]): string {
+function buildSelectObject(authPath: string[], rootModel: Model): string {
   if (authPath.length === 0) return "{}";
 
   // Get the root model's pk field name
