@@ -4,7 +4,7 @@
   "globalDependencies": ["tsconfig.json", "eslint.config.js", ".prettierrc", ".prettierignore", "package.json"],
   "tasks": {
     "build": {
-      "outputs": ["dist/**", ".svelte-kit/**", ".next/**", "build/**"],
+      "outputs": ["dist/**", ".svelte-kit/**"],
       "dependsOn": ["^build"]
     },
     "dev": {
@@ -12,21 +12,24 @@
       "persistent": true,
       "interactive": true
     },
-    "lint": {},
+    "lint": {
+      "outputs": []
+    },
     "format": {
-      "cache": false
+      "cache": false,
+      "outputs": []
     },
     "check": {
-      "outputs": [".svelte-kit/**"]
+      "outputs": []
     },
     "test": {
-      "outputs": ["test-results/**", "playwright-report/**", "coverage/**"],
-      "dependsOn": ["generate"],
-      "env": ["DATABASE_URL"]
+      "dependsOn": ["generate", "^build"],
+      "env": ["DATABASE_URL"],
+      "outputs": []
     },
     "generate": {
       "outputs": ["src/lib/generated/**", "prisma/generated/**"],
-      "dependsOn": ["^build"],
+      "dependsOn": ["@prisma-idb/idb-client-generator#build"],
       "env": ["DATABASE_URL"]
     },
     "release": {

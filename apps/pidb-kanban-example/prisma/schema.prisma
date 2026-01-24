@@ -8,6 +8,7 @@ generator prismaIDBrowser {
   output     = "../src/lib/generated/prisma-idb"
   outboxSync = true
   exclude    = ["Session", "Verification", "Account", "ChangeLog"]
+  rootModel  = "User"
 }
 
 datasource db {

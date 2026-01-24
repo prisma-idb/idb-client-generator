@@ -23,11 +23,13 @@ generatorHandler({
 
   onGenerate: async (options: GeneratorOptions) => {
     const outputPath = options.generator.output?.value as string;
-    let { prismaClientImport, outboxSync, outboxModelName, filteredModels, exportEnums, rootModel } =
+    const { prismaClientImport, outboxSync, outboxModelName, filteredModels, exportEnums, rootModel } =
       parseGeneratorConfig(options);
 
+    let scopedPrismaImport = prismaClientImport;
+
     if (outboxSync) {
-      if (!prismaClientImport) {
+      if (!scopedPrismaImport) {
         throw new Error("Prisma Client import path is required when Outbox Sync is enabled.");
       }
 
@@ -59,19 +61,19 @@ generatorHandler({
         );
       }
 
-      prismaClientImport = "./generated/client";
+      scopedPrismaImport = "./generated/client";
     }
 
     await writeCodeFile("client/prisma-idb-client.ts", outputPath, (writer) => {
-      createPrismaIDBClientFile(writer, filteredModels, prismaClientImport, outboxSync, outboxModelName);
+      createPrismaIDBClientFile(writer, filteredModels, scopedPrismaImport, outboxSync, outboxModelName);
     });
 
     await writeCodeFile("client/idb-interface.ts", outputPath, (writer) => {
-      createIDBInterfaceFile(writer, filteredModels, prismaClientImport, outboxSync, outboxModelName);
+      createIDBInterfaceFile(writer, filteredModels, scopedPrismaImport, outboxSync, outboxModelName);
     });
 
     await writeCodeFile("client/idb-utils.ts", outputPath, (writer) => {
-      createUtilsFile(writer, filteredModels, prismaClientImport, outboxSync);
+      createUtilsFile(writer, filteredModels, scopedPrismaImport, outboxSync);
     });
 
     if (exportEnums) {

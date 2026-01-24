@@ -14,8 +14,8 @@ model Board {
   id	String	@id @default(uuid(4))
   name	String
   createdAt	DateTime	@default(now())
-  todos	Todo[]
-  user	User	@relation(fields: [userId], references: [id])
+  todos	Todo[]	@relation("BoardToTodo")
+  user	User	@relation("BoardToUser", fields: [userId], references: [id])
   userId	String
 }
 
@@ -25,7 +25,7 @@ model Todo {
   description	String?
   isCompleted	Boolean	@default(false)
   createdAt	DateTime	@default(now())
-  board	Board	@relation(fields: [boardId], references: [id])
+  board	Board	@relation("BoardToTodo", fields: [boardId], references: [id])
   boardId	String
 }
 
@@ -37,7 +37,7 @@ model User {
   image	String?
   createdAt	DateTime	@default(now())
   updatedAt	DateTime	@updatedAt
-  boards	Board[]
+  boards	Board[]	@relation("BoardToUser")
 }
 
 enum ChangeOperation {

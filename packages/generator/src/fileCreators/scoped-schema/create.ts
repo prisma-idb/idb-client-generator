@@ -99,7 +99,7 @@ function computeDefaultValueString(defaultValue: Field["default"]): string {
   } else if (typeof defaultValue !== "object") {
     return JSON.stringify(defaultValue);
   } else {
-    const def = defaultValue as { name: string; args: any[] };
+    const def = defaultValue as { name: string; args: string[] };
     return `${def.name}(${def.args.join(", ")})`;
   }
 }
