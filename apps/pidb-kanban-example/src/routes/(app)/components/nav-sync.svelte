@@ -24,6 +24,9 @@
 
     // Initialize current status
     isRunning = todosState.syncWorker.status.isRunning;
+    isProcessing = todosState.syncWorker.status.isProcessing;
+    isPushing = todosState.syncWorker.status.isPushing;
+    isPulling = todosState.syncWorker.status.isPulling;
 
     // Subscribe to status changes
     const unsubscribe = todosState.syncWorker.on("statuschange", () => {
@@ -101,7 +104,10 @@
             Start auto-sync
           {/if}
         </DropdownMenu.Item>
-        <DropdownMenu.Item onclick={() => todosState.syncWorker?.syncNow()} disabled={isProcessing}>
+        <DropdownMenu.Item
+          onclick={() => todosState.syncWorker?.syncNow()}
+          disabled={isProcessing || !todosState.syncWorker}
+        >
           <CloudIcon />
           Sync now (once)
         </DropdownMenu.Item>

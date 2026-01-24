@@ -19,10 +19,11 @@
 
   async function syncIdbWithSession() {
     if ($session.isPending || $session.isRefetching) return;
+    const client = getClient();
 
     const sessionData = $session.data;
     const existingUser = sessionData?.user?.id
-      ? await getClient().user.findUnique({ where: { id: sessionData.user.id } })
+      ? await client.user.findUnique({ where: { id: sessionData.user.id } })
       : null;
 
     if (!sessionData && !existingUser) {
@@ -34,7 +35,7 @@
     }
 
     if (sessionData && !existingUser) {
-      await getClient().user.create({ data: sessionData.user }, { addToOutbox: false });
+      await client.user.create({ data: sessionData.user }, { addToOutbox: false });
     }
   }
 </script>
