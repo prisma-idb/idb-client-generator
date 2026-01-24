@@ -1,0 +1,33 @@
+// This schema contains an invalid self-referential ownership cycle (for authority derivation at least)
+// User owns Node, and Node owns itself through parent relation
+// This creates a cycle: User -> Node -> Node (self) -> Node ...
+
+datasource dbOwnershipCycleSelf {
+  provider = "postgresql"
+}
+
+generator clientOwnershipCycleSelf {
+  provider = "prisma-client"
+  output   = "../../generated/prisma"
+}
+
+generator idbClientOwnershipCycleSelf {
+  provider   = "idb-client-generator"
+  output     = "../../generated/prisma-idb"
+  outboxSync = true
+}
+
+model UserOwnershipCycleSelf {
+  id    String @id
+  nodes Node[]
+}
+
+model Node {
+  id       String  @id
+  parentId String?
+  parent   Node?   @relation("NodeParent", fields: [parentId], references: [id])
+  children Node[]  @relation("NodeParent")
+
+  userId String?
+  user   UserOwnershipCycleSelf? @relation(fields: [userId], references: [id])
+}

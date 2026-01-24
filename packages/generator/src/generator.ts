@@ -23,7 +23,7 @@ generatorHandler({
 
   onGenerate: async (options: GeneratorOptions) => {
     const outputPath = options.generator.output?.value as string;
-    let { prismaClientImport, outboxSync, outboxModelName, filteredModels, exportEnums } =
+    let { prismaClientImport, outboxSync, outboxModelName, filteredModels, exportEnums, rootModel } =
       parseGeneratorConfig(options);
 
     if (outboxSync) {
@@ -36,7 +36,7 @@ generatorHandler({
       });
 
       await writeCodeFile("server/batch-processor.ts", outputPath, (writer) => {
-        createBatchProcessorFile(writer, filteredModels, prismaClientImport);
+        createBatchProcessorFile(writer, filteredModels, prismaClientImport, rootModel!);
       });
 
       await writeCodeFile("client/apply-pull.ts", outputPath, (writer) => {

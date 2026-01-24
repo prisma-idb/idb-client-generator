@@ -1,0 +1,29 @@
+datasource dbNoRootModelWithSync {
+  provider = "postgresql"
+}
+
+generator clientNoRootModelWithSync {
+  provider = "prisma-client"
+  output   = "../../generated/prisma"
+}
+
+generator idbClientNoRootModelWithSync {
+  provider   = "idb-client-generator"
+  output     = "../../generated/prisma-idb"
+  outboxSync = true
+
+  // missing rootModel field while outboxSync is enabled, should fail
+  // rootModel = "UserNoRootModelWithSync"
+}
+
+model UserNoRootModelWithSync {
+  id          String       @id
+  name        String
+  childModels ChildModel[]
+}
+
+model ChildModel {
+  id     String                  @id
+  userId String
+  user   UserNoRootModelWithSync @relation(fields: [userId], references: [id])
+}

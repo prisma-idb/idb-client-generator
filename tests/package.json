@@ -1,0 +1,19 @@
+{
+  "name": "tests",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.28.0",
+  "devDependencies": {
+    "@prisma-idb/idb-client-generator": "workspace:*",
+    "execa": "9.6.1",
+    "prisma": "7.3.0",
+    "vitest": "4.0.18"
+  }
+}

@@ -4,12 +4,13 @@ import { getProjectedFilteredModels } from "./getFilteredModels";
 
 export interface ParsedGeneratorConfig {
   prismaClientImport: string;
-  outboxSync: boolean;
-  outboxModelName: string;
   exportEnums: boolean;
   include: string[];
   exclude: string[];
   filteredModels: DMMF.Model[];
+  outboxSync: boolean;
+  outboxModelName: string;
+  rootModel?: DMMF.Model;
 }
 
 /**
@@ -62,6 +63,21 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
   // === Parse outbox settings ===
   const outboxSync = generatorConfig.outboxSync === "true";
   const outboxModelName = (generatorConfig.outboxModelName as string) || "OutboxEvent";
+
+  const rootModelString = generatorConfig.rootModel as string | undefined;
+  if (outboxSync && !rootModelString) {
+    throw new Error(
+      `@prisma-idb/idb-client-generator: "rootModel" must be specified in the generator config when "outboxSync" is enabled.`,
+    );
+  }
+
+  // === Validate root model exists ===
+  const rootModel = rootModelString ? models.find((m) => m.name === rootModelString) : undefined;
+  if (rootModelString && !rootModel) {
+    throw new Error(
+      `@prisma-idb/idb-client-generator: Specified root model "${rootModelString}" does not exist in the Prisma schema.`,
+    );
+  }
 
   // === Parse exportEnums setting ===
   const exportEnums = generatorConfig.exportEnums === "true";
@@ -117,5 +133,6 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
     include,
     exclude,
     filteredModels,
+    rootModel,
   };
 }

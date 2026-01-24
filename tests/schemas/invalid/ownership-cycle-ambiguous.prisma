@@ -1,0 +1,42 @@
+// This schema contains an invalid ownership cycle with ambiguous ownership
+// User owns Board, Board owns Todo, and Todo owns another Todo through mirror relation
+// This creates a cycle: User -> Board -> Todo -> Todo (mirror) -> Todo ...
+
+datasource dbOwnershipCycleAmbiguous {
+  provider = "postgresql"
+}
+
+generator clientOwnershipCycleAmbiguous {
+  provider = "prisma-client"
+  output   = "../../generated/prisma"
+}
+
+generator idbClientOwnershipCycleAmbiguous {
+  provider   = "idb-client-generator"
+  output     = "../../generated/prisma-idb"
+  outboxSync = true
+  rootModel  = "UserOwnershipCycleAmbiguous"
+}
+
+model UserOwnershipCycleAmbiguous {
+  id     String  @id
+  boards Board[]
+}
+
+model Board {
+  id     String                      @id
+  userId String
+  user   UserOwnershipCycleAmbiguous @relation(fields: [userId], references: [id])
+
+  todos Todo[]
+}
+
+model Todo {
+  id      String @id
+  boardId String
+  board   Board  @relation(fields: [boardId], references: [id])
+
+  mirrorId String?
+  mirror   Todo?   @relation("Mirror", fields: [mirrorId], references: [id])
+  mirrors  Todo[]  @relation("Mirror")
+}

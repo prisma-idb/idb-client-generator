@@ -1,7 +1,6 @@
 import CodeBlockWriter from "code-block-writer";
 import { Field, Model } from "../types";
 import { DMMF } from "@prisma/generator-helper";
-import { getModelFieldData, getUniqueIdentifiers } from "src/helpers/utils";
 
 export function createScopedSchemaFile(
   writer: CodeBlockWriter,
@@ -87,8 +86,7 @@ function writeFields(writer: CodeBlockWriter, filteredFields: readonly Field[]) 
     if (field.isUnique && !field.isId) attributes.push("@unique");
     if (field.isUpdatedAt) attributes.push("@updatedAt");
     if (field.hasDefaultValue) attributes.push(`@default(${computeDefaultValueString(field.default)})`);
-    if (field.relationName && !field.isList && field.relationFromFields?.length)
-      attributes.push(computeRelationAttribute(field)!);
+    if (field.relationName || field.relationFromFields?.length) attributes.push(computeRelationAttribute(field)!);
     if (attributes.length > 0) writer.write(`\t${attributes.join(" ")}`);
 
     writer.write("\n");
@@ -106,11 +104,13 @@ function computeDefaultValueString(defaultValue: Field["default"]): string {
   }
 }
 
-function computeRelationAttribute(field: Field): string | null {
-  if (field.relationName && !field.isList) {
-    return `@relation(fields: [${field.relationFromFields?.join(", ")}], references: [${field.relationToFields?.join(", ")}])`;
-  }
-  return null;
+function computeRelationAttribute(field: Field): string {
+  let relationAttribute = `@relation(`;
+  if (field.relationName) relationAttribute += `"${field.relationName}"`;
+  if (field.relationFromFields?.length === 0) return relationAttribute + `)`;
+
+  relationAttribute += `, fields: [${field.relationFromFields?.join(", ")}], references: [${field.relationToFields?.join(", ")}])`;
+  return relationAttribute;
 }
 
 function writeUniqueFieldsAndIndexes(writer: CodeBlockWriter, model: Model) {

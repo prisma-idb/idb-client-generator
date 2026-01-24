@@ -1,11 +1,13 @@
 import type CodeBlockWriter from "code-block-writer";
 import { getUniqueIdentifiers } from "../../helpers/utils";
 import { Model } from "../types";
+import { createDAG } from "./createDAG";
 
 export function createBatchProcessorFile(
   writer: CodeBlockWriter,
   models: readonly Model[],
   prismaClientImport: string,
+  rootModel: Model,
 ) {
   const modelNames = models.map((m) => m.name);
 
@@ -53,6 +55,9 @@ export function createBatchProcessorFile(
   writer.writeLine(`  error?: string | null;`);
   writer.writeLine(`}`);
   writer.blankLine();
+
+  // todo: use this for authoritative root model validation during applyPush
+  createDAG(models, rootModel);
 
   // Write applyPush function with switch cases per model
   writer.writeLine(`export async function applyPush({`);
