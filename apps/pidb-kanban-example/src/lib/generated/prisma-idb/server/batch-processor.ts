@@ -3,6 +3,7 @@ import type { OutboxEventRecord } from "../client/idb-interface";
 import type { ChangeLog } from "../../prisma/client";
 import type { PrismaClient } from "../../prisma/client";
 import { validators, keyPathValidators } from "../validators";
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime/client";
 
 type Op = "create" | "update" | "delete";
 
@@ -33,17 +34,21 @@ export interface SyncResult {
   error?: string | null;
 }
 
+export interface ApplyPushOptions {
+  events: OutboxEventRecord[];
+  scopeKey: string | ((event: OutboxEventRecord) => string);
+  prisma: PrismaClient;
+  originId: string;
+  customValidation?: (event: EventsFor<typeof validators>) => boolean | Promise<boolean>;
+}
+
 export async function applyPush({
   events,
   scopeKey,
   prisma,
+  originId,
   customValidation,
-}: {
-  events: OutboxEventRecord[];
-  scopeKey: string | ((event: OutboxEventRecord) => string);
-  prisma: PrismaClient;
-  customValidation?: (event: EventsFor<typeof validators>) => boolean | Promise<boolean>;
-}): Promise<SyncResult[]> {
+}: ApplyPushOptions): Promise<SyncResult[]> {
   const results: SyncResult[] = [];
   for (const event of events) {
     try {
@@ -60,7 +65,7 @@ export async function applyPush({
               if (!ok) throw new Error("custom validation failed");
             }
 
-            result = await syncBoard(event, validation.data, resolvedScopeKey, prisma);
+            result = await syncBoard(event, validation.data, resolvedScopeKey, prisma, originId);
             break;
           }
         }
@@ -74,7 +79,7 @@ export async function applyPush({
               if (!ok) throw new Error("custom validation failed");
             }
 
-            result = await syncTodo(event, validation.data, resolvedScopeKey, prisma);
+            result = await syncTodo(event, validation.data, resolvedScopeKey, prisma, originId);
             break;
           }
         }
@@ -88,7 +93,7 @@ export async function applyPush({
               if (!ok) throw new Error("custom validation failed");
             }
 
-            result = await syncUser(event, validation.data, resolvedScopeKey, prisma);
+            result = await syncUser(event, validation.data, resolvedScopeKey, prisma, originId);
             break;
           }
         }
@@ -165,7 +170,8 @@ async function syncBoard(
   event: OutboxEventRecord,
   data: z.infer<typeof validators.Board>,
   scopeKey: string,
-  prisma: PrismaClient
+  prisma: PrismaClient,
+  originId: string
 ): Promise<SyncResult> {
   const { id, entityKeyPath, operation } = event;
   const keyPathValidation = keyPathValidators.Board.safeParse(entityKeyPath);
@@ -212,59 +218,89 @@ async function syncBoard(
       if (parentRecord.id !== scopeKey) {
         throw new Error(`Unauthorized: Board parent is not owned by authenticated scope`);
       }
-      const [result] = await prisma.$transaction([
-        prisma.board.create({ data }),
-        prisma.changeLog.create({
-          data: {
-            model: "Board",
-            keyPath: validKeyPath,
-            operation: "create",
-            scopeKey,
-          },
-        }),
-      ]);
-      const newKeyPath = [result.id];
-      return { id, entityKeyPath: newKeyPath, mergedRecord: result };
+      const result = await prisma.$transaction(async (tx) => {
+        try {
+          await tx.changeLog.create({
+            data: {
+              model: "Board",
+              keyPath: validKeyPath,
+              operation: "create",
+              scopeKey,
+              originId,
+              outboxEventId: event.id,
+            },
+          });
+        } catch (err) {
+          if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
+            return { id, entityKeyPath: validKeyPath, mergedRecord: data };
+          }
+          throw err;
+        }
+        const createdRecord = await tx.board.create({ data });
+        const newKeyPath = [createdRecord.id];
+        return { id, entityKeyPath: newKeyPath, mergedRecord: createdRecord };
+      });
+      return result;
     }
 
     case "update": {
       await verifyOwnership(validKeyPath);
       const oldKeyPath = [...validKeyPath];
-      const [result] = await prisma.$transaction([
-        prisma.board.update({
+      const result = await prisma.$transaction(async (tx) => {
+        try {
+          await tx.changeLog.create({
+            data: {
+              model: "Board",
+              keyPath: validKeyPath,
+              oldKeyPath,
+              operation: "update",
+              scopeKey,
+              originId,
+              outboxEventId: event.id,
+            },
+          });
+        } catch (err) {
+          if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
+            return { id, oldKeyPath, entityKeyPath: validKeyPath, mergedRecord: data };
+          }
+          throw err;
+        }
+        const updatedRecord = await tx.board.update({
           where: { id: validKeyPath[0] },
           data,
-        }),
-        prisma.changeLog.create({
-          data: {
-            model: "Board",
-            keyPath: validKeyPath,
-            oldKeyPath,
-            operation: "update",
-            scopeKey,
-          },
-        }),
-      ]);
-      const newKeyPath = [result.id];
-      return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: result };
+        });
+        const newKeyPath = [updatedRecord.id];
+        return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: updatedRecord };
+      });
+      return result;
     }
 
     case "delete": {
       await verifyOwnership(validKeyPath);
-      await prisma.$transaction([
-        prisma.board.delete({
+      const result = await prisma.$transaction(async (tx) => {
+        try {
+          await tx.changeLog.create({
+            data: {
+              model: "Board",
+              keyPath: validKeyPath,
+              operation: "delete",
+              scopeKey,
+              originId,
+              outboxEventId: event.id,
+            },
+          });
+        } catch (err) {
+          if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
+            return { id, entityKeyPath: validKeyPath };
+          }
+          throw err;
+        }
+        await tx.board.delete({
           where: { id: validKeyPath[0] },
-        }),
-        prisma.changeLog.create({
-          data: {
-            model: "Board",
-            keyPath: validKeyPath,
-            operation: "delete",
-            scopeKey,
-          },
-        }),
-      ]);
-      return { id, entityKeyPath: validKeyPath };
+        });
+        return { id, entityKeyPath: validKeyPath };
+      });
+      return result;
     }
 
     default:
@@ -276,7 +312,8 @@ async function syncTodo(
   event: OutboxEventRecord,
   data: z.infer<typeof validators.Todo>,
   scopeKey: string,
-  prisma: PrismaClient
+  prisma: PrismaClient,
+  originId: string
 ): Promise<SyncResult> {
   const { id, entityKeyPath, operation } = event;
   const keyPathValidation = keyPathValidators.Todo.safeParse(entityKeyPath);
@@ -328,59 +365,89 @@ async function syncTodo(
       if (root.id !== scopeKey) {
         throw new Error(`Unauthorized: Todo parent is not owned by authenticated scope`);
       }
-      const [result] = await prisma.$transaction([
-        prisma.todo.create({ data }),
-        prisma.changeLog.create({
-          data: {
-            model: "Todo",
-            keyPath: validKeyPath,
-            operation: "create",
-            scopeKey,
-          },
-        }),
-      ]);
-      const newKeyPath = [result.id];
-      return { id, entityKeyPath: newKeyPath, mergedRecord: result };
+      const result = await prisma.$transaction(async (tx) => {
+        try {
+          await tx.changeLog.create({
+            data: {
+              model: "Todo",
+              keyPath: validKeyPath,
+              operation: "create",
+              scopeKey,
+              originId,
+              outboxEventId: event.id,
+            },
+          });
+        } catch (err) {
+          if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
+            return { id, entityKeyPath: validKeyPath, mergedRecord: data };
+          }
+          throw err;
+        }
+        const createdRecord = await tx.todo.create({ data });
+        const newKeyPath = [createdRecord.id];
+        return { id, entityKeyPath: newKeyPath, mergedRecord: createdRecord };
+      });
+      return result;
     }
 
     case "update": {
       await verifyOwnership(validKeyPath);
       const oldKeyPath = [...validKeyPath];
-      const [result] = await prisma.$transaction([
-        prisma.todo.update({
+      const result = await prisma.$transaction(async (tx) => {
+        try {
+          await tx.changeLog.create({
+            data: {
+              model: "Todo",
+              keyPath: validKeyPath,
+              oldKeyPath,
+              operation: "update",
+              scopeKey,
+              originId,
+              outboxEventId: event.id,
+            },
+          });
+        } catch (err) {
+          if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
+            return { id, oldKeyPath, entityKeyPath: validKeyPath, mergedRecord: data };
+          }
+          throw err;
+        }
+        const updatedRecord = await tx.todo.update({
           where: { id: validKeyPath[0] },
           data,
-        }),
-        prisma.changeLog.create({
-          data: {
-            model: "Todo",
-            keyPath: validKeyPath,
-            oldKeyPath,
-            operation: "update",
-            scopeKey,
-          },
-        }),
-      ]);
-      const newKeyPath = [result.id];
-      return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: result };
+        });
+        const newKeyPath = [updatedRecord.id];
+        return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: updatedRecord };
+      });
+      return result;
     }
 
     case "delete": {
       await verifyOwnership(validKeyPath);
-      await prisma.$transaction([
-        prisma.todo.delete({
+      const result = await prisma.$transaction(async (tx) => {
+        try {
+          await tx.changeLog.create({
+            data: {
+              model: "Todo",
+              keyPath: validKeyPath,
+              operation: "delete",
+              scopeKey,
+              originId,
+              outboxEventId: event.id,
+            },
+          });
+        } catch (err) {
+          if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
+            return { id, entityKeyPath: validKeyPath };
+          }
+          throw err;
+        }
+        await tx.todo.delete({
           where: { id: validKeyPath[0] },
-        }),
-        prisma.changeLog.create({
-          data: {
-            model: "Todo",
-            keyPath: validKeyPath,
-            operation: "delete",
-            scopeKey,
-          },
-        }),
-      ]);
-      return { id, entityKeyPath: validKeyPath };
+        });
+        return { id, entityKeyPath: validKeyPath };
+      });
+      return result;
     }
 
     default:
@@ -392,7 +459,8 @@ async function syncUser(
   event: OutboxEventRecord,
   data: z.infer<typeof validators.User>,
   scopeKey: string,
-  prisma: PrismaClient
+  prisma: PrismaClient,
+  originId: string
 ): Promise<SyncResult> {
   const { id, entityKeyPath, operation } = event;
   const keyPathValidation = keyPathValidators.User.safeParse(entityKeyPath);
@@ -415,59 +483,89 @@ async function syncUser(
       if (scopeKey !== data.id) {
         throw new Error(`Unauthorized: root model pk must match authenticated scope`);
       }
-      const [result] = await prisma.$transaction([
-        prisma.user.create({ data }),
-        prisma.changeLog.create({
-          data: {
-            model: "User",
-            keyPath: validKeyPath,
-            operation: "create",
-            scopeKey,
-          },
-        }),
-      ]);
-      const newKeyPath = [result.id];
-      return { id, entityKeyPath: newKeyPath, mergedRecord: result };
+      const result = await prisma.$transaction(async (tx) => {
+        try {
+          await tx.changeLog.create({
+            data: {
+              model: "User",
+              keyPath: validKeyPath,
+              operation: "create",
+              scopeKey,
+              originId,
+              outboxEventId: event.id,
+            },
+          });
+        } catch (err) {
+          if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
+            return { id, entityKeyPath: validKeyPath, mergedRecord: data };
+          }
+          throw err;
+        }
+        const createdRecord = await tx.user.create({ data });
+        const newKeyPath = [createdRecord.id];
+        return { id, entityKeyPath: newKeyPath, mergedRecord: createdRecord };
+      });
+      return result;
     }
 
     case "update": {
       await verifyOwnership(validKeyPath);
       const oldKeyPath = [...validKeyPath];
-      const [result] = await prisma.$transaction([
-        prisma.user.update({
+      const result = await prisma.$transaction(async (tx) => {
+        try {
+          await tx.changeLog.create({
+            data: {
+              model: "User",
+              keyPath: validKeyPath,
+              oldKeyPath,
+              operation: "update",
+              scopeKey,
+              originId,
+              outboxEventId: event.id,
+            },
+          });
+        } catch (err) {
+          if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
+            return { id, oldKeyPath, entityKeyPath: validKeyPath, mergedRecord: data };
+          }
+          throw err;
+        }
+        const updatedRecord = await tx.user.update({
           where: { id: validKeyPath[0] },
           data,
-        }),
-        prisma.changeLog.create({
-          data: {
-            model: "User",
-            keyPath: validKeyPath,
-            oldKeyPath,
-            operation: "update",
-            scopeKey,
-          },
-        }),
-      ]);
-      const newKeyPath = [result.id];
-      return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: result };
+        });
+        const newKeyPath = [updatedRecord.id];
+        return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: updatedRecord };
+      });
+      return result;
     }
 
     case "delete": {
       await verifyOwnership(validKeyPath);
-      await prisma.$transaction([
-        prisma.user.delete({
+      const result = await prisma.$transaction(async (tx) => {
+        try {
+          await tx.changeLog.create({
+            data: {
+              model: "User",
+              keyPath: validKeyPath,
+              operation: "delete",
+              scopeKey,
+              originId,
+              outboxEventId: event.id,
+            },
+          });
+        } catch (err) {
+          if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
+            return { id, entityKeyPath: validKeyPath };
+          }
+          throw err;
+        }
+        await tx.user.delete({
           where: { id: validKeyPath[0] },
-        }),
-        prisma.changeLog.create({
-          data: {
-            model: "User",
-            keyPath: validKeyPath,
-            operation: "delete",
-            scopeKey,
-          },
-        }),
-      ]);
-      return { id, entityKeyPath: validKeyPath };
+        });
+        return { id, entityKeyPath: validKeyPath };
+      });
+      return result;
     }
 
     default:

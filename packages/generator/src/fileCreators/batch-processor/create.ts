@@ -59,6 +59,7 @@ export function createBatchProcessorFile(
   writer.writeLine(`import type { ChangeLog } from "${prismaClientImport}";`);
   writer.writeLine(`import type { PrismaClient } from "${prismaClientImport}";`);
   writer.writeLine(`import { validators, keyPathValidators } from "../validators";`);
+  writer.writeLine(`import { PrismaClientKnownRequestError } from "@prisma/client/runtime/client";`);
   writer.blankLine();
 
   // Write Op type
@@ -98,18 +99,24 @@ export function createBatchProcessorFile(
   writer.writeLine(`}`);
   writer.blankLine();
 
+  // Write ApplyPushOptions type
+  writer.writeLine(`export interface ApplyPushOptions {`);
+  writer.writeLine(`  events: OutboxEventRecord[];`);
+  writer.writeLine(`  scopeKey: string | ((event: OutboxEventRecord) => string);`);
+  writer.writeLine(`  prisma: PrismaClient;`);
+  writer.writeLine(`  originId: string;`);
+  writer.writeLine(`  customValidation?: (event: EventsFor<typeof validators>) => boolean | Promise<boolean>;`);
+  writer.writeLine(`}`);
+  writer.blankLine();
+
   // Write applyPush function with switch cases per model
   writer.writeLine(`export async function applyPush({`);
   writer.writeLine(`  events,`);
   writer.writeLine(`  scopeKey,`);
   writer.writeLine(`  prisma,`);
+  writer.writeLine(`  originId,`);
   writer.writeLine(`  customValidation,`);
-  writer.writeLine(`}: {`);
-  writer.writeLine(`  events: OutboxEventRecord[];`);
-  writer.writeLine(`  scopeKey: string | ((event: OutboxEventRecord) => string);`);
-  writer.writeLine(`  prisma: PrismaClient;`);
-  writer.writeLine(`  customValidation?: (event: EventsFor<typeof validators>) => boolean | Promise<boolean>;`);
-  writer.writeLine(`}): Promise<SyncResult[]>`);
+  writer.writeLine(`}: ApplyPushOptions): Promise<SyncResult[]>`);
   writer.block(() => {
     writer.writeLine(`const results: SyncResult[] = [];`);
     writer.writeLine(`for (const event of events) {`);
@@ -197,7 +204,7 @@ function generateModelSwitchCase(writer: CodeBlockWriter, model: Model) {
     writer.writeLine(`  if (!ok) throw new Error("custom validation failed");`);
     writer.writeLine(`}`);
     writer.blankLine();
-    writer.writeLine(`result = await sync${model.name}(event, validation.data, resolvedScopeKey, prisma);`);
+    writer.writeLine(`result = await sync${model.name}(event, validation.data, resolvedScopeKey, prisma, originId);`);
     writer.writeLine(`break;`);
   });
   writer.writeLine(`      }`);
@@ -217,7 +224,7 @@ function generateModelSyncHandler(
   const isRootModel = model.name === rootModel.name;
 
   writer.writeLine(
-    `async function sync${model.name}(event: OutboxEventRecord, data: z.infer<typeof validators.${model.name}>, scopeKey: string, prisma: PrismaClient): Promise<SyncResult>`,
+    `async function sync${model.name}(event: OutboxEventRecord, data: z.infer<typeof validators.${model.name}>, scopeKey: string, prisma: PrismaClient, originId: string): Promise<SyncResult>`,
   );
   writer.block(() => {
     writer.writeLine(`const { id, entityKeyPath, operation } = event;`);
@@ -374,23 +381,33 @@ function generateModelSyncHandler(
       writer.writeLine(`  throw new Error(\`Unauthorized: root model pk must match authenticated scope\`);`);
       writer.writeLine(`}`);
     }
-    writer.writeLine(`    const [result] = await prisma.$transaction([`);
-    writer.writeLine(`      prisma.${modelNameLower}.create({ data }),`);
-    writer.writeLine(`      prisma.changeLog.create({`);
-    writer.writeLine(`        data: {`);
-    writer.writeLine(`          model: "${model.name}",`);
-    writer.writeLine(`          keyPath: validKeyPath,`);
-    writer.writeLine(`          operation: "create",`);
-    writer.writeLine(`          scopeKey,`);
-    writer.writeLine(`        },`);
-    writer.writeLine(`      }),`);
-    writer.writeLine(`    ]);`);
+    writer.writeLine(`    const result = await prisma.$transaction(async (tx) => {`);
+    writer.writeLine(`      try {`);
+    writer.writeLine(`        await tx.changeLog.create({`);
+    writer.writeLine(`          data: {`);
+    writer.writeLine(`            model: "${model.name}",`);
+    writer.writeLine(`            keyPath: validKeyPath,`);
+    writer.writeLine(`            operation: "create",`);
+    writer.writeLine(`            scopeKey,`);
+    writer.writeLine(`            originId,`);
+    writer.writeLine(`            outboxEventId: event.id,`);
+    writer.writeLine(`          },`);
+    writer.writeLine(`        });`);
+    writer.writeLine(`      } catch (err) {`);
+    writer.writeLine(`        if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {`);
+    writer.writeLine(`          return { id, entityKeyPath: validKeyPath, mergedRecord: data };`);
+    writer.writeLine(`        }`);
+    writer.writeLine(`        throw err;`);
+    writer.writeLine(`      }`);
+    writer.writeLine(`      const createdRecord = await tx.${modelNameLower}.create({ data });`);
     if (pkFields.length === 1) {
-      writer.writeLine(`    const newKeyPath = [result.${pkFields[0]}];`);
+      writer.writeLine(`      const newKeyPath = [createdRecord.${pkFields[0]}];`);
     } else {
-      writer.writeLine(`    const newKeyPath = [${pkFields.map((f) => `result.${f}`).join(", ")}];`);
+      writer.writeLine(`      const newKeyPath = [${pkFields.map((f) => `createdRecord.${f}`).join(", ")}];`);
     }
-    writer.writeLine(`    return { id, entityKeyPath: newKeyPath, mergedRecord: result };`);
+    writer.writeLine(`      return { id, entityKeyPath: newKeyPath, mergedRecord: createdRecord };`);
+    writer.writeLine(`    });`);
+    writer.writeLine(`    return result;`);
     writer.writeLine(`  }`);
     writer.blankLine();
 
@@ -399,28 +416,38 @@ function generateModelSyncHandler(
 
     writer.writeLine(`    await verifyOwnership(validKeyPath);`);
     writer.writeLine(`    const oldKeyPath = [...validKeyPath];`);
-    writer.writeLine(`    const [result] = await prisma.$transaction([`);
-    writer.writeLine(`      prisma.${modelNameLower}.update({`);
+    writer.writeLine(`    const result = await prisma.$transaction(async (tx) => {`);
+    writer.writeLine(`      try {`);
+    writer.writeLine(`        await tx.changeLog.create({`);
+    writer.writeLine(`          data: {`);
+    writer.writeLine(`            model: "${model.name}",`);
+    writer.writeLine(`            keyPath: validKeyPath,`);
+    writer.writeLine(`            oldKeyPath,`);
+    writer.writeLine(`            operation: "update",`);
+    writer.writeLine(`            scopeKey,`);
+    writer.writeLine(`            originId,`);
+    writer.writeLine(`            outboxEventId: event.id,`);
+    writer.writeLine(`          },`);
+    writer.writeLine(`        });`);
+    writer.writeLine(`      } catch (err) {`);
+    writer.writeLine(`        if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {`);
+    writer.writeLine(`          return { id, oldKeyPath, entityKeyPath: validKeyPath, mergedRecord: data };`);
+    writer.writeLine(`        }`);
+    writer.writeLine(`        throw err;`);
+    writer.writeLine(`      }`);
+    writer.writeLine(`      const updatedRecord = await tx.${modelNameLower}.update({`);
     writer.writeLine(`        where: ${generateWhereClause(pk.name, pkFields)},`);
     writer.writeLine(`        data,`);
-    writer.writeLine(`      }),`);
-    writer.writeLine(`      prisma.changeLog.create({`);
-    writer.writeLine(`        data: {`);
-    writer.writeLine(`          model: "${model.name}",`);
-    writer.writeLine(`          keyPath: validKeyPath,`);
-    writer.writeLine(`          oldKeyPath,`);
-    writer.writeLine(`          operation: "update",`);
-    writer.writeLine(`          scopeKey,`);
-    writer.writeLine(`        },`);
-    writer.writeLine(`      }),`);
-    writer.writeLine(`    ]);`);
+    writer.writeLine(`      });`);
 
     if (pkFields.length === 1) {
-      writer.writeLine(`    const newKeyPath = [result.${pkFields[0]}];`);
+      writer.writeLine(`      const newKeyPath = [updatedRecord.${pkFields[0]}];`);
     } else {
-      writer.writeLine(`    const newKeyPath = [${pkFields.map((f) => `result.${f}`).join(", ")}];`);
+      writer.writeLine(`      const newKeyPath = [${pkFields.map((f) => `updatedRecord.${f}`).join(", ")}];`);
     }
-    writer.writeLine(`    return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: result };`);
+    writer.writeLine(`      return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: updatedRecord };`);
+    writer.writeLine(`    });`);
+    writer.writeLine(`    return result;`);
     writer.writeLine(`  }`);
     writer.blankLine();
 
@@ -428,20 +455,30 @@ function generateModelSyncHandler(
     writer.writeLine(`  case "delete": {`);
 
     writer.writeLine(`    await verifyOwnership(validKeyPath);`);
-    writer.writeLine(`    await prisma.$transaction([`);
-    writer.writeLine(`      prisma.${modelNameLower}.delete({`);
+    writer.writeLine(`    const result = await prisma.$transaction(async (tx) => {`);
+    writer.writeLine(`      try {`);
+    writer.writeLine(`        await tx.changeLog.create({`);
+    writer.writeLine(`          data: {`);
+    writer.writeLine(`            model: "${model.name}",`);
+    writer.writeLine(`            keyPath: validKeyPath,`);
+    writer.writeLine(`            operation: "delete",`);
+    writer.writeLine(`            scopeKey,`);
+    writer.writeLine(`            originId,`);
+    writer.writeLine(`            outboxEventId: event.id,`);
+    writer.writeLine(`          },`);
+    writer.writeLine(`        });`);
+    writer.writeLine(`      } catch (err) {`);
+    writer.writeLine(`        if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {`);
+    writer.writeLine(`          return { id, entityKeyPath: validKeyPath };`);
+    writer.writeLine(`        }`);
+    writer.writeLine(`        throw err;`);
+    writer.writeLine(`      }`);
+    writer.writeLine(`      await tx.${modelNameLower}.delete({`);
     writer.writeLine(`        where: ${generateWhereClause(pk.name, pkFields)},`);
-    writer.writeLine(`      }),`);
-    writer.writeLine(`      prisma.changeLog.create({`);
-    writer.writeLine(`        data: {`);
-    writer.writeLine(`          model: "${model.name}",`);
-    writer.writeLine(`          keyPath: validKeyPath,`);
-    writer.writeLine(`          operation: "delete",`);
-    writer.writeLine(`          scopeKey,`);
-    writer.writeLine(`        },`);
-    writer.writeLine(`      }),`);
-    writer.writeLine(`    ]);`);
-    writer.writeLine(`    return { id, entityKeyPath: validKeyPath };`);
+    writer.writeLine(`      });`);
+    writer.writeLine(`      return { id, entityKeyPath: validKeyPath };`);
+    writer.writeLine(`    });`);
+    writer.writeLine(`    return result;`);
     writer.writeLine(`  }`);
     writer.blankLine();
 

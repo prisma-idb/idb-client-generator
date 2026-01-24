@@ -12,9 +12,15 @@ export class TodosState {
 
   constructor() {
     if (browser) {
+      let clientId = localStorage.getItem("clientId");
+      if (!clientId) {
+        clientId = crypto.randomUUID();
+        localStorage.setItem("clientId", clientId);
+      }
+
       this.syncWorker = getClient().createSyncWorker({
         push: {
-          handler: (events) => syncPush(events),
+          handler: (events) => syncPush({ events, clientId }),
           batchSize: 50,
         },
         pull: {

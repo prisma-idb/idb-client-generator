@@ -26,15 +26,19 @@ async function getAuthenticatedUser() {
   return authData.user;
 }
 
-export const syncPush = command(z.array(batchRecordSchema), async (events) => {
-  const user = await getAuthenticatedUser();
+export const syncPush = command(
+  z.object({ events: z.array(batchRecordSchema), clientId: z.string() }),
+  async ({ events, clientId }) => {
+    const user = await getAuthenticatedUser();
 
-  return await applyPush({
-    events,
-    scopeKey: user.id,
-    prisma,
-  });
-});
+    return await applyPush({
+      events,
+      scopeKey: user.id,
+      prisma,
+      originId: clientId,
+    });
+  }
+);
 
 export const syncPull = command(z.object({ lastChangelogId: z.bigint().optional() }).optional(), async (input) => {
   const user = await getAuthenticatedUser();

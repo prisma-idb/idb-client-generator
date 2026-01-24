@@ -80,15 +80,16 @@ model Verification {
 }
 
 model ChangeLog {
-  id         BigInt          @id @default(autoincrement())
-  model      String
-  oldKeyPath Json?
-  keyPath    Json
-  operation  ChangeOperation
-  version    Int?
-  scopeKey   String
-  createdAt  DateTime        @default(now())
+  id            BigInt          @id @default(autoincrement())
+  model         String
+  oldKeyPath    Json?
+  keyPath       Json
+  operation     ChangeOperation
+  scopeKey      String
+  originId      String
+  outboxEventId String
 
+  @@unique([originId, outboxEventId])
   @@index([model, id])
 }
 
