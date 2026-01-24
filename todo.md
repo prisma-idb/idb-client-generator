@@ -2,12 +2,9 @@
 
   > A record is syncable if and only if the server can prove a path from that record to the root authority whose key equals the resolved scopeKey.
 
-- [ ] Invariant 2 — Authorship
+- [x] Invariant 2 — Authorship
 
   > Local state is authoritative for local-origin changes. Remote state is authoritative only for foreign-origin changes.
-
-  - Send `originId` and `outboxId` to `applyPush()`
-  - Ignore events with same `originId`
 
 - [x] Invariant 3 — Idempotency
 

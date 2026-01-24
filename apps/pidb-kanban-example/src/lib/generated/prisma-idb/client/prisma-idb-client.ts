@@ -56,6 +56,8 @@ export class PrismaIDBClient {
    * @param options.pull.handler Function that fetches remote changes since cursor.
    *   Must return { logsWithRecords, cursor } where cursor enables resumable pagination.
    *   Thrown errors stop pull phase gracefully; will retry next cycle.
+   * @param options.pull.originId Origin ID used to filter out echoed events during pull phase.
+   *   Prevents pushed events from being reapplied as pulled changes.
    * @param options.pull.getCursor Optional handler to retrieve persisted pull cursor.
    *   If not provided, starts from undefined (first page). Use this to resume from checkpoint.
    * @param options.pull.setCursor Optional handler to persist pull cursor after successful page processing.
@@ -100,6 +102,7 @@ export class PrismaIDBClient {
     push: { handler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>; batchSize?: number };
     pull: {
       handler: (cursor?: bigint) => Promise<{ cursor?: bigint; logsWithRecords: LogWithRecord<typeof validators>[] }>;
+      originId: string;
       getCursor?: () => Promise<bigint | undefined> | bigint | undefined;
       setCursor?: (cursor: bigint | undefined) => Promise<void> | void;
     };
@@ -107,7 +110,7 @@ export class PrismaIDBClient {
   }): SyncWorker {
     const { push, pull } = options;
     const { handler: pushHandler, batchSize = 10 } = push;
-    const { handler: pullHandler, getCursor, setCursor } = pull;
+    const { handler: pullHandler, originId, getCursor, setCursor } = pull;
     const { intervalMs = 5000, maxRetries = 5 } = options.schedule || {};
 
     let intervalId: ReturnType<typeof setInterval | typeof setTimeout> | null = null;
@@ -290,7 +293,7 @@ export class PrismaIDBClient {
 
             if (logsWithRecords.length === 0) break;
 
-            await applyPull(this, logsWithRecords);
+            await applyPull({ idbClient: this, logsWithRecords, originId });
 
             if (setCursor) {
               await Promise.resolve(setCursor(nextCursor));

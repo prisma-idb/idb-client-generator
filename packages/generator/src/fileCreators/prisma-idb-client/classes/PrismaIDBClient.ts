@@ -158,6 +158,8 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Mod
     .writeLine(` * @param options.pull.handler Function that fetches remote changes since cursor.`)
     .writeLine(` *   Must return { logsWithRecords, cursor } where cursor enables resumable pagination.`)
     .writeLine(` *   Thrown errors stop pull phase gracefully; will retry next cycle.`)
+    .writeLine(` * @param options.pull.originId Origin ID used to filter out echoed events during pull phase.`)
+    .writeLine(` *   Prevents pushed events from being reapplied as pulled changes.`)
     .writeLine(` * @param options.pull.getCursor Optional handler to retrieve persisted pull cursor.`)
     .writeLine(` *   If not provided, starts from undefined (first page). Use this to resume from checkpoint.`)
     .writeLine(
@@ -203,13 +205,13 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Mod
     .writeLine(` * worker.stop();    // gracefully stops`)
     .writeLine(` */`)
     .writeLine(
-      `createSyncWorker(options: { push: { handler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>; batchSize?: number }; pull: { handler: (cursor?: bigint) => Promise<{ cursor?: bigint; logsWithRecords: LogWithRecord<typeof validators>[] }>; getCursor?: () => Promise<bigint | undefined> | bigint | undefined; setCursor?: (cursor: bigint | undefined) => Promise<void> | void }; schedule?: { intervalMs?: number; maxRetries?: number } }): SyncWorker`,
+      `createSyncWorker(options: { push: { handler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>; batchSize?: number }; pull: { handler: (cursor?: bigint) => Promise<{ cursor?: bigint; logsWithRecords: LogWithRecord<typeof validators>[] }>; originId: string; getCursor?: () => Promise<bigint | undefined> | bigint | undefined; setCursor?: (cursor: bigint | undefined) => Promise<void> | void }; schedule?: { intervalMs?: number; maxRetries?: number } }): SyncWorker`,
     )
     .block(() => {
       writer
         .writeLine(`const { push, pull } = options;`)
         .writeLine(`const { handler: pushHandler, batchSize = 10 } = push;`)
-        .writeLine(`const { handler: pullHandler, getCursor, setCursor } = pull;`)
+        .writeLine(`const { handler: pullHandler, originId, getCursor, setCursor } = pull;`)
         .writeLine(`const { intervalMs = 5000, maxRetries = 5 } = options.schedule || {};`)
         .blankLine()
         .writeLine(`let intervalId: ReturnType<typeof setInterval | typeof setTimeout> | null = null;`)
@@ -336,7 +338,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Mod
         .blankLine()
         .writeLine(`        if (logsWithRecords.length === 0) break;`)
         .blankLine()
-        .writeLine(`        await applyPull(this, logsWithRecords);`)
+        .writeLine(`        await applyPull({ idbClient: this, logsWithRecords, originId });`)
         .blankLine()
         .writeLine(`        if (setCursor) {`)
         .writeLine(`          await Promise.resolve(setCursor(nextCursor));`)

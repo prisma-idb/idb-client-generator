@@ -27,6 +27,7 @@ export class TodosState {
           handler: (cursor) => syncPull({ lastChangelogId: cursor }),
           getCursor: () => this.getCursor(),
           setCursor: (cursor) => this.setCursor(cursor),
+          originId: clientId,
         },
         schedule: {
           intervalMs: 10000,

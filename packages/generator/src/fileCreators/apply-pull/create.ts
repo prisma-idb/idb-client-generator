@@ -9,6 +9,14 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
   writer.writeLine(`import type { PrismaIDBClient } from './prisma-idb-client';`);
   writer.blankLine();
 
+  // Write type definition for applyPull props
+  writer.writeLine(`type ApplyPullProps = {`);
+  writer.writeLine(`	idbClient: PrismaIDBClient;`);
+  writer.writeLine(`	logsWithRecords: LogWithRecord<typeof validators>[];`);
+  writer.writeLine(`	originId: string;`);
+  writer.writeLine(`};`);
+  writer.blankLine();
+
   // Write JSDoc for the applyPull function
   writer.writeLine(`/**`);
   writer.writeLine(` * Apply pulled changes from remote server to local IndexedDB.`);
@@ -17,16 +25,21 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
   writer.writeLine(` * AbortError from concurrent transaction conflicts. This guarantees that either all`);
   writer.writeLine(` * changes are applied successfully or the entire batch is rolled back.`);
   writer.writeLine(` * `);
-  writer.writeLine(` * @param idbClient - The PrismaIDB client instance`);
-  writer.writeLine(` * @param logsWithRecords - Array of change logs with validated records from server`);
+  writer.writeLine(` * Logs with the same originId are filtered out to prevent echo of pushed events`);
+  writer.writeLine(` * being reapplied as pulled events.`);
+  writer.writeLine(` * `);
+  writer.writeLine(` * @param props - Configuration object`);
+  writer.writeLine(` * @param props.idbClient - The PrismaIDB client instance`);
+  writer.writeLine(` * @param props.logsWithRecords - Array of change logs with validated records from server`);
+  writer.writeLine(` * @param props.originId - Origin ID to filter out echoed events`);
   writer.writeLine(` * @returns Object with sync statistics including applied records, missing records, and validation errors`);
   writer.writeLine(` */`);
 
   // Write applyPull function
-  writer.writeLine(`export async function applyPull(`);
-  writer.writeLine(`	idbClient: PrismaIDBClient,`);
-  writer.writeLine(`	logsWithRecords: LogWithRecord<typeof validators>[]`);
-  writer.writeLine(`) `).block(() => {
+  writer.writeLine(`export async function applyPull(props: ApplyPullProps) `).block(() => {
+    writer.writeLine(`const { idbClient, logsWithRecords, originId } = props;`);
+    writer.blankLine();
+
     writer.writeLine(`let missingRecords = 0;`);
     writer.writeLine(`const validationErrors: { model: string; error: unknown }[] = [];`);
     writer.blankLine();
@@ -48,6 +61,11 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
 
     writer.writeLine(`try `).block(() => {
       writer.writeLine(`for (const change of logsWithRecords) `).block(() => {
+        writer.writeLine(`// Ignore logs with the same originId to prevent echo of pushed events`);
+        writer.writeLine(`if (change.originId === originId) {`);
+        writer.writeLine(`  continue;`);
+        writer.writeLine(`}`);
+        writer.blankLine();
         writer.writeLine(`const { model, operation, record } = change;`);
         writer.writeLine(`if (!record)`).block(() => {
           writer.writeLine(`missingRecords++;`);

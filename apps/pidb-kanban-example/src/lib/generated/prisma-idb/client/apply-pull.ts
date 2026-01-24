@@ -2,6 +2,12 @@ import type { LogWithRecord } from "../server/batch-processor";
 import { validators } from "../validators";
 import type { PrismaIDBClient } from "./prisma-idb-client";
 
+type ApplyPullProps = {
+  idbClient: PrismaIDBClient;
+  logsWithRecords: LogWithRecord<typeof validators>[];
+  originId: string;
+};
+
 /**
  * Apply pulled changes from remote server to local IndexedDB.
  *
@@ -9,11 +15,18 @@ import type { PrismaIDBClient } from "./prisma-idb-client";
  * AbortError from concurrent transaction conflicts. This guarantees that either all
  * changes are applied successfully or the entire batch is rolled back.
  *
- * @param idbClient - The PrismaIDB client instance
- * @param logsWithRecords - Array of change logs with validated records from server
+ * Logs with the same originId are filtered out to prevent echo of pushed events
+ * being reapplied as pulled events.
+ *
+ * @param props - Configuration object
+ * @param props.idbClient - The PrismaIDB client instance
+ * @param props.logsWithRecords - Array of change logs with validated records from server
+ * @param props.originId - Origin ID to filter out echoed events
  * @returns Object with sync statistics including applied records, missing records, and validation errors
  */
-export async function applyPull(idbClient: PrismaIDBClient, logsWithRecords: LogWithRecord<typeof validators>[]) {
+export async function applyPull(props: ApplyPullProps) {
+  const { idbClient, logsWithRecords, originId } = props;
+
   let missingRecords = 0;
   const validationErrors: { model: string; error: unknown }[] = [];
 
@@ -29,6 +42,11 @@ export async function applyPull(idbClient: PrismaIDBClient, logsWithRecords: Log
 
   try {
     for (const change of logsWithRecords) {
+      // Ignore logs with the same originId to prevent echo of pushed events
+      if (change.originId === originId) {
+        continue;
+      }
+
       const { model, operation, record } = change;
       if (!record) {
         missingRecords++;
