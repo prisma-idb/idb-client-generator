@@ -1,5 +1,6 @@
 import path from "path";
 import type { GeneratorOptions, DMMF } from "@prisma/generator-helper";
+import { getProjectedFilteredModels } from "./getFilteredModels";
 
 export interface ParsedGeneratorConfig {
   prismaClientImport: string;
@@ -106,7 +107,7 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
     return !exclude.some((pattern) => matchPattern(modelName, pattern));
   };
 
-  const filteredModels = models.filter((model) => isIncluded(model.name));
+  const filteredModels = getProjectedFilteredModels(models.filter((model) => isIncluded(model.name)));
 
   return {
     prismaClientImport,

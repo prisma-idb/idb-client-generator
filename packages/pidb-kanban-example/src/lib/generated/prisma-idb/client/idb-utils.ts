@@ -1,6 +1,6 @@
 import type { IDBPTransaction, StoreNames } from 'idb';
 import type { PrismaIDBSchema } from './idb-interface';
-import type { Prisma } from '../../prisma/client';
+import type { Prisma } from './generated/client';
 
 export function convertToArray<T>(arg: T | T[]): T[] {
 	return Array.isArray(arg) ? arg : [arg];
@@ -222,13 +222,7 @@ export function whereBoolFilter<T, R extends Prisma.Result<T, object, 'findFirst
 export function whereDateTimeFilter<T, R extends Prisma.Result<T, object, 'findFirstOrThrow'>>(
 	record: R,
 	fieldName: keyof R,
-	dateTimeFilter:
-		| undefined
-		| Date
-		| string
-		| Prisma.DateTimeFilter<unknown>
-		| null
-		| Prisma.DateTimeNullableFilter<unknown>
+	dateTimeFilter: undefined | Date | string | Prisma.DateTimeFilter<unknown>
 ): boolean {
 	if (dateTimeFilter === undefined) return true;
 
@@ -317,24 +311,13 @@ export function handleDateTimeUpdateField<
 >(
 	record: R,
 	fieldName: keyof R,
-	dateTimeUpdate:
-		| undefined
-		| Date
-		| string
-		| Prisma.DateTimeFieldUpdateOperationsInput
-		| null
-		| Prisma.NullableDateTimeFieldUpdateOperationsInput
+	dateTimeUpdate: undefined | Date | string | Prisma.DateTimeFieldUpdateOperationsInput
 ): void {
 	if (dateTimeUpdate === undefined) return;
-	if (
-		typeof dateTimeUpdate === 'string' ||
-		dateTimeUpdate instanceof Date ||
-		dateTimeUpdate === null
-	) {
-		(record[fieldName] as Date | null) = dateTimeUpdate === null ? null : new Date(dateTimeUpdate);
+	if (typeof dateTimeUpdate === 'string' || dateTimeUpdate instanceof Date) {
+		(record[fieldName] as Date) = new Date(dateTimeUpdate);
 	} else if (dateTimeUpdate.set !== undefined) {
-		(record[fieldName] as Date | null) =
-			dateTimeUpdate.set === null ? null : new Date(dateTimeUpdate.set);
+		(record[fieldName] as Date) = new Date(dateTimeUpdate.set);
 	}
 }
 export function genericComparator(

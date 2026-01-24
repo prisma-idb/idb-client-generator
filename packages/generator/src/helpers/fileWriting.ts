@@ -16,6 +16,19 @@ export async function writeCodeFile(filename: string, outputPath: string, callba
   await writeFileSafely(writeLocation, content);
 }
 
+export async function writePrismaSchemaFile(filename: string, outputPath: string, callback: (writer: CodeBlockWriter) => void) {
+  const writer = new CodeBlockWriter({
+    indentNumberOfSpaces: 2,
+    useTabs: false,
+    useSingleQuote: false,
+  });
+  callback(writer);
+
+  const writeLocation = path.join(outputPath, filename);
+  const content = writer.toString();
+  await writeFileSafely(writeLocation, content, false);
+}
+
 const formatFile = (content: string, filepath: string): Promise<string> => {
   return new Promise((res, rej) =>
     prettier.resolveConfig(filepath).then((options) => {
@@ -35,10 +48,14 @@ const formatFile = (content: string, filepath: string): Promise<string> => {
   );
 };
 
-const writeFileSafely = async (writeLocation: string, content: string) => {
+const writeFileSafely = async (writeLocation: string, content: string, format = true) => {
   fs.mkdirSync(path.dirname(writeLocation), {
     recursive: true,
   });
 
-  fs.writeFileSync(writeLocation, await formatFile(content, writeLocation));
+  if (format) {
+    content = await formatFile(content, writeLocation);
+  }
+
+  fs.writeFileSync(writeLocation, content);
 };

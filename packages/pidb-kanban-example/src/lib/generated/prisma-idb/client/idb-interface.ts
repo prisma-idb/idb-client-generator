@@ -1,5 +1,5 @@
 import type { DBSchema } from 'idb';
-import type * as Prisma from '../../prisma/client';
+import type * as Prisma from './generated/client';
 export interface PrismaIDBSchema extends DBSchema {
 	Board: {
 		key: [id: Prisma.Board['id']];
@@ -15,21 +15,6 @@ export interface PrismaIDBSchema extends DBSchema {
 		indexes: {
 			emailIndex: [email: Prisma.User['email']];
 		};
-	};
-	Session: {
-		key: [id: Prisma.Session['id']];
-		value: Prisma.Session;
-		indexes: {
-			tokenIndex: [token: Prisma.Session['token']];
-		};
-	};
-	Account: {
-		key: [id: Prisma.Account['id']];
-		value: Prisma.Account;
-	};
-	Verification: {
-		key: [id: Prisma.Verification['id']];
-		value: Prisma.Verification;
 	};
 	OutboxEvent: {
 		key: [id: string];

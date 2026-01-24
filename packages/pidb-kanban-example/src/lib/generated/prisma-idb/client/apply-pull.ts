@@ -36,39 +36,6 @@ const handlerMap = {
 			),
 		delete: async (client: PrismaIDBClient, record: z.infer<typeof validators.User>) =>
 			client.user.delete({ where: { id: record.id } }, { silent: true, addToOutbox: false })
-	},
-	Session: {
-		create: async (client: PrismaIDBClient, record: z.infer<typeof validators.Session>) =>
-			client.session.create({ data: record }, { silent: true, addToOutbox: false }),
-		update: async (client: PrismaIDBClient, record: z.infer<typeof validators.Session>) =>
-			client.session.update(
-				{ where: { id: record.id }, data: record },
-				{ silent: true, addToOutbox: false }
-			),
-		delete: async (client: PrismaIDBClient, record: z.infer<typeof validators.Session>) =>
-			client.session.delete({ where: { id: record.id } }, { silent: true, addToOutbox: false })
-	},
-	Account: {
-		create: async (client: PrismaIDBClient, record: z.infer<typeof validators.Account>) =>
-			client.account.create({ data: record }, { silent: true, addToOutbox: false }),
-		update: async (client: PrismaIDBClient, record: z.infer<typeof validators.Account>) =>
-			client.account.update(
-				{ where: { id: record.id }, data: record },
-				{ silent: true, addToOutbox: false }
-			),
-		delete: async (client: PrismaIDBClient, record: z.infer<typeof validators.Account>) =>
-			client.account.delete({ where: { id: record.id } }, { silent: true, addToOutbox: false })
-	},
-	Verification: {
-		create: async (client: PrismaIDBClient, record: z.infer<typeof validators.Verification>) =>
-			client.verification.create({ data: record }, { silent: true, addToOutbox: false }),
-		update: async (client: PrismaIDBClient, record: z.infer<typeof validators.Verification>) =>
-			client.verification.update(
-				{ where: { id: record.id }, data: record },
-				{ silent: true, addToOutbox: false }
-			),
-		delete: async (client: PrismaIDBClient, record: z.infer<typeof validators.Verification>) =>
-			client.verification.delete({ where: { id: record.id } }, { silent: true, addToOutbox: false })
 	}
 };
 export async function applyPull(
@@ -122,45 +89,6 @@ export async function applyPull(
 				await handler(idbClient, validatedRecord);
 			} catch (error) {
 				validationErrors.push({ model: 'User', error });
-				continue;
-			}
-		} else if (model === 'Session') {
-			try {
-				const validatedRecord = validators.Session.parse(record);
-				const handler = handlerMap.Session[operation];
-				if (!handler) {
-					console.warn('Unknown operation for Session:', operation);
-					continue;
-				}
-				await handler(idbClient, validatedRecord);
-			} catch (error) {
-				validationErrors.push({ model: 'Session', error });
-				continue;
-			}
-		} else if (model === 'Account') {
-			try {
-				const validatedRecord = validators.Account.parse(record);
-				const handler = handlerMap.Account[operation];
-				if (!handler) {
-					console.warn('Unknown operation for Account:', operation);
-					continue;
-				}
-				await handler(idbClient, validatedRecord);
-			} catch (error) {
-				validationErrors.push({ model: 'Account', error });
-				continue;
-			}
-		} else if (model === 'Verification') {
-			try {
-				const validatedRecord = validators.Verification.parse(record);
-				const handler = handlerMap.Verification[operation];
-				if (!handler) {
-					console.warn('Unknown operation for Verification:', operation);
-					continue;
-				}
-				await handler(idbClient, validatedRecord);
-			} catch (error) {
-				validationErrors.push({ model: 'Verification', error });
 				continue;
 			}
 		}

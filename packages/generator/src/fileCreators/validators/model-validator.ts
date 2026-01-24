@@ -8,7 +8,7 @@ const fieldTypeToZodTypeMap: Record<string, string> = {
   DateTime: "date()",
   Float: "number()",
   Int: "number().int()",
-  JSON: "any()",
+  Json: "any()",
   Bytes: "instanceof(Uint8Array)",
 };
 
