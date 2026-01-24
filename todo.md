@@ -172,8 +172,6 @@ This graph answers:
 * “Which queries prove ownership?”
 * “Which operations are allowed?”
 
----
-
 ### Why This Matters
 
 Manual authorization logic:
@@ -184,8 +182,6 @@ Manual authorization logic:
 
 Instead, authorization should be **derived**, not handwritten.
 
----
-
 ### Generator Responsibilities
 
 At codegen time:
@@ -193,7 +189,6 @@ At codegen time:
 1. Identify the root entity (e.g. `User`).
 2. Build a DAG of all syncable models pointing toward the root.
 3. Enforce invariants:
-
    * every syncable model has exactly one path to the root,
    * no cycles,
    * no dependency on unsyncable models.
@@ -239,3 +234,9 @@ Once finished:
 * and the generated client becomes a true local-first primitive.
 
 This is the last *conceptual* work. Everything after this is execution.
+
+## One-sentence invariant (this is the contract)
+
+> A record is syncable if and only if the server can prove a path from that record to the root authority whose key equals the resolved scopeKey.
+
+Everything else is an implementation detail.

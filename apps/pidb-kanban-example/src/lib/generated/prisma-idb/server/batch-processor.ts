@@ -175,8 +175,43 @@ async function syncBoard(
 
   const validKeyPath = keyPathValidation.data;
 
+  const verifyOwnership = async (keyPathArg: z.infer<typeof keyPathValidators.Board>) => {
+    {
+      const record = await prisma.board.findUnique({
+        where: { id: keyPathArg[0] },
+        select: { user: { select: { id: true } } },
+      });
+
+      if (!record) {
+        throw new Error(`Board not found`);
+      }
+
+      const root = record.user;
+      if (!root) {
+        throw new Error(`Board is not connected to User`);
+      }
+      if (root.id !== scopeKey) {
+        throw new Error(`Unauthorized: Board is not owned by the authenticated scope`);
+      }
+    }
+  };
+
   switch (operation) {
     case "create": {
+      if (!data.userId) {
+        throw new Error(`Missing parent reference: userId`);
+      }
+      const parentRecord = await prisma.user.findUnique({
+        where: { id: data.userId },
+        select: { id: true },
+      });
+
+      if (!parentRecord) {
+        throw new Error(`User not found`);
+      }
+      if (parentRecord.id !== scopeKey) {
+        throw new Error(`Unauthorized: Board parent is not owned by authenticated scope`);
+      }
       const [result] = await prisma.$transaction([
         prisma.board.create({ data }),
         prisma.changeLog.create({
@@ -193,6 +228,7 @@ async function syncBoard(
     }
 
     case "update": {
+      await verifyOwnership(validKeyPath);
       const oldKeyPath = [...validKeyPath];
       const [result] = await prisma.$transaction([
         prisma.board.update({
@@ -214,6 +250,7 @@ async function syncBoard(
     }
 
     case "delete": {
+      await verifyOwnership(validKeyPath);
       await prisma.$transaction([
         prisma.board.delete({
           where: { id: validKeyPath[0] },
@@ -249,8 +286,48 @@ async function syncTodo(
 
   const validKeyPath = keyPathValidation.data;
 
+  const verifyOwnership = async (keyPathArg: z.infer<typeof keyPathValidators.Todo>) => {
+    {
+      const record = await prisma.todo.findUnique({
+        where: { id: keyPathArg[0] },
+        select: { board: { select: { user: { select: { id: true } } } } },
+      });
+
+      if (!record) {
+        throw new Error(`Todo not found`);
+      }
+
+      const root = record.board.user;
+      if (!root) {
+        throw new Error(`Todo is not connected to User`);
+      }
+      if (root.id !== scopeKey) {
+        throw new Error(`Unauthorized: Todo is not owned by the authenticated scope`);
+      }
+    }
+  };
+
   switch (operation) {
     case "create": {
+      if (!data.boardId) {
+        throw new Error(`Missing parent reference: boardId`);
+      }
+      const parentRecord = await prisma.board.findUnique({
+        where: { id: data.boardId },
+        select: { user: { select: { id: true } } },
+      });
+
+      if (!parentRecord) {
+        throw new Error(`Board not found`);
+      }
+
+      const root = parentRecord.user;
+      if (!root) {
+        throw new Error(`Board is not connected to User`);
+      }
+      if (root.id !== scopeKey) {
+        throw new Error(`Unauthorized: Todo parent is not owned by authenticated scope`);
+      }
       const [result] = await prisma.$transaction([
         prisma.todo.create({ data }),
         prisma.changeLog.create({
@@ -267,6 +344,7 @@ async function syncTodo(
     }
 
     case "update": {
+      await verifyOwnership(validKeyPath);
       const oldKeyPath = [...validKeyPath];
       const [result] = await prisma.$transaction([
         prisma.todo.update({
@@ -288,6 +366,7 @@ async function syncTodo(
     }
 
     case "delete": {
+      await verifyOwnership(validKeyPath);
       await prisma.$transaction([
         prisma.todo.delete({
           where: { id: validKeyPath[0] },
@@ -323,8 +402,19 @@ async function syncUser(
 
   const validKeyPath = keyPathValidation.data;
 
+  const verifyOwnership = async (keyPathArg: z.infer<typeof keyPathValidators.User>) => {
+    {
+      if (keyPathArg[0] !== scopeKey) {
+        throw new Error(`Unauthorized: User pk does not match authenticated scope`);
+      }
+    }
+  };
+
   switch (operation) {
     case "create": {
+      if (scopeKey !== data.id) {
+        throw new Error(`Unauthorized: root model pk must match authenticated scope`);
+      }
       const [result] = await prisma.$transaction([
         prisma.user.create({ data }),
         prisma.changeLog.create({
@@ -341,6 +431,7 @@ async function syncUser(
     }
 
     case "update": {
+      await verifyOwnership(validKeyPath);
       const oldKeyPath = [...validKeyPath];
       const [result] = await prisma.$transaction([
         prisma.user.update({
@@ -362,6 +453,7 @@ async function syncUser(
     }
 
     case "delete": {
+      await verifyOwnership(validKeyPath);
       await prisma.$transaction([
         prisma.user.delete({
           where: { id: validKeyPath[0] },

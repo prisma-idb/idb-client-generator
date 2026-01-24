@@ -3,6 +3,48 @@ import { getUniqueIdentifiers } from "../../helpers/utils";
 import { Model } from "../types";
 import { createDAG } from "./createDAG";
 
+/**
+ * Helper function to build authorization paths from root model to a target model.
+ * Returns the chain of relation fields needed to traverse from target to root.
+ */
+function buildAuthorizationPath(
+  targetModel: string,
+  rootModel: string,
+  models: readonly Model[],
+  dag: Record<string, Set<string>>,
+): string[] {
+  if (targetModel === rootModel) {
+    return [];
+  }
+
+  const path: string[] = [];
+  const visited = new Set<string>();
+  const modelMap = new Map(models.map((m) => [m.name, m]));
+
+  const dfs = (current: string): boolean => {
+    if (current === rootModel) return true;
+    visited.add(current);
+
+    const model = modelMap.get(current);
+    if (!model) return false;
+
+    // Find relation fields that point to a model in the DAG
+    const relationFields = model.fields.filter((f) => f.kind === "object" && !f.isList && dag[f.type]);
+
+    for (const field of relationFields) {
+      if (!visited.has(field.type) && dfs(field.type)) {
+        path.unshift(field.name);
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  dfs(targetModel);
+  return path;
+}
+
 export function createBatchProcessorFile(
   writer: CodeBlockWriter,
   models: readonly Model[],
@@ -55,9 +97,6 @@ export function createBatchProcessorFile(
   writer.writeLine(`  error?: string | null;`);
   writer.writeLine(`}`);
   writer.blankLine();
-
-  // todo: use this for authoritative root model validation during applyPush
-  createDAG(models, rootModel);
 
   // Write applyPush function with switch cases per model
   writer.writeLine(`export async function applyPush({`);
@@ -141,8 +180,9 @@ export function createBatchProcessorFile(
   writer.blankLine();
 
   // Generate sync handler functions for each model
+  const dag = createDAG(models, rootModel);
   models.forEach((model) => {
-    generateModelSyncHandler(writer, model);
+    generateModelSyncHandler(writer, model, models, rootModel, dag);
   });
 }
 
@@ -163,10 +203,18 @@ function generateModelSwitchCase(writer: CodeBlockWriter, model: Model) {
   writer.writeLine(`      }`);
 }
 
-function generateModelSyncHandler(writer: CodeBlockWriter, model: Model) {
+function generateModelSyncHandler(
+  writer: CodeBlockWriter,
+  model: Model,
+  allModels: readonly Model[],
+  rootModel: Model,
+  dag: Record<string, Set<string>>,
+) {
   const modelNameLower = model.name.charAt(0).toLowerCase() + model.name.slice(1);
   const pk = getUniqueIdentifiers(model)[0];
   const pkFields = JSON.parse(pk.keyPath) as string[];
+  const authPath = buildAuthorizationPath(model.name, rootModel.name, allModels, dag);
+  const isRootModel = model.name === rootModel.name;
 
   writer.writeLine(
     `async function sync${model.name}(event: OutboxEventRecord, data: z.infer<typeof validators.${model.name}>, scopeKey: string, prisma: PrismaClient): Promise<SyncResult>`,
@@ -180,10 +228,146 @@ function generateModelSyncHandler(writer: CodeBlockWriter, model: Model) {
     writer.blankLine();
     writer.writeLine(`const validKeyPath = keyPathValidation.data;`);
     writer.blankLine();
+
+    // Helper function to verify ownership for this model using single Prisma query
+    writer.writeLine(`const verifyOwnership = async (keyPathArg: z.infer<typeof keyPathValidators.${model.name}>) => {`);
+    writer.block(() => {
+      if (isRootModel) {
+        writer.writeLine(`if (keyPathArg[0] !== scopeKey) {`);
+        writer.writeLine(`  throw new Error(\`Unauthorized: ${model.name} pk does not match authenticated scope\`);`);
+        writer.writeLine(`}`);
+      } else if (authPath.length > 0) {
+        // Build a single Prisma query that traces through the auth path to the root
+        // For example: Todo -> Board -> User
+        // authPath would be ['board', 'user']
+
+        const selectObj = buildSelectObject(authPath, rootModel, allModels);
+        // Build the where clause dynamically based on keyPathArg
+        if (pkFields.length === 1) {
+          writer.writeLine(`const record = await prisma.${modelNameLower}.findUnique({`);
+          writer.writeLine(`  where: { ${pkFields[0]}: keyPathArg[0] },`);
+          writer.writeLine(`  select: ${selectObj},`);
+          writer.writeLine(`});`);
+        } else {
+          // Composite primary key
+          const compositeKey = pkFields.map((field, i) => `${field}: keyPathArg[${i}]`).join(", ");
+          writer.writeLine(`const record = await prisma.${modelNameLower}.findUnique({`);
+          writer.writeLine(`  where: { ${pk.name}: { ${compositeKey} } },`);
+          writer.writeLine(`  select: ${selectObj},`);
+          writer.writeLine(`});`);
+        }
+        writer.blankLine();
+        writer.writeLine(`if (!record) {`);
+        writer.writeLine(`  throw new Error(\`${model.name} not found\`);`);
+        writer.writeLine(`}`);
+        writer.blankLine();
+
+        // Navigate through the object to get root pk
+        const accessChain = buildAccessChain(authPath);
+        const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
+
+        writer.writeLine(`const root = record${accessChain};`);
+        writer.writeLine(`if (!root) {`);
+        writer.writeLine(`  throw new Error(\`${model.name} is not connected to ${rootModel.name}\`);`);
+        writer.writeLine(`}`);
+        writer.writeLine(`if (root.${rootPkFieldName} !== scopeKey) {`);
+        writer.writeLine(`  throw new Error(\`Unauthorized: ${model.name} is not owned by the authenticated scope\`);`);
+        writer.writeLine(`}`);
+      } else {
+        writer.writeLine(`throw new Error("Cannot verify ownership: no auth path to root");`);
+      }
+    });
+    writer.writeLine(`};`);
+    writer.blankLine();
+
     writer.writeLine(`switch (operation) {`);
 
     // CREATE
     writer.writeLine(`  case "create": {`);
+    if (!isRootModel && authPath.length > 0) {
+      // For CREATE, we verify the parent model exists and is owned by scope
+      const firstRelationFieldName = authPath[0];
+      const relationField = model.fields.find((f) => f.name === firstRelationFieldName);
+      const foreignKeyFields = relationField?.relationFromFields || [];
+      const parentModel = allModels.find((m) => m.name === relationField?.type);
+
+      if (foreignKeyFields.length > 0 && parentModel) {
+        // Validate foreign key presence
+        foreignKeyFields.forEach((fkField) => {
+          writer.writeLine(`if (!data.${fkField}) {`);
+          writer.writeLine(`  throw new Error(\`Missing parent reference: ${fkField}\`);`);
+          writer.writeLine(`}`);
+        });
+
+        // Build the parent lookup with path to root
+        const parentModelLower = parentModel.name.charAt(0).toLowerCase() + parentModel.name.slice(1);
+        const remainingPath = authPath.slice(1);
+        
+        if (remainingPath.length > 0) {
+          // Parent is not root, need to trace to root
+          const parentSelectObj = buildSelectObject(remainingPath, rootModel, allModels);
+          writer.writeLine(`const parentRecord = await prisma.${parentModelLower}.findUnique({`);
+          
+          // Build where clause for parent lookup
+          const parentPk = getUniqueIdentifiers(parentModel)[0];
+          const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
+          if (parentPkFields.length === 1) {
+            writer.writeLine(`  where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+          } else {
+            const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
+            writer.writeLine(`  where: { ${parentPk.name}: { ${compositeKey} } },`);
+          }
+          writer.writeLine(`  select: ${parentSelectObj},`);
+          writer.writeLine(`});`);
+          writer.blankLine();
+          writer.writeLine(`if (!parentRecord) {`);
+          writer.writeLine(`  throw new Error(\`${parentModel.name} not found\`);`);
+          writer.writeLine(`}`);
+          writer.blankLine();
+          
+          const accessChain = buildAccessChain(remainingPath);
+          const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
+          writer.writeLine(`const root = parentRecord${accessChain};`);
+          writer.writeLine(`if (!root) {`);
+          writer.writeLine(`  throw new Error(\`${parentModel.name} is not connected to ${rootModel.name}\`);`);
+          writer.writeLine(`}`);
+          writer.writeLine(`if (root.${rootPkFieldName} !== scopeKey) {`);
+          writer.writeLine(`  throw new Error(\`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`);
+          writer.writeLine(`}`);
+        } else {
+          // Parent is the root model
+          writer.writeLine(`const parentRecord = await prisma.${parentModelLower}.findUnique({`);
+          
+          const parentPk = getUniqueIdentifiers(parentModel)[0];
+          const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
+          if (parentPkFields.length === 1) {
+            writer.writeLine(`  where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+          } else {
+            const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
+            writer.writeLine(`  where: { ${parentPk.name}: { ${compositeKey} } },`);
+          }
+          writer.writeLine(`  select: { ${getUniqueIdentifiers(parentModel)[0].name}: true },`);
+          writer.writeLine(`});`);
+          writer.blankLine();
+          writer.writeLine(`if (!parentRecord) {`);
+          writer.writeLine(`  throw new Error(\`${parentModel.name} not found\`);`);
+          writer.writeLine(`}`);
+          const parentPkFieldName = getUniqueIdentifiers(parentModel)[0].name;
+          writer.writeLine(`if (parentRecord.${parentPkFieldName} !== scopeKey) {`);
+          writer.writeLine(`  throw new Error(\`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`);
+          writer.writeLine(`}`);
+        }
+      } else {
+        // Fallback
+        writer.writeLine(`if (!data.${firstRelationFieldName}Id) {`);
+        writer.writeLine(`  throw new Error(\`Missing parent reference: ${firstRelationFieldName}Id\`);`);
+        writer.writeLine(`}`);
+      }
+    } else if (isRootModel) {
+      writer.writeLine(`if (scopeKey !== data.${getUniqueIdentifiers(model)[0].name}) {`);
+      writer.writeLine(`  throw new Error(\`Unauthorized: root model pk must match authenticated scope\`);`);
+      writer.writeLine(`}`);
+    }
     writer.writeLine(`    const [result] = await prisma.$transaction([`);
     writer.writeLine(`      prisma.${modelNameLower}.create({ data }),`);
     writer.writeLine(`      prisma.changeLog.create({`);
@@ -206,6 +390,8 @@ function generateModelSyncHandler(writer: CodeBlockWriter, model: Model) {
 
     // UPDATE
     writer.writeLine(`  case "update": {`);
+
+    writer.writeLine(`    await verifyOwnership(validKeyPath);`);
     writer.writeLine(`    const oldKeyPath = [...validKeyPath];`);
     writer.writeLine(`    const [result] = await prisma.$transaction([`);
     writer.writeLine(`      prisma.${modelNameLower}.update({`);
@@ -234,6 +420,8 @@ function generateModelSyncHandler(writer: CodeBlockWriter, model: Model) {
 
     // DELETE
     writer.writeLine(`  case "delete": {`);
+
+    writer.writeLine(`    await verifyOwnership(validKeyPath);`);
     writer.writeLine(`    await prisma.$transaction([`);
     writer.writeLine(`      prisma.${modelNameLower}.delete({`);
     writer.writeLine(`        where: ${generateWhereClause(pk.name, pkFields)},`);
@@ -256,6 +444,47 @@ function generateModelSyncHandler(writer: CodeBlockWriter, model: Model) {
     writer.writeLine(`}`);
   });
   writer.blankLine();
+}
+
+/**
+ * Build a Prisma select object that traces through the auth path
+ * For example: { board: { select: { user: { select: { id: true } } } } }
+ */
+function buildSelectObject(authPath: string[], rootModel: Model, allModels: readonly Model[]): string {
+  if (authPath.length === 0) return "{}";
+
+  // Get the root model's pk field name
+  const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
+
+  // Build nested select structure
+  // For authPath ['user'] -> { user: { select: { id: true } } }
+  // For authPath ['board', 'user'] -> { board: { select: { user: { select: { id: true } } } } }
+
+  let result = "{ ";
+
+  for (let i = 0; i < authPath.length; i++) {
+    result += `${authPath[i]}: { select: { `;
+  }
+
+  // Add the root model's pk field
+  result += `${rootPkFieldName}: true`;
+
+  // Close all nested selects (one for each authPath element)
+  for (let i = 0; i < authPath.length; i++) {
+    result += " } }";
+  }
+
+  result += " }";
+
+  return result;
+}
+
+/**
+ * Build access chain for navigating through nested objects
+ * For example: ['board', 'user'] -> '.board.user'
+ */
+function buildAccessChain(authPath: string[]): string {
+  return "." + authPath.join(".");
 }
 
 function generateWhereClause(pkName: string, pkFields: string[]): string {
