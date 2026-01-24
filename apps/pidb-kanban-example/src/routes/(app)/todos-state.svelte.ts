@@ -1,5 +1,5 @@
 import { browser } from "$app/environment";
-import { client } from "$lib/clients/idb-client";
+import { getClient } from "$lib/clients/idb-client";
 import { toast } from "svelte-sonner";
 import { createContext } from "svelte";
 import type { Prisma } from "$lib/generated/prisma/client";
@@ -12,7 +12,7 @@ export class TodosState {
 
   constructor() {
     if (browser) {
-      this.syncWorker = client.createSyncWorker({
+      this.syncWorker = getClient().createSyncWorker({
         push: {
           handler: (events) => syncPush(events),
           batchSize: 50,
@@ -29,10 +29,10 @@ export class TodosState {
       });
       this.loadBoards();
 
-      client.board.subscribe(["create", "update", "delete"], () => {
+      getClient().board.subscribe(["create", "update", "delete"], () => {
         this.loadBoards();
       });
-      client.todo.subscribe(["create", "update", "delete"], () => {
+      getClient().todo.subscribe(["create", "update", "delete"], () => {
         this.loadBoards();
       });
     }
@@ -60,25 +60,25 @@ export class TodosState {
   }
 
   async loadBoards() {
-    this.boards = await client.board.findMany({ include: { todos: true } });
+    this.boards = await getClient().board.findMany({ include: { todos: true } });
   }
 
   async addBoard(name: string) {
-    const currentUser = await client.user.findFirst();
+    const currentUser = await getClient().user.findFirst();
     if (!currentUser) {
       toast.error("No user found. Please log in.");
       return;
     }
 
-    await client.board.create({ data: { name, userId: currentUser.id } });
+    await getClient().board.create({ data: { name, userId: currentUser.id } });
   }
 
   async deleteBoard(boardId: string) {
-    await client.board.delete({ where: { id: boardId } });
+    await getClient().board.delete({ where: { id: boardId } });
   }
 
   async addTodoToBoard(boardId: string, title: string, description: string) {
-    await client.todo.create({
+    await getClient().todo.create({
       data: { title, description, boardId },
     });
   }

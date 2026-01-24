@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { client } from "$lib/clients/idb-client";
+  import { getClient } from "$lib/clients/idb-client";
   import Button from "$lib/components/ui/button/button.svelte";
   import * as Dialog from "$lib/components/ui/dialog/index.js";
   import Input from "$lib/components/ui/input/input.svelte";
@@ -26,7 +26,7 @@
   async function updateTodo() {
     if (!todo) return;
 
-    await client.todo.update({
+    await getClient().todo.update({
       where: { id: todo.id },
       data: { title: newTitle, description: newDescription },
     });

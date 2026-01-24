@@ -3,7 +3,7 @@
   import { page } from "$app/state";
   import { authClient } from "$lib/clients/auth-client";
   import { UNPROTECTED_ROUTES } from "$lib/constants";
-  import { client } from "$lib/clients/idb-client";
+  import { getClient } from "$lib/clients/idb-client";
   import { toast } from "svelte-sonner";
 
   const session = authClient.useSession();
@@ -17,7 +17,7 @@
 
     const sessionData = $session.data;
     const existingUser = sessionData?.user?.id
-      ? await client.user.findUnique({ where: { id: sessionData.user.id } })
+      ? await getClient().user.findUnique({ where: { id: sessionData.user.id } })
       : null;
 
     if (!sessionData && !existingUser) {
@@ -29,7 +29,7 @@
     }
 
     if (sessionData && !existingUser) {
-      await client.user.create({ data: sessionData.user }, { addToOutbox: false });
+      await getClient().user.create({ data: sessionData.user }, { addToOutbox: false });
     }
   }
 </script>

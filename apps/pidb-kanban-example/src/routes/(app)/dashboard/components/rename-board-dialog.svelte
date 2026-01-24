@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { client } from "$lib/clients/idb-client";
+  import { getClient } from "$lib/clients/idb-client";
   import Button from "$lib/components/ui/button/button.svelte";
   import * as Dialog from "$lib/components/ui/dialog/index.js";
   import Input from "$lib/components/ui/input/input.svelte";
@@ -15,7 +15,7 @@
   async function renameBoard(event: Event) {
     event.preventDefault();
     try {
-      await client.board.update({
+      await getClient().board.update({
         where: { id: board.id },
         data: { name: newName },
       });
