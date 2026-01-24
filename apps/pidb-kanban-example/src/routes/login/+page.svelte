@@ -15,7 +15,7 @@
     mutationFn: async () => {
       return authClient.signIn.social({
         provider: "google",
-        callbackURL: `/dashboard`,
+        callbackURL: resolve(`/dashboard`),
       });
     },
     onError: (error) => {

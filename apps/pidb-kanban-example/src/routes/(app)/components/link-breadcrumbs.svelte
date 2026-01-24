@@ -1,17 +1,13 @@
 <script lang="ts">
   import { page } from "$app/state";
   import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
-  import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
   import { Scrollbar } from "$lib/components/ui/scroll-area";
   import ScrollArea from "$lib/components/ui/scroll-area/scroll-area.svelte";
-  import { ChevronDown, Slash } from "@lucide/svelte";
+  import { Slash } from "@lucide/svelte";
 
   type Item = {
     label: string;
     href?: string;
-    isStepBased?: boolean;
-    stepItems?: Array<{ label: string; href: string }>;
-    parentPath?: string;
   };
 
   function pathnameToItems(pathname: string): Item[] {
@@ -39,41 +35,9 @@
     <Breadcrumb.List class="flex-nowrap">
       {#each items as item, idx (item.label)}
         <Breadcrumb.Item class="whitespace-nowrap">
-          {#if item.isStepBased && item.stepItems && item.stepItems.length > 0}
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger class="flex items-center gap-1">
-                {item.label}
-                <ChevronDown class="size-4" />
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Content align="start">
-                {#each item.stepItems as stepItem (stepItem.href)}
-                  <DropdownMenu.Item>
-                    {#snippet child({ props })}
-                      <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-                      <a href={stepItem.href} {...props}>
-                        <span class="font-mono">{stepItem.label.slice(0, 3)}</span>
-                        {stepItem.label.slice(2)}
-                      </a>
-                    {/snippet}
-                  </DropdownMenu.Item>
-                {/each}
-              </DropdownMenu.Content>
-            </DropdownMenu.Root>
-          {:else}
-            <Breadcrumb.Link href={item.href}>
-              {#if items[idx - 1] && items[idx - 1].isStepBased}
-                {#if idx === items.length - 1}
-                  <span>
-                    {item.label.charAt(2).toUpperCase() + item.label.slice(3)}
-                  </span>
-                {:else}
-                  {item.label}
-                {/if}
-              {:else}
-                {item.label}
-              {/if}
-            </Breadcrumb.Link>
-          {/if}
+          <Breadcrumb.Link href={item.href}>
+            {item.label}
+          </Breadcrumb.Link>
         </Breadcrumb.Item>
         {#if idx !== items.length - 1}
           <Breadcrumb.Separator>

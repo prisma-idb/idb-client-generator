@@ -87,7 +87,7 @@
         <DropdownMenu.Item
           onclick={() => {
             if (isRunning) {
-              todosState.syncWorker!.stop();
+              todosState.syncWorker?.stop();
             } else {
               todosState.syncWithServer();
             }
