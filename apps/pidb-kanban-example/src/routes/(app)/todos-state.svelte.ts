@@ -52,7 +52,7 @@ export class TodosState {
 
   setCursor(cursor: bigint | undefined) {
     if (!browser) throw new Error("Not in browser environment");
-    if (cursor) {
+    if (cursor !== undefined) {
       localStorage.setItem("lastSyncedAt", cursor.toString());
     } else {
       localStorage.removeItem("lastSyncedAt");

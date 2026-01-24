@@ -9,7 +9,12 @@
   const session = authClient.useSession();
 
   $effect(() => {
-    if (page.url) syncIdbWithSession();
+    if (page.url) {
+      syncIdbWithSession().catch((error) => {
+        console.error("Error syncing session:", error);
+        toast.error("Failed to sync session");
+      });
+    }
   });
 
   async function syncIdbWithSession() {
