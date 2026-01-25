@@ -10,6 +10,9 @@ export class TodosState {
   boards = $state<Prisma.BoardGetPayload<{ include: { todos: true } }>[]>();
   syncWorker = $state<SyncWorker>();
 
+  private boardCallback = () => this.loadBoards();
+  private todoCallback = () => this.loadBoards();
+
   constructor() {
     if (browser) {
       let clientId = localStorage.getItem("clientId");
@@ -36,12 +39,8 @@ export class TodosState {
       });
       this.loadBoards();
 
-      getClient().board.subscribe(["create", "update", "delete"], () => {
-        this.loadBoards();
-      });
-      getClient().todo.subscribe(["create", "update", "delete"], () => {
-        this.loadBoards();
-      });
+      getClient().board.subscribe(["create", "update", "delete"], this.boardCallback);
+      getClient().todo.subscribe(["create", "update", "delete"], this.todoCallback);
     }
   }
 
@@ -81,13 +80,23 @@ export class TodosState {
   }
 
   async deleteBoard(boardId: string) {
-    await getClient().board.delete({ where: { id: boardId } });
+    try {
+      await getClient().board.delete({ where: { id: boardId } });
+    } catch (error) {
+      console.error("Error deleting board:", error);
+      toast.error("Failed to delete board");
+    }
   }
 
   async addTodoToBoard(boardId: string, title: string, description: string) {
-    await getClient().todo.create({
-      data: { title, description, boardId },
-    });
+    try {
+      await getClient().todo.create({
+        data: { title, description, boardId },
+      });
+    } catch (error) {
+      console.error("Error adding todo:", error);
+      toast.error("Failed to add todo");
+    }
   }
 
   async syncWithServer() {
@@ -99,6 +108,12 @@ export class TodosState {
       console.error("Error starting sync worker:", error);
       toast.error("Failed to start sync worker");
     }
+  }
+
+  destroy() {
+    getClient().board.unsubscribe(["create", "update", "delete"], this.boardCallback);
+    getClient().todo.unsubscribe(["create", "update", "delete"], this.todoCallback);
+    this.syncWorker?.stop?.();
   }
 }
 
