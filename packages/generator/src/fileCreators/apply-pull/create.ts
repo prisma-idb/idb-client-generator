@@ -5,7 +5,7 @@ import { getUniqueIdentifiers } from "../../helpers/utils";
 export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
   // Write imports
   writer.writeLine(`import type { LogWithRecord } from '../server/batch-processor';`);
-  writer.writeLine(`import { validators } from '../validators';`);
+  writer.writeLine(`import { validators, keyPathValidators } from '../validators';`);
   writer.writeLine(`import type { PrismaIDBClient } from './prisma-idb-client';`);
   writer.blankLine();
 
@@ -32,7 +32,9 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
   writer.writeLine(` * @param props.idbClient - The PrismaIDB client instance`);
   writer.writeLine(` * @param props.logsWithRecords - Array of change logs with validated records from server`);
   writer.writeLine(` * @param props.originId - Origin ID to filter out echoed events`);
-  writer.writeLine(` * @returns Object with sync statistics including applied records, missing records, and validation errors`);
+  writer.writeLine(
+    ` * @returns Object with sync statistics including applied records, missing records, and validation errors`,
+  );
   writer.writeLine(` */`);
 
   // Write applyPull function
@@ -46,7 +48,10 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
 
     // Create a single shared transaction for all operations
     writer.writeLine(`// Wrap all operations in a single transaction to prevent AbortError and ensure atomicity`);
-    const storeNames = models.map((m) => `'${m.name}'`).concat(`'OutboxEvent'`).join(", ");
+    const storeNames = models
+      .map((m) => `'${m.name}'`)
+      .concat(`'OutboxEvent'`)
+      .join(", ");
     writer.writeLine(`const tx = idbClient._db.transaction([${storeNames}], 'readwrite');`);
     writer.blankLine();
 
@@ -66,8 +71,8 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
         writer.writeLine(`  continue;`);
         writer.writeLine(`}`);
         writer.blankLine();
-        writer.writeLine(`const { model, operation, record } = change;`);
-        writer.writeLine(`if (!record)`).block(() => {
+        writer.writeLine(`const { model, operation, record, keyPath } = change;`);
+        writer.writeLine(`if (!record && operation !== 'delete')`).block(() => {
           writer.writeLine(`missingRecords++;`);
           writer.writeLine(`continue;`);
         });
@@ -87,8 +92,14 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
             const camelCaseName = modelName.charAt(0).toLowerCase() + modelName.slice(1);
             const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
 
-            // Build where clause for update/delete
-            const whereClause =
+            // Build where clause for update/delete using keypath field names and tuple indices
+            const keyPathWhereClause =
+              pk.length === 1
+                ? `{ ${pk[0]}: validatedKeyPath[0] }`
+                : `{ ${pk.join("_")}: { ${pk.map((field, i) => `${field}: validatedKeyPath[${i}]`).join(", ")} } }`;
+
+            // Build where clause for full record (used in update)
+            const fullRecordWhereClause =
               pk.length === 1
                 ? `{ ${pk[0]}: validatedRecord.${pk[0]} }`
                 : `{ ${pk.join("_")}: { ${pk.map((field) => `${field}: validatedRecord.${field}`).join(", ")} } }`;
@@ -96,24 +107,27 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
             const condition = index === 0 ? "if" : "else if";
 
             writer.writeLine(`${condition} (model === '${modelName}') `).block(() => {
-              writer.writeLine(`const validatedRecord = validators.${modelName}.parse(record);`);
-              writer.writeLine(`if (operation === 'create') `).block(() => {
+              writer.writeLine(`if (operation === 'delete') `).block(() => {
+                writer.writeLine(`const validatedKeyPath = keyPathValidators.${modelName}.parse(keyPath);`);
                 writer.writeLine(
-                  `await idbClient.${camelCaseName}.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });`,
-                );
-              });
-              writer.writeLine(`else if (operation === 'update') `).block(() => {
-                writer.writeLine(
-                  `await idbClient.${camelCaseName}.update({ where: ${whereClause}, data: validatedRecord }, { silent: true, addToOutbox: false, tx });`,
-                );
-              });
-              writer.writeLine(`else if (operation === 'delete') `).block(() => {
-                writer.writeLine(
-                  `await idbClient.${camelCaseName}.delete({ where: ${whereClause} }, { silent: true, addToOutbox: false, tx });`,
+                  `await idbClient.${camelCaseName}.delete({ where: ${keyPathWhereClause} }, { silent: true, addToOutbox: false, tx });`,
                 );
               });
               writer.writeLine(`else `).block(() => {
-                writer.writeLine(`console.warn('Unknown operation for ${modelName}:', operation);`);
+                writer.writeLine(`const validatedRecord = validators.${modelName}.parse(record);`);
+                writer.writeLine(`if (operation === 'create') `).block(() => {
+                  writer.writeLine(
+                    `await idbClient.${camelCaseName}.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });`,
+                  );
+                });
+                writer.writeLine(`else if (operation === 'update') `).block(() => {
+                  writer.writeLine(
+                    `await idbClient.${camelCaseName}.update({ where: ${fullRecordWhereClause}, data: validatedRecord }, { silent: true, addToOutbox: false, tx });`,
+                  );
+                });
+                writer.writeLine(`else `).block(() => {
+                  writer.writeLine(`console.warn('Unknown operation for ${modelName}:', operation);`);
+                });
               });
             });
           });

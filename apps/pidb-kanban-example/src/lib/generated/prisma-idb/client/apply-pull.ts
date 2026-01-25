@@ -1,5 +1,5 @@
 import type { LogWithRecord } from "../server/batch-processor";
-import { validators } from "../validators";
+import { validators, keyPathValidators } from "../validators";
 import type { PrismaIDBClient } from "./prisma-idb-client";
 
 type ApplyPullProps = {
@@ -47,8 +47,8 @@ export async function applyPull(props: ApplyPullProps) {
         continue;
       }
 
-      const { model, operation, record } = change;
-      if (!record) {
+      const { model, operation, record, keyPath } = change;
+      if (!record && operation !== "delete") {
         missingRecords++;
         continue;
       }
@@ -61,55 +61,64 @@ export async function applyPull(props: ApplyPullProps) {
 
       try {
         if (model === "Board") {
-          const validatedRecord = validators.Board.parse(record);
-          if (operation === "create") {
-            await idbClient.board.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
-          } else if (operation === "update") {
-            await idbClient.board.update(
-              { where: { id: validatedRecord.id }, data: validatedRecord },
-              { silent: true, addToOutbox: false, tx }
-            );
-          } else if (operation === "delete") {
+          if (operation === "delete") {
+            const validatedKeyPath = keyPathValidators.Board.parse(keyPath);
             await idbClient.board.delete(
-              { where: { id: validatedRecord.id } },
+              { where: { id: validatedKeyPath[0] } },
               { silent: true, addToOutbox: false, tx }
             );
           } else {
-            console.warn("Unknown operation for Board:", operation);
+            const validatedRecord = validators.Board.parse(record);
+            if (operation === "create") {
+              await idbClient.board.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
+            } else if (operation === "update") {
+              await idbClient.board.update(
+                { where: { id: validatedRecord.id }, data: validatedRecord },
+                { silent: true, addToOutbox: false, tx }
+              );
+            } else {
+              console.warn("Unknown operation for Board:", operation);
+            }
           }
         } else if (model === "Todo") {
-          const validatedRecord = validators.Todo.parse(record);
-          if (operation === "create") {
-            await idbClient.todo.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
-          } else if (operation === "update") {
-            await idbClient.todo.update(
-              { where: { id: validatedRecord.id }, data: validatedRecord },
-              { silent: true, addToOutbox: false, tx }
-            );
-          } else if (operation === "delete") {
+          if (operation === "delete") {
+            const validatedKeyPath = keyPathValidators.Todo.parse(keyPath);
             await idbClient.todo.delete(
-              { where: { id: validatedRecord.id } },
+              { where: { id: validatedKeyPath[0] } },
               { silent: true, addToOutbox: false, tx }
             );
           } else {
-            console.warn("Unknown operation for Todo:", operation);
+            const validatedRecord = validators.Todo.parse(record);
+            if (operation === "create") {
+              await idbClient.todo.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
+            } else if (operation === "update") {
+              await idbClient.todo.update(
+                { where: { id: validatedRecord.id }, data: validatedRecord },
+                { silent: true, addToOutbox: false, tx }
+              );
+            } else {
+              console.warn("Unknown operation for Todo:", operation);
+            }
           }
         } else if (model === "User") {
-          const validatedRecord = validators.User.parse(record);
-          if (operation === "create") {
-            await idbClient.user.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
-          } else if (operation === "update") {
-            await idbClient.user.update(
-              { where: { id: validatedRecord.id }, data: validatedRecord },
-              { silent: true, addToOutbox: false, tx }
-            );
-          } else if (operation === "delete") {
+          if (operation === "delete") {
+            const validatedKeyPath = keyPathValidators.User.parse(keyPath);
             await idbClient.user.delete(
-              { where: { id: validatedRecord.id } },
+              { where: { id: validatedKeyPath[0] } },
               { silent: true, addToOutbox: false, tx }
             );
           } else {
-            console.warn("Unknown operation for User:", operation);
+            const validatedRecord = validators.User.parse(record);
+            if (operation === "create") {
+              await idbClient.user.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
+            } else if (operation === "update") {
+              await idbClient.user.update(
+                { where: { id: validatedRecord.id }, data: validatedRecord },
+                { silent: true, addToOutbox: false, tx }
+              );
+            } else {
+              console.warn("Unknown operation for User:", operation);
+            }
           }
         }
       } catch (error) {
