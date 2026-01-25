@@ -25,13 +25,27 @@ export type LogWithRecord<V extends Partial<Record<string, ZodTypeAny>>> = {
   };
 }[keyof V & string];
 
-export interface SyncResult {
+export const PushErrorTypes = {
+  INVALID_MODEL: "INVALID_MODEL",
+  RECORD_VALIDATION_FAILURE: "RECORD_VALIDATION_FAILURE",
+  KEYPATH_VALIDATION_FAILURE: "KEYPATH_VALIDATION_FAILURE",
+  MISSING_PARENT: "MISSING_PARENT",
+  SCOPE_VIOLATION: "SCOPE_VIOLATION",
+  UNKNOWN_OPERATION: "UNKNOWN_OPERATION",
+  UNKNOWN_ERROR: "UNKNOWN_ERROR",
+  MAX_RETRIES: "MAX_RETRIES",
+};
+
+export interface PushResult {
   id: string;
   oldKeyPath?: Array<string | number>;
   entityKeyPath: Array<string | number>;
   mergedRecord?: unknown;
-  serverVersion?: number;
-  error?: string | null;
+  error: null | {
+    type: keyof typeof PushErrorTypes;
+    message: string;
+    retryable: boolean;
+  };
 }
 
 export interface ApplyPushOptions {
@@ -42,23 +56,36 @@ export interface ApplyPushOptions {
   customValidation?: (event: EventsFor<typeof validators>) => boolean | Promise<boolean>;
 }
 
+export class PermanentSyncError extends Error {
+  readonly type: keyof typeof PushErrorTypes;
+  constructor(type: keyof typeof PushErrorTypes, message: string) {
+    super(message);
+    this.type = type;
+    Object.setPrototypeOf(this, PermanentSyncError.prototype);
+  }
+}
+
 export async function applyPush({
   events,
   scopeKey,
   prisma,
   originId,
   customValidation,
-}: ApplyPushOptions): Promise<SyncResult[]> {
-  const results: SyncResult[] = [];
+}: ApplyPushOptions): Promise<PushResult[]> {
+  const results: PushResult[] = [];
   for (const event of events) {
     try {
       const resolvedScopeKey = typeof scopeKey === "function" ? scopeKey(event) : scopeKey;
-      let result: SyncResult;
+      let result: PushResult;
       switch (event.entityType) {
         case "Board": {
           {
             const validation = validators.Board.safeParse(event.payload);
-            if (!validation.success) throw new Error(`Validation failed: ${validation.error.message}`);
+            if (!validation.success)
+              throw new PermanentSyncError(
+                "RECORD_VALIDATION_FAILURE",
+                `Validation failed for model Board: ${validation.error.message}`
+              );
 
             if (customValidation) {
               const ok = await customValidation(event as EventsFor<typeof validators>);
@@ -72,7 +99,11 @@ export async function applyPush({
         case "Todo": {
           {
             const validation = validators.Todo.safeParse(event.payload);
-            if (!validation.success) throw new Error(`Validation failed: ${validation.error.message}`);
+            if (!validation.success)
+              throw new PermanentSyncError(
+                "RECORD_VALIDATION_FAILURE",
+                `Validation failed for model Todo: ${validation.error.message}`
+              );
 
             if (customValidation) {
               const ok = await customValidation(event as EventsFor<typeof validators>);
@@ -86,7 +117,11 @@ export async function applyPush({
         case "User": {
           {
             const validation = validators.User.safeParse(event.payload);
-            if (!validation.success) throw new Error(`Validation failed: ${validation.error.message}`);
+            if (!validation.success)
+              throw new PermanentSyncError(
+                "RECORD_VALIDATION_FAILURE",
+                `Validation failed for model User: ${validation.error.message}`
+              );
 
             if (customValidation) {
               const ok = await customValidation(event as EventsFor<typeof validators>);
@@ -98,12 +133,21 @@ export async function applyPush({
           }
         }
         default:
-          throw new Error(`No sync handler for ${event.entityType}`);
+          throw new PermanentSyncError("INVALID_MODEL", `No sync handler for model ${event.entityType}`);
       }
       results.push(result);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
-      results.push({ id: event.id, error: errorMessage, entityKeyPath: event.entityKeyPath });
+      const isPermanent = err instanceof PermanentSyncError;
+      results.push({
+        id: event.id,
+        entityKeyPath: event.entityKeyPath,
+        error: {
+          type: isPermanent ? err.type : "UNKNOWN_ERROR",
+          message: errorMessage,
+          retryable: !isPermanent,
+        },
+      });
     }
   }
   return results;
@@ -116,54 +160,52 @@ export async function materializeLogs({
   logs: Array<ChangeLog>;
   prisma: PrismaClient;
 }): Promise<Array<LogWithRecord<typeof validators>>> {
-  {
-    const validModelNames = ["Board", "Todo", "User"];
-    const results: Array<LogWithRecord<typeof validators>> = [];
-    for (const log of logs) {
-      if (!validModelNames.includes(log.model)) {
-        throw new Error(`Unknown model: ${log.model}`);
+  const validModelNames = ["Board", "Todo", "User"];
+  const results: Array<LogWithRecord<typeof validators>> = [];
+  for (const log of logs) {
+    if (!validModelNames.includes(log.model)) {
+      throw new Error(`Unknown model: ${log.model}`);
+    }
+    switch (log.model) {
+      case "Board": {
+        const keyPathValidation = keyPathValidators.Board.safeParse(log.keyPath);
+        if (!keyPathValidation.success) {
+          throw new Error("Invalid keyPath for Board");
+        }
+        const validKeyPath = keyPathValidation.data;
+        const record = await prisma.board.findUnique({
+          where: { id: validKeyPath[0] },
+        });
+        results.push({ ...log, model: "Board", keyPath: validKeyPath, record });
+        break;
       }
-      switch (log.model) {
-        case "Board": {
-          const keyPathValidation = keyPathValidators.Board.safeParse(log.keyPath);
-          if (!keyPathValidation.success) {
-            throw new Error("Invalid keyPath for Board");
-          }
-          const validKeyPath = keyPathValidation.data;
-          const record = await prisma.board.findUnique({
-            where: { id: validKeyPath[0] },
-          });
-          results.push({ ...log, model: "Board", keyPath: validKeyPath, record });
-          break;
+      case "Todo": {
+        const keyPathValidation = keyPathValidators.Todo.safeParse(log.keyPath);
+        if (!keyPathValidation.success) {
+          throw new Error("Invalid keyPath for Todo");
         }
-        case "Todo": {
-          const keyPathValidation = keyPathValidators.Todo.safeParse(log.keyPath);
-          if (!keyPathValidation.success) {
-            throw new Error("Invalid keyPath for Todo");
-          }
-          const validKeyPath = keyPathValidation.data;
-          const record = await prisma.todo.findUnique({
-            where: { id: validKeyPath[0] },
-          });
-          results.push({ ...log, model: "Todo", keyPath: validKeyPath, record });
-          break;
+        const validKeyPath = keyPathValidation.data;
+        const record = await prisma.todo.findUnique({
+          where: { id: validKeyPath[0] },
+        });
+        results.push({ ...log, model: "Todo", keyPath: validKeyPath, record });
+        break;
+      }
+      case "User": {
+        const keyPathValidation = keyPathValidators.User.safeParse(log.keyPath);
+        if (!keyPathValidation.success) {
+          throw new Error("Invalid keyPath for User");
         }
-        case "User": {
-          const keyPathValidation = keyPathValidators.User.safeParse(log.keyPath);
-          if (!keyPathValidation.success) {
-            throw new Error("Invalid keyPath for User");
-          }
-          const validKeyPath = keyPathValidation.data;
-          const record = await prisma.user.findUnique({
-            where: { id: validKeyPath[0] },
-          });
-          results.push({ ...log, model: "User", keyPath: validKeyPath, record });
-          break;
-        }
+        const validKeyPath = keyPathValidation.data;
+        const record = await prisma.user.findUnique({
+          where: { id: validKeyPath[0] },
+        });
+        results.push({ ...log, model: "User", keyPath: validKeyPath, record });
+        break;
       }
     }
-    return results;
   }
+  return results;
 }
 
 async function syncBoard(
@@ -172,51 +214,38 @@ async function syncBoard(
   scopeKey: string,
   prisma: PrismaClient,
   originId: string
-): Promise<SyncResult> {
+): Promise<PushResult> {
   const { id, entityKeyPath, operation } = event;
   const keyPathValidation = keyPathValidators.Board.safeParse(entityKeyPath);
   if (!keyPathValidation.success) {
-    throw new Error("Invalid entityKeyPath for Board");
+    throw new PermanentSyncError("KEYPATH_VALIDATION_FAILURE", "Invalid entityKeyPath for Board");
   }
 
   const validKeyPath = keyPathValidation.data;
 
   const verifyOwnership = async (keyPathArg: z.infer<typeof keyPathValidators.Board>) => {
-    {
-      const record = await prisma.board.findUnique({
-        where: { id: keyPathArg[0] },
-        select: { user: { select: { id: true } } },
-      });
+    const record = await prisma.board.findUnique({
+      where: { id: keyPathArg[0] },
+      select: { user: { select: { id: true } } },
+    });
 
-      if (!record) {
-        throw new Error(`Board not found`);
-      }
-
-      const root = record.user;
-      if (!root) {
-        throw new Error(`Board is not connected to User`);
-      }
-      if (root.id !== scopeKey) {
-        throw new Error(`Unauthorized: Board is not owned by the authenticated scope`);
-      }
+    if (!record || record.user.id !== scopeKey) {
+      throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: Board is not owned by the authenticated scope`);
     }
   };
 
   switch (operation) {
     case "create": {
-      if (!data.userId) {
-        throw new Error(`Missing parent reference: userId`);
-      }
       const parentRecord = await prisma.user.findUnique({
         where: { id: data.userId },
         select: { id: true },
       });
 
-      if (!parentRecord) {
-        throw new Error(`User not found`);
-      }
-      if (parentRecord.id !== scopeKey) {
-        throw new Error(`Unauthorized: Board parent is not owned by authenticated scope`);
+      if (!parentRecord || parentRecord.id !== scopeKey) {
+        throw new PermanentSyncError(
+          "SCOPE_VIOLATION",
+          `Unauthorized: Board parent is not owned by authenticated scope`
+        );
       }
       const result = await prisma.$transaction(async (tx) => {
         try {
@@ -232,13 +261,13 @@ async function syncBoard(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, entityKeyPath: validKeyPath, mergedRecord: data };
+            return { id, entityKeyPath: validKeyPath, mergedRecord: data, error: null };
           }
           throw err;
         }
         const createdRecord = await tx.board.create({ data });
         const newKeyPath = [createdRecord.id];
-        return { id, entityKeyPath: newKeyPath, mergedRecord: createdRecord };
+        return { id, entityKeyPath: newKeyPath, mergedRecord: createdRecord, error: null };
       });
       return result;
     }
@@ -261,7 +290,7 @@ async function syncBoard(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, oldKeyPath, entityKeyPath: validKeyPath, mergedRecord: data };
+            return { id, oldKeyPath, entityKeyPath: validKeyPath, mergedRecord: data, error: null };
           }
           throw err;
         }
@@ -271,7 +300,7 @@ async function syncBoard(
           update: data,
         });
         const newKeyPath = [updatedRecord.id];
-        return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: updatedRecord };
+        return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: updatedRecord, error: null };
       });
       return result;
     }
@@ -292,20 +321,20 @@ async function syncBoard(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, entityKeyPath: validKeyPath };
+            return { id, entityKeyPath: validKeyPath, error: null };
           }
           throw err;
         }
         await tx.board.deleteMany({
           where: { id: validKeyPath[0] },
         });
-        return { id, entityKeyPath: validKeyPath };
+        return { id, entityKeyPath: validKeyPath, error: null };
       });
       return result;
     }
 
     default:
-      throw new Error(`Unknown operation: ${operation}`);
+      throw new PermanentSyncError("UNKNOWN_OPERATION", `Unknown operation: ${operation}`);
   }
 }
 
@@ -315,56 +344,38 @@ async function syncTodo(
   scopeKey: string,
   prisma: PrismaClient,
   originId: string
-): Promise<SyncResult> {
+): Promise<PushResult> {
   const { id, entityKeyPath, operation } = event;
   const keyPathValidation = keyPathValidators.Todo.safeParse(entityKeyPath);
   if (!keyPathValidation.success) {
-    throw new Error("Invalid entityKeyPath for Todo");
+    throw new PermanentSyncError("KEYPATH_VALIDATION_FAILURE", "Invalid entityKeyPath for Todo");
   }
 
   const validKeyPath = keyPathValidation.data;
 
   const verifyOwnership = async (keyPathArg: z.infer<typeof keyPathValidators.Todo>) => {
-    {
-      const record = await prisma.todo.findUnique({
-        where: { id: keyPathArg[0] },
-        select: { board: { select: { user: { select: { id: true } } } } },
-      });
+    const record = await prisma.todo.findUnique({
+      where: { id: keyPathArg[0] },
+      select: { board: { select: { user: { select: { id: true } } } } },
+    });
 
-      if (!record) {
-        throw new Error(`Todo not found`);
-      }
-
-      const root = record.board.user;
-      if (!root) {
-        throw new Error(`Todo is not connected to User`);
-      }
-      if (root.id !== scopeKey) {
-        throw new Error(`Unauthorized: Todo is not owned by the authenticated scope`);
-      }
+    if (!record || record.board.user.id !== scopeKey) {
+      throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: Todo is not owned by the authenticated scope`);
     }
   };
 
   switch (operation) {
     case "create": {
-      if (!data.boardId) {
-        throw new Error(`Missing parent reference: boardId`);
-      }
       const parentRecord = await prisma.board.findUnique({
         where: { id: data.boardId },
         select: { user: { select: { id: true } } },
       });
 
-      if (!parentRecord) {
-        throw new Error(`Board not found`);
-      }
-
-      const root = parentRecord.user;
-      if (!root) {
-        throw new Error(`Board is not connected to User`);
-      }
-      if (root.id !== scopeKey) {
-        throw new Error(`Unauthorized: Todo parent is not owned by authenticated scope`);
+      if (!parentRecord || parentRecord.user.id !== scopeKey) {
+        throw new PermanentSyncError(
+          "SCOPE_VIOLATION",
+          `Unauthorized: Todo parent is not owned by authenticated scope`
+        );
       }
       const result = await prisma.$transaction(async (tx) => {
         try {
@@ -380,13 +391,13 @@ async function syncTodo(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, entityKeyPath: validKeyPath, mergedRecord: data };
+            return { id, entityKeyPath: validKeyPath, mergedRecord: data, error: null };
           }
           throw err;
         }
         const createdRecord = await tx.todo.create({ data });
         const newKeyPath = [createdRecord.id];
-        return { id, entityKeyPath: newKeyPath, mergedRecord: createdRecord };
+        return { id, entityKeyPath: newKeyPath, mergedRecord: createdRecord, error: null };
       });
       return result;
     }
@@ -409,7 +420,7 @@ async function syncTodo(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, oldKeyPath, entityKeyPath: validKeyPath, mergedRecord: data };
+            return { id, oldKeyPath, entityKeyPath: validKeyPath, mergedRecord: data, error: null };
           }
           throw err;
         }
@@ -419,7 +430,7 @@ async function syncTodo(
           update: data,
         });
         const newKeyPath = [updatedRecord.id];
-        return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: updatedRecord };
+        return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: updatedRecord, error: null };
       });
       return result;
     }
@@ -440,20 +451,20 @@ async function syncTodo(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, entityKeyPath: validKeyPath };
+            return { id, entityKeyPath: validKeyPath, error: null };
           }
           throw err;
         }
         await tx.todo.deleteMany({
           where: { id: validKeyPath[0] },
         });
-        return { id, entityKeyPath: validKeyPath };
+        return { id, entityKeyPath: validKeyPath, error: null };
       });
       return result;
     }
 
     default:
-      throw new Error(`Unknown operation: ${operation}`);
+      throw new PermanentSyncError("UNKNOWN_OPERATION", `Unknown operation: ${operation}`);
   }
 }
 
@@ -463,27 +474,25 @@ async function syncUser(
   scopeKey: string,
   prisma: PrismaClient,
   originId: string
-): Promise<SyncResult> {
+): Promise<PushResult> {
   const { id, entityKeyPath, operation } = event;
   const keyPathValidation = keyPathValidators.User.safeParse(entityKeyPath);
   if (!keyPathValidation.success) {
-    throw new Error("Invalid entityKeyPath for User");
+    throw new PermanentSyncError("KEYPATH_VALIDATION_FAILURE", "Invalid entityKeyPath for User");
   }
 
   const validKeyPath = keyPathValidation.data;
 
   const verifyOwnership = async (keyPathArg: z.infer<typeof keyPathValidators.User>) => {
-    {
-      if (keyPathArg[0] !== scopeKey) {
-        throw new Error(`Unauthorized: User pk does not match authenticated scope`);
-      }
+    if (keyPathArg[0] !== scopeKey) {
+      throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: User pk does not match authenticated scope`);
     }
   };
 
   switch (operation) {
     case "create": {
       if (scopeKey !== data.id) {
-        throw new Error(`Unauthorized: root model pk must match authenticated scope`);
+        throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: root model pk must match authenticated scope`);
       }
       const result = await prisma.$transaction(async (tx) => {
         try {
@@ -499,13 +508,13 @@ async function syncUser(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, entityKeyPath: validKeyPath, mergedRecord: data };
+            return { id, entityKeyPath: validKeyPath, mergedRecord: data, error: null };
           }
           throw err;
         }
         const createdRecord = await tx.user.create({ data });
         const newKeyPath = [createdRecord.id];
-        return { id, entityKeyPath: newKeyPath, mergedRecord: createdRecord };
+        return { id, entityKeyPath: newKeyPath, mergedRecord: createdRecord, error: null };
       });
       return result;
     }
@@ -528,7 +537,7 @@ async function syncUser(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, oldKeyPath, entityKeyPath: validKeyPath, mergedRecord: data };
+            return { id, oldKeyPath, entityKeyPath: validKeyPath, mergedRecord: data, error: null };
           }
           throw err;
         }
@@ -538,7 +547,7 @@ async function syncUser(
           update: data,
         });
         const newKeyPath = [updatedRecord.id];
-        return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: updatedRecord };
+        return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: updatedRecord, error: null };
       });
       return result;
     }
@@ -559,19 +568,19 @@ async function syncUser(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, entityKeyPath: validKeyPath };
+            return { id, entityKeyPath: validKeyPath, error: null };
           }
           throw err;
         }
         await tx.user.deleteMany({
           where: { id: validKeyPath[0] },
         });
-        return { id, entityKeyPath: validKeyPath };
+        return { id, entityKeyPath: validKeyPath, error: null };
       });
       return result;
     }
 
     default:
-      throw new Error(`Unknown operation: ${operation}`);
+      throw new PermanentSyncError("UNKNOWN_OPERATION", `Unknown operation: ${operation}`);
   }
 }

@@ -93,6 +93,7 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxMo
           .writeLine(`entityKeyPath: keyPath as Array<string | number>,`)
           .writeLine(`operation: event,`)
           .writeLine(`payload: record ?? keyPath,`)
+          .writeLine(`retryable: true,`)
           .writeLine(`};`)
           .writeLine(`await outboxStore.add(outboxEvent);`)
           .writeLine(`}`);

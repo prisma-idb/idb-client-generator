@@ -12,6 +12,10 @@ export function createIDBInterfaceFile(
 ) {
   writer.writeLine(`import type { DBSchema } from "idb";`);
   writer.writeLine(`import type * as Prisma from "${prismaClientImport}";`);
+  if (outboxSync) {
+    writer.writeLine(`import type { PushResult } from "../server/batch-processor";`);
+  }
+  writer.blankLine();
 
   writer.writeLine(`export interface PrismaIDBSchema extends DBSchema`).block(() => {
     models.forEach((model) => {
@@ -64,23 +68,15 @@ function addOutboxEventTypeDefinition(writer: CodeBlockWriter) {
       .writeLine(`tries: number;`)
       .writeLine(`lastError: string | null;`)
       .writeLine(`synced: boolean;`)
-      .writeLine(`syncedAt: Date | null;`);
+      .writeLine(`syncedAt: Date | null;`)
+      .writeLine(`retryable: boolean;`);
   });
 }
 
 function addSyncWorkerTypes(writer: CodeBlockWriter) {
-  writer.writeLine(`export interface AppliedResult`).block(() => {
-    writer
-      .writeLine(`id: string;`)
-      .writeLine(`entityKeyPath: Array<string | number>;`)
-      .writeLine(`mergedRecord?: unknown;`)
-      .writeLine(`serverVersion?: number | string;`)
-      .writeLine(`error?: string | null;`);
-  });
-
   writer.writeLine(`export interface SyncWorkerOptions`).block(() => {
     writer
-      .writeLine(`syncHandler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>;`)
+      .writeLine(`syncHandler: (events: OutboxEventRecord[]) => Promise<PushResult[]>;`)
       .writeLine(`batchSize?: number;`)
       .writeLine(`intervalMs?: number;`)
       .writeLine(`maxRetries?: number;`)

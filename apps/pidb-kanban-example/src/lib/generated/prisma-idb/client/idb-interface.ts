@@ -1,5 +1,7 @@
 import type { DBSchema } from "idb";
 import type * as Prisma from "./generated/client";
+import type { PushResult } from "../server/batch-processor";
+
 export interface PrismaIDBSchema extends DBSchema {
   Board: {
     key: [id: Prisma.Board["id"]];
@@ -32,16 +34,10 @@ export interface OutboxEventRecord {
   lastError: string | null;
   synced: boolean;
   syncedAt: Date | null;
-}
-export interface AppliedResult {
-  id: string;
-  entityKeyPath: Array<string | number>;
-  mergedRecord?: unknown;
-  serverVersion?: number | string;
-  error?: string | null;
+  retryable: boolean;
 }
 export interface SyncWorkerOptions {
-  syncHandler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>;
+  syncHandler: (events: OutboxEventRecord[]) => Promise<PushResult[]>;
   batchSize?: number;
   intervalMs?: number;
   maxRetries?: number;

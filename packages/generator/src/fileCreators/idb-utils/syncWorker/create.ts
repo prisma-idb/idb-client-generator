@@ -6,5 +6,5 @@ import CodeBlockWriter from "code-block-writer";
  */
 export function addSyncWorkerCode(writer: CodeBlockWriter) {
   // Re-export the types from idb-interface so they're available in utils as well
-  writer.writeLine(`export type { AppliedResult, SyncWorkerOptions, SyncWorker } from "./idb-interface";`);
+  writer.writeLine(`export type { SyncWorkerOptions, SyncWorker } from "./idb-interface";`);
 }

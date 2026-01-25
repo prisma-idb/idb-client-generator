@@ -151,7 +151,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Mod
     .writeLine(` * @param options Sync configuration`)
     .writeLine(` * @param options.push Push handler configuration`)
     .writeLine(` * @param options.push.handler Function that receives batch of outbox events and returns sync results.`)
-    .writeLine(` *   Should return AppliedResult[] with status for each event. Thrown errors are caught internally`)
+    .writeLine(` *   Should return PushResult[] with status for each event. Thrown errors are caught internally`)
     .writeLine(` *   and events are marked as failed with error message.`)
     .writeLine(` * @param options.push.batchSize Maximum events to process in one push batch (default: 10)`)
     .writeLine(` * @param options.pull Pull handler configuration`)
@@ -205,7 +205,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Mod
     .writeLine(` * worker.stop();    // gracefully stops`)
     .writeLine(` */`)
     .writeLine(
-      `createSyncWorker(options: { push: { handler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>; batchSize?: number }; pull: { handler: (cursor?: bigint) => Promise<{ cursor?: bigint; logsWithRecords: LogWithRecord<typeof validators>[] }>; originId: string; getCursor?: () => Promise<bigint | undefined> | bigint | undefined; setCursor?: (cursor: bigint | undefined) => Promise<void> | void }; schedule?: { intervalMs?: number; maxRetries?: number } }): SyncWorker`,
+      `createSyncWorker(options: { push: { handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>; batchSize?: number }; pull: { handler: (cursor?: bigint) => Promise<{ cursor?: bigint; logsWithRecords: LogWithRecord<typeof validators>[] }>; originId: string; getCursor?: () => Promise<bigint | undefined> | bigint | undefined; setCursor?: (cursor: bigint | undefined) => Promise<void> | void }; schedule?: { intervalMs?: number; maxRetries?: number } }): SyncWorker`,
     )
     .block(() => {
       writer
@@ -235,22 +235,28 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Mod
         .writeLine(`const pushBatch = async (batch: OutboxEventRecord[]): Promise<void> => {`)
         .writeLine(`  if (batch.length === 0) return;`)
         .blankLine()
-        .writeLine(`  const toSync = batch.filter((event: OutboxEventRecord) => event.tries < maxRetries);`)
+        .writeLine(
+          `  const toSync = batch.filter((event: OutboxEventRecord) => event.tries < maxRetries && event.retryable);`,
+        )
         .writeLine(`  const abandoned = batch.filter((event: OutboxEventRecord) => event.tries >= maxRetries);`)
         .blankLine()
         .writeLine(`  for (const event of abandoned) {`)
-        .writeLine(`    await this.$outbox.markFailed(event.id, \`Abandoned after \${maxRetries} retries\`);`)
+        .writeLine(
+          `    await this.$outbox.markFailed(event.id, { type: "MAX_RETRIES", message: \`Abandoned after \${maxRetries} retries\`, retryable: false });`,
+        )
         .writeLine(`  }`)
         .blankLine()
         .writeLine(`  if (toSync.length === 0) return;`)
         .blankLine()
-        .writeLine(`  let results: AppliedResult[] = [];`)
+        .writeLine(`  let results: PushResult[] = [];`)
         .writeLine(`  try {`)
         .writeLine(`    results = await pushHandler(toSync);`)
         .writeLine(`  } catch (err) {`)
         .writeLine(`    for (const event of toSync) {`)
         .writeLine(`      const error = err instanceof Error ? err.message : String(err);`)
-        .writeLine(`      await this.$outbox.markFailed(event.id, error);`)
+        .writeLine(
+          `      await this.$outbox.markFailed(event.id, { type: "UNKNOWN_ERROR", message: error, retryable: true });`,
+        )
         .writeLine(`    }`)
         .writeLine(`    return;`)
         .writeLine(`  }`)

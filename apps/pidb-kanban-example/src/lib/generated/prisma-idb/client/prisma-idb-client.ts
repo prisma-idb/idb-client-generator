@@ -3,7 +3,8 @@ import { openDB } from "idb";
 import type { IDBPDatabase, StoreNames, IDBPTransaction } from "idb";
 import type { Prisma } from "./generated/client";
 import * as IDBUtils from "./idb-utils";
-import type { OutboxEventRecord, PrismaIDBSchema, AppliedResult, SyncWorkerOptions, SyncWorker } from "./idb-interface";
+import type { OutboxEventRecord, PrismaIDBSchema, SyncWorkerOptions, SyncWorker } from "./idb-interface";
+import type { PushResult } from "../server/batch-processor";
 import { validators, keyPathValidators } from "../validators";
 import type { LogWithRecord } from "../server/batch-processor";
 import { applyPull } from "./apply-pull";
@@ -49,7 +50,7 @@ export class PrismaIDBClient {
    * @param options Sync configuration
    * @param options.push Push handler configuration
    * @param options.push.handler Function that receives batch of outbox events and returns sync results.
-   *   Should return AppliedResult[] with status for each event. Thrown errors are caught internally
+   *   Should return PushResult[] with status for each event. Thrown errors are caught internally
    *   and events are marked as failed with error message.
    * @param options.push.batchSize Maximum events to process in one push batch (default: 10)
    * @param options.pull Pull handler configuration
@@ -99,7 +100,7 @@ export class PrismaIDBClient {
    * worker.stop();    // gracefully stops
    */
   createSyncWorker(options: {
-    push: { handler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>; batchSize?: number };
+    push: { handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>; batchSize?: number };
     pull: {
       handler: (cursor?: bigint) => Promise<{ cursor?: bigint; logsWithRecords: LogWithRecord<typeof validators>[] }>;
       originId: string;
@@ -134,22 +135,26 @@ export class PrismaIDBClient {
     const pushBatch = async (batch: OutboxEventRecord[]): Promise<void> => {
       if (batch.length === 0) return;
 
-      const toSync = batch.filter((event: OutboxEventRecord) => event.tries < maxRetries);
+      const toSync = batch.filter((event: OutboxEventRecord) => event.tries < maxRetries && event.retryable);
       const abandoned = batch.filter((event: OutboxEventRecord) => event.tries >= maxRetries);
 
       for (const event of abandoned) {
-        await this.$outbox.markFailed(event.id, `Abandoned after ${maxRetries} retries`);
+        await this.$outbox.markFailed(event.id, {
+          type: "MAX_RETRIES",
+          message: `Abandoned after ${maxRetries} retries`,
+          retryable: false,
+        });
       }
 
       if (toSync.length === 0) return;
 
-      let results: AppliedResult[] = [];
+      let results: PushResult[] = [];
       try {
         results = await pushHandler(toSync);
       } catch (err) {
         for (const event of toSync) {
           const error = err instanceof Error ? err.message : String(err);
-          await this.$outbox.markFailed(event.id, error);
+          await this.$outbox.markFailed(event.id, { type: "UNKNOWN_ERROR", message: error, retryable: true });
         }
         return;
       }
@@ -567,6 +572,7 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
           entityKeyPath: keyPath as Array<string | number>,
           operation: event,
           payload: record ?? keyPath,
+          retryable: true,
         };
         await outboxStore.add(outboxEvent);
       }
@@ -3301,6 +3307,7 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
       syncedAt: null,
       tries: 0,
       lastError: null,
+      retryable: true,
       ...query.data,
     };
 
@@ -3343,7 +3350,7 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
     await tx.done;
   }
 
-  async markFailed(eventId: string, error: string): Promise<void> {
+  async markFailed(eventId: string, error: NonNullable<PushResult["error"]>): Promise<void> {
     const tx = this.client._db.transaction("OutboxEvent", "readwrite");
     const store = tx.objectStore("OutboxEvent");
 
@@ -3352,7 +3359,8 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
       await store.put({
         ...event,
         tries: (event.tries ?? 0) + 1,
-        lastError: error,
+        lastError: `${error.message}: ${error.message}`,
+        retryable: error.retryable,
       });
     }
 

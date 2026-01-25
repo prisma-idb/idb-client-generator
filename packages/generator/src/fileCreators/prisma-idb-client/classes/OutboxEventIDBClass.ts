@@ -38,6 +38,7 @@ function addCreateMethod(writer: CodeBlockWriter, outboxModelName: string) {
         .writeLine(`syncedAt: null,`)
         .writeLine(`tries: 0,`)
         .writeLine(`lastError: null,`)
+        .writeLine(`retryable: true,`)
         .writeLine(`...query.data,`)
         .writeLine(`};`)
         .blankLine()
@@ -96,7 +97,7 @@ function addMarkSyncedMethod(writer: CodeBlockWriter, outboxModelName: string) {
 
 function addMarkFailedMethod(writer: CodeBlockWriter, outboxModelName: string) {
   writer
-    .writeLine(`async markFailed(eventId: string, error: string): Promise<void>`)
+    .writeLine(`async markFailed(eventId: string, error: NonNullable<PushResult['error']>): Promise<void>`)
     .block(() => {
       writer
         .writeLine(`const tx = this.client._db.transaction("${outboxModelName}", "readwrite");`)
@@ -107,7 +108,8 @@ function addMarkFailedMethod(writer: CodeBlockWriter, outboxModelName: string) {
         .writeLine(`await store.put({`)
         .writeLine(`...event,`)
         .writeLine(`tries: (event.tries ?? 0) + 1,`)
-        .writeLine(`lastError: error,`)
+        .writeLine(`lastError: \`\${error.message}: \${error.message}\`,`)
+        .writeLine(`retryable: error.retryable,`)
         .writeLine(`});`)
         .writeLine(`}`)
         .blankLine()

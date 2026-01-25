@@ -341,4 +341,4 @@ export function genericComparator(
   }
   return returnValue * multiplier;
 }
-export type { AppliedResult, SyncWorkerOptions, SyncWorker } from "./idb-interface";
+export type { SyncWorkerOptions, SyncWorker } from "./idb-interface";

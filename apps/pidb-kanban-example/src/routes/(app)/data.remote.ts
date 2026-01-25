@@ -11,12 +11,12 @@ const batchRecordSchema = z.object({
   entityKeyPath: z.array(z.any()),
   operation: z.enum(["create", "update", "delete"]),
   payload: z.any(),
-  clientMeta: z.any().optional(),
   createdAt: z.coerce.date(),
   tries: z.number(),
   lastError: z.string().nullable(),
   synced: z.boolean(),
   syncedAt: z.coerce.date().nullable(),
+  retryable: z.boolean(),
 });
 
 async function getAuthenticatedUser() {

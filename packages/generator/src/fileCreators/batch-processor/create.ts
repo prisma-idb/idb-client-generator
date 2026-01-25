@@ -3,6 +3,17 @@ import { getUniqueIdentifiers } from "../../helpers/utils";
 import { Model } from "../types";
 import { createDAG } from "./createDAG";
 
+export const pushErrorTypes = {
+  INVALID_MODEL: "INVALID_MODEL",
+  RECORD_VALIDATION_FAILURE: "RECORD_VALIDATION_FAILURE",
+  KEYPATH_VALIDATION_FAILURE: "KEYPATH_VALIDATION_FAILURE",
+  MISSING_PARENT: "MISSING_PARENT",
+  SCOPE_VIOLATION: "SCOPE_VIOLATION",
+  UNKNOWN_OPERATION: "UNKNOWN_OPERATION",
+  UNKNOWN_ERROR: "UNKNOWN_ERROR",
+  MAX_RETRIES: "MAX_RETRIES",
+} as const;
+
 /**
  * Helper function to build authorization paths from root model to a target model.
  * Returns the chain of relation fields needed to traverse from target to root.
@@ -88,14 +99,25 @@ export function createBatchProcessorFile(
   writer.writeLine(`}[keyof V & string];`);
   writer.blankLine();
 
+  // Error types
+  writer.writeLine(`export const PushErrorTypes = `).block(() => {
+    Object.entries(pushErrorTypes).forEach(([key, value]) => {
+      writer.writeLine(`${key}: "${value}",`);
+    });
+  });
+  writer.blankLine();
+
   // Write sync handler type
-  writer.writeLine(`export interface SyncResult {`);
+  writer.writeLine(`export interface PushResult {`);
   writer.writeLine(`  id: string;`);
   writer.writeLine(`  oldKeyPath?: Array<string | number>;`);
   writer.writeLine(`  entityKeyPath: Array<string | number>;`);
   writer.writeLine(`  mergedRecord?: unknown;`);
-  writer.writeLine(`  serverVersion?: number;`);
-  writer.writeLine(`  error?: string | null;`);
+  writer.writeLine(`  error: null | `).block(() => {
+    writer.writeLine(`type: keyof typeof PushErrorTypes;`);
+    writer.writeLine(`message: string;`);
+    writer.writeLine(`retryable: boolean;`);
+  });
   writer.writeLine(`}`);
   writer.blankLine();
 
@@ -109,6 +131,18 @@ export function createBatchProcessorFile(
   writer.writeLine(`}`);
   writer.blankLine();
 
+  // Permanent sync error type
+  writer.writeLine(`export class PermanentSyncError extends Error `).block(() => {
+    writer.writeLine(`readonly type: keyof typeof PushErrorTypes;`);
+
+    writer.writeLine(`constructor(type: keyof typeof PushErrorTypes, message: string)`).block(() => {
+      writer.writeLine(`super(message);`);
+      writer.writeLine(`this.type = type;`);
+      writer.writeLine(`Object.setPrototypeOf(this, PermanentSyncError.prototype);`);
+    });
+  });
+  writer.blankLine();
+
   // Write applyPush function with switch cases per model
   writer.writeLine(`export async function applyPush({`);
   writer.writeLine(`  events,`);
@@ -116,13 +150,13 @@ export function createBatchProcessorFile(
   writer.writeLine(`  prisma,`);
   writer.writeLine(`  originId,`);
   writer.writeLine(`  customValidation,`);
-  writer.writeLine(`}: ApplyPushOptions): Promise<SyncResult[]>`);
+  writer.writeLine(`}: ApplyPushOptions): Promise<PushResult[]>`);
   writer.block(() => {
-    writer.writeLine(`const results: SyncResult[] = [];`);
+    writer.writeLine(`const results: PushResult[] = [];`);
     writer.writeLine(`for (const event of events) {`);
     writer.writeLine(`  try {`);
     writer.writeLine(`    const resolvedScopeKey = typeof scopeKey === "function" ? scopeKey(event) : scopeKey;`);
-    writer.writeLine(`    let result: SyncResult;`);
+    writer.writeLine(`    let result: PushResult;`);
     writer.writeLine(`    switch (event.entityType) {`);
 
     // Generate switch case for each model
@@ -131,12 +165,23 @@ export function createBatchProcessorFile(
     });
 
     writer.writeLine(`      default:`);
-    writer.writeLine(`        throw new Error(\`No sync handler for \${event.entityType}\`);`);
+    writer.writeLine(
+      `        throw new PermanentSyncError("${pushErrorTypes.INVALID_MODEL}", \`No sync handler for model \${event.entityType}\`);`,
+    );
     writer.writeLine(`    }`);
     writer.writeLine(`    results.push(result);`);
     writer.writeLine(`  } catch (err) {`);
     writer.writeLine(`    const errorMessage = err instanceof Error ? err.message : "Unknown error";`);
-    writer.writeLine(`    results.push({ id: event.id, error: errorMessage, entityKeyPath: event.entityKeyPath });`);
+    writer.writeLine(`    const isPermanent = err instanceof PermanentSyncError;`);
+    writer
+      .writeLine(`    results.push({ id: event.id, entityKeyPath: event.entityKeyPath, `)
+      .writeLine(`error: `)
+      .block(() => {
+        writer.writeLine(`type: isPermanent ? err.type : "UNKNOWN_ERROR",`);
+        writer.writeLine(`message: errorMessage,`);
+        writer.writeLine(`retryable: !isPermanent,`);
+      })
+      .writeLine(`});`);
     writer.writeLine(`  }`);
     writer.writeLine(`}`);
     writer.writeLine(`return results;`);
@@ -150,7 +195,7 @@ export function createBatchProcessorFile(
   writer.writeLine(`}: {`);
   writer.writeLine(`  logs: Array<ChangeLog>;`);
   writer.writeLine(`  prisma: PrismaClient;`);
-  writer.writeLine(`}): Promise<Array<LogWithRecord<typeof validators>>> {`);
+  writer.writeLine(`}): Promise<Array<LogWithRecord<typeof validators>>>`);
   writer.block(() => {
     writer.writeLine(`const validModelNames = [${modelNames.map((name) => `"${name}"`).join(", ")}];`);
     writer.writeLine(`const results: Array<LogWithRecord<typeof validators>> = [];`);
@@ -183,7 +228,6 @@ export function createBatchProcessorFile(
     writer.writeLine(`}`);
     writer.writeLine(`return results;`);
   });
-  writer.writeLine(`}`);
   writer.blankLine();
 
   // Generate sync handler functions for each model
@@ -197,7 +241,9 @@ function generateModelSwitchCase(writer: CodeBlockWriter, model: Model) {
   writer.writeLine(`      case "${model.name}": {`);
   writer.block(() => {
     writer.writeLine(`const validation = validators.${model.name}.safeParse(event.payload);`);
-    writer.writeLine(`if (!validation.success) throw new Error(\`Validation failed: \${validation.error.message}\`);`);
+    writer.writeLine(
+      `if (!validation.success) throw new PermanentSyncError("${pushErrorTypes.RECORD_VALIDATION_FAILURE}", \`Validation failed for model ${model.name}: \${validation.error.message}\`);`,
+    );
     writer.blankLine();
     writer.writeLine(`if (customValidation) {`);
     writer.writeLine(`  const ok = await customValidation(event as EventsFor<typeof validators>);`);
@@ -224,28 +270,30 @@ function generateModelSyncHandler(
   const isRootModel = model.name === rootModel.name;
 
   writer.writeLine(
-    `async function sync${model.name}(event: OutboxEventRecord, data: z.infer<typeof validators.${model.name}>, scopeKey: string, prisma: PrismaClient, originId: string): Promise<SyncResult>`,
+    `async function sync${model.name}(event: OutboxEventRecord, data: z.infer<typeof validators.${model.name}>, scopeKey: string, prisma: PrismaClient, originId: string): Promise<PushResult>`,
   );
   writer.block(() => {
     writer.writeLine(`const { id, entityKeyPath, operation } = event;`);
     writer.writeLine(`const keyPathValidation = keyPathValidators.${model.name}.safeParse(entityKeyPath);`);
     writer.writeLine(`if (!keyPathValidation.success) {`);
-    writer.writeLine(`  throw new Error("Invalid entityKeyPath for ${model.name}");`);
+    writer.writeLine(
+      `  throw new PermanentSyncError("${pushErrorTypes.KEYPATH_VALIDATION_FAILURE}", "Invalid entityKeyPath for ${model.name}");`,
+    );
     writer.writeLine(`}`);
     writer.blankLine();
     writer.writeLine(`const validKeyPath = keyPathValidation.data;`);
     writer.blankLine();
 
     // Helper function to verify ownership for this model using single Prisma query
-    writer.writeLine(
-      `const verifyOwnership = async (keyPathArg: z.infer<typeof keyPathValidators.${model.name}>) => {`,
-    );
+    writer.writeLine(`const verifyOwnership = async (keyPathArg: z.infer<typeof keyPathValidators.${model.name}>) => `);
     writer.block(() => {
       if (isRootModel) {
         writer.writeLine(`if (keyPathArg[0] !== scopeKey) {`);
-        writer.writeLine(`  throw new Error(\`Unauthorized: ${model.name} pk does not match authenticated scope\`);`);
+        writer.writeLine(
+          `  throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} pk does not match authenticated scope\`);`,
+        );
         writer.writeLine(`}`);
-      } else if (authPath.length > 0) {
+      } else {
         // Build a single Prisma query that traces through the auth path to the root
         // For example: Todo -> Board -> User
         // authPath would be ['board', 'user']
@@ -266,27 +314,18 @@ function generateModelSyncHandler(
           writer.writeLine(`});`);
         }
         writer.blankLine();
-        writer.writeLine(`if (!record) {`);
-        writer.writeLine(`  throw new Error(\`${model.name} not found\`);`);
-        writer.writeLine(`}`);
-        writer.blankLine();
 
         // Navigate through the object to get root pk
         const accessChain = buildAccessChain(authPath);
         const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
 
-        writer.writeLine(`const root = record${accessChain};`);
-        writer.writeLine(`if (!root) {`);
-        writer.writeLine(`  throw new Error(\`${model.name} is not connected to ${rootModel.name}\`);`);
+        writer.writeLine(`if (!record || record${accessChain}.${rootPkFieldName} !== scopeKey) {`);
+        writer.writeLine(
+          `  throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} is not owned by the authenticated scope\`);`,
+        );
         writer.writeLine(`}`);
-        writer.writeLine(`if (root.${rootPkFieldName} !== scopeKey) {`);
-        writer.writeLine(`  throw new Error(\`Unauthorized: ${model.name} is not owned by the authenticated scope\`);`);
-        writer.writeLine(`}`);
-      } else {
-        writer.writeLine(`throw new Error("Cannot verify ownership: no auth path to root");`);
       }
     });
-    writer.writeLine(`};`);
     writer.blankLine();
 
     writer.writeLine(`switch (operation) {`);
@@ -297,88 +336,81 @@ function generateModelSyncHandler(
       // For CREATE, we verify the parent model exists and is owned by scope
       const firstRelationFieldName = authPath[0];
       const relationField = model.fields.find((f) => f.name === firstRelationFieldName);
-      const foreignKeyFields = relationField?.relationFromFields || [];
-      const parentModel = allModels.find((m) => m.name === relationField?.type);
 
-      if (foreignKeyFields.length > 0 && parentModel) {
-        // Validate foreign key presence
-        foreignKeyFields.forEach((fkField) => {
-          writer.writeLine(`if (!data.${fkField}) {`);
-          writer.writeLine(`  throw new Error(\`Missing parent reference: ${fkField}\`);`);
-          writer.writeLine(`}`);
-        });
+      if (!relationField) {
+        throw new Error(`Failed to find relation field ${firstRelationFieldName} on model ${model.name}`);
+      }
 
-        // Build the parent lookup with path to root
-        const parentModelLower = parentModel.name.charAt(0).toLowerCase() + parentModel.name.slice(1);
-        const remainingPath = authPath.slice(1);
+      if (!relationField.relationFromFields || relationField.relationFromFields.length === 0) {
+        throw new Error(
+          `Relation field ${firstRelationFieldName} on model ${model.name} does not have foreign key fields`,
+        );
+      }
 
-        if (remainingPath.length > 0) {
-          // Parent is not root, need to trace to root
-          const parentSelectObj = buildSelectObject(remainingPath, rootModel);
-          writer.writeLine(`const parentRecord = await prisma.${parentModelLower}.findUnique({`);
+      const foreignKeyFields = relationField.relationFromFields;
+      const parentModel = allModels.find((m) => m.name === relationField.type);
 
-          // Build where clause for parent lookup
-          const parentPk = getUniqueIdentifiers(parentModel)[0];
-          const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
-          if (parentPkFields.length === 1) {
-            writer.writeLine(`  where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
-          } else {
-            const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
-            writer.writeLine(`  where: { ${parentPk.name}: { ${compositeKey} } },`);
-          }
-          writer.writeLine(`  select: ${parentSelectObj},`);
-          writer.writeLine(`});`);
-          writer.blankLine();
-          writer.writeLine(`if (!parentRecord) {`);
-          writer.writeLine(`  throw new Error(\`${parentModel.name} not found\`);`);
-          writer.writeLine(`}`);
-          writer.blankLine();
+      if (!parentModel || foreignKeyFields.length === 0) {
+        throw new Error(`Failed to find parent model for ${model.name} via relation field ${firstRelationFieldName}`);
+      }
 
-          const accessChain = buildAccessChain(remainingPath);
-          const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
-          writer.writeLine(`const root = parentRecord${accessChain};`);
-          writer.writeLine(`if (!root) {`);
-          writer.writeLine(`  throw new Error(\`${parentModel.name} is not connected to ${rootModel.name}\`);`);
-          writer.writeLine(`}`);
-          writer.writeLine(`if (root.${rootPkFieldName} !== scopeKey) {`);
-          writer.writeLine(
-            `  throw new Error(\`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`,
-          );
-          writer.writeLine(`}`);
+      // Build the parent lookup with path to root
+      const parentModelLower = parentModel.name.charAt(0).toLowerCase() + parentModel.name.slice(1);
+      const remainingPath = authPath.slice(1);
+
+      if (remainingPath.length > 0) {
+        // Parent is not root, need to trace to root
+        const parentSelectObj = buildSelectObject(remainingPath, rootModel);
+        writer.writeLine(`const parentRecord = await prisma.${parentModelLower}.findUnique({`);
+
+        // Build where clause for parent lookup
+        const parentPk = getUniqueIdentifiers(parentModel)[0];
+        const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
+        if (parentPkFields.length === 1) {
+          writer.writeLine(`  where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
         } else {
-          // Parent is the root model
-          writer.writeLine(`const parentRecord = await prisma.${parentModelLower}.findUnique({`);
-
-          const parentPk = getUniqueIdentifiers(parentModel)[0];
-          const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
-          if (parentPkFields.length === 1) {
-            writer.writeLine(`  where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
-          } else {
-            const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
-            writer.writeLine(`  where: { ${parentPk.name}: { ${compositeKey} } },`);
-          }
-          writer.writeLine(`  select: { ${getUniqueIdentifiers(parentModel)[0].name}: true },`);
-          writer.writeLine(`});`);
-          writer.blankLine();
-          writer.writeLine(`if (!parentRecord) {`);
-          writer.writeLine(`  throw new Error(\`${parentModel.name} not found\`);`);
-          writer.writeLine(`}`);
-          const parentPkFieldName = getUniqueIdentifiers(parentModel)[0].name;
-          writer.writeLine(`if (parentRecord.${parentPkFieldName} !== scopeKey) {`);
-          writer.writeLine(
-            `  throw new Error(\`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`,
-          );
-          writer.writeLine(`}`);
+          const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
+          writer.writeLine(`  where: { ${parentPk.name}: { ${compositeKey} } },`);
         }
+        writer.writeLine(`  select: ${parentSelectObj},`);
+        writer.writeLine(`});`);
+        writer.blankLine();
+
+        const accessChain = buildAccessChain(remainingPath);
+        const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
+        writer.writeLine(`if (!parentRecord || parentRecord${accessChain}.${rootPkFieldName} !== scopeKey) {`);
+        writer.writeLine(
+          `  throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`,
+        );
+        writer.writeLine(`}`);
       } else {
-        // Fallback
-        writer.writeLine(`if (!data.${firstRelationFieldName}Id) {`);
-        writer.writeLine(`  throw new Error(\`Missing parent reference: ${firstRelationFieldName}Id\`);`);
+        // Parent is the root model
+        writer.writeLine(`const parentRecord = await prisma.${parentModelLower}.findUnique({`);
+
+        const parentPk = getUniqueIdentifiers(parentModel)[0];
+        const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
+        if (parentPkFields.length === 1) {
+          writer.writeLine(`  where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+        } else {
+          const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
+          writer.writeLine(`  where: { ${parentPk.name}: { ${compositeKey} } },`);
+        }
+        writer.writeLine(`  select: { ${getUniqueIdentifiers(parentModel)[0].name}: true },`);
+        writer.writeLine(`});`);
+        writer.blankLine();
+
+        const parentPkFieldName = getUniqueIdentifiers(parentModel)[0].name;
+        writer.writeLine(`if (!parentRecord || parentRecord.${parentPkFieldName} !== scopeKey) {`);
+        writer.writeLine(
+          `  throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`,
+        );
         writer.writeLine(`}`);
       }
     } else if (isRootModel) {
       writer.writeLine(`if (scopeKey !== data.${getUniqueIdentifiers(model)[0].name}) {`);
-      writer.writeLine(`  throw new Error(\`Unauthorized: root model pk must match authenticated scope\`);`);
+      writer.writeLine(
+        `  throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: root model pk must match authenticated scope\`);`,
+      );
       writer.writeLine(`}`);
     }
     writer.writeLine(`    const result = await prisma.$transaction(async (tx) => {`);
@@ -395,7 +427,7 @@ function generateModelSyncHandler(
     writer.writeLine(`        });`);
     writer.writeLine(`      } catch (err) {`);
     writer.writeLine(`        if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {`);
-    writer.writeLine(`          return { id, entityKeyPath: validKeyPath, mergedRecord: data };`);
+    writer.writeLine(`          return { id, entityKeyPath: validKeyPath, mergedRecord: data, error: null };`);
     writer.writeLine(`        }`);
     writer.writeLine(`        throw err;`);
     writer.writeLine(`      }`);
@@ -405,7 +437,7 @@ function generateModelSyncHandler(
     } else {
       writer.writeLine(`      const newKeyPath = [${pkFields.map((f) => `createdRecord.${f}`).join(", ")}];`);
     }
-    writer.writeLine(`      return { id, entityKeyPath: newKeyPath, mergedRecord: createdRecord };`);
+    writer.writeLine(`      return { id, entityKeyPath: newKeyPath, mergedRecord: createdRecord, error: null };`);
     writer.writeLine(`    });`);
     writer.writeLine(`    return result;`);
     writer.writeLine(`  }`);
@@ -431,7 +463,9 @@ function generateModelSyncHandler(
     writer.writeLine(`        });`);
     writer.writeLine(`      } catch (err) {`);
     writer.writeLine(`        if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {`);
-    writer.writeLine(`          return { id, oldKeyPath, entityKeyPath: validKeyPath, mergedRecord: data };`);
+    writer.writeLine(
+      `          return { id, oldKeyPath, entityKeyPath: validKeyPath, mergedRecord: data, error: null };`,
+    );
     writer.writeLine(`        }`);
     writer.writeLine(`        throw err;`);
     writer.writeLine(`      }`);
@@ -446,7 +480,9 @@ function generateModelSyncHandler(
     } else {
       writer.writeLine(`      const newKeyPath = [${pkFields.map((f) => `updatedRecord.${f}`).join(", ")}];`);
     }
-    writer.writeLine(`      return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: updatedRecord };`);
+    writer.writeLine(
+      `      return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: updatedRecord, error: null };`,
+    );
     writer.writeLine(`    });`);
     writer.writeLine(`    return result;`);
     writer.writeLine(`  }`);
@@ -470,21 +506,23 @@ function generateModelSyncHandler(
     writer.writeLine(`        });`);
     writer.writeLine(`      } catch (err) {`);
     writer.writeLine(`        if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {`);
-    writer.writeLine(`          return { id, entityKeyPath: validKeyPath };`);
+    writer.writeLine(`          return { id, entityKeyPath: validKeyPath, error: null };`);
     writer.writeLine(`        }`);
     writer.writeLine(`        throw err;`);
     writer.writeLine(`      }`);
     writer.writeLine(`      await tx.${modelNameLower}.deleteMany({`);
     writer.writeLine(`        where: ${generateWhereClause(pk.name, pkFields)},`);
     writer.writeLine(`      });`);
-    writer.writeLine(`      return { id, entityKeyPath: validKeyPath };`);
+    writer.writeLine(`      return { id, entityKeyPath: validKeyPath, error: null };`);
     writer.writeLine(`    });`);
     writer.writeLine(`    return result;`);
     writer.writeLine(`  }`);
     writer.blankLine();
 
     writer.writeLine(`  default:`);
-    writer.writeLine(`    throw new Error(\`Unknown operation: \${operation}\`);`);
+    writer.writeLine(
+      `    throw new PermanentSyncError("${pushErrorTypes.UNKNOWN_OPERATION}", \`Unknown operation: \${operation}\`);`,
+    );
     writer.writeLine(`}`);
   });
   writer.blankLine();
