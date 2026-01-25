@@ -42,6 +42,7 @@ export async function applyLogicalFilters<
   keyPath: string[],
   applyWhereFunction: (records: R[], clause: W, tx: TransactionType) => Promise<R[]>
 ): Promise<R[]> {
+  if (!whereClause) return records;
   if (whereClause.AND) {
     records = intersectArraysByNestedKey(
       await Promise.all(
