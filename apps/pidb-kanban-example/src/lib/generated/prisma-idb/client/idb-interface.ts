@@ -27,7 +27,6 @@ export interface OutboxEventRecord {
   entityKeyPath: Array<string | number>;
   operation: "create" | "update" | "delete";
   payload: unknown;
-  clientMeta?: unknown;
   createdAt: Date;
   tries: number;
   lastError: string | null;
