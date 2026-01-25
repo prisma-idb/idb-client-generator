@@ -371,9 +371,9 @@ export function whereDateTimeFilter<T, R extends Prisma.Result<T, object, "findF
     if (dateTimeFilter.not === null) {
       if (value === null) return false;
     }
-    if (typeof dateTimeFilter.equals === "string" || dateTimeFilter.equals instanceof Date) {
+    if (typeof dateTimeFilter.not === "string" || dateTimeFilter.not instanceof Date) {
       if (value === null) return false;
-      if (new Date(dateTimeFilter.equals).getTime() === value.getTime()) return false;
+      if (new Date(dateTimeFilter.not).getTime() === value.getTime()) return false;
     }
     if (Array.isArray(dateTimeFilter.in)) {
       if (value === null) return false;

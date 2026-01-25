@@ -68,11 +68,11 @@ function addNotHandler(writer: CodeBlockWriter) {
     .block(() => {
       writer.writeLine(`if (value === null) return false;`);
     })
-    .writeLine(`if (typeof dateTimeFilter.equals === "string" || dateTimeFilter.equals instanceof Date)`)
+    .writeLine(`if (typeof dateTimeFilter.not === "string" || dateTimeFilter.not instanceof Date)`)
     .block(() => {
       writer
         .writeLine(`if (value === null) return false;`)
-        .writeLine(`if (new Date(dateTimeFilter.equals).getTime() === value.getTime()) return false;`);
+        .writeLine(`if (new Date(dateTimeFilter.not).getTime() === value.getTime()) return false;`);
     });
 }
 
