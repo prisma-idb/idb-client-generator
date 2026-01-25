@@ -8,7 +8,6 @@ import z from "zod";
 const batchRecordSchema = z.object({
   id: z.string(),
   entityType: z.string(),
-  entityKeyPath: z.array(z.any()),
   operation: z.enum(["create", "update", "delete"]),
   payload: z.any(),
   createdAt: z.coerce.date(),

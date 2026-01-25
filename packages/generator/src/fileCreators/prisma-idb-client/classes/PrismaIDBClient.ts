@@ -111,20 +111,12 @@ function generateModelUpsertCase(writer: CodeBlockWriter, model: Model) {
       `                    throw new Error(\`Record validation failed: \${recordValidation.error.message}\`);`,
     );
     writer.writeLine(`                  }`);
-    writer.writeLine(
-      `                  const keyPathValidation = keyPathValidators.${model.name}.safeParse(result.entityKeyPath);`,
-    );
-    writer.writeLine(`                  if (!keyPathValidation.success) {`);
-    writer.writeLine(
-      `                    throw new Error(\`KeyPath validation failed: \${keyPathValidation.error.message}\`);`,
-    );
-    writer.writeLine(`                  }`);
 
     let whereClause: string;
     if (pkFields.length === 1) {
-      whereClause = `{ ${pkFields[0]}: keyPathValidation.data[0] }`;
+      whereClause = `{ ${pkFields[0]}: recordValidation.data.${pkFields[0]} }`;
     } else {
-      const compositeKey = pkFields.map((field, i) => `${field}: keyPathValidation.data[${i}]`).join(", ");
+      const compositeKey = pkFields.map((field) => `${field}: recordValidation.data.${field}`).join(", ");
       whereClause = `{ ${pk.name}: { ${compositeKey} } }`;
     }
 
@@ -268,7 +260,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Mod
         .writeLine(`    } else {`)
         .writeLine(`      successIds.push(result.id);`)
         .blankLine()
-        .writeLine(`      if (result.mergedRecord && result.entityKeyPath) {`)
+        .writeLine(`      if (result.mergedRecord) {`)
         .writeLine(`        const originalEvent = toSync.find((e: OutboxEventRecord) => e.id === result.id);`)
         .writeLine(`        if (originalEvent) {`)
         .writeLine(`          try {`)

@@ -90,7 +90,6 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxMo
           .writeLine(`tries: 0,`)
           .writeLine(`lastError: null,`)
           .writeLine(`entityType: this.modelName,`)
-          .writeLine(`entityKeyPath: keyPath as Array<string | number>,`)
           .writeLine(`operation: event,`)
           .writeLine(`payload: record ?? keyPath,`)
           .writeLine(`retryable: true,`)

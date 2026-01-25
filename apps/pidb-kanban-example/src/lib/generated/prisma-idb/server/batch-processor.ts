@@ -38,8 +38,6 @@ export const PushErrorTypes = {
 
 export interface PushResult {
   id: string;
-  oldKeyPath?: Array<string | number>;
-  entityKeyPath: Array<string | number>;
   mergedRecord?: unknown;
   error: null | {
     type: keyof typeof PushErrorTypes;
@@ -141,7 +139,6 @@ export async function applyPush({
       const isPermanent = err instanceof PermanentSyncError;
       results.push({
         id: event.id,
-        entityKeyPath: event.entityKeyPath,
         error: {
           type: isPermanent ? err.type : "UNKNOWN_ERROR",
           message: errorMessage,
@@ -215,8 +212,9 @@ async function syncBoard(
   prisma: PrismaClient,
   originId: string
 ): Promise<PushResult> {
-  const { id, entityKeyPath, operation } = event;
-  const keyPathValidation = keyPathValidators.Board.safeParse(entityKeyPath);
+  const { id, operation } = event;
+  const keyPath = [data.id];
+  const keyPathValidation = keyPathValidators.Board.safeParse(keyPath);
   if (!keyPathValidation.success) {
     throw new PermanentSyncError("KEYPATH_VALIDATION_FAILURE", "Invalid entityKeyPath for Board");
   }
@@ -261,13 +259,12 @@ async function syncBoard(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, entityKeyPath: validKeyPath, mergedRecord: data, error: null };
+            return { id, mergedRecord: data, error: null };
           }
           throw err;
         }
         const createdRecord = await tx.board.create({ data });
-        const newKeyPath = [createdRecord.id];
-        return { id, entityKeyPath: newKeyPath, mergedRecord: createdRecord, error: null };
+        return { id, mergedRecord: createdRecord, error: null };
       });
       return result;
     }
@@ -290,7 +287,7 @@ async function syncBoard(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, oldKeyPath, entityKeyPath: validKeyPath, mergedRecord: data, error: null };
+            return { id, mergedRecord: data, error: null };
           }
           throw err;
         }
@@ -299,8 +296,7 @@ async function syncBoard(
           create: data,
           update: data,
         });
-        const newKeyPath = [updatedRecord.id];
-        return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: updatedRecord, error: null };
+        return { id, mergedRecord: updatedRecord, error: null };
       });
       return result;
     }
@@ -321,14 +317,14 @@ async function syncBoard(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, entityKeyPath: validKeyPath, error: null };
+            return { id, error: null };
           }
           throw err;
         }
         await tx.board.deleteMany({
           where: { id: validKeyPath[0] },
         });
-        return { id, entityKeyPath: validKeyPath, error: null };
+        return { id, error: null };
       });
       return result;
     }
@@ -345,8 +341,9 @@ async function syncTodo(
   prisma: PrismaClient,
   originId: string
 ): Promise<PushResult> {
-  const { id, entityKeyPath, operation } = event;
-  const keyPathValidation = keyPathValidators.Todo.safeParse(entityKeyPath);
+  const { id, operation } = event;
+  const keyPath = [data.id];
+  const keyPathValidation = keyPathValidators.Todo.safeParse(keyPath);
   if (!keyPathValidation.success) {
     throw new PermanentSyncError("KEYPATH_VALIDATION_FAILURE", "Invalid entityKeyPath for Todo");
   }
@@ -391,13 +388,12 @@ async function syncTodo(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, entityKeyPath: validKeyPath, mergedRecord: data, error: null };
+            return { id, mergedRecord: data, error: null };
           }
           throw err;
         }
         const createdRecord = await tx.todo.create({ data });
-        const newKeyPath = [createdRecord.id];
-        return { id, entityKeyPath: newKeyPath, mergedRecord: createdRecord, error: null };
+        return { id, mergedRecord: createdRecord, error: null };
       });
       return result;
     }
@@ -420,7 +416,7 @@ async function syncTodo(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, oldKeyPath, entityKeyPath: validKeyPath, mergedRecord: data, error: null };
+            return { id, mergedRecord: data, error: null };
           }
           throw err;
         }
@@ -429,8 +425,7 @@ async function syncTodo(
           create: data,
           update: data,
         });
-        const newKeyPath = [updatedRecord.id];
-        return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: updatedRecord, error: null };
+        return { id, mergedRecord: updatedRecord, error: null };
       });
       return result;
     }
@@ -451,14 +446,14 @@ async function syncTodo(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, entityKeyPath: validKeyPath, error: null };
+            return { id, error: null };
           }
           throw err;
         }
         await tx.todo.deleteMany({
           where: { id: validKeyPath[0] },
         });
-        return { id, entityKeyPath: validKeyPath, error: null };
+        return { id, error: null };
       });
       return result;
     }
@@ -475,8 +470,9 @@ async function syncUser(
   prisma: PrismaClient,
   originId: string
 ): Promise<PushResult> {
-  const { id, entityKeyPath, operation } = event;
-  const keyPathValidation = keyPathValidators.User.safeParse(entityKeyPath);
+  const { id, operation } = event;
+  const keyPath = [data.id];
+  const keyPathValidation = keyPathValidators.User.safeParse(keyPath);
   if (!keyPathValidation.success) {
     throw new PermanentSyncError("KEYPATH_VALIDATION_FAILURE", "Invalid entityKeyPath for User");
   }
@@ -508,13 +504,12 @@ async function syncUser(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, entityKeyPath: validKeyPath, mergedRecord: data, error: null };
+            return { id, mergedRecord: data, error: null };
           }
           throw err;
         }
         const createdRecord = await tx.user.create({ data });
-        const newKeyPath = [createdRecord.id];
-        return { id, entityKeyPath: newKeyPath, mergedRecord: createdRecord, error: null };
+        return { id, mergedRecord: createdRecord, error: null };
       });
       return result;
     }
@@ -537,7 +532,7 @@ async function syncUser(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, oldKeyPath, entityKeyPath: validKeyPath, mergedRecord: data, error: null };
+            return { id, mergedRecord: data, error: null };
           }
           throw err;
         }
@@ -546,8 +541,7 @@ async function syncUser(
           create: data,
           update: data,
         });
-        const newKeyPath = [updatedRecord.id];
-        return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: updatedRecord, error: null };
+        return { id, mergedRecord: updatedRecord, error: null };
       });
       return result;
     }
@@ -568,14 +562,14 @@ async function syncUser(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, entityKeyPath: validKeyPath, error: null };
+            return { id, error: null };
           }
           throw err;
         }
         await tx.user.deleteMany({
           where: { id: validKeyPath[0] },
         });
-        return { id, entityKeyPath: validKeyPath, error: null };
+        return { id, error: null };
       });
       return result;
     }

@@ -24,7 +24,7 @@ function addConstructor(writer: CodeBlockWriter, outboxModelName: string) {
 function addCreateMethod(writer: CodeBlockWriter, outboxModelName: string) {
   writer
     .writeLine(
-      `async create(query: { data: Pick<OutboxEventRecord, "entityKeyPath" | "entityType" | "operation" | "payload"> }): Promise<OutboxEventRecord>`,
+      `async create(query: { data: Pick<OutboxEventRecord, "entityType" | "operation" | "payload"> }): Promise<OutboxEventRecord>`,
     )
     .block(() => {
       writer

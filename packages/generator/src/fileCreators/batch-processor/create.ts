@@ -110,8 +110,6 @@ export function createBatchProcessorFile(
   // Write sync handler type
   writer.writeLine(`export interface PushResult {`);
   writer.writeLine(`  id: string;`);
-  writer.writeLine(`  oldKeyPath?: Array<string | number>;`);
-  writer.writeLine(`  entityKeyPath: Array<string | number>;`);
   writer.writeLine(`  mergedRecord?: unknown;`);
   writer.writeLine(`  error: null | `).block(() => {
     writer.writeLine(`type: keyof typeof PushErrorTypes;`);
@@ -174,7 +172,7 @@ export function createBatchProcessorFile(
     writer.writeLine(`    const errorMessage = err instanceof Error ? err.message : "Unknown error";`);
     writer.writeLine(`    const isPermanent = err instanceof PermanentSyncError;`);
     writer
-      .writeLine(`    results.push({ id: event.id, entityKeyPath: event.entityKeyPath, `)
+      .writeLine(`    results.push({ id: event.id, `)
       .writeLine(`error: `)
       .block(() => {
         writer.writeLine(`type: isPermanent ? err.type : "UNKNOWN_ERROR",`);
@@ -273,11 +271,16 @@ function generateModelSyncHandler(
     `async function sync${model.name}(event: OutboxEventRecord, data: z.infer<typeof validators.${model.name}>, scopeKey: string, prisma: PrismaClient, originId: string): Promise<PushResult>`,
   );
   writer.block(() => {
-    writer.writeLine(`const { id, entityKeyPath, operation } = event;`);
-    writer.writeLine(`const keyPathValidation = keyPathValidators.${model.name}.safeParse(entityKeyPath);`);
+    writer.writeLine(`const { id, operation } = event;`);
+    if (pkFields.length === 1) {
+      writer.writeLine(`const keyPath = [data.${pkFields[0]}];`);
+    } else {
+      writer.writeLine(`const keyPath = [${pkFields.map((f) => `data.${f}`).join(", ")}];`);
+    }
+    writer.writeLine(`const keyPathValidation = keyPathValidators.${model.name}.safeParse(keyPath);`);
     writer.writeLine(`if (!keyPathValidation.success) {`);
     writer.writeLine(
-      `  throw new PermanentSyncError("${pushErrorTypes.KEYPATH_VALIDATION_FAILURE}", "Invalid entityKeyPath for ${model.name}");`,
+      `  throw new PermanentSyncError("${pushErrorTypes.KEYPATH_VALIDATION_FAILURE}", "Invalid keyPath for ${model.name}");`,
     );
     writer.writeLine(`}`);
     writer.blankLine();
@@ -427,17 +430,12 @@ function generateModelSyncHandler(
     writer.writeLine(`        });`);
     writer.writeLine(`      } catch (err) {`);
     writer.writeLine(`        if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {`);
-    writer.writeLine(`          return { id, entityKeyPath: validKeyPath, mergedRecord: data, error: null };`);
+    writer.writeLine(`          return { id, mergedRecord: data, error: null };`);
     writer.writeLine(`        }`);
     writer.writeLine(`        throw err;`);
     writer.writeLine(`      }`);
     writer.writeLine(`      const createdRecord = await tx.${modelNameLower}.create({ data });`);
-    if (pkFields.length === 1) {
-      writer.writeLine(`      const newKeyPath = [createdRecord.${pkFields[0]}];`);
-    } else {
-      writer.writeLine(`      const newKeyPath = [${pkFields.map((f) => `createdRecord.${f}`).join(", ")}];`);
-    }
-    writer.writeLine(`      return { id, entityKeyPath: newKeyPath, mergedRecord: createdRecord, error: null };`);
+    writer.writeLine(`      return { id, mergedRecord: createdRecord, error: null };`);
     writer.writeLine(`    });`);
     writer.writeLine(`    return result;`);
     writer.writeLine(`  }`);
@@ -464,7 +462,7 @@ function generateModelSyncHandler(
     writer.writeLine(`      } catch (err) {`);
     writer.writeLine(`        if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {`);
     writer.writeLine(
-      `          return { id, oldKeyPath, entityKeyPath: validKeyPath, mergedRecord: data, error: null };`,
+      `          return { id, mergedRecord: data, error: null };`,
     );
     writer.writeLine(`        }`);
     writer.writeLine(`        throw err;`);
@@ -475,13 +473,8 @@ function generateModelSyncHandler(
     writer.writeLine(`        update: data,`);
     writer.writeLine(`      });`);
 
-    if (pkFields.length === 1) {
-      writer.writeLine(`      const newKeyPath = [updatedRecord.${pkFields[0]}];`);
-    } else {
-      writer.writeLine(`      const newKeyPath = [${pkFields.map((f) => `updatedRecord.${f}`).join(", ")}];`);
-    }
     writer.writeLine(
-      `      return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: updatedRecord, error: null };`,
+      `      return { id, mergedRecord: updatedRecord, error: null };`,
     );
     writer.writeLine(`    });`);
     writer.writeLine(`    return result;`);
@@ -506,14 +499,14 @@ function generateModelSyncHandler(
     writer.writeLine(`        });`);
     writer.writeLine(`      } catch (err) {`);
     writer.writeLine(`        if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {`);
-    writer.writeLine(`          return { id, entityKeyPath: validKeyPath, error: null };`);
+    writer.writeLine(`          return { id, error: null };`);
     writer.writeLine(`        }`);
     writer.writeLine(`        throw err;`);
     writer.writeLine(`      }`);
     writer.writeLine(`      await tx.${modelNameLower}.deleteMany({`);
     writer.writeLine(`        where: ${generateWhereClause(pk.name, pkFields)},`);
     writer.writeLine(`      });`);
-    writer.writeLine(`      return { id, entityKeyPath: validKeyPath, error: null };`);
+    writer.writeLine(`      return { id, error: null };`);
     writer.writeLine(`    });`);
     writer.writeLine(`    return result;`);
     writer.writeLine(`  }`);

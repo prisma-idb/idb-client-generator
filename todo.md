@@ -32,8 +32,17 @@ Every syncable record must have a directed, acyclic path to a single root model 
 ### Globally unique IDs
 All syncable models must use client-generated unique identifiers (UUID/ULID). Auto-increment IDs are not supported.
 
-### Resurrection semantics
+### Immutable primary keys
+Primary keys cannot be updated. They are immutable once created.
+
+### Direct resurrection semantics
 Updates to missing records recreate them. Deletes are not terminal.
+
+### Indirect resurrection semantics
+Deleting a parent record deletes all child records. Creating or updating a child record whose parent is missing does **NOT** recreate the parent.
 
 ### Owned relations only
 All syncable relations must be part of the ownership DAG and scoped to a single root.
+
+### Cascading deletes
+Deletes cascade down the ownership DAG. Deleting a parent record deletes all child records.

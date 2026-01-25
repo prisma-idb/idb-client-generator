@@ -166,7 +166,7 @@ export class PrismaIDBClient {
         } else {
           successIds.push(result.id);
 
-          if (result.mergedRecord && result.entityKeyPath) {
+          if (result.mergedRecord) {
             const originalEvent = toSync.find((e: OutboxEventRecord) => e.id === result.id);
             if (originalEvent) {
               try {
@@ -177,13 +177,9 @@ export class PrismaIDBClient {
                       if (!recordValidation.success) {
                         throw new Error(`Record validation failed: ${recordValidation.error.message}`);
                       }
-                      const keyPathValidation = keyPathValidators.Board.safeParse(result.entityKeyPath);
-                      if (!keyPathValidation.success) {
-                        throw new Error(`KeyPath validation failed: ${keyPathValidation.error.message}`);
-                      }
                       await this.board.upsert(
                         {
-                          where: { id: keyPathValidation.data[0] },
+                          where: { id: recordValidation.data.id },
                           update: recordValidation.data,
                           create: recordValidation.data,
                         },
@@ -198,13 +194,9 @@ export class PrismaIDBClient {
                       if (!recordValidation.success) {
                         throw new Error(`Record validation failed: ${recordValidation.error.message}`);
                       }
-                      const keyPathValidation = keyPathValidators.Todo.safeParse(result.entityKeyPath);
-                      if (!keyPathValidation.success) {
-                        throw new Error(`KeyPath validation failed: ${keyPathValidation.error.message}`);
-                      }
                       await this.todo.upsert(
                         {
-                          where: { id: keyPathValidation.data[0] },
+                          where: { id: recordValidation.data.id },
                           update: recordValidation.data,
                           create: recordValidation.data,
                         },
@@ -219,13 +211,9 @@ export class PrismaIDBClient {
                       if (!recordValidation.success) {
                         throw new Error(`Record validation failed: ${recordValidation.error.message}`);
                       }
-                      const keyPathValidation = keyPathValidators.User.safeParse(result.entityKeyPath);
-                      if (!keyPathValidation.success) {
-                        throw new Error(`KeyPath validation failed: ${keyPathValidation.error.message}`);
-                      }
                       await this.user.upsert(
                         {
-                          where: { id: keyPathValidation.data[0] },
+                          where: { id: recordValidation.data.id },
                           update: recordValidation.data,
                           create: recordValidation.data,
                         },
@@ -569,7 +557,6 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
           tries: 0,
           lastError: null,
           entityType: this.modelName,
-          entityKeyPath: keyPath as Array<string | number>,
           operation: event,
           payload: record ?? keyPath,
           retryable: true,
@@ -3295,7 +3282,7 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
   }
 
   async create(query: {
-    data: Pick<OutboxEventRecord, "entityKeyPath" | "entityType" | "operation" | "payload">;
+    data: Pick<OutboxEventRecord, "entityType" | "operation" | "payload">;
   }): Promise<OutboxEventRecord> {
     const tx = this.client._db.transaction("OutboxEvent", "readwrite");
     const store = tx.objectStore("OutboxEvent");

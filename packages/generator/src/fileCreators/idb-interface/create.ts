@@ -61,7 +61,6 @@ function addOutboxEventTypeDefinition(writer: CodeBlockWriter) {
     writer
       .writeLine(`id: string;`)
       .writeLine(`entityType: string;`)
-      .writeLine(`entityKeyPath: Array<string | number>;`)
       .writeLine(`operation: "create" | "update" | "delete";`)
       .writeLine(`payload: unknown;`)
       .writeLine(`createdAt: Date;`)
