@@ -27,7 +27,11 @@ export class TodosState {
           batchSize: 50,
         },
         pull: {
-          handler: (cursor) => syncPull({ lastChangelogId: cursor }),
+          handler: async (cursor) => {
+            const pullResult = await syncPull({ lastChangelogId: cursor });
+            this.loadBoards();
+            return pullResult;
+          },
           getCursor: () => this.getCursor(),
           setCursor: (cursor) => this.setCursor(cursor),
           originId: clientId,
@@ -66,7 +70,12 @@ export class TodosState {
   }
 
   async loadBoards() {
-    this.boards = await getClient().board.findMany({ include: { todos: true } });
+    try {
+      this.boards = await getClient().board.findMany({ include: { todos: true } });
+    } catch (error) {
+      console.error("Error loading boards:", error);
+      toast.error("Failed to load boards");
+    }
   }
 
   async addBoard(name: string) {
@@ -75,8 +84,12 @@ export class TodosState {
       toast.error("No user found. Please log in.");
       return;
     }
-
-    await getClient().board.create({ data: { name, userId: currentUser.id } });
+    try {
+      await getClient().board.create({ data: { name, userId: currentUser.id } });
+    } catch (error) {
+      console.error("Error creating board:", error);
+      toast.error("Failed to create board");
+    }
   }
 
   async deleteBoard(boardId: string) {
