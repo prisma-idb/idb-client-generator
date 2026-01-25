@@ -265,9 +265,10 @@ async function syncBoard(
           }
           throw err;
         }
-        const updatedRecord = await tx.board.update({
+        const updatedRecord = await tx.board.upsert({
           where: { id: validKeyPath[0] },
-          data,
+          create: data,
+          update: data,
         });
         const newKeyPath = [updatedRecord.id];
         return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: updatedRecord };
@@ -295,7 +296,7 @@ async function syncBoard(
           }
           throw err;
         }
-        await tx.board.delete({
+        await tx.board.deleteMany({
           where: { id: validKeyPath[0] },
         });
         return { id, entityKeyPath: validKeyPath };
@@ -412,9 +413,10 @@ async function syncTodo(
           }
           throw err;
         }
-        const updatedRecord = await tx.todo.update({
+        const updatedRecord = await tx.todo.upsert({
           where: { id: validKeyPath[0] },
-          data,
+          create: data,
+          update: data,
         });
         const newKeyPath = [updatedRecord.id];
         return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: updatedRecord };
@@ -442,7 +444,7 @@ async function syncTodo(
           }
           throw err;
         }
-        await tx.todo.delete({
+        await tx.todo.deleteMany({
           where: { id: validKeyPath[0] },
         });
         return { id, entityKeyPath: validKeyPath };
@@ -530,9 +532,10 @@ async function syncUser(
           }
           throw err;
         }
-        const updatedRecord = await tx.user.update({
+        const updatedRecord = await tx.user.upsert({
           where: { id: validKeyPath[0] },
-          data,
+          create: data,
+          update: data,
         });
         const newKeyPath = [updatedRecord.id];
         return { id, oldKeyPath, entityKeyPath: newKeyPath, mergedRecord: updatedRecord };
@@ -560,7 +563,7 @@ async function syncUser(
           }
           throw err;
         }
-        await tx.user.delete({
+        await tx.user.deleteMany({
           where: { id: validKeyPath[0] },
         });
         return { id, entityKeyPath: validKeyPath };

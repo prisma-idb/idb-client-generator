@@ -435,9 +435,10 @@ function generateModelSyncHandler(
     writer.writeLine(`        }`);
     writer.writeLine(`        throw err;`);
     writer.writeLine(`      }`);
-    writer.writeLine(`      const updatedRecord = await tx.${modelNameLower}.update({`);
+    writer.writeLine(`      const updatedRecord = await tx.${modelNameLower}.upsert({`);
     writer.writeLine(`        where: ${generateWhereClause(pk.name, pkFields)},`);
-    writer.writeLine(`        data,`);
+    writer.writeLine(`        create: data,`);
+    writer.writeLine(`        update: data,`);
     writer.writeLine(`      });`);
 
     if (pkFields.length === 1) {
@@ -473,7 +474,7 @@ function generateModelSyncHandler(
     writer.writeLine(`        }`);
     writer.writeLine(`        throw err;`);
     writer.writeLine(`      }`);
-    writer.writeLine(`      await tx.${modelNameLower}.delete({`);
+    writer.writeLine(`      await tx.${modelNameLower}.deleteMany({`);
     writer.writeLine(`        where: ${generateWhereClause(pk.name, pkFields)},`);
     writer.writeLine(`      });`);
     writer.writeLine(`      return { id, entityKeyPath: validKeyPath };`);

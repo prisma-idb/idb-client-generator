@@ -1,3 +1,5 @@
+## Invariants
+
 - [x] Invariant 1 — Ownership
 
   > A record is syncable if and only if the server can prove a path from that record to the root authority whose key equals the resolved scopeKey.
@@ -22,3 +24,16 @@ Why this set is minimal and complete
 | Retry duplication  | Invariant 3 |
 | Divergent state    | Invariant 4 |
 
+## Schema assumptions (v1 using LWW)
+
+### Single authoritative root
+Every syncable record must have a directed, acyclic path to a single root model (e.g. User, Workspace).
+
+### Globally unique IDs
+All syncable models must use client-generated unique identifiers (UUID/ULID). Auto-increment IDs are not supported.
+
+### Resurrection semantics
+Updates to missing records recreate them. Deletes are not terminal.
+
+### Owned relations only
+All syncable relations must be part of the ownership DAG and scoped to a single root.
