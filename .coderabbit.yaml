@@ -2,3 +2,7 @@ reviews:
   path_filters:
     - "!apps/usage/src/lib/components/ui/**"
     - "!apps/pidb-kanban-example/src/lib/components/ui/**"
+    - "**/generated/**"
+    - "!apps/pidb-kanban-example/src/lib/generated/prisma-idb/client/generated/**"
+    - "!apps/pidb-kanban-example/src/lib/generated/prisma"
+    - "!apps/usage/src/lib/generated/prisma"
