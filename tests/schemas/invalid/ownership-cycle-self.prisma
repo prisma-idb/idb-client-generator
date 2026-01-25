@@ -15,6 +15,7 @@ generator idbClientOwnershipCycleSelf {
   provider   = "idb-client-generator"
   output     = "../../generated/prisma-idb"
   outboxSync = true
+  rootModel  = "UserOwnershipCycleSelf"
 }
 
 model UserOwnershipCycleSelf {
