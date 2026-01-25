@@ -42,16 +42,14 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
     writer.writeLine(`const { idbClient, logsWithRecords, originId } = props;`);
     writer.blankLine();
 
+    writer.writeLine(`let sameOriginRecords = 0;`);
     writer.writeLine(`let missingRecords = 0;`);
     writer.writeLine(`const validationErrors: { model: string; error: unknown }[] = [];`);
     writer.blankLine();
 
     // Create a single shared transaction for all operations
     writer.writeLine(`// Wrap all operations in a single transaction to prevent AbortError and ensure atomicity`);
-    const storeNames = models
-      .map((m) => `'${m.name}'`)
-      .concat(`'OutboxEvent'`)
-      .join(", ");
+    const storeNames = models.map((m) => `'${m.name}'`).join(", ");
     writer.writeLine(`const tx = idbClient._db.transaction([${storeNames}], 'readwrite');`);
     writer.blankLine();
 
@@ -68,6 +66,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
       writer.writeLine(`for (const change of logsWithRecords) `).block(() => {
         writer.writeLine(`// Ignore logs with the same originId to prevent echo of pushed events`);
         writer.writeLine(`if (change.originId === originId) {`);
+        writer.writeLine(`  sameOriginRecords++;`);
         writer.writeLine(`  continue;`);
         writer.writeLine(`}`);
         writer.blankLine();
@@ -154,8 +153,13 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
     });
 
     writer.blankLine();
-    writer.writeLine(
-      `return { missingRecords, totalAppliedRecords: logsWithRecords.length - missingRecords - validationErrors.length, validationErrors };`,
-    );
+    writer.write(`return `).block(() => {
+      writer.writeLine(`validationErrors,`);
+      writer.writeLine(`missingRecords,`);
+      writer.writeLine(`sameOriginRecords,`);
+      writer.writeLine(
+        `totalAppliedRecords: logsWithRecords.length - missingRecords - validationErrors.length - sameOriginRecords,`,
+      );
+    });
   });
 }

@@ -27,11 +27,12 @@ type ApplyPullProps = {
 export async function applyPull(props: ApplyPullProps) {
   const { idbClient, logsWithRecords, originId } = props;
 
+  let sameOriginRecords = 0;
   let missingRecords = 0;
   const validationErrors: { model: string; error: unknown }[] = [];
 
   // Wrap all operations in a single transaction to prevent AbortError and ensure atomicity
-  const tx = idbClient._db.transaction(["Board", "Todo", "User", "OutboxEvent"], "readwrite");
+  const tx = idbClient._db.transaction(["Board", "Todo", "User"], "readwrite");
 
   let txAborted = false;
 
@@ -44,6 +45,7 @@ export async function applyPull(props: ApplyPullProps) {
     for (const change of logsWithRecords) {
       // Ignore logs with the same originId to prevent echo of pushed events
       if (change.originId === originId) {
+        sameOriginRecords++;
         continue;
       }
 
@@ -140,8 +142,9 @@ export async function applyPull(props: ApplyPullProps) {
   }
 
   return {
-    missingRecords,
-    totalAppliedRecords: logsWithRecords.length - missingRecords - validationErrors.length,
     validationErrors,
+    missingRecords,
+    sameOriginRecords,
+    totalAppliedRecords: logsWithRecords.length - missingRecords - validationErrors.length - sameOriginRecords,
   };
 }
