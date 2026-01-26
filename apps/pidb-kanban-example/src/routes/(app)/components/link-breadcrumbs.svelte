@@ -33,7 +33,7 @@
 <ScrollArea class="w-px grow py-1.5">
   <Breadcrumb.Root>
     <Breadcrumb.List class="flex-nowrap">
-      {#each items as item, idx (item.label)}
+      {#each items as item, idx (item.href)}
         <Breadcrumb.Item class="whitespace-nowrap">
           <Breadcrumb.Link href={item.href}>
             {item.label}

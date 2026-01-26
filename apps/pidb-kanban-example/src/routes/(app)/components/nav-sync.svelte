@@ -14,7 +14,7 @@
 
   const todosState = getTodosContext();
 
-  let status = $state<"STOPPED" | "IDLE" | "PUSHING" | "PULLING">();
+  let status = $state<"STOPPED" | "IDLE" | "PUSHING" | "PULLING">("STOPPED");
   let isLooping = $state(false);
 
   onMount(() => {
