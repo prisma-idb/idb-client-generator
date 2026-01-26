@@ -34,6 +34,7 @@ export const PushErrorTypes = {
   UNKNOWN_OPERATION: "UNKNOWN_OPERATION",
   UNKNOWN_ERROR: "UNKNOWN_ERROR",
   MAX_RETRIES: "MAX_RETRIES",
+  CUSTOM_VALIDATION_FAILED: "CUSTOM_VALIDATION_FAILED",
 };
 
 export interface PushResult {
@@ -51,7 +52,9 @@ export interface ApplyPushOptions {
   scopeKey: string | ((event: OutboxEventRecord) => string);
   prisma: PrismaClient;
   originId: string;
-  customValidation?: (event: EventsFor<typeof validators>) => boolean | Promise<boolean>;
+  customValidation?: (
+    event: EventsFor<typeof validators>
+  ) => { errorMessage: string | null } | Promise<{ errorMessage: string | null }>;
 }
 
 export class PermanentSyncError extends Error {
@@ -86,8 +89,16 @@ export async function applyPush({
               );
 
             if (customValidation) {
-              const ok = await customValidation(event as EventsFor<typeof validators>);
-              if (!ok) throw new Error("custom validation failed");
+              try {
+                const { errorMessage } = await Promise.resolve(customValidation(event as EventsFor<typeof validators>));
+                if (errorMessage) throw new PermanentSyncError("CUSTOM_VALIDATION_FAILED", errorMessage);
+              } catch (error) {
+                if (error instanceof PermanentSyncError) throw error;
+                throw new PermanentSyncError(
+                  "CUSTOM_VALIDATION_FAILED",
+                  error instanceof Error ? error.message : "Unknown error in custom validation"
+                );
+              }
             }
 
             result = await syncBoard(event, validation.data, resolvedScopeKey, prisma, originId);
@@ -104,8 +115,16 @@ export async function applyPush({
               );
 
             if (customValidation) {
-              const ok = await customValidation(event as EventsFor<typeof validators>);
-              if (!ok) throw new Error("custom validation failed");
+              try {
+                const { errorMessage } = await Promise.resolve(customValidation(event as EventsFor<typeof validators>));
+                if (errorMessage) throw new PermanentSyncError("CUSTOM_VALIDATION_FAILED", errorMessage);
+              } catch (error) {
+                if (error instanceof PermanentSyncError) throw error;
+                throw new PermanentSyncError(
+                  "CUSTOM_VALIDATION_FAILED",
+                  error instanceof Error ? error.message : "Unknown error in custom validation"
+                );
+              }
             }
 
             result = await syncTodo(event, validation.data, resolvedScopeKey, prisma, originId);
@@ -122,8 +141,16 @@ export async function applyPush({
               );
 
             if (customValidation) {
-              const ok = await customValidation(event as EventsFor<typeof validators>);
-              if (!ok) throw new Error("custom validation failed");
+              try {
+                const { errorMessage } = await Promise.resolve(customValidation(event as EventsFor<typeof validators>));
+                if (errorMessage) throw new PermanentSyncError("CUSTOM_VALIDATION_FAILED", errorMessage);
+              } catch (error) {
+                if (error instanceof PermanentSyncError) throw error;
+                throw new PermanentSyncError(
+                  "CUSTOM_VALIDATION_FAILED",
+                  error instanceof Error ? error.message : "Unknown error in custom validation"
+                );
+              }
             }
 
             result = await syncUser(event, validation.data, resolvedScopeKey, prisma, originId);
@@ -216,7 +243,7 @@ async function syncBoard(
   const keyPath = [data.id];
   const keyPathValidation = keyPathValidators.Board.safeParse(keyPath);
   if (!keyPathValidation.success) {
-    throw new PermanentSyncError("KEYPATH_VALIDATION_FAILURE", "Invalid entityKeyPath for Board");
+    throw new PermanentSyncError("KEYPATH_VALIDATION_FAILURE", "Invalid keyPath for Board");
   }
 
   const validKeyPath = keyPathValidation.data;
@@ -345,7 +372,7 @@ async function syncTodo(
   const keyPath = [data.id];
   const keyPathValidation = keyPathValidators.Todo.safeParse(keyPath);
   if (!keyPathValidation.success) {
-    throw new PermanentSyncError("KEYPATH_VALIDATION_FAILURE", "Invalid entityKeyPath for Todo");
+    throw new PermanentSyncError("KEYPATH_VALIDATION_FAILURE", "Invalid keyPath for Todo");
   }
 
   const validKeyPath = keyPathValidation.data;
@@ -474,7 +501,7 @@ async function syncUser(
   const keyPath = [data.id];
   const keyPathValidation = keyPathValidators.User.safeParse(keyPath);
   if (!keyPathValidation.success) {
-    throw new PermanentSyncError("KEYPATH_VALIDATION_FAILURE", "Invalid entityKeyPath for User");
+    throw new PermanentSyncError("KEYPATH_VALIDATION_FAILURE", "Invalid keyPath for User");
   }
 
   const validKeyPath = keyPathValidation.data;

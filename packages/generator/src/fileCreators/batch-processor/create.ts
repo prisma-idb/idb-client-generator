@@ -12,6 +12,7 @@ export const pushErrorTypes = {
   UNKNOWN_OPERATION: "UNKNOWN_OPERATION",
   UNKNOWN_ERROR: "UNKNOWN_ERROR",
   MAX_RETRIES: "MAX_RETRIES",
+  CUSTOM_VALIDATION_FAILED: "CUSTOM_VALIDATION_FAILED",
 } as const;
 
 /**
@@ -125,7 +126,9 @@ export function createBatchProcessorFile(
   writer.writeLine(`  scopeKey: string | ((event: OutboxEventRecord) => string);`);
   writer.writeLine(`  prisma: PrismaClient;`);
   writer.writeLine(`  originId: string;`);
-  writer.writeLine(`  customValidation?: (event: EventsFor<typeof validators>) => boolean | Promise<boolean>;`);
+  writer.writeLine(`  customValidation?: (`);
+  writer.writeLine(`    event: EventsFor<typeof validators>`);
+  writer.writeLine(`  ) => { errorMessage: string | null } | Promise<{ errorMessage: string | null }>;`);
   writer.writeLine(`}`);
   writer.blankLine();
 
@@ -244,8 +247,16 @@ function generateModelSwitchCase(writer: CodeBlockWriter, model: Model) {
     );
     writer.blankLine();
     writer.writeLine(`if (customValidation) {`);
-    writer.writeLine(`  const ok = await customValidation(event as EventsFor<typeof validators>);`);
-    writer.writeLine(`  if (!ok) throw new Error("custom validation failed");`);
+    writer.writeLine(`  try {`);
+    writer.writeLine(`    const { errorMessage } = await Promise.resolve(customValidation(event as EventsFor<typeof validators>));`);
+    writer.writeLine(`    if (errorMessage) throw new PermanentSyncError("CUSTOM_VALIDATION_FAILED", errorMessage);`);
+    writer.writeLine(`  } catch (error) {`);
+    writer.writeLine(`    if (error instanceof PermanentSyncError) throw error;`);
+    writer.writeLine(`    throw new PermanentSyncError(`);
+    writer.writeLine(`      "CUSTOM_VALIDATION_FAILED",`);
+    writer.writeLine(`      error instanceof Error ? error.message : "Unknown error in custom validation"`);
+    writer.writeLine(`    );`);
+    writer.writeLine(`  }`);
     writer.writeLine(`}`);
     writer.blankLine();
     writer.writeLine(`result = await sync${model.name}(event, validation.data, resolvedScopeKey, prisma, originId);`);
