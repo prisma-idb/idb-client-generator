@@ -28,12 +28,22 @@ export async function POST({ request }) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
   }
 
-  const pushResults = await applyPush({
-    events: parsed.data.events,
-    scopeKey: authResult.user.id,
-    originId: parsed.data.clientId,
-    prisma,
-  });
+  let pushResults;
+  try {
+    pushResults = await applyPush({
+      events: parsed.data.events,
+      scopeKey: authResult.user.id,
+      originId: parsed.data.clientId,
+      prisma,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    const status = message.startsWith("Batch size") ? 413 : 500;
+    return new Response(JSON.stringify({ error: message }), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
   return new Response(JSON.stringify(pushResults), {
     status: 200,
