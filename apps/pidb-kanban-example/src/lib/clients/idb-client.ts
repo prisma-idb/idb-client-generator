@@ -1,5 +1,5 @@
 import { browser } from "$app/environment";
-import { PrismaIDBClient } from "$lib/generated/prisma-idb/client/prisma-idb-client";
+import { PrismaIDBClient } from "$lib/prisma-idb/client/prisma-idb-client";
 
 let client: PrismaIDBClient | undefined;
 let initPromise: Promise<PrismaIDBClient> | undefined;

@@ -670,12 +670,7 @@ function generateModelSyncHandler(
  * For a single pk field: { id: validKeyPath[0], board: { user: { id: scopeKey } } }
  * For composite pk: { id1: validKeyPath[0], id2: validKeyPath[1], board: { user: { id: scopeKey } } }
  */
-function buildFlatWhereClause(
-  pkName: string,
-  pkFields: string[],
-  authPath: string[],
-  rootModel: Model,
-): string {
+function buildFlatWhereClause(pkName: string, pkFields: string[], authPath: string[], rootModel: Model): string {
   const whereWithScope = buildWhereWithScopeCondition(authPath, rootModel);
 
   if (pkFields.length === 1) {

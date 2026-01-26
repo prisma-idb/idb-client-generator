@@ -5,7 +5,7 @@ generator client {
 
 generator prismaIDBrowser {
   provider   = "idb-client-generator"
-  output     = "../src/lib/generated/prisma-idb"
+  output     = "../src/lib/prisma-idb"
   outboxSync = true
   exclude    = ["Session", "Verification", "Account", "ChangeLog"]
   rootModel  = "User"

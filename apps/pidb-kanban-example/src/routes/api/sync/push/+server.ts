@@ -1,5 +1,5 @@
-import { applyPush } from "$lib/generated/prisma-idb/server/batch-processor";
-import { outboxEventSchema } from "$lib/generated/prisma-idb/validators";
+import { applyPush } from "$lib/prisma-idb/server/batch-processor";
+import { outboxEventSchema } from "$lib/prisma-idb/validators";
 import { auth } from "$lib/server/auth";
 import { prisma } from "$lib/server/prisma";
 import z from "zod";

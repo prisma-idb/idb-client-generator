@@ -1,20 +1,4 @@
 reviews:
   path_filters:
-    # include everything
-    - "**/*"
-
-    # explicitly re-allow generated (overrides CodeRabbit default)
-    - "**/generated/**"
-
-    # only keep prisma-idb from generated
-    - "**/generated/prisma-idb/**"
-
-    # ignore nested prisma client junk
-    - "!**/generated/prisma-idb/client/generated/**"
-
-    # ignore raw prisma
-    - "!**/generated/prisma/**"
-
-    # ignore ui + deps
     - "!**/components/ui/**"
     - "!**/node_modules/**"

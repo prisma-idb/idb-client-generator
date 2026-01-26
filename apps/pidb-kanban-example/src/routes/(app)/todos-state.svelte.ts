@@ -3,7 +3,7 @@ import { getClient } from "$lib/clients/idb-client";
 import { toast } from "svelte-sonner";
 import { createContext } from "svelte";
 import type { Prisma } from "$lib/generated/prisma/client";
-import type { SyncWorker } from "$lib/generated/prisma-idb/client/idb-interface";
+import type { SyncWorker } from "$lib/prisma-idb/client/idb-interface";
 
 export class TodosState {
   boards = $state<Prisma.BoardGetPayload<{ include: { todos: true } }>[]>();

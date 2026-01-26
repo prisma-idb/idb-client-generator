@@ -1,4 +1,4 @@
-import { materializeLogs } from "$lib/generated/prisma-idb/server/batch-processor";
+import { materializeLogs } from "$lib/prisma-idb/server/batch-processor";
 import { auth } from "$lib/server/auth";
 import { prisma } from "$lib/server/prisma";
 import z from "zod";

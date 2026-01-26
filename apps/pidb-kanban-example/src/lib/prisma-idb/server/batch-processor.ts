@@ -1,7 +1,7 @@
 import { z, type ZodTypeAny } from "zod";
 import type { OutboxEventRecord } from "../client/idb-interface";
-import type { ChangeLog } from "../../prisma/client";
-import type { PrismaClient } from "../../prisma/client";
+import type { ChangeLog } from "../../generated/prisma/client";
+import type { PrismaClient } from "../../generated/prisma/client";
 import { validators, keyPathValidators } from "../validators";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/client";
 
