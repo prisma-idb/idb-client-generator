@@ -299,12 +299,18 @@ export function genericComparator(
   b: unknown,
   sortOrder: Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } = "asc"
 ): number {
-  if (typeof sortOrder !== "string" && sortOrder.nulls) {
-    const nullMultiplier = sortOrder.nulls === "first" ? -1 : 1;
-
-    if (a === null && b === null) return 0;
-    if (a === null || b === null) return (a === null ? 1 : -1) * nullMultiplier;
+  // Determine null placement multiplier: -1 for "first", 1 for "last"
+  let nullMultiplier: number;
+  if (typeof sortOrder === "string") {
+    // PostgreSQL conventions: asc → nulls last, desc → nulls first
+    nullMultiplier = sortOrder === "asc" ? 1 : -1;
+  } else {
+    nullMultiplier = sortOrder.nulls === "first" ? -1 : 1;
   }
+
+  // Handle null values early, before type comparisons
+  if (a === null && b === null) return 0;
+  if (a === null || b === null) return (a === null ? 1 : -1) * nullMultiplier;
   const multiplier = typeof sortOrder === "string" ? (sortOrder === "asc" ? 1 : -1) : sortOrder.sort === "asc" ? 1 : -1;
   let returnValue: number | undefined;
 
