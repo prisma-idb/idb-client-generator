@@ -254,8 +254,12 @@ export async function materializeLogs({
           throw new Error("Invalid keyPath for User");
         }
         const validKeyPath = keyPathValidation.data;
+        if (validKeyPath[0] !== scopeKey) {
+          results.push({ ...log, model: "User", keyPath: validKeyPath, record: null });
+          break;
+        }
         const record = await prisma.user.findUnique({
-          where: { ...{ id: validKeyPath[0] }, id: scopeKey },
+          where: { id: validKeyPath[0] },
           select: {
             id: true,
             name: true,

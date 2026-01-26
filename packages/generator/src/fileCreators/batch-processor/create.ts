@@ -266,11 +266,15 @@ export function createBatchProcessorFile(
         .join(", ");
 
       if (isRootModel) {
-        const rootPkFieldName = getUniqueIdentifiers(model)[0].name;
-        const baseWhere = generateWhereClause(pk.name, pkFields);
-        // For root model, add scopeKey check directly in where clause
+        // For root model, check if validKeyPath matches scopeKey
+        writer.writeLine(`        if (validKeyPath[0] !== scopeKey) {`);
+        writer.writeLine(
+          `          results.push({ ...log, model: "${model.name}", keyPath: validKeyPath, record: null });`,
+        );
+        writer.writeLine(`          break;`);
+        writer.writeLine(`        }`);
         writer.writeLine(`        const record = await prisma.${modelNameLower}.findUnique({`);
-        writer.writeLine(`          where: { ...${baseWhere}, ${rootPkFieldName}: scopeKey },`);
+        writer.writeLine(`          where: ${generateWhereClause(pk.name, pkFields)},`);
         writer.writeLine(`          select: { ${selectFields} },`);
         writer.writeLine(`        });`);
       } else {
@@ -545,10 +549,6 @@ function generateModelSyncHandler(
             );
             writer.writeLine(`      }`);
           } else {
-            const parentPk = getUniqueIdentifiers(parentModel)[0];
-            const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
-            const parentPkFieldName = getUniqueIdentifiers(parentModel)[0].name;
-
             writer.writeLine(`      if (data.${foreignKeyFields[0]} !== scopeKey) {`);
             writer.writeLine(
               `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot reassign ${model.name} to different ${parentModel.name}\`);`,
