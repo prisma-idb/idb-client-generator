@@ -36,10 +36,13 @@ export async function POST({ request }) {
   const logsWithRecords = await materializeLogs({ logs, prisma });
 
   return new Response(
-    JSON.stringify({
-      cursor: (logs.at(-1)?.id ?? parsed.data.lastChangelogId ?? 0n).toString(),
-      logsWithRecords,
-    }),
+    JSON.stringify(
+      {
+        cursor: (logs.at(-1)?.id ?? parsed.data.lastChangelogId ?? 0n).toString(),
+        logsWithRecords,
+      },
+      (_key, value) => (typeof value === "bigint" ? value.toString() : value)
+    ),
     {
       status: 200,
       headers: { "Content-Type": "application/json" },
