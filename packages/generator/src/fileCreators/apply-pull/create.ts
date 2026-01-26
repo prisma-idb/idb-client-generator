@@ -43,6 +43,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
 
     writer.writeLine(`let sameOriginRecords = 0;`);
     writer.writeLine(`let missingRecords = 0;`);
+    writer.writeLine(`let totalAppliedRecords = 0;`);
     writer.writeLine(`const validationErrors: { model: string; error: unknown }[] = [];`);
     writer.blankLine();
 
@@ -110,6 +111,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
                 writer.writeLine(
                   `await idbClient.${camelCaseName}.delete({ where: ${keyPathWhereClause} }, { silent: true, addToOutbox: false, tx });`,
                 );
+                writer.writeLine(`totalAppliedRecords++;`);
               });
               writer.writeLine(`else `).block(() => {
                 writer.writeLine(`const validatedRecord = validators.${modelName}.parse(record);`);
@@ -117,17 +119,27 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
                   writer.writeLine(
                     `await idbClient.${camelCaseName}.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });`,
                   );
+                  writer.writeLine(`totalAppliedRecords++;`);
                 });
                 writer.writeLine(`else if (operation === 'update') `).block(() => {
                   writer.writeLine(
                     `await idbClient.${camelCaseName}.update({ where: ${fullRecordWhereClause}, data: validatedRecord }, { silent: true, addToOutbox: false, tx });`,
                   );
+                  writer.writeLine(`totalAppliedRecords++;`);
                 });
                 writer.writeLine(`else `).block(() => {
-                  writer.writeLine(`console.warn('Unknown operation for ${modelName}:', operation);`);
+                  writer.writeLine(
+                    `throw new Error(\`Unknown operation for ${modelName}: \${operation} (keyPath: \${JSON.stringify(keyPath)})\`);`,
+                  );
                 });
               });
             });
+          });
+
+          writer.writeLine(`else `).block(() => {
+            writer.writeLine(
+              `throw new Error(\`Unknown model: \${model} (operation: \${operation}, keyPath: \${JSON.stringify(keyPath)})\`);`,
+            );
           });
         });
         writer.writeLine(`catch (error) `).block(() => {
@@ -154,9 +166,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
       writer.writeLine(`validationErrors,`);
       writer.writeLine(`missingRecords,`);
       writer.writeLine(`sameOriginRecords,`);
-      writer.writeLine(
-        `totalAppliedRecords: logsWithRecords.length - missingRecords - validationErrors.length - sameOriginRecords,`,
-      );
+      writer.writeLine(`totalAppliedRecords,`);
     });
   });
 }

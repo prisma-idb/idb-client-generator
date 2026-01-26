@@ -28,6 +28,7 @@ export async function applyPull(props: ApplyPullProps) {
 
   let sameOriginRecords = 0;
   let missingRecords = 0;
+  let totalAppliedRecords = 0;
   const validationErrors: { model: string; error: unknown }[] = [];
 
   // Wrap all operations in a single transaction to prevent AbortError and ensure atomicity
@@ -68,17 +69,20 @@ export async function applyPull(props: ApplyPullProps) {
               { where: { id: validatedKeyPath[0] } },
               { silent: true, addToOutbox: false, tx }
             );
+            totalAppliedRecords++;
           } else {
             const validatedRecord = validators.Board.parse(record);
             if (operation === "create") {
               await idbClient.board.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
+              totalAppliedRecords++;
             } else if (operation === "update") {
               await idbClient.board.update(
                 { where: { id: validatedRecord.id }, data: validatedRecord },
                 { silent: true, addToOutbox: false, tx }
               );
+              totalAppliedRecords++;
             } else {
-              console.warn("Unknown operation for Board:", operation);
+              throw new Error(`Unknown operation for Board: ${operation} (keyPath: ${JSON.stringify(keyPath)})`);
             }
           }
         } else if (model === "Todo") {
@@ -88,17 +92,20 @@ export async function applyPull(props: ApplyPullProps) {
               { where: { id: validatedKeyPath[0] } },
               { silent: true, addToOutbox: false, tx }
             );
+            totalAppliedRecords++;
           } else {
             const validatedRecord = validators.Todo.parse(record);
             if (operation === "create") {
               await idbClient.todo.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
+              totalAppliedRecords++;
             } else if (operation === "update") {
               await idbClient.todo.update(
                 { where: { id: validatedRecord.id }, data: validatedRecord },
                 { silent: true, addToOutbox: false, tx }
               );
+              totalAppliedRecords++;
             } else {
-              console.warn("Unknown operation for Todo:", operation);
+              throw new Error(`Unknown operation for Todo: ${operation} (keyPath: ${JSON.stringify(keyPath)})`);
             }
           }
         } else if (model === "User") {
@@ -108,19 +115,24 @@ export async function applyPull(props: ApplyPullProps) {
               { where: { id: validatedKeyPath[0] } },
               { silent: true, addToOutbox: false, tx }
             );
+            totalAppliedRecords++;
           } else {
             const validatedRecord = validators.User.parse(record);
             if (operation === "create") {
               await idbClient.user.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
+              totalAppliedRecords++;
             } else if (operation === "update") {
               await idbClient.user.update(
                 { where: { id: validatedRecord.id }, data: validatedRecord },
                 { silent: true, addToOutbox: false, tx }
               );
+              totalAppliedRecords++;
             } else {
-              console.warn("Unknown operation for User:", operation);
+              throw new Error(`Unknown operation for User: ${operation} (keyPath: ${JSON.stringify(keyPath)})`);
             }
           }
+        } else {
+          throw new Error(`Unknown model: ${model} (operation: ${operation}, keyPath: ${JSON.stringify(keyPath)})`);
         }
       } catch (error) {
         validationErrors.push({ model, error });
@@ -142,6 +154,6 @@ export async function applyPull(props: ApplyPullProps) {
     validationErrors,
     missingRecords,
     sameOriginRecords,
-    totalAppliedRecords: logsWithRecords.length - missingRecords - validationErrors.length - sameOriginRecords,
+    totalAppliedRecords,
   };
 }
