@@ -71,6 +71,12 @@ export async function applyLogicalFilters<
   }
   return records;
 }
+function areUint8ArraysEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
 export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
@@ -295,13 +301,13 @@ export function whereBoolFilter<T, R extends Prisma.Result<T, object, "findFirst
       if (value !== null) return false;
     }
     if (typeof boolFilter.equals === "boolean") {
-      if (boolFilter.equals != value) return false;
+      if (boolFilter.equals !== value) return false;
     }
     if (boolFilter.not === null) {
       if (value === null) return false;
     }
     if (typeof boolFilter.not === "boolean") {
-      if (boolFilter.not == value) return false;
+      if (boolFilter.not !== value) return false;
     }
   }
   return true;
@@ -313,18 +319,12 @@ export function whereBytesFilter<T, R extends Prisma.Result<T, object, "findFirs
 ): boolean {
   if (bytesFilter === undefined) return true;
 
-  function areUint8ArraysEqual(arr1: Uint8Array, arr2: Uint8Array) {
-    if (arr1.length !== arr2.length) return false;
-    for (let i = 0; i < arr1.length; i++) if (arr1[i] !== arr2[i]) return false;
-    return true;
-  }
-
   const value = record[fieldName] as Uint8Array | null;
   if (bytesFilter === null) return value === null;
 
   if (bytesFilter instanceof Uint8Array) {
     if (value === null) return false;
-    if (!areUint8ArraysEqual(bytesFilter, value)) return false;
+    if (!areUint8ArraysEqual(bytesFilter as Uint8Array, value)) return false;
   } else {
     if (bytesFilter.equals === null) {
       if (value !== null) return false;
@@ -522,11 +522,6 @@ export function whereBytesListFilter<T, R extends Prisma.Result<T, object, "find
   if (scalarListFilter === undefined) return true;
 
   const value = record[fieldName] as Uint8Array[] | undefined;
-  const areUint8ArraysEqual = (a: Uint8Array, b: Uint8Array) => {
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-    return true;
-  };
 
   if (value === undefined && Object.keys(scalarListFilter).length) return false;
   if (Array.isArray(scalarListFilter.equals)) {
@@ -671,7 +666,7 @@ export function handleIntUpdateField<T, R extends Prisma.Result<T, object, "find
   } else if (intUpdate.multiply !== undefined && record[fieldName] !== null) {
     (record[fieldName] as number) *= intUpdate.multiply;
   } else if (intUpdate.divide !== undefined && record[fieldName] !== null) {
-    (record[fieldName] as number) /= intUpdate.divide;
+    (record[fieldName] as number) = Math.trunc((record[fieldName] as number) / intUpdate.divide);
   }
 }
 export function handleBigIntUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(

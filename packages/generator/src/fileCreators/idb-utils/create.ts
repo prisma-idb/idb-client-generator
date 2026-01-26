@@ -26,6 +26,7 @@ import { addFloatUpdateHandler } from "./updateHandlers/FloatHandler";
 import { addIntUpdateHandler } from "./updateHandlers/IntHandler";
 import { addScalarListUpdateHandler } from "./updateHandlers/ScalarListHandler";
 import { addStringUpdateHandler } from "./updateHandlers/StringHandler";
+import { addAreUint8ArraysEqualHelper } from "./helpers/areUint8ArraysEqual";
 
 export function createUtilsFile(
   writer: CodeBlockWriter,
@@ -57,6 +58,14 @@ export function createUtilsFile(
   addIntersectArraysByNestedKeyFunction(writer);
   addRemoveDuplicatesByKeyPath(writer);
   addApplyLogicalFilters(writer);
+
+  const hasBytesFields = models.some(({ fields }) => fields.some((field) => field.type === "Bytes"));
+  const hasBytesListFields = models.some(({ fields }) =>
+    fields.some((field) => field.type === "Bytes" && field.isList),
+  );
+  if (hasBytesFields || hasBytesListFields) {
+    addAreUint8ArraysEqualHelper(writer);
+  }
 
   addStringFilter(writer, models);
   addNumberFilter(writer, models);

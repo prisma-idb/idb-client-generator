@@ -16,11 +16,6 @@ export function addBytesListFilter(writer: CodeBlockWriter, models: readonly Mod
         .writeLine(`if (scalarListFilter === undefined) return true;`)
         .blankLine()
         .writeLine(`const value = record[fieldName] as Uint8Array[] | undefined;`)
-        .writeLine(`const areUint8ArraysEqual = (a: Uint8Array, b: Uint8Array) => {`)
-        .writeLine(`  if (a.length !== b.length) return false;`)
-        .writeLine(`  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;`)
-        .writeLine(`  return true;`)
-        .writeLine(`};`)
         .blankLine()
         .writeLine(`if (value === undefined && Object.keys(scalarListFilter).length) return false;`);
       addEqualsHandler(writer);
