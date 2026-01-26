@@ -25,7 +25,12 @@ export function removeDuplicatesByKeyPath<T>(arrays: T[][], keyPath: string[]): 
   return arrays
     .flatMap((el) => el)
     .filter((item) => {
-      const key = JSON.stringify(keyPath.map((key) => item[key as keyof T]));
+      const key = JSON.stringify(
+        keyPath.map((key) => {
+          const v = item[key as keyof T];
+          return typeof v === "bigint" ? v.toString() : v instanceof Date ? v.toISOString() : v;
+        })
+      );
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -329,16 +334,16 @@ export function whereBytesFilter<T, R extends Prisma.Result<T, object, "findFirs
     if (bytesFilter.equals === null) {
       if (value !== null) return false;
     }
-    if (Buffer.isBuffer(bytesFilter.equals)) {
+    if (bytesFilter.equals instanceof Uint8Array || Buffer.isBuffer(bytesFilter.equals)) {
       if (value === null) return false;
-      if (!bytesFilter.equals.equals(value)) return false;
+      if (!areUint8ArraysEqual(bytesFilter.equals as Uint8Array, value)) return false;
     }
     if (bytesFilter.not === null) {
       if (value === null) return false;
     }
-    if (Buffer.isBuffer(bytesFilter.not)) {
+    if (bytesFilter.not instanceof Uint8Array || Buffer.isBuffer(bytesFilter.not)) {
       if (value === null) return false;
-      if (bytesFilter.not.equals(value)) return false;
+      if (areUint8ArraysEqual(bytesFilter.not as Uint8Array, value)) return false;
     }
     if (Array.isArray(bytesFilter.in)) {
       if (value === null) return false;

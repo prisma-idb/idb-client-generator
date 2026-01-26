@@ -25,7 +25,12 @@ export function removeDuplicatesByKeyPath<T>(arrays: T[][], keyPath: string[]): 
   return arrays
     .flatMap((el) => el)
     .filter((item) => {
-      const key = JSON.stringify(keyPath.map((key) => item[key as keyof T]));
+      const key = JSON.stringify(
+        keyPath.map((key) => {
+          const v = item[key as keyof T];
+          return typeof v === "bigint" ? v.toString() : v instanceof Date ? v.toISOString() : v;
+        })
+      );
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
