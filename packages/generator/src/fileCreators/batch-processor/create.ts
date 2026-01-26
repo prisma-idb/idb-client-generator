@@ -278,10 +278,10 @@ export function createBatchProcessorFile(
         writer.writeLine(`          select: { ${selectFields} },`);
         writer.writeLine(`        });`);
       } else {
-        // Build where clause with nested scope condition
-        const whereWithScope = buildWhereWithScopeCondition(authPath, rootModel);
-        writer.writeLine(`        const record = await prisma.${modelNameLower}.findUnique({`);
-        writer.writeLine(`          where: { ...${generateWhereClause(pk.name, pkFields)}, ${whereWithScope} },`);
+        // For non-root models, use findFirst with a flat where clause combining pk and scope
+        const flatWhere = buildFlatWhereClause(pk.name, pkFields, authPath, rootModel);
+        writer.writeLine(`        const record = await prisma.${modelNameLower}.findFirst({`);
+        writer.writeLine(`          where: ${flatWhere},`);
         writer.writeLine(`          select: { ${selectFields} },`);
         writer.writeLine(`        });`);
       }
@@ -658,6 +658,27 @@ function generateModelSyncHandler(
     writer.writeLine(`}`);
   });
   writer.blankLine();
+}
+
+/**
+ * Build a flat where clause combining primary key fields and scope condition.
+ * For a single pk field: { id: validKeyPath[0], board: { user: { id: scopeKey } } }
+ * For composite pk: { id1: validKeyPath[0], id2: validKeyPath[1], board: { user: { id: scopeKey } } }
+ */
+function buildFlatWhereClause(
+  pkName: string,
+  pkFields: string[],
+  authPath: string[],
+  rootModel: Model,
+): string {
+  const whereWithScope = buildWhereWithScopeCondition(authPath, rootModel);
+
+  if (pkFields.length === 1) {
+    return `{ ${pkFields[0]}: validKeyPath[0], ${whereWithScope} }`;
+  } else {
+    const compositePkFields = pkFields.map((field, i) => `${field}: validKeyPath[${i}]`).join(", ");
+    return `{ ${compositePkFields}, ${whereWithScope} }`;
+  }
 }
 
 /**

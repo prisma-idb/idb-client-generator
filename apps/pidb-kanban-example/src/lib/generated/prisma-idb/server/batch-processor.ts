@@ -228,8 +228,8 @@ export async function materializeLogs({
           throw new Error("Invalid keyPath for Board");
         }
         const validKeyPath = keyPathValidation.data;
-        const record = await prisma.board.findUnique({
-          where: { ...{ id: validKeyPath[0] }, user: { id: scopeKey } },
+        const record = await prisma.board.findFirst({
+          where: { id: validKeyPath[0], user: { id: scopeKey } },
           select: { id: true, name: true, createdAt: true, userId: true },
         });
         results.push({ ...log, model: "Board", keyPath: validKeyPath, record });
@@ -241,8 +241,8 @@ export async function materializeLogs({
           throw new Error("Invalid keyPath for Todo");
         }
         const validKeyPath = keyPathValidation.data;
-        const record = await prisma.todo.findUnique({
-          where: { ...{ id: validKeyPath[0] }, board: { user: { id: scopeKey } } },
+        const record = await prisma.todo.findFirst({
+          where: { id: validKeyPath[0], board: { user: { id: scopeKey } } },
           select: { id: true, title: true, description: true, isCompleted: true, createdAt: true, boardId: true },
         });
         results.push({ ...log, model: "Todo", keyPath: validKeyPath, record });
