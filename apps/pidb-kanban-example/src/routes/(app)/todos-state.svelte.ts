@@ -102,12 +102,12 @@ export class TodosState {
   }
 
   async addBoard(name: string) {
-    const currentUser = await getClient().user.findFirst();
-    if (!currentUser) {
-      toast.error("No user found. Please log in.");
-      return;
-    }
     try {
+      const currentUser = await getClient().user.findFirst();
+      if (!currentUser) {
+        toast.error("No user found. Please log in.");
+        return;
+      }
       await getClient().board.create({ data: { name, userId: currentUser.id } });
     } catch (error) {
       console.error("Error creating board:", error);
