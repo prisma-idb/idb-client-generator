@@ -33,11 +33,11 @@ export function createValidatorsFile(
   writer.blankLine();
 
   // Write outbox event schema
-  writer.writeLine(`export const outboxEventSchema = z.object({`);
+  writer.writeLine(`export const outboxEventSchema = z.strictObject({`);
   writer.writeLine(`  id: z.string(),`);
   writer.writeLine(`  entityType: z.string(),`);
   writer.writeLine(`  operation: z.enum(["create", "update", "delete"]),`);
-  writer.writeLine(`  payload: z.any(),`);
+  writer.writeLine(`  payload: z.record(z.string(), z.unknown()),`);
   writer.writeLine(`  createdAt: z.coerce.date(),`);
   writer.writeLine(`  tries: z.number(),`);
   writer.writeLine(`  lastError: z.string().nullable(),`);
