@@ -60,6 +60,6 @@ function addNotHandler(writer: CodeBlockWriter) {
     })
     .writeLine(`if (typeof boolFilter.not === "boolean")`)
     .block(() => {
-      writer.writeLine(`if (boolFilter.not !== value) return false;`);
+      writer.writeLine(`if (boolFilter.not === value) return false;`);
     });
 }
