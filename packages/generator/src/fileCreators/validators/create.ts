@@ -32,6 +32,21 @@ export function createValidatorsFile(
   writer.writeLine(`} as const;`);
   writer.blankLine();
 
+  // Write outbox event schema
+  writer.writeLine(`export const outboxEventSchema = z.object({`);
+  writer.writeLine(`  id: z.string(),`);
+  writer.writeLine(`  entityType: z.string(),`);
+  writer.writeLine(`  operation: z.enum(["create", "update", "delete"]),`);
+  writer.writeLine(`  payload: z.any(),`);
+  writer.writeLine(`  createdAt: z.coerce.date(),`);
+  writer.writeLine(`  tries: z.number(),`);
+  writer.writeLine(`  lastError: z.string().nullable(),`);
+  writer.writeLine(`  synced: z.boolean(),`);
+  writer.writeLine(`  syncedAt: z.coerce.date().nullable(),`);
+  writer.writeLine(`  retryable: z.boolean(),`);
+  writer.writeLine(`});`);
+  writer.blankLine();
+
   // Write keyPathValidators constant
   writer.writeLine(`export const keyPathValidators = {`);
   modelNames.forEach((modelName) => {

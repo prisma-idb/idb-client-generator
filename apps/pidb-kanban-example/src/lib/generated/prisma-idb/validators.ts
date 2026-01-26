@@ -26,6 +26,19 @@ export const validators = {
   }),
 } as const;
 
+export const outboxEventSchema = z.object({
+  id: z.string(),
+  entityType: z.string(),
+  operation: z.enum(["create", "update", "delete"]),
+  payload: z.any(),
+  createdAt: z.coerce.date(),
+  tries: z.number(),
+  lastError: z.string().nullable(),
+  synced: z.boolean(),
+  syncedAt: z.coerce.date().nullable(),
+  retryable: z.boolean(),
+});
+
 export const keyPathValidators = {
   Board: z.tuple([z.string()]),
   Todo: z.tuple([z.string()]),

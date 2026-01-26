@@ -1,20 +1,8 @@
 import { applyPush } from "$lib/generated/prisma-idb/server/batch-processor";
+import { outboxEventSchema } from "$lib/generated/prisma-idb/validators";
 import { auth } from "$lib/server/auth";
 import { prisma } from "$lib/server/prisma";
 import z from "zod";
-
-const batchRecordSchema = z.object({
-  id: z.string(),
-  entityType: z.string(),
-  operation: z.enum(["create", "update", "delete"]),
-  payload: z.any(),
-  createdAt: z.coerce.date(),
-  tries: z.number(),
-  lastError: z.string().nullable(),
-  synced: z.boolean(),
-  syncedAt: z.coerce.date().nullable(),
-  retryable: z.boolean(),
-});
 
 export async function POST({ request }) {
   let pushRequestBody;
@@ -24,7 +12,7 @@ export async function POST({ request }) {
     return new Response(JSON.stringify({ error: "Malformed JSON" }), { status: 400 });
   }
 
-  const parsed = z.object({ events: z.array(batchRecordSchema), clientId: z.string() }).safeParse({
+  const parsed = z.object({ events: z.array(outboxEventSchema), clientId: z.string() }).safeParse({
     events: pushRequestBody.events,
     clientId: pushRequestBody.clientId,
   });
