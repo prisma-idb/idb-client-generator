@@ -248,7 +248,9 @@ function generateModelSwitchCase(writer: CodeBlockWriter, model: Model) {
     writer.blankLine();
     writer.writeLine(`if (customValidation) {`);
     writer.writeLine(`  try {`);
-    writer.writeLine(`    const { errorMessage } = await Promise.resolve(customValidation(event as EventsFor<typeof validators>));`);
+    writer.writeLine(
+      `    const { errorMessage } = await Promise.resolve(customValidation(event as EventsFor<typeof validators>));`,
+    );
     writer.writeLine(`    if (errorMessage) throw new PermanentSyncError("CUSTOM_VALIDATION_FAILED", errorMessage);`);
     writer.writeLine(`  } catch (error) {`);
     writer.writeLine(`    if (error instanceof PermanentSyncError) throw error;`);
@@ -472,9 +474,7 @@ function generateModelSyncHandler(
     writer.writeLine(`        });`);
     writer.writeLine(`      } catch (err) {`);
     writer.writeLine(`        if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {`);
-    writer.writeLine(
-      `          return { id, mergedRecord: data, error: null };`,
-    );
+    writer.writeLine(`          return { id, mergedRecord: data, error: null };`);
     writer.writeLine(`        }`);
     writer.writeLine(`        throw err;`);
     writer.writeLine(`      }`);
@@ -484,9 +484,7 @@ function generateModelSyncHandler(
     writer.writeLine(`        update: data,`);
     writer.writeLine(`      });`);
 
-    writer.writeLine(
-      `      return { id, mergedRecord: updatedRecord, error: null };`,
-    );
+    writer.writeLine(`      return { id, mergedRecord: updatedRecord, error: null };`);
     writer.writeLine(`    });`);
     writer.writeLine(`    return result;`);
     writer.writeLine(`  }`);

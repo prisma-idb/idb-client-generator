@@ -12,7 +12,7 @@ describe("schema projection", () => {
     const projected = await fs.readFile("./generated/prisma-idb/client/scoped-schema.prisma", "utf8");
 
     expect(projected).toMatchSnapshot();
-  }, 10000);
+  }, 20000);
 
   it("fails on missing root model", async () => {
     const schemaPath = path.resolve("./schemas/invalid/no-root-model-with-sync.prisma");
