@@ -50,6 +50,22 @@ export interface ApplyPushOptions {
   events: OutboxEventRecord[];
   scopeKey: string | ((event: OutboxEventRecord) => string);
   prisma: PrismaClient;
+  /**
+   * Unique identifier for the client device/origin submitting these events.
+   *
+   * **Security Note**: This ID is provided by the client and used to prevent
+   * echo loops during pull operations (server filters out logs with matching
+   * originId). It is NOT used for authentication or authorization.
+   *
+   * **Assumptions**:
+   * - Multiple devices of ONE authenticated user may have different originIds
+   * - originIds are scoped per-user (via scopeKey), not cross-user
+   * - Malicious originId spoofing can only affect one user's own sync, not
+   *   leak data across users
+   *
+   * **Best Practice**: Generate originId client-side as a random UUID per
+   * device and persist in localStorage.
+   */
   originId: string;
   customValidation?: (
     event: EventsFor<typeof validators>
@@ -65,6 +81,8 @@ export class PermanentSyncError extends Error {
   }
 }
 
+const MAX_BATCH_SIZE = 100;
+
 export async function applyPush({
   events,
   scopeKey,
@@ -72,6 +90,10 @@ export async function applyPush({
   originId,
   customValidation,
 }: ApplyPushOptions): Promise<PushResult[]> {
+  if (events.length > MAX_BATCH_SIZE) {
+    throw new Error(`Batch size ${events.length} exceeds maximum allowed ${MAX_BATCH_SIZE}`);
+  }
+
   const results: PushResult[] = [];
   for (const event of events) {
     try {
@@ -163,11 +185,19 @@ export async function applyPush({
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
       const isPermanent = err instanceof PermanentSyncError;
+
+      console.error(`[Sync Error] Event ${event.id}:`, {
+        entityType: event.entityType,
+        operation: event.operation,
+        error: err,
+        stack: err instanceof Error ? err.stack : undefined,
+      });
+
       results.push({
         id: event.id,
         error: {
           type: isPermanent ? err.type : "UNKNOWN_ERROR",
-          message: errorMessage,
+          message: isPermanent ? errorMessage : "An unexpected error occurred",
           retryable: !isPermanent,
         },
       });
@@ -179,9 +209,11 @@ export async function applyPush({
 export async function materializeLogs({
   logs,
   prisma,
+  scopeKey,
 }: {
   logs: Array<ChangeLog>;
   prisma: PrismaClient;
+  scopeKey: string;
 }): Promise<Array<LogWithRecord<typeof validators>>> {
   const validModelNames = ["Board", "Todo", "User"];
   const results: Array<LogWithRecord<typeof validators>> = [];
@@ -197,7 +229,8 @@ export async function materializeLogs({
         }
         const validKeyPath = keyPathValidation.data;
         const record = await prisma.board.findUnique({
-          where: { id: validKeyPath[0] },
+          where: { ...{ id: validKeyPath[0] }, user: { id: scopeKey } },
+          select: { id: true, name: true, createdAt: true, userId: true },
         });
         results.push({ ...log, model: "Board", keyPath: validKeyPath, record });
         break;
@@ -209,7 +242,8 @@ export async function materializeLogs({
         }
         const validKeyPath = keyPathValidation.data;
         const record = await prisma.todo.findUnique({
-          where: { id: validKeyPath[0] },
+          where: { ...{ id: validKeyPath[0] }, board: { user: { id: scopeKey } } },
+          select: { id: true, title: true, description: true, isCompleted: true, createdAt: true, boardId: true },
         });
         results.push({ ...log, model: "Todo", keyPath: validKeyPath, record });
         break;
@@ -221,7 +255,16 @@ export async function materializeLogs({
         }
         const validKeyPath = keyPathValidation.data;
         const record = await prisma.user.findUnique({
-          where: { id: validKeyPath[0] },
+          where: { ...{ id: validKeyPath[0] }, id: scopeKey },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            emailVerified: true,
+            image: true,
+            createdAt: true,
+            updatedAt: true,
+          },
         });
         results.push({ ...log, model: "User", keyPath: validKeyPath, record });
         break;
@@ -246,17 +289,6 @@ async function syncBoard(
   }
 
   const validKeyPath = keyPathValidation.data;
-
-  const verifyOwnership = async (keyPathArg: z.infer<typeof keyPathValidators.Board>) => {
-    const record = await prisma.board.findUnique({
-      where: { id: keyPathArg[0] },
-      select: { user: { select: { id: true } } },
-    });
-
-    if (!record || record.user.id !== scopeKey) {
-      throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: Board is not owned by the authenticated scope`);
-    }
-  };
 
   switch (operation) {
     case "create": {
@@ -296,8 +328,23 @@ async function syncBoard(
     }
 
     case "update": {
-      await verifyOwnership(validKeyPath);
       const result = await prisma.$transaction(async (tx) => {
+        const record = await tx.board.findUnique({
+          where: { id: validKeyPath[0] },
+          select: { user: { select: { id: true } } },
+        });
+
+        if (!record || record.user.id !== scopeKey) {
+          throw new PermanentSyncError(
+            "SCOPE_VIOLATION",
+            `Unauthorized: Board is not owned by the authenticated scope`
+          );
+        }
+
+        if (data.userId !== scopeKey) {
+          throw new PermanentSyncError("SCOPE_VIOLATION", `Cannot reassign Board to different User`);
+        }
+
         try {
           await tx.changeLog.create({
             data: {
@@ -326,8 +373,19 @@ async function syncBoard(
     }
 
     case "delete": {
-      await verifyOwnership(validKeyPath);
       const result = await prisma.$transaction(async (tx) => {
+        const record = await tx.board.findUnique({
+          where: { id: validKeyPath[0] },
+          select: { user: { select: { id: true } } },
+        });
+
+        if (!record || record.user.id !== scopeKey) {
+          throw new PermanentSyncError(
+            "SCOPE_VIOLATION",
+            `Unauthorized: Board is not owned by the authenticated scope`
+          );
+        }
+
         try {
           await tx.changeLog.create({
             data: {
@@ -374,17 +432,6 @@ async function syncTodo(
 
   const validKeyPath = keyPathValidation.data;
 
-  const verifyOwnership = async (keyPathArg: z.infer<typeof keyPathValidators.Todo>) => {
-    const record = await prisma.todo.findUnique({
-      where: { id: keyPathArg[0] },
-      select: { board: { select: { user: { select: { id: true } } } } },
-    });
-
-    if (!record || record.board.user.id !== scopeKey) {
-      throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: Todo is not owned by the authenticated scope`);
-    }
-  };
-
   switch (operation) {
     case "create": {
       const parentRecord = await prisma.board.findUnique({
@@ -423,8 +470,25 @@ async function syncTodo(
     }
 
     case "update": {
-      await verifyOwnership(validKeyPath);
       const result = await prisma.$transaction(async (tx) => {
+        const record = await tx.todo.findUnique({
+          where: { id: validKeyPath[0] },
+          select: { board: { select: { user: { select: { id: true } } } } },
+        });
+
+        if (!record || record.board.user.id !== scopeKey) {
+          throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: Todo is not owned by the authenticated scope`);
+        }
+
+        const newParentRecord = await tx.board.findUnique({
+          where: { id: data.boardId },
+          select: { user: { select: { id: true } } },
+        });
+
+        if (!newParentRecord || newParentRecord.user.id !== scopeKey) {
+          throw new PermanentSyncError("SCOPE_VIOLATION", `Cannot reassign Todo to parent outside scope`);
+        }
+
         try {
           await tx.changeLog.create({
             data: {
@@ -453,8 +517,16 @@ async function syncTodo(
     }
 
     case "delete": {
-      await verifyOwnership(validKeyPath);
       const result = await prisma.$transaction(async (tx) => {
+        const record = await tx.todo.findUnique({
+          where: { id: validKeyPath[0] },
+          select: { board: { select: { user: { select: { id: true } } } } },
+        });
+
+        if (!record || record.board.user.id !== scopeKey) {
+          throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: Todo is not owned by the authenticated scope`);
+        }
+
         try {
           await tx.changeLog.create({
             data: {
@@ -501,12 +573,6 @@ async function syncUser(
 
   const validKeyPath = keyPathValidation.data;
 
-  const verifyOwnership = async (keyPathArg: z.infer<typeof keyPathValidators.User>) => {
-    if (keyPathArg[0] !== scopeKey) {
-      throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: User pk does not match authenticated scope`);
-    }
-  };
-
   switch (operation) {
     case "create": {
       if (scopeKey !== data.id) {
@@ -537,8 +603,11 @@ async function syncUser(
     }
 
     case "update": {
-      await verifyOwnership(validKeyPath);
       const result = await prisma.$transaction(async (tx) => {
+        if (validKeyPath[0] !== scopeKey) {
+          throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: User pk does not match authenticated scope`);
+        }
+
         try {
           await tx.changeLog.create({
             data: {
@@ -567,8 +636,11 @@ async function syncUser(
     }
 
     case "delete": {
-      await verifyOwnership(validKeyPath);
       const result = await prisma.$transaction(async (tx) => {
+        if (validKeyPath[0] !== scopeKey) {
+          throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: User pk does not match authenticated scope`);
+        }
+
         try {
           await tx.changeLog.create({
             data: {

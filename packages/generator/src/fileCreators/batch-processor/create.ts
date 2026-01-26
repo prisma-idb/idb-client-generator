@@ -124,6 +124,22 @@ export function createBatchProcessorFile(
   writer.writeLine(`  events: OutboxEventRecord[];`);
   writer.writeLine(`  scopeKey: string | ((event: OutboxEventRecord) => string);`);
   writer.writeLine(`  prisma: PrismaClient;`);
+  writer.writeLine(`  /**`);
+  writer.writeLine(`   * Unique identifier for the client device/origin submitting these events.`);
+  writer.writeLine(`   *`);
+  writer.writeLine(`   * **Security Note**: This ID is provided by the client and used to prevent`);
+  writer.writeLine(`   * echo loops during pull operations (server filters out logs with matching`);
+  writer.writeLine(`   * originId). It is NOT used for authentication or authorization.`);
+  writer.writeLine(`   *`);
+  writer.writeLine(`   * **Assumptions**:`);
+  writer.writeLine(`   * - Multiple devices of ONE authenticated user may have different originIds`);
+  writer.writeLine(`   * - originIds are scoped per-user (via scopeKey), not cross-user`);
+  writer.writeLine(`   * - Malicious originId spoofing can only affect one user's own sync, not`);
+  writer.writeLine(`   *   leak data across users`);
+  writer.writeLine(`   *`);
+  writer.writeLine(`   * **Best Practice**: Generate originId client-side as a random UUID per`);
+  writer.writeLine(`   * device and persist in localStorage.`);
+  writer.writeLine(`   */`);
   writer.writeLine(`  originId: string;`);
   writer.writeLine(`  customValidation?: (`);
   writer.writeLine(`    event: EventsFor<typeof validators>`);
@@ -143,6 +159,10 @@ export function createBatchProcessorFile(
   });
   writer.blankLine();
 
+  // Write MAX_BATCH_SIZE constant
+  writer.writeLine(`const MAX_BATCH_SIZE = 100;`);
+  writer.blankLine();
+
   // Write applyPush function with switch cases per model
   writer.writeLine(`export async function applyPush({`);
   writer.writeLine(`  events,`);
@@ -152,6 +172,12 @@ export function createBatchProcessorFile(
   writer.writeLine(`  customValidation,`);
   writer.writeLine(`}: ApplyPushOptions): Promise<PushResult[]>`);
   writer.block(() => {
+    writer.writeLine(`if (events.length > MAX_BATCH_SIZE) {`);
+    writer.writeLine(`  throw new Error(`);
+    writer.writeLine(`    \`Batch size \${events.length} exceeds maximum allowed \${MAX_BATCH_SIZE}\``);
+    writer.writeLine(`  );`);
+    writer.writeLine(`}`);
+    writer.blankLine();
     writer.writeLine(`const results: PushResult[] = [];`);
     writer.writeLine(`for (const event of events) {`);
     writer.writeLine(`  try {`);
@@ -173,12 +199,20 @@ export function createBatchProcessorFile(
     writer.writeLine(`  } catch (err) {`);
     writer.writeLine(`    const errorMessage = err instanceof Error ? err.message : "Unknown error";`);
     writer.writeLine(`    const isPermanent = err instanceof PermanentSyncError;`);
+    writer.blankLine();
+    writer.writeLine(`    console.error(\`[Sync Error] Event \${event.id}:\`, {`);
+    writer.writeLine(`      entityType: event.entityType,`);
+    writer.writeLine(`      operation: event.operation,`);
+    writer.writeLine(`      error: err,`);
+    writer.writeLine(`      stack: err instanceof Error ? err.stack : undefined,`);
+    writer.writeLine(`    });`);
+    writer.blankLine();
     writer
       .writeLine(`    results.push({ id: event.id, `)
       .writeLine(`error: `)
       .block(() => {
         writer.writeLine(`type: isPermanent ? err.type : "UNKNOWN_ERROR",`);
-        writer.writeLine(`message: errorMessage,`);
+        writer.writeLine(`message: isPermanent ? errorMessage : "An unexpected error occurred",`);
         writer.writeLine(`retryable: !isPermanent,`);
       })
       .writeLine(`});`);
@@ -188,13 +222,18 @@ export function createBatchProcessorFile(
   });
   writer.blankLine();
 
+  // Create DAG for authorization paths
+  const dag = createDAG(models, rootModel);
+
   // Write materializeLogs helper function
   writer.writeLine(`export async function materializeLogs({`);
   writer.writeLine(`  logs,`);
   writer.writeLine(`  prisma,`);
+  writer.writeLine(`  scopeKey,`);
   writer.writeLine(`}: {`);
   writer.writeLine(`  logs: Array<ChangeLog>;`);
   writer.writeLine(`  prisma: PrismaClient;`);
+  writer.writeLine(`  scopeKey: string;`);
   writer.writeLine(`}): Promise<Array<LogWithRecord<typeof validators>>>`);
   writer.block(() => {
     writer.writeLine(`const validModelNames = [${modelNames.map((name) => `"${name}"`).join(", ")}];`);
@@ -210,6 +249,8 @@ export function createBatchProcessorFile(
       const modelNameLower = model.name.charAt(0).toLowerCase() + model.name.slice(1);
       const pk = getUniqueIdentifiers(model)[0];
       const pkFields = JSON.parse(pk.keyPath) as string[];
+      const isRootModel = model.name === rootModel.name;
+      const authPath = buildAuthorizationPath(model.name, rootModel.name, models, dag);
 
       writer.writeLine(`      case "${model.name}": {`);
       writer.writeLine(`        const keyPathValidation = keyPathValidators.${model.name}.safeParse(log.keyPath);`);
@@ -217,9 +258,30 @@ export function createBatchProcessorFile(
       writer.writeLine(`          throw new Error("Invalid keyPath for ${model.name}");`);
       writer.writeLine(`        }`);
       writer.writeLine(`        const validKeyPath = keyPathValidation.data;`);
-      writer.writeLine(`        const record = await prisma.${modelNameLower}.findUnique({`);
-      writer.writeLine(`          where: ${generateWhereClause(pk.name, pkFields)},`);
-      writer.writeLine(`        });`);
+
+      // Build select clause with all model fields
+      const selectFields = model.fields
+        .filter((f) => f.kind !== "object")
+        .map((f) => `${f.name}: true`)
+        .join(", ");
+
+      if (isRootModel) {
+        const rootPkFieldName = getUniqueIdentifiers(model)[0].name;
+        const baseWhere = generateWhereClause(pk.name, pkFields);
+        // For root model, add scopeKey check directly in where clause
+        writer.writeLine(`        const record = await prisma.${modelNameLower}.findUnique({`);
+        writer.writeLine(`          where: { ...${baseWhere}, ${rootPkFieldName}: scopeKey },`);
+        writer.writeLine(`          select: { ${selectFields} },`);
+        writer.writeLine(`        });`);
+      } else {
+        // Build where clause with nested scope condition
+        const whereWithScope = buildWhereWithScopeCondition(authPath, rootModel);
+        writer.writeLine(`        const record = await prisma.${modelNameLower}.findUnique({`);
+        writer.writeLine(`          where: { ...${generateWhereClause(pk.name, pkFields)}, ${whereWithScope} },`);
+        writer.writeLine(`          select: { ${selectFields} },`);
+        writer.writeLine(`        });`);
+      }
+
       writer.writeLine(`        results.push({ ...log, model: "${model.name}", keyPath: validKeyPath, record });`);
       writer.writeLine(`        break;`);
       writer.writeLine(`      }`);
@@ -231,7 +293,6 @@ export function createBatchProcessorFile(
   writer.blankLine();
 
   // Generate sync handler functions for each model
-  const dag = createDAG(models, rootModel);
   models.forEach((model) => {
     generateModelSyncHandler(writer, model, models, rootModel, dag);
   });
@@ -297,50 +358,6 @@ function generateModelSyncHandler(
     writer.writeLine(`}`);
     writer.blankLine();
     writer.writeLine(`const validKeyPath = keyPathValidation.data;`);
-    writer.blankLine();
-
-    // Helper function to verify ownership for this model using single Prisma query
-    writer.writeLine(`const verifyOwnership = async (keyPathArg: z.infer<typeof keyPathValidators.${model.name}>) => `);
-    writer.block(() => {
-      if (isRootModel) {
-        writer.writeLine(`if (keyPathArg[0] !== scopeKey) {`);
-        writer.writeLine(
-          `  throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} pk does not match authenticated scope\`);`,
-        );
-        writer.writeLine(`}`);
-      } else {
-        // Build a single Prisma query that traces through the auth path to the root
-        // For example: Todo -> Board -> User
-        // authPath would be ['board', 'user']
-
-        const selectObj = buildSelectObject(authPath, rootModel);
-        // Build the where clause dynamically based on keyPathArg
-        if (pkFields.length === 1) {
-          writer.writeLine(`const record = await prisma.${modelNameLower}.findUnique({`);
-          writer.writeLine(`  where: { ${pkFields[0]}: keyPathArg[0] },`);
-          writer.writeLine(`  select: ${selectObj},`);
-          writer.writeLine(`});`);
-        } else {
-          // Composite primary key
-          const compositeKey = pkFields.map((field, i) => `${field}: keyPathArg[${i}]`).join(", ");
-          writer.writeLine(`const record = await prisma.${modelNameLower}.findUnique({`);
-          writer.writeLine(`  where: { ${pk.name}: { ${compositeKey} } },`);
-          writer.writeLine(`  select: ${selectObj},`);
-          writer.writeLine(`});`);
-        }
-        writer.blankLine();
-
-        // Navigate through the object to get root pk
-        const accessChain = buildAccessChain(authPath);
-        const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
-
-        writer.writeLine(`if (!record || record${accessChain}.${rootPkFieldName} !== scopeKey) {`);
-        writer.writeLine(
-          `  throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} is not owned by the authenticated scope\`);`,
-        );
-        writer.writeLine(`}`);
-      }
-    });
     writer.blankLine();
 
     writer.writeLine(`switch (operation) {`);
@@ -455,9 +472,94 @@ function generateModelSyncHandler(
 
     // UPDATE
     writer.writeLine(`  case "update": {`);
-
-    writer.writeLine(`    await verifyOwnership(validKeyPath);`);
     writer.writeLine(`    const result = await prisma.$transaction(async (tx) => {`);
+
+    // Fix #2: Move verifyOwnership inside transaction
+    if (isRootModel) {
+      writer.writeLine(`      if (validKeyPath[0] !== scopeKey) {`);
+      writer.writeLine(
+        `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} pk does not match authenticated scope\`);`,
+      );
+      writer.writeLine(`      }`);
+    } else {
+      const selectObj = buildSelectObject(authPath, rootModel);
+      if (pkFields.length === 1) {
+        writer.writeLine(`      const record = await tx.${modelNameLower}.findUnique({`);
+        writer.writeLine(`        where: { ${pkFields[0]}: validKeyPath[0] },`);
+        writer.writeLine(`        select: ${selectObj},`);
+        writer.writeLine(`      });`);
+      } else {
+        const compositeKey = pkFields.map((field, i) => `${field}: validKeyPath[${i}]`).join(", ");
+        writer.writeLine(`      const record = await tx.${modelNameLower}.findUnique({`);
+        writer.writeLine(`        where: { ${pk.name}: { ${compositeKey} } },`);
+        writer.writeLine(`        select: ${selectObj},`);
+        writer.writeLine(`      });`);
+      }
+      writer.blankLine();
+      const accessChain = buildAccessChain(authPath);
+      const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
+      writer.writeLine(`      if (!record || record${accessChain}.${rootPkFieldName} !== scopeKey) {`);
+      writer.writeLine(
+        `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} is not owned by the authenticated scope\`);`,
+      );
+      writer.writeLine(`      }`);
+    }
+    writer.blankLine();
+
+    // Fix #1: Validate new parent ownership for update operations
+    if (!isRootModel && authPath.length > 0) {
+      const firstRelationFieldName = authPath[0];
+      const relationField = model.fields.find((f) => f.name === firstRelationFieldName);
+
+      if (relationField && relationField.relationFromFields && relationField.relationFromFields.length > 0) {
+        const foreignKeyFields = relationField.relationFromFields;
+        const parentModel = allModels.find((m) => m.name === relationField.type);
+
+        if (parentModel) {
+          const parentModelLower = parentModel.name.charAt(0).toLowerCase() + parentModel.name.slice(1);
+          const remainingPath = authPath.slice(1);
+
+          if (remainingPath.length > 0) {
+            const parentSelectObj = buildSelectObject(remainingPath, rootModel);
+            const parentPk = getUniqueIdentifiers(parentModel)[0];
+            const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
+
+            writer.writeLine(`      const newParentRecord = await tx.${parentModelLower}.findUnique({`);
+            if (parentPkFields.length === 1) {
+              writer.writeLine(`        where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+            } else {
+              const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
+              writer.writeLine(`        where: { ${parentPk.name}: { ${compositeKey} } },`);
+            }
+            writer.writeLine(`        select: ${parentSelectObj},`);
+            writer.writeLine(`      });`);
+            writer.blankLine();
+
+            const accessChain = buildAccessChain(remainingPath);
+            const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
+            writer.writeLine(
+              `      if (!newParentRecord || newParentRecord${accessChain}.${rootPkFieldName} !== scopeKey) {`,
+            );
+            writer.writeLine(
+              `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot reassign ${model.name} to parent outside scope\`);`,
+            );
+            writer.writeLine(`      }`);
+          } else {
+            const parentPk = getUniqueIdentifiers(parentModel)[0];
+            const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
+            const parentPkFieldName = getUniqueIdentifiers(parentModel)[0].name;
+
+            writer.writeLine(`      if (data.${foreignKeyFields[0]} !== scopeKey) {`);
+            writer.writeLine(
+              `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot reassign ${model.name} to different ${parentModel.name}\`);`,
+            );
+            writer.writeLine(`      }`);
+          }
+          writer.blankLine();
+        }
+      }
+    }
+
     writer.writeLine(`      try {`);
     writer.writeLine(`        await tx.changeLog.create({`);
     writer.writeLine(`          data: {`);
@@ -489,9 +591,40 @@ function generateModelSyncHandler(
 
     // DELETE
     writer.writeLine(`  case "delete": {`);
-
-    writer.writeLine(`    await verifyOwnership(validKeyPath);`);
     writer.writeLine(`    const result = await prisma.$transaction(async (tx) => {`);
+
+    // Fix #5: Move verifyOwnership inside transaction
+    if (isRootModel) {
+      writer.writeLine(`      if (validKeyPath[0] !== scopeKey) {`);
+      writer.writeLine(
+        `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} pk does not match authenticated scope\`);`,
+      );
+      writer.writeLine(`      }`);
+    } else {
+      const selectObj = buildSelectObject(authPath, rootModel);
+      if (pkFields.length === 1) {
+        writer.writeLine(`      const record = await tx.${modelNameLower}.findUnique({`);
+        writer.writeLine(`        where: { ${pkFields[0]}: validKeyPath[0] },`);
+        writer.writeLine(`        select: ${selectObj},`);
+        writer.writeLine(`      });`);
+      } else {
+        const compositeKey = pkFields.map((field, i) => `${field}: validKeyPath[${i}]`).join(", ");
+        writer.writeLine(`      const record = await tx.${modelNameLower}.findUnique({`);
+        writer.writeLine(`        where: { ${pk.name}: { ${compositeKey} } },`);
+        writer.writeLine(`        select: ${selectObj},`);
+        writer.writeLine(`      });`);
+      }
+      writer.blankLine();
+      const accessChain = buildAccessChain(authPath);
+      const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
+      writer.writeLine(`      if (!record || record${accessChain}.${rootPkFieldName} !== scopeKey) {`);
+      writer.writeLine(
+        `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} is not owned by the authenticated scope\`);`,
+      );
+      writer.writeLine(`      }`);
+    }
+    writer.blankLine();
+
     writer.writeLine(`      try {`);
     writer.writeLine(`        await tx.changeLog.create({`);
     writer.writeLine(`          data: {`);
@@ -566,6 +699,33 @@ function buildSelectObject(authPath: string[], rootModel: Model): string {
  */
 function buildAccessChain(authPath: string[]): string {
   return "." + authPath.join(".");
+}
+
+/**
+ * Build a where clause with nested scope condition for filtering by ownership.
+ * For example, for authPath ['board', 'user']:
+ * board: { user: { id: scopeKey } }
+ */
+function buildWhereWithScopeCondition(authPath: string[], rootModel: Model): string {
+  if (authPath.length === 0) return "";
+
+  const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
+  let result = "";
+
+  // Build nested where structure
+  for (let i = 0; i < authPath.length; i++) {
+    result += `${authPath[i]}: { `;
+  }
+
+  // Add the scopeKey condition at the deepest level
+  result += `${rootPkFieldName}: scopeKey`;
+
+  // Close all nested objects
+  for (let i = 0; i < authPath.length; i++) {
+    result += " }";
+  }
+
+  return result;
 }
 
 function generateWhereClause(pkName: string, pkFields: string[]): string {

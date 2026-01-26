@@ -33,7 +33,7 @@ export async function POST({ request }) {
     take: 50,
   });
 
-  const logsWithRecords = await materializeLogs({ logs, prisma });
+  const logsWithRecords = await materializeLogs({ logs, prisma, scopeKey: authResult.user.id });
 
   return new Response(
     JSON.stringify(
