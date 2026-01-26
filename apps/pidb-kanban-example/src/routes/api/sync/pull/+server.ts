@@ -7,13 +7,11 @@ export async function POST({ request }) {
   let pullRequestBody;
   try {
     pullRequestBody = await request.json();
-  } catch (error) {
+  } catch {
     return new Response(JSON.stringify({ error: "Malformed JSON" }), { status: 400 });
   }
 
-  const parsed = z
-    .object({ lastChangelogId: z.coerce.bigint().optional() })
-    .safeParse(pullRequestBody);
+  const parsed = z.object({ lastChangelogId: z.coerce.bigint().optional() }).safeParse(pullRequestBody);
 
   if (!parsed.success) {
     return new Response(JSON.stringify({ error: "Invalid request", details: parsed.error }), {

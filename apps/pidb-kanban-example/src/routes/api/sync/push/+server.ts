@@ -8,7 +8,7 @@ export async function POST({ request }) {
   let pushRequestBody;
   try {
     pushRequestBody = await request.json();
-  } catch (error) {
+  } catch {
     return new Response(JSON.stringify({ error: "Malformed JSON" }), { status: 400 });
   }
 
