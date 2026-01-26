@@ -4,7 +4,7 @@ export const validators = {
   Board: z.strictObject({
     id: z.string(),
     name: z.string(),
-    createdAt: z.iso.datetime(),
+    createdAt: z.coerce.date(),
     userId: z.string(),
   }),
   Todo: z.strictObject({
@@ -12,7 +12,7 @@ export const validators = {
     title: z.string(),
     description: z.string().nullable(),
     isCompleted: z.boolean(),
-    createdAt: z.iso.datetime(),
+    createdAt: z.coerce.date(),
     boardId: z.string(),
   }),
   User: z.strictObject({
@@ -21,8 +21,8 @@ export const validators = {
     email: z.string(),
     emailVerified: z.boolean(),
     image: z.string().nullable(),
-    createdAt: z.iso.datetime(),
-    updatedAt: z.iso.datetime(),
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
   }),
 } as const;
 
