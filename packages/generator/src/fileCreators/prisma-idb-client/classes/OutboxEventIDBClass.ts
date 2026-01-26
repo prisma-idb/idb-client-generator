@@ -62,7 +62,7 @@ function addGetNextBatchMethod(writer: CodeBlockWriter, outboxModelName: string)
         .writeLine(`// Get all unsynced events, ordered by createdAt`)
         .writeLine(`const allEvents = await store.getAll();`)
         .writeLine(
-          `const unsynced = allEvents.filter((e) => !e.synced).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());`,
+          `const unsynced = allEvents.filter((e) => !e.synced && e.retryable).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());`,
         )
         .blankLine()
         .writeLine(`return unsynced.slice(0, limit);`);

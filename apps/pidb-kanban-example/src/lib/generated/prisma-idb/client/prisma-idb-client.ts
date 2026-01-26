@@ -115,11 +115,9 @@ export class PrismaIDBClient {
     const { intervalMs = 5000, maxRetries = 5 } = options.schedule || {};
 
     let intervalId: ReturnType<typeof setInterval | typeof setTimeout> | null = null;
-    let isRunning = false;
+    let status: "STOPPED" | "IDLE" | "PUSHING" | "PULLING" = "STOPPED";
     let stopRequested = false;
-    let isProcessing = false;
-    let isPushing = false;
-    let isPulling = false;
+    let isLooping = false;
     let lastSyncTime: Date | null = null;
     let lastError: Error | null = null;
     const eventTarget = new EventTarget();
@@ -133,8 +131,6 @@ export class PrismaIDBClient {
      * This is the core unit of push work, avoiding redundant fetches.
      */
     const pushBatch = async (batch: OutboxEventRecord[]): Promise<void> => {
-      if (batch.length === 0) return;
-
       const toSync = batch.filter((event: OutboxEventRecord) => event.tries < maxRetries && event.retryable);
       const abandoned = batch.filter((event: OutboxEventRecord) => event.tries >= maxRetries);
 
@@ -180,22 +176,18 @@ export class PrismaIDBClient {
      * Invariant: when this completes, there are no syncable events left.
      */
     const drainPushPhase = async (): Promise<void> => {
-      isPushing = true;
+      status = "PUSHING";
       emitStatusChange();
       try {
-        while (!stopRequested) {
+        while (true) {
           const batch = await this.$outbox.getNextBatch({ limit: batchSize });
-
           if (batch.length === 0) break;
-
-          const hasSyncable = batch.some((e: OutboxEventRecord) => e.tries < maxRetries);
           await pushBatch(batch);
-
-          if (!hasSyncable) break;
         }
-      } finally {
-        isPushing = false;
-        emitStatusChange();
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        console.error("Push phase failed:", errorMessage);
+        throw err;
       }
     };
 
@@ -209,35 +201,29 @@ export class PrismaIDBClient {
      * - Handles errors gracefully, stops pull on failure
      */
     const drainPullPhase = async (): Promise<void> => {
-      isPulling = true;
+      status = "PULLING";
       emitStatusChange();
       try {
         let cursor = getCursor ? await Promise.resolve(getCursor()) : undefined;
 
-        while (!stopRequested) {
-          try {
-            const res = await pullHandler(cursor);
-            const { logsWithRecords, cursor: nextCursor } = res;
+        while (true) {
+          const res = await pullHandler(cursor);
+          const { logsWithRecords, cursor: nextCursor } = res;
+          if (logsWithRecords.length === 0) break;
 
-            if (logsWithRecords.length === 0) break;
+          await applyPull({ idbClient: this, logsWithRecords, originId });
 
-            await applyPull({ idbClient: this, logsWithRecords, originId });
-
-            if (setCursor) {
-              await Promise.resolve(setCursor(nextCursor));
-            }
-
-            cursor = nextCursor;
-            if (typeof cursor !== "bigint") break;
-          } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            console.error("Pull failed:", errorMessage);
-            throw err;
+          if (setCursor) {
+            await Promise.resolve(setCursor(nextCursor));
           }
+
+          cursor = nextCursor;
+          if (typeof cursor !== "bigint") break;
         }
-      } finally {
-        isPulling = false;
-        emitStatusChange();
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        console.error("Pull phase failed:", errorMessage);
+        throw err;
       }
     };
 
@@ -252,47 +238,27 @@ export class PrismaIDBClient {
      * - Order is unbreakable
      */
     const syncOnce = async (): Promise<void> => {
-      if (!isRunning) {
-        console.warn("syncOnce: worker is not running");
-        return;
-      }
-      if (isProcessing) {
+      if (status === "PUSHING" || status === "PULLING") {
         console.warn("syncOnce: sync already in progress");
         return;
       }
 
-      isProcessing = true;
-      emitStatusChange();
       try {
         await drainPushPhase();
         await drainPullPhase();
         lastSyncTime = new Date();
         lastError = null;
-        emitStatusChange();
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));
         console.error("Sync cycle failed:", err);
         emitStatusChange();
       } finally {
-        isProcessing = false;
+        status = isLooping ? "IDLE" : "STOPPED";
         emitStatusChange();
+        if (isLooping && !stopRequested) {
+          intervalId = setTimeout(() => syncOnce(), intervalMs);
+        }
       }
-    };
-
-    /**
-     * Schedule the next sync cycle after the current one completes.
-     * This prevents overlapping sync work and maintains proper spacing.
-     */
-    const scheduleNext = (): void => {
-      if (stopRequested) {
-        isRunning = false;
-        emitStatusChange();
-        return;
-      }
-      intervalId = setTimeout(async () => {
-        await syncOnce();
-        scheduleNext();
-      }, intervalMs);
     };
 
     return {
@@ -302,18 +268,13 @@ export class PrismaIDBClient {
        * Does nothing if already running.
        */
       start(): void {
-        if (isRunning) {
+        if (isLooping) {
           console.warn("start: worker is already running");
           return;
         }
         stopRequested = false;
-        isRunning = true;
-        emitStatusChange();
-        syncOnce()
-          .catch((err) => {
-            console.error("Unhandled error starting sync:", err);
-          })
-          .finally(scheduleNext);
+        isLooping = true;
+        syncOnce();
       },
 
       /**
@@ -323,14 +284,15 @@ export class PrismaIDBClient {
        */
       stop(): void {
         stopRequested = true;
+        isLooping = false;
         if (intervalId !== null) {
           clearTimeout(intervalId);
           intervalId = null;
-        } else {
-          // No active sync, immediately mark as stopped
-          isRunning = false;
         }
-        emitStatusChange();
+        if (status === "IDLE") {
+          status = "STOPPED";
+          emitStatusChange();
+        }
       },
 
       /**
@@ -339,14 +301,15 @@ export class PrismaIDBClient {
        * Use syncNow() to trigger a one-off sync without starting the worker.
        */
       async forceSync(): Promise<void> {
-        if (!isRunning) {
+        if (!isLooping) {
           console.warn("forceSync: worker is not running");
           return;
         }
-        if (isProcessing) {
-          console.warn("forceSync: sync already in progress");
+        if (status === "PUSHING" || status === "PULLING") {
+          console.warn(`forceSync: sync already in progress: ${status}`);
           return;
         }
+        if (intervalId) clearTimeout(intervalId);
         await syncOnce();
       },
 
@@ -356,19 +319,13 @@ export class PrismaIDBClient {
        * Does not require the worker to be running (started).
        */
       async syncNow(): Promise<void> {
-        if (isProcessing) {
+        const isRunning = status === "PUSHING" || status === "PULLING";
+        if (isRunning) {
           console.warn("syncNow: sync already in progress");
           return;
         }
-        const wasRunning = isRunning;
-        isRunning = true;
-        emitStatusChange();
-        try {
-          await syncOnce();
-        } finally {
-          isRunning = wasRunning;
-          emitStatusChange();
-        }
+        if (intervalId) clearTimeout(intervalId);
+        await syncOnce();
       },
 
       /**
@@ -379,14 +336,10 @@ export class PrismaIDBClient {
        */
       get status() {
         return {
-          /** Whether the worker is currently active (started) */
-          isRunning,
-          /** Whether a sync cycle is currently in progress */
-          isProcessing,
-          /** Whether the push phase is currently active */
-          isPushing,
-          /** Whether the pull phase is currently active */
-          isPulling,
+          /** Current status of the sync worker */
+          status,
+          /** Whether the sync worker is looping */
+          isLooping,
           /** Timestamp of the last successful sync completion */
           lastSyncTime,
           /** The last error encountered during sync, if any */
@@ -3247,7 +3200,7 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
     // Get all unsynced events, ordered by createdAt
     const allEvents = await store.getAll();
     const unsynced = allEvents
-      .filter((e) => !e.synced)
+      .filter((e) => !e.synced && e.retryable)
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
     return unsynced.slice(0, limit);

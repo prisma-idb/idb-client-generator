@@ -84,14 +84,10 @@ function addSyncWorkerTypes(writer: CodeBlockWriter) {
 
   writer.writeLine(`export interface SyncWorkerStatus`).block(() => {
     writer
-      .writeLine(`/** Whether the worker is currently active (started) */`)
-      .writeLine(`isRunning: boolean;`)
-      .writeLine(`/** Whether a sync cycle is currently in progress */`)
-      .writeLine(`isProcessing: boolean;`)
-      .writeLine(`/** Whether the push phase is currently active */`)
-      .writeLine(`isPushing: boolean;`)
-      .writeLine(`/** Whether the pull phase is currently active */`)
-      .writeLine(`isPulling: boolean;`)
+      .writeLine(`/** Whether the worker is looping */`)
+      .writeLine(`isLooping: boolean;`)
+      .writeLine(`/** Current status of the sync worker */`)
+      .writeLine(`status: 'STOPPED' | 'IDLE' | 'PUSHING' | 'PULLING';`)
       .writeLine(`/** Timestamp of the last successful sync completion */`)
       .writeLine(`lastSyncTime: Date | null;`)
       .writeLine(`/** The last error encountered during sync, if any */`)

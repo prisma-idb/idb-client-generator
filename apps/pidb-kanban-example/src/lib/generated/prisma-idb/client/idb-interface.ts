@@ -43,14 +43,10 @@ export interface SyncWorkerOptions {
   backoffBaseMs?: number;
 }
 export interface SyncWorkerStatus {
-  /** Whether the worker is currently active (started) */
-  isRunning: boolean;
-  /** Whether a sync cycle is currently in progress */
-  isProcessing: boolean;
-  /** Whether the push phase is currently active */
-  isPushing: boolean;
-  /** Whether the pull phase is currently active */
-  isPulling: boolean;
+  /** Whether the worker is looping */
+  isLooping: boolean;
+  /** Current status of the sync worker */
+  status: "STOPPED" | "IDLE" | "PUSHING" | "PULLING";
   /** Timestamp of the last successful sync completion */
   lastSyncTime: Date | null;
   /** The last error encountered during sync, if any */

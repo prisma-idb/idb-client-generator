@@ -14,27 +14,19 @@
 
   const todosState = getTodosContext();
 
-  let isRunning = $state(false);
-  let isProcessing = $state(false);
-  let isPushing = $state(false);
-  let isPulling = $state(false);
+  let status = $state<"STOPPED" | "IDLE" | "PUSHING" | "PULLING">();
+  let isLooping = $state(false);
 
   onMount(() => {
     if (!browser || !todosState.syncWorker) return;
 
     // Initialize current status
-    isRunning = todosState.syncWorker.status.isRunning;
-    isProcessing = todosState.syncWorker.status.isProcessing;
-    isPushing = todosState.syncWorker.status.isPushing;
-    isPulling = todosState.syncWorker.status.isPulling;
+    ({ status, isLooping } = todosState.syncWorker.status);
 
     // Subscribe to status changes
     const unsubscribe = todosState.syncWorker.on("statuschange", () => {
       if (todosState.syncWorker) {
-        isRunning = todosState.syncWorker.status.isRunning;
-        isProcessing = todosState.syncWorker.status.isProcessing;
-        isPushing = todosState.syncWorker.status.isPushing;
-        isPulling = todosState.syncWorker.status.isPulling;
+        ({ status, isLooping } = todosState.syncWorker.status);
       }
     });
 
@@ -54,7 +46,7 @@
             class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             {...props}
           >
-            {#if isRunning}
+            {#if status !== "STOPPED"}
               <CloudIcon class="mx-2 size-8 rounded-lg" />
             {:else}
               <CloudOffIcon class="mx-2 size-8 rounded-lg opacity-60" />
@@ -62,15 +54,13 @@
             <div class="grid flex-1 text-start text-sm leading-tight">
               <span class="truncate font-medium">Sync status</span>
               <span class="flex items-center gap-1 truncate text-xs">
-                {#if isProcessing && isPushing}
+                {#if status === "PUSHING"}
                   Pushing
                   <ArrowUpIcon class="size-3" />
-                {:else if isProcessing && isPulling}
+                {:else if status === "PULLING"}
                   Pulling
                   <ArrowDownIcon class="size-3" />
-                {:else if isProcessing}
-                  Processing
-                {:else if isRunning}
+                {:else if status === "IDLE"}
                   Idle
                 {:else}
                   Stopped
@@ -89,14 +79,11 @@
       >
         <DropdownMenu.Item
           onclick={() => {
-            if (isRunning) {
-              todosState.syncWorker?.stop();
-            } else {
-              todosState.syncWithServer();
-            }
+            if (isLooping) todosState.syncWorker?.stop();
+            else todosState.syncWithServer();
           }}
         >
-          {#if isRunning}
+          {#if isLooping}
             <StopCircleIcon />
             Stop auto-sync
           {:else}
@@ -104,10 +91,7 @@
             Start auto-sync
           {/if}
         </DropdownMenu.Item>
-        <DropdownMenu.Item
-          onclick={() => todosState.syncWorker?.syncNow()}
-          disabled={isProcessing || !todosState.syncWorker}
-        >
+        <DropdownMenu.Item onclick={() => todosState.syncWorker?.syncNow()} disabled={!todosState.syncWorker}>
           <CloudIcon />
           Sync now (once)
         </DropdownMenu.Item>
