@@ -1,8 +1,14 @@
 reviews:
   path_filters:
+    # Include your generator output specifically
+    - "apps/pidb-kanban-example/src/lib/generated/prisma-idb/**"
+    - "apps/usage/src/lib/generated/prisma-idb/**"
+
+    # Exclude UI components
     - "!apps/usage/src/lib/components/ui/**"
     - "!apps/pidb-kanban-example/src/lib/components/ui/**"
-    - "**/generated/**"
+
+    # Exclude Prisma-generated files
     - "!apps/pidb-kanban-example/src/lib/generated/prisma-idb/client/generated/**"
     - "!apps/pidb-kanban-example/src/lib/generated/prisma"
     - "!apps/usage/src/lib/generated/prisma"
