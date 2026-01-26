@@ -297,14 +297,12 @@ async function syncBoard(
 
     case "update": {
       await verifyOwnership(validKeyPath);
-      const oldKeyPath = [...validKeyPath];
       const result = await prisma.$transaction(async (tx) => {
         try {
           await tx.changeLog.create({
             data: {
               model: "Board",
               keyPath: validKeyPath,
-              oldKeyPath,
               operation: "update",
               scopeKey,
               originId,
@@ -426,14 +424,12 @@ async function syncTodo(
 
     case "update": {
       await verifyOwnership(validKeyPath);
-      const oldKeyPath = [...validKeyPath];
       const result = await prisma.$transaction(async (tx) => {
         try {
           await tx.changeLog.create({
             data: {
               model: "Todo",
               keyPath: validKeyPath,
-              oldKeyPath,
               operation: "update",
               scopeKey,
               originId,
@@ -542,14 +538,12 @@ async function syncUser(
 
     case "update": {
       await verifyOwnership(validKeyPath);
-      const oldKeyPath = [...validKeyPath];
       const result = await prisma.$transaction(async (tx) => {
         try {
           await tx.changeLog.create({
             data: {
               model: "User",
               keyPath: validKeyPath,
-              oldKeyPath,
               operation: "update",
               scopeKey,
               originId,

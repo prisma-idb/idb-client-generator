@@ -82,7 +82,6 @@ model Verification {
 model ChangeLog {
   id            BigInt          @id @default(autoincrement())
   model         String
-  oldKeyPath    Json?
   keyPath       Json
   operation     ChangeOperation
   scopeKey      String

@@ -457,14 +457,12 @@ function generateModelSyncHandler(
     writer.writeLine(`  case "update": {`);
 
     writer.writeLine(`    await verifyOwnership(validKeyPath);`);
-    writer.writeLine(`    const oldKeyPath = [...validKeyPath];`);
     writer.writeLine(`    const result = await prisma.$transaction(async (tx) => {`);
     writer.writeLine(`      try {`);
     writer.writeLine(`        await tx.changeLog.create({`);
     writer.writeLine(`          data: {`);
     writer.writeLine(`            model: "${model.name}",`);
     writer.writeLine(`            keyPath: validKeyPath,`);
-    writer.writeLine(`            oldKeyPath,`);
     writer.writeLine(`            operation: "update",`);
     writer.writeLine(`            scopeKey,`);
     writer.writeLine(`            originId,`);
