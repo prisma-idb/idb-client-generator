@@ -137,13 +137,8 @@ export class TodosState {
 
   async syncWithServer() {
     if (!this.syncWorker) return;
-    try {
-      this.syncWorker.start();
-      toast.success("Sync started! Processing outbox events...");
-    } catch (error) {
-      console.error("Error starting sync worker:", error);
-      toast.error("Failed to start sync worker");
-    }
+    this.syncWorker.start();
+    toast.success("Sync started! Processing outbox events...");
   }
 
   destroy() {
