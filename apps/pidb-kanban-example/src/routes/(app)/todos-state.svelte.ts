@@ -40,12 +40,18 @@ export class TodosState {
             const pullResult = await fetch("/api/sync/pull", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ lastChangelogId: cursor }),
+              body: JSON.stringify({ lastChangelogId: cursor?.toString() }),
             });
             if (!pullResult.ok) {
               throw new Error(`Pull failed with status ${pullResult.status}`);
             }
             const pullData = await pullResult.json();
+
+            // Convert string cursor back to BigInt
+            if (pullData.cursor) {
+              pullData.cursor = BigInt(pullData.cursor);
+            }
+
             this.loadBoards();
             return pullData;
           },

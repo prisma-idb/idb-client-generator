@@ -4,11 +4,16 @@ import { prisma } from "$lib/server/prisma";
 import z from "zod";
 
 export async function POST({ request }) {
-  const pullRequestBody = await request.json();
+  let pullRequestBody;
+  try {
+    pullRequestBody = await request.json();
+  } catch (error) {
+    return new Response(JSON.stringify({ error: "Malformed JSON" }), { status: 400 });
+  }
 
   const parsed = z
-    .object({ lastChangelogId: z.bigint().optional() })
-    .safeParse({ lastChangelogId: pullRequestBody.lastChangelogId });
+    .object({ lastChangelogId: z.coerce.bigint().optional() })
+    .safeParse(pullRequestBody);
 
   if (!parsed.success) {
     return new Response(JSON.stringify({ error: "Invalid request", details: parsed.error }), {
@@ -34,7 +39,7 @@ export async function POST({ request }) {
 
   return new Response(
     JSON.stringify({
-      cursor: BigInt(logs.at(-1)?.id ?? parsed.data.lastChangelogId ?? 0n),
+      cursor: (logs.at(-1)?.id ?? parsed.data.lastChangelogId ?? 0n).toString(),
       logsWithRecords,
     }),
     {

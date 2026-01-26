@@ -17,7 +17,12 @@ const batchRecordSchema = z.object({
 });
 
 export async function POST({ request }) {
-  const pushRequestBody = await request.json();
+  let pushRequestBody;
+  try {
+    pushRequestBody = await request.json();
+  } catch (error) {
+    return new Response(JSON.stringify({ error: "Malformed JSON" }), { status: 400 });
+  }
 
   const parsed = z.object({ events: z.array(batchRecordSchema), clientId: z.string() }).safeParse({
     events: pushRequestBody.events,
