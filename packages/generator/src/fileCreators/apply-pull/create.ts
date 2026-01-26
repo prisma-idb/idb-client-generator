@@ -142,13 +142,11 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
       writer.writeLine(`await tx.done;`);
     });
     writer.writeLine(`catch (error) `).block(() => {
-      writer.writeLine(`// Handle transaction abort error separately`);
+      writer.writeLine(`// Handle transaction abort error by rethrowing`);
       writer.writeLine(`if (error instanceof Error && error.name === 'AbortError') {`);
       writer.writeLine(`  console.warn('Transaction aborted during pull apply:', error.message);`);
-      writer.writeLine(`  // Return partial results - records that failed go to validationErrors`);
-      writer.writeLine(`} else {`);
-      writer.writeLine(`  throw error;`);
       writer.writeLine(`}`);
+      writer.writeLine(`throw error;`);
     });
 
     writer.blankLine();

@@ -26,10 +26,13 @@ export function addBigIntFilter(writer: CodeBlockWriter, models: readonly Model[
         .blankLine()
         .writeLine(`const value = record[fieldName] as bigint | null;`)
         .writeLine(`if (bigIntFilter === null) return value === null;`)
+        .writeLine(`const toBigInt = (n: number | bigint) => (typeof n === "bigint" ? n : BigInt(n));`)
         .blankLine()
         .writeLine(`if (typeof bigIntFilter === 'number' || typeof bigIntFilter === 'bigint')`)
         .block(() => {
-          writer.writeLine(`if (BigInt(value || 0) !== BigInt(bigIntFilter)) return false;`);
+          writer
+            .writeLine(`if (value === null) return false;`)
+            .writeLine(`if (value !== toBigInt(bigIntFilter)) return false;`);
         })
         .writeLine(`else`)
         .block(() => {
@@ -54,7 +57,9 @@ function addEqualsHandler(writer: CodeBlockWriter) {
     })
     .writeLine(`if (typeof bigIntFilter.equals === "number" || typeof bigIntFilter.equals === "bigint")`)
     .block(() => {
-      writer.writeLine(`if (BigInt(bigIntFilter.equals) !== BigInt(value || 0)) return false;`);
+      writer
+        .writeLine(`if (value === null) return false;`)
+        .writeLine(`if (toBigInt(bigIntFilter.equals) !== value) return false;`);
     });
 }
 
@@ -66,7 +71,7 @@ function addNotHandler(writer: CodeBlockWriter) {
     })
     .writeLine(`if (typeof bigIntFilter.not === "number" || typeof bigIntFilter.not === "bigint")`)
     .block(() => {
-      writer.writeLine(`if (BigInt(bigIntFilter.not) === BigInt(value || 0)) return false;`);
+      writer.writeLine(`if (value !== null && toBigInt(bigIntFilter.not) === value) return false;`);
     });
 }
 
@@ -74,7 +79,7 @@ function addInHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (Array.isArray(bigIntFilter.in))`).block(() => {
     writer
       .writeLine(`if (value === null) return false;`)
-      .writeLine(`if (!bigIntFilter.in.map((n) => BigInt(n)).includes(BigInt(value))) return false;`);
+      .writeLine(`if (!bigIntFilter.in.map(toBigInt).includes(value)) return false;`);
   });
 }
 
@@ -82,30 +87,38 @@ function addNotInHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (Array.isArray(bigIntFilter.notIn))`).block(() => {
     writer
       .writeLine(`if (value === null) return false;`)
-      .writeLine(`if (bigIntFilter.notIn.map((n) => BigInt(n)).includes(BigInt(value))) return false;`);
+      .writeLine(`if (bigIntFilter.notIn.map(toBigInt).includes(value)) return false;`);
   });
 }
 
 function addLtHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (typeof bigIntFilter.lt === "number" || typeof bigIntFilter.lt === "bigint")`).block(() => {
-    writer.writeLine(`if (value === null) return false;`).writeLine(`if (!(value < bigIntFilter.lt)) return false;`);
+    writer
+      .writeLine(`if (value === null) return false;`)
+      .writeLine(`if (!(value < toBigInt(bigIntFilter.lt))) return false;`);
   });
 }
 
 function addLteHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (typeof bigIntFilter.lte === "number" || typeof bigIntFilter.lte === "bigint")`).block(() => {
-    writer.writeLine(`if (value === null) return false;`).writeLine(`if (!(value <= bigIntFilter.lte)) return false;`);
+    writer
+      .writeLine(`if (value === null) return false;`)
+      .writeLine(`if (!(value <= toBigInt(bigIntFilter.lte))) return false;`);
   });
 }
 
 function addGtHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (typeof bigIntFilter.gt === "number" || typeof bigIntFilter.gt === "bigint")`).block(() => {
-    writer.writeLine(`if (value === null) return false;`).writeLine(`if (!(value > bigIntFilter.gt)) return false;`);
+    writer
+      .writeLine(`if (value === null) return false;`)
+      .writeLine(`if (!(value > toBigInt(bigIntFilter.gt))) return false;`);
   });
 }
 
 function addGteHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (typeof bigIntFilter.gte === "number" || typeof bigIntFilter.gte === "bigint")`).block(() => {
-    writer.writeLine(`if (value === null) return false;`).writeLine(`if (!(value >= bigIntFilter.gte)) return false;`);
+    writer
+      .writeLine(`if (value === null) return false;`)
+      .writeLine(`if (!(value >= toBigInt(bigIntFilter.gte))) return false;`);
   });
 }

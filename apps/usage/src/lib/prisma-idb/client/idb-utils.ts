@@ -232,45 +232,48 @@ export function whereBigIntFilter<T, R extends Prisma.Result<T, object, "findFir
 
   const value = record[fieldName] as bigint | null;
   if (bigIntFilter === null) return value === null;
+  const toBigInt = (n: number | bigint) => (typeof n === "bigint" ? n : BigInt(n));
 
   if (typeof bigIntFilter === "number" || typeof bigIntFilter === "bigint") {
-    if (BigInt(value || 0) !== BigInt(bigIntFilter)) return false;
+    if (value === null) return false;
+    if (value !== toBigInt(bigIntFilter)) return false;
   } else {
     if (bigIntFilter.equals === null) {
       if (value !== null) return false;
     }
     if (typeof bigIntFilter.equals === "number" || typeof bigIntFilter.equals === "bigint") {
-      if (BigInt(bigIntFilter.equals) !== BigInt(value || 0)) return false;
+      if (value === null) return false;
+      if (toBigInt(bigIntFilter.equals) !== value) return false;
     }
     if (bigIntFilter.not === null) {
       if (value === null) return false;
     }
     if (typeof bigIntFilter.not === "number" || typeof bigIntFilter.not === "bigint") {
-      if (BigInt(bigIntFilter.not) === BigInt(value || 0)) return false;
+      if (value !== null && toBigInt(bigIntFilter.not) === value) return false;
     }
     if (Array.isArray(bigIntFilter.in)) {
       if (value === null) return false;
-      if (!bigIntFilter.in.map((n) => BigInt(n)).includes(BigInt(value))) return false;
+      if (!bigIntFilter.in.map(toBigInt).includes(value)) return false;
     }
     if (Array.isArray(bigIntFilter.notIn)) {
       if (value === null) return false;
-      if (bigIntFilter.notIn.map((n) => BigInt(n)).includes(BigInt(value))) return false;
+      if (bigIntFilter.notIn.map(toBigInt).includes(value)) return false;
     }
     if (typeof bigIntFilter.lt === "number" || typeof bigIntFilter.lt === "bigint") {
       if (value === null) return false;
-      if (!(value < bigIntFilter.lt)) return false;
+      if (!(value < toBigInt(bigIntFilter.lt))) return false;
     }
     if (typeof bigIntFilter.lte === "number" || typeof bigIntFilter.lte === "bigint") {
       if (value === null) return false;
-      if (!(value <= bigIntFilter.lte)) return false;
+      if (!(value <= toBigInt(bigIntFilter.lte))) return false;
     }
     if (typeof bigIntFilter.gt === "number" || typeof bigIntFilter.gt === "bigint") {
       if (value === null) return false;
-      if (!(value > bigIntFilter.gt)) return false;
+      if (!(value > toBigInt(bigIntFilter.gt))) return false;
     }
     if (typeof bigIntFilter.gte === "number" || typeof bigIntFilter.gte === "bigint") {
       if (value === null) return false;
-      if (!(value >= bigIntFilter.gte)) return false;
+      if (!(value >= toBigInt(bigIntFilter.gte))) return false;
     }
   }
   return true;

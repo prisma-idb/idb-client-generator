@@ -131,13 +131,11 @@ export async function applyPull(props: ApplyPullProps) {
     // Wait for all pending operations in the transaction to complete
     await tx.done;
   } catch (error) {
-    // Handle transaction abort error separately
+    // Handle transaction abort error by rethrowing
     if (error instanceof Error && error.name === "AbortError") {
       console.warn("Transaction aborted during pull apply:", error.message);
-      // Return partial results - records that failed go to validationErrors
-    } else {
-      throw error;
     }
+    throw error;
   }
 
   return {
