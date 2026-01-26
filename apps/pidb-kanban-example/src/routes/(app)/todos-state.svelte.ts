@@ -4,7 +4,6 @@ import { toast } from "svelte-sonner";
 import { createContext } from "svelte";
 import type { Prisma } from "$lib/generated/prisma/client";
 import type { SyncWorker } from "$lib/generated/prisma-idb/client/idb-interface";
-import { syncPull, syncPush } from "./data.remote";
 
 export class TodosState {
   boards = $state<Prisma.BoardGetPayload<{ include: { todos: true } }>[]>();
@@ -23,14 +22,32 @@ export class TodosState {
 
       this.syncWorker = getClient().createSyncWorker({
         push: {
-          handler: (events) => syncPush({ events, clientId }),
+          handler: async (events) => {
+            const pushResult = await fetch("/api/sync/push", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ events, clientId }),
+            });
+            if (!pushResult.ok) {
+              throw new Error(`Push failed with status ${pushResult.status}`);
+            }
+            return pushResult.json();
+          },
           batchSize: 50,
         },
         pull: {
           handler: async (cursor) => {
-            const pullResult = await syncPull({ lastChangelogId: cursor });
+            const pullResult = await fetch("/api/sync/pull", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ lastChangelogId: cursor }),
+            });
+            if (!pullResult.ok) {
+              throw new Error(`Pull failed with status ${pullResult.status}`);
+            }
+            const pullData = await pullResult.json();
             this.loadBoards();
-            return pullResult;
+            return pullData;
           },
           getCursor: () => this.getCursor(),
           setCursor: (cursor) => this.setCursor(cursor),
