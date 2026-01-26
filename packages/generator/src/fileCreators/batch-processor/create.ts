@@ -483,14 +483,16 @@ function generateModelSyncHandler(
     writer.writeLine(`  case "update": {`);
     writer.writeLine(`    const result = await prisma.$transaction(async (tx) => {`);
 
-    // Fix #2: Move verifyOwnership inside transaction
+    // UPDATE: Check if record exists to determine normal update vs resurrection
     if (isRootModel) {
+      writer.writeLine(`      // For root model, ownership is determined by pk matching scopeKey`);
       writer.writeLine(`      if (validKeyPath[0] !== scopeKey) {`);
       writer.writeLine(
         `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} pk does not match authenticated scope\`);`,
       );
       writer.writeLine(`      }`);
     } else {
+      // For non-root models: lookup record, branch on existence
       const selectObj = buildSelectObject(authPath, rootModel);
       if (pkFields.length === 1) {
         writer.writeLine(`      const record = await tx.${modelNameLower}.findUnique({`);
@@ -505,18 +507,73 @@ function generateModelSyncHandler(
         writer.writeLine(`      });`);
       }
       writer.blankLine();
+
+      // Case A: Record exists (normal update)
+      writer.writeLine(`      if (record) {`);
+      writer.writeLine(`        // Case A: Record exists - verify ownership from DB`);
       const accessChain = buildAccessChain(authPath);
       const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
-      writer.writeLine(`      if (!record || record${accessChain}.${rootPkFieldName} !== scopeKey) {`);
+      writer.writeLine(`        if (record${accessChain}.${rootPkFieldName} !== scopeKey) {`);
       writer.writeLine(
-        `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} is not owned by the authenticated scope\`);`,
+        `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} is not owned by the authenticated scope\`);`,
       );
-      writer.writeLine(`      }`);
-    }
-    writer.blankLine();
+      writer.writeLine(`        }`);
 
-    // Fix #1: Validate new parent ownership for update operations
-    if (!isRootModel && authPath.length > 0) {
+      // Validate new parent ownership only if record exists
+      if (authPath.length > 0) {
+        const firstRelationFieldName = authPath[0];
+        const relationField = model.fields.find((f) => f.name === firstRelationFieldName);
+
+        if (relationField && relationField.relationFromFields && relationField.relationFromFields.length > 0) {
+          const foreignKeyFields = relationField.relationFromFields;
+          const parentModel = allModels.find((m) => m.name === relationField.type);
+
+          if (parentModel) {
+            const parentModelLower = parentModel.name.charAt(0).toLowerCase() + parentModel.name.slice(1);
+            const remainingPath = authPath.slice(1);
+
+            if (remainingPath.length > 0) {
+              const parentSelectObj = buildSelectObject(remainingPath, rootModel);
+              const parentPk = getUniqueIdentifiers(parentModel)[0];
+              const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
+
+              writer.writeLine(`        const newParentRecord = await tx.${parentModelLower}.findUnique({`);
+              if (parentPkFields.length === 1) {
+                writer.writeLine(`          where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+              } else {
+                const compositeKey = parentPkFields
+                  .map((field, i) => `${field}: data.${foreignKeyFields[i]}`)
+                  .join(", ");
+                writer.writeLine(`          where: { ${parentPk.name}: { ${compositeKey} } },`);
+              }
+              writer.writeLine(`          select: ${parentSelectObj},`);
+              writer.writeLine(`        });`);
+              writer.blankLine();
+
+              const accessChainRemaining = buildAccessChain(remainingPath);
+              const rootPkFieldName2 = getUniqueIdentifiers(rootModel)[0].name;
+              writer.writeLine(
+                `        if (!newParentRecord || newParentRecord${accessChainRemaining}.${rootPkFieldName2} !== scopeKey) {`,
+              );
+              writer.writeLine(
+                `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot reassign ${model.name} to parent outside scope\`);`,
+              );
+              writer.writeLine(`        }`);
+            } else {
+              writer.writeLine(`        if (data.${foreignKeyFields[0]} !== scopeKey) {`);
+              writer.writeLine(
+                `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot reassign ${model.name} to different ${parentModel.name}\`);`,
+              );
+              writer.writeLine(`        }`);
+            }
+          }
+        }
+      }
+
+      writer.writeLine(`      } else {`);
+      writer.writeLine(`        // Case B: Record doesn't exist (resurrection) - verify ownership from payload`);
+
+      // Case B: Record doesn't exist - validate ownership from payload (resurrection path)
       const firstRelationFieldName = authPath[0];
       const relationField = model.fields.find((f) => f.name === firstRelationFieldName);
 
@@ -533,37 +590,38 @@ function generateModelSyncHandler(
             const parentPk = getUniqueIdentifiers(parentModel)[0];
             const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
 
-            writer.writeLine(`      const newParentRecord = await tx.${parentModelLower}.findUnique({`);
+            writer.writeLine(`        const parent = await tx.${parentModelLower}.findUnique({`);
             if (parentPkFields.length === 1) {
-              writer.writeLine(`        where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+              writer.writeLine(`          where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
             } else {
               const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
-              writer.writeLine(`        where: { ${parentPk.name}: { ${compositeKey} } },`);
+              writer.writeLine(`          where: { ${parentPk.name}: { ${compositeKey} } },`);
             }
-            writer.writeLine(`        select: ${parentSelectObj},`);
-            writer.writeLine(`      });`);
+            writer.writeLine(`          select: ${parentSelectObj},`);
+            writer.writeLine(`        });`);
             writer.blankLine();
 
-            const accessChain = buildAccessChain(remainingPath);
-            const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
+            const accessChainRemaining = buildAccessChain(remainingPath);
+            const rootPkFieldName2 = getUniqueIdentifiers(rootModel)[0].name;
             writer.writeLine(
-              `      if (!newParentRecord || newParentRecord${accessChain}.${rootPkFieldName} !== scopeKey) {`,
+              `        if (!parent || parent${accessChainRemaining}.${rootPkFieldName2} !== scopeKey) {`,
             );
             writer.writeLine(
-              `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot reassign ${model.name} to parent outside scope\`);`,
+              `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot resurrect ${model.name} into unauthorized scope\`);`,
             );
-            writer.writeLine(`      }`);
+            writer.writeLine(`        }`);
           } else {
-            writer.writeLine(`      if (data.${foreignKeyFields[0]} !== scopeKey) {`);
+            writer.writeLine(`        if (data.${foreignKeyFields[0]} !== scopeKey) {`);
             writer.writeLine(
-              `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot reassign ${model.name} to different ${parentModel.name}\`);`,
+              `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot resurrect ${model.name} into different ${parentModel.name}\`);`,
             );
-            writer.writeLine(`      }`);
+            writer.writeLine(`        }`);
           }
-          writer.blankLine();
         }
       }
+      writer.writeLine(`      }`);
     }
+    writer.blankLine();
 
     writer.writeLine(`      try {`);
     writer.writeLine(`        await tx.changeLog.create({`);

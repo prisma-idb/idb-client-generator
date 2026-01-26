@@ -339,15 +339,22 @@ async function syncBoard(
           select: { user: { select: { id: true } } },
         });
 
-        if (!record || record.user.id !== scopeKey) {
-          throw new PermanentSyncError(
-            "SCOPE_VIOLATION",
-            `Unauthorized: Board is not owned by the authenticated scope`
-          );
-        }
-
-        if (data.userId !== scopeKey) {
-          throw new PermanentSyncError("SCOPE_VIOLATION", `Cannot reassign Board to different User`);
+        if (record) {
+          // Case A: Record exists - verify ownership from DB
+          if (record.user.id !== scopeKey) {
+            throw new PermanentSyncError(
+              "SCOPE_VIOLATION",
+              `Unauthorized: Board is not owned by the authenticated scope`
+            );
+          }
+          if (data.userId !== scopeKey) {
+            throw new PermanentSyncError("SCOPE_VIOLATION", `Cannot reassign Board to different User`);
+          }
+        } else {
+          // Case B: Record doesn't exist (resurrection) - verify ownership from payload
+          if (data.userId !== scopeKey) {
+            throw new PermanentSyncError("SCOPE_VIOLATION", `Cannot resurrect Board into different User`);
+          }
         }
 
         try {
@@ -482,17 +489,32 @@ async function syncTodo(
           select: { board: { select: { user: { select: { id: true } } } } },
         });
 
-        if (!record || record.board.user.id !== scopeKey) {
-          throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: Todo is not owned by the authenticated scope`);
-        }
+        if (record) {
+          // Case A: Record exists - verify ownership from DB
+          if (record.board.user.id !== scopeKey) {
+            throw new PermanentSyncError(
+              "SCOPE_VIOLATION",
+              `Unauthorized: Todo is not owned by the authenticated scope`
+            );
+          }
+          const newParentRecord = await tx.board.findUnique({
+            where: { id: data.boardId },
+            select: { user: { select: { id: true } } },
+          });
 
-        const newParentRecord = await tx.board.findUnique({
-          where: { id: data.boardId },
-          select: { user: { select: { id: true } } },
-        });
+          if (!newParentRecord || newParentRecord.user.id !== scopeKey) {
+            throw new PermanentSyncError("SCOPE_VIOLATION", `Cannot reassign Todo to parent outside scope`);
+          }
+        } else {
+          // Case B: Record doesn't exist (resurrection) - verify ownership from payload
+          const parent = await tx.board.findUnique({
+            where: { id: data.boardId },
+            select: { user: { select: { id: true } } },
+          });
 
-        if (!newParentRecord || newParentRecord.user.id !== scopeKey) {
-          throw new PermanentSyncError("SCOPE_VIOLATION", `Cannot reassign Todo to parent outside scope`);
+          if (!parent || parent.user.id !== scopeKey) {
+            throw new PermanentSyncError("SCOPE_VIOLATION", `Cannot resurrect Todo into unauthorized scope`);
+          }
         }
 
         try {
@@ -611,6 +633,7 @@ async function syncUser(
 
     case "update": {
       const result = await prisma.$transaction(async (tx) => {
+        // For root model, ownership is determined by pk matching scopeKey
         if (validKeyPath[0] !== scopeKey) {
           throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: User pk does not match authenticated scope`);
         }
