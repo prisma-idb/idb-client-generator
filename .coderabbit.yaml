@@ -1,14 +1,20 @@
 reviews:
   path_filters:
-    # Include your generator output specifically
-    - "apps/pidb-kanban-example/src/lib/generated/prisma-idb/**"
-    - "apps/usage/src/lib/generated/prisma-idb/**"
+    # include everything
+    - "**/*"
 
-    # Exclude UI components
-    - "!apps/usage/src/lib/components/ui/**"
-    - "!apps/pidb-kanban-example/src/lib/components/ui/**"
+    # explicitly re-allow generated (overrides CodeRabbit default)
+    - "**/generated/**"
 
-    # Exclude Prisma-generated files
-    - "!apps/pidb-kanban-example/src/lib/generated/prisma-idb/client/generated/**"
-    - "!apps/pidb-kanban-example/src/lib/generated/prisma"
-    - "!apps/usage/src/lib/generated/prisma"
+    # only keep prisma-idb from generated
+    - "**/generated/prisma-idb/**"
+
+    # ignore nested prisma client junk
+    - "!**/generated/prisma-idb/client/generated/**"
+
+    # ignore raw prisma
+    - "!**/generated/prisma/**"
+
+    # ignore ui + deps
+    - "!**/components/ui/**"
+    - "!**/node_modules/**"
