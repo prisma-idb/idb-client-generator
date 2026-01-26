@@ -368,6 +368,9 @@ function generateModelSyncHandler(
 
     // CREATE
     writer.writeLine(`  case "create": {`);
+    writer.writeLine(`    const result = await prisma.$transaction(async (tx) => {`);
+
+    // Move parent ownership check INSIDE the transaction
     if (!isRootModel && authPath.length > 0) {
       // For CREATE, we verify the parent model exists and is owned by scope
       const firstRelationFieldName = authPath[0];
@@ -397,59 +400,61 @@ function generateModelSyncHandler(
       if (remainingPath.length > 0) {
         // Parent is not root, need to trace to root
         const parentSelectObj = buildSelectObject(remainingPath, rootModel);
-        writer.writeLine(`const parentRecord = await prisma.${parentModelLower}.findUnique({`);
+        writer.writeLine(`      const parentRecord = await tx.${parentModelLower}.findUnique({`);
 
         // Build where clause for parent lookup
         const parentPk = getUniqueIdentifiers(parentModel)[0];
         const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
         if (parentPkFields.length === 1) {
-          writer.writeLine(`  where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+          writer.writeLine(`        where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
         } else {
           const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
-          writer.writeLine(`  where: { ${parentPk.name}: { ${compositeKey} } },`);
+          writer.writeLine(`        where: { ${parentPk.name}: { ${compositeKey} } },`);
         }
-        writer.writeLine(`  select: ${parentSelectObj},`);
-        writer.writeLine(`});`);
+        writer.writeLine(`        select: ${parentSelectObj},`);
+        writer.writeLine(`      });`);
         writer.blankLine();
 
         const accessChain = buildAccessChain(remainingPath);
         const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
-        writer.writeLine(`if (!parentRecord || parentRecord${accessChain}.${rootPkFieldName} !== scopeKey) {`);
+        writer.writeLine(`      if (!parentRecord || parentRecord${accessChain}.${rootPkFieldName} !== scopeKey) {`);
         writer.writeLine(
-          `  throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`,
+          `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`,
         );
-        writer.writeLine(`}`);
+        writer.writeLine(`      }`);
       } else {
         // Parent is the root model
-        writer.writeLine(`const parentRecord = await prisma.${parentModelLower}.findUnique({`);
+        writer.writeLine(`      const parentRecord = await tx.${parentModelLower}.findUnique({`);
 
         const parentPk = getUniqueIdentifiers(parentModel)[0];
         const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
         if (parentPkFields.length === 1) {
-          writer.writeLine(`  where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+          writer.writeLine(`        where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
         } else {
           const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
-          writer.writeLine(`  where: { ${parentPk.name}: { ${compositeKey} } },`);
+          writer.writeLine(`        where: { ${parentPk.name}: { ${compositeKey} } },`);
         }
-        writer.writeLine(`  select: { ${getUniqueIdentifiers(parentModel)[0].name}: true },`);
-        writer.writeLine(`});`);
+        writer.writeLine(`        select: { ${getUniqueIdentifiers(parentModel)[0].name}: true },`);
+        writer.writeLine(`      });`);
         writer.blankLine();
 
         const parentPkFieldName = getUniqueIdentifiers(parentModel)[0].name;
-        writer.writeLine(`if (!parentRecord || parentRecord.${parentPkFieldName} !== scopeKey) {`);
+        writer.writeLine(`      if (!parentRecord || parentRecord.${parentPkFieldName} !== scopeKey) {`);
         writer.writeLine(
-          `  throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`,
+          `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`,
         );
-        writer.writeLine(`}`);
+        writer.writeLine(`      }`);
       }
+      writer.blankLine();
     } else if (isRootModel) {
-      writer.writeLine(`if (scopeKey !== data.${getUniqueIdentifiers(model)[0].name}) {`);
+      writer.writeLine(`      if (scopeKey !== data.${getUniqueIdentifiers(model)[0].name}) {`);
       writer.writeLine(
-        `  throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: root model pk must match authenticated scope\`);`,
+        `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: root model pk must match authenticated scope\`);`,
       );
-      writer.writeLine(`}`);
+      writer.writeLine(`      }`);
+      writer.blankLine();
     }
-    writer.writeLine(`    const result = await prisma.$transaction(async (tx) => {`);
+
     writer.writeLine(`      try {`);
     writer.writeLine(`        await tx.changeLog.create({`);
     writer.writeLine(`          data: {`);

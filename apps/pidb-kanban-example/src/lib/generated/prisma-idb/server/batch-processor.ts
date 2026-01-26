@@ -296,18 +296,19 @@ async function syncBoard(
 
   switch (operation) {
     case "create": {
-      const parentRecord = await prisma.user.findUnique({
-        where: { id: data.userId },
-        select: { id: true },
-      });
-
-      if (!parentRecord || parentRecord.id !== scopeKey) {
-        throw new PermanentSyncError(
-          "SCOPE_VIOLATION",
-          `Unauthorized: Board parent is not owned by authenticated scope`
-        );
-      }
       const result = await prisma.$transaction(async (tx) => {
+        const parentRecord = await tx.user.findUnique({
+          where: { id: data.userId },
+          select: { id: true },
+        });
+
+        if (!parentRecord || parentRecord.id !== scopeKey) {
+          throw new PermanentSyncError(
+            "SCOPE_VIOLATION",
+            `Unauthorized: Board parent is not owned by authenticated scope`
+          );
+        }
+
         try {
           await tx.changeLog.create({
             data: {
@@ -438,18 +439,19 @@ async function syncTodo(
 
   switch (operation) {
     case "create": {
-      const parentRecord = await prisma.board.findUnique({
-        where: { id: data.boardId },
-        select: { user: { select: { id: true } } },
-      });
-
-      if (!parentRecord || parentRecord.user.id !== scopeKey) {
-        throw new PermanentSyncError(
-          "SCOPE_VIOLATION",
-          `Unauthorized: Todo parent is not owned by authenticated scope`
-        );
-      }
       const result = await prisma.$transaction(async (tx) => {
+        const parentRecord = await tx.board.findUnique({
+          where: { id: data.boardId },
+          select: { user: { select: { id: true } } },
+        });
+
+        if (!parentRecord || parentRecord.user.id !== scopeKey) {
+          throw new PermanentSyncError(
+            "SCOPE_VIOLATION",
+            `Unauthorized: Todo parent is not owned by authenticated scope`
+          );
+        }
+
         try {
           await tx.changeLog.create({
             data: {
@@ -579,10 +581,11 @@ async function syncUser(
 
   switch (operation) {
     case "create": {
-      if (scopeKey !== data.id) {
-        throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: root model pk must match authenticated scope`);
-      }
       const result = await prisma.$transaction(async (tx) => {
+        if (scopeKey !== data.id) {
+          throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: root model pk must match authenticated scope`);
+        }
+
         try {
           await tx.changeLog.create({
             data: {
