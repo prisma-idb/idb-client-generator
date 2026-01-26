@@ -48,7 +48,7 @@ export function addIntUpdateHandler(writer: CodeBlockWriter, models: readonly Mo
         })
         .writeLine(`else if (intUpdate.divide !== undefined && record[fieldName] !== null)`)
         .block(() => {
-          writer.writeLine(`(record[fieldName] as number) /= intUpdate.divide;`);
+          writer.writeLine(`(record[fieldName] as number) = Math.trunc((record[fieldName] as number) / intUpdate.divide);`);
         });
     });
 }

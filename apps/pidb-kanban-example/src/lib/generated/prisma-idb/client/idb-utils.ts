@@ -182,13 +182,13 @@ export function whereBoolFilter<T, R extends Prisma.Result<T, object, "findFirst
       if (value !== null) return false;
     }
     if (typeof boolFilter.equals === "boolean") {
-      if (boolFilter.equals != value) return false;
+      if (boolFilter.equals !== value) return false;
     }
     if (boolFilter.not === null) {
       if (value === null) return false;
     }
     if (typeof boolFilter.not === "boolean") {
-      if (boolFilter.not == value) return false;
+      if (boolFilter.not !== value) return false;
     }
   }
   return true;
