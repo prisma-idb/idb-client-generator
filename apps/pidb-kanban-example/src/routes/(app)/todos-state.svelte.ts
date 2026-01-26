@@ -47,8 +47,8 @@ export class TodosState {
             }
             const pullData = await pullResult.json();
 
-            // Convert string cursor back to BigInt
-            if (pullData.cursor) {
+            // Convert string cursor back to BigInt (explicit null/undefined check to allow 0)
+            if (pullData.cursor != null) {
               pullData.cursor = BigInt(pullData.cursor);
             }
 
@@ -138,7 +138,7 @@ export class TodosState {
   async syncWithServer() {
     if (!this.syncWorker) return;
     this.syncWorker.start();
-    toast.success("Sync started! Processing outbox events...");
+    toast.success("Sync cycle started", { description: "Data will keep syncing in the background" });
   }
 
   destroy() {
