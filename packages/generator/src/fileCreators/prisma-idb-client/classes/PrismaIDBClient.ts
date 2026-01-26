@@ -30,7 +30,7 @@ export function addClientClass(
     addResetDatabaseMethod(writer);
     addShouldTrackModelMethod(writer);
     if (outboxSync) {
-      addCreateSyncWorkerMethod(writer, models);
+      addCreateSyncWorkerMethod(writer);
     }
     addInitializeMethod(writer, models, outboxSync, outboxModelName);
   });
@@ -96,41 +96,7 @@ function addShouldTrackModelMethod(writer: CodeBlockWriter) {
   });
 }
 
-function generateModelUpsertCase(writer: CodeBlockWriter, model: Model) {
-  const pk = getUniqueIdentifiers(model)[0];
-  const pkFields = JSON.parse(pk.keyPath) as string[];
-  const modelProperty = toCamelCaseUtil(model.name);
-
-  writer.writeLine(`                case "${model.name}": {`);
-  writer.block(() => {
-    writer.writeLine(
-      `                  const recordValidation = validators.${model.name}.safeParse(result.mergedRecord);`,
-    );
-    writer.writeLine(`                  if (!recordValidation.success) {`);
-    writer.writeLine(
-      `                    throw new Error(\`Record validation failed: \${recordValidation.error.message}\`);`,
-    );
-    writer.writeLine(`                  }`);
-
-    let whereClause: string;
-    if (pkFields.length === 1) {
-      whereClause = `{ ${pkFields[0]}: recordValidation.data.${pkFields[0]} }`;
-    } else {
-      const compositeKey = pkFields.map((field) => `${field}: recordValidation.data.${field}`).join(", ");
-      whereClause = `{ ${pk.name}: { ${compositeKey} } }`;
-    }
-
-    writer.writeLine(`                  await this.${modelProperty}.upsert({`);
-    writer.writeLine(`                    where: ${whereClause},`);
-    writer.writeLine(`                    update: recordValidation.data,`);
-    writer.writeLine(`                    create: recordValidation.data,`);
-    writer.writeLine(`                  }, { silent: true, addToOutbox: false });`);
-    writer.writeLine(`                  break;`);
-  });
-  writer.writeLine(`                }`);
-}
-
-function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Model[]) {
+function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
   writer
     .writeLine(`/**`)
     .writeLine(` * Create a sync worker for bi-directional synchronization with remote server.`)
@@ -259,27 +225,6 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter, models: readonly Mod
         .writeLine(`      await this.$outbox.markFailed(result.id, result.error);`)
         .writeLine(`    } else {`)
         .writeLine(`      successIds.push(result.id);`)
-        .blankLine()
-        .writeLine(`      if (result.mergedRecord) {`)
-        .writeLine(`        const originalEvent = toSync.find((e: OutboxEventRecord) => e.id === result.id);`)
-        .writeLine(`        if (originalEvent) {`)
-        .writeLine(`          try {`)
-        .writeLine(`            switch (originalEvent.entityType) {`);
-
-      // Generate model-specific cases with upsert logic
-      models.forEach((model) => {
-        generateModelUpsertCase(writer, model);
-      });
-
-      writer
-        .writeLine(`              default:`)
-        .writeLine(`                throw new Error(\`No upsert handler for \${originalEvent.entityType}\`);`)
-        .writeLine(`            }`)
-        .writeLine(`          } catch (upsertErr) {`)
-        .writeLine(`            console.warn(\`Failed to upsert merged record for event \${result.id}:\`, upsertErr);`)
-        .writeLine(`          }`)
-        .writeLine(`        }`)
-        .writeLine(`      }`)
         .writeLine(`    }`)
         .writeLine(`  }`)
         .blankLine()

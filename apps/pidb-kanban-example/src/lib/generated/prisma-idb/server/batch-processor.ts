@@ -39,7 +39,6 @@ export const PushErrorTypes = {
 
 export interface PushResult {
   id: string;
-  mergedRecord?: unknown;
   error: null | {
     type: keyof typeof PushErrorTypes;
     message: string;
@@ -286,12 +285,12 @@ async function syncBoard(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, mergedRecord: data, error: null };
+            return { id, error: null };
           }
           throw err;
         }
-        const createdRecord = await tx.board.create({ data });
-        return { id, mergedRecord: createdRecord, error: null };
+        await tx.board.create({ data });
+        return { id, error: null };
       });
       return result;
     }
@@ -314,16 +313,16 @@ async function syncBoard(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, mergedRecord: data, error: null };
+            return { id, error: null };
           }
           throw err;
         }
-        const updatedRecord = await tx.board.upsert({
+        await tx.board.upsert({
           where: { id: validKeyPath[0] },
           create: data,
           update: data,
         });
-        return { id, mergedRecord: updatedRecord, error: null };
+        return { id, error: null };
       });
       return result;
     }
@@ -415,12 +414,12 @@ async function syncTodo(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, mergedRecord: data, error: null };
+            return { id, error: null };
           }
           throw err;
         }
-        const createdRecord = await tx.todo.create({ data });
-        return { id, mergedRecord: createdRecord, error: null };
+        await tx.todo.create({ data });
+        return { id, error: null };
       });
       return result;
     }
@@ -443,16 +442,16 @@ async function syncTodo(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, mergedRecord: data, error: null };
+            return { id, error: null };
           }
           throw err;
         }
-        const updatedRecord = await tx.todo.upsert({
+        await tx.todo.upsert({
           where: { id: validKeyPath[0] },
           create: data,
           update: data,
         });
-        return { id, mergedRecord: updatedRecord, error: null };
+        return { id, error: null };
       });
       return result;
     }
@@ -531,12 +530,12 @@ async function syncUser(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, mergedRecord: data, error: null };
+            return { id, error: null };
           }
           throw err;
         }
-        const createdRecord = await tx.user.create({ data });
-        return { id, mergedRecord: createdRecord, error: null };
+        await tx.user.create({ data });
+        return { id, error: null };
       });
       return result;
     }
@@ -559,16 +558,16 @@ async function syncUser(
           });
         } catch (err) {
           if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, mergedRecord: data, error: null };
+            return { id, error: null };
           }
           throw err;
         }
-        const updatedRecord = await tx.user.upsert({
+        await tx.user.upsert({
           where: { id: validKeyPath[0] },
           create: data,
           update: data,
         });
-        return { id, mergedRecord: updatedRecord, error: null };
+        return { id, error: null };
       });
       return result;
     }

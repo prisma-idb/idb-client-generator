@@ -111,7 +111,6 @@ export function createBatchProcessorFile(
   // Write sync handler type
   writer.writeLine(`export interface PushResult {`);
   writer.writeLine(`  id: string;`);
-  writer.writeLine(`  mergedRecord?: unknown;`);
   writer.writeLine(`  error: null | `).block(() => {
     writer.writeLine(`type: keyof typeof PushErrorTypes;`);
     writer.writeLine(`message: string;`);
@@ -443,12 +442,12 @@ function generateModelSyncHandler(
     writer.writeLine(`        });`);
     writer.writeLine(`      } catch (err) {`);
     writer.writeLine(`        if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {`);
-    writer.writeLine(`          return { id, mergedRecord: data, error: null };`);
+    writer.writeLine(`          return { id, error: null };`);
     writer.writeLine(`        }`);
     writer.writeLine(`        throw err;`);
     writer.writeLine(`      }`);
-    writer.writeLine(`      const createdRecord = await tx.${modelNameLower}.create({ data });`);
-    writer.writeLine(`      return { id, mergedRecord: createdRecord, error: null };`);
+    writer.writeLine(`      await tx.${modelNameLower}.create({ data });`);
+    writer.writeLine(`      return { id, error: null };`);
     writer.writeLine(`    });`);
     writer.writeLine(`    return result;`);
     writer.writeLine(`  }`);
@@ -474,17 +473,17 @@ function generateModelSyncHandler(
     writer.writeLine(`        });`);
     writer.writeLine(`      } catch (err) {`);
     writer.writeLine(`        if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {`);
-    writer.writeLine(`          return { id, mergedRecord: data, error: null };`);
+    writer.writeLine(`          return { id, error: null };`);
     writer.writeLine(`        }`);
     writer.writeLine(`        throw err;`);
     writer.writeLine(`      }`);
-    writer.writeLine(`      const updatedRecord = await tx.${modelNameLower}.upsert({`);
+    writer.writeLine(`      await tx.${modelNameLower}.upsert({`);
     writer.writeLine(`        where: ${generateWhereClause(pk.name, pkFields)},`);
     writer.writeLine(`        create: data,`);
     writer.writeLine(`        update: data,`);
     writer.writeLine(`      });`);
 
-    writer.writeLine(`      return { id, mergedRecord: updatedRecord, error: null };`);
+    writer.writeLine(`      return { id, error: null };`);
     writer.writeLine(`    });`);
     writer.writeLine(`    return result;`);
     writer.writeLine(`  }`);
