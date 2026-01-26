@@ -11,9 +11,8 @@ type ApplyPullProps = {
 /**
  * Apply pulled changes from remote server to local IndexedDB.
  *
- * All operations are wrapped in a single transaction to ensure atomicity and prevent
- * AbortError from concurrent transaction conflicts. This guarantees that either all
- * changes are applied successfully or the entire batch is rolled back.
+ * All operations are wrapped in a single transaction to reduce conflicts; invalid
+ * records are skipped and reported in the return summary.
  *
  * Logs with the same originId are filtered out to prevent echo of pushed events
  * being reapplied as pulled events.

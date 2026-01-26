@@ -21,9 +21,8 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
   writer.writeLine(`/**`);
   writer.writeLine(` * Apply pulled changes from remote server to local IndexedDB.`);
   writer.writeLine(` * `);
-  writer.writeLine(` * All operations are wrapped in a single transaction to ensure atomicity and prevent`);
-  writer.writeLine(` * AbortError from concurrent transaction conflicts. This guarantees that either all`);
-  writer.writeLine(` * changes are applied successfully or the entire batch is rolled back.`);
+  writer.writeLine(` * All operations are wrapped in a single transaction to reduce conflicts; invalid`);
+  writer.writeLine(` * records are skipped and reported in the return summary.`);
   writer.writeLine(` * `);
   writer.writeLine(` * Logs with the same originId are filtered out to prevent echo of pushed events`);
   writer.writeLine(` * being reapplied as pulled events.`);
