@@ -40,6 +40,9 @@
       "cache": false,
       "persistent": true,
       "interactive": true
+    },
+    "ci": {
+      "dependsOn": ["format", "generate", "lint", "check", "test"]
     }
   }
 }

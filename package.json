@@ -16,7 +16,8 @@
     "test:watch": "turbo run test:watch --no-cache",
     "generate": "turbo run generate",
     "clean": "turbo clean && rm -rf node_modules",
-    "preview": "turbo run preview"
+    "preview": "turbo run preview",
+    "run:ci": "turbo run ci"
   },
   "devDependencies": {
     "@eslint/compat": "2.0.1",
