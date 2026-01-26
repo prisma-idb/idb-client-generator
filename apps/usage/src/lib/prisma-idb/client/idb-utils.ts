@@ -230,23 +230,23 @@ export function whereBigIntFilter<T, R extends Prisma.Result<T, object, "findFir
 ): boolean {
   if (bigIntFilter === undefined) return true;
 
-  const value = record[fieldName] as number | null;
+  const value = record[fieldName] as bigint | null;
   if (bigIntFilter === null) return value === null;
 
   if (typeof bigIntFilter === "number" || typeof bigIntFilter === "bigint") {
-    if (value !== bigIntFilter) return false;
+    if (BigInt(value || 0) !== BigInt(bigIntFilter)) return false;
   } else {
     if (bigIntFilter.equals === null) {
       if (value !== null) return false;
     }
     if (typeof bigIntFilter.equals === "number" || typeof bigIntFilter.equals === "bigint") {
-      if (bigIntFilter.equals != value) return false;
+      if (BigInt(bigIntFilter.equals) !== BigInt(value || 0)) return false;
     }
     if (bigIntFilter.not === null) {
       if (value === null) return false;
     }
     if (typeof bigIntFilter.not === "number" || typeof bigIntFilter.not === "bigint") {
-      if (bigIntFilter.not == value) return false;
+      if (BigInt(bigIntFilter.not) === BigInt(value || 0)) return false;
     }
     if (Array.isArray(bigIntFilter.in)) {
       if (value === null) return false;
@@ -519,20 +519,36 @@ export function whereBytesListFilter<T, R extends Prisma.Result<T, object, "find
   if (scalarListFilter === undefined) return true;
 
   const value = record[fieldName] as Uint8Array[] | undefined;
+  const areUint8ArraysEqual = (a: Uint8Array, b: Uint8Array) => {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  };
+
   if (value === undefined && Object.keys(scalarListFilter).length) return false;
   if (Array.isArray(scalarListFilter.equals)) {
     if (scalarListFilter.equals.length !== value?.length) return false;
-    if (!scalarListFilter.equals.every((val, i) => val === value[i])) return false;
+    if (!scalarListFilter.equals.every((val, i) => areUint8ArraysEqual(val, value[i]))) return false;
   }
   if (scalarListFilter.has instanceof Uint8Array) {
-    if (!value?.includes(scalarListFilter.has)) return false;
+    if (!value?.some((v) => areUint8ArraysEqual(v, scalarListFilter.has as Uint8Array))) return false;
   }
   if (scalarListFilter.has === null) return false;
   if (Array.isArray(scalarListFilter.hasSome)) {
-    if (!scalarListFilter.hasSome.some((val) => value?.includes(val))) return false;
+    if (
+      !scalarListFilter.hasSome.some((val) =>
+        value?.some((v) => val instanceof Uint8Array && areUint8ArraysEqual(v, val))
+      )
+    )
+      return false;
   }
   if (Array.isArray(scalarListFilter.hasEvery)) {
-    if (!scalarListFilter.hasEvery.every((val) => value?.includes(val))) return false;
+    if (
+      !scalarListFilter.hasEvery.every(
+        (val) => val instanceof Uint8Array && value?.some((v) => areUint8ArraysEqual(v, val))
+      )
+    )
+      return false;
   }
   if (scalarListFilter.isEmpty === true && value?.length) return false;
   if (scalarListFilter.isEmpty === false && value?.length === 0) return false;
@@ -546,20 +562,32 @@ export function whereDateTimeListFilter<T, R extends Prisma.Result<T, object, "f
   if (scalarListFilter === undefined) return true;
 
   const value = record[fieldName] as Date[] | undefined;
+  const matches = (d: Date, target: Date | string) => d.getTime() === new Date(target).getTime();
+
   if (value === undefined && Object.keys(scalarListFilter).length) return false;
   if (Array.isArray(scalarListFilter.equals)) {
     if (scalarListFilter.equals.length !== value?.length) return false;
     if (!scalarListFilter.equals.every((val, i) => new Date(val).getTime() === value[i].getTime())) return false;
   }
   if (scalarListFilter.has instanceof Date || typeof scalarListFilter.has === "string") {
-    if (!value?.includes(new Date(scalarListFilter.has))) return false;
+    if (!value?.some((v) => matches(v, scalarListFilter.has as Date | string))) return false;
   }
   if (scalarListFilter.has === null) return false;
   if (Array.isArray(scalarListFilter.hasSome)) {
-    if (!scalarListFilter.hasSome.some((val) => value?.includes(new Date(val)))) return false;
+    if (
+      !scalarListFilter.hasSome.some(
+        (val) => (val instanceof Date || typeof val === "string") && value?.some((v) => matches(v, val))
+      )
+    )
+      return false;
   }
   if (Array.isArray(scalarListFilter.hasEvery)) {
-    if (!scalarListFilter.hasEvery.every((val) => value?.includes(new Date(val)))) return false;
+    if (
+      !scalarListFilter.hasEvery.every(
+        (val) => (val instanceof Date || typeof val === "string") && value?.some((v) => matches(v, val))
+      )
+    )
+      return false;
   }
   if (scalarListFilter.isEmpty === true && value?.length) return false;
   if (scalarListFilter.isEmpty === false && value?.length === 0) return false;

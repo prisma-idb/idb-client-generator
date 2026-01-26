@@ -24,12 +24,12 @@ export function addBigIntFilter(writer: CodeBlockWriter, models: readonly Model[
       writer
         .writeLine(`if (bigIntFilter === undefined) return true;`)
         .blankLine()
-        .writeLine(`const value = record[fieldName] as number | null;`)
+        .writeLine(`const value = record[fieldName] as bigint | null;`)
         .writeLine(`if (bigIntFilter === null) return value === null;`)
         .blankLine()
         .writeLine(`if (typeof bigIntFilter === 'number' || typeof bigIntFilter === 'bigint')`)
         .block(() => {
-          writer.writeLine(`if (value !== bigIntFilter) return false;`);
+          writer.writeLine(`if (BigInt(value || 0) !== BigInt(bigIntFilter)) return false;`);
         })
         .writeLine(`else`)
         .block(() => {
@@ -54,7 +54,7 @@ function addEqualsHandler(writer: CodeBlockWriter) {
     })
     .writeLine(`if (typeof bigIntFilter.equals === "number" || typeof bigIntFilter.equals === "bigint")`)
     .block(() => {
-      writer.writeLine(`if (bigIntFilter.equals != value) return false;`);
+      writer.writeLine(`if (BigInt(bigIntFilter.equals) !== BigInt(value || 0)) return false;`);
     });
 }
 
@@ -66,7 +66,7 @@ function addNotHandler(writer: CodeBlockWriter) {
     })
     .writeLine(`if (typeof bigIntFilter.not === "number" || typeof bigIntFilter.not === "bigint")`)
     .block(() => {
-      writer.writeLine(`if (bigIntFilter.not == value) return false;`);
+      writer.writeLine(`if (BigInt(bigIntFilter.not) === BigInt(value || 0)) return false;`);
     });
 }
 
