@@ -2319,7 +2319,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           for (const field of stringFields) {
             if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
           }
-          const booleanFields = ["emailVerified"] as const;
+          const booleanFields = ["emailVerified", "isAnonymous"] as const;
           for (const field of booleanFields) {
             if (!IDBUtils.whereBoolFilter(record, field, whereClause[field])) return null;
           }
@@ -2370,7 +2370,17 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     }
     return records.map((record) => {
       const partialRecord: Partial<typeof record> = record;
-      for (const untypedKey of ["id", "name", "email", "emailVerified", "image", "createdAt", "updatedAt", "boards"]) {
+      for (const untypedKey of [
+        "id",
+        "name",
+        "email",
+        "emailVerified",
+        "image",
+        "createdAt",
+        "updatedAt",
+        "isAnonymous",
+        "boards",
+      ]) {
         const key = untypedKey as keyof typeof record & keyof S;
         if (!selectClause[key]) delete partialRecord[key];
       }
@@ -2430,7 +2440,16 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     orderByInput: Prisma.UserOrderByWithRelationInput,
     tx: IDBUtils.TransactionType
   ): Promise<unknown> {
-    const scalarFields = ["id", "name", "email", "emailVerified", "image", "createdAt", "updatedAt"] as const;
+    const scalarFields = [
+      "id",
+      "name",
+      "email",
+      "emailVerified",
+      "image",
+      "createdAt",
+      "updatedAt",
+      "isAnonymous",
+    ] as const;
     for (const field of scalarFields) if (orderByInput[field]) return record[field];
     if (orderByInput.boards) {
       return await this.client.board.count({ where: { userId: record.id } }, { tx });
@@ -2439,7 +2458,16 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
   _resolveSortOrder(
     orderByInput: Prisma.UserOrderByWithRelationInput
   ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
-    const scalarFields = ["id", "name", "email", "emailVerified", "image", "createdAt", "updatedAt"] as const;
+    const scalarFields = [
+      "id",
+      "name",
+      "email",
+      "emailVerified",
+      "image",
+      "createdAt",
+      "updatedAt",
+      "isAnonymous",
+    ] as const;
     for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
     if (orderByInput.boards?._count) {
       return orderByInput.boards._count;
@@ -2459,6 +2487,9 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     }
     if (data.createdAt === undefined) {
       data.createdAt = new Date();
+    }
+    if (data.isAnonymous === undefined) {
+      data.isAnonymous = null;
     }
     if (typeof data.createdAt === "string") {
       data.createdAt = new Date(data.createdAt);
@@ -2935,7 +2966,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     for (const field of dateTimeFields) {
       IDBUtils.handleDateTimeUpdateField(record, field, query.data[field]);
     }
-    const booleanFields = ["emailVerified"] as const;
+    const booleanFields = ["emailVerified", "isAnonymous"] as const;
     for (const field of booleanFields) {
       IDBUtils.handleBooleanUpdateField(record, field, query.data[field]);
     }
@@ -3153,7 +3184,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
         (minResult[field as keyof typeof minResult] as string) = values.sort()[0];
       }
-      const booleanFields = ["emailVerified"] as const;
+      const booleanFields = ["emailVerified", "isAnonymous"] as const;
       for (const field of booleanFields) {
         if (!query._min[field]) continue;
         const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);
@@ -3176,7 +3207,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
         (maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];
       }
-      const booleanFields = ["emailVerified"] as const;
+      const booleanFields = ["emailVerified", "isAnonymous"] as const;
       for (const field of booleanFields) {
         if (!query._max[field]) continue;
         const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);

@@ -43,6 +43,7 @@
         {#snippet child({ props })}
           <Sidebar.MenuButton
             size="lg"
+            data-testid="open-sync-menu"
             class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             {...props}
           >
@@ -91,7 +92,11 @@
             Start auto-sync
           {/if}
         </DropdownMenu.Item>
-        <DropdownMenu.Item onclick={() => todosState.syncWorker?.syncNow()} disabled={!todosState.syncWorker}>
+        <DropdownMenu.Item
+          onclick={() => todosState.syncWorker?.syncNow()}
+          disabled={!todosState.syncWorker}
+          data-testid="sync-now-button"
+        >
           <CloudIcon />
           Sync now (once)
         </DropdownMenu.Item>

@@ -7,6 +7,8 @@
   import { toast } from "svelte-sonner";
   import Spinner from "$lib/components/ui/spinner/spinner.svelte";
   import GoogleIcon from "$lib/icons/google-icon.svelte";
+  import { goto } from "$app/navigation";
+  import { UserIcon } from "@lucide/svelte";
 
   const auth = authClient.useSession();
 
@@ -21,6 +23,19 @@
     onError: (error) => {
       console.error("Error during Google sign-in:", error);
       toast.error("Failed to sign in with Google. Please try again.");
+    },
+  }));
+
+  const signinAsAnonymous = createMutation(() => ({
+    mutationKey: ["signin-as-anonymous"],
+    mutationFn: async () => {
+      await authClient.signIn.anonymous();
+      await new Promise((resolve) => setTimeout(resolve, 500)); // Wait for session to propagate
+      goto(resolve(`/dashboard`));
+    },
+    onError: (error) => {
+      console.error("Error during anonymous sign-in:", error);
+      toast.error("Failed to sign in anonymously. Please try again.");
     },
   }));
 </script>
@@ -43,7 +58,7 @@
       </a>
     </div>
     <div class="flex flex-1 items-center justify-center">
-      <div class="w-full max-w-md">
+      <div class="flex w-full max-w-md flex-col gap-2">
         <Button
           class="w-full"
           onclick={() => signinWithGoogle.mutate()}
@@ -54,6 +69,19 @@
           {:else}
             <GoogleIcon />
             Sign in with Google
+          {/if}
+        </Button>
+        <Button
+          class="w-full"
+          variant="secondary"
+          onclick={() => signinAsAnonymous.mutate()}
+          disabled={signinAsAnonymous.isPending || $auth.isPending}
+        >
+          {#if signinAsAnonymous.isPending}
+            <Spinner />
+          {:else}
+            <UserIcon />
+            Sign in anonymously
           {/if}
         </Button>
       </div>

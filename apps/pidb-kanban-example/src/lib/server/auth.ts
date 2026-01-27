@@ -4,6 +4,7 @@ import { prisma } from "./prisma.js";
 import { sveltekitCookies } from "better-auth/svelte-kit";
 import { getRequestEvent } from "$app/server";
 import ENV from "./env.js";
+import { anonymous } from "better-auth/plugins";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -16,5 +17,5 @@ export const auth = betterAuth({
     },
   },
   secret: ENV.BETTER_AUTH_SECRET,
-  plugins: [sveltekitCookies(getRequestEvent)],
+  plugins: [sveltekitCookies(getRequestEvent), anonymous()],
 });

@@ -264,6 +264,7 @@ export async function materializeLogs({
             image: true,
             createdAt: true,
             updatedAt: true,
+            isAnonymous: true,
           },
         });
         results.push({ ...log, model: "User", keyPath: validKeyPath, record, changelogId: log.id });

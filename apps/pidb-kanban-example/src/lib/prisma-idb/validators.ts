@@ -23,6 +23,7 @@ export const validators = {
     image: z.string().nullable(),
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
+    isAnonymous: z.boolean().nullable(),
   }),
 } as const;
 

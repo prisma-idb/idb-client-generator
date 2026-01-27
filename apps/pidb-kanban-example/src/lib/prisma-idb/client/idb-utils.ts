@@ -173,7 +173,7 @@ export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFir
 export function whereBoolFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  boolFilter: undefined | boolean | Prisma.BoolFilter<unknown>
+  boolFilter: undefined | boolean | Prisma.BoolFilter<unknown> | null | Prisma.BoolNullableFilter<unknown>
 ): boolean {
   if (boolFilter === undefined) return true;
 
@@ -273,13 +273,18 @@ export function handleStringUpdateField<T, R extends Prisma.Result<T, object, "f
 export function handleBooleanUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(
   record: R,
   fieldName: keyof R,
-  booleanUpdate: undefined | boolean | Prisma.BoolFieldUpdateOperationsInput
+  booleanUpdate:
+    | undefined
+    | boolean
+    | Prisma.BoolFieldUpdateOperationsInput
+    | null
+    | Prisma.NullableBoolFieldUpdateOperationsInput
 ): void {
   if (booleanUpdate === undefined) return;
-  if (typeof booleanUpdate === "boolean") {
-    (record[fieldName] as boolean) = booleanUpdate;
+  if (typeof booleanUpdate === "boolean" || booleanUpdate === null) {
+    (record[fieldName] as boolean | null) = booleanUpdate;
   } else if (booleanUpdate.set !== undefined) {
-    (record[fieldName] as boolean) = booleanUpdate.set;
+    (record[fieldName] as boolean | null) = booleanUpdate.set;
   }
 }
 export function handleDateTimeUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(

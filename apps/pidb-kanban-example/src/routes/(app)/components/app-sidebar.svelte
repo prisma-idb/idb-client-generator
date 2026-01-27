@@ -56,7 +56,10 @@
       <Sidebar.GroupContent>
         <Sidebar.Menu>
           <Sidebar.MenuItem>
-            <Sidebar.MenuButton onclick={() => todosState.addBoard(`Board ${(todosState.boards?.length ?? 0) + 1}`)}>
+            <Sidebar.MenuButton
+              data-testid="create-board-button"
+              onclick={() => todosState.addBoard(`Board ${(todosState.boards?.length ?? 0) + 1}`)}
+            >
               <PlusIcon />
               Create board
             </Sidebar.MenuButton>

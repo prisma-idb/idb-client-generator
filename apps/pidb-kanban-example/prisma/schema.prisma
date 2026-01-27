@@ -23,6 +23,7 @@ model User {
   image         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  isAnonymous   Boolean?
   sessions      Session[]
   accounts      Account[]
   boards        Board[]
