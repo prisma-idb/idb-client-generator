@@ -7,7 +7,7 @@ export function addIntersectArraysByNestedKeyFunction(writer: CodeBlockWriter) {
       .writeLine(`if (safeArrays.length === 0) return [];`)
       .writeLine(`return safeArrays.reduce((acc, array) =>`)
       .writeLine(
-        `acc.filter((item) => array.some((el) => keyPath.every((key) => el[key as keyof T] === item[key as keyof T]))),`,
+        `acc.filter((item) => array.some((el) => keyPath.every((key) => el[key as keyof T] === item[key as keyof T]))),`
       )
       .writeLine(`safeArrays[0] ?? []);`);
   });

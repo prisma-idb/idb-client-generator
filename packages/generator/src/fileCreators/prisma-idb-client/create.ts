@@ -11,7 +11,7 @@ function addImports(
   writer: CodeBlockWriter,
   models: readonly Model[],
   prismaClientImport: string,
-  outboxSync: boolean = false,
+  outboxSync: boolean = false
 ) {
   writer
     .writeLine("/* eslint-disable @typescript-eslint/no-unused-vars */")
@@ -23,7 +23,7 @@ function addImports(
   if (outboxSync) {
     writer
       .writeLine(
-        `import type { OutboxEventRecord, ChangeMetaRecord, PrismaIDBSchema, SyncWorkerOptions, SyncWorker } from "./idb-interface";`,
+        `import type { OutboxEventRecord, ChangeMetaRecord, PrismaIDBSchema, SyncWorkerOptions, SyncWorker } from "./idb-interface";`
       )
       .writeLine(`import type { PushResult } from "../server/batch-processor";`)
       .writeLine(`import { validators, keyPathValidators, modelRecordToKeyPath } from "../validators";`)
@@ -58,7 +58,7 @@ export function createPrismaIDBClientFile(
   outboxModelName: string = "OutboxEvent",
   versionMetaModelName: string = "VersionMeta",
   include: string[] = ["*"],
-  exclude: string[] = [],
+  exclude: string[] = []
 ) {
   addImports(writer, models, prismaClientImport, outboxSync);
   addVersionDeclaration(writer);

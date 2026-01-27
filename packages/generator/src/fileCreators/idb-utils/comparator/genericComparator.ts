@@ -3,7 +3,7 @@ import CodeBlockWriter from "code-block-writer";
 export function addGenericComparator(writer: CodeBlockWriter) {
   writer
     .writeLine(
-      `export function genericComparator(a: unknown, b: unknown, sortOrder: Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } = "asc"): number`,
+      `export function genericComparator(a: unknown, b: unknown, sortOrder: Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } = "asc"): number`
     )
     .block(() => {
       handleNullsSorting(writer);
@@ -40,7 +40,7 @@ function handleNullsSorting(writer: CodeBlockWriter) {
 function handleMultiplierAndReturnValueInit(writer: CodeBlockWriter) {
   writer
     .writeLine(
-      `const multiplier = typeof sortOrder === "string" ? (sortOrder === "asc" ? 1 : -1) : sortOrder.sort === "asc" ? 1 : -1;`,
+      `const multiplier = typeof sortOrder === "string" ? (sortOrder === "asc" ? 1 : -1) : sortOrder.sort === "asc" ? 1 : -1;`
     )
     .writeLine(`let returnValue: number | undefined;`)
     .blankLine();

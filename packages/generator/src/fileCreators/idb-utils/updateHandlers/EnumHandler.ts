@@ -21,7 +21,7 @@ export function addEnumUpdateHandler(writer: CodeBlockWriter, models: readonly M
 
   writer
     .writeLine(
-      `export function handleEnumUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, enumUpdate: ${updateOperationType}): void`,
+      `export function handleEnumUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, enumUpdate: ${updateOperationType}): void`
     )
     .block(() => {
       writer

@@ -18,7 +18,7 @@ export function addBigIntFilter(writer: CodeBlockWriter, models: readonly Model[
 
   writer
     .writeLine(
-      `export function whereBigIntFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, bigIntFilter: ${filterType}): boolean`,
+      `export function whereBigIntFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, bigIntFilter: ${filterType}): boolean`
     )
     .block(() => {
       writer

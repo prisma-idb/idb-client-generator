@@ -18,7 +18,7 @@ export function addDateTimeFilter(writer: CodeBlockWriter, models: readonly Mode
 
   writer
     .writeLine(
-      `export function whereDateTimeFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, dateTimeFilter: ${filterType}): boolean`,
+      `export function whereDateTimeFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, dateTimeFilter: ${filterType}): boolean`
     )
     .block(() => {
       writer
@@ -81,7 +81,7 @@ function addInHandler(writer: CodeBlockWriter) {
     writer
       .writeLine(`if (value === null) return false;`)
       .writeLine(
-        `if (!dateTimeFilter.in.map((d) => new Date(d)).some((d) => d.getTime() === value.getTime())) return false;`,
+        `if (!dateTimeFilter.in.map((d) => new Date(d)).some((d) => d.getTime() === value.getTime())) return false;`
       );
   });
 }
@@ -91,7 +91,7 @@ function addNotInHandler(writer: CodeBlockWriter) {
     writer
       .writeLine(`if (value === null) return false;`)
       .writeLine(
-        `if (dateTimeFilter.notIn.map((d) => new Date(d)).some((d) => d.getTime() === value.getTime())) return false;`,
+        `if (dateTimeFilter.notIn.map((d) => new Date(d)).some((d) => d.getTime() === value.getTime())) return false;`
       );
   });
 }

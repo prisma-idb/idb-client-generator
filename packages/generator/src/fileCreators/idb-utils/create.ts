@@ -32,7 +32,7 @@ export function createUtilsFile(
   writer: CodeBlockWriter,
   models: readonly Model[],
   prismaClientImport: string,
-  outboxSync: boolean = false,
+  outboxSync: boolean = false
 ) {
   writer.writeLine(`import type { IDBPTransaction, StoreNames } from "idb";`);
   writer.writeLine(`import type { PrismaIDBSchema } from "./idb-interface";`);
@@ -44,10 +44,10 @@ export function createUtilsFile(
   });
 
   writer.writeLine(
-    `export type ReadwriteTransactionType = IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readwrite">;`,
+    `export type ReadwriteTransactionType = IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readwrite">;`
   );
   writer.writeLine(
-    `export type ReadonlyTransactionType = IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readonly">;`,
+    `export type ReadonlyTransactionType = IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "readonly">;`
   );
   writer.writeLine(`export type TransactionType = ReadonlyTransactionType | ReadwriteTransactionType;`);
   writer.blankLine();
@@ -61,7 +61,7 @@ export function createUtilsFile(
 
   const hasBytesFields = models.some(({ fields }) => fields.some((field) => field.type === "Bytes"));
   const hasBytesListFields = models.some(({ fields }) =>
-    fields.some((field) => field.type === "Bytes" && field.isList),
+    fields.some((field) => field.type === "Bytes" && field.isList)
   );
   if (hasBytesFields || hasBytesListFields) {
     addAreUint8ArraysEqualHelper(writer);

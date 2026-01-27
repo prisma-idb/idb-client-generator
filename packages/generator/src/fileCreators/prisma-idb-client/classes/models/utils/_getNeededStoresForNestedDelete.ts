@@ -8,7 +8,7 @@ export function addGetNeededStoresForNestedDelete(
   models: readonly Model[],
   outboxSync: boolean,
   outboxModelName: string = "OutboxEvent",
-  versionMetaModelName: string = "VersionMeta",
+  versionMetaModelName: string = "VersionMeta"
 ) {
   writer
     .writeLine(`_getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void`)

@@ -21,18 +21,18 @@ export function addBigIntUpdateHandler(writer: CodeBlockWriter, models: readonly
 
   writer
     .writeLine(
-      `export function handleBigIntUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, bigIntUpdate: ${updateOperationType}): void`,
+      `export function handleBigIntUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, bigIntUpdate: ${updateOperationType}): void`
     )
     .block(() => {
       writer
         .writeLine(`if (bigIntUpdate === undefined) return;`)
         .writeLine(
-          `if (typeof bigIntUpdate === "bigint" || typeof bigIntUpdate === "number"${nullableBigIntFieldPresent ? ` || bigIntUpdate === null` : ""})`,
+          `if (typeof bigIntUpdate === "bigint" || typeof bigIntUpdate === "number"${nullableBigIntFieldPresent ? ` || bigIntUpdate === null` : ""})`
         )
         .block(() => {
           if (nullableBigIntFieldPresent) {
             writer.writeLine(
-              `(record[fieldName] as ${fieldType}) = bigIntUpdate === null ? null : BigInt(bigIntUpdate);`,
+              `(record[fieldName] as ${fieldType}) = bigIntUpdate === null ? null : BigInt(bigIntUpdate);`
             );
           } else {
             writer.writeLine(`(record[fieldName] as ${fieldType}) = BigInt(bigIntUpdate);`);
@@ -42,7 +42,7 @@ export function addBigIntUpdateHandler(writer: CodeBlockWriter, models: readonly
         .block(() => {
           if (nullableBigIntFieldPresent) {
             writer.writeLine(
-              `(record[fieldName] as ${fieldType}) = bigIntUpdate.set === null ? null : BigInt(bigIntUpdate.set);`,
+              `(record[fieldName] as ${fieldType}) = bigIntUpdate.set === null ? null : BigInt(bigIntUpdate.set);`
             );
           } else {
             writer.writeLine(`(record[fieldName] as ${fieldType}) = BigInt(bigIntUpdate.set);`);

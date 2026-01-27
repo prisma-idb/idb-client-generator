@@ -23,7 +23,7 @@ function buildAuthorizationPath(
   targetModel: string,
   rootModel: string,
   models: readonly Model[],
-  dag: Record<string, Set<string>>,
+  dag: Record<string, Set<string>>
 ): string[] {
   if (targetModel === rootModel) {
     return [];
@@ -61,7 +61,7 @@ export function createBatchProcessorFile(
   writer: CodeBlockWriter,
   models: readonly Model[],
   prismaClientImport: string,
-  rootModel: Model,
+  rootModel: Model
 ) {
   const modelNames = models.map((m) => m.name);
 
@@ -175,7 +175,7 @@ export function createBatchProcessorFile(
 
     writer.writeLine(`      default:`);
     writer.writeLine(
-      `        throw new PermanentSyncError("${pushErrorTypes.INVALID_MODEL}", \`No sync handler for model \${event.entityType}\`);`,
+      `        throw new PermanentSyncError("${pushErrorTypes.INVALID_MODEL}", \`No sync handler for model \${event.entityType}\`);`
     );
     writer.writeLine(`    }`);
     writer.writeLine(`    results.push(result);`);
@@ -253,7 +253,7 @@ export function createBatchProcessorFile(
         // For root model, check if validKeyPath matches scopeKey
         writer.writeLine(`        if (validKeyPath[0] !== scopeKey) {`);
         writer.writeLine(
-          `          results.push({ ...log, model: "${model.name}", keyPath: validKeyPath, record: null, changelogId: log.id });`,
+          `          results.push({ ...log, model: "${model.name}", keyPath: validKeyPath, record: null, changelogId: log.id });`
         );
         writer.writeLine(`          break;`);
         writer.writeLine(`        }`);
@@ -271,7 +271,7 @@ export function createBatchProcessorFile(
       }
 
       writer.writeLine(
-        `        results.push({ ...log, model: "${model.name}", keyPath: validKeyPath, record, changelogId: log.id });`,
+        `        results.push({ ...log, model: "${model.name}", keyPath: validKeyPath, record, changelogId: log.id });`
       );
       writer.writeLine(`        break;`);
       writer.writeLine(`      }`);
@@ -293,7 +293,7 @@ function generateModelSwitchCase(writer: CodeBlockWriter, model: Model) {
   writer.block(() => {
     writer.writeLine(`const validation = validators.${model.name}.safeParse(event.payload);`);
     writer.writeLine(
-      `if (!validation.success) throw new PermanentSyncError("${pushErrorTypes.RECORD_VALIDATION_FAILURE}", \`Validation failed for model ${model.name}: \${validation.error.message}\`);`,
+      `if (!validation.success) throw new PermanentSyncError("${pushErrorTypes.RECORD_VALIDATION_FAILURE}", \`Validation failed for model ${model.name}: \${validation.error.message}\`);`
     );
     writer.blankLine();
     writer.writeLine(`if (customValidation) {`);
@@ -324,7 +324,7 @@ function generateModelSyncHandler(
   model: Model,
   allModels: readonly Model[],
   rootModel: Model,
-  dag: Record<string, Set<string>>,
+  dag: Record<string, Set<string>>
 ) {
   const modelNameLower = model.name.charAt(0).toLowerCase() + model.name.slice(1);
   const pk = getUniqueIdentifiers(model)[0];
@@ -333,7 +333,7 @@ function generateModelSyncHandler(
   const isRootModel = model.name === rootModel.name;
 
   writer.writeLine(
-    `async function sync${model.name}(event: OutboxEventRecord, data: z.infer<typeof validators.${model.name}>, scopeKey: string, prisma: PrismaClient): Promise<PushResult>`,
+    `async function sync${model.name}(event: OutboxEventRecord, data: z.infer<typeof validators.${model.name}>, scopeKey: string, prisma: PrismaClient): Promise<PushResult>`
   );
   writer.block(() => {
     writer.writeLine(`const { id, operation } = event;`);
@@ -345,7 +345,7 @@ function generateModelSyncHandler(
     writer.writeLine(`const keyPathValidation = keyPathValidators.${model.name}.safeParse(keyPath);`);
     writer.writeLine(`if (!keyPathValidation.success) {`);
     writer.writeLine(
-      `  throw new PermanentSyncError("${pushErrorTypes.KEYPATH_VALIDATION_FAILURE}", "Invalid keyPath for ${model.name}");`,
+      `  throw new PermanentSyncError("${pushErrorTypes.KEYPATH_VALIDATION_FAILURE}", "Invalid keyPath for ${model.name}");`
     );
     writer.writeLine(`}`);
     writer.blankLine();
@@ -379,7 +379,7 @@ function generateModelSyncHandler(
 
       if (!relationField.relationFromFields || relationField.relationFromFields.length === 0) {
         throw new Error(
-          `Relation field ${firstRelationFieldName} on model ${model.name} does not have foreign key fields`,
+          `Relation field ${firstRelationFieldName} on model ${model.name} does not have foreign key fields`
         );
       }
 
@@ -416,7 +416,7 @@ function generateModelSyncHandler(
         const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
         writer.writeLine(`      if (!parentRecord || parentRecord${accessChain}.${rootPkFieldName} !== scopeKey) {`);
         writer.writeLine(
-          `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`,
+          `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`
         );
         writer.writeLine(`      }`);
       } else {
@@ -438,7 +438,7 @@ function generateModelSyncHandler(
         const parentPkFieldName = getUniqueIdentifiers(parentModel)[0].name;
         writer.writeLine(`      if (!parentRecord || parentRecord.${parentPkFieldName} !== scopeKey) {`);
         writer.writeLine(
-          `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`,
+          `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`
         );
         writer.writeLine(`      }`);
       }
@@ -446,7 +446,7 @@ function generateModelSyncHandler(
     } else if (isRootModel) {
       writer.writeLine(`      if (scopeKey !== data.${getUniqueIdentifiers(model)[0].name}) {`);
       writer.writeLine(
-        `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: root model pk must match authenticated scope\`);`,
+        `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: root model pk must match authenticated scope\`);`
       );
       writer.writeLine(`      }`);
       writer.blankLine();
@@ -486,7 +486,7 @@ function generateModelSyncHandler(
       writer.writeLine(`      // For root model, ownership is determined by pk matching scopeKey`);
       writer.writeLine(`      if (validKeyPath[0] !== scopeKey) {`);
       writer.writeLine(
-        `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} pk does not match authenticated scope\`);`,
+        `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} pk does not match authenticated scope\`);`
       );
       writer.writeLine(`      }`);
     } else {
@@ -513,7 +513,7 @@ function generateModelSyncHandler(
       const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
       writer.writeLine(`        if (record${accessChain}.${rootPkFieldName} !== scopeKey) {`);
       writer.writeLine(
-        `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} is not owned by the authenticated scope\`);`,
+        `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} is not owned by the authenticated scope\`);`
       );
       writer.writeLine(`        }`);
 
@@ -551,16 +551,16 @@ function generateModelSyncHandler(
               const accessChainRemaining = buildAccessChain(remainingPath);
               const rootPkFieldName2 = getUniqueIdentifiers(rootModel)[0].name;
               writer.writeLine(
-                `        if (!newParentRecord || newParentRecord${accessChainRemaining}.${rootPkFieldName2} !== scopeKey) {`,
+                `        if (!newParentRecord || newParentRecord${accessChainRemaining}.${rootPkFieldName2} !== scopeKey) {`
               );
               writer.writeLine(
-                `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot reassign ${model.name} to parent outside scope\`);`,
+                `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot reassign ${model.name} to parent outside scope\`);`
               );
               writer.writeLine(`        }`);
             } else {
               writer.writeLine(`        if (data.${foreignKeyFields[0]} !== scopeKey) {`);
               writer.writeLine(
-                `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot reassign ${model.name} to different ${parentModel.name}\`);`,
+                `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot reassign ${model.name} to different ${parentModel.name}\`);`
               );
               writer.writeLine(`        }`);
             }
@@ -602,16 +602,16 @@ function generateModelSyncHandler(
             const accessChainRemaining = buildAccessChain(remainingPath);
             const rootPkFieldName2 = getUniqueIdentifiers(rootModel)[0].name;
             writer.writeLine(
-              `        if (!parent || parent${accessChainRemaining}.${rootPkFieldName2} !== scopeKey) {`,
+              `        if (!parent || parent${accessChainRemaining}.${rootPkFieldName2} !== scopeKey) {`
             );
             writer.writeLine(
-              `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot resurrect ${model.name} into unauthorized scope\`);`,
+              `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot resurrect ${model.name} into unauthorized scope\`);`
             );
             writer.writeLine(`        }`);
           } else {
             writer.writeLine(`        if (data.${foreignKeyFields[0]} !== scopeKey) {`);
             writer.writeLine(
-              `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot resurrect ${model.name} into different ${parentModel.name}\`);`,
+              `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot resurrect ${model.name} into different ${parentModel.name}\`);`
             );
             writer.writeLine(`        }`);
           }
@@ -659,7 +659,7 @@ function generateModelSyncHandler(
     if (isRootModel) {
       writer.writeLine(`      if (validKeyPath[0] !== scopeKey) {`);
       writer.writeLine(
-        `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} pk does not match authenticated scope\`);`,
+        `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} pk does not match authenticated scope\`);`
       );
       writer.writeLine(`      }`);
     } else {
@@ -683,7 +683,7 @@ function generateModelSyncHandler(
       const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
       writer.writeLine(`        if (record${accessChain}.${rootPkFieldName} !== scopeKey) {`);
       writer.writeLine(
-        `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} is not owned by the authenticated scope\`);`,
+        `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} is not owned by the authenticated scope\`);`
       );
       writer.writeLine(`        }`);
       writer.writeLine(`      }`);
@@ -710,7 +710,7 @@ function generateModelSyncHandler(
 
     writer.writeLine(`  default:`);
     writer.writeLine(
-      `    throw new PermanentSyncError("${pushErrorTypes.UNKNOWN_OPERATION}", \`Unknown operation: \${operation}\`);`,
+      `    throw new PermanentSyncError("${pushErrorTypes.UNKNOWN_OPERATION}", \`Unknown operation: \${operation}\`);`
     );
     writer.writeLine(`}`);
   });

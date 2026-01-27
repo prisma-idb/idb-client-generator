@@ -27,7 +27,7 @@ function addConstructor(writer: CodeBlockWriter, changeMetaModelName: string) {
 function addGetMethod(writer: CodeBlockWriter, changeMetaModelName: string) {
   writer
     .writeLine(
-      `async get(model: string, key: IDBValidKey, tx?: IDBUtils.TransactionType): Promise<ChangeMetaRecord | undefined>`,
+      `async get(model: string, key: IDBValidKey, tx?: IDBUtils.TransactionType): Promise<ChangeMetaRecord | undefined>`
     )
     .block(() => {
       writer
@@ -68,7 +68,7 @@ function addPutMethod(writer: CodeBlockWriter, changeMetaModelName: string) {
 function addMarkLocalPendingMethod(writer: CodeBlockWriter, changeMetaModelName: string) {
   writer
     .writeLine(
-      `async markLocalPending(model: string, key: IDBValidKey, options?: { tx?: IDBUtils.ReadwriteTransactionType }): Promise<void>`,
+      `async markLocalPending(model: string, key: IDBValidKey, options?: { tx?: IDBUtils.ReadwriteTransactionType }): Promise<void>`
     )
     .block(() => {
       writer
@@ -94,7 +94,7 @@ function addMarkLocalPendingMethod(writer: CodeBlockWriter, changeMetaModelName:
 function addMarkPushedMethod(writer: CodeBlockWriter, changeMetaModelName: string) {
   writer
     .writeLine(
-      `async markPushed(model: string, key: IDBValidKey, options?: { tx?: IDBUtils.ReadwriteTransactionType }): Promise<void>`,
+      `async markPushed(model: string, key: IDBValidKey, options?: { tx?: IDBUtils.ReadwriteTransactionType }): Promise<void>`
     )
     .block(() => {
       writer
@@ -121,7 +121,7 @@ function addMarkPushedMethod(writer: CodeBlockWriter, changeMetaModelName: strin
 function addMarkPulledMethod(writer: CodeBlockWriter, changeMetaModelName: string) {
   writer
     .writeLine(
-      `async markPulled(model: string, key: IDBValidKey, lastAppliedChangelogId: string, options?: { tx?: IDBUtils.ReadwriteTransactionType }): Promise<void>`,
+      `async markPulled(model: string, key: IDBValidKey, lastAppliedChangelogId: string, options?: { tx?: IDBUtils.ReadwriteTransactionType }): Promise<void>`
     )
     .block(() => {
       writer

@@ -21,7 +21,7 @@ export function addFloatUpdateHandler(writer: CodeBlockWriter, models: readonly 
 
   writer
     .writeLine(
-      `export function handleFloatUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, floatUpdate: ${updateOperationType}): void`,
+      `export function handleFloatUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, floatUpdate: ${updateOperationType}): void`
     )
     .block(() => {
       writer

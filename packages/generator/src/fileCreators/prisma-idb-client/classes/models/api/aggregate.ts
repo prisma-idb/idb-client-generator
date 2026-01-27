@@ -75,7 +75,7 @@ function addAvgHandling(writer: CodeBlockWriter, model: Model) {
           .writeLine(`const field = untypedField as keyof (typeof records)[number];`)
           .writeLine(`const values = records.map((record) => record[field] as number);`)
           .writeLine(
-            `(avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;`,
+            `(avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;`
           );
       })
       .writeLine(`result._avg = avgResult;`);
@@ -118,7 +118,7 @@ function addMinHandling(writer: CodeBlockWriter, model: Model) {
           writer
             .writeLine(`if (!query._min[field]) continue;`)
             .writeLine(
-              `const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);`,
+              `const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);`
             )
             .writeLine(`(minResult[field as keyof typeof minResult] as number) = Math.min(...values);`);
         });
@@ -131,7 +131,7 @@ function addMinHandling(writer: CodeBlockWriter, model: Model) {
           writer
             .writeLine(`if (!query._min[field]) continue;`)
             .writeLine(
-              `const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);`,
+              `const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);`
             )
             .writeLine(`(minResult[field as keyof typeof minResult] as Date) = new Date(Math.min(...values));`);
         });
@@ -144,7 +144,7 @@ function addMinHandling(writer: CodeBlockWriter, model: Model) {
           writer
             .writeLine(`if (!query._min[field]) continue;`)
             .writeLine(
-              `const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);`,
+              `const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);`
             )
             .writeLine(`(minResult[field as keyof typeof minResult] as string) = values.sort()[0];`);
         });
@@ -157,10 +157,10 @@ function addMinHandling(writer: CodeBlockWriter, model: Model) {
           writer
             .writeLine(`if (!query._min[field]) continue;`)
             .writeLine(
-              `const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);`,
+              `const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);`
             )
             .writeLine(
-              `(minResult[field as keyof typeof minResult] as boolean) = values.length === 0 ? false : values.includes(false) ? false : true;`,
+              `(minResult[field as keyof typeof minResult] as boolean) = values.length === 0 ? false : values.includes(false) ? false : true;`
             );
         });
     }
@@ -188,7 +188,7 @@ function addMaxHandling(writer: CodeBlockWriter, model: Model) {
           writer
             .writeLine(`if (!query._max[field]) continue;`)
             .writeLine(
-              `const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);`,
+              `const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);`
             )
             .writeLine(`(maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);`);
         });
@@ -201,7 +201,7 @@ function addMaxHandling(writer: CodeBlockWriter, model: Model) {
           writer
             .writeLine(`if (!query._max[field]) continue;`)
             .writeLine(
-              `const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);`,
+              `const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);`
             )
             .writeLine(`(maxResult[field as keyof typeof maxResult] as Date) = new Date(Math.max(...values));`);
         });
@@ -214,7 +214,7 @@ function addMaxHandling(writer: CodeBlockWriter, model: Model) {
           writer
             .writeLine(`if (!query._max[field]) continue;`)
             .writeLine(
-              `const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);`,
+              `const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);`
             )
             .writeLine(`(maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];`);
         });
@@ -227,10 +227,10 @@ function addMaxHandling(writer: CodeBlockWriter, model: Model) {
           writer
             .writeLine(`if (!query._max[field]) continue;`)
             .writeLine(
-              `const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);`,
+              `const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);`
             )
             .writeLine(
-              `(maxResult[field as keyof typeof maxResult] as boolean) = values.length === 0 ? false : values.includes(true);`,
+              `(maxResult[field as keyof typeof maxResult] as boolean) = values.length === 0 ? false : values.includes(true);`
             );
         });
     }

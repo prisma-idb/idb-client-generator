@@ -18,7 +18,7 @@ export function addBoolFilter(writer: CodeBlockWriter, models: readonly Model[])
 
   writer
     .writeLine(
-      `export function whereBoolFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, boolFilter: ${filterType}): boolean`,
+      `export function whereBoolFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, boolFilter: ${filterType}): boolean`
     )
     .block(() => {
       writer

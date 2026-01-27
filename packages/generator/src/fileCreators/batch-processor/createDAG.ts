@@ -53,7 +53,7 @@ function validateRootAuthority(dag: Record<string, Set<string>>, rootModel: Mode
   for (const node of allNodes) {
     if (!visited.has(node)) {
       throw new Error(
-        `Not all models can reach the root model "${rootModel.name}". Model "${node}" cannot reach root.`,
+        `Not all models can reach the root model "${rootModel.name}". Model "${node}" cannot reach root.`
       );
     }
   }

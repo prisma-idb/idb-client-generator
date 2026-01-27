@@ -21,18 +21,18 @@ export function addDateTimeUpdateHandler(writer: CodeBlockWriter, models: readon
 
   writer
     .writeLine(
-      `export function handleDateTimeUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, dateTimeUpdate: ${updateOperationType}): void`,
+      `export function handleDateTimeUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, dateTimeUpdate: ${updateOperationType}): void`
     )
     .block(() => {
       writer
         .writeLine(`if (dateTimeUpdate === undefined) return;`)
         .writeLine(
-          `if (typeof dateTimeUpdate === "string" || dateTimeUpdate instanceof Date${nullableDateTimeFieldPresent ? ` || dateTimeUpdate === null` : ""})`,
+          `if (typeof dateTimeUpdate === "string" || dateTimeUpdate instanceof Date${nullableDateTimeFieldPresent ? ` || dateTimeUpdate === null` : ""})`
         )
         .block(() => {
           if (nullableDateTimeFieldPresent) {
             writer.writeLine(
-              `(record[fieldName] as ${fieldType}) = dateTimeUpdate === null ? null : new Date(dateTimeUpdate);`,
+              `(record[fieldName] as ${fieldType}) = dateTimeUpdate === null ? null : new Date(dateTimeUpdate);`
             );
           } else {
             writer.writeLine(`(record[fieldName] as ${fieldType}) = new Date(dateTimeUpdate);`);
@@ -41,7 +41,7 @@ export function addDateTimeUpdateHandler(writer: CodeBlockWriter, models: readon
       writer.writeLine(`else if (dateTimeUpdate.set !== undefined)`).block(() => {
         if (nullableDateTimeFieldPresent) {
           writer.writeLine(
-            `(record[fieldName] as ${fieldType}) = dateTimeUpdate.set === null ? null : new Date(dateTimeUpdate.set);`,
+            `(record[fieldName] as ${fieldType}) = dateTimeUpdate.set === null ? null : new Date(dateTimeUpdate.set);`
           );
         } else {
           writer.writeLine(`(record[fieldName] as ${fieldType}) = new Date(dateTimeUpdate.set);`);

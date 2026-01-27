@@ -20,7 +20,7 @@ export function addNumberFilter(writer: CodeBlockWriter, models: readonly Model[
 
   writer
     .writeLine(
-      `export function whereNumberFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, numberFilter: ${filterType}): boolean`,
+      `export function whereNumberFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, numberFilter: ${filterType}): boolean`
     )
     .block(() => {
       writer

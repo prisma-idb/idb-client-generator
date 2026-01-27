@@ -9,7 +9,7 @@ export function addStringListFilter(writer: CodeBlockWriter, models: readonly Mo
 
   writer
     .writeLine(
-      `export function whereStringListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: undefined | Prisma.StringNullableListFilter<unknown>): boolean`,
+      `export function whereStringListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: undefined | Prisma.StringNullableListFilter<unknown>): boolean`
     )
     .block(() => {
       writer

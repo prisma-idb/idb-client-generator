@@ -9,7 +9,7 @@ export function addBooleanListFilter(writer: CodeBlockWriter, models: readonly M
 
   writer
     .writeLine(
-      `export function whereBooleanListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: undefined | Prisma.BoolNullableListFilter<unknown>): boolean`,
+      `export function whereBooleanListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: undefined | Prisma.BoolNullableListFilter<unknown>): boolean`
     )
     .block(() => {
       writer

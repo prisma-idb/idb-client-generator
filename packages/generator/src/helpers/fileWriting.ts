@@ -19,7 +19,7 @@ export async function writeCodeFile(filename: string, outputPath: string, callba
 export async function writePrismaSchemaFile(
   filename: string,
   outputPath: string,
-  callback: (writer: CodeBlockWriter) => void,
+  callback: (writer: CodeBlockWriter) => void
 ) {
   const writer = new CodeBlockWriter({
     indentNumberOfSpaces: 2,
@@ -48,7 +48,7 @@ const formatFile = (content: string, filepath: string): Promise<string> => {
       } catch (error) {
         rej(error);
       }
-    }),
+    })
   );
 };
 

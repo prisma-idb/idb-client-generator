@@ -21,7 +21,7 @@ export function addIntUpdateHandler(writer: CodeBlockWriter, models: readonly Mo
 
   writer
     .writeLine(
-      `export function handleIntUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, intUpdate: ${updateOperationType}): void`,
+      `export function handleIntUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, intUpdate: ${updateOperationType}): void`
     )
     .block(() => {
       writer
@@ -49,7 +49,7 @@ export function addIntUpdateHandler(writer: CodeBlockWriter, models: readonly Mo
         .writeLine(`else if (intUpdate.divide !== undefined && record[fieldName] !== null)`)
         .block(() => {
           writer.writeLine(
-            `(record[fieldName] as number) = Math.trunc((record[fieldName] as number) / intUpdate.divide);`,
+            `(record[fieldName] as number) = Math.trunc((record[fieldName] as number) / intUpdate.divide);`
           );
         });
     });

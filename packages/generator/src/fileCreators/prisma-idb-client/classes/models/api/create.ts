@@ -80,7 +80,7 @@ function createDependents(writer: CodeBlockWriter, model: Model, models: readonl
     if (!field.relationName) return;
     if (field.relationFromFields?.length || field.relationToFields?.length) return;
     const otherField = allFields.find(
-      (otherField) => otherField !== field && otherField.relationName === field.relationName,
+      (otherField) => otherField !== field && otherField.relationName === field.relationName
     )!;
 
     if (!field.isList) {
@@ -89,7 +89,7 @@ function createDependents(writer: CodeBlockWriter, model: Model, models: readonl
       const dependentModel = models.find(({ name }) => name === field.type)!;
       const fks = dependentModel.fields.filter(
         (field) =>
-          dependentModel.fields.find((fkField) => fkField.name === field.relationFromFields?.at(0)) !== undefined,
+          dependentModel.fields.find((fkField) => fkField.name === field.relationFromFields?.at(0)) !== undefined
       );
       addOneToManyRelation(writer, field, otherField, fks, model);
     }
@@ -115,7 +115,7 @@ function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field, m
     .writeLine(`if (query.data.${field.name}?.create)`)
     .block(() => {
       writer.writeLine(
-        `const record = await this.client.${toCamelCase(field.type)}.create({ data: query.data.${field.name}.create }, { tx, silent, addToOutbox });`,
+        `const record = await this.client.${toCamelCase(field.type)}.create({ data: query.data.${field.name}.create }, { tx, silent, addToOutbox });`
       );
       for (let i = 0; i < otherModelKeyPath!.length; i++) {
         writer.writeLine(`fk[${i}] = record.${otherModelKeyPath?.at(i)}`);
@@ -125,7 +125,7 @@ function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field, m
   writer.writeLine(`if (query.data.${field.name}?.connect)`).block(() => {
     writer
       .writeLine(
-        `const record = await this.client.${toCamelCase(field.type)}.findUniqueOrThrow({ where: query.data.${field.name}.connect }, { tx });`,
+        `const record = await this.client.${toCamelCase(field.type)}.findUniqueOrThrow({ where: query.data.${field.name}.connect }, { tx });`
       )
       .writeLine(`delete query.data.${field.name}.connect;`);
     for (let i = 0; i < otherModelKeyPath!.length; i++) {
@@ -157,7 +157,7 @@ function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Fie
 
   const keyPathMapping = otherField
     .relationFromFields!.map(
-      (field, idx) => `${field}: keyPath[${modelKeyPath.indexOf(otherField.relationToFields![idx])}]`,
+      (field, idx) => `${field}: keyPath[${modelKeyPath.indexOf(otherField.relationToFields![idx])}]`
     )
     .join(", ");
 
@@ -166,14 +166,14 @@ function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Fie
       .write(`await this.client.${toCamelCase(field.type)}.create(`)
       .block(() => {
         writer.writeLine(
-          `data: { ...query.data.${field.name}.create, ${keyPathMapping} } as Prisma.Args<Prisma.${field.type}Delegate, "create">["data"]`,
+          `data: { ...query.data.${field.name}.create, ${keyPathMapping} } as Prisma.Args<Prisma.${field.type}Delegate, "create">["data"]`
         );
       })
       .writeLine(`, { tx, silent, addToOutbox })`);
   });
   writer.writeLine(`if (query.data.${field.name}?.connect)`).block(() => {
     writer.writeLine(
-      `await this.client.${toCamelCase(field.type)}.update({ where: query.data.${field.name}.connect, data: { ${keyPathMapping} } }, { tx, silent, addToOutbox });`,
+      `await this.client.${toCamelCase(field.type)}.update({ where: query.data.${field.name}.connect, data: { ${keyPathMapping} } }, { tx, silent, addToOutbox });`
     );
   });
   writer.writeLine(`if (query.data.${field.name}?.connectOrCreate)`).block(() => {
@@ -181,7 +181,7 @@ function addOneToOneMetaOnOtherFieldRelation(writer: CodeBlockWriter, field: Fie
       .writeLine(`await this.client.${toCamelCase(field.type)}.upsert({`)
       .writeLine(`where: query.data.${field.name}.connectOrCreate.where,`)
       .writeLine(
-        `create: { ...query.data.${field.name}.connectOrCreate.create, ${keyPathMapping} } as Prisma.Args<Prisma.${field.type}Delegate, "create">["data"],`,
+        `create: { ...query.data.${field.name}.connectOrCreate.create, ${keyPathMapping} } as Prisma.Args<Prisma.${field.type}Delegate, "create">["data"],`
       )
       .writeLine(`update: { ${keyPathMapping} },`)
       .writeLine(`}, { tx, silent, addToOutbox });`);
@@ -193,7 +193,7 @@ function addOneToManyRelation(
   field: Field,
   otherField: Field,
   fkFields: Field[],
-  model: Model,
+  model: Model
 ) {
   const getCreateQuery = (extraDataFields: string) =>
     `await this.client.${toCamelCase(field.type)}.create({ data: { ...elem, ${extraDataFields} } as Prisma.Args<Prisma.${field.type}Delegate, "create">['data'] }, { tx, silent, addToOutbox });`;
@@ -210,7 +210,7 @@ function addOneToManyRelation(
   const nestedDirectLine = otherField
     .relationFromFields!.map(
       (field, idx) =>
-        `${field}: keyPath[${JSON.parse(getUniqueIdentifiers(model)[0].keyPath).indexOf(otherField.relationToFields?.at(idx))}]`,
+        `${field}: keyPath[${JSON.parse(getUniqueIdentifiers(model)[0].keyPath).indexOf(otherField.relationToFields?.at(idx))}]`
     )
     .join(", ");
   const connectQuery = getCreateQuery(nestedConnectLine);
@@ -244,7 +244,7 @@ function addOneToManyRelation(
           .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.connect).map(async (connectWhere) => `)
           .block(() => {
             writer.writeLine(
-              `await this.client.${toCamelCase(field.type)}.update({ where: connectWhere, data: { ${nestedDirectLine} } }, { tx, silent, addToOutbox });`,
+              `await this.client.${toCamelCase(field.type)}.update({ where: connectWhere, data: { ${nestedDirectLine} } }, { tx, silent, addToOutbox });`
             );
           })
           .writeLine(`),`);
@@ -257,14 +257,14 @@ function addOneToManyRelation(
       .indent(() => {
         writer
           .writeLine(
-            `IDBUtils.convertToArray(query.data.${field.name}.connectOrCreate).map(async (connectOrCreate) => `,
+            `IDBUtils.convertToArray(query.data.${field.name}.connectOrCreate).map(async (connectOrCreate) => `
           )
           .block(() => {
             writer
               .writeLine(`await this.client.${toCamelCase(field.type)}.upsert({`)
               .writeLine(`where: connectOrCreate.where,`)
               .writeLine(
-                `create: { ...connectOrCreate.create, ${nestedDirectLine} } as NonNullable<Prisma.Args<Prisma.${field.type}Delegate, "create">["data"]>,`,
+                `create: { ...connectOrCreate.create, ${nestedDirectLine} } as NonNullable<Prisma.Args<Prisma.${field.type}Delegate, "create">["data"]>,`
               )
               .writeLine(`update: { ${nestedDirectLine} },`)
               .writeLine(`}, { tx, silent, addToOutbox });`);

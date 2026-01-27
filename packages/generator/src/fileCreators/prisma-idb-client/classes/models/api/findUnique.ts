@@ -13,7 +13,7 @@ export function addFindUniqueMethod(writer: CodeBlockWriter, model: Model) {
       writer
         .writeLine(getOptionsSetupRead())
         .writeLine(
-          `tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`,
+          `tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`
         )
         .writeLine("let record;");
       getFromKeyIdentifier(writer, model);
@@ -23,7 +23,7 @@ export function addFindUniqueMethod(writer: CodeBlockWriter, model: Model) {
         .blankLine()
         .write(`const recordWithRelations = `)
         .write(
-          `this._applySelectClause(await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query), query.select)[0];`,
+          `this._applySelectClause(await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query), query.select)[0];`
         )
         .writeLine(`this._preprocessListFields([recordWithRelations]);`)
         .writeLine(`return recordWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "findUnique">;`);
@@ -39,7 +39,7 @@ function getFromKeyIdentifier(writer: CodeBlockWriter, model: Model) {
     fields = JSON.stringify(fieldNames.map((fieldName: string) => `query.where.${fieldName}`));
   } else {
     fields = JSON.stringify(
-      fieldNames.map((fieldName: string) => `query.where.${keyUniqueIdentifier.name}.${fieldName}`),
+      fieldNames.map((fieldName: string) => `query.where.${keyUniqueIdentifier.name}.${fieldName}`)
     );
   }
   fields = fields.replaceAll('"', "");

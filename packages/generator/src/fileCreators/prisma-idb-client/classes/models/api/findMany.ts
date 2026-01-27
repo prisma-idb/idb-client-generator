@@ -22,7 +22,7 @@ function getRecords(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`)
     .writeLine(
-      `const records = await this._applyWhereClause(await tx.objectStore("${model.name}").getAll(), query?.where, tx);`,
+      `const records = await this._applyWhereClause(await tx.objectStore("${model.name}").getAll(), query?.where, tx);`
     )
     .writeLine(`await this._applyOrderByClause(records, query?.orderBy, tx);`);
 }

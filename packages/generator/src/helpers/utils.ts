@@ -11,7 +11,7 @@ function createIdentifierTuple(fieldNames: readonly string[], model: Model) {
     fieldNames.map((keyFieldName) => {
       const keyField = model.fields.find(({ name }) => keyFieldName === name)!;
       return `${keyField.name}: Prisma.${model.name}['${keyField.name}']`;
-    }),
+    })
   ).replaceAll('"', "");
 }
 

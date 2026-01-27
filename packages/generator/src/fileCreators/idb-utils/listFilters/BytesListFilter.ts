@@ -9,7 +9,7 @@ export function addBytesListFilter(writer: CodeBlockWriter, models: readonly Mod
 
   writer
     .writeLine(
-      `export function whereBytesListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: undefined | Prisma.BytesNullableListFilter<unknown>): boolean`,
+      `export function whereBytesListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: undefined | Prisma.BytesNullableListFilter<unknown>): boolean`
     )
     .block(() => {
       writer
@@ -40,7 +40,7 @@ function addHasHandler(writer: CodeBlockWriter) {
     .writeLine(`if (scalarListFilter.has instanceof Uint8Array)`)
     .block(() => {
       writer.writeLine(
-        `if (!value?.some((v) => areUint8ArraysEqual(v, scalarListFilter.has as Uint8Array))) return false;`,
+        `if (!value?.some((v) => areUint8ArraysEqual(v, scalarListFilter.has as Uint8Array))) return false;`
       );
     })
     .writeLine(`if (scalarListFilter.has === null) return false;`);
@@ -49,7 +49,7 @@ function addHasHandler(writer: CodeBlockWriter) {
 function addHasSomeHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (Array.isArray(scalarListFilter.hasSome))`).block(() => {
     writer.writeLine(
-      `if (!scalarListFilter.hasSome.some((val) => value?.some((v) => val instanceof Uint8Array && areUint8ArraysEqual(v, val)))) return false;`,
+      `if (!scalarListFilter.hasSome.some((val) => value?.some((v) => val instanceof Uint8Array && areUint8ArraysEqual(v, val)))) return false;`
     );
   });
 }
@@ -57,7 +57,7 @@ function addHasSomeHandler(writer: CodeBlockWriter) {
 function addHasEveryHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (Array.isArray(scalarListFilter.hasEvery))`).block(() => {
     writer.writeLine(
-      `if (!scalarListFilter.hasEvery.every((val) => val instanceof Uint8Array && value?.some((v) => areUint8ArraysEqual(v, val)))) return false;`,
+      `if (!scalarListFilter.hasEvery.every((val) => val instanceof Uint8Array && value?.some((v) => areUint8ArraysEqual(v, val)))) return false;`
     );
   });
 }

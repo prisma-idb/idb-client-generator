@@ -12,7 +12,7 @@ export function addFindFirstMethod(writer: CodeBlockWriter, model: Model) {
       writer
         .writeLine(getOptionsSetupRead())
         .writeLine(
-          `tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`,
+          `tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`
         )
         .writeLine(`return (await this.findMany(query, { tx }))[0] ?? null;`);
     });

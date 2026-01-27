@@ -25,7 +25,7 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
 
   // === Infer Prisma client import path ===
   const clientGenerator = options.otherGenerators.find(
-    (gen) => gen.provider.value === "prisma-client" || gen.provider.value === "prisma-client-js",
+    (gen) => gen.provider.value === "prisma-client" || gen.provider.value === "prisma-client-js"
   );
 
   if (!clientGenerator?.output?.value) {
@@ -41,7 +41,7 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
         `generator client {\n` +
         `  provider = "prisma-client-js"\n` +
         `  output   = "./src/generated/prisma"\n` +
-        `}`,
+        `}`
     );
   }
 
@@ -69,7 +69,7 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
   const rootModelString = generatorConfig.rootModel as string | undefined;
   if (outboxSync && !rootModelString) {
     throw new Error(
-      `@prisma-idb/idb-client-generator: "rootModel" must be specified in the generator config when "outboxSync" is enabled.`,
+      `@prisma-idb/idb-client-generator: "rootModel" must be specified in the generator config when "outboxSync" is enabled.`
     );
   }
 
@@ -77,7 +77,7 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
   const rootModel = rootModelString ? models.find((m) => m.name === rootModelString) : undefined;
   if (rootModelString && !rootModel) {
     throw new Error(
-      `@prisma-idb/idb-client-generator: Specified root model "${rootModelString}" does not exist in the Prisma schema.`,
+      `@prisma-idb/idb-client-generator: Specified root model "${rootModelString}" does not exist in the Prisma schema.`
     );
   }
 
@@ -104,7 +104,7 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
   if (include.length > 0 && include[0] !== "*" && exclude.length > 0) {
     throw new Error(
       `@prisma-idb/idb-client-generator: "include" and "exclude" are mutually exclusive (XOR).\n` +
-        `You can use either "include" or "exclude", but not both.`,
+        `You can use either "include" or "exclude", but not both.`
     );
   }
 

@@ -44,7 +44,7 @@ function addKeyedRecordsSorter(writer: CodeBlockWriter) {
           writer
             .writeLine(`const clause = orderByClauses[i];`)
             .writeLine(
-              `const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));`,
+              `const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));`
             )
             .writeLine(`if (comparison !== 0) return comparison;`);
         })

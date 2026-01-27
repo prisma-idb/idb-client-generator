@@ -24,7 +24,7 @@ function addConstructor(writer: CodeBlockWriter, outboxModelName: string) {
 function addCreateMethod(writer: CodeBlockWriter, outboxModelName: string) {
   writer
     .writeLine(
-      `async create(query: { data: Pick<OutboxEventRecord, "entityType" | "operation" | "payload"> }): Promise<OutboxEventRecord>`,
+      `async create(query: { data: Pick<OutboxEventRecord, "entityType" | "operation" | "payload"> }): Promise<OutboxEventRecord>`
     )
     .block(() => {
       writer
@@ -62,7 +62,7 @@ function addGetNextBatchMethod(writer: CodeBlockWriter, outboxModelName: string)
         .writeLine(`// Get all unsynced events, ordered by createdAt`)
         .writeLine(`const allEvents = await store.getAll();`)
         .writeLine(
-          `const unsynced = allEvents.filter((e) => !e.synced && e.retryable).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());`,
+          `const unsynced = allEvents.filter((e) => !e.synced && e.retryable).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());`
         )
         .blankLine()
         .writeLine(`return unsynced.slice(0, limit);`);
@@ -94,7 +94,7 @@ function addMarkSyncedMethod(writer: CodeBlockWriter, outboxModelName: string) {
         .blankLine()
         .writeLine(`try {`)
         .writeLine(
-          `const parsedKey = modelRecordToKeyPath[event.entityType as keyof typeof modelRecordToKeyPath](event.payload);`,
+          `const parsedKey = modelRecordToKeyPath[event.entityType as keyof typeof modelRecordToKeyPath](event.payload);`
         )
         .blankLine()
         .writeLine(`await this.client.$versionMeta.markPushed(event.entityType, parsedKey, { tx });`)
@@ -146,7 +146,7 @@ function addStatsMethod(writer: CodeBlockWriter, outboxModelName: string) {
         .writeLine(`const unsynced = allEvents.filter((e) => !e.synced).length;`)
         .writeLine(`const failed = allEvents.filter((e) => e.lastError !== null && e.lastError !== undefined).length;`)
         .writeLine(
-          `const lastError = allEvents.filter((e) => e.lastError).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]?.lastError;`,
+          `const lastError = allEvents.filter((e) => e.lastError).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]?.lastError;`
         )
         .blankLine()
         .writeLine(`return { unsynced, failed, lastError: lastError ?? undefined };`);

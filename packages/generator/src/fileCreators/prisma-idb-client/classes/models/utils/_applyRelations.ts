@@ -17,7 +17,7 @@ export function addApplyRelations(writer: CodeBlockWriter, model: Model, models:
 
 function addEarlyExit(writer: CodeBlockWriter, model: Model) {
   writer.writeLine(
-    `if (!query) return records as Prisma.Result<Prisma.${model.name}Delegate, Q, 'findFirstOrThrow'>[];`,
+    `if (!query) return records as Prisma.Result<Prisma.${model.name}Delegate, Q, 'findFirstOrThrow'>[];`
   );
 }
 
@@ -36,7 +36,7 @@ function addRelationProcessing(writer: CodeBlockWriter, model: Model, models: re
           .writeLine(`if (attach_${field.name})`)
           .block(() => {
             const otherFieldOfRelation = allFields.find(
-              (_field) => _field.relationName === field.relationName && field !== _field,
+              (_field) => _field.relationName === field.relationName && field !== _field
             )!;
             handleVariousRelationships(writer, field, otherFieldOfRelation, models);
           });
@@ -50,7 +50,7 @@ function handleVariousRelationships(
   writer: CodeBlockWriter,
   field: Field,
   otherField: Field,
-  models: readonly Model[],
+  models: readonly Model[]
 ) {
   if (!field.isList) {
     if (field.relationFromFields?.length) {

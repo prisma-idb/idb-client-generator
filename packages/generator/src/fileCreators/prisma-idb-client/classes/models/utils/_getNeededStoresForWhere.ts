@@ -33,17 +33,17 @@ function handleRelations(writer: CodeBlockWriter, model: Model) {
       if (field.isList) {
         writer
           .writeLine(
-            `this.client.${toCamelCase(field.type)}._getNeededStoresForWhere(whereClause.${field.name}.every, neededStores)`,
+            `this.client.${toCamelCase(field.type)}._getNeededStoresForWhere(whereClause.${field.name}.every, neededStores)`
           )
           .writeLine(
-            `this.client.${toCamelCase(field.type)}._getNeededStoresForWhere(whereClause.${field.name}.some, neededStores)`,
+            `this.client.${toCamelCase(field.type)}._getNeededStoresForWhere(whereClause.${field.name}.some, neededStores)`
           )
           .writeLine(
-            `this.client.${toCamelCase(field.type)}._getNeededStoresForWhere(whereClause.${field.name}.none, neededStores)`,
+            `this.client.${toCamelCase(field.type)}._getNeededStoresForWhere(whereClause.${field.name}.none, neededStores)`
           );
       } else {
         writer.writeLine(
-          `this.client.${toCamelCase(field.type)}._getNeededStoresForWhere(whereClause.${field.name}, neededStores)`,
+          `this.client.${toCamelCase(field.type)}._getNeededStoresForWhere(whereClause.${field.name}, neededStores)`
         );
       }
     });

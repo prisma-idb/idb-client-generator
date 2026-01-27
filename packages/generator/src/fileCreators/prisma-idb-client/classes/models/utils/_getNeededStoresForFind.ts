@@ -27,13 +27,13 @@ function processRelationsInQuery(writer: CodeBlockWriter, model: Model) {
         .writeLine(`if (typeof query.select?.${field.name} === "object")`)
         .block(() => {
           writer.writeLine(
-            `this.client.${toCamelCase(field.type)}._getNeededStoresForFind(query.select.${field.name}).forEach((storeName) => neededStores.add(storeName));`,
+            `this.client.${toCamelCase(field.type)}._getNeededStoresForFind(query.select.${field.name}).forEach((storeName) => neededStores.add(storeName));`
           );
         })
         .writeLine(`if (typeof query.include?.${field.name} === "object")`)
         .block(() => {
           writer.writeLine(
-            `this.client.${toCamelCase(field.type)}._getNeededStoresForFind(query.include.${field.name}).forEach((storeName) => neededStores.add(storeName));`,
+            `this.client.${toCamelCase(field.type)}._getNeededStoresForFind(query.include.${field.name}).forEach((storeName) => neededStores.add(storeName));`
           );
         });
     });
