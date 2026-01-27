@@ -80,7 +80,7 @@ function addOutboxEventTypeDefinition(writer: CodeBlockWriter) {
     writer
       .writeLine(`model: string;`)
       .writeLine(`key: IDBValidKey;`)
-      .writeLine(`lastAppliedChangeId: bigint | null;`)
+      .writeLine(`lastAppliedChangeId: string | null;`)
       .writeLine(`localChangePending: boolean;`);
   });
 }

@@ -121,7 +121,7 @@ function addMarkPushedMethod(writer: CodeBlockWriter, changeMetaModelName: strin
 function addMarkPulledMethod(writer: CodeBlockWriter, changeMetaModelName: string) {
   writer
     .writeLine(
-      `async markPulled(model: string, key: IDBValidKey, lastAppliedChangelogId: bigint, options?: { tx?: IDBUtils.ReadwriteTransactionType }): Promise<void>`,
+      `async markPulled(model: string, key: IDBValidKey, lastAppliedChangelogId: string, options?: { tx?: IDBUtils.ReadwriteTransactionType }): Promise<void>`,
     )
     .block(() => {
       writer

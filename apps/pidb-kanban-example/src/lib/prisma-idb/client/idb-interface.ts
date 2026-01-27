@@ -42,7 +42,7 @@ export interface OutboxEventRecord {
 export interface ChangeMetaRecord {
   model: string;
   key: IDBValidKey;
-  lastAppliedChangeId: bigint | null;
+  lastAppliedChangeId: string | null;
   localChangePending: boolean;
 }
 export interface SyncWorkerOptions {

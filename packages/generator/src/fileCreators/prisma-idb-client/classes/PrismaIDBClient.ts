@@ -224,7 +224,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
         .writeLine(`    return;`)
         .writeLine(`  }`)
         .blankLine()
-        .writeLine(`  const appliedLogs: { id: string; lastAppliedChangeId: bigint | null }[] = [];`)
+        .writeLine(`  const appliedLogs: { id: string; lastAppliedChangeId: string | null }[] = [];`)
         .writeLine(`  for (const result of results) {`)
         .writeLine(`    if (result.error) {`)
         .writeLine(`      await this.$outbox.markFailed(result.id, result.error);`)

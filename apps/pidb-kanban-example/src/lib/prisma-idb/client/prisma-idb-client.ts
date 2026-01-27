@@ -159,7 +159,7 @@ export class PrismaIDBClient {
         return;
       }
 
-      const appliedLogs: { id: string; lastAppliedChangeId: bigint | null }[] = [];
+      const appliedLogs: { id: string; lastAppliedChangeId: string | null }[] = [];
       for (const result of results) {
         if (result.error) {
           await this.$outbox.markFailed(result.id, result.error);
@@ -3229,7 +3229,7 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
     return unsynced.slice(0, limit);
   }
 
-  async markSynced(appliedLogs: { id: string; lastAppliedChangeId: bigint | null }[]): Promise<void> {
+  async markSynced(appliedLogs: { id: string; lastAppliedChangeId: string | null }[]): Promise<void> {
     const syncedAt = new Date();
     const tx = this.client._db.transaction(["OutboxEvent", "VersionMeta"], "readwrite");
     const store = tx.objectStore("OutboxEvent");
@@ -3394,7 +3394,7 @@ class VersionMetaIDBClass extends BaseIDBModelClass<"VersionMeta"> {
   async markPulled(
     model: string,
     key: IDBValidKey,
-    lastAppliedChangelogId: bigint,
+    lastAppliedChangelogId: string,
     options?: { tx?: IDBUtils.ReadwriteTransactionType }
   ): Promise<void> {
     const { tx: txOption } = options ?? {};

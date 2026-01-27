@@ -11,7 +11,7 @@ export async function POST({ request }) {
     return new Response(JSON.stringify({ error: "Malformed JSON" }), { status: 400 });
   }
 
-  const parsed = z.object({ lastChangelogId: z.coerce.bigint().optional() }).safeParse(pullRequestBody);
+  const parsed = z.object({ lastChangelogId: z.uuidv7().optional() }).safeParse(pullRequestBody);
 
   if (!parsed.success) {
     return new Response(JSON.stringify({ error: "Invalid request", details: parsed.error }), {
@@ -27,7 +27,7 @@ export async function POST({ request }) {
   const logs = await prisma.changeLog.findMany({
     where: {
       scopeKey: authResult.user.id,
-      id: { gt: parsed.data.lastChangelogId ?? 0n },
+      id: { gt: parsed.data.lastChangelogId },
     },
     orderBy: { id: "asc" },
     take: 50,

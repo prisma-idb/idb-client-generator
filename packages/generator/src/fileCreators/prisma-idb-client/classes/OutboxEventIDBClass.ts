@@ -72,7 +72,7 @@ function addGetNextBatchMethod(writer: CodeBlockWriter, outboxModelName: string)
 
 function addMarkSyncedMethod(writer: CodeBlockWriter, outboxModelName: string) {
   writer
-    .writeLine(`async markSynced(appliedLogs: { id: string; lastAppliedChangeId: bigint | null }[]): Promise<void>`)
+    .writeLine(`async markSynced(appliedLogs: { id: string; lastAppliedChangeId: string | null }[]): Promise<void>`)
     .block(() => {
       writer
         .writeLine(`const syncedAt = new Date();`)

@@ -95,7 +95,7 @@ export function createBatchProcessorFile(
   writer.writeLine(`    model: M;`);
   writer.writeLine(`    keyPath: Array<string | number>;`);
   writer.writeLine(`    record?: z.infer<V[M]> | null;`);
-  writer.writeLine(`    changelogId: bigint;`);
+  writer.writeLine(`    changelogId: string;`);
   writer.writeLine(`  };`);
   writer.writeLine(`}[keyof V & string];`);
   writer.blankLine();
@@ -111,7 +111,7 @@ export function createBatchProcessorFile(
   // Write sync handler type
   writer.writeLine(`export interface PushResult {`);
   writer.writeLine(`  id: string;`);
-  writer.writeLine(`  appliedChangelogId: bigint | null;`);
+  writer.writeLine(`  appliedChangelogId: string | null;`);
   writer.writeLine(`  error: null | `).block(() => {
     writer.writeLine(`type: keyof typeof PushErrorTypes;`);
     writer.writeLine(`message: string;`);
@@ -443,7 +443,7 @@ function generateModelSyncHandler(
       writer.blankLine();
     }
 
-    writer.writeLine(`      let appliedChangelogId: bigint;`);
+    writer.writeLine(`      let appliedChangelogId: string;`);
     writer.writeLine(`      const existingLog = await tx.changeLog.findUnique({`);
     writer.writeLine(`        where: { outboxEventId: event.id },`);
     writer.writeLine(`      });`);
@@ -613,7 +613,7 @@ function generateModelSyncHandler(
     }
     writer.blankLine();
 
-    writer.writeLine(`      let appliedChangelogId: bigint;`);
+    writer.writeLine(`      let appliedChangelogId: string;`);
     writer.writeLine(`      const existingLog = await tx.changeLog.findUnique({`);
     writer.writeLine(`        where: { outboxEventId: event.id },`);
     writer.writeLine(`      });`);
@@ -680,7 +680,7 @@ function generateModelSyncHandler(
     }
     writer.blankLine();
 
-    writer.writeLine(`      let appliedChangelogId: bigint;`);
+    writer.writeLine(`      let appliedChangelogId: string;`);
     writer.writeLine(`      const existingLog = await tx.changeLog.findUnique({`);
     writer.writeLine(`        where: { outboxEventId: event.id },`);
     writer.writeLine(`      });`);

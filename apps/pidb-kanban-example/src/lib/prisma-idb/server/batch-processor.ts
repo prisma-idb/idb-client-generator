@@ -21,7 +21,7 @@ export type LogWithRecord<V extends Partial<Record<string, ZodTypeAny>>> = {
     model: M;
     keyPath: Array<string | number>;
     record?: z.infer<V[M]> | null;
-    changelogId: bigint;
+    changelogId: string;
   };
 }[keyof V & string];
 
@@ -39,7 +39,7 @@ export const PushErrorTypes = {
 
 export interface PushResult {
   id: string;
-  appliedChangelogId: bigint | null;
+  appliedChangelogId: string | null;
   error: null | {
     type: keyof typeof PushErrorTypes;
     message: string;
@@ -304,7 +304,7 @@ async function syncBoard(
           );
         }
 
-        let appliedChangelogId: bigint;
+        let appliedChangelogId: string;
         const existingLog = await tx.changeLog.findUnique({
           where: { outboxEventId: event.id },
         });
@@ -354,7 +354,7 @@ async function syncBoard(
           }
         }
 
-        let appliedChangelogId: bigint;
+        let appliedChangelogId: string;
         const existingLog = await tx.changeLog.findUnique({
           where: { outboxEventId: event.id },
         });
@@ -397,7 +397,7 @@ async function syncBoard(
           );
         }
 
-        let appliedChangelogId: bigint;
+        let appliedChangelogId: string;
         const existingLog = await tx.changeLog.findUnique({
           where: { outboxEventId: event.id },
         });
@@ -459,7 +459,7 @@ async function syncTodo(
           );
         }
 
-        let appliedChangelogId: bigint;
+        let appliedChangelogId: string;
         const existingLog = await tx.changeLog.findUnique({
           where: { outboxEventId: event.id },
         });
@@ -519,7 +519,7 @@ async function syncTodo(
           }
         }
 
-        let appliedChangelogId: bigint;
+        let appliedChangelogId: string;
         const existingLog = await tx.changeLog.findUnique({
           where: { outboxEventId: event.id },
         });
@@ -559,7 +559,7 @@ async function syncTodo(
           throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: Todo is not owned by the authenticated scope`);
         }
 
-        let appliedChangelogId: bigint;
+        let appliedChangelogId: string;
         const existingLog = await tx.changeLog.findUnique({
           where: { outboxEventId: event.id },
         });
@@ -613,7 +613,7 @@ async function syncUser(
           throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: root model pk must match authenticated scope`);
         }
 
-        let appliedChangelogId: bigint;
+        let appliedChangelogId: string;
         const existingLog = await tx.changeLog.findUnique({
           where: { outboxEventId: event.id },
         });
@@ -645,7 +645,7 @@ async function syncUser(
           throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: User pk does not match authenticated scope`);
         }
 
-        let appliedChangelogId: bigint;
+        let appliedChangelogId: string;
         const existingLog = await tx.changeLog.findUnique({
           where: { outboxEventId: event.id },
         });
@@ -680,7 +680,7 @@ async function syncUser(
           throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: User pk does not match authenticated scope`);
         }
 
-        let appliedChangelogId: bigint;
+        let appliedChangelogId: string;
         const existingLog = await tx.changeLog.findUnique({
           where: { outboxEventId: event.id },
         });

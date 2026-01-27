@@ -80,7 +80,7 @@ model Verification {
 }
 
 model ChangeLog {
-  id            BigInt          @id @default(autoincrement())
+  id            String          @id @default(uuid(7))
   model         String
   keyPath       Json
   operation     ChangeOperation
