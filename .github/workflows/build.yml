@@ -74,6 +74,9 @@ jobs:
         run: pnpm exec playwright install --with-deps
       - name: Run Sync Playwright tests
         run: pnpm test:sync
+        env:
+          GOOGLE_CLIENT_ID: "placeholder"
+          GOOGLE_CLIENT_SECRET: "placeholder"
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:

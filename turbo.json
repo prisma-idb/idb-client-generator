@@ -24,7 +24,7 @@
     },
     "test": {
       "dependsOn": ["generate", "^build"],
-      "env": ["DATABASE_URL"],
+      "env": ["DATABASE_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
       "outputs": []
     },
     "generate": {
