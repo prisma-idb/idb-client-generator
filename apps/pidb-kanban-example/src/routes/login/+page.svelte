@@ -30,7 +30,9 @@
     mutationKey: ["signin-as-anonymous"],
     mutationFn: async () => {
       await authClient.signIn.anonymous();
-      await new Promise((resolve) => setTimeout(resolve, 500)); // Wait for session to propagate
+      await authClient.getSession().then(session => {  
+        if (!session?.data?.user) throw new Error("Session not available");  
+      });  
       goto(resolve(`/dashboard`));
     },
     onError: (error) => {

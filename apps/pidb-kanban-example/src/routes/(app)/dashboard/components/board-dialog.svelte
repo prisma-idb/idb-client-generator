@@ -49,15 +49,18 @@
           data-testid={`delete-board-${board?.name}`}
           variant="destructive"
           onclick={async () => {
+            if (!board?.id) return;
             getClient()
-              .board.delete({ where: { id: board?.id } })
+              .board.delete({ where: { id: board.id } })
               .then(() => {
                 toast.success("Board deleted successfully");
-                open = false;
               })
               .catch((error) => {
                 toast.error("Failed to delete board");
                 console.error("Error deleting board:", error);
+              })
+              .finally(() => {
+                todosState.closeEditBoard();
               });
           }}
         >

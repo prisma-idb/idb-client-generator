@@ -29,7 +29,7 @@ export const test = base.extend<{ user: User }>({
 
       await use(newUser);
 
-      await prisma.user.deleteMany();
+      await prisma.user.delete({ where: { email: userEmail } });
     },
     { scope: "test" },
   ],

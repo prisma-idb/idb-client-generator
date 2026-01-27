@@ -83,7 +83,7 @@
               .todo.delete({ where: { id: todo.id } })
               .then(() => {
                 toast.success("Todo deleted successfully");
-                open = false;
+                todosState.closeTodoDialog();
               })
               .catch((error) => {
                 toast.error("Failed to delete todo");

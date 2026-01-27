@@ -16,13 +16,13 @@ function getCookie(sessionToken: string): Cookie {
 
 test("syncs_create_update_delete_across_devices", async ({ user, browser }) => {
   const deviceA = await browser.newContext();
-  deviceA.addCookies([getCookie(user.sessionToken)]);
+  await deviceA.addCookies([getCookie(user.sessionToken)]);
 
   const pageA = await deviceA.newPage();
   await pageA.goto("/dashboard");
 
   const deviceB = await browser.newContext();
-  deviceB.addCookies([getCookie(user.sessionToken)]);
+  await deviceB.addCookies([getCookie(user.sessionToken)]);
 
   const pageB = await deviceB.newPage();
   await pageB.goto("/dashboard");
