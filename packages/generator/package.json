@@ -5,54 +5,51 @@
   "main": "dist/generator.js",
   "license": "MIT",
   "bin": {
-    "idb-client-generator": "dist/bin.js"
+    "idb-client-generator": "bin.js"
   },
   "engines": {
     "node": ">=20.0.0"
   },
   "scripts": {
     "start": "node dist/bin.js",
-    "dev": "pnpm exec tsc -w",
-    "build": "pnpm exec tsc",
+    "dev": "tsc --watch",
+    "build": "tsc",
     "prepack": "pnpm build",
-    "lint": "pnpm exec prettier . --check && pnpm exec eslint .",
-    "format": "pnpm exec prettier . --write",
-    "release": "release-it"
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "release": "release-it",
+    "prepare": "tsc"
   },
   "dependencies": {
-    "@prisma/generator-helper": "^7.2.0",
+    "@prisma/generator-helper": "^7.3.0",
     "code-block-writer": "^13.0.3",
-    "prettier": "^3.8.0"
+    "prettier": "^3.8.1"
   },
   "devDependencies": {
-    "@prisma/internals": "^7.2.0",
+    "@prisma/internals": "^7.3.0",
     "@release-it/conventional-changelog": "^10.0.4",
     "@types/node": "^24.10.9",
-    "eslint": "^9.39.2",
-    "globals": "^16.5.0",
-    "release-it": "^19.2.3",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.53.0"
+    "release-it": "^19.2.4",
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
-    "@prisma/client": "^6.x.x || ^7.x.x",
-    "idb": "^8.x.x",
-    "prisma": "^6.x.x || ^7.x.x"
+    "@prisma/client": "^6.0.0 || ^7.0.0",
+    "idb": "^8.0.0",
+    "prisma": "^6.0.0 || ^7.0.0",
+    "uuid": "^9.0.0",
+    "@paralleldrive/cuid2": "^3.0.0"
   },
   "homepage": "https://github.com/prisma-idb/idb-client-generator",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/prisma-idb/idb-client-generator.git"
   },
-  "author": "Your Name <Your Email>",
+  "author": "Yash Kolekar (https://whyash5114.com/)",
   "keywords": [
     "prisma",
     "generator"
   ],
   "bugs": {
     "url": "https://github.com/prisma-idb/idb-client-generator/issues"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }

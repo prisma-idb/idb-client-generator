@@ -90,11 +90,13 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxMo
           .writeLine(`tries: 0,`)
           .writeLine(`lastError: null,`)
           .writeLine(`entityType: this.modelName,`)
-          .writeLine(`entityKeyPath: keyPath as Array<string | number>,`)
           .writeLine(`operation: event,`)
           .writeLine(`payload: record ?? keyPath,`)
+          .writeLine(`retryable: true,`)
           .writeLine(`};`)
           .writeLine(`await outboxStore.add(outboxEvent);`)
+          .blankLine()
+          .writeLine(`await this.client.$versionMeta.markLocalPending(this.modelName, keyPath, { tx: opts.tx });`)
           .writeLine(`}`);
       });
     });

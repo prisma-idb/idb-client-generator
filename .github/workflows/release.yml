@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'packages/generator/**'
 
 permissions:
   id-token: write  # Required for OIDC

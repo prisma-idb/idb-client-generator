@@ -22,13 +22,19 @@ export function addGenericComparator(writer: CodeBlockWriter) {
 }
 
 function handleNullsSorting(writer: CodeBlockWriter) {
-  writer.writeLine(`if (typeof sortOrder !== "string" && sortOrder.nulls)`).block(() => {
-    writer
-      .writeLine(`const nullMultiplier = sortOrder.nulls === "first" ? -1 : 1;`)
-      .blankLine()
-      .writeLine(`if (a === null && b === null) return 0;`)
-      .writeLine(`if (a === null || b === null) return (a === null ? 1 : -1) * nullMultiplier;`);
+  writer.writeLine(`// Determine null placement multiplier: -1 for "first", 1 for "last"`);
+  writer.writeLine(`let nullMultiplier: number;`);
+  writer.writeLine(`if (typeof sortOrder === "string")`).block(() => {
+    writer.writeLine(`// PostgreSQL conventions: asc → nulls last, desc → nulls first`);
+    writer.writeLine(`nullMultiplier = sortOrder === "asc" ? 1 : -1;`);
   });
+  writer.writeLine(`else`).block(() => {
+    writer.writeLine(`nullMultiplier = sortOrder.nulls === "first" ? -1 : 1;`);
+  });
+  writer.blankLine();
+  writer.writeLine(`// Handle null values early, before type comparisons`);
+  writer.writeLine(`if (a === null && b === null) return 0;`);
+  writer.writeLine(`if (a === null || b === null) return (a === null ? 1 : -1) * nullMultiplier;`);
 }
 
 function handleMultiplierAndReturnValueInit(writer: CodeBlockWriter) {

@@ -5,8 +5,6 @@ runs:
   steps:
     - name: Install pnpm
       uses: pnpm/action-setup@v4
-      with:
-        version: latest
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -18,20 +16,12 @@ runs:
       shell: bash
       run: pnpm install --frozen-lockfile
 
-    - name: Build package
-      shell: bash
-      run: pnpm --filter @prisma-idb/idb-client-generator build
-
-    - name: Link workspace packages
-      shell: bash
-      run: pnpm install
-
     - name: Sync SvelteKit
       shell: bash
       run: pnpm --filter usage exec svelte-kit sync
 
     - name: Generate Prisma client and IDB client
       shell: bash
-      run: pnpm --filter usage exec prisma generate
+      run: pnpm generate
       env:
         DATABASE_URL: "postgresql://postgres:postgres@localhost:5433/postgres"

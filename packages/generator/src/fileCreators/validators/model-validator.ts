@@ -5,10 +5,10 @@ const fieldTypeToZodTypeMap: Record<string, string> = {
   String: "string()",
   BigInt: "bigint()",
   Boolean: "boolean()",
-  DateTime: "date()",
+  DateTime: "coerce.date()",
   Float: "number()",
   Int: "number().int()",
-  JSON: "any()",
+  Json: "any()",
   Bytes: "instanceof(Uint8Array)",
 };
 

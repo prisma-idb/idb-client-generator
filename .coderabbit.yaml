@@ -1,4 +1,4 @@
 reviews:
   path_filters:
-    - "!packages/usage/src/lib/components/ui/**"
-    - "!packages/usage-sync/src/lib/components/ui/**"
+    - "!**/components/ui/**"
+    - "!**/node_modules/**"

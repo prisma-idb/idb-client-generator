@@ -32,6 +32,21 @@ export function createValidatorsFile(
   writer.writeLine(`} as const;`);
   writer.blankLine();
 
+  // Write outbox event schema
+  writer.writeLine(`export const outboxEventSchema = z.strictObject({`);
+  writer.writeLine(`  id: z.string(),`);
+  writer.writeLine(`  entityType: z.string(),`);
+  writer.writeLine(`  operation: z.enum(["create", "update", "delete"]),`);
+  writer.writeLine(`  payload: z.record(z.string(), z.unknown()),`);
+  writer.writeLine(`  createdAt: z.coerce.date(),`);
+  writer.writeLine(`  tries: z.number(),`);
+  writer.writeLine(`  lastError: z.string().nullable(),`);
+  writer.writeLine(`  synced: z.boolean(),`);
+  writer.writeLine(`  syncedAt: z.coerce.date().nullable(),`);
+  writer.writeLine(`  retryable: z.boolean(),`);
+  writer.writeLine(`});`);
+  writer.blankLine();
+
   // Write keyPathValidators constant
   writer.writeLine(`export const keyPathValidators = {`);
   modelNames.forEach((modelName) => {
@@ -40,6 +55,23 @@ export function createValidatorsFile(
     const pkFields = JSON.parse(pk.keyPath) as string[];
     const keyPathTuple = pkFields.map((_, i) => `z.${pk.keyPathTypes[i]}()`).join(", ");
     writer.writeLine(`  ${modelName}: z.tuple([${keyPathTuple}]),`);
+  });
+  writer.writeLine(`} as const;`);
+  writer.blankLine();
+
+  // Write modelRecordToKeyPath functions
+  writer.writeLine(`export const modelRecordToKeyPath = {`);
+  modelNames.forEach((modelName) => {
+    const model = models.find((m) => m.name === modelName)!;
+    const pk = getUniqueIdentifiers(model)[0];
+    const pkFields = JSON.parse(pk.keyPath) as string[];
+
+    writer.write(`  ${modelName}: (record: unknown) => `).block(() => {
+      writer.writeLine(`const validated = validators.${modelName}.parse(record);`);
+      writer.writeLine(`const keyPathArray = [${pkFields.map((field) => `validated.${field}`).join(", ")}] as const;`);
+      writer.writeLine(`return keyPathValidators.${modelName}.parse(keyPathArray);`);
+    });
+    writer.writeLine(`,`);
   });
   writer.writeLine(`} as const;`);
 }

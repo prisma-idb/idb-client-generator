@@ -9,9 +9,14 @@ export function createIDBInterfaceFile(
   prismaClientImport: string,
   outboxSync: boolean = false,
   outboxModelName: string = "OutboxEvent",
+  versionMetaModelName: string = "VersionMeta",
 ) {
   writer.writeLine(`import type { DBSchema } from "idb";`);
   writer.writeLine(`import type * as Prisma from "${prismaClientImport}";`);
+  if (outboxSync) {
+    writer.writeLine(`import type { PushResult } from "../server/batch-processor";`);
+  }
+  writer.blankLine();
 
   writer.writeLine(`export interface PrismaIDBSchema extends DBSchema`).block(() => {
     models.forEach((model) => {
@@ -30,6 +35,10 @@ export function createIDBInterfaceFile(
       writer.writeLine(`${outboxModelName}: `).block(() => {
         writer.writeLine(`key: [id: string];`);
         writer.writeLine(`value: OutboxEventRecord;`);
+      });
+      writer.writeLine(`${versionMetaModelName}: `).block(() => {
+        writer.writeLine(`key: [model: string, key: IDBValidKey];`);
+        writer.writeLine(`value: ChangeMetaRecord;`);
       });
     }
   });
@@ -57,38 +66,89 @@ function addOutboxEventTypeDefinition(writer: CodeBlockWriter) {
     writer
       .writeLine(`id: string;`)
       .writeLine(`entityType: string;`)
-      .writeLine(`entityKeyPath: Array<string | number>;`)
       .writeLine(`operation: "create" | "update" | "delete";`)
       .writeLine(`payload: unknown;`)
-      .writeLine(`clientMeta?: unknown;`)
       .writeLine(`createdAt: Date;`)
       .writeLine(`tries: number;`)
       .writeLine(`lastError: string | null;`)
       .writeLine(`synced: boolean;`)
-      .writeLine(`syncedAt: Date | null;`);
+      .writeLine(`syncedAt: Date | null;`)
+      .writeLine(`retryable: boolean;`);
+  });
+
+  writer.writeLine(`export interface ChangeMetaRecord`).block(() => {
+    writer
+      .writeLine(`model: string;`)
+      .writeLine(`key: IDBValidKey;`)
+      .writeLine(`lastAppliedChangeId: string | null;`)
+      .writeLine(`localChangePending: boolean;`);
   });
 }
 
 function addSyncWorkerTypes(writer: CodeBlockWriter) {
-  writer.writeLine(`export interface AppliedResult`).block(() => {
-    writer
-      .writeLine(`id: string;`)
-      .writeLine(`entityKeyPath: Array<string | number>;`)
-      .writeLine(`mergedRecord?: unknown;`)
-      .writeLine(`serverVersion?: number | string;`)
-      .writeLine(`error?: string | null;`);
-  });
-
   writer.writeLine(`export interface SyncWorkerOptions`).block(() => {
     writer
-      .writeLine(`syncHandler: (events: OutboxEventRecord[]) => Promise<AppliedResult[]>;`)
+      .writeLine(`syncHandler: (events: OutboxEventRecord[]) => Promise<PushResult[]>;`)
       .writeLine(`batchSize?: number;`)
       .writeLine(`intervalMs?: number;`)
       .writeLine(`maxRetries?: number;`)
       .writeLine(`backoffBaseMs?: number;`);
   });
 
+  writer.writeLine(`export interface SyncWorkerStatus`).block(() => {
+    writer
+      .writeLine(`/** Whether the worker is looping */`)
+      .writeLine(`isLooping: boolean;`)
+      .writeLine(`/** Current status of the sync worker */`)
+      .writeLine(`status: 'STOPPED' | 'IDLE' | 'PUSHING' | 'PULLING';`)
+      .writeLine(`/** Timestamp of the last successful sync completion */`)
+      .writeLine(`lastSyncTime: Date | null;`)
+      .writeLine(`/** The last error encountered during sync, if any */`)
+      .writeLine(`lastError: Error | null;`);
+  });
+
   writer.writeLine(`export interface SyncWorker`).block(() => {
-    writer.writeLine(`start(): void;`).writeLine(`stop(): void;`);
+    writer
+      .writeLine(`/**`)
+      .writeLine(` * Start the sync worker.`)
+      .writeLine(` * Begins sync cycles at the configured interval.`)
+      .writeLine(` * Does nothing if already running.`)
+      .writeLine(` */`)
+      .writeLine(`start(): void;`)
+      .writeLine(`/**`)
+      .writeLine(` * Stop the sync worker.`)
+      .writeLine(` * Stops scheduling new sync cycles.`)
+      .writeLine(` * Any in-progress sync will complete before fully stopping.`)
+      .writeLine(` */`)
+      .writeLine(`stop(): void;`)
+      .writeLine(`/**`)
+      .writeLine(` * Force an immediate sync cycle while worker is running.`)
+      .writeLine(` * Returns immediately if worker is stopped or a sync is already in progress.`)
+      .writeLine(` * Use syncNow() to trigger a one-off sync without starting the worker.`)
+      .writeLine(` */`)
+      .writeLine(`forceSync(): Promise<void>;`)
+      .writeLine(`/**`)
+      .writeLine(` * Execute a single sync cycle immediately without starting the worker.`)
+      .writeLine(` * Returns immediately if a sync is already in progress.`)
+      .writeLine(` * Does not require the worker to be running (started).`)
+      .writeLine(` */`)
+      .writeLine(`syncNow(): Promise<void>;`)
+      .writeLine(`/**`)
+      .writeLine(` * Get current sync worker status snapshot.`)
+      .writeLine(` * Listen to 'statuschange' events via .on() to get updates.`)
+      .writeLine(` */`)
+      .writeLine(`readonly status: SyncWorkerStatus;`)
+      .writeLine(`/**`)
+      .writeLine(` * Listen for status changes.`)
+      .writeLine(` * @param event Event name (only 'statuschange' supported)`)
+      .writeLine(` * @param callback Function called whenever status changes`)
+      .writeLine(` * @returns Unsubscribe function`)
+      .writeLine(` * @example`)
+      .writeLine(` * const unsubscribe = worker.on('statuschange', () => {`)
+      .writeLine(` *   console.log('Status:', worker.status);`)
+      .writeLine(` * });`)
+      .writeLine(` * // Later: unsubscribe()`)
+      .writeLine(` */`)
+      .writeLine(`on(event: 'statuschange', callback: () => void): () => void;`);
   });
 }

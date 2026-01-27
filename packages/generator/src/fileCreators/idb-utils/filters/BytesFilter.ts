@@ -24,14 +24,6 @@ export function addBytesFilter(writer: CodeBlockWriter, models: readonly Model[]
       writer
         .writeLine(`if (bytesFilter === undefined) return true;`)
         .blankLine()
-        .writeLine(`function areUint8ArraysEqual(arr1: Uint8Array, arr2: Uint8Array)`)
-        .block(() => {
-          writer
-            .writeLine(`if (arr1.length !== arr2.length) return false;`)
-            .writeLine(`for (let i = 0; i < arr1.length; i++) if (arr1[i] !== arr2[i]) return false;`)
-            .writeLine(`return true;`);
-        })
-        .blankLine()
         .writeLine(`const value = record[fieldName] as Uint8Array | null;`)
         .writeLine(`if (bytesFilter === null) return value === null;`)
         .blankLine()
@@ -39,7 +31,7 @@ export function addBytesFilter(writer: CodeBlockWriter, models: readonly Model[]
         .block(() => {
           writer
             .writeLine(`if (value === null) return false;`)
-            .writeLine(`if (!areUint8ArraysEqual(bytesFilter, value)) return false;`);
+            .writeLine(`if (!areUint8ArraysEqual(bytesFilter as Uint8Array, value)) return false;`);
         })
         .writeLine(`else`)
         .block(() => {
@@ -58,11 +50,11 @@ function addEqualsHandler(writer: CodeBlockWriter) {
     .block(() => {
       writer.writeLine(`if (value !== null) return false;`);
     })
-    .writeLine(`if (Buffer.isBuffer(bytesFilter.equals))`)
+    .writeLine(`if (bytesFilter.equals instanceof Uint8Array || Buffer.isBuffer(bytesFilter.equals))`)
     .block(() => {
       writer
         .writeLine(`if (value === null) return false;`)
-        .writeLine(`if (!bytesFilter.equals.equals(value)) return false;`);
+        .writeLine(`if (!areUint8ArraysEqual(bytesFilter.equals as Uint8Array, value)) return false;`);
     });
 }
 
@@ -72,11 +64,11 @@ function addNotHandler(writer: CodeBlockWriter) {
     .block(() => {
       writer.writeLine(`if (value === null) return false;`);
     })
-    .writeLine(`if (Buffer.isBuffer(bytesFilter.not))`)
+    .writeLine(`if (bytesFilter.not instanceof Uint8Array || Buffer.isBuffer(bytesFilter.not))`)
     .block(() => {
       writer
         .writeLine(`if (value === null) return false;`)
-        .writeLine(`if (bytesFilter.not.equals(value)) return false;`);
+        .writeLine(`if (areUint8ArraysEqual(bytesFilter.not as Uint8Array, value)) return false;`);
     });
 }
 

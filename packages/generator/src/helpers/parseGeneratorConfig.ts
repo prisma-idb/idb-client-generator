@@ -1,14 +1,17 @@
 import path from "path";
 import type { GeneratorOptions, DMMF } from "@prisma/generator-helper";
+import { getProjectedFilteredModels } from "./getFilteredModels";
 
 export interface ParsedGeneratorConfig {
   prismaClientImport: string;
-  outboxSync: boolean;
-  outboxModelName: string;
   exportEnums: boolean;
   include: string[];
   exclude: string[];
   filteredModels: DMMF.Model[];
+  outboxSync: boolean;
+  outboxModelName: string;
+  versionMetaModelName: string;
+  rootModel?: DMMF.Model;
 }
 
 /**
@@ -61,6 +64,22 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
   // === Parse outbox settings ===
   const outboxSync = generatorConfig.outboxSync === "true";
   const outboxModelName = (generatorConfig.outboxModelName as string) || "OutboxEvent";
+  const versionMetaModelName = (generatorConfig.versionMetaModelName as string) || "VersionMeta";
+
+  const rootModelString = generatorConfig.rootModel as string | undefined;
+  if (outboxSync && !rootModelString) {
+    throw new Error(
+      `@prisma-idb/idb-client-generator: "rootModel" must be specified in the generator config when "outboxSync" is enabled.`,
+    );
+  }
+
+  // === Validate root model exists ===
+  const rootModel = rootModelString ? models.find((m) => m.name === rootModelString) : undefined;
+  if (rootModelString && !rootModel) {
+    throw new Error(
+      `@prisma-idb/idb-client-generator: Specified root model "${rootModelString}" does not exist in the Prisma schema.`,
+    );
+  }
 
   // === Parse exportEnums setting ===
   const exportEnums = generatorConfig.exportEnums === "true";
@@ -106,15 +125,17 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
     return !exclude.some((pattern) => matchPattern(modelName, pattern));
   };
 
-  const filteredModels = models.filter((model) => isIncluded(model.name));
+  const filteredModels = getProjectedFilteredModels(models.filter((model) => isIncluded(model.name)));
 
   return {
     prismaClientImport,
     outboxSync,
     outboxModelName,
+    versionMetaModelName,
     exportEnums,
     include,
     exclude,
     filteredModels,
+    rootModel,
   };
 }

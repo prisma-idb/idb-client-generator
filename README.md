@@ -104,7 +104,6 @@ graph TB
    - `entityType`: Model name (e.g., "User", "Todo")
    - `operation`: "create" | "update" | "delete"
    - `payload`: Full record data
-   - `entityKeyPath`: Primary key identifier
    - `scopeKey`: Used for multi-tenant or user-scoped data
 
 3. **SyncWorker**: Background process that:

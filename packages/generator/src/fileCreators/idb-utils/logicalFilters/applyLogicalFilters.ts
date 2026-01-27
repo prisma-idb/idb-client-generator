@@ -6,6 +6,7 @@ export function addApplyLogicalFilters(writer: CodeBlockWriter) {
       `export async function applyLogicalFilters<T, R extends Prisma.Result<T, object, "findFirstOrThrow">, W extends Prisma.Args<T, "findFirstOrThrow">["where"]>(records: R[], whereClause: W, tx: TransactionType, keyPath: string[], applyWhereFunction: (records: R[], clause: W, tx: TransactionType) => Promise<R[]>): Promise<R[]>`,
     )
     .block(() => {
+      writer.writeLine(`if (!whereClause) return records;`);
       handleAndParameter(writer);
       handleOrParameter(writer);
       handleNotParameter(writer);

@@ -1,10 +1,12 @@
-dist
 node_modules
-yarn-error.log
+.turbo
+
+dist
 build
-pnpm-debug.log
+.svelte-kit
+
 .env*
+
 /test-results/
-/playwright-report/
-/blob-report/
+**/playwright-report/**
 /playwright/.cache/

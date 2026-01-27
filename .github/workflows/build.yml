@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/
-      - name: Lint both packages
+      - name: Lint all packages
         run: pnpm lint
 
   svelte-check:
@@ -22,8 +22,69 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/
+
+      - name: Generate BETTER_AUTH_SECRET
+        run: echo "BETTER_AUTH_SECRET=$(openssl rand -base64 32 | tr '/+=' '_-')" >> $GITHUB_ENV
+
       - name: Run svelte-check
         run: pnpm check
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5433/postgres"
+          GOOGLE_CLIENT_ID: "placeholder"
+          GOOGLE_CLIENT_SECRET: "placeholder"
+
+  test-schema-gen:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/
+
+      - name: Run schema generation tests
+        run: pnpm test:schema-gen
+
+  test-sync:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5434:5432
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Set DATABASE_URL environment variable
+        run: echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5434/postgres" >> $GITHUB_ENV
+      - uses: ./.github/actions/
+      - name: Install Playwright Browsers
+        run: pnpm exec playwright install --with-deps
+      - name: Generate BETTER_AUTH_SECRET
+        run: echo "BETTER_AUTH_SECRET=$(openssl rand -base64 32 | tr '/+=' '_-')" >> $GITHUB_ENV
+      - name: Run Sync Playwright tests
+        run: pnpm test:sync
+        env:
+          GOOGLE_CLIENT_ID: "placeholder"
+          GOOGLE_CLIENT_SECRET: "placeholder"
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-sync
+          path: apps/pidb-kanban-example/playwright-report/
+          retention-days: 30
 
   test-client:
     timeout-minutes: 60
@@ -60,43 +121,5 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-client
-          path: packages/usage/playwright-report/
-          retention-days: 30
-
-  test-sync:
-    timeout-minutes: 60
-    runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres
-        env:
-          POSTGRES_DB: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5433:5432
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-      - name: Set DATABASE_URL environment variable
-        run: echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5433/postgres" >> $GITHUB_ENV
-      - uses: ./.github/actions/
-      - name: Install Playwright Browsers
-        run: pnpm exec playwright install --with-deps
-      - name: Run Sync Playwright tests
-        run: pnpm test:sync
-      - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
-        with:
-          name: playwright-report-sync
-          path: packages/usage-sync/playwright-report/
+          path: apps/usage/playwright-report/
           retention-days: 30

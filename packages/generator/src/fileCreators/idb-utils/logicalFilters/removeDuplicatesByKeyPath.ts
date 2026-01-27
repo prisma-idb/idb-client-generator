@@ -7,7 +7,16 @@ export function addRemoveDuplicatesByKeyPath(writer: CodeBlockWriter) {
       .writeLine(`return arrays`)
       .writeLine(`.flatMap((el) => el)`)
       .writeLine(`.filter((item) => {`)
-      .writeLine(`const key = JSON.stringify(keyPath.map((key) => item[key as keyof T]));`)
+      .writeLine(`const key = JSON.stringify(`)
+      .indent(() => {
+        writer.writeLine(`keyPath.map((key) => {`);
+        writer.indent(() => {
+          writer.writeLine(`const v = item[key as keyof T];`);
+          writer.writeLine(`return typeof v === "bigint" ? v.toString() : v instanceof Date ? v.toISOString() : v;`);
+        });
+        writer.writeLine(`})`);
+      })
+      .writeLine(`);`)
       .writeLine(`if (seen.has(key)) return false;`)
       .writeLine(`seen.add(key);`)
       .writeLine(`return true;`)

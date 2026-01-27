@@ -1,0 +1,45 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "globalDependencies": ["tsconfig.json", "eslint.config.js", ".prettierrc", ".prettierignore", "package.json"],
+  "tasks": {
+    "build": {
+      "outputs": ["dist/**", ".svelte-kit/**"],
+      "dependsOn": ["^build"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "interactive": true
+    },
+    "lint": {
+      "outputs": []
+    },
+    "format": {
+      "cache": false,
+      "outputs": []
+    },
+    "check": {
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["generate", "^build"],
+      "env": ["DATABASE_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "BETTER_AUTH_SECRET"],
+      "outputs": []
+    },
+    "generate": {
+      "outputs": ["src/lib/generated/**", "prisma/generated/**"],
+      "dependsOn": ["@prisma-idb/idb-client-generator#build"],
+      "env": ["DATABASE_URL"]
+    },
+    "release": {
+      "cache": false,
+      "dependsOn": ["build", "test", "lint"]
+    },
+    "preview": {
+      "cache": false,
+      "persistent": true,
+      "interactive": true
+    }
+  }
+}

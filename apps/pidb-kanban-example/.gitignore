@@ -1,0 +1,29 @@
+test-results
+node_modules
+playwright-report
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+/build
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+!.env.test
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Prisma
+src/lib/generated/prisma
+src/lib/prisma-idb/client/generated

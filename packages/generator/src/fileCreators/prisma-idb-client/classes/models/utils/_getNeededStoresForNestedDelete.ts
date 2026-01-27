@@ -6,7 +6,9 @@ export function addGetNeededStoresForNestedDelete(
   writer: CodeBlockWriter,
   model: Model,
   models: readonly Model[],
+  outboxSync: boolean,
   outboxModelName: string = "OutboxEvent",
+  versionMetaModelName: string = "VersionMeta",
 ) {
   writer
     .writeLine(`_getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void`)
@@ -20,9 +22,12 @@ export function addGetNeededStoresForNestedDelete(
       for (const field of cascadingDeletes) {
         writer.writeLine(`this.client.${toCamelCase(field.type)}._getNeededStoresForNestedDelete(neededStores);`);
       }
-      writer
-        .writeLine(`if (this.client.shouldTrackModel(this.modelName)) {`)
-        .writeLine(`neededStores.add("${outboxModelName}" as StoreNames<PrismaIDBSchema>);`)
-        .writeLine(`}`);
+      if (outboxSync) {
+        writer
+          .writeLine(`if (this.client.shouldTrackModel(this.modelName)) {`)
+          .writeLine(`neededStores.add("${outboxModelName}");`)
+          .writeLine(`neededStores.add("${versionMetaModelName}");`)
+          .writeLine(`}`);
+      }
     });
 }

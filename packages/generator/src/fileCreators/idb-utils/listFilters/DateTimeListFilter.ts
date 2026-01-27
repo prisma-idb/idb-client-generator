@@ -16,6 +16,8 @@ export function addDateTimeListFilter(writer: CodeBlockWriter, models: readonly 
         .writeLine(`if (scalarListFilter === undefined) return true;`)
         .blankLine()
         .writeLine(`const value = record[fieldName] as Date[] | undefined;`)
+        .writeLine(`const matches = (d: Date, target: Date | string) => d.getTime() === new Date(target).getTime();`)
+        .blankLine()
         .writeLine(`if (value === undefined && Object.keys(scalarListFilter).length) return false;`);
       addEqualsHandler(writer);
       addHasHandler(writer);
@@ -40,20 +42,24 @@ function addHasHandler(writer: CodeBlockWriter) {
   writer
     .writeLine(`if (scalarListFilter.has instanceof Date || typeof scalarListFilter.has === 'string')`)
     .block(() => {
-      writer.writeLine(`if (!value?.includes(new Date(scalarListFilter.has))) return false;`);
+      writer.writeLine(`if (!value?.some((v) => matches(v, scalarListFilter.has as Date | string))) return false;`);
     })
     .writeLine(`if (scalarListFilter.has === null) return false;`);
 }
 
 function addHasSomeHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (Array.isArray(scalarListFilter.hasSome))`).block(() => {
-    writer.writeLine(`if (!scalarListFilter.hasSome.some((val) => value?.includes(new Date(val)))) return false;`);
+    writer.writeLine(
+      `if (!scalarListFilter.hasSome.some((val) => (val instanceof Date || typeof val === 'string') && value?.some((v) => matches(v, val)))) return false;`,
+    );
   });
 }
 
 function addHasEveryHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (Array.isArray(scalarListFilter.hasEvery))`).block(() => {
-    writer.writeLine(`if (!scalarListFilter.hasEvery.every((val) => value?.includes(new Date(val)))) return false;`);
+    writer.writeLine(
+      `if (!scalarListFilter.hasEvery.every((val) => (val instanceof Date || typeof val === 'string') && value?.some((v) => matches(v, val)))) return false;`,
+    );
   });
 }
 
