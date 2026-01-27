@@ -1,22 +1,15 @@
 <script lang="ts">
   import { Button } from "$lib/components/ui/button";
   import * as Card from "$lib/components/ui/card/index.js";
-  import { MenuIcon, PencilIcon, PlusCircleIcon, TrashIcon } from "@lucide/svelte";
+  import { MenuIcon, PencilIcon, PlusCircleIcon } from "@lucide/svelte";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
   import * as Item from "$lib/components/ui/item/index.js";
-  import type { Prisma, Todo } from "$lib/generated/prisma/client";
+  import type { Prisma } from "$lib/generated/prisma/client";
   import { getTodosContext } from "../../todos-state.svelte";
-  import RenameBoardDialog from "./rename-board-dialog.svelte";
-  import TodoDialog from "./todo-dialog.svelte";
+  import Checkbox from "$lib/components/ui/checkbox/checkbox.svelte";
 
   const todosState = getTodosContext();
   let { board }: { board: Prisma.BoardGetPayload<{ include: { todos: true } }> } = $props();
-
-  let openRenameDialog = $state(false);
-  let todoDialogConfig = $state<{ open: boolean; action: "create" | "edit"; todo?: Todo }>({
-    open: false,
-    action: "create",
-  });
 </script>
 
 <Card.Root>
@@ -34,20 +27,13 @@
         <DropdownMenu.Content align="end">
           <DropdownMenu.Group>
             <DropdownMenu.Item
-              onclick={() => (todoDialogConfig = { open: true, action: "create", todo: undefined })}
+              onclick={() => todosState.openCreateTodo(board.id)}
               data-testid={`add-todo-${board.name}`}
             >
               <PlusCircleIcon /> Add todo
             </DropdownMenu.Item>
-            <DropdownMenu.Item data-testid={`rename-${board.name}`} onclick={() => (openRenameDialog = true)}>
-              <PencilIcon /> Rename
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
-              class="text-destructive"
-              onclick={() => todosState.deleteBoard(board.id)}
-              data-testid={`delete-board-${board.name}`}
-            >
-              <TrashIcon /> Delete
+            <DropdownMenu.Item data-testid={`update-${board.name}`} onclick={() => todosState.openEditBoard(board.id)}>
+              <PencilIcon /> Update
             </DropdownMenu.Item>
           </DropdownMenu.Group>
         </DropdownMenu.Content>
@@ -57,16 +43,31 @@
   <Card.Content class="flex flex-col gap-2">
     {#each board.todos as todo (todo.id)}
       <Item.Root class="border-secondary rounded-md border">
+        <Item.Media>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            data-testid={`edit-todo-${todo.id}`}
+            onclick={() => todosState.openEditTodo(todo.id, board.id)}
+          >
+            <PencilIcon />
+          </Button>
+        </Item.Media>
         <Item.Content>
-          <Item.Title>{todo.title}</Item.Title>
+          <Item.Title>
+            <span>{todo.title}</span>
+          </Item.Title>
           {#if todo.description}
             <Item.Description>{todo.description}</Item.Description>
           {/if}
         </Item.Content>
+        <Item.Actions>
+          <Checkbox
+            checked={todo.isCompleted}
+            onCheckedChange={(c) => todosState.updateTodo(todo.id, { isCompleted: c })}
+          />
+        </Item.Actions>
       </Item.Root>
     {/each}
   </Card.Content>
 </Card.Root>
-
-<RenameBoardDialog {board} bind:open={openRenameDialog} />
-<TodoDialog bind:open={todoDialogConfig.open} action={todoDialogConfig.action} {board} />

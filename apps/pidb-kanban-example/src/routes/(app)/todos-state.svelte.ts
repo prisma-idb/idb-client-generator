@@ -9,6 +9,11 @@ export class TodosState {
   boards = $state<Prisma.BoardGetPayload<{ include: { todos: true } }>[]>();
   syncWorker = $state<SyncWorker>();
 
+  activeBoardEditId = $state<string>();
+
+  activeTodoId = $state<string>();
+  activeTodoBoardId = $state<string>();
+
   private boardCallback = () => this.loadBoards();
   private todoCallback = () => this.loadBoards();
 
@@ -97,6 +102,19 @@ export class TodosState {
     }
   }
 
+  async updateBoard(boardId: string, name: string) {
+    try {
+      await getClient().board.update({
+        where: { id: boardId },
+        data: { name },
+      });
+      this.activeBoardEditId = undefined;
+    } catch (error) {
+      console.error("Error updating board:", error);
+      toast.error("Failed to update board");
+    }
+  }
+
   async deleteBoard(boardId: string) {
     try {
       await getClient().board.delete({ where: { id: boardId } });
@@ -111,6 +129,7 @@ export class TodosState {
       await getClient().todo.create({
         data: { title, description, boardId },
       });
+      this.activeTodoBoardId = undefined;
     } catch (error) {
       console.error("Error adding todo:", error);
       toast.error("Failed to add todo");
@@ -121,6 +140,43 @@ export class TodosState {
     if (!this.syncWorker) return;
     this.syncWorker.start();
     toast.success("Sync cycle started", { description: "Data will keep syncing in the background" });
+  }
+
+  async updateTodo(todoId: string, data: Partial<Prisma.TodoUpdateInput>) {
+    try {
+      await getClient().todo.update({
+        where: { id: todoId },
+        data,
+      });
+      this.activeTodoBoardId = undefined;
+      this.activeTodoId = undefined;
+    } catch (error) {
+      console.error("Error updating todo:", error);
+      toast.error("Failed to update todo");
+    }
+  }
+
+  openEditBoard(boardId: string) {
+    this.activeBoardEditId = boardId;
+  }
+
+  closeEditBoard() {
+    this.activeBoardEditId = undefined;
+  }
+
+  openCreateTodo(boardId: string) {
+    this.activeTodoId = undefined;
+    this.activeTodoBoardId = boardId;
+  }
+
+  openEditTodo(todoId: string, boardId: string) {
+    this.activeTodoId = todoId;
+    this.activeTodoBoardId = boardId;
+  }
+
+  closeTodoDialog() {
+    this.activeTodoId = undefined;
+    this.activeTodoBoardId = undefined;
   }
 
   destroy() {
