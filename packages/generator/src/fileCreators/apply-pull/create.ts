@@ -123,7 +123,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
                 });
                 writer.writeLine(`else if (operation === 'update') `).block(() => {
                   writer.writeLine(
-                    `await idbClient.${camelCaseName}.update({ where: ${fullRecordWhereClause}, data: validatedRecord }, { silent: true, addToOutbox: false, tx });`,
+                    `await idbClient.${camelCaseName}.upsert({ where: ${fullRecordWhereClause}, create: validatedRecord, update: validatedRecord }, { silent: true, addToOutbox: false, tx });`,
                   );
                   writer.writeLine(`totalAppliedRecords++;`);
                 });

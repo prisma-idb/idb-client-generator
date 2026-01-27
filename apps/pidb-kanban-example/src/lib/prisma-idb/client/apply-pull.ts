@@ -76,8 +76,8 @@ export async function applyPull(props: ApplyPullProps) {
               await idbClient.board.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
               totalAppliedRecords++;
             } else if (operation === "update") {
-              await idbClient.board.update(
-                { where: { id: validatedRecord.id }, data: validatedRecord },
+              await idbClient.board.upsert(
+                { where: { id: validatedRecord.id }, create: validatedRecord, update: validatedRecord },
                 { silent: true, addToOutbox: false, tx }
               );
               totalAppliedRecords++;
@@ -99,8 +99,8 @@ export async function applyPull(props: ApplyPullProps) {
               await idbClient.todo.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
               totalAppliedRecords++;
             } else if (operation === "update") {
-              await idbClient.todo.update(
-                { where: { id: validatedRecord.id }, data: validatedRecord },
+              await idbClient.todo.upsert(
+                { where: { id: validatedRecord.id }, create: validatedRecord, update: validatedRecord },
                 { silent: true, addToOutbox: false, tx }
               );
               totalAppliedRecords++;
@@ -122,8 +122,8 @@ export async function applyPull(props: ApplyPullProps) {
               await idbClient.user.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
               totalAppliedRecords++;
             } else if (operation === "update") {
-              await idbClient.user.update(
-                { where: { id: validatedRecord.id }, data: validatedRecord },
+              await idbClient.user.upsert(
+                { where: { id: validatedRecord.id }, create: validatedRecord, update: validatedRecord },
                 { silent: true, addToOutbox: false, tx }
               );
               totalAppliedRecords++;
