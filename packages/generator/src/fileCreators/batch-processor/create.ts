@@ -299,9 +299,11 @@ function generateModelSwitchCase(writer: CodeBlockWriter, model: Model) {
     writer.blankLine();
     writer.writeLine(`if (customValidation) {`);
     writer.writeLine(`  try {`);
-    writer.writeLine(
-      `    const { errorMessage } = await Promise.resolve(customValidation(event as EventsFor<typeof validators>));`,
-    );
+    writer.writeLine(`    const validatedEvent = {`);
+    writer.writeLine(`      ...event,`);
+    writer.writeLine(`      payload: validation.data,`);
+    writer.writeLine(`    } as EventsFor<typeof validators>;`);
+    writer.writeLine(`    const { errorMessage } = await Promise.resolve(customValidation(validatedEvent));`);
     writer.writeLine(`    if (errorMessage) throw new PermanentSyncError("CUSTOM_VALIDATION_FAILED", errorMessage);`);
     writer.writeLine(`  } catch (error) {`);
     writer.writeLine(`    if (error instanceof PermanentSyncError) throw error;`);

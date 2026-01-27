@@ -95,7 +95,11 @@ export async function applyPush({
 
             if (customValidation) {
               try {
-                const { errorMessage } = await Promise.resolve(customValidation(event as EventsFor<typeof validators>));
+                const validatedEvent = {
+                  ...event,
+                  payload: validation.data,
+                } as EventsFor<typeof validators>;
+                const { errorMessage } = await Promise.resolve(customValidation(validatedEvent));
                 if (errorMessage) throw new PermanentSyncError("CUSTOM_VALIDATION_FAILED", errorMessage);
               } catch (error) {
                 if (error instanceof PermanentSyncError) throw error;
@@ -121,7 +125,11 @@ export async function applyPush({
 
             if (customValidation) {
               try {
-                const { errorMessage } = await Promise.resolve(customValidation(event as EventsFor<typeof validators>));
+                const validatedEvent = {
+                  ...event,
+                  payload: validation.data,
+                } as EventsFor<typeof validators>;
+                const { errorMessage } = await Promise.resolve(customValidation(validatedEvent));
                 if (errorMessage) throw new PermanentSyncError("CUSTOM_VALIDATION_FAILED", errorMessage);
               } catch (error) {
                 if (error instanceof PermanentSyncError) throw error;
@@ -147,7 +155,11 @@ export async function applyPush({
 
             if (customValidation) {
               try {
-                const { errorMessage } = await Promise.resolve(customValidation(event as EventsFor<typeof validators>));
+                const validatedEvent = {
+                  ...event,
+                  payload: validation.data,
+                } as EventsFor<typeof validators>;
+                const { errorMessage } = await Promise.resolve(customValidation(validatedEvent));
                 if (errorMessage) throw new PermanentSyncError("CUSTOM_VALIDATION_FAILED", errorMessage);
               } catch (error) {
                 if (error instanceof PermanentSyncError) throw error;
