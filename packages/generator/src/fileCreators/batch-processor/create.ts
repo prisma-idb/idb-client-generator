@@ -71,7 +71,6 @@ export function createBatchProcessorFile(
   writer.writeLine(`import type { ChangeLog } from "${prismaClientImport}";`);
   writer.writeLine(`import type { PrismaClient } from "${prismaClientImport}";`);
   writer.writeLine(`import { validators, keyPathValidators } from "../validators";`);
-  writer.writeLine(`import { PrismaClientKnownRequestError } from "@prisma/client/runtime/client";`);
   writer.blankLine();
 
   // Write Op type
