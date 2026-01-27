@@ -10,7 +10,8 @@
   },
   "npm": {
     "skipChecks": true,
-    "ignoreVersion": true
+    "ignoreVersion": true,
+    "publishArgs": ["--provenance"]
   },
   "git": {
     "commitMessage": "chore: release v${version}"
