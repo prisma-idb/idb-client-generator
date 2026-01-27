@@ -17,7 +17,7 @@
     "generate": "turbo run generate",
     "clean": "turbo clean && rm -rf node_modules",
     "preview": "turbo run preview",
-    "run:ci": "turbo run ci"
+    "run:ci": "pnpm format && pnpm generate && pnpm lint && pnpm check"
   },
   "devDependencies": {
     "@eslint/compat": "2.0.1",
