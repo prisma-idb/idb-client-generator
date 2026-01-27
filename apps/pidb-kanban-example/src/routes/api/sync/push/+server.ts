@@ -12,9 +12,8 @@ export async function POST({ request }) {
     return new Response(JSON.stringify({ error: "Malformed JSON" }), { status: 400 });
   }
 
-  const parsed = z.object({ events: z.array(outboxEventSchema), clientId: z.string() }).safeParse({
+  const parsed = z.object({ events: z.array(outboxEventSchema) }).safeParse({
     events: pushRequestBody.events,
-    clientId: pushRequestBody.clientId,
   });
 
   if (!parsed.success) {
@@ -33,7 +32,6 @@ export async function POST({ request }) {
     pushResults = await applyPush({
       events: parsed.data.events,
       scopeKey: authResult.user.id,
-      originId: parsed.data.clientId,
       prisma,
     });
   } catch (error) {

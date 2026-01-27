@@ -10,6 +10,7 @@ export interface ParsedGeneratorConfig {
   filteredModels: DMMF.Model[];
   outboxSync: boolean;
   outboxModelName: string;
+  versionMetaModelName: string;
   rootModel?: DMMF.Model;
 }
 
@@ -63,6 +64,7 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
   // === Parse outbox settings ===
   const outboxSync = generatorConfig.outboxSync === "true";
   const outboxModelName = (generatorConfig.outboxModelName as string) || "OutboxEvent";
+  const versionMetaModelName = (generatorConfig.versionMetaModelName as string) || "VersionMeta";
 
   const rootModelString = generatorConfig.rootModel as string | undefined;
   if (outboxSync && !rootModelString) {
@@ -129,6 +131,7 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
     prismaClientImport,
     outboxSync,
     outboxModelName,
+    versionMetaModelName,
     exportEnums,
     include,
     exclude,

@@ -5,7 +5,6 @@ import type { PrismaIDBClient } from "./prisma-idb-client";
 type ApplyPullProps = {
   idbClient: PrismaIDBClient;
   logsWithRecords: LogWithRecord<typeof validators>[];
-  originId: string;
 };
 
 /**
@@ -14,25 +13,21 @@ type ApplyPullProps = {
  * All operations are wrapped in a single transaction to reduce conflicts; invalid
  * records are skipped and reported in the return summary.
  *
- * Logs with the same originId are filtered out to prevent echo of pushed events
- * being reapplied as pulled events.
- *
  * @param props - Configuration object
  * @param props.idbClient - The PrismaIDB client instance
  * @param props.logsWithRecords - Array of change logs with validated records from server
- * @param props.originId - Origin ID to filter out echoed events
  * @returns Object with sync statistics including applied records, missing records, and validation errors
  */
 export async function applyPull(props: ApplyPullProps) {
-  const { idbClient, logsWithRecords, originId } = props;
+  const { idbClient, logsWithRecords } = props;
 
-  let sameOriginRecords = 0;
+  let staleRecords = 0;
   let missingRecords = 0;
   let totalAppliedRecords = 0;
   const validationErrors: { model: string; error: unknown }[] = [];
 
   // Wrap all operations in a single transaction to prevent AbortError and ensure atomicity
-  const tx = idbClient._db.transaction(["Board", "Todo", "User"], "readwrite");
+  const tx = idbClient._db.transaction(["Board", "Todo", "User", "VersionMeta"], "readwrite");
 
   let txAborted = false;
 
@@ -43,15 +38,16 @@ export async function applyPull(props: ApplyPullProps) {
 
   try {
     for (const change of logsWithRecords) {
-      // Ignore logs with the same originId to prevent echo of pushed events
-      if (change.originId === originId) {
-        sameOriginRecords++;
+      const { model, operation, record, keyPath, changelogId } = change;
+      if (!record && operation !== "delete") {
+        missingRecords++;
         continue;
       }
 
-      const { model, operation, record, keyPath } = change;
-      if (!record && operation !== "delete") {
-        missingRecords++;
+      const versionMeta = await idbClient.$versionMeta.get(model, keyPath, tx);
+      const lastAppliedChangeId = versionMeta?.lastAppliedChangeId ?? null;
+      if (lastAppliedChangeId !== null && lastAppliedChangeId >= changelogId) {
+        staleRecords++;
         continue;
       }
 
@@ -70,17 +66,23 @@ export async function applyPull(props: ApplyPullProps) {
               { silent: true, addToOutbox: false, tx }
             );
             totalAppliedRecords++;
+            // Mark as pulled with latest changelog ID
+            await idbClient.$versionMeta.markPulled(model, keyPath, changelogId, { tx });
           } else {
             const validatedRecord = validators.Board.parse(record);
             if (operation === "create") {
               await idbClient.board.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
               totalAppliedRecords++;
+              // Mark as pulled with latest changelog ID
+              await idbClient.$versionMeta.markPulled(model, keyPath, changelogId, { tx });
             } else if (operation === "update") {
               await idbClient.board.upsert(
                 { where: { id: validatedRecord.id }, create: validatedRecord, update: validatedRecord },
                 { silent: true, addToOutbox: false, tx }
               );
               totalAppliedRecords++;
+              // Mark as pulled with latest changelog ID
+              await idbClient.$versionMeta.markPulled(model, keyPath, changelogId, { tx });
             } else {
               throw new Error(`Unknown operation for Board: ${operation} (keyPath: ${JSON.stringify(keyPath)})`);
             }
@@ -93,17 +95,23 @@ export async function applyPull(props: ApplyPullProps) {
               { silent: true, addToOutbox: false, tx }
             );
             totalAppliedRecords++;
+            // Mark as pulled with latest changelog ID
+            await idbClient.$versionMeta.markPulled(model, keyPath, changelogId, { tx });
           } else {
             const validatedRecord = validators.Todo.parse(record);
             if (operation === "create") {
               await idbClient.todo.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
               totalAppliedRecords++;
+              // Mark as pulled with latest changelog ID
+              await idbClient.$versionMeta.markPulled(model, keyPath, changelogId, { tx });
             } else if (operation === "update") {
               await idbClient.todo.upsert(
                 { where: { id: validatedRecord.id }, create: validatedRecord, update: validatedRecord },
                 { silent: true, addToOutbox: false, tx }
               );
               totalAppliedRecords++;
+              // Mark as pulled with latest changelog ID
+              await idbClient.$versionMeta.markPulled(model, keyPath, changelogId, { tx });
             } else {
               throw new Error(`Unknown operation for Todo: ${operation} (keyPath: ${JSON.stringify(keyPath)})`);
             }
@@ -116,17 +124,23 @@ export async function applyPull(props: ApplyPullProps) {
               { silent: true, addToOutbox: false, tx }
             );
             totalAppliedRecords++;
+            // Mark as pulled with latest changelog ID
+            await idbClient.$versionMeta.markPulled(model, keyPath, changelogId, { tx });
           } else {
             const validatedRecord = validators.User.parse(record);
             if (operation === "create") {
               await idbClient.user.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
               totalAppliedRecords++;
+              // Mark as pulled with latest changelog ID
+              await idbClient.$versionMeta.markPulled(model, keyPath, changelogId, { tx });
             } else if (operation === "update") {
               await idbClient.user.upsert(
                 { where: { id: validatedRecord.id }, create: validatedRecord, update: validatedRecord },
                 { silent: true, addToOutbox: false, tx }
               );
               totalAppliedRecords++;
+              // Mark as pulled with latest changelog ID
+              await idbClient.$versionMeta.markPulled(model, keyPath, changelogId, { tx });
             } else {
               throw new Error(`Unknown operation for User: ${operation} (keyPath: ${JSON.stringify(keyPath)})`);
             }
@@ -153,7 +167,7 @@ export async function applyPull(props: ApplyPullProps) {
   return {
     validationErrors,
     missingRecords,
-    sameOriginRecords,
+    staleRecords,
     totalAppliedRecords,
   };
 }

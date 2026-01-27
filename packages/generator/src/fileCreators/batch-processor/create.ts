@@ -96,6 +96,7 @@ export function createBatchProcessorFile(
   writer.writeLine(`    model: M;`);
   writer.writeLine(`    keyPath: Array<string | number>;`);
   writer.writeLine(`    record?: z.infer<V[M]> | null;`);
+  writer.writeLine(`    changelogId: bigint;`);
   writer.writeLine(`  };`);
   writer.writeLine(`}[keyof V & string];`);
   writer.blankLine();
@@ -111,6 +112,7 @@ export function createBatchProcessorFile(
   // Write sync handler type
   writer.writeLine(`export interface PushResult {`);
   writer.writeLine(`  id: string;`);
+  writer.writeLine(`  appliedChangelogId: bigint | null;`);
   writer.writeLine(`  error: null | `).block(() => {
     writer.writeLine(`type: keyof typeof PushErrorTypes;`);
     writer.writeLine(`message: string;`);
@@ -124,23 +126,6 @@ export function createBatchProcessorFile(
   writer.writeLine(`  events: OutboxEventRecord[];`);
   writer.writeLine(`  scopeKey: string | ((event: OutboxEventRecord) => string);`);
   writer.writeLine(`  prisma: PrismaClient;`);
-  writer.writeLine(`  /**`);
-  writer.writeLine(`   * Unique identifier for the client device/origin submitting these events.`);
-  writer.writeLine(`   *`);
-  writer.writeLine(`   * **Security Note**: This ID is provided by the client and used to prevent`);
-  writer.writeLine(`   * echo loops during pull operations (server filters out logs with matching`);
-  writer.writeLine(`   * originId). It is NOT used for authentication or authorization.`);
-  writer.writeLine(`   *`);
-  writer.writeLine(`   * **Assumptions**:`);
-  writer.writeLine(`   * - Multiple devices of ONE authenticated user may have different originIds`);
-  writer.writeLine(`   * - originIds are scoped per-user (via scopeKey), not cross-user`);
-  writer.writeLine(`   * - Malicious originId spoofing can only affect one user's own sync, not`);
-  writer.writeLine(`   *   leak data across users`);
-  writer.writeLine(`   *`);
-  writer.writeLine(`   * **Best Practice**: Generate originId client-side as a random UUID per`);
-  writer.writeLine(`   * device and persist in localStorage.`);
-  writer.writeLine(`   */`);
-  writer.writeLine(`  originId: string;`);
   writer.writeLine(`  customValidation?: (`);
   writer.writeLine(`    event: EventsFor<typeof validators>`);
   writer.writeLine(`  ) => { errorMessage: string | null } | Promise<{ errorMessage: string | null }>;`);
@@ -168,7 +153,6 @@ export function createBatchProcessorFile(
   writer.writeLine(`  events,`);
   writer.writeLine(`  scopeKey,`);
   writer.writeLine(`  prisma,`);
-  writer.writeLine(`  originId,`);
   writer.writeLine(`  customValidation,`);
   writer.writeLine(`}: ApplyPushOptions): Promise<PushResult[]>`);
   writer.block(() => {
@@ -209,6 +193,7 @@ export function createBatchProcessorFile(
     writer.blankLine();
     writer
       .writeLine(`    results.push({ id: event.id, `)
+      .writeLine(`    appliedChangelogId: null,`)
       .writeLine(`error: `)
       .block(() => {
         writer.writeLine(`type: isPermanent ? err.type : "UNKNOWN_ERROR",`);
@@ -269,7 +254,7 @@ export function createBatchProcessorFile(
         // For root model, check if validKeyPath matches scopeKey
         writer.writeLine(`        if (validKeyPath[0] !== scopeKey) {`);
         writer.writeLine(
-          `          results.push({ ...log, model: "${model.name}", keyPath: validKeyPath, record: null });`,
+          `          results.push({ ...log, model: "${model.name}", keyPath: validKeyPath, record: null, changelogId: log.id });`,
         );
         writer.writeLine(`          break;`);
         writer.writeLine(`        }`);
@@ -286,7 +271,9 @@ export function createBatchProcessorFile(
         writer.writeLine(`        });`);
       }
 
-      writer.writeLine(`        results.push({ ...log, model: "${model.name}", keyPath: validKeyPath, record });`);
+      writer.writeLine(
+        `        results.push({ ...log, model: "${model.name}", keyPath: validKeyPath, record, changelogId: log.id });`,
+      );
       writer.writeLine(`        break;`);
       writer.writeLine(`      }`);
     });
@@ -325,7 +312,7 @@ function generateModelSwitchCase(writer: CodeBlockWriter, model: Model) {
     writer.writeLine(`  }`);
     writer.writeLine(`}`);
     writer.blankLine();
-    writer.writeLine(`result = await sync${model.name}(event, validation.data, resolvedScopeKey, prisma, originId);`);
+    writer.writeLine(`result = await sync${model.name}(event, validation.data, resolvedScopeKey, prisma);`);
     writer.writeLine(`break;`);
   });
   writer.writeLine(`      }`);
@@ -345,7 +332,7 @@ function generateModelSyncHandler(
   const isRootModel = model.name === rootModel.name;
 
   writer.writeLine(
-    `async function sync${model.name}(event: OutboxEventRecord, data: z.infer<typeof validators.${model.name}>, scopeKey: string, prisma: PrismaClient, originId: string): Promise<PushResult>`,
+    `async function sync${model.name}(event: OutboxEventRecord, data: z.infer<typeof validators.${model.name}>, scopeKey: string, prisma: PrismaClient): Promise<PushResult>`,
   );
   writer.block(() => {
     writer.writeLine(`const { id, operation } = event;`);
@@ -455,25 +442,27 @@ function generateModelSyncHandler(
       writer.blankLine();
     }
 
-    writer.writeLine(`      try {`);
-    writer.writeLine(`        await tx.changeLog.create({`);
+    writer.writeLine(`      let appliedChangelogId: bigint;`);
+    writer.writeLine(`      const existingLog = await tx.changeLog.findUnique({`);
+    writer.writeLine(`        where: { outboxEventId: event.id },`);
+    writer.writeLine(`      });`);
+    writer.blankLine();
+    writer.writeLine(`      if (existingLog) {`);
+    writer.writeLine(`        appliedChangelogId = existingLog.id;`);
+    writer.writeLine(`      } else {`);
+    writer.writeLine(`        const newLog = await tx.changeLog.create({`);
     writer.writeLine(`          data: {`);
     writer.writeLine(`            model: "${model.name}",`);
     writer.writeLine(`            keyPath: validKeyPath,`);
     writer.writeLine(`            operation: "create",`);
     writer.writeLine(`            scopeKey,`);
-    writer.writeLine(`            originId,`);
     writer.writeLine(`            outboxEventId: event.id,`);
     writer.writeLine(`          },`);
     writer.writeLine(`        });`);
-    writer.writeLine(`      } catch (err) {`);
-    writer.writeLine(`        if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {`);
-    writer.writeLine(`          return { id, error: null };`);
-    writer.writeLine(`        }`);
-    writer.writeLine(`        throw err;`);
+    writer.writeLine(`        appliedChangelogId = newLog.id;`);
     writer.writeLine(`      }`);
     writer.writeLine(`      await tx.${modelNameLower}.create({ data });`);
-    writer.writeLine(`      return { id, error: null };`);
+    writer.writeLine(`      return { id, error: null, appliedChangelogId };`);
     writer.writeLine(`    });`);
     writer.writeLine(`    return result;`);
     writer.writeLine(`  }`);
@@ -623,22 +612,24 @@ function generateModelSyncHandler(
     }
     writer.blankLine();
 
-    writer.writeLine(`      try {`);
-    writer.writeLine(`        await tx.changeLog.create({`);
+    writer.writeLine(`      let appliedChangelogId: bigint;`);
+    writer.writeLine(`      const existingLog = await tx.changeLog.findUnique({`);
+    writer.writeLine(`        where: { outboxEventId: event.id },`);
+    writer.writeLine(`      });`);
+    writer.blankLine();
+    writer.writeLine(`      if (existingLog) {`);
+    writer.writeLine(`        appliedChangelogId = existingLog.id;`);
+    writer.writeLine(`      } else {`);
+    writer.writeLine(`        const newLog = await tx.changeLog.create({`);
     writer.writeLine(`          data: {`);
     writer.writeLine(`            model: "${model.name}",`);
     writer.writeLine(`            keyPath: validKeyPath,`);
     writer.writeLine(`            operation: "update",`);
     writer.writeLine(`            scopeKey,`);
-    writer.writeLine(`            originId,`);
     writer.writeLine(`            outboxEventId: event.id,`);
     writer.writeLine(`          },`);
     writer.writeLine(`        });`);
-    writer.writeLine(`      } catch (err) {`);
-    writer.writeLine(`        if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {`);
-    writer.writeLine(`          return { id, error: null };`);
-    writer.writeLine(`        }`);
-    writer.writeLine(`        throw err;`);
+    writer.writeLine(`        appliedChangelogId = newLog.id;`);
     writer.writeLine(`      }`);
     writer.writeLine(`      await tx.${modelNameLower}.upsert({`);
     writer.writeLine(`        where: ${generateWhereClause(pk.name, pkFields)},`);
@@ -646,7 +637,7 @@ function generateModelSyncHandler(
     writer.writeLine(`        update: data,`);
     writer.writeLine(`      });`);
 
-    writer.writeLine(`      return { id, error: null };`);
+    writer.writeLine(`      return { id, error: null, appliedChangelogId };`);
     writer.writeLine(`    });`);
     writer.writeLine(`    return result;`);
     writer.writeLine(`  }`);
@@ -688,27 +679,29 @@ function generateModelSyncHandler(
     }
     writer.blankLine();
 
-    writer.writeLine(`      try {`);
-    writer.writeLine(`        await tx.changeLog.create({`);
+    writer.writeLine(`      let appliedChangelogId: bigint;`);
+    writer.writeLine(`      const existingLog = await tx.changeLog.findUnique({`);
+    writer.writeLine(`        where: { outboxEventId: event.id },`);
+    writer.writeLine(`      });`);
+    writer.blankLine();
+    writer.writeLine(`      if (existingLog) {`);
+    writer.writeLine(`        appliedChangelogId = existingLog.id;`);
+    writer.writeLine(`      } else {`);
+    writer.writeLine(`        const newLog = await tx.changeLog.create({`);
     writer.writeLine(`          data: {`);
     writer.writeLine(`            model: "${model.name}",`);
     writer.writeLine(`            keyPath: validKeyPath,`);
     writer.writeLine(`            operation: "delete",`);
     writer.writeLine(`            scopeKey,`);
-    writer.writeLine(`            originId,`);
     writer.writeLine(`            outboxEventId: event.id,`);
     writer.writeLine(`          },`);
     writer.writeLine(`        });`);
-    writer.writeLine(`      } catch (err) {`);
-    writer.writeLine(`        if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {`);
-    writer.writeLine(`          return { id, error: null };`);
-    writer.writeLine(`        }`);
-    writer.writeLine(`        throw err;`);
+    writer.writeLine(`        appliedChangelogId = newLog.id;`);
     writer.writeLine(`      }`);
     writer.writeLine(`      await tx.${modelNameLower}.deleteMany({`);
     writer.writeLine(`        where: ${generateWhereClause(pk.name, pkFields)},`);
     writer.writeLine(`      });`);
-    writer.writeLine(`      return { id, error: null };`);
+    writer.writeLine(`      return { id, error: null, appliedChangelogId };`);
     writer.writeLine(`    });`);
     writer.writeLine(`    return result;`);
     writer.writeLine(`  }`);

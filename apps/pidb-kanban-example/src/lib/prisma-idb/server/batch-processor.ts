@@ -22,6 +22,7 @@ export type LogWithRecord<V extends Partial<Record<string, ZodTypeAny>>> = {
     model: M;
     keyPath: Array<string | number>;
     record?: z.infer<V[M]> | null;
+    changelogId: bigint;
   };
 }[keyof V & string];
 
@@ -39,6 +40,7 @@ export const PushErrorTypes = {
 
 export interface PushResult {
   id: string;
+  appliedChangelogId: bigint | null;
   error: null | {
     type: keyof typeof PushErrorTypes;
     message: string;
@@ -50,23 +52,6 @@ export interface ApplyPushOptions {
   events: OutboxEventRecord[];
   scopeKey: string | ((event: OutboxEventRecord) => string);
   prisma: PrismaClient;
-  /**
-   * Unique identifier for the client device/origin submitting these events.
-   *
-   * **Security Note**: This ID is provided by the client and used to prevent
-   * echo loops during pull operations (server filters out logs with matching
-   * originId). It is NOT used for authentication or authorization.
-   *
-   * **Assumptions**:
-   * - Multiple devices of ONE authenticated user may have different originIds
-   * - originIds are scoped per-user (via scopeKey), not cross-user
-   * - Malicious originId spoofing can only affect one user's own sync, not
-   *   leak data across users
-   *
-   * **Best Practice**: Generate originId client-side as a random UUID per
-   * device and persist in localStorage.
-   */
-  originId: string;
   customValidation?: (
     event: EventsFor<typeof validators>
   ) => { errorMessage: string | null } | Promise<{ errorMessage: string | null }>;
@@ -87,7 +72,6 @@ export async function applyPush({
   events,
   scopeKey,
   prisma,
-  originId,
   customValidation,
 }: ApplyPushOptions): Promise<PushResult[]> {
   if (events.length > MAX_BATCH_SIZE) {
@@ -122,7 +106,7 @@ export async function applyPush({
               }
             }
 
-            result = await syncBoard(event, validation.data, resolvedScopeKey, prisma, originId);
+            result = await syncBoard(event, validation.data, resolvedScopeKey, prisma);
             break;
           }
         }
@@ -148,7 +132,7 @@ export async function applyPush({
               }
             }
 
-            result = await syncTodo(event, validation.data, resolvedScopeKey, prisma, originId);
+            result = await syncTodo(event, validation.data, resolvedScopeKey, prisma);
             break;
           }
         }
@@ -174,7 +158,7 @@ export async function applyPush({
               }
             }
 
-            result = await syncUser(event, validation.data, resolvedScopeKey, prisma, originId);
+            result = await syncUser(event, validation.data, resolvedScopeKey, prisma);
             break;
           }
         }
@@ -195,6 +179,7 @@ export async function applyPush({
 
       results.push({
         id: event.id,
+        appliedChangelogId: null,
         error: {
           type: isPermanent ? err.type : "UNKNOWN_ERROR",
           message: isPermanent ? errorMessage : "An unexpected error occurred",
@@ -232,7 +217,7 @@ export async function materializeLogs({
           where: { id: validKeyPath[0], user: { id: scopeKey } },
           select: { id: true, name: true, createdAt: true, userId: true },
         });
-        results.push({ ...log, model: "Board", keyPath: validKeyPath, record });
+        results.push({ ...log, model: "Board", keyPath: validKeyPath, record, changelogId: log.id });
         break;
       }
       case "Todo": {
@@ -245,7 +230,7 @@ export async function materializeLogs({
           where: { id: validKeyPath[0], board: { user: { id: scopeKey } } },
           select: { id: true, title: true, description: true, isCompleted: true, createdAt: true, boardId: true },
         });
-        results.push({ ...log, model: "Todo", keyPath: validKeyPath, record });
+        results.push({ ...log, model: "Todo", keyPath: validKeyPath, record, changelogId: log.id });
         break;
       }
       case "User": {
@@ -255,7 +240,7 @@ export async function materializeLogs({
         }
         const validKeyPath = keyPathValidation.data;
         if (validKeyPath[0] !== scopeKey) {
-          results.push({ ...log, model: "User", keyPath: validKeyPath, record: null });
+          results.push({ ...log, model: "User", keyPath: validKeyPath, record: null, changelogId: log.id });
           break;
         }
         const record = await prisma.user.findUnique({
@@ -270,7 +255,7 @@ export async function materializeLogs({
             updatedAt: true,
           },
         });
-        results.push({ ...log, model: "User", keyPath: validKeyPath, record });
+        results.push({ ...log, model: "User", keyPath: validKeyPath, record, changelogId: log.id });
         break;
       }
     }
@@ -282,8 +267,7 @@ async function syncBoard(
   event: OutboxEventRecord,
   data: z.infer<typeof validators.Board>,
   scopeKey: string,
-  prisma: PrismaClient,
-  originId: string
+  prisma: PrismaClient
 ): Promise<PushResult> {
   const { id, operation } = event;
   const keyPath = [data.id];
@@ -309,25 +293,27 @@ async function syncBoard(
           );
         }
 
-        try {
-          await tx.changeLog.create({
+        let appliedChangelogId: bigint;
+        const existingLog = await tx.changeLog.findUnique({
+          where: { outboxEventId: event.id },
+        });
+
+        if (existingLog) {
+          appliedChangelogId = existingLog.id;
+        } else {
+          const newLog = await tx.changeLog.create({
             data: {
               model: "Board",
               keyPath: validKeyPath,
               operation: "create",
               scopeKey,
-              originId,
               outboxEventId: event.id,
             },
           });
-        } catch (err) {
-          if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, error: null };
-          }
-          throw err;
+          appliedChangelogId = newLog.id;
         }
         await tx.board.create({ data });
-        return { id, error: null };
+        return { id, error: null, appliedChangelogId };
       });
       return result;
     }
@@ -357,29 +343,31 @@ async function syncBoard(
           }
         }
 
-        try {
-          await tx.changeLog.create({
+        let appliedChangelogId: bigint;
+        const existingLog = await tx.changeLog.findUnique({
+          where: { outboxEventId: event.id },
+        });
+
+        if (existingLog) {
+          appliedChangelogId = existingLog.id;
+        } else {
+          const newLog = await tx.changeLog.create({
             data: {
               model: "Board",
               keyPath: validKeyPath,
               operation: "update",
               scopeKey,
-              originId,
               outboxEventId: event.id,
             },
           });
-        } catch (err) {
-          if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, error: null };
-          }
-          throw err;
+          appliedChangelogId = newLog.id;
         }
         await tx.board.upsert({
           where: { id: validKeyPath[0] },
           create: data,
           update: data,
         });
-        return { id, error: null };
+        return { id, error: null, appliedChangelogId };
       });
       return result;
     }
@@ -398,27 +386,29 @@ async function syncBoard(
           );
         }
 
-        try {
-          await tx.changeLog.create({
+        let appliedChangelogId: bigint;
+        const existingLog = await tx.changeLog.findUnique({
+          where: { outboxEventId: event.id },
+        });
+
+        if (existingLog) {
+          appliedChangelogId = existingLog.id;
+        } else {
+          const newLog = await tx.changeLog.create({
             data: {
               model: "Board",
               keyPath: validKeyPath,
               operation: "delete",
               scopeKey,
-              originId,
               outboxEventId: event.id,
             },
           });
-        } catch (err) {
-          if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, error: null };
-          }
-          throw err;
+          appliedChangelogId = newLog.id;
         }
         await tx.board.deleteMany({
           where: { id: validKeyPath[0] },
         });
-        return { id, error: null };
+        return { id, error: null, appliedChangelogId };
       });
       return result;
     }
@@ -432,8 +422,7 @@ async function syncTodo(
   event: OutboxEventRecord,
   data: z.infer<typeof validators.Todo>,
   scopeKey: string,
-  prisma: PrismaClient,
-  originId: string
+  prisma: PrismaClient
 ): Promise<PushResult> {
   const { id, operation } = event;
   const keyPath = [data.id];
@@ -459,25 +448,27 @@ async function syncTodo(
           );
         }
 
-        try {
-          await tx.changeLog.create({
+        let appliedChangelogId: bigint;
+        const existingLog = await tx.changeLog.findUnique({
+          where: { outboxEventId: event.id },
+        });
+
+        if (existingLog) {
+          appliedChangelogId = existingLog.id;
+        } else {
+          const newLog = await tx.changeLog.create({
             data: {
               model: "Todo",
               keyPath: validKeyPath,
               operation: "create",
               scopeKey,
-              originId,
               outboxEventId: event.id,
             },
           });
-        } catch (err) {
-          if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, error: null };
-          }
-          throw err;
+          appliedChangelogId = newLog.id;
         }
         await tx.todo.create({ data });
-        return { id, error: null };
+        return { id, error: null, appliedChangelogId };
       });
       return result;
     }
@@ -517,29 +508,31 @@ async function syncTodo(
           }
         }
 
-        try {
-          await tx.changeLog.create({
+        let appliedChangelogId: bigint;
+        const existingLog = await tx.changeLog.findUnique({
+          where: { outboxEventId: event.id },
+        });
+
+        if (existingLog) {
+          appliedChangelogId = existingLog.id;
+        } else {
+          const newLog = await tx.changeLog.create({
             data: {
               model: "Todo",
               keyPath: validKeyPath,
               operation: "update",
               scopeKey,
-              originId,
               outboxEventId: event.id,
             },
           });
-        } catch (err) {
-          if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, error: null };
-          }
-          throw err;
+          appliedChangelogId = newLog.id;
         }
         await tx.todo.upsert({
           where: { id: validKeyPath[0] },
           create: data,
           update: data,
         });
-        return { id, error: null };
+        return { id, error: null, appliedChangelogId };
       });
       return result;
     }
@@ -555,27 +548,29 @@ async function syncTodo(
           throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: Todo is not owned by the authenticated scope`);
         }
 
-        try {
-          await tx.changeLog.create({
+        let appliedChangelogId: bigint;
+        const existingLog = await tx.changeLog.findUnique({
+          where: { outboxEventId: event.id },
+        });
+
+        if (existingLog) {
+          appliedChangelogId = existingLog.id;
+        } else {
+          const newLog = await tx.changeLog.create({
             data: {
               model: "Todo",
               keyPath: validKeyPath,
               operation: "delete",
               scopeKey,
-              originId,
               outboxEventId: event.id,
             },
           });
-        } catch (err) {
-          if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, error: null };
-          }
-          throw err;
+          appliedChangelogId = newLog.id;
         }
         await tx.todo.deleteMany({
           where: { id: validKeyPath[0] },
         });
-        return { id, error: null };
+        return { id, error: null, appliedChangelogId };
       });
       return result;
     }
@@ -589,8 +584,7 @@ async function syncUser(
   event: OutboxEventRecord,
   data: z.infer<typeof validators.User>,
   scopeKey: string,
-  prisma: PrismaClient,
-  originId: string
+  prisma: PrismaClient
 ): Promise<PushResult> {
   const { id, operation } = event;
   const keyPath = [data.id];
@@ -608,25 +602,27 @@ async function syncUser(
           throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: root model pk must match authenticated scope`);
         }
 
-        try {
-          await tx.changeLog.create({
+        let appliedChangelogId: bigint;
+        const existingLog = await tx.changeLog.findUnique({
+          where: { outboxEventId: event.id },
+        });
+
+        if (existingLog) {
+          appliedChangelogId = existingLog.id;
+        } else {
+          const newLog = await tx.changeLog.create({
             data: {
               model: "User",
               keyPath: validKeyPath,
               operation: "create",
               scopeKey,
-              originId,
               outboxEventId: event.id,
             },
           });
-        } catch (err) {
-          if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, error: null };
-          }
-          throw err;
+          appliedChangelogId = newLog.id;
         }
         await tx.user.create({ data });
-        return { id, error: null };
+        return { id, error: null, appliedChangelogId };
       });
       return result;
     }
@@ -638,29 +634,31 @@ async function syncUser(
           throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: User pk does not match authenticated scope`);
         }
 
-        try {
-          await tx.changeLog.create({
+        let appliedChangelogId: bigint;
+        const existingLog = await tx.changeLog.findUnique({
+          where: { outboxEventId: event.id },
+        });
+
+        if (existingLog) {
+          appliedChangelogId = existingLog.id;
+        } else {
+          const newLog = await tx.changeLog.create({
             data: {
               model: "User",
               keyPath: validKeyPath,
               operation: "update",
               scopeKey,
-              originId,
               outboxEventId: event.id,
             },
           });
-        } catch (err) {
-          if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, error: null };
-          }
-          throw err;
+          appliedChangelogId = newLog.id;
         }
         await tx.user.upsert({
           where: { id: validKeyPath[0] },
           create: data,
           update: data,
         });
-        return { id, error: null };
+        return { id, error: null, appliedChangelogId };
       });
       return result;
     }
@@ -671,27 +669,29 @@ async function syncUser(
           throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: User pk does not match authenticated scope`);
         }
 
-        try {
-          await tx.changeLog.create({
+        let appliedChangelogId: bigint;
+        const existingLog = await tx.changeLog.findUnique({
+          where: { outboxEventId: event.id },
+        });
+
+        if (existingLog) {
+          appliedChangelogId = existingLog.id;
+        } else {
+          const newLog = await tx.changeLog.create({
             data: {
               model: "User",
               keyPath: validKeyPath,
               operation: "delete",
               scopeKey,
-              originId,
               outboxEventId: event.id,
             },
           });
-        } catch (err) {
-          if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-            return { id, error: null };
-          }
-          throw err;
+          appliedChangelogId = newLog.id;
         }
         await tx.user.deleteMany({
           where: { id: validKeyPath[0] },
         });
-        return { id, error: null };
+        return { id, error: null, appliedChangelogId };
       });
       return result;
     }

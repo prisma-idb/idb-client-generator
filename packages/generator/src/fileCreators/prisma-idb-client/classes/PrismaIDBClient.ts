@@ -8,6 +8,7 @@ export function addClientClass(
   models: readonly Model[],
   outboxSync: boolean = false,
   outboxModelName: string = "OutboxEvent",
+  versionMetaModelName: string = "VersionMeta",
   include: string[] = ["*"],
   exclude: string[] = [],
 ) {
@@ -25,14 +26,14 @@ export function addClientClass(
       .writeLine(`}`);
 
     addModelProperties(writer, models);
-    addOutboxProperty(writer, outboxSync, outboxModelName);
+    addOutboxProperty(writer, outboxSync, outboxModelName, versionMetaModelName);
     addCreateInstanceMethod(writer);
     addResetDatabaseMethod(writer);
     addShouldTrackModelMethod(writer);
     if (outboxSync) {
       addCreateSyncWorkerMethod(writer);
     }
-    addInitializeMethod(writer, models, outboxSync, outboxModelName);
+    addInitializeMethod(writer, models, outboxSync, outboxModelName, versionMetaModelName);
   });
 }
 
@@ -40,9 +41,16 @@ function addModelProperties(writer: CodeBlockWriter, models: readonly Model[]) {
   models.forEach((model) => writer.writeLine(`${toCamelCaseUtil(model.name)}!: ${model.name}IDBClass;`));
 }
 
-function addOutboxProperty(writer: CodeBlockWriter, outboxSync: boolean, outboxModelName: string) {
+function addOutboxProperty(
+  writer: CodeBlockWriter,
+  outboxSync: boolean,
+  outboxModelName: string,
+  versionMetaModelName: string,
+) {
   if (!outboxSync) return;
-  writer.writeLine(`$outbox!: ${outboxModelName}IDBClass;`);
+  writer
+    .writeLine(`$outbox!: ${outboxModelName}IDBClass;`)
+    .writeLine(`$versionMeta!: ${versionMetaModelName}IDBClass;`);
 }
 
 function addCreateInstanceMethod(writer: CodeBlockWriter) {
@@ -64,6 +72,7 @@ function addInitializeMethod(
   models: readonly Model[],
   outboxSync: boolean = false,
   outboxModelName: string = "OutboxEvent",
+  versionMetaModelName: string = "VersionMeta",
 ) {
   writer.writeLine(`private async initialize()`).block(() => {
     writer
@@ -73,6 +82,7 @@ function addInitializeMethod(
           models.forEach((model) => addObjectStoreInitialization(model, writer));
           if (outboxSync) {
             addOutboxObjectStoreInitialization(writer, outboxModelName);
+            addVersionMetaInitialization(writer, versionMetaModelName);
           }
         });
       })
@@ -86,6 +96,7 @@ function addInitializeMethod(
 
     if (outboxSync) {
       writer.writeLine(`this.$outbox = new ${outboxModelName}IDBClass(this, ['id']);`);
+      writer.writeLine(`this.$versionMeta = new ${versionMetaModelName}IDBClass(this, ['model', 'key']);`);
     }
   });
 }
@@ -116,8 +127,6 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
     .writeLine(` * @param options.pull.handler Function that fetches remote changes since cursor.`)
     .writeLine(` *   Must return { logsWithRecords, cursor } where cursor enables resumable pagination.`)
     .writeLine(` *   Thrown errors stop pull phase gracefully; will retry next cycle.`)
-    .writeLine(` * @param options.pull.originId Origin ID used to filter out echoed events during pull phase.`)
-    .writeLine(` *   Prevents pushed events from being reapplied as pulled changes.`)
     .writeLine(` * @param options.pull.getCursor Optional handler to retrieve persisted pull cursor.`)
     .writeLine(` *   If not provided, starts from undefined (first page). Use this to resume from checkpoint.`)
     .writeLine(
@@ -163,13 +172,13 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
     .writeLine(` * worker.stop();    // gracefully stops`)
     .writeLine(` */`)
     .writeLine(
-      `createSyncWorker(options: { push: { handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>; batchSize?: number }; pull: { handler: (cursor?: bigint) => Promise<{ cursor?: bigint; logsWithRecords: LogWithRecord<typeof validators>[] }>; originId: string; getCursor?: () => Promise<bigint | undefined> | bigint | undefined; setCursor?: (cursor: bigint | undefined) => Promise<void> | void }; schedule?: { intervalMs?: number; maxRetries?: number } }): SyncWorker`,
+      `createSyncWorker(options: { push: { handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>; batchSize?: number }; pull: { handler: (cursor?: bigint) => Promise<{ cursor?: bigint; logsWithRecords: LogWithRecord<typeof validators>[] }>; getCursor?: () => Promise<bigint | undefined> | bigint | undefined; setCursor?: (cursor: bigint | undefined) => Promise<void> | void }; schedule?: { intervalMs?: number; maxRetries?: number } }): SyncWorker`,
     )
     .block(() => {
       writer
         .writeLine(`const { push, pull } = options;`)
         .writeLine(`const { handler: pushHandler, batchSize = 10 } = push;`)
-        .writeLine(`const { handler: pullHandler, originId, getCursor, setCursor } = pull;`)
+        .writeLine(`const { handler: pullHandler, getCursor, setCursor } = pull;`)
         .writeLine(`const { intervalMs = 5000, maxRetries = 5 } = options.schedule || {};`)
         .blankLine()
         .writeLine(`let intervalId: ReturnType<typeof setInterval | typeof setTimeout> | null = null;`)
@@ -215,17 +224,17 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
         .writeLine(`    return;`)
         .writeLine(`  }`)
         .blankLine()
-        .writeLine(`  const successIds: string[] = [];`)
+        .writeLine(`  const appliedLogs: { id: string; lastAppliedChangeId: bigint | null }[] = [];`)
         .writeLine(`  for (const result of results) {`)
         .writeLine(`    if (result.error) {`)
         .writeLine(`      await this.$outbox.markFailed(result.id, result.error);`)
         .writeLine(`    } else {`)
-        .writeLine(`      successIds.push(result.id);`)
+        .writeLine(`      appliedLogs.push({ id: result.id, lastAppliedChangeId: result.appliedChangelogId });`)
         .writeLine(`    }`)
         .writeLine(`  }`)
         .blankLine()
-        .writeLine(`  if (successIds.length > 0) {`)
-        .writeLine(`    await this.$outbox.markSynced(successIds, { syncedAt: new Date() });`)
+        .writeLine(`  if (appliedLogs.length > 0) {`)
+        .writeLine(`    await this.$outbox.markSynced(appliedLogs);`)
         .writeLine(`  }`)
         .writeLine(`};`)
         .blankLine()
@@ -271,7 +280,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
         .writeLine(`      const { logsWithRecords, cursor: nextCursor } = res;`)
         .writeLine(`      if (logsWithRecords.length === 0) break;`)
         .blankLine()
-        .writeLine(`      await applyPull({ idbClient: this, logsWithRecords, originId });`)
+        .writeLine(`      await applyPull({ idbClient: this, logsWithRecords });`)
         .blankLine()
         .writeLine(`      if (setCursor) {`)
         .writeLine(`        await Promise.resolve(setCursor(nextCursor));`)
@@ -442,6 +451,10 @@ function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter) {
 
 function addOutboxObjectStoreInitialization(writer: CodeBlockWriter, outboxModelName: string) {
   writer.writeLine(`db.createObjectStore('${outboxModelName}', { keyPath: ['id'] });`);
+}
+
+function addVersionMetaInitialization(writer: CodeBlockWriter, versionMetaModelName: string = "VersionMeta") {
+  writer.writeLine(`db.createObjectStore('${versionMetaModelName}', { keyPath: ['model', 'key'] });`);
 }
 
 function addResetDatabaseMethod(writer: CodeBlockWriter) {

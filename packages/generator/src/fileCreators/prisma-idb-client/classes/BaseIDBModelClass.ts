@@ -95,6 +95,8 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxMo
           .writeLine(`retryable: true,`)
           .writeLine(`};`)
           .writeLine(`await outboxStore.add(outboxEvent);`)
+          .blankLine()
+          .writeLine(`await this.client.$versionMeta.markLocalPending(this.modelName, keyPath, { tx: opts.tx });`)
           .writeLine(`}`);
       });
     });

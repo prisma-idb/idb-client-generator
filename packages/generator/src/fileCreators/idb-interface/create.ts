@@ -9,6 +9,7 @@ export function createIDBInterfaceFile(
   prismaClientImport: string,
   outboxSync: boolean = false,
   outboxModelName: string = "OutboxEvent",
+  versionMetaModelName: string = "VersionMeta",
 ) {
   writer.writeLine(`import type { DBSchema } from "idb";`);
   writer.writeLine(`import type * as Prisma from "${prismaClientImport}";`);
@@ -34,6 +35,10 @@ export function createIDBInterfaceFile(
       writer.writeLine(`${outboxModelName}: `).block(() => {
         writer.writeLine(`key: [id: string];`);
         writer.writeLine(`value: OutboxEventRecord;`);
+      });
+      writer.writeLine(`${versionMetaModelName}: `).block(() => {
+        writer.writeLine(`key: [model: string, key: IDBValidKey];`);
+        writer.writeLine(`value: ChangeMetaRecord;`);
       });
     }
   });
@@ -69,6 +74,14 @@ function addOutboxEventTypeDefinition(writer: CodeBlockWriter) {
       .writeLine(`synced: boolean;`)
       .writeLine(`syncedAt: Date | null;`)
       .writeLine(`retryable: boolean;`);
+  });
+
+  writer.writeLine(`export interface ChangeMetaRecord`).block(() => {
+    writer
+      .writeLine(`model: string;`)
+      .writeLine(`key: IDBValidKey;`)
+      .writeLine(`lastAppliedChangeId: bigint | null;`)
+      .writeLine(`localChangePending: boolean;`);
   });
 }
 

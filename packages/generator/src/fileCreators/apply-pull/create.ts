@@ -2,7 +2,7 @@ import CodeBlockWriter from "code-block-writer";
 import { Model } from "../types";
 import { getUniqueIdentifiers } from "../../helpers/utils";
 
-export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
+export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], versionMetaModelName: string) {
   // Write imports
   writer.writeLine(`import type { LogWithRecord } from '../server/batch-processor';`);
   writer.writeLine(`import { validators, keyPathValidators } from '../validators';`);
@@ -13,7 +13,6 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
   writer.writeLine(`type ApplyPullProps = {`);
   writer.writeLine(`	idbClient: PrismaIDBClient;`);
   writer.writeLine(`	logsWithRecords: LogWithRecord<typeof validators>[];`);
-  writer.writeLine(`	originId: string;`);
   writer.writeLine(`};`);
   writer.blankLine();
 
@@ -24,13 +23,9 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
   writer.writeLine(` * All operations are wrapped in a single transaction to reduce conflicts; invalid`);
   writer.writeLine(` * records are skipped and reported in the return summary.`);
   writer.writeLine(` * `);
-  writer.writeLine(` * Logs with the same originId are filtered out to prevent echo of pushed events`);
-  writer.writeLine(` * being reapplied as pulled events.`);
-  writer.writeLine(` * `);
   writer.writeLine(` * @param props - Configuration object`);
   writer.writeLine(` * @param props.idbClient - The PrismaIDB client instance`);
   writer.writeLine(` * @param props.logsWithRecords - Array of change logs with validated records from server`);
-  writer.writeLine(` * @param props.originId - Origin ID to filter out echoed events`);
   writer.writeLine(
     ` * @returns Object with sync statistics including applied records, missing records, and validation errors`,
   );
@@ -38,10 +33,10 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
 
   // Write applyPull function
   writer.writeLine(`export async function applyPull(props: ApplyPullProps) `).block(() => {
-    writer.writeLine(`const { idbClient, logsWithRecords, originId } = props;`);
+    writer.writeLine(`const { idbClient, logsWithRecords } = props;`);
     writer.blankLine();
 
-    writer.writeLine(`let sameOriginRecords = 0;`);
+    writer.writeLine(`let staleRecords = 0;`);
     writer.writeLine(`let missingRecords = 0;`);
     writer.writeLine(`let totalAppliedRecords = 0;`);
     writer.writeLine(`const validationErrors: { model: string; error: unknown }[] = [];`);
@@ -50,7 +45,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
     // Create a single shared transaction for all operations
     writer.writeLine(`// Wrap all operations in a single transaction to prevent AbortError and ensure atomicity`);
     const storeNames = models.map((m) => `'${m.name}'`).join(", ");
-    writer.writeLine(`const tx = idbClient._db.transaction([${storeNames}], 'readwrite');`);
+    writer.writeLine(`const tx = idbClient._db.transaction([${storeNames}, '${versionMetaModelName}'], 'readwrite');`);
     writer.blankLine();
 
     writer.writeLine(`let txAborted = false;`);
@@ -64,17 +59,20 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
 
     writer.writeLine(`try `).block(() => {
       writer.writeLine(`for (const change of logsWithRecords) `).block(() => {
-        writer.writeLine(`// Ignore logs with the same originId to prevent echo of pushed events`);
-        writer.writeLine(`if (change.originId === originId) {`);
-        writer.writeLine(`  sameOriginRecords++;`);
-        writer.writeLine(`  continue;`);
-        writer.writeLine(`}`);
-        writer.blankLine();
-        writer.writeLine(`const { model, operation, record, keyPath } = change;`);
+        writer.writeLine(`const { model, operation, record, keyPath, changelogId } = change;`);
         writer.writeLine(`if (!record && operation !== 'delete')`).block(() => {
           writer.writeLine(`missingRecords++;`);
           writer.writeLine(`continue;`);
         });
+        writer.blankLine();
+
+        // Skip stale records
+        writer.writeLine(`const versionMeta = await idbClient.$versionMeta.get(model, keyPath, tx);`);
+        writer.writeLine(`const lastAppliedChangeId = versionMeta?.lastAppliedChangeId ?? null;`);
+        writer.writeLine(`if (lastAppliedChangeId !== null && lastAppliedChangeId >= changelogId) {`);
+        writer.writeLine(`  staleRecords++;`);
+        writer.writeLine(`  continue;`);
+        writer.writeLine(`}`);
         writer.blankLine();
 
         // Early exit if transaction was aborted
@@ -112,6 +110,8 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
                   `await idbClient.${camelCaseName}.delete({ where: ${keyPathWhereClause} }, { silent: true, addToOutbox: false, tx });`,
                 );
                 writer.writeLine(`totalAppliedRecords++;`);
+                writer.writeLine(`// Mark as pulled with latest changelog ID`);
+                writer.writeLine(`await idbClient.$versionMeta.markPulled(model, keyPath, changelogId, { tx });`);
               });
               writer.writeLine(`else `).block(() => {
                 writer.writeLine(`const validatedRecord = validators.${modelName}.parse(record);`);
@@ -120,12 +120,16 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
                     `await idbClient.${camelCaseName}.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });`,
                   );
                   writer.writeLine(`totalAppliedRecords++;`);
+                  writer.writeLine(`// Mark as pulled with latest changelog ID`);
+                  writer.writeLine(`await idbClient.$versionMeta.markPulled(model, keyPath, changelogId, { tx });`);
                 });
                 writer.writeLine(`else if (operation === 'update') `).block(() => {
                   writer.writeLine(
                     `await idbClient.${camelCaseName}.upsert({ where: ${fullRecordWhereClause}, create: validatedRecord, update: validatedRecord }, { silent: true, addToOutbox: false, tx });`,
                   );
                   writer.writeLine(`totalAppliedRecords++;`);
+                  writer.writeLine(`// Mark as pulled with latest changelog ID`);
+                  writer.writeLine(`await idbClient.$versionMeta.markPulled(model, keyPath, changelogId, { tx });`);
                 });
                 writer.writeLine(`else `).block(() => {
                   writer.writeLine(
@@ -165,7 +169,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[]) {
     writer.write(`return `).block(() => {
       writer.writeLine(`validationErrors,`);
       writer.writeLine(`missingRecords,`);
-      writer.writeLine(`sameOriginRecords,`);
+      writer.writeLine(`staleRecords,`);
       writer.writeLine(`totalAppliedRecords,`);
     });
   });

@@ -85,10 +85,8 @@ model ChangeLog {
   keyPath       Json
   operation     ChangeOperation
   scopeKey      String
-  originId      String
-  outboxEventId String
+  outboxEventId String          @unique
 
-  @@unique([originId, outboxEventId])
   @@index([model, id])
 }
 

@@ -3,7 +3,13 @@ import { openDB } from "idb";
 import type { IDBPDatabase, StoreNames, IDBPTransaction } from "idb";
 import type { Prisma } from "./generated/client";
 import * as IDBUtils from "./idb-utils";
-import type { OutboxEventRecord, PrismaIDBSchema, SyncWorkerOptions, SyncWorker } from "./idb-interface";
+import type {
+  OutboxEventRecord,
+  ChangeMetaRecord,
+  PrismaIDBSchema,
+  SyncWorkerOptions,
+  SyncWorker,
+} from "./idb-interface";
 import type { PushResult } from "../server/batch-processor";
 import { validators, keyPathValidators } from "../validators";
 import type { LogWithRecord } from "../server/batch-processor";
@@ -23,6 +29,7 @@ export class PrismaIDBClient {
   todo!: TodoIDBClass;
   user!: UserIDBClass;
   $outbox!: OutboxEventIDBClass;
+  $versionMeta!: VersionMetaIDBClass;
   public static async createClient(): Promise<PrismaIDBClient> {
     if (!PrismaIDBClient.instance) {
       const client = new PrismaIDBClient();
@@ -57,8 +64,6 @@ export class PrismaIDBClient {
    * @param options.pull.handler Function that fetches remote changes since cursor.
    *   Must return { logsWithRecords, cursor } where cursor enables resumable pagination.
    *   Thrown errors stop pull phase gracefully; will retry next cycle.
-   * @param options.pull.originId Origin ID used to filter out echoed events during pull phase.
-   *   Prevents pushed events from being reapplied as pulled changes.
    * @param options.pull.getCursor Optional handler to retrieve persisted pull cursor.
    *   If not provided, starts from undefined (first page). Use this to resume from checkpoint.
    * @param options.pull.setCursor Optional handler to persist pull cursor after successful page processing.
@@ -103,7 +108,6 @@ export class PrismaIDBClient {
     push: { handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>; batchSize?: number };
     pull: {
       handler: (cursor?: bigint) => Promise<{ cursor?: bigint; logsWithRecords: LogWithRecord<typeof validators>[] }>;
-      originId: string;
       getCursor?: () => Promise<bigint | undefined> | bigint | undefined;
       setCursor?: (cursor: bigint | undefined) => Promise<void> | void;
     };
@@ -111,7 +115,7 @@ export class PrismaIDBClient {
   }): SyncWorker {
     const { push, pull } = options;
     const { handler: pushHandler, batchSize = 10 } = push;
-    const { handler: pullHandler, originId, getCursor, setCursor } = pull;
+    const { handler: pullHandler, getCursor, setCursor } = pull;
     const { intervalMs = 5000, maxRetries = 5 } = options.schedule || {};
 
     let intervalId: ReturnType<typeof setInterval | typeof setTimeout> | null = null;
@@ -155,17 +159,17 @@ export class PrismaIDBClient {
         return;
       }
 
-      const successIds: string[] = [];
+      const appliedLogs: { id: string; lastAppliedChangeId: bigint | null }[] = [];
       for (const result of results) {
         if (result.error) {
           await this.$outbox.markFailed(result.id, result.error);
         } else {
-          successIds.push(result.id);
+          appliedLogs.push({ id: result.id, lastAppliedChangeId: result.appliedChangelogId });
         }
       }
 
-      if (successIds.length > 0) {
-        await this.$outbox.markSynced(successIds, { syncedAt: new Date() });
+      if (appliedLogs.length > 0) {
+        await this.$outbox.markSynced(appliedLogs);
       }
     };
 
@@ -211,7 +215,7 @@ export class PrismaIDBClient {
           const { logsWithRecords, cursor: nextCursor } = res;
           if (logsWithRecords.length === 0) break;
 
-          await applyPull({ idbClient: this, logsWithRecords, originId });
+          await applyPull({ idbClient: this, logsWithRecords });
 
           if (setCursor) {
             await Promise.resolve(setCursor(nextCursor));
@@ -373,12 +377,14 @@ export class PrismaIDBClient {
         const UserStore = db.createObjectStore("User", { keyPath: ["id"] });
         UserStore.createIndex("emailIndex", ["email"], { unique: true });
         db.createObjectStore("OutboxEvent", { keyPath: ["id"] });
+        db.createObjectStore("VersionMeta", { keyPath: ["model", "key"] });
       },
     });
     this.board = new BoardIDBClass(this, ["id"]);
     this.todo = new TodoIDBClass(this, ["id"]);
     this.user = new UserIDBClass(this, ["id"]);
     this.$outbox = new OutboxEventIDBClass(this, ["id"]);
+    this.$versionMeta = new VersionMetaIDBClass(this, ["model", "key"]);
   }
 }
 class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
@@ -450,6 +456,8 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
           retryable: true,
         };
         await outboxStore.add(outboxEvent);
+
+        await this.client.$versionMeta.markLocalPending(this.modelName, keyPath, { tx: opts.tx });
       }
     }
   }
@@ -3206,19 +3214,33 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
     return unsynced.slice(0, limit);
   }
 
-  async markSynced(eventIds: string[], meta?: { syncedAt?: Date }): Promise<void> {
-    const syncedAt = meta?.syncedAt ?? new Date();
-    const tx = this.client._db.transaction("OutboxEvent", "readwrite");
+  async markSynced(appliedLogs: { id: string; lastAppliedChangeId: bigint | null }[]): Promise<void> {
+    const syncedAt = new Date();
+    const tx = this.client._db.transaction(["OutboxEvent", "VersionMeta"], "readwrite");
     const store = tx.objectStore("OutboxEvent");
 
-    for (const id of eventIds) {
-      const event = await store.get([id]);
+    for (const log of appliedLogs) {
+      const event = await store.get([log.id]);
       if (event) {
         await store.put({
           ...event,
           synced: true,
           syncedAt,
         });
+
+        const keyPathValidator = keyPathValidators[event.entityType as keyof typeof keyPathValidators];
+        if (!keyPathValidator) {
+          throw new Error(`Unknown model: ${event.entityType}`);
+        }
+        try {
+          const parsedKey = keyPathValidator.parse(event.payload);
+
+          await this.client.$versionMeta.markPushed(event.entityType, parsedKey, { tx });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`Failed to parse keyPath for model ${event.entityType}: ${errorMessage}`);
+          throw error;
+        }
       }
     }
 
@@ -3275,5 +3297,124 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
 
     await tx.done;
     return deletedCount;
+  }
+}
+class VersionMetaIDBClass extends BaseIDBModelClass<"VersionMeta"> {
+  constructor(client: PrismaIDBClient, keyPath: string[]) {
+    super(client, keyPath, "VersionMeta");
+  }
+
+  async get(model: string, key: IDBValidKey, tx?: IDBUtils.TransactionType): Promise<ChangeMetaRecord | undefined> {
+    tx = tx ?? this.client._db.transaction(["VersionMeta"], "readonly");
+    const store = tx.objectStore("VersionMeta");
+
+    const result = await store.get([model, key]);
+
+    return result as ChangeMetaRecord | undefined;
+  }
+
+  async put(meta: ChangeMetaRecord, options?: { tx?: IDBUtils.ReadwriteTransactionType }): Promise<void> {
+    const { tx: txOption } = options ?? {};
+    const tx = txOption ?? this.client._db.transaction(["VersionMeta"], "readwrite");
+    const store = tx.objectStore("VersionMeta");
+
+    const existingMeta = await store.get([meta.model, meta.key]);
+
+    const record: ChangeMetaRecord = {
+      model: meta.model,
+      key: meta.key,
+      lastAppliedChangeId: meta.lastAppliedChangeId ?? existingMeta?.lastAppliedChangeId ?? null,
+      localChangePending: meta.localChangePending ?? existingMeta?.localChangePending ?? false,
+    };
+
+    await store.put(record);
+    if (!txOption) await tx.done;
+  }
+
+  async markLocalPending(
+    model: string,
+    key: IDBValidKey,
+    options?: { tx?: IDBUtils.ReadwriteTransactionType }
+  ): Promise<void> {
+    const { tx: txOption } = options ?? {};
+    const tx = txOption ?? this.client._db.transaction(["VersionMeta"], "readwrite");
+    const store = tx.objectStore("VersionMeta");
+
+    const existingMeta = await store.get([model, key]);
+
+    const record: ChangeMetaRecord = {
+      model,
+      key,
+      lastAppliedChangeId: existingMeta?.lastAppliedChangeId ?? null,
+      localChangePending: true,
+    };
+
+    await store.put(record);
+    if (!txOption) await tx.done;
+  }
+
+  async markPushed(
+    model: string,
+    key: IDBValidKey,
+    options?: { tx?: IDBUtils.ReadwriteTransactionType }
+  ): Promise<void> {
+    const { tx: txOption } = options ?? {};
+    const tx = txOption ?? this.client._db.transaction(["VersionMeta"], "readwrite");
+    const store = tx.objectStore("VersionMeta");
+
+    const existingMeta = await store.get([model, key]);
+    if (!existingMeta) throw new Error("No existing VersionMeta found for the given model and key");
+
+    const record: ChangeMetaRecord = {
+      model,
+      key,
+      lastAppliedChangeId: existingMeta.lastAppliedChangeId,
+      localChangePending: false,
+    };
+
+    await store.put(record);
+    if (!txOption) await tx.done;
+  }
+
+  async markPulled(
+    model: string,
+    key: IDBValidKey,
+    lastAppliedChangelogId: bigint,
+    options?: { tx?: IDBUtils.ReadwriteTransactionType }
+  ): Promise<void> {
+    const { tx: txOption } = options ?? {};
+    const tx = txOption ?? this.client._db.transaction(["VersionMeta"], "readwrite");
+    const store = tx.objectStore("VersionMeta");
+
+    const record: ChangeMetaRecord = {
+      model,
+      key,
+      lastAppliedChangeId: lastAppliedChangelogId,
+      localChangePending: false,
+    };
+
+    await store.put(record);
+    if (!txOption) await tx.done;
+  }
+
+  async delete(model: string, key: IDBValidKey): Promise<void> {
+    const tx = this.client._db.transaction("VersionMeta", "readwrite");
+    const store = tx.objectStore("VersionMeta");
+
+    await store.delete([model, key]);
+    await tx.done;
+  }
+
+  async clearAll(): Promise<number> {
+    const tx = this.client._db.transaction("VersionMeta", "readwrite");
+    const store = tx.objectStore("VersionMeta");
+
+    const allRecords = await store.getAll();
+    const count = allRecords.length;
+
+    await store.clear();
+    await tx.done;
+
+    return count;
   }
 }

@@ -23,8 +23,15 @@ generatorHandler({
 
   onGenerate: async (options: GeneratorOptions) => {
     const outputPath = options.generator.output?.value as string;
-    const { prismaClientImport, outboxSync, outboxModelName, filteredModels, exportEnums, rootModel } =
-      parseGeneratorConfig(options);
+    const {
+      prismaClientImport,
+      outboxSync,
+      outboxModelName,
+      versionMetaModelName,
+      filteredModels,
+      exportEnums,
+      rootModel,
+    } = parseGeneratorConfig(options);
 
     let scopedPrismaImport = prismaClientImport;
 
@@ -42,7 +49,7 @@ generatorHandler({
       });
 
       await writeCodeFile("client/apply-pull.ts", outputPath, (writer) => {
-        createApplyPullFile(writer, filteredModels);
+        createApplyPullFile(writer, filteredModels, versionMetaModelName);
       });
 
       await writePrismaSchemaFile("client/scoped-schema.prisma", outputPath, (writer) => {
@@ -65,11 +72,25 @@ generatorHandler({
     }
 
     await writeCodeFile("client/prisma-idb-client.ts", outputPath, (writer) => {
-      createPrismaIDBClientFile(writer, filteredModels, scopedPrismaImport, outboxSync, outboxModelName);
+      createPrismaIDBClientFile(
+        writer,
+        filteredModels,
+        scopedPrismaImport,
+        outboxSync,
+        outboxModelName,
+        versionMetaModelName,
+      );
     });
 
     await writeCodeFile("client/idb-interface.ts", outputPath, (writer) => {
-      createIDBInterfaceFile(writer, filteredModels, scopedPrismaImport, outboxSync, outboxModelName);
+      createIDBInterfaceFile(
+        writer,
+        filteredModels,
+        scopedPrismaImport,
+        outboxSync,
+        outboxModelName,
+        versionMetaModelName,
+      );
     });
 
     await writeCodeFile("client/idb-utils.ts", outputPath, (writer) => {

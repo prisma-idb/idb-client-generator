@@ -14,19 +14,13 @@ export class TodosState {
 
   constructor() {
     if (browser) {
-      let clientId = localStorage.getItem("clientId");
-      if (!clientId) {
-        clientId = crypto.randomUUID();
-        localStorage.setItem("clientId", clientId);
-      }
-
       this.syncWorker = getClient().createSyncWorker({
         push: {
           handler: async (events) => {
             const pushResult = await fetch("/api/sync/push", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ events, clientId }),
+              body: JSON.stringify({ events }),
             });
             if (!pushResult.ok) {
               throw new Error(`Push failed with status ${pushResult.status}`);
@@ -57,7 +51,6 @@ export class TodosState {
           },
           getCursor: () => this.getCursor(),
           setCursor: (cursor) => this.setCursor(cursor),
-          originId: clientId,
         },
         schedule: {
           intervalMs: 10000,

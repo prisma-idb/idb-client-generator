@@ -22,6 +22,10 @@ export interface PrismaIDBSchema extends DBSchema {
     key: [id: string];
     value: OutboxEventRecord;
   };
+  VersionMeta: {
+    key: [model: string, key: IDBValidKey];
+    value: ChangeMetaRecord;
+  };
 }
 export interface OutboxEventRecord {
   id: string;
@@ -34,6 +38,12 @@ export interface OutboxEventRecord {
   synced: boolean;
   syncedAt: Date | null;
   retryable: boolean;
+}
+export interface ChangeMetaRecord {
+  model: string;
+  key: IDBValidKey;
+  lastAppliedChangeId: bigint | null;
+  localChangePending: boolean;
 }
 export interface SyncWorkerOptions {
   syncHandler: (events: OutboxEventRecord[]) => Promise<PushResult[]>;
