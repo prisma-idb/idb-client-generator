@@ -9,10 +9,11 @@
     }
   },
   "npm": {
-    "skipChecks": true,
-    "ignoreVersion": true
+    "publish": true,
+    "skipChecks": true
   },
   "git": {
-    "commitMessage": "chore: release v${version}"
+    "commitMessage": "chore: release v${version}",
+    "tagName": "v${version}"
   }
 }
