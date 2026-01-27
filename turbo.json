@@ -32,10 +32,6 @@
       "dependsOn": ["@prisma-idb/idb-client-generator#build"],
       "env": ["DATABASE_URL"]
     },
-    "release": {
-      "cache": false,
-      "dependsOn": ["build", "test", "lint"]
-    },
     "preview": {
       "cache": false,
       "persistent": true,

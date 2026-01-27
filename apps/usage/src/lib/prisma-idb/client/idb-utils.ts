@@ -66,7 +66,9 @@ export async function applyLogicalFilters<
   }
   if (whereClause.NOT) {
     const excludedRecords = removeDuplicatesByKeyPath(
-      await Promise.all(convertToArray(whereClause.NOT).map(async (clause) => applyWhereFunction(records, clause, tx))),
+      await Promise.all(
+        convertToArray(whereClause.NOT).map(async (clause) => await applyWhereFunction(records, clause, tx))
+      ),
       keyPath
     );
     records = records.filter(
