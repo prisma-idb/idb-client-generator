@@ -88,12 +88,14 @@ function addMarkSyncedMethod(writer: CodeBlockWriter, outboxModelName: string) {
         .writeLine(`syncedAt,`)
         .writeLine(`});`)
         .blankLine()
-        .writeLine(`const keyPathValidator = keyPathValidators[event.entityType as keyof typeof keyPathValidators];`)
-        .writeLine(`if (!keyPathValidator) {`)
+        .writeLine(`if (!(event.entityType in modelRecordToKeyPath)) {`)
         .writeLine(`throw new Error(\`Unknown model: \${event.entityType}\`);`)
         .writeLine(`}`)
+        .blankLine()
         .writeLine(`try {`)
-        .writeLine(`const parsedKey = keyPathValidator.parse(event.payload);`)
+        .writeLine(
+          `const parsedKey = modelRecordToKeyPath[event.entityType as keyof typeof modelRecordToKeyPath](event.payload);`,
+        )
         .blankLine()
         .writeLine(`await this.client.$versionMeta.markPushed(event.entityType, parsedKey, { tx });`)
         .writeLine(`} catch (error) {`)

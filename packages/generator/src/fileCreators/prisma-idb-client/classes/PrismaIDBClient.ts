@@ -155,7 +155,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
     .writeLine(` *     },`)
     .writeLine(` *     getCursor: async () => {`)
     .writeLine(` *       const value = localStorage.getItem('syncCursor');`)
-    .writeLine(` *       return value ? BigInt(value) : undefined;`)
+    .writeLine(` *       return value ?? undefined;`)
     .writeLine(` *     },`)
     .writeLine(` *     setCursor: async (cursor) => {`)
     .writeLine(` *       if (cursor !== undefined) {`)
@@ -172,7 +172,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
     .writeLine(` * worker.stop();    // gracefully stops`)
     .writeLine(` */`)
     .writeLine(
-      `createSyncWorker(options: { push: { handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>; batchSize?: number }; pull: { handler: (cursor?: bigint) => Promise<{ cursor?: bigint; logsWithRecords: LogWithRecord<typeof validators>[] }>; getCursor?: () => Promise<bigint | undefined> | bigint | undefined; setCursor?: (cursor: bigint | undefined) => Promise<void> | void }; schedule?: { intervalMs?: number; maxRetries?: number } }): SyncWorker`,
+      `createSyncWorker(options: { push: { handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>; batchSize?: number }; pull: { handler: (cursor?: string) => Promise<{ cursor?: string; logsWithRecords: LogWithRecord<typeof validators>[] }>; getCursor?: () => Promise<string | undefined> | string | undefined; setCursor?: (cursor: string | undefined) => Promise<void> | void }; schedule?: { intervalMs?: number; maxRetries?: number } }): SyncWorker`,
     )
     .block(() => {
       writer
@@ -287,7 +287,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
         .writeLine(`      }`)
         .blankLine()
         .writeLine(`      cursor = nextCursor;`)
-        .writeLine(`      if (typeof cursor !== 'bigint') break;`)
+        .writeLine(`      if (typeof cursor !== 'string') break;`)
         .writeLine(`    }`)
         .writeLine(`  } catch (err) {`)
         .writeLine(`    const errorMessage = err instanceof Error ? err.message : String(err);`)

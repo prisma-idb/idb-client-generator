@@ -71,7 +71,10 @@ export async function applyPull(props: ApplyPullProps) {
           } else {
             const validatedRecord = validators.Board.parse(record);
             if (operation === "create") {
-              await idbClient.board.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
+              await idbClient.board.upsert(
+                { create: validatedRecord, update: validatedRecord, where: { id: validatedRecord.id } },
+                { silent: true, addToOutbox: false, tx }
+              );
               totalAppliedRecords++;
               // Mark as pulled with latest changelog ID
               await idbClient.$versionMeta.markPulled(model, keyPath, changelogId, { tx });
@@ -100,7 +103,10 @@ export async function applyPull(props: ApplyPullProps) {
           } else {
             const validatedRecord = validators.Todo.parse(record);
             if (operation === "create") {
-              await idbClient.todo.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
+              await idbClient.todo.upsert(
+                { create: validatedRecord, update: validatedRecord, where: { id: validatedRecord.id } },
+                { silent: true, addToOutbox: false, tx }
+              );
               totalAppliedRecords++;
               // Mark as pulled with latest changelog ID
               await idbClient.$versionMeta.markPulled(model, keyPath, changelogId, { tx });
@@ -129,7 +135,10 @@ export async function applyPull(props: ApplyPullProps) {
           } else {
             const validatedRecord = validators.User.parse(record);
             if (operation === "create") {
-              await idbClient.user.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });
+              await idbClient.user.upsert(
+                { create: validatedRecord, update: validatedRecord, where: { id: validatedRecord.id } },
+                { silent: true, addToOutbox: false, tx }
+              );
               totalAppliedRecords++;
               // Mark as pulled with latest changelog ID
               await idbClient.$versionMeta.markPulled(model, keyPath, changelogId, { tx });

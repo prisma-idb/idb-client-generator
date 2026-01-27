@@ -41,11 +41,6 @@ export class TodosState {
             }
             const pullData = await pullResult.json();
 
-            // Convert string cursor back to BigInt (explicit null/undefined check to allow 0)
-            if (pullData.cursor != null) {
-              pullData.cursor = BigInt(pullData.cursor);
-            }
-
             this.loadBoards();
             return pullData;
           },
@@ -67,19 +62,13 @@ export class TodosState {
   getCursor() {
     if (!browser) throw new Error("Not in browser environment");
     const lastSyncedAt = localStorage.getItem("lastSyncedAt");
-    if (!lastSyncedAt) return undefined;
-    try {
-      return BigInt(lastSyncedAt);
-    } catch {
-      localStorage.removeItem("lastSyncedAt");
-      return undefined;
-    }
+    return lastSyncedAt ?? undefined;
   }
 
-  setCursor(cursor: bigint | undefined) {
+  setCursor(cursor: string | undefined) {
     if (!browser) throw new Error("Not in browser environment");
     if (cursor !== undefined) {
-      localStorage.setItem("lastSyncedAt", cursor.toString());
+      localStorage.setItem("lastSyncedAt", cursor);
     } else {
       localStorage.removeItem("lastSyncedAt");
     }

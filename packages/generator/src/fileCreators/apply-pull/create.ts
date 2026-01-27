@@ -117,7 +117,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], ve
                 writer.writeLine(`const validatedRecord = validators.${modelName}.parse(record);`);
                 writer.writeLine(`if (operation === 'create') `).block(() => {
                   writer.writeLine(
-                    `await idbClient.${camelCaseName}.create({ data: validatedRecord }, { silent: true, addToOutbox: false, tx });`,
+                    `await idbClient.${camelCaseName}.upsert({ create: validatedRecord, update: validatedRecord, where: ${fullRecordWhereClause} }, { silent: true, addToOutbox: false, tx });`,
                   );
                   writer.writeLine(`totalAppliedRecords++;`);
                   writer.writeLine(`// Mark as pulled with latest changelog ID`);

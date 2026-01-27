@@ -11,7 +11,7 @@ import type {
   SyncWorker,
 } from "./idb-interface";
 import type { PushResult } from "../server/batch-processor";
-import { validators, keyPathValidators } from "../validators";
+import { validators, keyPathValidators, modelRecordToKeyPath } from "../validators";
 import type { LogWithRecord } from "../server/batch-processor";
 import { applyPull } from "./apply-pull";
 import { v4 as uuidv4 } from "uuid";
@@ -88,7 +88,7 @@ export class PrismaIDBClient {
    *     },
    *     getCursor: async () => {
    *       const value = localStorage.getItem('syncCursor');
-   *       return value ? BigInt(value) : undefined;
+   *       return value ?? undefined;
    *     },
    *     setCursor: async (cursor) => {
    *       if (cursor !== undefined) {
@@ -107,9 +107,9 @@ export class PrismaIDBClient {
   createSyncWorker(options: {
     push: { handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>; batchSize?: number };
     pull: {
-      handler: (cursor?: bigint) => Promise<{ cursor?: bigint; logsWithRecords: LogWithRecord<typeof validators>[] }>;
-      getCursor?: () => Promise<bigint | undefined> | bigint | undefined;
-      setCursor?: (cursor: bigint | undefined) => Promise<void> | void;
+      handler: (cursor?: string) => Promise<{ cursor?: string; logsWithRecords: LogWithRecord<typeof validators>[] }>;
+      getCursor?: () => Promise<string | undefined> | string | undefined;
+      setCursor?: (cursor: string | undefined) => Promise<void> | void;
     };
     schedule?: { intervalMs?: number; maxRetries?: number };
   }): SyncWorker {
@@ -222,7 +222,7 @@ export class PrismaIDBClient {
           }
 
           cursor = nextCursor;
-          if (typeof cursor !== "bigint") break;
+          if (typeof cursor !== "string") break;
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
@@ -3243,12 +3243,12 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
           syncedAt,
         });
 
-        const keyPathValidator = keyPathValidators[event.entityType as keyof typeof keyPathValidators];
-        if (!keyPathValidator) {
+        if (!(event.entityType in modelRecordToKeyPath)) {
           throw new Error(`Unknown model: ${event.entityType}`);
         }
+
         try {
-          const parsedKey = keyPathValidator.parse(event.payload);
+          const parsedKey = modelRecordToKeyPath[event.entityType as keyof typeof modelRecordToKeyPath](event.payload);
 
           await this.client.$versionMeta.markPushed(event.entityType, parsedKey, { tx });
         } catch (error) {

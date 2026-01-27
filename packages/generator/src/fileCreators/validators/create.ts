@@ -57,4 +57,21 @@ export function createValidatorsFile(
     writer.writeLine(`  ${modelName}: z.tuple([${keyPathTuple}]),`);
   });
   writer.writeLine(`} as const;`);
+  writer.blankLine();
+
+  // Write modelRecordToKeyPath functions
+  writer.writeLine(`export const modelRecordToKeyPath = {`);
+  modelNames.forEach((modelName) => {
+    const model = models.find((m) => m.name === modelName)!;
+    const pk = getUniqueIdentifiers(model)[0];
+    const pkFields = JSON.parse(pk.keyPath) as string[];
+
+    writer.write(`  ${modelName}: (record: unknown) => `).block(() => {
+      writer.writeLine(`const validated = validators.${modelName}.parse(record);`);
+      writer.writeLine(`const keyPathArray = [${pkFields.map((field) => `validated.${field}`).join(", ")}] as const;`);
+      writer.writeLine(`return keyPathValidators.${modelName}.parse(keyPathArray);`);
+    });
+    writer.writeLine(`,`);
+  });
+  writer.writeLine(`} as const;`);
 }

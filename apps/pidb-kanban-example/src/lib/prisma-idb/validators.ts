@@ -44,3 +44,21 @@ export const keyPathValidators = {
   Todo: z.tuple([z.string()]),
   User: z.tuple([z.string()]),
 } as const;
+
+export const modelRecordToKeyPath = {
+  Board: (record: unknown) => {
+    const validated = validators.Board.parse(record);
+    const keyPathArray = [validated.id] as const;
+    return keyPathValidators.Board.parse(keyPathArray);
+  },
+  Todo: (record: unknown) => {
+    const validated = validators.Todo.parse(record);
+    const keyPathArray = [validated.id] as const;
+    return keyPathValidators.Todo.parse(keyPathArray);
+  },
+  User: (record: unknown) => {
+    const validated = validators.User.parse(record);
+    const keyPathArray = [validated.id] as const;
+    return keyPathValidators.User.parse(keyPathArray);
+  },
+} as const;
