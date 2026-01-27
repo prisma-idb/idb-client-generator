@@ -292,6 +292,13 @@ async function syncBoard(
   switch (operation) {
     case "create": {
       const result = await prisma.$transaction(async (tx) => {
+        const existingLog = await tx.changeLog.findUnique({
+          where: { outboxEventId: event.id },
+        });
+        if (existingLog) {
+          return { id, error: null, appliedChangelogId: existingLog.id };
+        }
+
         const parentRecord = await tx.user.findUnique({
           where: { id: data.userId },
           select: { id: true },
@@ -304,33 +311,30 @@ async function syncBoard(
           );
         }
 
-        let appliedChangelogId: string;
-        const existingLog = await tx.changeLog.findUnique({
-          where: { outboxEventId: event.id },
+        const newLog = await tx.changeLog.create({
+          data: {
+            model: "Board",
+            keyPath: validKeyPath,
+            operation: "create",
+            scopeKey,
+            outboxEventId: event.id,
+          },
         });
-
-        if (existingLog) {
-          appliedChangelogId = existingLog.id;
-        } else {
-          const newLog = await tx.changeLog.create({
-            data: {
-              model: "Board",
-              keyPath: validKeyPath,
-              operation: "create",
-              scopeKey,
-              outboxEventId: event.id,
-            },
-          });
-          appliedChangelogId = newLog.id;
-        }
         await tx.board.create({ data });
-        return { id, error: null, appliedChangelogId };
+        return { id, error: null, appliedChangelogId: newLog.id };
       });
       return result;
     }
 
     case "update": {
       const result = await prisma.$transaction(async (tx) => {
+        const existingLog = await tx.changeLog.findUnique({
+          where: { outboxEventId: event.id },
+        });
+        if (existingLog) {
+          return { id, error: null, appliedChangelogId: existingLog.id };
+        }
+
         const record = await tx.board.findUnique({
           where: { id: validKeyPath[0] },
           select: { user: { select: { id: true } } },
@@ -354,72 +358,61 @@ async function syncBoard(
           }
         }
 
-        let appliedChangelogId: string;
-        const existingLog = await tx.changeLog.findUnique({
-          where: { outboxEventId: event.id },
+        const newLog = await tx.changeLog.create({
+          data: {
+            model: "Board",
+            keyPath: validKeyPath,
+            operation: "update",
+            scopeKey,
+            outboxEventId: event.id,
+          },
         });
-
-        if (existingLog) {
-          appliedChangelogId = existingLog.id;
-        } else {
-          const newLog = await tx.changeLog.create({
-            data: {
-              model: "Board",
-              keyPath: validKeyPath,
-              operation: "update",
-              scopeKey,
-              outboxEventId: event.id,
-            },
-          });
-          appliedChangelogId = newLog.id;
-        }
         await tx.board.upsert({
           where: { id: validKeyPath[0] },
           create: data,
           update: data,
         });
-        return { id, error: null, appliedChangelogId };
+        return { id, error: null, appliedChangelogId: newLog.id };
       });
       return result;
     }
 
     case "delete": {
       const result = await prisma.$transaction(async (tx) => {
+        const existingLog = await tx.changeLog.findUnique({
+          where: { outboxEventId: event.id },
+        });
+        if (existingLog) {
+          return { id, error: null, appliedChangelogId: existingLog.id };
+        }
+
         const record = await tx.board.findUnique({
           where: { id: validKeyPath[0] },
           select: { user: { select: { id: true } } },
         });
 
-        if (!record || record.user.id !== scopeKey) {
-          throw new PermanentSyncError(
-            "SCOPE_VIOLATION",
-            `Unauthorized: Board is not owned by the authenticated scope`
-          );
+        if (record) {
+          if (record.user.id !== scopeKey) {
+            throw new PermanentSyncError(
+              "SCOPE_VIOLATION",
+              `Unauthorized: Board is not owned by the authenticated scope`
+            );
+          }
         }
 
-        let appliedChangelogId: string;
-        const existingLog = await tx.changeLog.findUnique({
-          where: { outboxEventId: event.id },
+        const newLog = await tx.changeLog.create({
+          data: {
+            model: "Board",
+            keyPath: validKeyPath,
+            operation: "delete",
+            scopeKey,
+            outboxEventId: event.id,
+          },
         });
-
-        if (existingLog) {
-          appliedChangelogId = existingLog.id;
-        } else {
-          const newLog = await tx.changeLog.create({
-            data: {
-              model: "Board",
-              keyPath: validKeyPath,
-              operation: "delete",
-              scopeKey,
-              outboxEventId: event.id,
-            },
-          });
-          appliedChangelogId = newLog.id;
-        }
         await tx.board.deleteMany({
           where: { id: validKeyPath[0] },
         });
-        return { id, error: null, appliedChangelogId };
+        return { id, error: null, appliedChangelogId: newLog.id };
       });
       return result;
     }
@@ -447,6 +440,13 @@ async function syncTodo(
   switch (operation) {
     case "create": {
       const result = await prisma.$transaction(async (tx) => {
+        const existingLog = await tx.changeLog.findUnique({
+          where: { outboxEventId: event.id },
+        });
+        if (existingLog) {
+          return { id, error: null, appliedChangelogId: existingLog.id };
+        }
+
         const parentRecord = await tx.board.findUnique({
           where: { id: data.boardId },
           select: { user: { select: { id: true } } },
@@ -459,33 +459,30 @@ async function syncTodo(
           );
         }
 
-        let appliedChangelogId: string;
-        const existingLog = await tx.changeLog.findUnique({
-          where: { outboxEventId: event.id },
+        const newLog = await tx.changeLog.create({
+          data: {
+            model: "Todo",
+            keyPath: validKeyPath,
+            operation: "create",
+            scopeKey,
+            outboxEventId: event.id,
+          },
         });
-
-        if (existingLog) {
-          appliedChangelogId = existingLog.id;
-        } else {
-          const newLog = await tx.changeLog.create({
-            data: {
-              model: "Todo",
-              keyPath: validKeyPath,
-              operation: "create",
-              scopeKey,
-              outboxEventId: event.id,
-            },
-          });
-          appliedChangelogId = newLog.id;
-        }
         await tx.todo.create({ data });
-        return { id, error: null, appliedChangelogId };
+        return { id, error: null, appliedChangelogId: newLog.id };
       });
       return result;
     }
 
     case "update": {
       const result = await prisma.$transaction(async (tx) => {
+        const existingLog = await tx.changeLog.findUnique({
+          where: { outboxEventId: event.id },
+        });
+        if (existingLog) {
+          return { id, error: null, appliedChangelogId: existingLog.id };
+        }
+
         const record = await tx.todo.findUnique({
           where: { id: validKeyPath[0] },
           select: { board: { select: { user: { select: { id: true } } } } },
@@ -519,69 +516,61 @@ async function syncTodo(
           }
         }
 
-        let appliedChangelogId: string;
-        const existingLog = await tx.changeLog.findUnique({
-          where: { outboxEventId: event.id },
+        const newLog = await tx.changeLog.create({
+          data: {
+            model: "Todo",
+            keyPath: validKeyPath,
+            operation: "update",
+            scopeKey,
+            outboxEventId: event.id,
+          },
         });
-
-        if (existingLog) {
-          appliedChangelogId = existingLog.id;
-        } else {
-          const newLog = await tx.changeLog.create({
-            data: {
-              model: "Todo",
-              keyPath: validKeyPath,
-              operation: "update",
-              scopeKey,
-              outboxEventId: event.id,
-            },
-          });
-          appliedChangelogId = newLog.id;
-        }
         await tx.todo.upsert({
           where: { id: validKeyPath[0] },
           create: data,
           update: data,
         });
-        return { id, error: null, appliedChangelogId };
+        return { id, error: null, appliedChangelogId: newLog.id };
       });
       return result;
     }
 
     case "delete": {
       const result = await prisma.$transaction(async (tx) => {
+        const existingLog = await tx.changeLog.findUnique({
+          where: { outboxEventId: event.id },
+        });
+        if (existingLog) {
+          return { id, error: null, appliedChangelogId: existingLog.id };
+        }
+
         const record = await tx.todo.findUnique({
           where: { id: validKeyPath[0] },
           select: { board: { select: { user: { select: { id: true } } } } },
         });
 
-        if (!record || record.board.user.id !== scopeKey) {
-          throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: Todo is not owned by the authenticated scope`);
+        if (record) {
+          if (record.board.user.id !== scopeKey) {
+            throw new PermanentSyncError(
+              "SCOPE_VIOLATION",
+              `Unauthorized: Todo is not owned by the authenticated scope`
+            );
+          }
         }
 
-        let appliedChangelogId: string;
-        const existingLog = await tx.changeLog.findUnique({
-          where: { outboxEventId: event.id },
+        const newLog = await tx.changeLog.create({
+          data: {
+            model: "Todo",
+            keyPath: validKeyPath,
+            operation: "delete",
+            scopeKey,
+            outboxEventId: event.id,
+          },
         });
-
-        if (existingLog) {
-          appliedChangelogId = existingLog.id;
-        } else {
-          const newLog = await tx.changeLog.create({
-            data: {
-              model: "Todo",
-              keyPath: validKeyPath,
-              operation: "delete",
-              scopeKey,
-              outboxEventId: event.id,
-            },
-          });
-          appliedChangelogId = newLog.id;
-        }
         await tx.todo.deleteMany({
           where: { id: validKeyPath[0] },
         });
-        return { id, error: null, appliedChangelogId };
+        return { id, error: null, appliedChangelogId: newLog.id };
       });
       return result;
     }
@@ -609,100 +598,91 @@ async function syncUser(
   switch (operation) {
     case "create": {
       const result = await prisma.$transaction(async (tx) => {
+        const existingLog = await tx.changeLog.findUnique({
+          where: { outboxEventId: event.id },
+        });
+        if (existingLog) {
+          return { id, error: null, appliedChangelogId: existingLog.id };
+        }
+
         if (scopeKey !== data.id) {
           throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: root model pk must match authenticated scope`);
         }
 
-        let appliedChangelogId: string;
-        const existingLog = await tx.changeLog.findUnique({
-          where: { outboxEventId: event.id },
+        const newLog = await tx.changeLog.create({
+          data: {
+            model: "User",
+            keyPath: validKeyPath,
+            operation: "create",
+            scopeKey,
+            outboxEventId: event.id,
+          },
         });
-
-        if (existingLog) {
-          appliedChangelogId = existingLog.id;
-        } else {
-          const newLog = await tx.changeLog.create({
-            data: {
-              model: "User",
-              keyPath: validKeyPath,
-              operation: "create",
-              scopeKey,
-              outboxEventId: event.id,
-            },
-          });
-          appliedChangelogId = newLog.id;
-        }
         await tx.user.create({ data });
-        return { id, error: null, appliedChangelogId };
+        return { id, error: null, appliedChangelogId: newLog.id };
       });
       return result;
     }
 
     case "update": {
       const result = await prisma.$transaction(async (tx) => {
+        const existingLog = await tx.changeLog.findUnique({
+          where: { outboxEventId: event.id },
+        });
+        if (existingLog) {
+          return { id, error: null, appliedChangelogId: existingLog.id };
+        }
+
         // For root model, ownership is determined by pk matching scopeKey
         if (validKeyPath[0] !== scopeKey) {
           throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: User pk does not match authenticated scope`);
         }
 
-        let appliedChangelogId: string;
-        const existingLog = await tx.changeLog.findUnique({
-          where: { outboxEventId: event.id },
+        const newLog = await tx.changeLog.create({
+          data: {
+            model: "User",
+            keyPath: validKeyPath,
+            operation: "update",
+            scopeKey,
+            outboxEventId: event.id,
+          },
         });
-
-        if (existingLog) {
-          appliedChangelogId = existingLog.id;
-        } else {
-          const newLog = await tx.changeLog.create({
-            data: {
-              model: "User",
-              keyPath: validKeyPath,
-              operation: "update",
-              scopeKey,
-              outboxEventId: event.id,
-            },
-          });
-          appliedChangelogId = newLog.id;
-        }
         await tx.user.upsert({
           where: { id: validKeyPath[0] },
           create: data,
           update: data,
         });
-        return { id, error: null, appliedChangelogId };
+        return { id, error: null, appliedChangelogId: newLog.id };
       });
       return result;
     }
 
     case "delete": {
       const result = await prisma.$transaction(async (tx) => {
+        const existingLog = await tx.changeLog.findUnique({
+          where: { outboxEventId: event.id },
+        });
+        if (existingLog) {
+          return { id, error: null, appliedChangelogId: existingLog.id };
+        }
+
         if (validKeyPath[0] !== scopeKey) {
           throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: User pk does not match authenticated scope`);
         }
 
-        let appliedChangelogId: string;
-        const existingLog = await tx.changeLog.findUnique({
-          where: { outboxEventId: event.id },
+        const newLog = await tx.changeLog.create({
+          data: {
+            model: "User",
+            keyPath: validKeyPath,
+            operation: "delete",
+            scopeKey,
+            outboxEventId: event.id,
+          },
         });
-
-        if (existingLog) {
-          appliedChangelogId = existingLog.id;
-        } else {
-          const newLog = await tx.changeLog.create({
-            data: {
-              model: "User",
-              keyPath: validKeyPath,
-              operation: "delete",
-              scopeKey,
-              outboxEventId: event.id,
-            },
-          });
-          appliedChangelogId = newLog.id;
-        }
         await tx.user.deleteMany({
           where: { id: validKeyPath[0] },
         });
-        return { id, error: null, appliedChangelogId };
+        return { id, error: null, appliedChangelogId: newLog.id };
       });
       return result;
     }

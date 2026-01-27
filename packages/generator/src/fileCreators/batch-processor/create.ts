@@ -358,6 +358,15 @@ function generateModelSyncHandler(
     writer.writeLine(`  case "create": {`);
     writer.writeLine(`    const result = await prisma.$transaction(async (tx) => {`);
 
+    // Idempotency check first
+    writer.writeLine(`      const existingLog = await tx.changeLog.findUnique({`);
+    writer.writeLine(`        where: { outboxEventId: event.id },`);
+    writer.writeLine(`      });`);
+    writer.writeLine(`      if (existingLog) {`);
+    writer.writeLine(`        return { id, error: null, appliedChangelogId: existingLog.id };`);
+    writer.writeLine(`      }`);
+    writer.blankLine();
+
     // Move parent ownership check INSIDE the transaction
     if (!isRootModel && authPath.length > 0) {
       // For CREATE, we verify the parent model exists and is owned by scope
@@ -443,27 +452,17 @@ function generateModelSyncHandler(
       writer.blankLine();
     }
 
-    writer.writeLine(`      let appliedChangelogId: string;`);
-    writer.writeLine(`      const existingLog = await tx.changeLog.findUnique({`);
-    writer.writeLine(`        where: { outboxEventId: event.id },`);
+    writer.writeLine(`      const newLog = await tx.changeLog.create({`);
+    writer.writeLine(`        data: {`);
+    writer.writeLine(`          model: "${model.name}",`);
+    writer.writeLine(`          keyPath: validKeyPath,`);
+    writer.writeLine(`          operation: "create",`);
+    writer.writeLine(`          scopeKey,`);
+    writer.writeLine(`          outboxEventId: event.id,`);
+    writer.writeLine(`        },`);
     writer.writeLine(`      });`);
-    writer.blankLine();
-    writer.writeLine(`      if (existingLog) {`);
-    writer.writeLine(`        appliedChangelogId = existingLog.id;`);
-    writer.writeLine(`      } else {`);
-    writer.writeLine(`        const newLog = await tx.changeLog.create({`);
-    writer.writeLine(`          data: {`);
-    writer.writeLine(`            model: "${model.name}",`);
-    writer.writeLine(`            keyPath: validKeyPath,`);
-    writer.writeLine(`            operation: "create",`);
-    writer.writeLine(`            scopeKey,`);
-    writer.writeLine(`            outboxEventId: event.id,`);
-    writer.writeLine(`          },`);
-    writer.writeLine(`        });`);
-    writer.writeLine(`        appliedChangelogId = newLog.id;`);
-    writer.writeLine(`      }`);
     writer.writeLine(`      await tx.${modelNameLower}.create({ data });`);
-    writer.writeLine(`      return { id, error: null, appliedChangelogId };`);
+    writer.writeLine(`      return { id, error: null, appliedChangelogId: newLog.id };`);
     writer.writeLine(`    });`);
     writer.writeLine(`    return result;`);
     writer.writeLine(`  }`);
@@ -472,6 +471,15 @@ function generateModelSyncHandler(
     // UPDATE
     writer.writeLine(`  case "update": {`);
     writer.writeLine(`    const result = await prisma.$transaction(async (tx) => {`);
+
+    // Idempotency check first
+    writer.writeLine(`      const existingLog = await tx.changeLog.findUnique({`);
+    writer.writeLine(`        where: { outboxEventId: event.id },`);
+    writer.writeLine(`      });`);
+    writer.writeLine(`      if (existingLog) {`);
+    writer.writeLine(`        return { id, error: null, appliedChangelogId: existingLog.id };`);
+    writer.writeLine(`      }`);
+    writer.blankLine();
 
     // UPDATE: Check if record exists to determine normal update vs resurrection
     if (isRootModel) {
@@ -613,32 +621,22 @@ function generateModelSyncHandler(
     }
     writer.blankLine();
 
-    writer.writeLine(`      let appliedChangelogId: string;`);
-    writer.writeLine(`      const existingLog = await tx.changeLog.findUnique({`);
-    writer.writeLine(`        where: { outboxEventId: event.id },`);
+    writer.writeLine(`      const newLog = await tx.changeLog.create({`);
+    writer.writeLine(`        data: {`);
+    writer.writeLine(`          model: "${model.name}",`);
+    writer.writeLine(`          keyPath: validKeyPath,`);
+    writer.writeLine(`          operation: "update",`);
+    writer.writeLine(`          scopeKey,`);
+    writer.writeLine(`          outboxEventId: event.id,`);
+    writer.writeLine(`        },`);
     writer.writeLine(`      });`);
-    writer.blankLine();
-    writer.writeLine(`      if (existingLog) {`);
-    writer.writeLine(`        appliedChangelogId = existingLog.id;`);
-    writer.writeLine(`      } else {`);
-    writer.writeLine(`        const newLog = await tx.changeLog.create({`);
-    writer.writeLine(`          data: {`);
-    writer.writeLine(`            model: "${model.name}",`);
-    writer.writeLine(`            keyPath: validKeyPath,`);
-    writer.writeLine(`            operation: "update",`);
-    writer.writeLine(`            scopeKey,`);
-    writer.writeLine(`            outboxEventId: event.id,`);
-    writer.writeLine(`          },`);
-    writer.writeLine(`        });`);
-    writer.writeLine(`        appliedChangelogId = newLog.id;`);
-    writer.writeLine(`      }`);
     writer.writeLine(`      await tx.${modelNameLower}.upsert({`);
     writer.writeLine(`        where: ${generateWhereClause(pk.name, pkFields)},`);
     writer.writeLine(`        create: data,`);
     writer.writeLine(`        update: data,`);
     writer.writeLine(`      });`);
 
-    writer.writeLine(`      return { id, error: null, appliedChangelogId };`);
+    writer.writeLine(`      return { id, error: null, appliedChangelogId: newLog.id };`);
     writer.writeLine(`    });`);
     writer.writeLine(`    return result;`);
     writer.writeLine(`  }`);
@@ -647,6 +645,15 @@ function generateModelSyncHandler(
     // DELETE
     writer.writeLine(`  case "delete": {`);
     writer.writeLine(`    const result = await prisma.$transaction(async (tx) => {`);
+
+    // Idempotency check first
+    writer.writeLine(`      const existingLog = await tx.changeLog.findUnique({`);
+    writer.writeLine(`        where: { outboxEventId: event.id },`);
+    writer.writeLine(`      });`);
+    writer.writeLine(`      if (existingLog) {`);
+    writer.writeLine(`        return { id, error: null, appliedChangelogId: existingLog.id };`);
+    writer.writeLine(`      }`);
+    writer.blankLine();
 
     // Fix #5: Move verifyOwnership inside transaction
     if (isRootModel) {
@@ -670,39 +677,32 @@ function generateModelSyncHandler(
         writer.writeLine(`      });`);
       }
       writer.blankLine();
+      // Only check scope if record exists (for non-root models)
+      writer.writeLine(`      if (record) {`);
       const accessChain = buildAccessChain(authPath);
       const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
-      writer.writeLine(`      if (!record || record${accessChain}.${rootPkFieldName} !== scopeKey) {`);
+      writer.writeLine(`        if (record${accessChain}.${rootPkFieldName} !== scopeKey) {`);
       writer.writeLine(
-        `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} is not owned by the authenticated scope\`);`,
+        `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} is not owned by the authenticated scope\`);`,
       );
+      writer.writeLine(`        }`);
       writer.writeLine(`      }`);
     }
     writer.blankLine();
 
-    writer.writeLine(`      let appliedChangelogId: string;`);
-    writer.writeLine(`      const existingLog = await tx.changeLog.findUnique({`);
-    writer.writeLine(`        where: { outboxEventId: event.id },`);
+    writer.writeLine(`      const newLog = await tx.changeLog.create({`);
+    writer.writeLine(`        data: {`);
+    writer.writeLine(`          model: "${model.name}",`);
+    writer.writeLine(`          keyPath: validKeyPath,`);
+    writer.writeLine(`          operation: "delete",`);
+    writer.writeLine(`          scopeKey,`);
+    writer.writeLine(`          outboxEventId: event.id,`);
+    writer.writeLine(`        },`);
     writer.writeLine(`      });`);
-    writer.blankLine();
-    writer.writeLine(`      if (existingLog) {`);
-    writer.writeLine(`        appliedChangelogId = existingLog.id;`);
-    writer.writeLine(`      } else {`);
-    writer.writeLine(`        const newLog = await tx.changeLog.create({`);
-    writer.writeLine(`          data: {`);
-    writer.writeLine(`            model: "${model.name}",`);
-    writer.writeLine(`            keyPath: validKeyPath,`);
-    writer.writeLine(`            operation: "delete",`);
-    writer.writeLine(`            scopeKey,`);
-    writer.writeLine(`            outboxEventId: event.id,`);
-    writer.writeLine(`          },`);
-    writer.writeLine(`        });`);
-    writer.writeLine(`        appliedChangelogId = newLog.id;`);
-    writer.writeLine(`      }`);
     writer.writeLine(`      await tx.${modelNameLower}.deleteMany({`);
     writer.writeLine(`        where: ${generateWhereClause(pk.name, pkFields)},`);
     writer.writeLine(`      });`);
-    writer.writeLine(`      return { id, error: null, appliedChangelogId };`);
+    writer.writeLine(`      return { id, error: null, appliedChangelogId: newLog.id };`);
     writer.writeLine(`    });`);
     writer.writeLine(`    return result;`);
     writer.writeLine(`  }`);
