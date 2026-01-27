@@ -5,4 +5,5 @@ export default defineConfig({
   testDir: "test",
   use: { baseURL: "http://localhost:4173" },
   reporter: "html",
+  fullyParallel: true,
 });

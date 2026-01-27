@@ -1,25 +1,13 @@
-import { test as base, type Cookie, expect, Page } from "@playwright/test";
+import { test as base, expect, Page } from "@playwright/test";
 import { prisma } from "./prisma";
-
-function getCookie(sessionToken: string): Cookie {
-  return {
-    name: "__Secure-better-auth.session_token",
-    value: sessionToken,
-    domain: "localhost",
-    path: "/",
-    secure: true,
-    sameSite: "Lax",
-    expires: Math.floor(Date.now() / 1000) + 3600,
-    httpOnly: true,
-  };
-}
 
 export const test = base.extend<{ pages: [Page, Page] }>({
   pages: [
     async ({ page, context, browser }, use) => {
       await page.goto("/login");
       await page.getByText("Sign in anonymously").click();
-      await expect(page.getByTestId("user-email")).toContainText("temp");
+      await page.waitForURL("/dashboard");
+      await expect(page.getByTestId("user-email")).toContainText("temp", { timeout: 10000 });
 
       const userEmail = await page.getByTestId("user-email").innerText();
       const cookies = await context.cookies();
@@ -30,19 +18,20 @@ export const test = base.extend<{ pages: [Page, Page] }>({
       }
 
       const deviceA = await browser.newContext();
-      await deviceA.addCookies([getCookie(sessionCookie.value)]);
+      await deviceA.addCookies([sessionCookie]);
 
       const pageA = await deviceA.newPage();
       await pageA.goto("/dashboard");
 
       const deviceB = await browser.newContext();
-      await deviceB.addCookies([getCookie(sessionCookie.value)]);
+      await deviceB.addCookies([sessionCookie]);
 
       const pageB = await deviceB.newPage();
       await pageB.goto("/dashboard");
 
       await use([pageA, pageB]);
 
+      await Promise.all([deviceA.close(), deviceB.close()]);
       await prisma.user.delete({ where: { email: userEmail } });
     },
     { scope: "test" },
