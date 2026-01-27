@@ -69,11 +69,11 @@ jobs:
           node-version: lts/*
       - name: Set DATABASE_URL environment variable
         run: echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5434/postgres" >> $GITHUB_ENV
-      - name: Generate BETTER_AUTH_SECRET
-        run: echo "BETTER_AUTH_SECRET=$(openssl rand -base64 32 | tr '/+=' '_-')" >> $GITHUB_ENV
       - uses: ./.github/actions/
       - name: Install Playwright Browsers
         run: pnpm exec playwright install --with-deps
+      - name: Generate BETTER_AUTH_SECRET
+        run: echo "BETTER_AUTH_SECRET=$(openssl rand -base64 32 | tr '/+=' '_-')" >> $GITHUB_ENV
       - name: Run Sync Playwright tests
         run: pnpm test:sync
         env:
