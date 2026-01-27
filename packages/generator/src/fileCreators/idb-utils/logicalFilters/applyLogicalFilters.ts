@@ -43,7 +43,7 @@ function handleNotParameter(writer: CodeBlockWriter) {
     writer
       .writeLine(`const excludedRecords = removeDuplicatesByKeyPath(`)
       .writeLine(
-        `await Promise.all(convertToArray(whereClause.NOT).map(async (clause) => applyWhereFunction(records, clause, tx))), keyPath`
+        `await Promise.all(convertToArray(whereClause.NOT).map(async (clause) => await applyWhereFunction(records, clause, tx))), keyPath`
       )
       .writeLine(`);`);
 
