@@ -6,7 +6,9 @@ export function addGetNeededStoresForUpdate(
   writer: CodeBlockWriter,
   model: Model,
   models: readonly Model[],
+  outboxSync: boolean,
   outboxModelName: string = "OutboxEvent",
+  versionMetaModelName: string = "VersionMeta",
 ) {
   writer
     .writeLine(`_getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.${model.name}Delegate, "update">>(`)
@@ -19,10 +21,13 @@ export function addGetNeededStoresForUpdate(
       addNestedQueryStores(writer, model);
       addNestedDeleteStores(writer, model);
       addUpdateCascadingStores(writer, model, models);
-      writer
-        .writeLine(`if (this.client.shouldTrackModel(this.modelName)) {`)
-        .writeLine(`neededStores.add("${outboxModelName}" as StoreNames<PrismaIDBSchema>);`)
-        .writeLine(`}`);
+      if (outboxSync) {
+        writer
+          .writeLine(`if (this.client.shouldTrackModel(this.modelName)) {`)
+          .writeLine(`neededStores.add("${outboxModelName}");`)
+          .writeLine(`neededStores.add("${versionMetaModelName}");`)
+          .writeLine(`}`);
+      }
       writer.writeLine(`return neededStores;`);
     });
 }

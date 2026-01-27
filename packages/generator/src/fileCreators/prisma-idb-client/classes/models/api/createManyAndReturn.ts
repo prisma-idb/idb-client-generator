@@ -2,7 +2,7 @@ import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
 import { getOptionsParameterWrite, getOptionsSetupWrite } from "../helpers/methodOptions";
 
-export function addCreateManyAndReturn(writer: CodeBlockWriter, model: Model) {
+export function addCreateManyAndReturn(writer: CodeBlockWriter, model: Model, outboxSync: boolean) {
   writer
     .writeLine(`async createManyAndReturn<Q extends Prisma.Args<Prisma.${model.name}Delegate, "createManyAndReturn">>(`)
     .writeLine(`query: Q,`)
@@ -13,10 +13,15 @@ export function addCreateManyAndReturn(writer: CodeBlockWriter, model: Model) {
       writer
         .writeLine(`const createManyData = IDBUtils.convertToArray(query.data);`)
         .writeLine(`const records: Prisma.Result<Prisma.${model.name}Delegate, object, "findMany"> = [];`)
-        .writeLine(`const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["${model.name}"]);`)
-        .writeLine(`if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {`)
-        .writeLine(`storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);`)
-        .writeLine(`}`)
+        .writeLine(`const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["${model.name}"]);`);
+      if (outboxSync) {
+        writer
+          .writeLine(`if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {`)
+          .writeLine(`storesNeeded.add("OutboxEvent");`)
+          .writeLine(`storesNeeded.add("VersionMeta");`)
+          .writeLine(`}`);
+      }
+      writer
         .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");`)
         .writeLine(`for (const createData of createManyData)`)
         .block(() => {

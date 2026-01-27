@@ -5,7 +5,9 @@ import { toCamelCase } from "../../../../../helpers/utils";
 export function addGetNeededStoresForCreate(
   writer: CodeBlockWriter,
   model: Model,
+  outboxSync: boolean,
   outboxModelName: string = "OutboxEvent",
+  versionMetaModelName: string = "VersionMeta",
 ) {
   writer
     .writeLine(
@@ -18,10 +20,13 @@ export function addGetNeededStoresForCreate(
         .writeLine(`const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();`)
         .writeLine(`neededStores.add("${model.name}");`);
       processRelationsInData(writer, model);
-      writer
-        .writeLine(`if (this.client.shouldTrackModel(this.modelName)) {`)
-        .writeLine(`neededStores.add("${outboxModelName}" as StoreNames<PrismaIDBSchema>);`)
-        .writeLine(`}`);
+      if (outboxSync) {
+        writer
+          .writeLine(`if (this.client.shouldTrackModel(this.modelName)) {`)
+          .writeLine(`neededStores.add("${outboxModelName}");`)
+          .writeLine(`neededStores.add("${versionMetaModelName}");`)
+          .writeLine(`}`);
+      }
       writer.writeLine("return neededStores;");
     });
 }

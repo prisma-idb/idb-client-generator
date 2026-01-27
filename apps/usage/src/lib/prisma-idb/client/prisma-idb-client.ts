@@ -1036,9 +1036,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         );
       }
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.UserDelegate, "update">>(
@@ -1379,9 +1376,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       neededStores.add("Child");
       neededStores.add("Todo");
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
@@ -1394,9 +1388,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     this.client.mother._getNeededStoresForNestedDelete(neededStores);
     this.client.userGroup._getNeededStoresForNestedDelete(neededStores);
     this.client.todo._getNeededStoresForNestedDelete(neededStores);
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
   }
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.UserDelegate, "create">["data"]>(
     data: D
@@ -1961,9 +1952,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["User"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -1985,9 +1973,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     const createManyData = IDBUtils.convertToArray(query.data);
     const records: Prisma.Result<Prisma.UserDelegate, object, "findMany"> = [];
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["User"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -3341,9 +3326,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
         );
       }
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.GroupDelegate, "update">>(
@@ -3396,17 +3378,11 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     if (query.data?.id !== undefined) {
       neededStores.add("UserGroup");
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("Group");
     this.client.userGroup._getNeededStoresForNestedDelete(neededStores);
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
   }
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.GroupDelegate, "create">["data"]>(
     data: D
@@ -3627,9 +3603,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["Group"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -3651,9 +3624,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     const createManyData = IDBUtils.convertToArray(query.data);
     const records: Prisma.Result<Prisma.GroupDelegate, object, "findMany"> = [];
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["Group"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -4293,9 +4263,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     if (data?.userId !== undefined) {
       neededStores.add("User");
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.UserGroupDelegate, "update">>(
@@ -4352,16 +4319,10 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
         this.client.user._getNeededStoresForUpdate(update).forEach((store) => neededStores.add(store));
       });
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("UserGroup");
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
   }
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.UserGroupDelegate, "create">["data"]>(
     data: D
@@ -4598,9 +4559,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["UserGroup"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -4622,9 +4580,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     const createManyData = IDBUtils.convertToArray(query.data);
     const records: Prisma.Result<Prisma.UserGroupDelegate, object, "findMany"> = [];
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["UserGroup"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -5182,9 +5137,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     if (data?.userId !== undefined) {
       neededStores.add("User");
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.ProfileDelegate, "update">>(
@@ -5217,16 +5169,10 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
         this.client.user._getNeededStoresForUpdate(update).forEach((store) => neededStores.add(store));
       });
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("Profile");
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
   }
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.ProfileDelegate, "create">["data"]>(
     data: D
@@ -5429,9 +5375,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["Profile"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -5453,9 +5396,6 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     const createManyData = IDBUtils.convertToArray(query.data);
     const records: Prisma.Result<Prisma.ProfileDelegate, object, "findMany"> = [];
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["Profile"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -6078,9 +6018,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
         );
       }
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.PostDelegate, "update">>(
@@ -6168,17 +6105,11 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     if (query.data?.id !== undefined) {
       neededStores.add("Comment");
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("Post");
     this.client.comment._getNeededStoresForNestedDelete(neededStores);
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
   }
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.PostDelegate, "create">["data"]>(
     data: D
@@ -6438,9 +6369,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["Post"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -6462,9 +6390,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     const createManyData = IDBUtils.convertToArray(query.data);
     const records: Prisma.Result<Prisma.PostDelegate, object, "findMany"> = [];
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["Post"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -7168,9 +7093,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     if (data?.userId !== undefined) {
       neededStores.add("User");
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.CommentDelegate, "update">>(
@@ -7227,16 +7149,10 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
         this.client.user._getNeededStoresForUpdate(update).forEach((store) => neededStores.add(store));
       });
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("Comment");
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
   }
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.CommentDelegate, "create">["data"]>(
     data: D
@@ -7471,9 +7387,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["Comment"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -7495,9 +7408,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     const createManyData = IDBUtils.convertToArray(query.data);
     const records: Prisma.Result<Prisma.CommentDelegate, object, "findMany"> = [];
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["Comment"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -8089,9 +7999,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("AllFieldScalarTypes");
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "update">>(
@@ -8100,16 +8007,10 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     const neededStores = this._getNeededStoresForFind(query).union(
       this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">["data"])
     );
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("AllFieldScalarTypes");
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
   }
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "create">["data"]>(
     data: D
@@ -8290,9 +8191,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["AllFieldScalarTypes"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -8314,9 +8212,6 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     const createManyData = IDBUtils.convertToArray(query.data);
     const records: Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findMany"> = [];
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["AllFieldScalarTypes"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -9018,9 +8913,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     if (data?.userId !== undefined) {
       neededStores.add("User");
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.FatherDelegate, "update">>(
@@ -9132,17 +9024,11 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     if (query.data?.firstName !== undefined || query.data?.lastName !== undefined) {
       neededStores.add("Child");
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("Father");
     this.client.child._getNeededStoresForNestedDelete(neededStores);
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
   }
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.FatherDelegate, "create">["data"]>(
     data: D
@@ -9448,9 +9334,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["Father"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -9472,9 +9355,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     const createManyData = IDBUtils.convertToArray(query.data);
     const records: Prisma.Result<Prisma.FatherDelegate, object, "findMany"> = [];
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["Father"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -10411,9 +10291,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     if (data?.userId !== undefined) {
       neededStores.add("User");
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.MotherDelegate, "update">>(
@@ -10537,18 +10414,12 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
       neededStores.add("Father");
       neededStores.add("Child");
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("Mother");
     this.client.child._getNeededStoresForNestedDelete(neededStores);
     this.client.father._getNeededStoresForNestedDelete(neededStores);
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
   }
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.MotherDelegate, "create">["data"]>(
     data: D
@@ -10841,9 +10712,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["Mother"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -10865,9 +10733,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     const createManyData = IDBUtils.convertToArray(query.data);
     const records: Prisma.Result<Prisma.MotherDelegate, object, "findMany"> = [];
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["Mother"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -11834,9 +11699,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     if (data?.motherFirstName !== undefined) {
       neededStores.add("Mother");
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.ChildDelegate, "update">>(
@@ -11928,16 +11790,10 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     if (query.data?.user?.delete) {
       this.client.user._getNeededStoresForNestedDelete(neededStores);
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("Child");
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
   }
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.ChildDelegate, "create">["data"]>(
     data: D
@@ -12219,9 +12075,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["Child"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -12243,9 +12096,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     const createManyData = IDBUtils.convertToArray(query.data);
     const records: Prisma.Result<Prisma.ChildDelegate, object, "findMany"> = [];
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["Child"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -12863,9 +12713,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("ModelWithEnum");
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "update">>(
@@ -12874,16 +12721,10 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     const neededStores = this._getNeededStoresForFind(query).union(
       this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.ModelWithEnumDelegate, "create">["data"])
     );
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("ModelWithEnum");
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
   }
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.ModelWithEnumDelegate, "create">["data"]>(
     data: D
@@ -13054,9 +12895,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["ModelWithEnum"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -13078,9 +12916,6 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     const createManyData = IDBUtils.convertToArray(query.data);
     const records: Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findMany"> = [];
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["ModelWithEnum"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -13428,9 +13263,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
     neededStores.add("TestUuid");
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.TestUuidDelegate, "update">>(
@@ -13439,16 +13271,10 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     const neededStores = this._getNeededStoresForFind(query).union(
       this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.TestUuidDelegate, "create">["data"])
     );
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("TestUuid");
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
   }
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.TestUuidDelegate, "create">["data"]>(
     data: D
@@ -13615,9 +13441,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["TestUuid"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -13639,9 +13462,6 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     const createManyData = IDBUtils.convertToArray(query.data);
     const records: Prisma.Result<Prisma.TestUuidDelegate, object, "findMany"> = [];
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["TestUuid"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -14094,9 +13914,6 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     if (data?.linkId !== undefined) {
       neededStores.add("ModelWithUniqueAttributes");
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForUpdate<
@@ -14144,16 +13961,10 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     if (query.data?.link?.delete) {
       this.client.modelWithUniqueAttributes._getNeededStoresForNestedDelete(neededStores);
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
   }
   private _removeNestedCreateData<
     D extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "create">["data"],
@@ -14389,9 +14200,6 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["ModelWithOptionalRelationToUniqueAttributes"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -14415,9 +14223,6 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     const createManyData = IDBUtils.convertToArray(query.data);
     const records: Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findMany"> = [];
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["ModelWithOptionalRelationToUniqueAttributes"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -14997,9 +14802,6 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
         );
       }
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "update">>(
@@ -15060,17 +14862,11 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     if (query.data?.id !== undefined) {
       neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("ModelWithUniqueAttributes");
     this.client.modelWithOptionalRelationToUniqueAttributes._getNeededStoresForNestedDelete(neededStores);
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
   }
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "create">["data"]>(
     data: D
@@ -15300,9 +15096,6 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["ModelWithUniqueAttributes"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -15324,9 +15117,6 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     const createManyData = IDBUtils.convertToArray(query.data);
     const records: Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findMany"> = [];
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["ModelWithUniqueAttributes"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -15917,9 +15707,6 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     if (data?.userId !== undefined) {
       neededStores.add("User");
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.TodoDelegate, "update">>(
@@ -15952,16 +15739,10 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
         this.client.user._getNeededStoresForUpdate(update).forEach((store) => neededStores.add(store));
       });
     }
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     return neededStores;
   }
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
     neededStores.add("Todo");
-    if (this.client.shouldTrackModel(this.modelName)) {
-      neededStores.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
   }
   private _removeNestedCreateData<D extends Prisma.Args<Prisma.TodoDelegate, "create">["data"]>(
     data: D
@@ -16162,9 +15943,6 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["Todo"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
@@ -16186,9 +15964,6 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     const createManyData = IDBUtils.convertToArray(query.data);
     const records: Prisma.Result<Prisma.TodoDelegate, object, "findMany"> = [];
     const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["Todo"]);
-    if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      storesNeeded.add("OutboxEvent" as StoreNames<PrismaIDBSchema>);
-    }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));

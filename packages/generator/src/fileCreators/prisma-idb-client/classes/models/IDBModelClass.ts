@@ -34,6 +34,7 @@ export function addIDBModelClass(
   writer: CodeBlockWriter,
   model: Model,
   models: readonly Model[],
+  outboxSync: boolean,
   outboxModelName: string = "OutboxEvent",
 ) {
   writer.writeLine(`class ${model.name}IDBClass extends BaseIDBModelClass<"${model.name}">`).block(() => {
@@ -47,9 +48,9 @@ export function addIDBModelClass(
     addFillDefaultsFunction(writer, model);
     addGetNeededStoresForWhere(writer, model);
     addGetNeededStoresForFind(writer, model);
-    addGetNeededStoresForCreate(writer, model, outboxModelName);
-    addGetNeededStoresForUpdate(writer, model, models, outboxModelName);
-    addGetNeededStoresForNestedDelete(writer, model, models, outboxModelName);
+    addGetNeededStoresForCreate(writer, model, outboxSync, outboxModelName);
+    addGetNeededStoresForUpdate(writer, model, models, outboxSync, outboxModelName);
+    addGetNeededStoresForNestedDelete(writer, model, models, outboxSync, outboxModelName);
     addRemoveNestedCreateDataMethod(writer, model);
     addPreprocessListFields(writer, model);
 
@@ -61,8 +62,8 @@ export function addIDBModelClass(
     addCountMethod(writer, model);
 
     addCreateMethod(writer, model, models);
-    addCreateManyMethod(writer, model);
-    addCreateManyAndReturn(writer, model);
+    addCreateManyMethod(writer, model, outboxSync);
+    addCreateManyAndReturn(writer, model, outboxSync);
 
     addDeleteMethod(writer, model, models);
     addDeleteManyMethod(writer, model);
