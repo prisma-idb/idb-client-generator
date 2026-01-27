@@ -10,12 +10,13 @@
   },
   "npm": {
     "publish": false,
-    "ignoreVersion": true
+    "ignoreVersion": true,
+    "skipChecks": true
   },
   "git": {
     "commit": false,
     "tag": true,
     "tagName": "${version}",
-    "push": false
+    "push": true
   }
 }
