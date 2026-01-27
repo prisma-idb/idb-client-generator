@@ -8,5 +8,5 @@ build
 .env*
 
 /test-results/
-/playwright-report/
+**/playwright-report/**
 /playwright/.cache/

@@ -46,9 +46,9 @@
     <Dialog.Header>
       <Dialog.Title>
         {#if mode === "edit"}
-          Update todo <span class="italic">{todo?.title}</span>&nbsp;?
+          Update todo
         {:else}
-          Create new todo for board <span class="italic">{board?.name}</span>
+          Create new todo
         {/if}
       </Dialog.Title>
     </Dialog.Header>

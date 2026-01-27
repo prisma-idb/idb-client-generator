@@ -47,7 +47,7 @@
           <Button
             size="icon-sm"
             variant="ghost"
-            data-testid={`edit-todo-${todo.id}`}
+            data-testid={`edit-todo-${todo.title}`}
             onclick={() => todosState.openEditTodo(todo.id, board.id)}
           >
             <PencilIcon />

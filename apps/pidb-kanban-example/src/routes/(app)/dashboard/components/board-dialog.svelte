@@ -34,9 +34,7 @@
 >
   <Dialog.Content>
     <Dialog.Header>
-      <Dialog.Title>
-        Rename board <span class="italic">{board?.name}</span>&nbsp;?
-      </Dialog.Title>
+      <Dialog.Title>Rename board</Dialog.Title>
     </Dialog.Header>
     <form class="contents" onsubmit={submitHandler}>
       <Label class="flex flex-col items-start gap-2">
