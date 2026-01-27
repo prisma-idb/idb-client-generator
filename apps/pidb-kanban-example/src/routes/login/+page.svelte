@@ -65,9 +65,11 @@
           class="w-full"
           onclick={() => signinWithGoogle.mutate()}
           disabled={signinWithGoogle.isPending || $auth.isPending}
+          aria-busy={signinWithGoogle.isPending}
         >
           {#if signinWithGoogle.isPending}
             <Spinner />
+            <span class="sr-only">Sign in with Google</span>
           {:else}
             <GoogleIcon />
             Sign in with Google
@@ -78,9 +80,11 @@
           variant="secondary"
           onclick={() => signinAsAnonymous.mutate()}
           disabled={signinAsAnonymous.isPending || $auth.isPending}
+          aria-busy={signinAsAnonymous.isPending}
         >
           {#if signinAsAnonymous.isPending}
             <Spinner />
+            <span class="sr-only">Sign in anonymously</span>
           {:else}
             <UserIcon />
             Sign in anonymously

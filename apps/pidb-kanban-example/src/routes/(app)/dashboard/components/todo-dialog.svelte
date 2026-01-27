@@ -28,10 +28,13 @@
     event.preventDefault();
     if (!board) return;
 
-    if (mode === "create") todosState.addTodoToBoard(board.id, newTitle, newDescription);
-    else if (mode === "edit") {
+    if (mode === "create") {
+      await todosState.addTodoToBoard(board.id, newTitle, newDescription);
+      toast.success("Todo created");
+    } else if (mode === "edit") {
       if (!todo) return;
-      todosState.updateTodo(todo.id, { title: newTitle, description: newDescription });
+      await todosState.updateTodo(todo.id, { title: newTitle, description: newDescription });
+      toast.success("Todo updated");
     }
   }
 </script>
