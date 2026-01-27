@@ -9,7 +9,7 @@ export function addScalarListUpdateHandler(writer: CodeBlockWriter, models: read
 
   writer
     .writeLine(
-      `export function handleScalarListUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, listUpdate: undefined | unknown[] | { set?: unknown[]; push?: unknown | unknown[] }): void`,
+      `export function handleScalarListUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, listUpdate: undefined | unknown[] | { set?: unknown[]; push?: unknown | unknown[] }): void`
     )
     .block(() => {
       writer

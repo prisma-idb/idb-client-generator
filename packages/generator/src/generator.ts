@@ -59,12 +59,12 @@ generatorHandler({
       const result = spawnSync(
         "prisma",
         ["generate", "--schema", path.join(outputPath, "client/scoped-schema.prisma")],
-        { stdio: ["inherit"] },
+        { stdio: ["inherit"] }
       );
 
       if (result.status !== 0) {
         throw new Error(
-          `@prisma-idb/idb-client-generator: Failed to generate scoped Prisma Client.\n${result.stderr.toString()}`,
+          `@prisma-idb/idb-client-generator: Failed to generate scoped Prisma Client.\n${result.stderr.toString()}`
         );
       }
 
@@ -78,7 +78,7 @@ generatorHandler({
         scopedPrismaImport,
         outboxSync,
         outboxModelName,
-        versionMetaModelName,
+        versionMetaModelName
       );
     });
 
@@ -89,7 +89,7 @@ generatorHandler({
         scopedPrismaImport,
         outboxSync,
         outboxModelName,
-        versionMetaModelName,
+        versionMetaModelName
       );
     });
 

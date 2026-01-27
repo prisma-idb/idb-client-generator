@@ -31,12 +31,12 @@ function deleteRecords(writer: CodeBlockWriter, model: Model) {
   writer.writeLine(`for (const record of records)`).block(() => {
     if (keyPath.length === 1) {
       writer.writeLine(
-        `await this.delete({ where: { ${pk.name}: record.${keyPath[0]} } }, { tx, silent, addToOutbox });`,
+        `await this.delete({ where: { ${pk.name}: record.${keyPath[0]} } }, { tx, silent, addToOutbox });`
       );
     } else {
       const compositeKey = keyPath.map((field) => `${field}: record.${field}`).join(", ");
       writer.writeLine(
-        `await this.delete({ where: { ${pk.name}: { ${compositeKey} } } }, { tx, silent, addToOutbox });`,
+        `await this.delete({ where: { ${pk.name}: { ${compositeKey} } } }, { tx, silent, addToOutbox });`
       );
     }
   });

@@ -4,7 +4,7 @@ import type CodeBlockWriter from "code-block-writer";
 export function addNumberListFilter(writer: CodeBlockWriter, models: readonly Model[]) {
   const allFields = models.flatMap(({ fields }) => fields);
   const numberListFields = allFields.filter(
-    (field) => (field.type === "Int" || field.type === "Float") && field.isList,
+    (field) => (field.type === "Int" || field.type === "Float") && field.isList
   );
   if (numberListFields.length === 0) return;
 
@@ -18,7 +18,7 @@ export function addNumberListFilter(writer: CodeBlockWriter, models: readonly Mo
 
   writer
     .writeLine(
-      `export function whereNumberListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: ${listFilterType}): boolean`,
+      `export function whereNumberListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: ${listFilterType}): boolean`
     )
     .block(() => {
       writer

@@ -45,10 +45,7 @@
     "url": "git+https://github.com/prisma-idb/idb-client-generator.git"
   },
   "author": "Yash Kolekar (https://whyash5114.com/)",
-  "keywords": [
-    "prisma",
-    "generator"
-  ],
+  "keywords": ["prisma", "generator"],
   "bugs": {
     "url": "https://github.com/prisma-idb/idb-client-generator/issues"
   }

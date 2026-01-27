@@ -7,7 +7,7 @@ import type { DMMF } from "@prisma/generator-helper";
 export function createValidatorsFile(
   writer: CodeBlockWriter,
   models: readonly Model[],
-  enums: readonly DMMF.DatamodelEnum[],
+  enums: readonly DMMF.DatamodelEnum[]
 ) {
   const modelNames = models.map((m) => m.name);
 

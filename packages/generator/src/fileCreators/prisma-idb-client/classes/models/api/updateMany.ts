@@ -22,12 +22,12 @@ export function addUpdateMany(writer: CodeBlockWriter, model: Model) {
         .block(() => {
           if (keyPath.length === 1) {
             writer.writeLine(
-              `await this.update({ where: { ${pk.name}: record.${keyPath[0]} }, data: query.data }, { tx, silent, addToOutbox });`,
+              `await this.update({ where: { ${pk.name}: record.${keyPath[0]} }, data: query.data }, { tx, silent, addToOutbox });`
             );
           } else {
             const compositeKey = keyPath.map((field) => `${field}: record.${field}`).join(", ");
             writer.writeLine(
-              `await this.update({ where: { ${pk.name}: { ${compositeKey} } }, data: query.data }, { tx, silent, addToOutbox });`,
+              `await this.update({ where: { ${pk.name}: { ${compositeKey} } }, data: query.data }, { tx, silent, addToOutbox });`
             );
           }
         })

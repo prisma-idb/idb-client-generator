@@ -12,7 +12,7 @@ export function addFindFirstOrThrow(writer: CodeBlockWriter, model: Model) {
       writer
         .writeLine(getOptionsSetupRead())
         .writeLine(
-          `tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`,
+          `tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`
         )
         .writeLine(`const record = await this.findFirst(query, { tx });`)
         .writeLine(`if (!record)`)

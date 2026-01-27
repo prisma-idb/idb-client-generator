@@ -3,7 +3,7 @@ import CodeBlockWriter from "code-block-writer";
 export function addBaseModelClass(
   writer: CodeBlockWriter,
   outboxSync: boolean = false,
-  outboxModelName: string = "OutboxEvent",
+  outboxModelName: string = "OutboxEvent"
 ) {
   writer.writeLine(`class BaseIDBModelClass<T extends keyof PrismaIDBSchema>`).block(() => {
     writer
@@ -28,7 +28,7 @@ export function addBaseModelClass(
 function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxModelName: string = "OutboxEvent") {
   writer
     .writeLine(
-      `subscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: (e: CustomEventInit<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>) => void)`,
+      `subscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: (e: CustomEventInit<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>) => void)`
     )
     .block(() => {
       writer
@@ -44,7 +44,7 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxMo
 
   writer
     .writeLine(
-      `unsubscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: (e: CustomEventInit<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>) => void)`,
+      `unsubscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: (e: CustomEventInit<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>) => void)`
     )
     .block(() => {
       writer.writeLine(`if (Array.isArray(event))`).block(() => {
@@ -56,7 +56,7 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxMo
 
   writer
     .writeLine(
-      `protected async emit(event: "create" | "update" | "delete", keyPath: PrismaIDBSchema[T]["key"], oldKeyPath?: PrismaIDBSchema[T]["key"], record?: unknown, opts?: { silent?: boolean; addToOutbox?: boolean; tx?: IDBUtils.ReadwriteTransactionType })`,
+      `protected async emit(event: "create" | "update" | "delete", keyPath: PrismaIDBSchema[T]["key"], oldKeyPath?: PrismaIDBSchema[T]["key"], record?: unknown, opts?: { silent?: boolean; addToOutbox?: boolean; tx?: IDBUtils.ReadwriteTransactionType })`
     )
     .block(() => {
       writer.writeLine(`const shouldEmit = !opts?.silent;`).blankLine();
@@ -66,7 +66,7 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxMo
           .writeLine(`if (event === "update")`)
           .block(() => {
             writer.writeLine(
-              `this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath, oldKeyPath } }));`,
+              `this.eventEmitter.dispatchEvent(new CustomEvent(event, { detail: { keyPath, oldKeyPath } }));`
             );
           })
           .writeLine(`else`)

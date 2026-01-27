@@ -64,7 +64,7 @@ function addOneToManyResolution(writer: CodeBlockWriter, model: Model, models: r
 
     writer.writeLine(`if (orderByInput.${field.name})`).block(() => {
       writer.writeLine(
-        `return await this.client.${toCamelCase(field.type)}.count({ where: { ${fkMapping} } }, { tx });`,
+        `return await this.client.${toCamelCase(field.type)}.count({ where: { ${fkMapping} } }, { tx });`
       );
     });
   }

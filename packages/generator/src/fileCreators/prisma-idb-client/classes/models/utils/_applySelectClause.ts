@@ -16,7 +16,7 @@ export function addApplySelectClause(writer: CodeBlockWriter, model: Model) {
 function addEarlyExit(writer: CodeBlockWriter, model: Model) {
   writer.writeLine("if (!selectClause)").block(() => {
     writer.writeLine(
-      `return records as Prisma.Result<Prisma.${model.name}Delegate, { select: S }, 'findFirstOrThrow'>[];`,
+      `return records as Prisma.Result<Prisma.${model.name}Delegate, { select: S }, 'findFirstOrThrow'>[];`
     );
   });
 }

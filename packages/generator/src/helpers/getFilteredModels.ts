@@ -11,7 +11,7 @@ export function getProjectedFilteredModels(filteredModels: readonly Model[]) {
 
 function getFilteredFields(model: Model, filteredModels: readonly Model[]) {
   const removedExcludedModelsRelationships = model.fields.filter(
-    (field) => !isFieldRelationToUnsyncableModel(field, filteredModels),
+    (field) => !isFieldRelationToUnsyncableModel(field, filteredModels)
   );
 
   return removedExcludedModelsRelationships;
@@ -19,7 +19,7 @@ function getFilteredFields(model: Model, filteredModels: readonly Model[]) {
 
 function isFieldRelationToUnsyncableModel(
   field: { kind: string; type: string },
-  filteredModels: readonly Model[],
+  filteredModels: readonly Model[]
 ): boolean {
   return field.kind === "object" && !filteredModels.some((m) => m.name === field.type);
 }

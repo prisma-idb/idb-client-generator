@@ -7,11 +7,11 @@ export function addGetNeededStoresForCreate(
   model: Model,
   outboxSync: boolean,
   outboxModelName: string = "OutboxEvent",
-  versionMetaModelName: string = "VersionMeta",
+  versionMetaModelName: string = "VersionMeta"
 ) {
   writer
     .writeLine(
-      `_getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]>>(`,
+      `_getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]>>(`
     )
     .writeLine(`data: D,`)
     .writeLine(`): Set<StoreNames<PrismaIDBSchema>>`)
@@ -39,7 +39,7 @@ function processRelationsInData(writer: CodeBlockWriter, model: Model) {
       writer.writeLine(`if (data.${field.name}.create)`).block(() => {
         writer
           .writeLine(
-            `const createData = Array.isArray(data.${field.name}.create) ? data.${field.name}.create : [data.${field.name}.create];`,
+            `const createData = Array.isArray(data.${field.name}.create) ? data.${field.name}.create : [data.${field.name}.create];`
           )
           .writeLine(`createData.forEach((record) => `)
           .write(`this.client.${toCamelCase(field.type)}._getNeededStoresForCreate(record)`)

@@ -21,13 +21,13 @@ export function addBooleanUpdateHandler(writer: CodeBlockWriter, models: readonl
 
   writer
     .writeLine(
-      `export function handleBooleanUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, booleanUpdate: ${updateOperationType}): void`,
+      `export function handleBooleanUpdateField<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, booleanUpdate: ${updateOperationType}): void`
     )
     .block(() => {
       writer
         .writeLine(`if (booleanUpdate === undefined) return;`)
         .writeLine(
-          `if (typeof booleanUpdate === "boolean"${nullableBooleanFieldPresent ? ` || booleanUpdate === null` : ""})`,
+          `if (typeof booleanUpdate === "boolean"${nullableBooleanFieldPresent ? ` || booleanUpdate === null` : ""})`
         )
         .block(() => {
           writer.writeLine(`(record[fieldName] as ${fieldType}) = booleanUpdate;`);

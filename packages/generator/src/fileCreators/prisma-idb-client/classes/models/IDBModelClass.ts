@@ -35,7 +35,7 @@ export function addIDBModelClass(
   model: Model,
   models: readonly Model[],
   outboxSync: boolean,
-  outboxModelName: string = "OutboxEvent",
+  outboxModelName: string = "OutboxEvent"
 ) {
   writer.writeLine(`class ${model.name}IDBClass extends BaseIDBModelClass<"${model.name}">`).block(() => {
     addConstructor(writer, model);

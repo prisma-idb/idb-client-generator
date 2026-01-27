@@ -28,7 +28,7 @@ function createTxAndGetRecord(writer: CodeBlockWriter) {
 
 function handleCascadeDeletes(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   const cascadingModels = models.filter((_model) =>
-    _model.fields.some((field) => field.type === model.name && field.relationFromFields?.length),
+    _model.fields.some((field) => field.type === model.name && field.relationFromFields?.length)
   );
   for (const cascadeModel of cascadingModels) {
     const cascadingFks = cascadeModel.fields.filter((field) => field.type === model.name);
@@ -72,10 +72,10 @@ function handleCascadeDeletes(writer: CodeBlockWriter, model: Model, models: rea
       } else {
         writer
           .writeLine(
-            `const related${cascadeModel.name} = await this.client.${toCamelCase(cascadeModel.name)}.findMany({ where: { ${whereClause} } }, { tx });`,
+            `const related${cascadeModel.name} = await this.client.${toCamelCase(cascadeModel.name)}.findMany({ where: { ${whereClause} } }, { tx });`
           )
           .writeLine(
-            `if (related${cascadeModel.name}.length) throw new Error("Cannot delete record, other records depend on it");`,
+            `if (related${cascadeModel.name}.length) throw new Error("Cannot delete record, other records depend on it");`
           );
       }
     }

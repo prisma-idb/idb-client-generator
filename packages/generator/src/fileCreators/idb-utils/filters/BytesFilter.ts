@@ -18,7 +18,7 @@ export function addBytesFilter(writer: CodeBlockWriter, models: readonly Model[]
 
   writer
     .writeLine(
-      `export function whereBytesFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, bytesFilter: ${filterType}): boolean`,
+      `export function whereBytesFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, bytesFilter: ${filterType}): boolean`
     )
     .block(() => {
       writer

@@ -27,7 +27,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], ve
   writer.writeLine(` * @param props.idbClient - The PrismaIDB client instance`);
   writer.writeLine(` * @param props.logsWithRecords - Array of change logs with validated records from server`);
   writer.writeLine(
-    ` * @returns Object with sync statistics including applied records, missing records, and validation errors`,
+    ` * @returns Object with sync statistics including applied records, missing records, and validation errors`
   );
   writer.writeLine(` */`);
 
@@ -107,7 +107,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], ve
               writer.writeLine(`if (operation === 'delete') `).block(() => {
                 writer.writeLine(`const validatedKeyPath = keyPathValidators.${modelName}.parse(keyPath);`);
                 writer.writeLine(
-                  `await idbClient.${camelCaseName}.delete({ where: ${keyPathWhereClause} }, { silent: true, addToOutbox: false, tx });`,
+                  `await idbClient.${camelCaseName}.delete({ where: ${keyPathWhereClause} }, { silent: true, addToOutbox: false, tx });`
                 );
                 writer.writeLine(`totalAppliedRecords++;`);
                 writer.writeLine(`// Mark as pulled with latest changelog ID`);
@@ -117,7 +117,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], ve
                 writer.writeLine(`const validatedRecord = validators.${modelName}.parse(record);`);
                 writer.writeLine(`if (operation === 'create') `).block(() => {
                   writer.writeLine(
-                    `await idbClient.${camelCaseName}.upsert({ create: validatedRecord, update: validatedRecord, where: ${fullRecordWhereClause} }, { silent: true, addToOutbox: false, tx });`,
+                    `await idbClient.${camelCaseName}.upsert({ create: validatedRecord, update: validatedRecord, where: ${fullRecordWhereClause} }, { silent: true, addToOutbox: false, tx });`
                   );
                   writer.writeLine(`totalAppliedRecords++;`);
                   writer.writeLine(`// Mark as pulled with latest changelog ID`);
@@ -125,7 +125,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], ve
                 });
                 writer.writeLine(`else if (operation === 'update') `).block(() => {
                   writer.writeLine(
-                    `await idbClient.${camelCaseName}.upsert({ where: ${fullRecordWhereClause}, create: validatedRecord, update: validatedRecord }, { silent: true, addToOutbox: false, tx });`,
+                    `await idbClient.${camelCaseName}.upsert({ where: ${fullRecordWhereClause}, create: validatedRecord, update: validatedRecord }, { silent: true, addToOutbox: false, tx });`
                   );
                   writer.writeLine(`totalAppliedRecords++;`);
                   writer.writeLine(`// Mark as pulled with latest changelog ID`);
@@ -133,7 +133,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], ve
                 });
                 writer.writeLine(`else `).block(() => {
                   writer.writeLine(
-                    `throw new Error(\`Unknown operation for ${modelName}: \${operation} (keyPath: \${JSON.stringify(keyPath)})\`);`,
+                    `throw new Error(\`Unknown operation for ${modelName}: \${operation} (keyPath: \${JSON.stringify(keyPath)})\`);`
                   );
                 });
               });
@@ -142,7 +142,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], ve
 
           writer.writeLine(`else `).block(() => {
             writer.writeLine(
-              `throw new Error(\`Unknown model: \${model} (operation: \${operation}, keyPath: \${JSON.stringify(keyPath)})\`);`,
+              `throw new Error(\`Unknown model: \${model} (operation: \${operation}, keyPath: \${JSON.stringify(keyPath)})\`);`
             );
           });
         });

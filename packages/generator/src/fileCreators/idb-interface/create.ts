@@ -9,7 +9,7 @@ export function createIDBInterfaceFile(
   prismaClientImport: string,
   outboxSync: boolean = false,
   outboxModelName: string = "OutboxEvent",
-  versionMetaModelName: string = "VersionMeta",
+  versionMetaModelName: string = "VersionMeta"
 ) {
   writer.writeLine(`import type { DBSchema } from "idb";`);
   writer.writeLine(`import type * as Prisma from "${prismaClientImport}";`);

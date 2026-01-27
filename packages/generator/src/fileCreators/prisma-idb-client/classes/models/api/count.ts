@@ -39,7 +39,7 @@ function handleWithSelect(writer: CodeBlockWriter, model: Model) {
             .writeLine(`continue;`);
         })
         .writeLine(
-          "result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })).length;",
+          "result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })).length;"
         );
     })
     .writeLine(`return result as Prisma.Result<Prisma.${model.name}Delegate, Q, "count">;`);

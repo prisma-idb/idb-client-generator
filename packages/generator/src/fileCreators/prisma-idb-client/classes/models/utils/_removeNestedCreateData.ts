@@ -4,7 +4,7 @@ import { Model } from "../../../../types";
 export function addRemoveNestedCreateDataMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(
-      `private _removeNestedCreateData<D extends Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]>(`,
+      `private _removeNestedCreateData<D extends Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]>(`
     )
     .writeLine(`data: D`)
     .writeLine(`): Prisma.Result<Prisma.${model.name}Delegate, object, "findFirstOrThrow">`)
@@ -12,7 +12,7 @@ export function addRemoveNestedCreateDataMethod(writer: CodeBlockWriter, model: 
       writer.writeLine(`const recordWithoutNestedCreate = structuredClone(data);`);
       addRelationProcessing(writer, model);
       writer.writeLine(
-        `return recordWithoutNestedCreate as Prisma.Result<Prisma.${model.name}Delegate, object, "findFirstOrThrow">;`,
+        `return recordWithoutNestedCreate as Prisma.Result<Prisma.${model.name}Delegate, object, "findFirstOrThrow">;`
       );
     });
 }

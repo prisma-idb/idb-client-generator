@@ -8,7 +8,7 @@ export function addGetNeededStoresForUpdate(
   models: readonly Model[],
   outboxSync: boolean,
   outboxModelName: string = "OutboxEvent",
-  versionMetaModelName: string = "VersionMeta",
+  versionMetaModelName: string = "VersionMeta"
 ) {
   writer
     .writeLine(`_getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.${model.name}Delegate, "update">>(`)
@@ -16,7 +16,7 @@ export function addGetNeededStoresForUpdate(
     .writeLine(`): Set<StoreNames<PrismaIDBSchema>>`)
     .block(() => {
       writer.writeLine(
-        `const neededStores = this._getNeededStoresForFind(query).union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]));`,
+        `const neededStores = this._getNeededStoresForFind(query).union(this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.${model.name}Delegate, "create">["data"]));`
       );
       addNestedQueryStores(writer, model);
       addNestedDeleteStores(writer, model);
@@ -54,7 +54,7 @@ function addNestedQueryStores(writer: CodeBlockWriter, model: Model) {
               .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.disconnect).forEach((disconnect) => `)
               .block(() => {
                 writer.writeLine(
-                  `this.client.${toCamelCase(field.type)}._getNeededStoresForWhere(disconnect, neededStores);`,
+                  `this.client.${toCamelCase(field.type)}._getNeededStoresForWhere(disconnect, neededStores);`
                 );
               })
               .writeLine(`)`);
@@ -70,7 +70,7 @@ function addNestedQueryStores(writer: CodeBlockWriter, model: Model) {
             .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.set).forEach((setWhere) => `)
             .block(() => {
               writer.writeLine(
-                `this.client.${toCamelCase(field.type)}._getNeededStoresForWhere(setWhere, neededStores);`,
+                `this.client.${toCamelCase(field.type)}._getNeededStoresForWhere(setWhere, neededStores);`
               );
             })
             .writeLine(`)`);
@@ -82,7 +82,7 @@ function addNestedQueryStores(writer: CodeBlockWriter, model: Model) {
             .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.updateMany).forEach((update) => `)
             .block(() => {
               writer.writeLine(
-                `this.client.${toCamelCase(field.type)}._getNeededStoresForUpdate(update as Prisma.Args<Prisma.${field.type}Delegate, "update">).forEach((store) => neededStores.add(store));`,
+                `this.client.${toCamelCase(field.type)}._getNeededStoresForUpdate(update as Prisma.Args<Prisma.${field.type}Delegate, "update">).forEach((store) => neededStores.add(store));`
               );
             })
             .writeLine(`)`);
@@ -96,7 +96,7 @@ function addNestedQueryStores(writer: CodeBlockWriter, model: Model) {
           .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.update).forEach((update) => `)
           .block(() => {
             writer.writeLine(
-              `this.client.${toCamelCase(field.type)}._getNeededStoresForUpdate(update as Prisma.Args<Prisma.${field.type}Delegate, "update">).forEach((store) => neededStores.add(store));`,
+              `this.client.${toCamelCase(field.type)}._getNeededStoresForUpdate(update as Prisma.Args<Prisma.${field.type}Delegate, "update">).forEach((store) => neededStores.add(store));`
             );
           })
           .writeLine(`)`);
@@ -109,10 +109,10 @@ function addNestedQueryStores(writer: CodeBlockWriter, model: Model) {
           .block(() => {
             writer
               .writeLine(
-                `const update = { where: upsert.where, data: { ...upsert.update, ...upsert.create } } as Prisma.Args<Prisma.${field.type}Delegate, "update">;`,
+                `const update = { where: upsert.where, data: { ...upsert.update, ...upsert.create } } as Prisma.Args<Prisma.${field.type}Delegate, "update">;`
               )
               .writeLine(
-                `this.client.${toCamelCase(field.type)}._getNeededStoresForUpdate(update).forEach((store) => neededStores.add(store));`,
+                `this.client.${toCamelCase(field.type)}._getNeededStoresForUpdate(update).forEach((store) => neededStores.add(store));`
               );
           })
           .writeLine(`)`);
@@ -136,7 +136,7 @@ function addNestedDeleteStores(writer: CodeBlockWriter, model: Model) {
 
 function addUpdateCascadingStores(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   const dependentModels = models.filter((m) =>
-    m.fields.some((f) => f.kind === "object" && f.type === model.name && f.relationFromFields?.length),
+    m.fields.some((f) => f.kind === "object" && f.type === model.name && f.relationFromFields?.length)
   );
   if (!dependentModels.length) return;
 

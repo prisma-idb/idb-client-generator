@@ -4,7 +4,7 @@ import CodeBlockWriter from "code-block-writer";
 export function addPreprocessListFields(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(
-      `private _preprocessListFields(records: Prisma.Result<Prisma.${model.name}Delegate, object, "findMany">): void`,
+      `private _preprocessListFields(records: Prisma.Result<Prisma.${model.name}Delegate, object, "findMany">): void`
     )
     .block(() => {
       addUndefinedScalarListPreprocessing(writer, model);

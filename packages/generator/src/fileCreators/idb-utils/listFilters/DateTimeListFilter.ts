@@ -9,7 +9,7 @@ export function addDateTimeListFilter(writer: CodeBlockWriter, models: readonly 
 
   writer
     .writeLine(
-      `export function whereDateTimeListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: undefined | Prisma.DateTimeNullableListFilter<unknown>): boolean`,
+      `export function whereDateTimeListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: undefined | Prisma.DateTimeNullableListFilter<unknown>): boolean`
     )
     .block(() => {
       writer
@@ -33,7 +33,7 @@ function addEqualsHandler(writer: CodeBlockWriter) {
     writer
       .writeLine(`if (scalarListFilter.equals.length !== value?.length) return false;`)
       .writeLine(
-        `if (!scalarListFilter.equals.every((val, i) => new Date(val).getTime() === value[i].getTime())) return false;`,
+        `if (!scalarListFilter.equals.every((val, i) => new Date(val).getTime() === value[i].getTime())) return false;`
       );
   });
 }
@@ -50,7 +50,7 @@ function addHasHandler(writer: CodeBlockWriter) {
 function addHasSomeHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (Array.isArray(scalarListFilter.hasSome))`).block(() => {
     writer.writeLine(
-      `if (!scalarListFilter.hasSome.some((val) => (val instanceof Date || typeof val === 'string') && value?.some((v) => matches(v, val)))) return false;`,
+      `if (!scalarListFilter.hasSome.some((val) => (val instanceof Date || typeof val === 'string') && value?.some((v) => matches(v, val)))) return false;`
     );
   });
 }
@@ -58,7 +58,7 @@ function addHasSomeHandler(writer: CodeBlockWriter) {
 function addHasEveryHandler(writer: CodeBlockWriter) {
   writer.writeLine(`if (Array.isArray(scalarListFilter.hasEvery))`).block(() => {
     writer.writeLine(
-      `if (!scalarListFilter.hasEvery.every((val) => (val instanceof Date || typeof val === 'string') && value?.some((v) => matches(v, val)))) return false;`,
+      `if (!scalarListFilter.hasEvery.every((val) => (val instanceof Date || typeof val === 'string') && value?.some((v) => matches(v, val)))) return false;`
     );
   });
 }

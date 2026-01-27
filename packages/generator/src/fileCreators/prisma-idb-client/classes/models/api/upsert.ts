@@ -19,13 +19,13 @@ export function addUpsertMethod(writer: CodeBlockWriter, model: Model) {
 function addGetAndUpsertRecord(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(
-      `const neededStores = this._getNeededStoresForUpdate({ ...query, data: { ...query.update, ...query.create } as Prisma.Args<Prisma.${model.name}Delegate, "update">["data"] });`,
+      `const neededStores = this._getNeededStoresForUpdate({ ...query, data: { ...query.update, ...query.create } as Prisma.Args<Prisma.${model.name}Delegate, "update">["data"] });`
     )
     .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(neededStores), "readwrite");`)
     .writeLine(`let record = await this.findUnique({ where: query.where }, { tx });`)
     .writeLine(`if (!record) record = await this.create({ data: query.create }, { tx, silent, addToOutbox });`)
     .writeLine(
-      `else record = await this.update({ where: query.where, data: query.update }, { tx, silent, addToOutbox });`,
+      `else record = await this.update({ where: query.where, data: query.update }, { tx, silent, addToOutbox });`
     );
 }
 

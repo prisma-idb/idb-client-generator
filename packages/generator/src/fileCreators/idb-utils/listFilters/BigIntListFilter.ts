@@ -9,7 +9,7 @@ export function addBigIntListFilter(writer: CodeBlockWriter, models: readonly Mo
 
   writer
     .writeLine(
-      `export function whereBigIntListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: undefined | Prisma.BigIntNullableListFilter<unknown>): boolean`,
+      `export function whereBigIntListFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, scalarListFilter: undefined | Prisma.BigIntNullableListFilter<unknown>): boolean`
     )
     .block(() => {
       writer

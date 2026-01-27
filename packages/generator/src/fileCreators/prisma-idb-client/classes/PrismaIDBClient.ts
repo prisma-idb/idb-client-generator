@@ -10,7 +10,7 @@ export function addClientClass(
   outboxModelName: string = "OutboxEvent",
   versionMetaModelName: string = "VersionMeta",
   include: string[] = ["*"],
-  exclude: string[] = [],
+  exclude: string[] = []
 ) {
   writer.writeLine(`export class PrismaIDBClient`).block(() => {
     writer
@@ -21,7 +21,7 @@ export function addClientClass(
       .blankLine()
       .writeLine(`private constructor() {`)
       .writeLine(
-        `this.includedModels = new Set(${JSON.stringify(models.filter((m) => shouldTrackModel(m.name, include, exclude)).map((m) => m.name))});`,
+        `this.includedModels = new Set(${JSON.stringify(models.filter((m) => shouldTrackModel(m.name, include, exclude)).map((m) => m.name))});`
       )
       .writeLine(`}`);
 
@@ -45,7 +45,7 @@ function addOutboxProperty(
   writer: CodeBlockWriter,
   outboxSync: boolean,
   outboxModelName: string,
-  versionMetaModelName: string,
+  versionMetaModelName: string
 ) {
   if (!outboxSync) return;
   writer
@@ -72,7 +72,7 @@ function addInitializeMethod(
   models: readonly Model[],
   outboxSync: boolean = false,
   outboxModelName: string = "OutboxEvent",
-  versionMetaModelName: string = "VersionMeta",
+  versionMetaModelName: string = "VersionMeta"
 ) {
   writer.writeLine(`private async initialize()`).block(() => {
     writer
@@ -90,7 +90,7 @@ function addInitializeMethod(
 
     models.forEach((model) => {
       writer.writeLine(
-        `this.${toCamelCaseUtil(model.name)} = new ${model.name}IDBClass(this, ${getUniqueIdentifiers(model)[0].keyPath});`,
+        `this.${toCamelCaseUtil(model.name)} = new ${model.name}IDBClass(this, ${getUniqueIdentifiers(model)[0].keyPath});`
       );
     });
 
@@ -130,13 +130,13 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
     .writeLine(` * @param options.pull.getCursor Optional handler to retrieve persisted pull cursor.`)
     .writeLine(` *   If not provided, starts from undefined (first page). Use this to resume from checkpoint.`)
     .writeLine(
-      ` * @param options.pull.setCursor Optional handler to persist pull cursor after successful page processing.`,
+      ` * @param options.pull.setCursor Optional handler to persist pull cursor after successful page processing.`
     )
     .writeLine(` *   Called only after logsWithRecords are successfully applied to local state.`)
     .writeLine(` * @param options.schedule Scheduling configuration`)
     .writeLine(` * @param options.schedule.intervalMs Milliseconds between sync cycles (default: 5000)`)
     .writeLine(
-      ` * @param options.schedule.maxRetries Max retry attempts for outbox events before abandoning (default: 5)`,
+      ` * @param options.schedule.maxRetries Max retry attempts for outbox events before abandoning (default: 5)`
     )
     .writeLine(` *`)
     .writeLine(` * @returns SyncWorker with start() and stop() methods`)
@@ -172,7 +172,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
     .writeLine(` * worker.stop();    // gracefully stops`)
     .writeLine(` */`)
     .writeLine(
-      `createSyncWorker(options: { push: { handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>; batchSize?: number }; pull: { handler: (cursor?: string) => Promise<{ cursor?: string; logsWithRecords: LogWithRecord<typeof validators>[] }>; getCursor?: () => Promise<string | undefined> | string | undefined; setCursor?: (cursor: string | undefined) => Promise<void> | void }; schedule?: { intervalMs?: number; maxRetries?: number } }): SyncWorker`,
+      `createSyncWorker(options: { push: { handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>; batchSize?: number }; pull: { handler: (cursor?: string) => Promise<{ cursor?: string; logsWithRecords: LogWithRecord<typeof validators>[] }>; getCursor?: () => Promise<string | undefined> | string | undefined; setCursor?: (cursor: string | undefined) => Promise<void> | void }; schedule?: { intervalMs?: number; maxRetries?: number } }): SyncWorker`
     )
     .block(() => {
       writer
@@ -199,13 +199,13 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
         .writeLine(` */`)
         .writeLine(`const pushBatch = async (batch: OutboxEventRecord[]): Promise<void> => {`)
         .writeLine(
-          `  const toSync = batch.filter((event: OutboxEventRecord) => event.tries < maxRetries && event.retryable);`,
+          `  const toSync = batch.filter((event: OutboxEventRecord) => event.tries < maxRetries && event.retryable);`
         )
         .writeLine(`  const abandoned = batch.filter((event: OutboxEventRecord) => event.tries >= maxRetries);`)
         .blankLine()
         .writeLine(`  for (const event of abandoned) {`)
         .writeLine(
-          `    await this.$outbox.markFailed(event.id, { type: "MAX_RETRIES", message: \`Abandoned after \${maxRetries} retries\`, retryable: false });`,
+          `    await this.$outbox.markFailed(event.id, { type: "MAX_RETRIES", message: \`Abandoned after \${maxRetries} retries\`, retryable: false });`
         )
         .writeLine(`  }`)
         .blankLine()
@@ -218,7 +218,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
         .writeLine(`    for (const event of toSync) {`)
         .writeLine(`      const error = err instanceof Error ? err.message : String(err);`)
         .writeLine(
-          `      await this.$outbox.markFailed(event.id, { type: "UNKNOWN_ERROR", message: error, retryable: true });`,
+          `      await this.$outbox.markFailed(event.id, { type: "UNKNOWN_ERROR", message: error, retryable: true });`
         )
         .writeLine(`    }`)
         .writeLine(`    return;`)
@@ -445,7 +445,7 @@ function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter) {
 
   writer.writeLine(declarationLine);
   nonKeyUniqueIdentifiers.forEach(({ name, keyPath }) =>
-    writer.writeLine(`${model.name}Store.createIndex("${name}Index", ${keyPath}, { unique: true });`),
+    writer.writeLine(`${model.name}Store.createIndex("${name}Index", ${keyPath}, { unique: true });`)
   );
 }
 

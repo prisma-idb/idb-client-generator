@@ -5,7 +5,7 @@ import { DMMF } from "@prisma/generator-helper";
 export function createScopedSchemaFile(
   writer: CodeBlockWriter,
   filteredModels: readonly Model[],
-  enums: readonly DMMF.DatamodelEnum[],
+  enums: readonly DMMF.DatamodelEnum[]
 ) {
   writerDatasourceAndClientGenerator(writer);
   writeModels(writer, filteredModels);
@@ -47,7 +47,7 @@ function writeModels(writer: CodeBlockWriter, filteredModels: readonly Model[]) 
 
 function getFilteredFields(model: Model, filteredModels: readonly Model[]) {
   const removedExcludedModelsRelationships = model.fields.filter(
-    (field) => !isFieldRelationToUnsyncableModel(field, filteredModels),
+    (field) => !isFieldRelationToUnsyncableModel(field, filteredModels)
   );
 
   return removedExcludedModelsRelationships;
@@ -55,7 +55,7 @@ function getFilteredFields(model: Model, filteredModels: readonly Model[]) {
 
 function isFieldRelationToUnsyncableModel(
   field: { kind: string; type: string },
-  filteredModels: readonly Model[],
+  filteredModels: readonly Model[]
 ): boolean {
   return field.kind === "object" && !filteredModels.some((m) => m.name === field.type);
 }

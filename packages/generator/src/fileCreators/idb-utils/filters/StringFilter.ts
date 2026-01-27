@@ -18,7 +18,7 @@ export function addStringFilter(writer: CodeBlockWriter, models: readonly Model[
 
   writer
     .writeLine(
-      `export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, stringFilter: ${filterType}): boolean`,
+      `export function whereStringFilter<T, R extends Prisma.Result<T, object, "findFirstOrThrow">>(record: R, fieldName: keyof R, stringFilter: ${filterType}): boolean`
     )
     .block(() => {
       writer
@@ -98,7 +98,7 @@ function addInHandler(writer: CodeBlockWriter) {
       .writeLine(`if (stringFilter.mode === 'insensitive')`)
       .block(() => {
         writer.writeLine(
-          `if (!stringFilter.in.map((s) => s.toLowerCase()).includes(value.toLowerCase())) return false;`,
+          `if (!stringFilter.in.map((s) => s.toLowerCase()).includes(value.toLowerCase())) return false;`
         );
       })
       .writeLine(`else`)
@@ -115,7 +115,7 @@ function addNotInHandler(writer: CodeBlockWriter) {
       .writeLine(`if (stringFilter.mode === 'insensitive')`)
       .block(() => {
         writer.writeLine(
-          `if (stringFilter.notIn.map((s) => s.toLowerCase()).includes(value.toLowerCase())) return false;`,
+          `if (stringFilter.notIn.map((s) => s.toLowerCase()).includes(value.toLowerCase())) return false;`
         );
       })
       .writeLine(`else`)
