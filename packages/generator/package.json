@@ -1,7 +1,7 @@
 {
   "name": "@prisma-idb/idb-client-generator",
   "description": "Generate types for idb from prisma schema",
-  "version": "0.0.0-semantically-released",
+  "version": "0.23.1",
   "main": "dist/generator.js",
   "license": "MIT",
   "bin": {
@@ -45,7 +45,10 @@
     "url": "git+https://github.com/prisma-idb/idb-client-generator.git"
   },
   "author": "Yash Kolekar (https://whyash5114.com/)",
-  "keywords": ["prisma", "generator"],
+  "keywords": [
+    "prisma",
+    "generator"
+  ],
   "bugs": {
     "url": "https://github.com/prisma-idb/idb-client-generator/issues"
   }
