@@ -1,11 +1,9 @@
 {
   "git": {
-    "requireCleanWorkingDir": true,
     "commit": false,
     "tag": true,
     "tagName": "v${version}",
-    "push": true,
-    "pushArgs": "--follow-tags --no-verify"
+    "push": true
   },
   "npm": {
     "publish": true,
