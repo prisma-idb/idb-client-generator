@@ -17,8 +17,7 @@
     "prepack": "pnpm build",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "release": "release-it",
-    "release:prepare": "release-it --config ./release-it.prepare.json",
+    "release:prepare": "release-it --config ./release-it.prepare.json --no-npm",
     "release:publish": "release-it --config ./release-it.publish.json",
     "prepare": "tsc"
   },
