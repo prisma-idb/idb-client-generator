@@ -17,7 +17,9 @@
     "generate": "turbo run generate",
     "clean": "turbo clean && rm -rf node_modules",
     "preview": "turbo run preview",
-    "run:ci": "pnpm format && pnpm generate && pnpm lint && pnpm check"
+    "run:ci": "pnpm format && pnpm generate && pnpm lint && pnpm check",
+    "release:prepare": "release-it --config .release-it.prepare.json",
+    "release:publish": "release-it --config .release-it.publish.json"
   },
   "devDependencies": {
     "@eslint/compat": "2.0.1",
