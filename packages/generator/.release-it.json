@@ -1,0 +1,21 @@
+{
+  "$schema": "https://unpkg.com/release-it/schema/release-it.json",
+  "github": {
+    "release": true
+  },
+  "plugins": {
+    "@release-it/conventional-changelog": {
+      "preset": "angular"
+    }
+  },
+  "npm": {
+    "publish": false,
+    "ignoreVersion": true
+  },
+  "git": {
+    "commit": false,
+    "tag": true,
+    "tagName": "v${version}",
+    "push": false
+  }
+}

@@ -1,7 +1,7 @@
 {
   "name": "@prisma-idb/idb-client-generator",
   "description": "Generate types for idb from prisma schema",
-  "version": "0.26.0",
+  "version": "0.0.0-semantically-released",
   "main": "dist/generator.js",
   "license": "MIT",
   "bin": {
@@ -17,8 +17,7 @@
     "prepack": "pnpm build",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "release:prepare": "release-it --config ./release-it.prepare.json --no-npm",
-    "release:publish": "release-it --config ./release-it.publish.json",
+    "release": "release-it",
     "prepare": "tsc"
   },
   "dependencies": {

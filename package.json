@@ -17,9 +17,7 @@
     "generate": "turbo run generate",
     "clean": "turbo clean && rm -rf node_modules",
     "preview": "turbo run preview",
-    "run:ci": "pnpm format && pnpm generate && pnpm lint && pnpm check",
-    "release:prepare": "pnpm run --filter=@prisma-idb/idb-client-generator release:prepare",
-    "release:publish": "pnpm run --filter=@prisma-idb/idb-client-generator release:publish"
+    "run:ci": "pnpm format && pnpm generate && pnpm lint && pnpm check"
   },
   "devDependencies": {
     "@eslint/compat": "2.0.1",
