@@ -209,17 +209,31 @@ export function createBatchProcessorFile(
   // Create DAG for authorization paths
   const dag = createDAG(models, rootModel);
 
-  // Write materializeLogs helper function
-  writer.writeLine(`export async function materializeLogs({`);
-  writer.writeLine(`  logs,`);
+  // Write pullAndMaterializeLogs helper function
+  writer.writeLine(`export async function pullAndMaterializeLogs({`);
   writer.writeLine(`  prisma,`);
   writer.writeLine(`  scopeKey,`);
+  writer.writeLine(`  lastChangelogId,`);
   writer.writeLine(`}: {`);
-  writer.writeLine(`  logs: Array<ChangeLog>;`);
   writer.writeLine(`  prisma: PrismaClient;`);
   writer.writeLine(`  scopeKey: string;`);
+  writer.writeLine(`  lastChangelogId?: string;`);
   writer.writeLine(`}): Promise<Array<LogWithRecord<typeof validators>>>`);
   writer.block(() => {
+    writer
+      .writeLine(`const logs = await prisma.changeLog.findMany(`)
+      .block(() => {
+        writer
+          .writeLine(`where: `)
+          .block(() => {
+            writer.writeLine(`scopeKey,`);
+            writer.writeLine(`id: { gt: lastChangelogId },`);
+          })
+          .write(`, `)
+          .writeLine(`orderBy: { id: "asc" },`)
+          .writeLine(`take: 50`);
+      })
+      .writeLine(`);`);
     writer.writeLine(`const validModelNames = [${modelNames.map((name) => `"${name}"`).join(", ")}];`);
     writer.writeLine(`const results: Array<LogWithRecord<typeof validators>> = [];`);
     writer.writeLine(`for (const log of logs) {`);
