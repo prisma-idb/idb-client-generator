@@ -8,14 +8,11 @@
   "npm": {
     "publish": true,
     "skipChecks": true,
-    "workspaces": false
+    "publishPackageManager": "pnpm"
   },
   "github": {
     "release": true,
-    "releaseName": "v${version}",
-    "draft": false,
-    "preRelease": false,
-    "assets": []
+    "releaseName": "v${version}"
   },
   "plugins": {
     "@release-it/conventional-changelog": {
