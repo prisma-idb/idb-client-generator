@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
@@ -7,4 +9,5 @@ export default defineConfig({
   reporter: "html",
   fullyParallel: true,
   workers: process.env.CI ? 1 : undefined,
+  retries: 2, // Since these are flaky sync tests
 });

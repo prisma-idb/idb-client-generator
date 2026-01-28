@@ -41,7 +41,7 @@ jobs:
           git config user.name "github-actions[bot]"
 
       - name: Prepare release
-        run: pnpm release:prepare --no-git-checks
+        run: pnpm release:prepare
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
