@@ -35,7 +35,8 @@ export function addIDBModelClass(
   model: Model,
   models: readonly Model[],
   outboxSync: boolean,
-  outboxModelName: string = "OutboxEvent"
+  outboxModelName: string,
+  versionMetaModelName: string
 ) {
   writer.writeLine(`class ${model.name}IDBClass extends BaseIDBModelClass<"${model.name}">`).block(() => {
     addConstructor(writer, model);
@@ -48,9 +49,9 @@ export function addIDBModelClass(
     addFillDefaultsFunction(writer, model);
     addGetNeededStoresForWhere(writer, model);
     addGetNeededStoresForFind(writer, model);
-    addGetNeededStoresForCreate(writer, model, outboxSync, outboxModelName);
-    addGetNeededStoresForUpdate(writer, model, models, outboxSync, outboxModelName);
-    addGetNeededStoresForNestedDelete(writer, model, models, outboxSync, outboxModelName);
+    addGetNeededStoresForCreate(writer, model, outboxSync, outboxModelName, versionMetaModelName);
+    addGetNeededStoresForUpdate(writer, model, models, outboxSync, outboxModelName, versionMetaModelName);
+    addGetNeededStoresForNestedDelete(writer, model, models, outboxSync, outboxModelName, versionMetaModelName);
     addRemoveNestedCreateDataMethod(writer, model);
     addPreprocessListFields(writer, model);
 
@@ -62,8 +63,8 @@ export function addIDBModelClass(
     addCountMethod(writer, model);
 
     addCreateMethod(writer, model, models);
-    addCreateManyMethod(writer, model, outboxSync);
-    addCreateManyAndReturn(writer, model, outboxSync);
+    addCreateManyMethod(writer, model, outboxSync, outboxModelName, versionMetaModelName);
+    addCreateManyAndReturn(writer, model, outboxSync, outboxModelName, versionMetaModelName);
 
     addDeleteMethod(writer, model, models);
     addDeleteManyMethod(writer, model);

@@ -6,9 +6,9 @@ import { Model } from "../../types";
 export function addClientClass(
   writer: CodeBlockWriter,
   models: readonly Model[],
-  outboxSync: boolean = false,
-  outboxModelName: string = "OutboxEvent",
-  versionMetaModelName: string = "VersionMeta",
+  outboxSync: boolean,
+  outboxModelName: string,
+  versionMetaModelName: string,
   include: string[] = ["*"],
   exclude: string[] = []
 ) {
@@ -70,9 +70,9 @@ function addCreateInstanceMethod(writer: CodeBlockWriter) {
 function addInitializeMethod(
   writer: CodeBlockWriter,
   models: readonly Model[],
-  outboxSync: boolean = false,
-  outboxModelName: string = "OutboxEvent",
-  versionMetaModelName: string = "VersionMeta"
+  outboxSync: boolean ,
+  outboxModelName: string,
+  versionMetaModelName: string
 ) {
   writer.writeLine(`private async initialize()`).block(() => {
     writer

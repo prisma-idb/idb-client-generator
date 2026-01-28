@@ -2,7 +2,7 @@ import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
 import { getOptionsParameterWrite, getOptionsSetupWrite } from "../helpers/methodOptions";
 
-export function addCreateManyAndReturn(writer: CodeBlockWriter, model: Model, outboxSync: boolean) {
+export function addCreateManyAndReturn(writer: CodeBlockWriter, model: Model, outboxSync: boolean, outboxModelName: string, versionMetaModelName: string) {
   writer
     .writeLine(`async createManyAndReturn<Q extends Prisma.Args<Prisma.${model.name}Delegate, "createManyAndReturn">>(`)
     .writeLine(`query: Q,`)
@@ -17,8 +17,8 @@ export function addCreateManyAndReturn(writer: CodeBlockWriter, model: Model, ou
       if (outboxSync) {
         writer
           .writeLine(`if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {`)
-          .writeLine(`storesNeeded.add("OutboxEvent");`)
-          .writeLine(`storesNeeded.add("VersionMeta");`)
+          .writeLine(`storesNeeded.add("${outboxModelName}");`)
+          .writeLine(`storesNeeded.add("${versionMetaModelName}");`)
           .writeLine(`}`);
       }
       writer

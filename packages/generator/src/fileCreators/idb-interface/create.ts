@@ -7,9 +7,9 @@ export function createIDBInterfaceFile(
   writer: CodeBlockWriter,
   models: DMMF.Datamodel["models"],
   prismaClientImport: string,
-  outboxSync: boolean = false,
-  outboxModelName: string = "OutboxEvent",
-  versionMetaModelName: string = "VersionMeta"
+  outboxSync: boolean,
+  outboxModelName: string,
+  versionMetaModelName: string
 ) {
   writer.writeLine(`import type { DBSchema } from "idb";`);
   writer.writeLine(`import type * as Prisma from "${prismaClientImport}";`);
@@ -43,7 +43,7 @@ export function createIDBInterfaceFile(
     }
   });
 
-  // Add type definition for OutboxEvent record
+  // Add type definition for OutboxEventRecord
   if (outboxSync) {
     addOutboxEventTypeDefinition(writer);
     addSyncWorkerTypes(writer);

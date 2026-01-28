@@ -54,9 +54,9 @@ export function createPrismaIDBClientFile(
   writer: CodeBlockWriter,
   models: DMMF.Datamodel["models"],
   prismaClientImport: string,
-  outboxSync: boolean = false,
-  outboxModelName: string = "OutboxEvent",
-  versionMetaModelName: string = "VersionMeta",
+  outboxSync: boolean,
+  outboxModelName: string,
+  versionMetaModelName: string,
   include: string[] = ["*"],
   exclude: string[] = []
 ) {
@@ -65,7 +65,7 @@ export function createPrismaIDBClientFile(
   addClientClass(writer, models, outboxSync, outboxModelName, versionMetaModelName, include, exclude);
   addBaseModelClass(writer, outboxSync, outboxModelName);
   models.forEach((model) => {
-    addIDBModelClass(writer, model, models, outboxSync, outboxModelName);
+    addIDBModelClass(writer, model, models, outboxSync, outboxModelName, versionMetaModelName);
   });
   if (outboxSync) {
     addOutboxEventIDBClass(writer, outboxModelName);

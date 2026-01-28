@@ -7,8 +7,8 @@ export function addGetNeededStoresForUpdate(
   model: Model,
   models: readonly Model[],
   outboxSync: boolean,
-  outboxModelName: string = "OutboxEvent",
-  versionMetaModelName: string = "VersionMeta"
+  outboxModelName: string,
+  versionMetaModelName: string
 ) {
   writer
     .writeLine(`_getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.${model.name}Delegate, "update">>(`)
