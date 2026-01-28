@@ -18,15 +18,7 @@
   },
   "plugins": {
     "@release-it/conventional-changelog": {
-      "infile": "CHANGELOG.md",
-      "preset": "angular",
-      "header": "# Changelog",
-      "strictSemVer": true
+      "preset": "angular"
     }
-  },
-  "hooks": {
-    "before:init": [
-      "pnpm run test:schema-gen"
-    ]
   }
 }

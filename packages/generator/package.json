@@ -18,6 +18,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "release": "release-it",
+    "release:prepare": "release-it --config ./release-it.prepare.json",
+    "release:publish": "release-it --config ./release-it.publish.json",
     "prepare": "tsc"
   },
   "dependencies": {
