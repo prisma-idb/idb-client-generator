@@ -10,7 +10,7 @@
   "npm": {
     "publish": false,
     "allowSameVersion": false,
-    "skipChecks": false
+    "skipChecks": true
   },
   "github": {
     "release": false,
