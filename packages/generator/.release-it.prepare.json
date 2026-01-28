@@ -1,0 +1,24 @@
+{
+  "git": {
+    "requireCleanWorkingDir": false,
+    "commit": true,
+    "tag": false,
+    "push": true,
+    "pushArgs": "--no-verify",
+    "commitMessage": "chore(release): v${version}"
+  },
+  "npm": {
+    "publish": false,
+    "allowSameVersion": false,
+    "skipChecks": true
+  },
+  "github": {
+    "release": false,
+    "releaseName": null
+  },
+  "plugins": {
+    "@release-it/conventional-changelog": {
+      "preset": "angular"
+    }
+  }
+}

@@ -4,7 +4,13 @@ import { getOptionsParameterWrite, getOptionsSetupWrite } from "../helpers/metho
 
 // TODO: skipDuplicates
 
-export function addCreateManyMethod(writer: CodeBlockWriter, model: Model, outboxSync: boolean) {
+export function addCreateManyMethod(
+  writer: CodeBlockWriter,
+  model: Model,
+  outboxSync: boolean,
+  outboxModelName: string,
+  versionMetaModelName: string
+) {
   writer
     .writeLine(`async createMany<Q extends Prisma.Args<Prisma.${model.name}Delegate, "createMany">>(`)
     .writeLine(`query: Q,`)
@@ -12,21 +18,27 @@ export function addCreateManyMethod(writer: CodeBlockWriter, model: Model, outbo
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "createMany">>`)
     .block(() => {
       writer.write(getOptionsSetupWrite());
-      setupDataAndTx(writer, model, outboxSync);
+      setupDataAndTx(writer, model, outboxSync, outboxModelName, versionMetaModelName);
       addTransactionalHandling(writer, model);
       returnCount(writer);
     });
 }
 
-function setupDataAndTx(writer: CodeBlockWriter, model: Model, outboxSync: boolean) {
+function setupDataAndTx(
+  writer: CodeBlockWriter,
+  model: Model,
+  outboxSync: boolean,
+  outboxModelName: string,
+  versionMetaModelName: string
+) {
   writer
     .writeLine("const createManyData = IDBUtils.convertToArray(query.data);")
     .writeLine(`const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["${model.name}"]);`);
   if (outboxSync) {
     writer
       .writeLine(`if (addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {`)
-      .writeLine(`storesNeeded.add("OutboxEvent");`)
-      .writeLine(`storesNeeded.add("VersionMeta");`)
+      .writeLine(`storesNeeded.add("${outboxModelName}");`)
+      .writeLine(`storesNeeded.add("${versionMetaModelName}");`)
       .writeLine(`}`);
   }
   writer.writeLine(`tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");`);

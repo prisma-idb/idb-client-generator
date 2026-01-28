@@ -3,7 +3,7 @@ import CodeBlockWriter from "code-block-writer";
 export function addBaseModelClass(
   writer: CodeBlockWriter,
   outboxSync: boolean = false,
-  outboxModelName: string = "OutboxEvent"
+  outboxModelName: string
 ) {
   writer.writeLine(`class BaseIDBModelClass<T extends keyof PrismaIDBSchema>`).block(() => {
     writer
@@ -25,7 +25,7 @@ export function addBaseModelClass(
   });
 }
 
-function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxModelName: string = "OutboxEvent") {
+function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxModelName: string) {
   writer
     .writeLine(
       `subscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: (e: CustomEventInit<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>) => void)`

@@ -6,8 +6,8 @@ export function addGetNeededStoresForCreate(
   writer: CodeBlockWriter,
   model: Model,
   outboxSync: boolean,
-  outboxModelName: string = "OutboxEvent",
-  versionMetaModelName: string = "VersionMeta"
+  outboxModelName: string,
+  versionMetaModelName: string
 ) {
   writer
     .writeLine(
