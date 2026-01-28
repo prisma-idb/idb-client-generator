@@ -1,4 +1,4 @@
-import { materializeLogs } from "$lib/prisma-idb/server/batch-processor";
+import { pullAndMaterializeLogs } from "$lib/prisma-idb/server/batch-processor";
 import { auth } from "$lib/server/auth";
 import { prisma } from "$lib/server/prisma";
 import z from "zod";
@@ -24,20 +24,15 @@ export async function POST({ request }) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
   }
 
-  const logs = await prisma.changeLog.findMany({
-    where: {
-      scopeKey: authResult.user.id,
-      id: { gt: parsed.data.lastChangelogId },
-    },
-    orderBy: { id: "asc" },
-    take: 50,
+  const logsWithRecords = await pullAndMaterializeLogs({
+    prisma,
+    scopeKey: authResult.user.id,
+    lastChangelogId: parsed.data.lastChangelogId,
   });
-
-  const logsWithRecords = await materializeLogs({ logs, prisma, scopeKey: authResult.user.id });
 
   return new Response(
     JSON.stringify({
-      cursor: logs.at(-1)?.id ?? parsed.data.lastChangelogId ?? null,
+      cursor: logsWithRecords.at(-1)?.id ?? parsed.data.lastChangelogId ?? null,
       logsWithRecords,
     }),
     {

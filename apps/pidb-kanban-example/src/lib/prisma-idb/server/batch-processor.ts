@@ -202,15 +202,23 @@ export async function applyPush({
   return results;
 }
 
-export async function materializeLogs({
-  logs,
+export async function pullAndMaterializeLogs({
   prisma,
   scopeKey,
+  lastChangelogId,
 }: {
-  logs: Array<ChangeLog>;
   prisma: PrismaClient;
   scopeKey: string;
+  lastChangelogId?: string;
 }): Promise<Array<LogWithRecord<typeof validators>>> {
+  const logs = await prisma.changeLog.findMany({
+    where: {
+      scopeKey,
+      id: { gt: lastChangelogId },
+    },
+    orderBy: { id: "asc" },
+    take: 50,
+  });
   const validModelNames = ["Board", "Todo", "User"];
   const results: Array<LogWithRecord<typeof validators>> = [];
   for (const log of logs) {
