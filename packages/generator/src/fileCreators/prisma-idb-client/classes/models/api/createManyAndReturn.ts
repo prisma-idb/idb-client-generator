@@ -2,7 +2,13 @@ import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
 import { getOptionsParameterWrite, getOptionsSetupWrite } from "../helpers/methodOptions";
 
-export function addCreateManyAndReturn(writer: CodeBlockWriter, model: Model, outboxSync: boolean, outboxModelName: string, versionMetaModelName: string) {
+export function addCreateManyAndReturn(
+  writer: CodeBlockWriter,
+  model: Model,
+  outboxSync: boolean,
+  outboxModelName: string,
+  versionMetaModelName: string
+) {
   writer
     .writeLine(`async createManyAndReturn<Q extends Prisma.Args<Prisma.${model.name}Delegate, "createManyAndReturn">>(`)
     .writeLine(`query: Q,`)

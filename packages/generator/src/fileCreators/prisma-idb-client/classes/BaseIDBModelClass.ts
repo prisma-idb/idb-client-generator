@@ -1,10 +1,6 @@
 import CodeBlockWriter from "code-block-writer";
 
-export function addBaseModelClass(
-  writer: CodeBlockWriter,
-  outboxSync: boolean = false,
-  outboxModelName: string
-) {
+export function addBaseModelClass(writer: CodeBlockWriter, outboxSync: boolean = false, outboxModelName: string) {
   writer.writeLine(`class BaseIDBModelClass<T extends keyof PrismaIDBSchema>`).block(() => {
     writer
       .writeLine(`protected client: PrismaIDBClient;`)

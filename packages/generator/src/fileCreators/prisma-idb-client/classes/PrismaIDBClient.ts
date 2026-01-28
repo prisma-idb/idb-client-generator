@@ -70,7 +70,7 @@ function addCreateInstanceMethod(writer: CodeBlockWriter) {
 function addInitializeMethod(
   writer: CodeBlockWriter,
   models: readonly Model[],
-  outboxSync: boolean ,
+  outboxSync: boolean,
   outboxModelName: string,
   versionMetaModelName: string
 ) {
