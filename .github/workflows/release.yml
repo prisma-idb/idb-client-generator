@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "packages/generator/**"
+      - ".github/workflows/release.yml"
 
 permissions:
   id-token: write # Required for OIDC
@@ -21,8 +24,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: latest
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
