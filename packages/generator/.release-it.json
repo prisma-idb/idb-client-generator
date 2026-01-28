@@ -15,7 +15,7 @@
   "git": {
     "commit": false,
     "tag": true,
-    "tagName": "${version}",
+    "tagName": "v${version}",
     "push": false
   }
 }
