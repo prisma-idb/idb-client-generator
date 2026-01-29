@@ -1,14 +1,16 @@
 import prettier from "eslint-config-prettier";
 import { fileURLToPath } from "node:url";
+import { defineConfig } from "eslint/config";
 import { includeIgnoreFile } from "@eslint/compat";
 import js from "@eslint/js";
 import svelte from "eslint-plugin-svelte";
 import globals from "globals";
 import ts from "typescript-eslint";
+import nextVitals from "eslint-config-next/core-web-vitals";
 
 const gitignorePath = fileURLToPath(new URL("./.gitignore", import.meta.url));
 
-export default [
+export default defineConfig([
   includeIgnoreFile(gitignorePath),
   { ignores: ["**/src/lib/components/ui/**"] },
   js.configs.recommended,
@@ -45,4 +47,9 @@ export default [
       },
     },
   },
-];
+  // Next.js/React config for docs app only (scoped with files property)
+  ...nextVitals.map((config) => ({
+    ...config,
+    files: ["apps/docs/**"],
+  })),
+]);
