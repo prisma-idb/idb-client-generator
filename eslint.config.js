@@ -49,10 +49,10 @@ export default defineConfig([
   },
   // Next.js/React config for docs app only (scoped with files property)
   ...nextVitals.map((config) => {
-    if (!config.files) return config;
+    const files = config.files ?? ["**/*.{js,jsx,mjs,ts,tsx,mts,cts}"];
     return {
       ...config,
-      files: config.files.map(pattern => `apps/docs/${pattern}`),
+      files: files.map((pattern) => `apps/docs/${pattern}`),
     };
   }),
 ]);
