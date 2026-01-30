@@ -1,0 +1,269 @@
+---
+title: "Step 5: Initialize Sync Worker"
+description: "Create and start the sync worker on the client"
+icon: Zap
+---
+
+## Step 5: Initialize the Sync Worker
+
+The sync worker is the client-side orchestrator that manages bidirectional synchronization. It periodically pushes outbox mutations to the server and pulls remote changes back to IndexedDB.
+
+### Creating the Sync Worker
+
+In your application state or initialization code (e.g., Svelte store), create the sync worker:
+
+```typescript
+import { getClient } from "$lib/clients/idb-client";
+import type { SyncWorker } from "$lib/prisma-idb/client/idb-interface";
+
+export class AppState {
+  syncWorker: SyncWorker | undefined;
+
+  constructor() {
+    if (browser) {
+      this.syncWorker = getClient().createSyncWorker({
+        push: {
+          handler: async (events) => {
+            const response = await fetch("/api/sync/push", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ events }),
+            });
+            if (!response.ok) {
+              throw new Error(`Push failed with status ${response.status}`);
+            }
+            return response.json();
+          },
+          batchSize: 50,
+        },
+        pull: {
+          handler: async (cursor) => {
+            const response = await fetch("/api/sync/pull", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ lastChangelogId: cursor }),
+            });
+            if (!response.ok) {
+              throw new Error(`Pull failed with status ${response.status}`);
+            }
+            return response.json();
+          },
+          getCursor: () => this.getCursor(),
+          setCursor: (cursor) => this.setCursor(cursor),
+        },
+        schedule: {
+          intervalMs: 10000,
+          maxRetries: 3,
+        },
+      });
+    }
+  }
+
+  getCursor(): string | undefined {
+    return localStorage.getItem("lastSyncedAt") ?? undefined;
+  }
+
+  setCursor(cursor: string | undefined): void {
+    if (cursor !== undefined) {
+      localStorage.setItem("lastSyncedAt", cursor);
+    } else {
+      localStorage.removeItem("lastSyncedAt");
+    }
+  }
+}
+```
+
+### Configuration Options
+
+#### Push Configuration
+
+- **`handler`**: Async function that receives a batch of `OutboxEventRecord[]` and sends them to the server. Must return `PushResult[]`.
+- **`batchSize`** (optional): Maximum events to send per push request (default: 10, max: 100)
+
+#### Pull Configuration
+
+- **`handler`**: Async function that fetches changes from the server. Receives the cursor from the previous pull. Must return `{ logsWithRecords, cursor }`.
+- **`getCursor`** (optional): Function to retrieve the last cursor from persistent storage (e.g., localStorage). Enables resumable pulls across page reloads.
+- **`setCursor`** (optional): Function to persist the cursor after changes are applied. Called only on successful pull.
+
+#### Schedule Configuration
+
+- **`intervalMs`** (optional): Milliseconds between sync cycles (default: 5000)
+- **`maxRetries`** (optional): Max retry attempts for failed outbox events before abandoning them (default: 5)
+
+### The Sync Cycle
+
+Once you call `syncWorker.start()`, the worker enters a repeating cycle:
+
+```
+1. Push: Send all outbox events in batches
+   - If batch succeeds: mark events as synced, continue
+   - If batch fails: retry up to maxRetries times
+   
+2. Pull: Fetch changelog entries since last cursor
+   - Apply changes to IndexedDB
+   - Persist cursor for next pull
+   
+3. Wait: Sleep for intervalMs before repeating
+```
+
+If any step fails, the worker logs the error and retries on the next cycle.
+
+### Starting and Stopping the Worker
+
+```typescript
+// Start the sync worker
+syncWorker.start();
+
+// Force an immediate sync cycle
+await syncWorker.forceSync();
+
+// Execute a single sync without starting the worker
+await syncWorker.syncNow();
+
+// Stop the worker
+syncWorker.stop();
+
+// Monitor sync status
+syncWorker.on("statuschange", () => {
+  console.log("Status:", syncWorker.status);
+  // { isLooping: true, status: "PUSHING", lastSyncTime: Date, lastError: null }
+});
+```
+
+### Cursor Management
+
+The cursor enables resumable pulls:
+
+1. **`getCursor()`**: Called at sync start to resume from the last position
+2. **`setCursor(cursor)`**: Called after successful pull to persist progress
+3. On page reload: `getCursor()` retrieves the saved cursor, so pulls continue from where they left off
+
+Store the cursor in localStorage, IndexedDB, or your backend—just ensure it persists:
+
+```typescript
+getCursor() {
+  return localStorage.getItem("sync-cursor") || undefined;
+}
+
+setCursor(cursor: string | undefined) {
+  if (cursor) {
+    localStorage.setItem("sync-cursor", cursor);
+  }
+}
+```
+
+### Error Handling
+
+The sync worker gracefully handles errors:
+
+- **Push errors**: Events are marked failed and retried on the next cycle (up to `maxRetries`)
+- **Pull errors**: The pull phase stops gracefully; the worker will retry next cycle
+- **Network errors**: Treated as transient; the worker retries on the next schedule interval
+
+Access the last error via `syncWorker.status.lastError`.
+
+### Watching Sync Status
+
+Monitor sync progress with status events:
+
+```typescript
+const unsubscribe = syncWorker.on("statuschange", () => {
+  const { isLooping, status, lastSyncTime, lastError } = syncWorker.status;
+
+  if (status === "IDLE" && lastSyncTime) {
+    console.log("Sync complete at", lastSyncTime);
+  }
+
+  if (lastError) {
+    console.error("Sync error:", lastError.message);
+  }
+});
+
+// Cleanup
+unsubscribe();
+```
+
+### Complete Example: SvelteKit Component
+
+```typescript
+// +page.svelte.ts
+import { browser } from "$app/environment";
+import { getClient } from "$lib/clients/idb-client";
+import type { SyncWorker } from "$lib/prisma-idb/client/idb-interface";
+
+export class PageState {
+  syncWorker: SyncWorker | undefined;
+  syncStatus = $state({ isLooping: false, lastError: null as Error | null });
+
+  constructor() {
+    if (!browser) return;
+
+    this.syncWorker = getClient().createSyncWorker({
+      push: {
+        handler: async (events) => {
+          const res = await fetch("/api/sync/push", {
+            method: "POST",
+            body: JSON.stringify({ events }),
+            headers: { "Content-Type": "application/json" },
+          });
+          if (!res.ok) throw new Error(`Push failed: ${res.statusText}`);
+          return res.json();
+        },
+        batchSize: 50,
+      },
+      pull: {
+        handler: async (cursor) => {
+          const res = await fetch("/api/sync/pull", {
+            method: "POST",
+            body: JSON.stringify({ lastChangelogId: cursor }),
+            headers: { "Content-Type": "application/json" },
+          });
+          if (!res.ok) throw new Error(`Pull failed: ${res.statusText}`);
+          return res.json();
+        },
+        getCursor: () => localStorage.getItem("sync-cursor") || undefined,
+        setCursor: (cursor) => {
+          if (cursor) localStorage.setItem("sync-cursor", cursor);
+        },
+      },
+      schedule: {
+        intervalMs: 10000,
+        maxRetries: 3,
+      },
+    });
+
+    // Monitor sync status
+    this.syncWorker.on("statuschange", () => {
+      this.syncStatus.isLooping = this.syncWorker!.status.isLooping;
+      this.syncStatus.lastError = this.syncWorker!.status.lastError;
+    });
+
+    // Start sync when component mounts
+    this.syncWorker.start();
+  }
+
+  cleanup() {
+    this.syncWorker?.stop();
+  }
+}
+```
+
+### Important Notes
+
+- **Browser Only**: Always check `if (browser)` before creating the sync worker (SSR safety)
+- **Single Instance**: Create one sync worker per client instance and reuse it
+- **Cleanup**: Call `stop()` when the user logs out or the app unmounts
+- **Error Resilience**: The worker handles transient errors automatically; you only need to handle authentication errors by redirecting to login
+- **Batch Size**: Start with 50 events per batch; increase if network is fast, decrease if you have slow devices
+
+### You're Ready!
+
+Your sync system is now complete and operational. The client can:
+- ✅ Create mutations locally with immediate UI updates
+- ✅ Automatically push to server in batches
+- ✅ Automatically pull server changes
+- ✅ Resume from checkpoints across page reloads
+- ✅ Handle errors gracefully with retries
+
+For monitoring and advanced patterns, see [Sync Worker Lifecycle](./sync-worker-lifecycle).

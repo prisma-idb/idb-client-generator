@@ -1,0 +1,81 @@
+---
+title: "Step 2: Changelog Schema"
+description: "Add the Changelog table to your Prisma schema"
+icon: Database
+---
+
+## Step 2: Create the Changelog Table
+
+The changelog table is essential for the sync engine. It tracks all changes made on the server so they can be materialized to clients during pull operations.
+
+### Required Schema
+
+Add the following to your `prisma/schema.prisma`:
+
+```prisma
+model ChangeLog {
+  id            String          @id @default(uuid(7))
+  model         String
+  keyPath       Json
+  operation     ChangeOperation
+  scopeKey      String
+  outboxEventId String          @unique
+
+  @@index([model, id])
+}
+
+enum ChangeOperation {
+  create
+  update
+  delete
+}
+```
+
+### Field Explanations
+
+- **`id`**: Unique identifier using `uuid(7)` for sortable timestamps
+- **`model`**: The name of the model that was modified (e.g., "Post", "Comment")
+- **`keyPath`**: JSON representation of the primary key(s) of the affected record
+- **`operation`**: The type of change—`create`, `update`, or `delete`
+- **`scopeKey`**: The owner identifier (e.g., `userId`) to scope changes per user
+- **`outboxEventId`**: Links to the client's outbox event that triggered this change
+
+### Important Requirements
+
+#### Database-Level Index
+
+The `@@index([model, id])` is crucial for performance:
+- The pull endpoint queries changelogs in order: `WHERE model IN (...) AND id > lastChangelogId`
+- Without this index, pulls on large tables will be slow
+- Make sure to run migrations after adding this table
+
+#### UUID v7 for Natural Ordering
+
+Using `uuid(7)` ensures:
+- Changelog entries are naturally ordered by creation time
+- Cursoring through changes is efficient (no need to sort by timestamp)
+- Clients can request changes since a specific point in time
+
+#### No Manual Deletes
+
+Never manually delete from the `ChangeLog` table. It's the source of truth for what changed on the server.
+
+### Migration
+
+After adding the schema, create a migration:
+
+```bash
+pnpm exec prisma migrate dev --name add_changelog
+```
+
+This will:
+1. Create the `ChangeLog` table in your database
+2. Update your `schema.prisma`
+
+### Next Steps
+
+With the changelog table in place, you can now implement the endpoints that use it:
+1. Push endpoint to accept client mutations
+2. Pull endpoint to send server changes to clients
+
+Continue to [Step 3: Push Endpoint](./step-3-push-endpoint).

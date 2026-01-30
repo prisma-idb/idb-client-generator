@@ -1,0 +1,90 @@
+---
+title: "Step 1: Generator Config"
+description: "Configure the Prisma IDB generator for sync"
+icon: Settings
+---
+
+## Step 1: Configure the Generator
+
+Before implementing sync, you need to configure the Prisma IDB generator in your `schema.prisma` file. This tells the generator which models to sync and how to scope the data.
+
+### Configuration Options
+
+Add the generator block to your `prisma/schema.prisma`:
+
+```prisma
+generator prismaIDB {
+  provider = "idb-client-generator"
+  output   = "./prisma-idb"
+  
+  // Enable sync capabilities
+  outboxSync = true
+  
+  // Anchor model for the ownership DAG
+  rootModel  = "User"
+  
+  // Models to exclude from sync (optional)
+  exclude    = ["Session", "Verification", "Account", "ChangeLog"]
+}
+```
+
+### Required Settings
+
+- **`outboxSync = true`**: Enables the bidirectional sync engine. Without this, the generated client will be read-only.
+- **`rootModel`**: The primary entity that acts as the anchor for all other models. This must be a model in your schema that represents the data owner (typically `User`).
+
+### Optional Settings
+
+- **`exclude`**: Array of model names to skip during client generation. Use this for:
+  - Authentication models (`Session`, `Account`, `Verification`)
+  - Changelog models (excluded automatically, but good practice to list explicitly)
+  - Server-only models that shouldn't be synced to clients
+  - Large or temporary tables
+
+### Scoping Rules
+
+The `rootModel` and `exclude` settings work together to define which data gets synced:
+
+- Only the `rootModel` and its descendants (models that reference it, directly or indirectly) are synced
+- Excluded models are never generated in the client
+- The generated client only syncs data relevant to the current user (scoped by `rootModel`)
+
+### Example: Multi-User Blog
+
+```prisma
+model User {
+  id    String @id @default(cuid())
+  email String @unique
+  posts Post[]
+}
+
+model Post {
+  id     String @id @default(cuid())
+  title  String
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+generator prismaIDB {
+  provider   = "idb-client-generator"
+  output     = "./prisma-idb"
+  outboxSync = true
+  rootModel  = "User"
+  exclude    = ["ChangeLog", "AuditLog"]
+}
+```
+
+In this setup:
+- `User` is the root model
+- `Post` syncs because it references `User`
+- `AuditLog` is excluded and won't appear in the client
+
+### Next Steps
+
+After configuring the generator, you need to:
+1. Add the `ChangeLog` table to your schema
+2. Implement the push endpoint
+3. Implement the pull endpoint
+4. Initialize the sync worker on the client
+
+Continue to [Step 2: Changelog Schema](./step-2-changelog-schema).

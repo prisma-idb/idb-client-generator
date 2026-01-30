@@ -1,6 +1,0 @@
-{
-  "title": "Basics",
-  "icon": "HouseIcon",
-  "pages": ["---Home---", "index", "why-prisma-idb", "quick-start", "---Sync---", "...(sync)"],
-  "root": true
-}

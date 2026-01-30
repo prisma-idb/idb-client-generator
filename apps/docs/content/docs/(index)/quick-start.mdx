@@ -41,7 +41,7 @@ generator prismaIDB {
 
 ```prisma
 model User {
-  id    String  @id @default(cuid2())  // Client-generated IDs required for sync
+  id    String  @id @default(cuid())  // Client-generated IDs required for sync
   name  String
   email String  @unique
   
@@ -49,7 +49,7 @@ model User {
 }
 
 model Todo {
-  id    String  @id @default(cuid2())
+  id    String  @id @default(cuid())
   title String
   done  Boolean @default(false)
   
@@ -99,7 +99,7 @@ await client.todo.delete({
 
 <Cards>
   <Card title="API Reference" href="/docs/api" />
-  <Card title="Sync Engine" href="/docs/sync-engine" />
+  <Card title="Sync Engine" href="/docs/sync" />
   <Card title="Ownership & Auth" href="/docs/ownership" />
   <Card title="Examples" href="/docs/examples" />
 </Cards>

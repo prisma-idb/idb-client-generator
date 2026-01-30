@@ -1,0 +1,7 @@
+{
+  "title": "Basics",
+  "description": "Get started with the Prisma IDB client",
+  "icon": "Pyramid",
+  "pages": ["---Home---", "index", "why-prisma-idb", "quick-start"],
+  "root": true
+}
