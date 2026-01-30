@@ -5,7 +5,7 @@ export const test = base.extend<{ pages: [Page, Page] }>({
   pages: [
     async ({ page, context, browser }, use) => {
       await page.goto("/login");
-      await page.getByText("Sign in anonymously").click();
+      await page.getByText("Sign in anonymously (limited features, no sync)").click();
       await page.waitForURL("/dashboard");
       await expect(page.getByTestId("user-email")).toContainText("temp", { timeout: 10000 });
 

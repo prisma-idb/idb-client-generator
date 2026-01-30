@@ -87,7 +87,7 @@
             <span class="sr-only">Sign in anonymously</span>
           {:else}
             <UserIcon />
-            Sign in anonymously
+            Sign in anonymously (limited features, no sync)
           {/if}
         </Button>
       </div>
