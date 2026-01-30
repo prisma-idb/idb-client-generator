@@ -1,0 +1,41 @@
+---
+title: Why Prisma IDB?
+description: Key advantages of Prisma IDB for offline-first apps
+icon: CircleQuestionMark
+---
+
+## Why Choose Prisma IDB?
+
+Prisma IDB combines a familiar Prisma-like API with local-first architecture and optional bidirectional sync. Here's what makes it stand out:
+
+### 1. Familiar Prisma-like API
+
+If you're already familiar with Prisma Client, you'll feel right at home with Prisma IDB. The API is designed to be intuitive and easy to use, allowing you to perform CRUD operations with the same syntax you already know.
+
+### 2. Type Safety
+
+Prisma IDB generates a fully typed client based on your Prisma schema. This means you get compile-time checks and autocompletion in your IDE, reducing the likelihood of runtime errors and improving developer productivity.
+
+### 3. Local-First Architecture
+
+All data is stored in IndexedDB, enabling your application to work offline. Users can continue to interact with the app even without an internet connection, and changes will sync automatically when connectivity is restored.
+
+### 4. Optional Bidirectional Sync
+
+Prisma IDB includes an optional sync engine that allows for bidirectional synchronization between the local IndexedDB and a remote server. This ensures that your data remains consistent across different devices and platforms.
+
+### 5. Conflict Resolution & Authorization
+
+The sync engine is built with conflict resolution and authorization in mind. It uses a DAG-based approach to handle conflicts and enforces ownership invariants, ensuring that users can only modify their own data.
+
+## Suitable app types
+
+Prisma IDB is ideal for a variety of application types, including:
+
+- **Progressive Web Apps (PWAs)**: Enhance user experience with offline capabilities and seamless data synchronization.
+- **Mobile Applications**: Build mobile apps that require local data storage and sync with a backend.
+- **Collaborative Tools**: Create applications where multiple users can work together and see updates in real-time.
+- **Data-Intensive Applications**: Manage large datasets locally while ensuring data integrity through synchronization.
+- **Offline-First Applications**: Develop apps that prioritize offline functionality without sacrificing data consistency.
+
+Ready to get started? Head to the [Quick Start guide](/docs/quick-start).

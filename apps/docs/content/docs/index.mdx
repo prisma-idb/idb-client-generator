@@ -1,13 +1,26 @@
 ---
-title: Hello World
-description: Your first document
+title: Introduction
+description: Type-safe IndexedDB with Prisma-like DX and optional bidirectional sync
+icon: House
 ---
 
-Welcome to the docs! You can start writing documents in `/content/docs`.
+## Prisma IndexedDB Client Generator
 
-## What is Next?
+A **Prisma generator** that creates a familiar, type-safe client for IndexedDB with optional **bidirectional synchronization** to a remote server. Define your data model once in Prisma schema, and get both a local-first IndexedDB client and a complete sync engine built for conflict resolution and authorization.
 
-<Cards>
-  <Card title="Learn more about Next.js" href="https://nextjs.org/docs" />
-  <Card title="Learn more about Fumadocs" href="https://fumadocs.dev" />
-</Cards>
+### Core Features
+
+- **Prisma-like API**: Use the syntax you already know. CRUD operations feel exactly like Prisma Client.
+- **Type Safety**: Fully typed operations generated directly from your Prisma schema.
+- **Local-First**: All data lives in IndexedDB. Works offline, syncs when ready.
+
+### Sync Features
+
+- **Optional Sync Engine**: Bidirectional sync with authoritative DAG-based conflict resolution.
+- **Authorization & Ownership**: Built-in ownership invariants ensure users can only modify their data.
+- **Outbox Pattern**: Reliable push operations with automatic retry and batch support.
+- **Changelog Materialization**: Efficient pull operations that materialize server state for clients.
+
+### Status
+
+**Note**: This project is actively maintained and evolving. See the [GitHub repository](https://github.com/prisma-idb/idb-client-generator) for the latest features and roadmap.
