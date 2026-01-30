@@ -12,5 +12,6 @@ export function baseOptions(): BaseLayoutProps {
         </>
       ),
     },
+    githubUrl: "https://github.com/prisma-idb/idb-client-generator",
   };
 }
