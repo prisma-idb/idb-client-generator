@@ -5,28 +5,33 @@ A fully functional **offline-first kanban board** that demonstrates the power of
 ## Features
 
 ### 🗂️ Full Kanban Functionality
+
 - Create and manage multiple boards
 - Organize todos into kanban columns (To Do, In Progress, Done)
 - Drag-and-drop reordering (visual demo)
 - Real-time board and todo management
 
 ### 📱 Offline-First Architecture
+
 - **IndexedDB Storage**: All data persists locally in the browser
 - **Works Offline**: Create and edit todos without internet connection
 - **Automatic Sync**: Changes sync when back online
 
 ### 🔄 Background Sync Worker
+
 - Dedicated Web Worker for syncing data with backend
 - **Manual Sync**: Click to push/pull changes immediately
 - **Auto Sync**: Enable continuous background synchronization
 - **Status Monitoring**: Visual indicators for sync status (idle, pushing, pulling)
 
 ### 🤝 Multi-User Collaboration
+
 - Multiple users can work on the same board
 - Real-time updates when changes are synced
 - Built-in conflict resolution via outbox pattern
 
 ### 🏗️ Type-Safe Development
+
 - **Generated Client**: Entire IndexedDB client auto-generated from Prisma schema
 - **Full TypeScript**: No manual type definitions needed
 - **Type-Aware Queries**: All queries are fully type-checked
@@ -34,6 +39,7 @@ A fully functional **offline-first kanban board** that demonstrates the power of
 ## Architecture
 
 ### Tech Stack
+
 - **Frontend**: SvelteKit with Tailwind CSS
 - **Database (Client)**: IndexedDB + Prisma IDB Generator
 - **Sync Pattern**: Outbox Pattern + Web Workers
@@ -87,6 +93,7 @@ model Todo {
 ## Getting Started
 
 ### Prerequisites
+
 - Node.js 18+
 - pnpm
 
@@ -145,14 +152,18 @@ src/
 ## Key Components
 
 ### `nav-sync.svelte`
+
 Controls the sync worker:
+
 - View current sync status
 - Manually trigger push/pull
 - Toggle auto-sync mode
 - Monitor sync statistics
 
 ### `todos-state.svelte`
+
 Manages application state:
+
 - Stores sync worker instance
 - Provides reactive state for boards and todos
 - Handles user authentication context
