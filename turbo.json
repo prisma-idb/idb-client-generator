@@ -5,12 +5,14 @@
   "tasks": {
     "build": {
       "outputs": ["dist/**", ".svelte-kit/**"],
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "env": ["DATABASE_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "BETTER_AUTH_SECRET"]
     },
     "dev": {
       "cache": false,
       "persistent": true,
-      "interactive": true
+      "interactive": true,
+      "env": ["DATABASE_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "BETTER_AUTH_SECRET"]
     },
     "lint": {
       "outputs": []
