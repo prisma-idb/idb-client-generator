@@ -10,6 +10,7 @@
   import UserIcon from "@lucide/svelte/icons/user";
   import { goto } from "$app/navigation";
   import { resolve } from "$app/paths";
+  import { getClient } from "$lib/clients/idb-client";
 
   const auth = authClient.useSession();
   let user = $derived($auth.data?.user);
@@ -21,6 +22,13 @@
       .map((n) => n[0])
       .join("")
       .toUpperCase();
+  }
+
+  async function logout() {
+    await authClient.signOut();
+    localStorage.removeItem("lastSyncedAt");
+    await getClient().resetDatabase();
+    goto(resolve("/"));
   }
 </script>
 
@@ -72,7 +80,7 @@
               </a>
             {/snippet}
           </DropdownMenu.Item>
-          <DropdownMenu.Item onclick={() => authClient.signOut()}>
+          <DropdownMenu.Item onclick={logout}>
             <LogOutIcon />
             Log out
           </DropdownMenu.Item>
