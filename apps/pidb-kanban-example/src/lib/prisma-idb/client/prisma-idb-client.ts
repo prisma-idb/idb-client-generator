@@ -422,6 +422,7 @@ export class PrismaIDBClient {
               : CustomEvent<{ results: PushResult[] }>
         ) => void
       ): () => void {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const listener = (e: Event) => callback(e as any);
         eventTarget.addEventListener(event, listener as EventListener);
         return () => eventTarget.removeEventListener(event, listener as EventListener);

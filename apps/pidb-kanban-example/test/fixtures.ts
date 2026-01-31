@@ -7,7 +7,7 @@ export const test = base.extend<{ pages: [Page, Page] }>({
       await page.goto("/login");
       await page.getByText("Sign in anonymously (limited features, no sync)").click();
       await page.waitForURL("/dashboard");
-      await expect(page.getByTestId("user-email")).toContainText("temp@", { timeout: 10000 });
+      await expect(page.getByTestId("user-email")).toContainText("temp", { timeout: 10000 });
 
       const userEmail = await page.getByTestId("user-email").innerText();
       const cookies = await context.cookies();

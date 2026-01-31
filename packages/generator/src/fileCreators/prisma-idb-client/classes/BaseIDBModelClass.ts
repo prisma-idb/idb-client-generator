@@ -1,6 +1,6 @@
 import CodeBlockWriter from "code-block-writer";
 
-export function addBaseModelClass(writer: CodeBlockWriter, outboxSync: boolean = false, outboxModelName: string) {
+export function addBaseModelClass(writer: CodeBlockWriter, outboxSync: boolean = false) {
   writer.writeLine(`class BaseIDBModelClass<T extends keyof PrismaIDBSchema>`).block(() => {
     writer
       .writeLine(`protected client: PrismaIDBClient;`)
@@ -17,11 +17,11 @@ export function addBaseModelClass(writer: CodeBlockWriter, outboxSync: boolean =
         .writeLine(`this.eventEmitter = new EventTarget();`);
     });
 
-    addEventEmitters(writer, outboxSync, outboxModelName);
+    addEventEmitters(writer, outboxSync);
   });
 }
 
-function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxModelName: string) {
+function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean) {
   writer
     .writeLine(
       `subscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: (e: CustomEventInit<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>) => void)`
@@ -75,7 +75,6 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxMo
 
       writer.blankLine();
       writer.writeLine(`if (opts?.addToOutbox !== false && this.client.shouldTrackModel(this.modelName))`).block(() => {
-        writer;
         writer
           .writeLine(`await this.client.$outbox.create(`)
           .block(() => {

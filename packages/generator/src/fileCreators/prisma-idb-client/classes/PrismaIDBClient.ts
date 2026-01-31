@@ -235,7 +235,9 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
         .writeLine(` * Process a batch of outbox events passed as argument.`)
         .writeLine(` * This is the core unit of push work, avoiding redundant fetches.`)
         .writeLine(` */`)
-        .writeLine(`const pushBatch = async (batch: OutboxEventRecord[], overrideBackoff = false): Promise<PushResult[]> => {`)
+        .writeLine(
+          `const pushBatch = async (batch: OutboxEventRecord[], overrideBackoff = false): Promise<PushResult[]> => {`
+        )
         .writeLine(`  // Only push retryable events; do not mark as permanently failed on client`)
         .writeLine(
           `  const toSync = batch.filter((event: OutboxEventRecord) => event.retryable && isReadyToRetry(event, overrideBackoff));`
@@ -282,7 +284,9 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
         .writeLine(`    while (true) {`)
         .writeLine(`      const batch = await this.$outbox.getNextBatch({ limit: batchSize });`)
         .writeLine(`      if (batch.length === 0) break;`)
-        .writeLine(`      const ready = batch.filter(event => event.retryable && isReadyToRetry(event, overrideBackoff));`)
+        .writeLine(
+          `      const ready = batch.filter(event => event.retryable && isReadyToRetry(event, overrideBackoff));`
+        )
         .writeLine(`      if (ready.length === 0) break;`)
         .writeLine(`      const batchResults = await pushBatch(ready, overrideBackoff);`)
         .writeLine(`      if (batchResults && batchResults.length > 0) allResults.push(...batchResults);`)
@@ -363,11 +367,11 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
         .blankLine()
         .writeLine(`  try {`)
         .writeLine(`    // Check for any retryable unsynced outbox events`)
-        .writeLine(`    const hasRetryable = await this.$outbox.hasAnyRetryableUnsynced?.();`)
+        .writeLine(`    const hasRetryable = await this.$outbox.hasAnyRetryableUnsynced();`)
         .writeLine(`    if (hasRetryable) {`)
         .writeLine(`      await drainPushPhase(overrideBackoff);`)
         .writeLine(`      // After push, check again; if still retryable, do not pull`)
-        .writeLine(`      const stillHasRetryable = await this.$outbox.hasAnyRetryableUnsynced?.();`)
+        .writeLine(`      const stillHasRetryable = await this.$outbox.hasAnyRetryableUnsynced();`)
         .writeLine(`      if (stillHasRetryable) {`)
         .writeLine(`        // Only push, skip pull`)
         .writeLine(`        return;`)
@@ -483,13 +487,16 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
         .writeLine(`  on<E extends "statuschange" | "pullcompleted" | "pushcompleted">(`)
         .writeLine(`    event: E,`)
         .writeLine(`    callback: (`)
-        .writeLine(`      e: E extends "statuschange"`) 
-        .writeLine(`        ? CustomEvent<{ status: 'STOPPED' | 'IDLE' | 'PUSHING' | 'PULLING'; isLooping: boolean; lastSyncTime: Date | null; lastError: Error | null }>`)
+        .writeLine(`      e: E extends "statuschange"`)
+        .writeLine(
+          `        ? CustomEvent<{ status: 'STOPPED' | 'IDLE' | 'PUSHING' | 'PULLING'; isLooping: boolean; lastSyncTime: Date | null; lastError: Error | null }>`
+        )
         .writeLine(`        : E extends "pullcompleted"`)
         .writeLine(`        ? CustomEvent<ApplyPullResult>`)
-        .writeLine(`        : CustomEvent<{ results: PushResult[] }>`) 
+        .writeLine(`        : CustomEvent<{ results: PushResult[] }>`)
         .writeLine(`    ) => void`)
         .writeLine(`  ): () => void {`)
+        .writeLine(`    // eslint-disable-next-line @typescript-eslint/no-explicit-any`)
         .writeLine(`    const listener = (e: Event) => callback(e as any);`)
         .writeLine(`    eventTarget.addEventListener(event, listener as EventListener);`)
         .writeLine(`    return () => eventTarget.removeEventListener(event, listener as EventListener);`)
