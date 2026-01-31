@@ -15,6 +15,7 @@ export function createIDBInterfaceFile(
   writer.writeLine(`import type * as Prisma from "${prismaClientImport}";`);
   if (outboxSync) {
     writer.writeLine(`import type { PushResult } from "../server/batch-processor";`);
+    writer.writeLine(`import type { ApplyPullResult } from "./apply-pull";`);
   }
   writer.blankLine();
 
@@ -127,13 +128,13 @@ function addSyncWorkerTypes(writer: CodeBlockWriter) {
       .writeLine(` * Returns immediately if worker is stopped or a sync is already in progress.`)
       .writeLine(` * Use syncNow() to trigger a one-off sync without starting the worker.`)
       .writeLine(` */`)
-      .writeLine(`forceSync(): Promise<void>;`)
+      .writeLine(`forceSync(options?: { overrideBackoff?: boolean }): Promise<void>;`)
       .writeLine(`/**`)
       .writeLine(` * Execute a single sync cycle immediately without starting the worker.`)
       .writeLine(` * Returns immediately if a sync is already in progress.`)
       .writeLine(` * Does not require the worker to be running (started).`)
       .writeLine(` */`)
-      .writeLine(`syncNow(): Promise<void>;`)
+      .writeLine(`syncNow(options?: { overrideBackoff?: boolean }): Promise<void>;`)
       .writeLine(`/**`)
       .writeLine(` * Get current sync worker status snapshot.`)
       .writeLine(` * Listen to 'statuschange' events via .on() to get updates.`)
@@ -141,15 +142,17 @@ function addSyncWorkerTypes(writer: CodeBlockWriter) {
       .writeLine(`readonly status: SyncWorkerStatus;`)
       .writeLine(`/**`)
       .writeLine(` * Listen for status changes.`)
-      .writeLine(` * @param event Event name (only 'statuschange' supported)`)
-      .writeLine(` * @param callback Function called whenever status changes`)
+      .writeLine(` * @param event Event name ('statuschange' or 'pullcompleted')`)
+      .writeLine(` * @param callback Function called whenever the event fires`)
       .writeLine(` * @returns Unsubscribe function`)
       .writeLine(` * @example`)
-      .writeLine(` * const unsubscribe = worker.on('statuschange', () => {`)
+      .writeLine(` * const unsubscribe = worker.on('statuschange', (e) => {`)
       .writeLine(` *   console.log('Status:', worker.status);`)
       .writeLine(` * });`)
       .writeLine(` * // Later: unsubscribe()`)
       .writeLine(` */`)
-      .writeLine(`on(event: 'statuschange', callback: () => void): () => void;`);
+      .writeLine(
+        `on(event: 'statuschange' | 'pullcompleted', callback: (e: Event | CustomEvent<ApplyPullResult>) => void): () => void;`
+      );
   });
 }
