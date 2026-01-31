@@ -68,7 +68,7 @@ export async function applyPull(props: ApplyPullProps): Promise<ApplyPullResult>
         if (model === "Board") {
           if (operation === "delete") {
             const validatedKeyPath = keyPathValidators.Board.parse(keyPath);
-            await idbClient.board.delete(
+            await idbClient.board.deleteMany(
               { where: { id: validatedKeyPath[0] } },
               { silent: true, addToOutbox: false, tx }
             );
@@ -100,7 +100,7 @@ export async function applyPull(props: ApplyPullProps): Promise<ApplyPullResult>
         } else if (model === "Todo") {
           if (operation === "delete") {
             const validatedKeyPath = keyPathValidators.Todo.parse(keyPath);
-            await idbClient.todo.delete(
+            await idbClient.todo.deleteMany(
               { where: { id: validatedKeyPath[0] } },
               { silent: true, addToOutbox: false, tx }
             );
@@ -132,7 +132,7 @@ export async function applyPull(props: ApplyPullProps): Promise<ApplyPullResult>
         } else if (model === "User") {
           if (operation === "delete") {
             const validatedKeyPath = keyPathValidators.User.parse(keyPath);
-            await idbClient.user.delete(
+            await idbClient.user.deleteMany(
               { where: { id: validatedKeyPath[0] } },
               { silent: true, addToOutbox: false, tx }
             );

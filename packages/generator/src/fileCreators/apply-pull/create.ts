@@ -117,7 +117,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], ve
               writer.writeLine(`if (operation === 'delete') `).block(() => {
                 writer.writeLine(`const validatedKeyPath = keyPathValidators.${modelName}.parse(keyPath);`);
                 writer.writeLine(
-                  `await idbClient.${camelCaseName}.delete({ where: ${keyPathWhereClause} }, { silent: true, addToOutbox: false, tx });`
+                  `await idbClient.${camelCaseName}.deleteMany({ where: ${keyPathWhereClause} }, { silent: true, addToOutbox: false, tx });`
                 );
                 writer.writeLine(`totalAppliedRecords++;`);
                 writer.writeLine(`// Mark as pulled with latest changelog ID`);
