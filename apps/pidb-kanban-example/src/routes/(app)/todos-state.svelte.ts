@@ -8,14 +8,15 @@ import type { SyncWorker } from "$lib/prisma-idb/client/idb-interface";
 export class TodosState {
   boards = $state<Prisma.BoardGetPayload<{ include: { todos: true } }>[]>();
   syncWorker = $state<SyncWorker>();
+  outboxStats = $state<{ unsynced: number; failed: number; lastError?: string }>();
 
   activeBoardEditId = $state<string>();
 
   activeTodoId = $state<string>();
   activeTodoBoardId = $state<string>();
 
-  private boardCallback = () => this.loadBoards();
-  private todoCallback = () => this.loadBoards();
+  private boardCallback = () => this.loadBoardsAndStats();
+  private todoCallback = () => this.loadBoardsAndStats();
 
   constructor() {
     if (browser) {
@@ -46,7 +47,7 @@ export class TodosState {
             }
             const pullData = await pullResult.json();
 
-            this.loadBoards();
+            this.loadBoardsAndStats();
             return pullData;
           },
           getCursor: () => this.getCursor(),
@@ -57,7 +58,7 @@ export class TodosState {
           maxRetries: 3,
         },
       });
-      this.loadBoards();
+      this.loadBoardsAndStats();
 
       getClient().board.subscribe(["create", "update", "delete"], this.boardCallback);
       getClient().todo.subscribe(["create", "update", "delete"], this.todoCallback);
@@ -79,9 +80,10 @@ export class TodosState {
     }
   }
 
-  async loadBoards() {
+  async loadBoardsAndStats() {
     try {
       this.boards = await getClient().board.findMany({ include: { todos: true } });
+      this.outboxStats = await getClient().$outbox.stats();
     } catch (error) {
       console.error("Error loading boards:", error);
       toast.error("Failed to load boards");

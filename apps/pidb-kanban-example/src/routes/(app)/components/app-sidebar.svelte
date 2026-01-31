@@ -7,6 +7,7 @@
   import { getTodosContext } from "../todos-state.svelte";
   import { PlusIcon } from "@lucide/svelte";
   import NavSync from "./nav-sync.svelte";
+  import PwaButton from "./pwa-button.svelte";
 
   const sidebar = Sidebar.useSidebar();
   const todosState = getTodosContext();
@@ -71,5 +72,6 @@
   <Sidebar.Footer>
     <NavUser />
     <NavSync />
+    <PwaButton />
   </Sidebar.Footer>
 </Sidebar.Root>
