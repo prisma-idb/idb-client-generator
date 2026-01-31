@@ -20,13 +20,10 @@ self.addEventListener("activate", (event) => {
 });
 
 // Don't cache API endpoints - always fetch fresh
-registerRoute(
-  ({ request }) => {
-    const url = new URL(request.url);
-    return url.pathname.startsWith("/api/");
-  },
-  new NetworkOnly()
-);
+registerRoute(({ request }) => {
+  const url = new URL(request.url);
+  return url.pathname.startsWith("/api/");
+}, new NetworkOnly());
 
 // Cache everything else
 registerRoute(/.*/, new StaleWhileRevalidate());
