@@ -163,7 +163,7 @@ function addMarkFailedMethod(writer: CodeBlockWriter, outboxModelName: string) {
         .writeLine(`const updatedEvent = {`)
         .writeLine(`...event,`)
         .writeLine(`tries: (event.tries ?? 0) + 1,`)
-        .writeLine(`lastError: \`\${error.message}: \${error.message}\`,`)
+        .writeLine(`lastError: \`\${error.type ?? 'Error'}: \${error.message}\`,`)
         .writeLine(`lastAttemptedAt: new Date(),`)
         .writeLine(`retryable: error.retryable,`)
         .writeLine(`};`)

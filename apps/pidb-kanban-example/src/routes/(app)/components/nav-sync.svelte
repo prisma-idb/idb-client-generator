@@ -38,6 +38,9 @@
     // Initialize current status
     ({ status, isLooping } = todosState.syncWorker.status);
 
+    // Initialize outbox stats immediately
+    updateOutboxStats();
+
     // Subscribe to status changes
     const unsubscribeStatusChange = todosState.syncWorker.on("statuschange", () => {
       if (todosState.syncWorker) {

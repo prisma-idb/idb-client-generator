@@ -57,7 +57,10 @@ test("syncs_create_update_delete_across_devices", async ({ pages }) => {
   ]);
 
   // Device B: Sync changes and verify the board is deleted
-  await pageB.getByTestId("sync-now-button").click();
+  await Promise.all([
+    pageB.getByTestId("sync-now-button").click(),
+    pageB.waitForResponse((resp) => resp.url().includes("/sync/pull") && resp.status() === 200),
+  ]);
   await expect(pageB.getByText("Project Beta")).not.toBeVisible();
 });
 
