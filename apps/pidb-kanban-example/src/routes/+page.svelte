@@ -2,7 +2,7 @@
   import { resolve } from "$app/paths";
   import Button from "$lib/components/ui/button/button.svelte";
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "$lib/components/ui/card";
-  import { ArrowRight, Database, Zap, GithubIcon } from "@lucide/svelte";
+  import { ArrowRight, Database, Zap, GithubIcon, AlertCircle } from "@lucide/svelte";
   import favicon from "$lib/assets/favicon.png";
 </script>
 
@@ -52,6 +52,21 @@
         <a href="https://github.com/prisma-idb/idb-client-generator" target="_blank" rel="noopener noreferrer">
           <Button size="lg" variant="outline" class="w-full sm:w-auto">View Source</Button>
         </a>
+      </div>
+
+      <!-- Warning Section -->
+      <div class="bg-destructive text-black my-8 rounded-lg border p-4">
+        <div class="flex items-start gap-3">
+          <AlertCircle class="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <h3 class="font-semibold">Testing Demo</h3>
+            <p class="mt-1 text-sm">
+              This is a testing and demonstration application. Data is not persistent and may be deleted at any point.
+              This project is designed to showcase the Prisma IDB generator and offline-sync capabilities, not as a
+              production kanban tool.
+            </p>
+          </div>
+        </div>
       </div>
 
       <!-- Feature Grid -->
