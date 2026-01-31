@@ -1,6 +1,7 @@
 import type { DBSchema } from "idb";
 import type * as Prisma from "./generated/client";
 import type { PushResult } from "../server/batch-processor";
+import type { ApplyPullResult } from "./apply-pull";
 
 export interface PrismaIDBSchema extends DBSchema {
   Board: {
@@ -37,6 +38,7 @@ export interface OutboxEventRecord {
   lastError: string | null;
   synced: boolean;
   syncedAt: Date | null;
+  lastAttemptedAt: Date | null;
   retryable: boolean;
 }
 export interface ChangeMetaRecord {
@@ -80,13 +82,13 @@ export interface SyncWorker {
    * Returns immediately if worker is stopped or a sync is already in progress.
    * Use syncNow() to trigger a one-off sync without starting the worker.
    */
-  forceSync(): Promise<void>;
+  forceSync(options?: { overrideBackoff?: boolean }): Promise<void>;
   /**
    * Execute a single sync cycle immediately without starting the worker.
    * Returns immediately if a sync is already in progress.
    * Does not require the worker to be running (started).
    */
-  syncNow(): Promise<void>;
+  syncNow(options?: { overrideBackoff?: boolean }): Promise<void>;
   /**
    * Get current sync worker status snapshot.
    * Listen to 'statuschange' events via .on() to get updates.
@@ -94,14 +96,28 @@ export interface SyncWorker {
   readonly status: SyncWorkerStatus;
   /**
    * Listen for status changes.
-   * @param event Event name (only 'statuschange' supported)
-   * @param callback Function called whenever status changes
+   * @param event Event name ('statuschange', 'pullcompleted' or 'pushcompleted')
+   * @param callback Function called whenever the event fires
    * @returns Unsubscribe function
    * @example
-   * const unsubscribe = worker.on('statuschange', () => {
+   * const unsubscribe = worker.on('statuschange', (e) => {
    *   console.log('Status:', worker.status);
    * });
    * // Later: unsubscribe()
    */
-  on(event: "statuschange", callback: () => void): () => void;
+  on<E extends "statuschange" | "pullcompleted" | "pushcompleted">(
+    event: E,
+    callback: (
+      e: E extends "statuschange"
+        ? CustomEvent<{
+            status: "STOPPED" | "IDLE" | "PUSHING" | "PULLING";
+            isLooping: boolean;
+            lastSyncTime: Date | null;
+            lastError: Error | null;
+          }>
+        : E extends "pullcompleted"
+          ? CustomEvent<ApplyPullResult>
+          : CustomEvent<{ results: PushResult[] }>
+    ) => void
+  ): () => void;
 }

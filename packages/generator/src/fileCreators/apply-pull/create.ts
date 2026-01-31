@@ -16,6 +16,16 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], ve
   writer.writeLine(`};`);
   writer.blankLine();
 
+  // Write type definition for applyPull return value
+  writer.writeLine(`export type ApplyPullResult =`);
+  writer.block(() => {
+    writer.writeLine(`validationErrors: { model: string; error: unknown }[];`);
+    writer.writeLine(`missingRecords: number;`);
+    writer.writeLine(`staleRecords: number;`);
+    writer.writeLine(`totalAppliedRecords: number;`);
+  });
+  writer.blankLine();
+
   // Write JSDoc for the applyPull function
   writer.writeLine(`/**`);
   writer.writeLine(` * Apply pulled changes from remote server to local IndexedDB.`);
@@ -32,7 +42,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], ve
   writer.writeLine(` */`);
 
   // Write applyPull function
-  writer.writeLine(`export async function applyPull(props: ApplyPullProps) `).block(() => {
+  writer.writeLine(`export async function applyPull(props: ApplyPullProps): Promise<ApplyPullResult> `).block(() => {
     writer.writeLine(`const { idbClient, logsWithRecords } = props;`);
     writer.blankLine();
 
@@ -66,15 +76,6 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], ve
         });
         writer.blankLine();
 
-        // Skip stale records
-        writer.writeLine(`const versionMeta = await idbClient.$versionMeta.get(model, keyPath, tx);`);
-        writer.writeLine(`const lastAppliedChangeId = versionMeta?.lastAppliedChangeId ?? null;`);
-        writer.writeLine(`if (lastAppliedChangeId !== null && lastAppliedChangeId >= changelogId) {`);
-        writer.writeLine(`  staleRecords++;`);
-        writer.writeLine(`  continue;`);
-        writer.writeLine(`}`);
-        writer.blankLine();
-
         // Early exit if transaction was aborted
         writer.writeLine(`// Exit early if transaction was aborted during previous operations`);
         writer.writeLine(`if (txAborted)`).block(() => {
@@ -84,6 +85,14 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], ve
         writer.blankLine();
 
         writer.writeLine(`try `).block(() => {
+          // Skip stale records
+          writer.writeLine(`const versionMeta = await idbClient.$versionMeta.get(model, keyPath, tx);`);
+          writer.writeLine(`const lastAppliedChangeId = versionMeta?.lastAppliedChangeId ?? null;`);
+          writer.writeLine(`if (lastAppliedChangeId !== null && lastAppliedChangeId >= changelogId) {`);
+          writer.writeLine(`  staleRecords++;`);
+          writer.writeLine(`  continue;`);
+          writer.writeLine(`}`);
+          writer.blankLine();
           models.forEach((model, index) => {
             const modelName = model.name;
             const camelCaseName = modelName.charAt(0).toLowerCase() + modelName.slice(1);
@@ -107,7 +116,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], ve
               writer.writeLine(`if (operation === 'delete') `).block(() => {
                 writer.writeLine(`const validatedKeyPath = keyPathValidators.${modelName}.parse(keyPath);`);
                 writer.writeLine(
-                  `await idbClient.${camelCaseName}.delete({ where: ${keyPathWhereClause} }, { silent: true, addToOutbox: false, tx });`
+                  `await idbClient.${camelCaseName}.deleteMany({ where: ${keyPathWhereClause} }, { silent: true, addToOutbox: false, tx });`
                 );
                 writer.writeLine(`totalAppliedRecords++;`);
                 writer.writeLine(`// Mark as pulled with latest changelog ID`);

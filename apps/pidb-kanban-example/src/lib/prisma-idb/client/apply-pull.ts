@@ -7,6 +7,13 @@ type ApplyPullProps = {
   logsWithRecords: LogWithRecord<typeof validators>[];
 };
 
+export type ApplyPullResult = {
+  validationErrors: { model: string; error: unknown }[];
+  missingRecords: number;
+  staleRecords: number;
+  totalAppliedRecords: number;
+};
+
 /**
  * Apply pulled changes from remote server to local IndexedDB.
  *
@@ -18,7 +25,7 @@ type ApplyPullProps = {
  * @param props.logsWithRecords - Array of change logs with validated records from server
  * @returns Object with sync statistics including applied records, missing records, and validation errors
  */
-export async function applyPull(props: ApplyPullProps) {
+export async function applyPull(props: ApplyPullProps): Promise<ApplyPullResult> {
   const { idbClient, logsWithRecords } = props;
 
   let staleRecords = 0;
@@ -44,13 +51,6 @@ export async function applyPull(props: ApplyPullProps) {
         continue;
       }
 
-      const versionMeta = await idbClient.$versionMeta.get(model, keyPath, tx);
-      const lastAppliedChangeId = versionMeta?.lastAppliedChangeId ?? null;
-      if (lastAppliedChangeId !== null && lastAppliedChangeId >= changelogId) {
-        staleRecords++;
-        continue;
-      }
-
       // Exit early if transaction was aborted during previous operations
       if (txAborted) {
         validationErrors.push({ model, error: new Error("Transaction was aborted") });
@@ -58,10 +58,17 @@ export async function applyPull(props: ApplyPullProps) {
       }
 
       try {
+        const versionMeta = await idbClient.$versionMeta.get(model, keyPath, tx);
+        const lastAppliedChangeId = versionMeta?.lastAppliedChangeId ?? null;
+        if (lastAppliedChangeId !== null && lastAppliedChangeId >= changelogId) {
+          staleRecords++;
+          continue;
+        }
+
         if (model === "Board") {
           if (operation === "delete") {
             const validatedKeyPath = keyPathValidators.Board.parse(keyPath);
-            await idbClient.board.delete(
+            await idbClient.board.deleteMany(
               { where: { id: validatedKeyPath[0] } },
               { silent: true, addToOutbox: false, tx }
             );
@@ -93,7 +100,7 @@ export async function applyPull(props: ApplyPullProps) {
         } else if (model === "Todo") {
           if (operation === "delete") {
             const validatedKeyPath = keyPathValidators.Todo.parse(keyPath);
-            await idbClient.todo.delete(
+            await idbClient.todo.deleteMany(
               { where: { id: validatedKeyPath[0] } },
               { silent: true, addToOutbox: false, tx }
             );
@@ -125,7 +132,7 @@ export async function applyPull(props: ApplyPullProps) {
         } else if (model === "User") {
           if (operation === "delete") {
             const validatedKeyPath = keyPathValidators.User.parse(keyPath);
-            await idbClient.user.delete(
+            await idbClient.user.deleteMany(
               { where: { id: validatedKeyPath[0] } },
               { silent: true, addToOutbox: false, tx }
             );

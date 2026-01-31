@@ -4,7 +4,10 @@
   import { Toaster } from "$lib/components/ui/sonner/index.js";
   import { QueryClient, QueryClientProvider } from "@tanstack/svelte-query";
   import { ModeWatcher } from "mode-watcher";
+  import { pwaInfo } from "virtual:pwa-info";
   import "./layout.css";
+
+  let webManifestLink = $derived(pwaInfo ? pwaInfo.webManifest.linkTag : "");
 
   let { children } = $props();
 
@@ -17,7 +20,11 @@
   });
 </script>
 
-<svelte:head><link rel="icon" href={favicon} /></svelte:head>
+<svelte:head>
+  <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+  {@html webManifestLink}
+  <link rel="icon" href={favicon} />
+</svelte:head>
 
 <ModeWatcher />
 <Toaster />
