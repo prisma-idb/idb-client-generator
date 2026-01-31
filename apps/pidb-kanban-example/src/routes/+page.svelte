@@ -55,9 +55,9 @@
       </div>
 
       <!-- Warning Section -->
-      <div class="bg-destructive my-8 rounded-lg border p-4 text-black">
+      <div class="bg-destructive text-foreground my-8 rounded-lg border p-4" role="alert" aria-live="polite">
         <div class="flex items-start gap-3">
-          <AlertCircle class="mt-0.5 h-5 w-5 shrink-0" />
+          <AlertCircle class="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
           <div>
             <h3 class="font-semibold">Testing Demo</h3>
             <p class="mt-1 text-sm">
