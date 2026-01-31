@@ -83,10 +83,15 @@ export class TodosState {
   async loadBoardsAndStats() {
     try {
       this.boards = await getClient().board.findMany({ include: { todos: true } });
-      this.outboxStats = await getClient().$outbox.stats();
     } catch (error) {
       console.error("Error loading boards:", error);
       toast.error("Failed to load boards");
+    }
+    try {
+      this.outboxStats = await getClient().$outbox.stats();
+    } catch (error) {
+      console.error("Error loading sync stats:", error);
+      toast.error("Failed to load sync stats");
     }
   }
 
