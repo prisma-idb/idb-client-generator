@@ -5,11 +5,29 @@ export function addOutboxEventIDBClass(writer: CodeBlockWriter, outboxModelName:
     addConstructor(writer, outboxModelName);
     addCreateMethod(writer, outboxModelName);
     addGetNextBatchMethod(writer, outboxModelName);
+    addHasAnyRetryableUnsyncedMethod(writer, outboxModelName);
     addMarkSyncedMethod(writer, outboxModelName);
     addMarkFailedMethod(writer, outboxModelName);
     addStatsMethod(writer, outboxModelName);
     addClearSyncedMethod(writer, outboxModelName);
   });
+function addHasAnyRetryableUnsyncedMethod(writer: CodeBlockWriter, outboxModelName: string) {
+  writer
+    .writeLine(`/**`)
+    .writeLine(` * Returns true if any unsynced, retryable outbox event exists.`)
+    .writeLine(` * Used to gate pull phase in sync worker.`)
+    .writeLine(` */`)
+    .writeLine(`async hasAnyRetryableUnsynced(): Promise<boolean> {`)
+    .block(() => {
+      writer
+        .writeLine(`const tx = this.client._db.transaction("${outboxModelName}", "readonly");`)
+        .writeLine(`const store = tx.objectStore("${outboxModelName}");`)
+        .writeLine(`const allEvents = await store.getAll();`)
+        .writeLine(`return allEvents.some((e) => !e.synced && e.retryable);`);
+    })
+    .writeLine(`}`)
+    .blankLine();
+}
 }
 
 function addConstructor(writer: CodeBlockWriter, outboxModelName: string) {
