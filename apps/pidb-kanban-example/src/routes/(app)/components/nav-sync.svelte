@@ -1,23 +1,38 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { browser } from "$app/environment";
-  import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
-  import ChevronsUpDownIcon from "@lucide/svelte/icons/chevrons-up-down";
+  import * as Card from "$lib/components/ui/card/index.js";
+  import { Button } from "$lib/components/ui/button/index.js";
+  import * as Popover from "$lib/components/ui/popover/index.js";
   import CloudIcon from "@lucide/svelte/icons/cloud";
-  import CloudOffIcon from "@lucide/svelte/icons/cloud-off";
   import PlayIcon from "@lucide/svelte/icons/play";
   import StopCircleIcon from "@lucide/svelte/icons/stop-circle";
-  import ArrowUpIcon from "@lucide/svelte/icons/arrow-up";
-  import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
   import { getTodosContext } from "../todos-state.svelte";
-  import Badge from "$lib/components/ui/badge/badge.svelte";
-  import * as Card from "$lib/components/ui/card/index.js";
+  import { ChevronsUpDownIcon, CloudDownloadIcon, CloudOffIcon, CloudUploadIcon } from "@lucide/svelte";
+  import SyncDetailsPopover from "./sync-details/sync-details-popover.svelte";
+  import type { ApplyPullResult } from "$lib/prisma-idb/client/apply-pull";
+  import type { PushResult } from "$lib/prisma-idb/server/batch-processor";
+  import { getClient } from "$lib/clients/idb-client";
 
   const todosState = getTodosContext();
+  const iconMap = {
+    STOPPED: CloudOffIcon,
+    IDLE: PlayIcon,
+    PUSHING: CloudUploadIcon,
+    PULLING: CloudDownloadIcon,
+  } as const;
 
   let status = $state<"STOPPED" | "IDLE" | "PUSHING" | "PULLING">("STOPPED");
   let isLooping = $state(false);
+
+  let pushResult = $state<{ results: PushResult[] }>();
+  let pullResult = $state<ApplyPullResult>();
+  let outboxStats = $state<{ unsynced: number; failed: number; lastError?: string }>();
+
+  async function updateOutboxStats() {
+    outboxStats = await getClient().$outbox.stats();
+  }
 
   onMount(() => {
     if (!browser || !todosState.syncWorker) return;
@@ -26,65 +41,51 @@
     ({ status, isLooping } = todosState.syncWorker.status);
 
     // Subscribe to status changes
-    const unsubscribe = todosState.syncWorker.on("statuschange", () => {
+    const unsubscribeStatusChange = todosState.syncWorker.on("statuschange", () => {
       if (todosState.syncWorker) {
         ({ status, isLooping } = todosState.syncWorker.status);
       }
     });
 
+    const unsubscribePushCompleted = todosState.syncWorker.on("pushcompleted", (e) => {
+      pushResult = e.detail;
+    });
+
+    const unsubscribePullCompleted = todosState.syncWorker.on("pullcompleted", (e) => {
+      pullResult = e.detail;
+    });
+
+    getClient().$outbox.subscribe(["create", "update", "delete"], updateOutboxStats);
+
     return () => {
-      unsubscribe();
+      unsubscribeStatusChange();
+      unsubscribePushCompleted();
+      unsubscribePullCompleted();
+      getClient().$outbox.unsubscribe(["create", "update", "delete"], updateOutboxStats);
     };
   });
 </script>
 
 <Sidebar.Menu>
   <Sidebar.MenuItem>
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
+    <Popover.Root>
+      <Popover.Trigger>
         {#snippet child({ props })}
-          <Sidebar.MenuButton
-            size="lg"
-            data-testid="open-sync-menu"
-            class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            {...props}
-          >
-            {#if status !== "STOPPED"}
-              <CloudIcon class="mx-2 size-8 rounded-lg" />
-            {:else}
-              <CloudOffIcon class="mx-2 size-8 rounded-lg opacity-60" />
-            {/if}
+          <Sidebar.MenuButton size="lg" {...props}>
+            {@const Icon = iconMap[status]}
+            <div class="bg-secondary rounded-lg p-2">
+              <Icon class="size-4" />
+            </div>
             <div class="grid flex-1 text-start text-sm leading-tight">
-              <span class="truncate font-medium">
-                Sync status
-                {#if todosState.outboxStats?.unsynced}
-                  <Badge class="h-fit w-fit px-1 py-0">{todosState.outboxStats.unsynced}</Badge>
-                {/if}
-              </span>
-              <span class="flex items-center gap-1 truncate text-xs">
-                {#if status === "PUSHING"}
-                  Pushing
-                  <ArrowUpIcon class="size-3" />
-                {:else if status === "PULLING"}
-                  Pulling
-                  <ArrowDownIcon class="size-3" />
-                {:else if status === "IDLE"}
-                  Idle
-                {:else}
-                  Stopped
-                {/if}
-              </span>
+              <span class="font-medium">Sync status</span>
+              <span class="text-xs capitalize" data-testid="sync-status">{status.toLowerCase()}</span>
             </div>
             <ChevronsUpDownIcon class="ms-auto size-4" />
           </Sidebar.MenuButton>
         {/snippet}
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Content
-        class="w-(--bits-dropdown-menu-anchor-width) min-w-56 rounded-lg"
-        side="top"
-        align="end"
-        sideOffset={4}
-      >
+      </Popover.Trigger>
+
+      <Popover.Content side="top" align="start" class="w-60 rounded-lg border-0 p-0">
         <Card.Root>
           <Card.Header>
             <Card.Title>Sync status</Card.Title>
@@ -99,57 +100,38 @@
                 Sync is stopped
               {/if}
             </Card.Description>
+            <Card.Action>
+              <SyncDetailsPopover {pushResult} {pullResult} {outboxStats} />
+            </Card.Action>
           </Card.Header>
-          <Card.Content class="text-sm">
-            {#if todosState.outboxStats}
-              <div class="flex flex-col gap-2">
-                <div class="flex justify-between">
-                  <span>Unsynced changes</span>
-                  <span>{todosState.outboxStats.unsynced}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span>Failed sync attempts</span>
-                  <span>{todosState.outboxStats.failed}</span>
-                </div>
-                <div class="flex flex-col">
-                  <span>Last sync error</span>
-                  <span class="text-muted-foreground text-xs">
-                    {#if todosState.outboxStats.lastError}
-                      {todosState.outboxStats.lastError}
-                    {:else}
-                      None
-                    {/if}
-                  </span>
-                </div>
-              </div>
-            {:else}
-              <p>Loading sync stats...</p>
-            {/if}
-          </Card.Content>
+          <Card.Footer class="grid gap-2">
+            <Button
+              class="w-full"
+              onclick={() => {
+                if (isLooping) todosState.syncWorker?.stop();
+                else todosState.syncWithServer();
+              }}
+            >
+              {#if isLooping}
+                <StopCircleIcon />
+                Stop auto-sync
+              {:else}
+                <PlayIcon />
+                Start auto-sync
+              {/if}
+            </Button>
+            <Button
+              variant="secondary"
+              class="w-full"
+              onclick={() => todosState.syncWorker?.syncNow()}
+              disabled={!todosState.syncWorker}
+            >
+              <CloudIcon />
+              Sync now
+            </Button>
+          </Card.Footer>
         </Card.Root>
-        <DropdownMenu.Item
-          onclick={() => {
-            if (isLooping) todosState.syncWorker?.stop();
-            else todosState.syncWithServer();
-          }}
-        >
-          {#if isLooping}
-            <StopCircleIcon />
-            Stop auto-sync
-          {:else}
-            <PlayIcon />
-            Start auto-sync
-          {/if}
-        </DropdownMenu.Item>
-        <DropdownMenu.Item
-          onclick={() => todosState.syncWorker?.syncNow()}
-          disabled={!todosState.syncWorker}
-          data-testid="sync-now-button"
-        >
-          <CloudIcon />
-          Sync now (once)
-        </DropdownMenu.Item>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+      </Popover.Content>
+    </Popover.Root>
   </Sidebar.MenuItem>
 </Sidebar.Menu>

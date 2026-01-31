@@ -96,7 +96,7 @@ export interface SyncWorker {
   readonly status: SyncWorkerStatus;
   /**
    * Listen for status changes.
-   * @param event Event name ('statuschange' or 'pullcompleted')
+   * @param event Event name ('statuschange', 'pullcompleted' or 'pushcompleted')
    * @param callback Function called whenever the event fires
    * @returns Unsubscribe function
    * @example
@@ -105,5 +105,19 @@ export interface SyncWorker {
    * });
    * // Later: unsubscribe()
    */
-  on(event: "statuschange" | "pullcompleted", callback: (e: Event | CustomEvent<ApplyPullResult>) => void): () => void;
+  on<E extends "statuschange" | "pullcompleted" | "pushcompleted">(
+    event: E,
+    callback: (
+      e: E extends "statuschange"
+        ? CustomEvent<{
+            status: "STOPPED" | "IDLE" | "PUSHING" | "PULLING";
+            isLooping: boolean;
+            lastSyncTime: Date | null;
+            lastError: Error | null;
+          }>
+        : E extends "pullcompleted"
+          ? CustomEvent<ApplyPullResult>
+          : CustomEvent<{ results: PushResult[] }>
+    ) => void
+  ): () => void;
 }

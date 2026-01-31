@@ -128,11 +128,18 @@ export class PrismaIDBClient {
     const eventTarget = new EventTarget();
 
     const emitStatusChange = () => {
-      eventTarget.dispatchEvent(new Event("statuschange"));
+      const detail = { status, isLooping, lastSyncTime, lastError };
+      const event = new CustomEvent("statuschange", { detail });
+      eventTarget.dispatchEvent(event);
     };
 
     const emitPullCompleted = (stats: ApplyPullResult) => {
       const event = new CustomEvent("pullcompleted", { detail: stats });
+      eventTarget.dispatchEvent(event);
+    };
+
+    const emitPushCompleted = (results: PushResult[]) => {
+      const event = new CustomEvent("pushcompleted", { detail: { results } });
       eventTarget.dispatchEvent(event);
     };
 
@@ -159,12 +166,12 @@ export class PrismaIDBClient {
      * Process a batch of outbox events passed as argument.
      * This is the core unit of push work, avoiding redundant fetches.
      */
-    const pushBatch = async (batch: OutboxEventRecord[], overrideBackoff = false): Promise<void> => {
+    const pushBatch = async (batch: OutboxEventRecord[], overrideBackoff = false): Promise<PushResult[]> => {
       // Only push retryable events; do not mark as permanently failed on client
       const toSync = batch.filter(
         (event: OutboxEventRecord) => event.retryable && isReadyToRetry(event, overrideBackoff)
       );
-      if (toSync.length === 0) return;
+      if (toSync.length === 0) return [];
       let results: PushResult[] = [];
       try {
         results = await pushHandler(toSync);
@@ -173,7 +180,7 @@ export class PrismaIDBClient {
           const error = err instanceof Error ? err.message : String(err);
           await this.$outbox.markFailed(event.id, { type: "UNKNOWN_ERROR", message: error, retryable: true });
         }
-        return;
+        return results;
       }
       const appliedLogs: { id: string; lastAppliedChangeId: string | null }[] = [];
       for (const result of results) {
@@ -187,6 +194,7 @@ export class PrismaIDBClient {
       if (appliedLogs.length > 0) {
         await this.$outbox.markSynced(appliedLogs);
       }
+      return results;
     };
 
     /**
@@ -199,12 +207,20 @@ export class PrismaIDBClient {
       status = "PUSHING";
       emitStatusChange();
       try {
+        const allResults: PushResult[] = [];
         while (true) {
           const batch = await this.$outbox.getNextBatch({ limit: batchSize });
           if (batch.length === 0) break;
           const ready = batch.filter((event) => event.retryable && isReadyToRetry(event, overrideBackoff));
           if (ready.length === 0) break;
-          await pushBatch(ready, overrideBackoff);
+          const batchResults = await pushBatch(ready, overrideBackoff);
+          if (batchResults && batchResults.length > 0) allResults.push(...batchResults);
+        }
+        // Emit push results after push drained
+        try {
+          emitPushCompleted(allResults);
+        } catch (err) {
+          console.warn("Failed to emit pushcompleted event:", err);
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
@@ -388,30 +404,27 @@ export class PrismaIDBClient {
       },
 
       /**
-       * Listen for status changes or pull completion events.
-       * @param event Event name ('statuschange' or 'pullcompleted')
-       * @param callback Callback function. For 'statuschange', receives Event. For 'pullcompleted', receives CustomEvent with ApplyPullResult detail.
+       * Listen for status changes, pull completion, or push completion events.
        * @returns Unsubscribe function
-       * @example
-       * // Listen to status changes
-       * const unsubscribe = worker.on('statuschange', (event: Event) => {
-       *   console.log('Status changed');
-       * });
-       *
-       * // Listen to pull completion
-       * const unsubscribePull = worker.on('pullcompleted', (event: CustomEvent<ApplyPullResult>) => {
-       *   console.log('Applied:', event.detail.totalAppliedRecords);
-       *   console.log('Errors:', event.detail.validationErrors);
-       * });
-       * // Later: unsubscribe(), unsubscribePull()
        */
-      on(
-        event: "statuschange" | "pullcompleted",
-        callback: (e: Event | CustomEvent<ApplyPullResult>) => void
+      on<E extends "statuschange" | "pullcompleted" | "pushcompleted">(
+        event: E,
+        callback: (
+          e: E extends "statuschange"
+            ? CustomEvent<{
+                status: "STOPPED" | "IDLE" | "PUSHING" | "PULLING";
+                isLooping: boolean;
+                lastSyncTime: Date | null;
+                lastError: Error | null;
+              }>
+            : E extends "pullcompleted"
+              ? CustomEvent<ApplyPullResult>
+              : CustomEvent<{ results: PushResult[] }>
+        ) => void
       ): () => void {
-        const listener = (e: Event | CustomEvent<ApplyPullResult>) => callback(e);
-        eventTarget.addEventListener(event, listener);
-        return () => eventTarget.removeEventListener(event, listener);
+        const listener = (e: Event) => callback(e as any);
+        eventTarget.addEventListener(event, listener as EventListener);
+        return () => eventTarget.removeEventListener(event, listener as EventListener);
       },
     };
   }
@@ -487,25 +500,18 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
     }
 
     if (opts?.addToOutbox !== false && this.client.shouldTrackModel(this.modelName)) {
-      if (opts?.tx) {
-        const outboxStore = opts.tx.objectStore("OutboxEvent");
-        const outboxEvent: OutboxEventRecord = {
-          id: crypto.randomUUID(),
-          createdAt: new Date(),
-          synced: false,
-          syncedAt: null,
-          tries: 0,
-          lastError: null,
-          entityType: this.modelName,
-          operation: event,
-          payload: record ?? keyPath,
-          retryable: true,
-          lastAttemptedAt: null,
-        };
-        await outboxStore.add(outboxEvent);
+      await this.client.$outbox.create(
+        {
+          data: {
+            entityType: this.modelName,
+            operation: event,
+            payload: record ?? keyPath,
+          },
+        },
+        { tx: opts?.tx }
+      );
 
-        await this.client.$versionMeta.markLocalPending(this.modelName, keyPath, { tx: opts.tx });
-      }
+      await this.client.$versionMeta.markLocalPending(this.modelName, keyPath, { tx: opts?.tx });
     }
   }
 }
@@ -3270,10 +3276,11 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
     super(client, keyPath, "OutboxEvent");
   }
 
-  async create(query: {
-    data: Pick<OutboxEventRecord, "entityType" | "operation" | "payload">;
-  }): Promise<OutboxEventRecord> {
-    const tx = this.client._db.transaction("OutboxEvent", "readwrite");
+  async create(
+    query: { data: Pick<OutboxEventRecord, "entityType" | "operation" | "payload"> },
+    options?: { tx?: IDBUtils.ReadwriteTransactionType; silent?: boolean }
+  ): Promise<OutboxEventRecord> {
+    const tx = options?.tx ?? this.client._db.transaction(["OutboxEvent"], "readwrite");
     const store = tx.objectStore("OutboxEvent");
 
     const event: OutboxEventRecord = {
@@ -3287,16 +3294,17 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
       retryable: true,
       ...query.data,
     };
-
     await store.add(event);
-    await tx.done;
+
+    this.emit("create", [event.id], undefined, event, { silent: options?.silent ?? false, addToOutbox: false, tx });
+    if (!options?.tx) await tx.done;
 
     return event;
   }
 
   async getNextBatch(options?: { limit?: number }): Promise<OutboxEventRecord[]> {
     const limit = options?.limit ?? 20;
-    const tx = this.client._db.transaction("OutboxEvent", "readonly");
+    const tx = this.client._db.transaction(["OutboxEvent"], "readonly");
     const store = tx.objectStore("OutboxEvent");
 
     // Get all unsynced events, ordered by createdAt
@@ -3319,19 +3327,28 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
     return allEvents.some((e) => !e.synced && e.retryable);
   }
 
-  async markSynced(appliedLogs: { id: string; lastAppliedChangeId: string | null }[]): Promise<void> {
+  async markSynced(
+    appliedLogs: { id: string; lastAppliedChangeId: string | null }[],
+    options?: { tx?: IDBUtils.ReadwriteTransactionType; silent?: boolean }
+  ): Promise<void> {
     const syncedAt = new Date();
-    const tx = this.client._db.transaction(["OutboxEvent", "VersionMeta"], "readwrite");
+    const tx = options?.tx ?? this.client._db.transaction(["OutboxEvent", "VersionMeta"], "readwrite");
     const store = tx.objectStore("OutboxEvent");
 
     for (const log of appliedLogs) {
       const event = await store.get([log.id]);
       if (event) {
-        await store.put({
+        const updatedEvent = {
           ...event,
           synced: true,
           syncedAt,
           lastAttemptedAt: event.lastAttemptedAt ?? syncedAt,
+        };
+        await store.put(updatedEvent);
+        this.emit("update", [event.id], undefined, updatedEvent, {
+          silent: options?.silent ?? false,
+          addToOutbox: false,
+          tx,
         });
 
         if (!(event.entityType in modelRecordToKeyPath)) {
@@ -3350,29 +3367,39 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
       }
     }
 
-    await tx.done;
+    if (!options?.tx) await tx.done;
   }
 
-  async markFailed(eventId: string, error: NonNullable<PushResult["error"]>): Promise<void> {
-    const tx = this.client._db.transaction("OutboxEvent", "readwrite");
+  async markFailed(
+    eventId: string,
+    error: NonNullable<PushResult["error"]>,
+    options?: { tx?: IDBUtils.ReadwriteTransactionType; silent?: boolean }
+  ): Promise<void> {
+    const tx = options?.tx ?? this.client._db.transaction(["OutboxEvent"], "readwrite");
     const store = tx.objectStore("OutboxEvent");
 
     const event = await store.get([eventId]);
     if (event) {
-      await store.put({
+      const updatedEvent = {
         ...event,
         tries: (event.tries ?? 0) + 1,
         lastError: `${error.message}: ${error.message}`,
         lastAttemptedAt: new Date(),
         retryable: error.retryable,
+      };
+      await store.put(updatedEvent);
+      this.emit("update", [event.id], undefined, updatedEvent, {
+        silent: options?.silent ?? false,
+        addToOutbox: false,
+        tx,
       });
     }
 
-    await tx.done;
+    if (!options?.tx) await tx.done;
   }
 
   async stats(): Promise<{ unsynced: number; failed: number; lastError?: string }> {
-    const tx = this.client._db.transaction("OutboxEvent", "readonly");
+    const tx = this.client._db.transaction(["OutboxEvent"], "readonly");
     const store = tx.objectStore("OutboxEvent");
     const allEvents = await store.getAll();
 
@@ -3385,12 +3412,16 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
     return { unsynced, failed, lastError: lastError ?? undefined };
   }
 
-  async clearSynced(options?: { olderThanDays?: number }): Promise<number> {
+  async clearSynced(options?: {
+    olderThanDays?: number;
+    tx?: IDBUtils.ReadwriteTransactionType;
+    silent?: boolean;
+  }): Promise<number> {
     const olderThanDays = options?.olderThanDays ?? 7;
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
 
-    const tx = this.client._db.transaction("OutboxEvent", "readwrite");
+    const tx = options?.tx ?? this.client._db.transaction(["OutboxEvent"], "readwrite");
     const store = tx.objectStore("OutboxEvent");
     const allEvents = await store.getAll();
 
@@ -3398,11 +3429,12 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
     for (const event of allEvents) {
       if (event.synced && new Date(event.createdAt) < cutoffDate) {
         await store.delete([event.id]);
+        this.emit("delete", [event.id], undefined, event, { silent: options?.silent ?? false, addToOutbox: false, tx });
         deletedCount++;
       }
     }
 
-    await tx.done;
+    if (!options?.tx) await tx.done;
     return deletedCount;
   }
 }

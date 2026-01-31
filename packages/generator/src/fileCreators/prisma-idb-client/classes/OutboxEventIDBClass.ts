@@ -11,22 +11,23 @@ export function addOutboxEventIDBClass(writer: CodeBlockWriter, outboxModelName:
     addStatsMethod(writer, outboxModelName);
     addClearSyncedMethod(writer, outboxModelName);
   });
-  function addHasAnyRetryableUnsyncedMethod(writer: CodeBlockWriter, outboxModelName: string) {
-    writer
-      .writeLine(`/**`)
-      .writeLine(` * Returns true if any unsynced, retryable outbox event exists.`)
-      .writeLine(` * Used to gate pull phase in sync worker.`)
-      .writeLine(` */`)
-      .writeLine(`async hasAnyRetryableUnsynced(): Promise<boolean> `)
-      .block(() => {
-        writer
-          .writeLine(`const tx = this.client._db.transaction("${outboxModelName}", "readonly");`)
-          .writeLine(`const store = tx.objectStore("${outboxModelName}");`)
-          .writeLine(`const allEvents = await store.getAll();`)
-          .writeLine(`return allEvents.some((e) => !e.synced && e.retryable);`);
-      })
-      .blankLine();
-  }
+}
+
+function addHasAnyRetryableUnsyncedMethod(writer: CodeBlockWriter, outboxModelName: string) {
+  writer
+    .writeLine(`/**`)
+    .writeLine(` * Returns true if any unsynced, retryable outbox event exists.`)
+    .writeLine(` * Used to gate pull phase in sync worker.`)
+    .writeLine(` */`)
+    .writeLine(`async hasAnyRetryableUnsynced(): Promise<boolean> `)
+    .block(() => {
+      writer
+        .writeLine(`const tx = this.client._db.transaction("${outboxModelName}", "readonly");`)
+        .writeLine(`const store = tx.objectStore("${outboxModelName}");`)
+        .writeLine(`const allEvents = await store.getAll();`)
+        .writeLine(`return allEvents.some((e) => !e.synced && e.retryable);`);
+    })
+    .blankLine();
 }
 
 function addConstructor(writer: CodeBlockWriter, outboxModelName: string) {
@@ -40,12 +41,12 @@ function addConstructor(writer: CodeBlockWriter, outboxModelName: string) {
 
 function addCreateMethod(writer: CodeBlockWriter, outboxModelName: string) {
   writer
-    .writeLine(
-      `async create(query: { data: Pick<OutboxEventRecord, "entityType" | "operation" | "payload"> }): Promise<OutboxEventRecord>`
-    )
+    .write(`async create(query: { data: Pick<OutboxEventRecord, `)
+    .write(`"entityType" | "operation" | "payload"`)
+    .write(`> }, options?: { tx?: IDBUtils.ReadwriteTransactionType, silent?: boolean }): Promise<OutboxEventRecord>`)
     .block(() => {
       writer
-        .writeLine(`const tx = this.client._db.transaction("${outboxModelName}", "readwrite");`)
+        .writeLine(`const tx = options?.tx ?? this.client._db.transaction(["${outboxModelName}"], "readwrite");`)
         .writeLine(`const store = tx.objectStore("${outboxModelName}");`)
         .blankLine()
         .writeLine(`const event: OutboxEventRecord = {`)
@@ -59,9 +60,12 @@ function addCreateMethod(writer: CodeBlockWriter, outboxModelName: string) {
         .writeLine(`retryable: true,`)
         .writeLine(`...query.data,`)
         .writeLine(`};`)
-        .blankLine()
         .writeLine(`await store.add(event);`)
-        .writeLine(`await tx.done;`)
+        .blankLine()
+        .writeLine(
+          `this.emit("create", [event.id], undefined, event, { silent: options?.silent ?? false, addToOutbox: false, tx });`
+        )
+        .writeLine(`if (!options?.tx) await tx.done;`)
         .blankLine()
         .writeLine(`return event;`);
     })
@@ -74,7 +78,7 @@ function addGetNextBatchMethod(writer: CodeBlockWriter, outboxModelName: string)
     .block(() => {
       writer
         .writeLine(`const limit = options?.limit ?? 20;`)
-        .writeLine(`const tx = this.client._db.transaction("${outboxModelName}", "readonly");`)
+        .writeLine(`const tx = this.client._db.transaction(["${outboxModelName}"], "readonly");`)
         .writeLine(`const store = tx.objectStore("${outboxModelName}");`)
         .blankLine()
         .writeLine(`// Get all unsynced events, ordered by createdAt`)
@@ -90,22 +94,30 @@ function addGetNextBatchMethod(writer: CodeBlockWriter, outboxModelName: string)
 
 function addMarkSyncedMethod(writer: CodeBlockWriter, outboxModelName: string) {
   writer
-    .writeLine(`async markSynced(appliedLogs: { id: string; lastAppliedChangeId: string | null }[]): Promise<void>`)
+    .write(
+      `async markSynced(appliedLogs: { id: string; lastAppliedChangeId: string | null }[], options?: { tx?: IDBUtils.ReadwriteTransactionType, silent?: boolean }): Promise<void>`
+    )
     .block(() => {
       writer
         .writeLine(`const syncedAt = new Date();`)
-        .writeLine(`const tx = this.client._db.transaction(["${outboxModelName}", "VersionMeta"], "readwrite");`)
+        .writeLine(
+          `const tx = options?.tx ?? this.client._db.transaction(["${outboxModelName}", "VersionMeta"], "readwrite");`
+        )
         .writeLine(`const store = tx.objectStore("${outboxModelName}");`)
         .blankLine()
         .writeLine(`for (const log of appliedLogs) {`)
         .writeLine(`const event = await store.get([log.id]);`)
         .writeLine(`if (event) {`)
-        .writeLine(`await store.put({`)
+        .writeLine(`const updatedEvent = {`)
         .writeLine(`...event,`)
         .writeLine(`synced: true,`)
         .writeLine(`syncedAt,`)
         .writeLine(`lastAttemptedAt: event.lastAttemptedAt ?? syncedAt,`)
-        .writeLine(`});`)
+        .writeLine(`};`)
+        .writeLine(`await store.put(updatedEvent);`)
+        .writeLine(
+          `this.emit("update", [event.id], undefined, updatedEvent, { silent: options?.silent ?? false, addToOutbox: false, tx });`
+        )
         .blankLine()
         .writeLine(`if (!(event.entityType in modelRecordToKeyPath)) {`)
         .writeLine(`throw new Error(\`Unknown model: \${event.entityType}\`);`)
@@ -125,31 +137,37 @@ function addMarkSyncedMethod(writer: CodeBlockWriter, outboxModelName: string) {
         .writeLine(`}`)
         .writeLine(`}`)
         .blankLine()
-        .writeLine(`await tx.done;`);
+        .writeLine(`if (!options?.tx) await tx.done;`);
     })
     .blankLine();
 }
 
 function addMarkFailedMethod(writer: CodeBlockWriter, outboxModelName: string) {
   writer
-    .writeLine(`async markFailed(eventId: string, error: NonNullable<PushResult['error']>): Promise<void>`)
+    .writeLine(
+      `async markFailed(eventId: string, error: NonNullable<PushResult['error']>, options?: { tx?: IDBUtils.ReadwriteTransactionType, silent?: boolean }): Promise<void>`
+    )
     .block(() => {
       writer
-        .writeLine(`const tx = this.client._db.transaction("${outboxModelName}", "readwrite");`)
+        .writeLine(`const tx = options?.tx ?? this.client._db.transaction(["${outboxModelName}"], "readwrite");`)
         .writeLine(`const store = tx.objectStore("${outboxModelName}");`)
         .blankLine()
         .writeLine(`const event = await store.get([eventId]);`)
         .writeLine(`if (event) {`)
-        .writeLine(`await store.put({`)
+        .writeLine(`const updatedEvent = {`)
         .writeLine(`...event,`)
         .writeLine(`tries: (event.tries ?? 0) + 1,`)
         .writeLine(`lastError: \`\${error.message}: \${error.message}\`,`)
         .writeLine(`lastAttemptedAt: new Date(),`)
         .writeLine(`retryable: error.retryable,`)
-        .writeLine(`});`)
+        .writeLine(`};`)
+        .writeLine(`await store.put(updatedEvent);`)
+        .writeLine(
+          `this.emit("update", [event.id], undefined, updatedEvent, { silent: options?.silent ?? false, addToOutbox: false, tx });`
+        )
         .writeLine(`}`)
         .blankLine()
-        .writeLine(`await tx.done;`);
+        .writeLine(`if (!options?.tx) await tx.done;`);
     })
     .blankLine();
 }
@@ -159,7 +177,7 @@ function addStatsMethod(writer: CodeBlockWriter, outboxModelName: string) {
     .writeLine(`async stats(): Promise<{ unsynced: number; failed: number; lastError?: string }>`)
     .block(() => {
       writer
-        .writeLine(`const tx = this.client._db.transaction("${outboxModelName}", "readonly");`)
+        .writeLine(`const tx = this.client._db.transaction(["${outboxModelName}"], "readonly");`)
         .writeLine(`const store = tx.objectStore("${outboxModelName}");`)
         .writeLine(`const allEvents = await store.getAll();`)
         .blankLine()
@@ -176,14 +194,16 @@ function addStatsMethod(writer: CodeBlockWriter, outboxModelName: string) {
 
 function addClearSyncedMethod(writer: CodeBlockWriter, outboxModelName: string) {
   writer
-    .writeLine(`async clearSynced(options?: { olderThanDays?: number }): Promise<number>`)
+    .writeLine(
+      `async clearSynced(options?: { olderThanDays?: number, tx?: IDBUtils.ReadwriteTransactionType, silent?: boolean }): Promise<number>`
+    )
     .block(() => {
       writer
         .writeLine(`const olderThanDays = options?.olderThanDays ?? 7;`)
         .writeLine(`const cutoffDate = new Date();`)
         .writeLine(`cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);`)
         .blankLine()
-        .writeLine(`const tx = this.client._db.transaction("${outboxModelName}", "readwrite");`)
+        .writeLine(`const tx = options?.tx ?? this.client._db.transaction(["${outboxModelName}"], "readwrite");`)
         .writeLine(`const store = tx.objectStore("${outboxModelName}");`)
         .writeLine(`const allEvents = await store.getAll();`)
         .blankLine()
@@ -191,11 +211,14 @@ function addClearSyncedMethod(writer: CodeBlockWriter, outboxModelName: string) 
         .writeLine(`for (const event of allEvents) {`)
         .writeLine(`if (event.synced && new Date(event.createdAt) < cutoffDate) {`)
         .writeLine(`await store.delete([event.id]);`)
+        .writeLine(
+          `this.emit("delete", [event.id], undefined, event, { silent: options?.silent ?? false, addToOutbox: false, tx });`
+        )
         .writeLine(`deletedCount++;`)
         .writeLine(`}`)
         .writeLine(`}`)
         .blankLine()
-        .writeLine(`await tx.done;`)
+        .writeLine(`if (!options?.tx) await tx.done;`)
         .writeLine(`return deletedCount;`);
     })
     .blankLine();

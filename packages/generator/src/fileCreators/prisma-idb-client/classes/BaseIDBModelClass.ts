@@ -75,26 +75,21 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxMo
 
       writer.blankLine();
       writer.writeLine(`if (opts?.addToOutbox !== false && this.client.shouldTrackModel(this.modelName))`).block(() => {
+        writer;
         writer
-          .writeLine(`if (opts?.tx) {`)
-          .writeLine(`const outboxStore = opts.tx.objectStore("${outboxModelName}");`)
-          .writeLine(`const outboxEvent: OutboxEventRecord = {`)
-          .writeLine(`id: crypto.randomUUID(),`)
-          .writeLine(`createdAt: new Date(),`)
-          .writeLine(`synced: false,`)
-          .writeLine(`syncedAt: null,`)
-          .writeLine(`tries: 0,`)
-          .writeLine(`lastError: null,`)
-          .writeLine(`entityType: this.modelName,`)
-          .writeLine(`operation: event,`)
-          .writeLine(`payload: record ?? keyPath,`)
-          .writeLine(`retryable: true,`)
-          .writeLine(`lastAttemptedAt: null,`)
-          .writeLine(`};`)
-          .writeLine(`await outboxStore.add(outboxEvent);`)
+          .writeLine(`await this.client.$outbox.create(`)
+          .block(() => {
+            writer
+              .writeLine(`data: {`)
+              .writeLine(`entityType: this.modelName,`)
+              .writeLine(`operation: event,`)
+              .writeLine(`payload: record ?? keyPath,`)
+              .writeLine(`},`);
+          })
+          .writeLine(`, { tx: opts?.tx }`)
+          .writeLine(`);`)
           .blankLine()
-          .writeLine(`await this.client.$versionMeta.markLocalPending(this.modelName, keyPath, { tx: opts.tx });`)
-          .writeLine(`}`);
+          .writeLine(`await this.client.$versionMeta.markLocalPending(this.modelName, keyPath, { tx: opts?.tx });`);
       });
     });
 }

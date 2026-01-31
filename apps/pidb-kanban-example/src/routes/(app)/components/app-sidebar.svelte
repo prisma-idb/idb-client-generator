@@ -70,8 +70,8 @@
     </Sidebar.Group>
   </Sidebar.Content>
   <Sidebar.Footer>
-    <NavUser />
     <NavSync />
+    <NavUser />
     <PwaButton />
   </Sidebar.Footer>
 </Sidebar.Root>

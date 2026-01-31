@@ -3,9 +3,6 @@
   import { onDestroy, onMount } from "svelte";
   import { toast } from "svelte-sonner";
   import { writable, type Writable } from "svelte/store";
-  import Button from "$lib/components/ui/button/button.svelte";
-  import { CloudIcon, CloudOffIcon } from "@lucide/svelte";
-  import { online } from "svelte/reactivity/window";
   import { dev } from "$app/environment";
 
   let needRefresh: Writable<boolean> = writable(false);
@@ -50,13 +47,3 @@
     }
   });
 </script>
-
-{#if online}
-  <Button variant="outline">
-    {#if online.current}
-      <CloudIcon /> Online
-    {:else}
-      <CloudOffIcon /> Offline
-    {/if}
-  </Button>
-{/if}
