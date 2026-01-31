@@ -6,12 +6,15 @@
   import Button from "$lib/components/ui/button/button.svelte";
   import { CloudIcon, CloudOffIcon } from "@lucide/svelte";
   import { online } from "svelte/reactivity/window";
+  import { dev } from "$app/environment";
 
   let needRefresh: Writable<boolean> = writable(false);
   let updateServiceWorker: () => void;
   let intervalId: ReturnType<typeof setInterval> | undefined;
 
   onMount(() => {
+    if (dev) return;
+
     ({ needRefresh, updateServiceWorker } = useRegisterSW({
       onRegistered(r) {
         if (r) {
