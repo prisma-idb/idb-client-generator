@@ -55,7 +55,7 @@
       </div>
 
       <!-- Warning Section -->
-      <div class="bg-destructive text-black my-8 rounded-lg border p-4">
+      <div class="bg-destructive my-8 rounded-lg border p-4 text-black">
         <div class="flex items-start gap-3">
           <AlertCircle class="mt-0.5 h-5 w-5 shrink-0" />
           <div>

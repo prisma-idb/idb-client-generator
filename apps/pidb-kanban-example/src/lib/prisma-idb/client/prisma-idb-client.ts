@@ -3389,7 +3389,7 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
       const updatedEvent = {
         ...event,
         tries: (event.tries ?? 0) + 1,
-        lastError: `${error.type ?? 'Error'}: ${error.message}`,
+        lastError: `${error.type ?? "Error"}: ${error.message}`,
         lastAttemptedAt: new Date(),
         retryable: error.retryable,
       };
