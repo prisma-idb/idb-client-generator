@@ -89,6 +89,7 @@ function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean, outboxMo
           .writeLine(`operation: event,`)
           .writeLine(`payload: record ?? keyPath,`)
           .writeLine(`retryable: true,`)
+          .writeLine(`lastAttemptedAt: null,`)
           .writeLine(`};`)
           .writeLine(`await outboxStore.add(outboxEvent);`)
           .blankLine()

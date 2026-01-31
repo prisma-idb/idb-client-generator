@@ -16,6 +16,15 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], ve
   writer.writeLine(`};`);
   writer.blankLine();
 
+  // Write type definition for applyPull return value
+  writer.writeLine(`export type ApplyPullResult = {`);
+  writer.writeLine(`	validationErrors: { model: string; error: unknown }[];`);
+  writer.writeLine(`	missingRecords: number;`);
+  writer.writeLine(`	staleRecords: number;`);
+  writer.writeLine(`	totalAppliedRecords: number;`);
+  writer.writeLine(`};`);
+  writer.blankLine();
+
   // Write JSDoc for the applyPull function
   writer.writeLine(`/**`);
   writer.writeLine(` * Apply pulled changes from remote server to local IndexedDB.`);
@@ -32,7 +41,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], ve
   writer.writeLine(` */`);
 
   // Write applyPull function
-  writer.writeLine(`export async function applyPull(props: ApplyPullProps) `).block(() => {
+  writer.writeLine(`export async function applyPull(props: ApplyPullProps): Promise<ApplyPullResult> `).block(() => {
     writer.writeLine(`const { idbClient, logsWithRecords } = props;`);
     writer.blankLine();
 

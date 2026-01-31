@@ -73,6 +73,7 @@ function addOutboxEventTypeDefinition(writer: CodeBlockWriter) {
       .writeLine(`lastError: string | null;`)
       .writeLine(`synced: boolean;`)
       .writeLine(`syncedAt: Date | null;`)
+      .writeLine(`lastAttemptedAt: Date | null;`)
       .writeLine(`retryable: boolean;`);
   });
 

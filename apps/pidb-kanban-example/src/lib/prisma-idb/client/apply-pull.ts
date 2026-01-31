@@ -7,6 +7,13 @@ type ApplyPullProps = {
   logsWithRecords: LogWithRecord<typeof validators>[];
 };
 
+export type ApplyPullResult = {
+  validationErrors: { model: string; error: unknown }[];
+  missingRecords: number;
+  staleRecords: number;
+  totalAppliedRecords: number;
+};
+
 /**
  * Apply pulled changes from remote server to local IndexedDB.
  *
@@ -18,7 +25,7 @@ type ApplyPullProps = {
  * @param props.logsWithRecords - Array of change logs with validated records from server
  * @returns Object with sync statistics including applied records, missing records, and validation errors
  */
-export async function applyPull(props: ApplyPullProps) {
+export async function applyPull(props: ApplyPullProps): Promise<ApplyPullResult> {
   const { idbClient, logsWithRecords } = props;
 
   let staleRecords = 0;

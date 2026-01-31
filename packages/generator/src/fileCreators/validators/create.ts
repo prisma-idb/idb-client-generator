@@ -44,6 +44,7 @@ export function createValidatorsFile(
   writer.writeLine(`  synced: z.boolean(),`);
   writer.writeLine(`  syncedAt: z.coerce.date().nullable(),`);
   writer.writeLine(`  retryable: z.boolean(),`);
+  writer.writeLine(`  lastAttemptedAt: z.coerce.date().nullable(),`);
   writer.writeLine(`});`);
   writer.blankLine();
 

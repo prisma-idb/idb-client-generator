@@ -28,7 +28,7 @@ function addImports(
       .writeLine(`import type { PushResult } from "../server/batch-processor";`)
       .writeLine(`import { validators, keyPathValidators, modelRecordToKeyPath } from "../validators";`)
       .writeLine(`import type { LogWithRecord } from '../server/batch-processor';`)
-      .writeLine(`import { applyPull } from './apply-pull';`);
+      .writeLine(`import { applyPull, type ApplyPullResult } from './apply-pull';`);
   } else {
     writer.writeLine(`import type { PrismaIDBSchema } from "./idb-interface";`);
   }

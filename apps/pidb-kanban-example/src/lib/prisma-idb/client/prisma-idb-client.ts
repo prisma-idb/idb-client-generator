@@ -13,7 +13,7 @@ import type {
 import type { PushResult } from "../server/batch-processor";
 import { validators, keyPathValidators, modelRecordToKeyPath } from "../validators";
 import type { LogWithRecord } from "../server/batch-processor";
-import { applyPull } from "./apply-pull";
+import { applyPull, type ApplyPullResult } from "./apply-pull";
 import { v4 as uuidv4 } from "uuid";
 const IDB_VERSION = 1;
 export class PrismaIDBClient {
@@ -71,6 +71,9 @@ export class PrismaIDBClient {
    * @param options.schedule Scheduling configuration
    * @param options.schedule.intervalMs Milliseconds between sync cycles (default: 5000)
    * @param options.schedule.maxRetries Max retry attempts for outbox events before abandoning (default: 5)
+   * @param options.schedule.backoffMs Exponential backoff base duration in milliseconds (default: 300000 = 5 minutes)."
+   *   For each failed attempt, the wait time is calculated as: backoffMs * 2^(tries-1). E.g., with default 5min:"
+   *   First failure: wait 5 min, second: wait 10 min, third: wait 20 min, etc.
    *
    * @returns SyncWorker with start() and stop() methods
    *
@@ -111,12 +114,12 @@ export class PrismaIDBClient {
       getCursor?: () => Promise<string | undefined> | string | undefined;
       setCursor?: (cursor: string | undefined) => Promise<void> | void;
     };
-    schedule?: { intervalMs?: number; maxRetries?: number };
+    schedule?: { intervalMs?: number; maxRetries?: number; backoffMs?: number };
   }): SyncWorker {
     const { push, pull } = options;
     const { handler: pushHandler, batchSize = 10 } = push;
     const { handler: pullHandler, getCursor, setCursor } = pull;
-    const { intervalMs = 5000, maxRetries = 5 } = options.schedule || {};
+    const { intervalMs = 5000, maxRetries = 5, backoffMs = 300000 } = options.schedule || {};
 
     let intervalId: ReturnType<typeof setInterval | typeof setTimeout> | null = null;
     let status: "STOPPED" | "IDLE" | "PUSHING" | "PULLING" = "STOPPED";
@@ -130,12 +133,38 @@ export class PrismaIDBClient {
       eventTarget.dispatchEvent(new Event("statuschange"));
     };
 
+    const emitPullCompleted = (stats: ApplyPullResult) => {
+      const event = new CustomEvent("pullcompleted", { detail: stats });
+      eventTarget.dispatchEvent(event);
+    };
+
+    let pullStats: ApplyPullResult = {
+      validationErrors: [],
+      missingRecords: 0,
+      staleRecords: 0,
+      totalAppliedRecords: 0,
+    };
+
+    /**
+     * Check if an event is ready to be retried based on exponential backoff.
+     * Returns true if enough time has passed since the last attempted push.
+     */
+    const isReadyToRetry = (event: OutboxEventRecord): boolean => {
+      if (!event.lastAttemptedAt) return true;
+      const now = Date.now();
+      const backoffMultiplier = Math.pow(2, event.tries - 1);
+      const nextRetryTime = event.lastAttemptedAt.getTime() + backoffMs * backoffMultiplier;
+      return now >= nextRetryTime;
+    };
+
     /**
      * Process a batch of outbox events passed as argument.
      * This is the core unit of push work, avoiding redundant fetches.
      */
     const pushBatch = async (batch: OutboxEventRecord[]): Promise<void> => {
-      const toSync = batch.filter((event: OutboxEventRecord) => event.tries < maxRetries && event.retryable);
+      const toSync = batch.filter(
+        (event: OutboxEventRecord) => event.tries < maxRetries && event.retryable && isReadyToRetry(event)
+      );
       const abandoned = batch.filter((event: OutboxEventRecord) => event.tries >= maxRetries);
 
       for (const event of abandoned) {
@@ -186,7 +215,9 @@ export class PrismaIDBClient {
         while (true) {
           const batch = await this.$outbox.getNextBatch({ limit: batchSize });
           if (batch.length === 0) break;
-          await pushBatch(batch);
+          const ready = batch.filter((event) => event.tries < maxRetries && event.retryable && isReadyToRetry(event));
+          if (ready.length === 0) break;
+          await pushBatch(ready);
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
@@ -209,13 +240,18 @@ export class PrismaIDBClient {
       emitStatusChange();
       try {
         let cursor = getCursor ? await Promise.resolve(getCursor()) : undefined;
+        pullStats = { validationErrors: [], missingRecords: 0, staleRecords: 0, totalAppliedRecords: 0 };
 
         while (true) {
           const res = await pullHandler(cursor);
           const { logsWithRecords, cursor: nextCursor } = res;
           if (logsWithRecords.length === 0) break;
 
-          await applyPull({ idbClient: this, logsWithRecords });
+          const pageStats = await applyPull({ idbClient: this, logsWithRecords });
+          pullStats.totalAppliedRecords += pageStats.totalAppliedRecords;
+          pullStats.missingRecords += pageStats.missingRecords;
+          pullStats.staleRecords += pageStats.staleRecords;
+          pullStats.validationErrors.push(...pageStats.validationErrors);
 
           if (setCursor) {
             await Promise.resolve(setCursor(nextCursor));
@@ -224,6 +260,8 @@ export class PrismaIDBClient {
           cursor = nextCursor;
           if (typeof cursor !== "string") break;
         }
+
+        emitPullCompleted(pullStats);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         console.error("Pull phase failed:", errorMessage);
@@ -352,18 +390,25 @@ export class PrismaIDBClient {
       },
 
       /**
-       * Listen for status changes.
-       * @param event Event name (only 'statuschange' supported)
-       * @param callback Function called whenever status changes
+       * Listen for status changes or pull completion events.
+       * @param event Event name ('statuschange' or 'pullcompleted')
+       * @param callback Callback function. For 'pullcompleted', receives pull statistics as detail.
        * @returns Unsubscribe function
        * @example
+       * // Listen to status changes
        * const unsubscribe = worker.on('statuschange', () => {
        *   console.log('Status:', worker.status);
        * });
-       * // Later: unsubscribe()
+       *
+       * // Listen to pull completion
+       * const unsubscribePull = worker.on('pullcompleted', (event: any) => {
+       *   console.log('Applied:', event.detail.totalAppliedRecords);
+       *   console.log('Errors:', event.detail.validationErrors);
+       * });
+       * // Later: unsubscribe(), unsubscribePull()
        */
-      on(event: "statuschange", callback: () => void): () => void {
-        const listener = () => callback();
+      on(event: "statuschange" | "pullcompleted", callback: (e?: any) => void): () => void {
+        const listener = (e?: any) => callback(e);
         eventTarget.addEventListener(event, listener);
         return () => eventTarget.removeEventListener(event, listener);
       },
@@ -454,6 +499,7 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
           operation: event,
           payload: record ?? keyPath,
           retryable: true,
+          lastAttemptedAt: null,
         };
         await outboxStore.add(outboxEvent);
 
@@ -3234,6 +3280,7 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
       createdAt: new Date(),
       synced: false,
       syncedAt: null,
+      lastAttemptedAt: null,
       tries: 0,
       lastError: null,
       retryable: true,
@@ -3272,6 +3319,7 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
           ...event,
           synced: true,
           syncedAt,
+          lastAttemptedAt: event.lastAttemptedAt ?? syncedAt,
         });
 
         if (!(event.entityType in modelRecordToKeyPath)) {
@@ -3303,6 +3351,7 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
         ...event,
         tries: (event.tries ?? 0) + 1,
         lastError: `${error.message}: ${error.message}`,
+        lastAttemptedAt: new Date(),
         retryable: error.retryable,
       });
     }

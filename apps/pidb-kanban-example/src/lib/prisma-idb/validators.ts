@@ -38,6 +38,7 @@ export const outboxEventSchema = z.strictObject({
   synced: z.boolean(),
   syncedAt: z.coerce.date().nullable(),
   retryable: z.boolean(),
+  lastAttemptedAt: z.coerce.date().nullable(),
 });
 
 export const keyPathValidators = {

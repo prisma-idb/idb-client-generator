@@ -37,6 +37,7 @@ export interface OutboxEventRecord {
   lastError: string | null;
   synced: boolean;
   syncedAt: Date | null;
+  lastAttemptedAt: Date | null;
   retryable: boolean;
 }
 export interface ChangeMetaRecord {
