@@ -113,6 +113,7 @@ The pull operation is naturally paginated:
 ### Scope Isolation
 
 The `scopeKey` parameter ensures:
+
 - Clients only receive changes to their own data
 - If a user modifies a shared resource, the change is only visible to users who own that resource
 - Multi-user conflicts are impossible (each user sees only their own changes)
@@ -120,12 +121,13 @@ The `scopeKey` parameter ensures:
 ### Client Integration
 
 After implementing both endpoints, the client's sync worker will:
+
 1. Periodically call the push endpoint with new mutations from the outbox
 2. Periodically call the pull endpoint with the last cursor
 3. Apply incoming changes to IndexedDB
 4. Keep the local state in sync with the server
 
-See [Sync Engine](../(sync)/sync-worker-lifecycle) for how the sync worker orchestrates push and pull operations.
+See [Sync Engine](<../(sync)/sync-worker-lifecycle>) for how the sync worker orchestrates push and pull operations.
 
 ### Best Practices
 
@@ -187,6 +189,7 @@ export async function POST({ request }) {
 ### You're Done!
 
 You've now implemented bidirectional sync. The client can:
+
 - ✅ Create mutations locally (outbox)
 - ✅ Push them to the server
 - ✅ Receive server changes

@@ -45,6 +45,7 @@ enum ChangeOperation {
 #### Database-Level Index
 
 The `@@index([model, id])` is crucial for performance:
+
 - The pull endpoint queries changelogs in order: `WHERE model IN (...) AND id > lastChangelogId`
 - Without this index, pulls on large tables will be slow
 - Make sure to run migrations after adding this table
@@ -52,6 +53,7 @@ The `@@index([model, id])` is crucial for performance:
 #### UUID v7 for Natural Ordering
 
 Using `uuid(7)` ensures:
+
 - Changelog entries are naturally ordered by creation time
 - Cursoring through changes is efficient (no need to sort by timestamp)
 - Clients can request changes since a specific point in time
@@ -69,12 +71,14 @@ pnpm exec prisma migrate dev --name add_changelog
 ```
 
 This will:
+
 1. Create the `ChangeLog` table in your database
 2. Update your `schema.prisma`
 
 ### Next Steps
 
 With the changelog table in place, you can now implement the endpoints that use it:
+
 1. Push endpoint to accept client mutations
 2. Pull endpoint to send server changes to clients
 

@@ -99,11 +99,11 @@ Once you call `syncWorker.start()`, the worker enters a repeating cycle:
 1. Push: Send all outbox events in batches
    - If batch succeeds: mark events as synced, continue
    - If batch fails: retry up to maxRetries times
-   
+
 2. Pull: Fetch changelog entries since last cursor
    - Apply changes to IndexedDB
    - Persist cursor for next pull
-   
+
 3. Wait: Sleep for intervalMs before repeating
 ```
 
@@ -260,6 +260,7 @@ export class PageState {
 ### You're Ready!
 
 Your sync system is now complete and operational. The client can:
+
 - ✅ Create mutations locally with immediate UI updates
 - ✅ Automatically push to server in batches
 - ✅ Automatically pull server changes

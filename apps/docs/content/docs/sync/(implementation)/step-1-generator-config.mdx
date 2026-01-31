@@ -16,13 +16,13 @@ Add the generator block to your `prisma/schema.prisma`:
 generator prismaIDB {
   provider = "idb-client-generator"
   output   = "./prisma-idb"
-  
+
   // Enable sync capabilities
   outboxSync = true
-  
+
   // Anchor model for the ownership DAG
   rootModel  = "User"
-  
+
   // Models to exclude from sync (optional)
   exclude    = ["Session", "Verification", "Account", "ChangeLog"]
 }
@@ -75,6 +75,7 @@ generator prismaIDB {
 ```
 
 In this setup:
+
 - `User` is the root model
 - `Post` syncs because it references `User`
 - `AuditLog` is excluded and won't appear in the client
@@ -82,6 +83,7 @@ In this setup:
 ### Next Steps
 
 After configuring the generator, you need to:
+
 1. Add the `ChangeLog` table to your schema
 2. Implement the push endpoint
 3. Implement the pull endpoint

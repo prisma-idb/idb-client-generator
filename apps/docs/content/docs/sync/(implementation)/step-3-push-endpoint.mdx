@@ -119,10 +119,12 @@ pushResults = await applyPush({
 ### Scope Key Enforcement
 
 The `scopeKey` ensures data isolation:
+
 - For a single-user app: `scopeKey: authResult.user.id`
 - For a multi-tenant app: `scopeKey: (event) => event.payload.tenantId` or similar
 
 The `applyPush` function will:
+
 1. Validate that the event's ownership chain traces back to the scope key
 2. Reject any mutations that attempt to change a different user's data
 3. Create changelog entries with the correct `scopeKey` for pull operations

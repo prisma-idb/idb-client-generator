@@ -20,7 +20,8 @@ The changelog table is essential for tracking changes made on the server side. I
 - `outboxEventId`: A unique identifier linking the change log entry to the corresponding outbox event
 
 <Callout title="Exclude from sync">
-  The `Changelog` model itself should be excluded from the sync process, as it is only relevant for server-side change tracking and does not need to be synchronized with clients.
+  The `Changelog` model itself should be excluded from the sync process, as it is only relevant for server-side change
+  tracking and does not need to be synchronized with clients.
 </Callout>
 
 ```prisma
