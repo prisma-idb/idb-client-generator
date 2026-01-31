@@ -38,5 +38,10 @@
     "type": "git",
     "url": "git+https://github.com/prisma-idb/idb-client-generator.git",
     "directory": "packages/generator"
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/node": "^24.10.9"
+    }
   }
 }
