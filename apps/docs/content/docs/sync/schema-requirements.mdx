@@ -12,7 +12,7 @@ To utilize the Prisma IDB Sync Engine, your database schema must adhere to speci
 
 The changelog table is essential for tracking changes made on the server side. It must include the following columns:
 
-- `id`: A unique identifier for each change log entry (typically a monotonically increasing UUID)
+- `id`: A unique identifier for each change log entry (UUID v7, which is time-ordered for natural sorting)
 - `model`: The name of the model (table) that the change pertains to
 - `keyPath`: A JSON representation of the primary key(s) of the affected record
 - `operation`: An enumeration indicating the type of operation performed (`create`, `update`, or `delete`)

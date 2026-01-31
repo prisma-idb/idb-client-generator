@@ -74,32 +74,35 @@ import { PrismaIDBClient } from "./prisma-idb";
 const client = await PrismaIDBClient.createClient();
 
 // Create
-await client.user.create({
+const user = await client.user.create({
   data: { name: "Alice", email: "alice@example.com" },
+});
+
+// Create a todo linked to the user
+const todo = await client.todo.create({
+  data: { title: "Get started with Prisma IDB", userId: user.id },
 });
 
 // Read
 const todos = await client.todo.findMany({
-  where: { userId: userId, done: false },
+  where: { userId: user.id, done: false },
 });
 
 // Update
 await client.todo.update({
-  where: { id: todoId },
+  where: { id: todo.id },
   data: { done: true },
 });
 
 // Delete
 await client.todo.delete({
-  where: { id: todoId },
+  where: { id: todo.id },
 });
 ```
 
 ### More Resources
 
 <Cards>
-  <Card title="API Reference" href="/docs/api" />
   <Card title="Sync Engine" href="/docs/sync" />
-  <Card title="Ownership & Auth" href="/docs/ownership" />
-  <Card title="Examples" href="/docs/examples" />
+  <Card title="Schema Requirements" href="/docs/sync/schema-requirements" />
 </Cards>

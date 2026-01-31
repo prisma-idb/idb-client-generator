@@ -70,10 +70,7 @@ After adding the schema, create a migration:
 pnpm exec prisma migrate dev --name add_changelog
 ```
 
-This will:
-
-1. Create the `ChangeLog` table in your database
-2. Update your `schema.prisma`
+First, update your `schema.prisma` file with the `ChangeLog` model. Then, run the migration to create the `ChangeLog` table in your database.
 
 ### Next Steps
 

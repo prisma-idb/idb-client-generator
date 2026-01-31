@@ -10,7 +10,7 @@ The authoritative schema DAG (Directed Acyclic Graph) defines how local changes 
 
 ### Scoping Schema
 
-Typically in a local-first application, we don't need all the tables/models to be synchronized for every user. Instead, we scope the sync to only the relevant data for each user. This is achieved excluding/including specific models in the sync process based on user context.
+Typically in a local-first application, we don't need all the tables/models to be synchronized for every user. Instead, we scope the sync to only the relevant data for each user. This is achieved by excluding/including specific models in the sync process based on user context.
 
 For example, the `Session` model may not be synchronized for every user, as sessions are often user-specific and transient. By scoping the sync to only include models like `User`, `Post`, and `Comment`, in a blog application, we can optimize the synchronization process and reduce unnecessary data transfer.
 

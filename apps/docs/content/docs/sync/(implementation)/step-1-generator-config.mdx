@@ -33,6 +33,38 @@ generator prismaIDB {
 - **`outboxSync = true`**: Enables the bidirectional sync engine. Without this, the generated client will be read-only.
 - **`rootModel`**: The primary entity that acts as the anchor for all other models. This must be a model in your schema that represents the data owner (typically `User`).
 
+### Schema Constraints
+
+All syncable models **must** use client-generated IDs. This is a fundamental requirement for the sync system to work correctly:
+
+- **Required**: Use `@id @default(uuid())`, `@id @default(cuid())`, or `@id @default(cuid2())` for all models included in sync
+- **Forbidden**: Auto-incrementing IDs with `@id @default(autoincrement())` are **not supported** for syncable models
+- **Reason**: Client-generated IDs ensure that records created offline can be synchronized without ID conflicts
+
+Example of **correct** schema with client-generated IDs:
+
+```prisma
+model User {
+  id String @id @default(uuid())  // ✅ Client-generated UUID
+  name String
+}
+
+model Post {
+  id String @id @default(cuid())  // ✅ Client-generated CUID
+  userId String
+  user User @relation(fields: [userId], references: [id])
+}
+```
+
+Example of **incorrect** schema with auto-increment:
+
+```prisma
+model User {
+  id Int @id @default(autoincrement())  // ❌ NOT supported for sync
+  name String
+}
+```
+
 ### Optional Settings
 
 - **`exclude`**: Array of model names to skip during client generation. Use this for:
