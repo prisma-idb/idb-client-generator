@@ -138,14 +138,9 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
     .writeLine(
       ` * @param options.schedule.maxRetries Max retry attempts for outbox events before abandoning (default: 5)`
     )
-    .writeLine(
-      ` * @param options.schedule.backoffMs Exponential backoff base duration in milliseconds (default: 300000 = 5 minutes)."`
-    )
-    .writeLine(
-      ` *   For each failed attempt, the wait time is calculated as: backoffMs * 2^(tries-1). E.g., with default 5min:"`
-    )
-    .writeLine(` *   First failure: wait 5 min, second: wait 10 min, third: wait 20 min, etc.`
-    )
+    .writeLine(` * @param options.schedule.backoffMs Exponential backoff base duration in milliseconds (default: 300000 = 5 minutes).`)
+    .writeLine(` *   For each failed attempt, the wait time is calculated as: backoffMs * 2^(tries-1). E.g. with the default 5 minutes:`)
+    .writeLine(` *   First failure: wait 5 min, second: wait 10 min, third: wait 20 min, etc.`)
     .writeLine(` *`)
     .writeLine(` * @returns SyncWorker with start() and stop() methods`)
     .writeLine(` *`)
@@ -159,7 +154,6 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
     .writeLine(` *   },`)
     .writeLine(` *   pull: {`)
     .writeLine(` *     handler: async (cursor) => {`)
-    .writeLine(`  async forceSync(options?: { overrideBackoff?: boolean }): Promise<void> {`)
     .writeLine(` *     },`)
     .writeLine(` *     getCursor: async () => {`)
     .writeLine(` *       const value = localStorage.getItem('syncCursor');`)
@@ -177,7 +171,6 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
     .writeLine(` * });`)
     .writeLine(` *`)
     .writeLine(` * worker.start();   // begins sync cycles`)
-    .writeLine(`  async syncNow(options?: { overrideBackoff?: boolean }): Promise<void> {`)
     .writeLine(` */`)
     .writeLine(
       `createSyncWorker(options: { push: { handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>; batchSize?: number }; pull: { handler: (cursor?: string) => Promise<{ cursor?: string; logsWithRecords: LogWithRecord<typeof validators>[] }>; getCursor?: () => Promise<string | undefined> | string | undefined; setCursor?: (cursor: string | undefined) => Promise<void> | void }; schedule?: { intervalMs?: number; maxRetries?: number; backoffMs?: number } }): SyncWorker`
@@ -201,24 +194,32 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
         .writeLine(`  eventTarget.dispatchEvent(new Event('statuschange'));`)
         .writeLine(`};`)
         .blankLine()
-        .writeLine(`const emitPullCompleted = (stats: ApplyPullResult) => {`)
-        .writeLine(`  const event = new CustomEvent('pullcompleted', { detail: stats });`)
-        .writeLine(`  eventTarget.dispatchEvent(event);`)
-        .writeLine(`};`)
+        .writeLine(`const emitPullCompleted = (stats: ApplyPullResult) =>`)
+        .block(() => {
+          writer.writeLine(`const event = new CustomEvent('pullcompleted', { detail: stats });`);
+          writer.writeLine(`eventTarget.dispatchEvent(event);`);
+        })
         .blankLine()
-        .writeLine(`let pullStats: ApplyPullResult = { validationErrors: [], missingRecords: 0, staleRecords: 0, totalAppliedRecords: 0 };`)
+        .writeLine(`let pullStats: ApplyPullResult =`)
+        .block(() => {
+          writer.writeLine(`validationErrors: [],`);
+          writer.writeLine(`missingRecords: 0,`);
+          writer.writeLine(`staleRecords: 0,`);
+          writer.writeLine(`totalAppliedRecords: 0,`);
+        })
         .blankLine()
         .writeLine(`/**`)
         .writeLine(` * Check if an event is ready to be retried based on exponential backoff.`)
         .writeLine(` * Returns true if enough time has passed since the last attempted push.`)
         .writeLine(` */`)
-        .writeLine(`const isReadyToRetry = (event: OutboxEventRecord, overrideBackoff = false): boolean => {`)
-        .writeLine(`  if (!event.lastAttemptedAt) return true;`)
-        .writeLine(`  const now = Date.now();`)
-        .writeLine(`  const backoffMultiplier = overrideBackoff ? 0 : Math.pow(2, event.tries - 1);`)
-        .writeLine(`  const nextRetryTime = event.lastAttemptedAt.getTime() + (backoffMs * backoffMultiplier);`)
-        .writeLine(`  return now >= nextRetryTime;`)
-        .writeLine(`};`)
+        .writeLine(`const isReadyToRetry = (event: OutboxEventRecord, overrideBackoff = false): boolean =>`)
+        .block(() => {
+          writer.writeLine(`if (!event.lastAttemptedAt) return true;`);
+          writer.writeLine(`const now = Date.now();`);
+          writer.writeLine(`const backoffMultiplier = overrideBackoff ? 0 : Math.pow(2, event.tries - 1);`);
+          writer.writeLine(`const nextRetryTime = event.lastAttemptedAt.getTime() + (backoffMs * backoffMultiplier);`);
+          writer.writeLine(`return now >= nextRetryTime;`);
+        })
         .blankLine()
         .writeLine(`/**`)
         .writeLine(` * Process a batch of outbox events passed as argument.`)
@@ -226,7 +227,9 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
         .writeLine(` */`)
         .writeLine(`const pushBatch = async (batch: OutboxEventRecord[], overrideBackoff = false): Promise<void> => {`)
         .writeLine(`  // Only push retryable events; do not mark as permanently failed on client`)
-        .writeLine(`  const toSync = batch.filter((event: OutboxEventRecord) => event.retryable && isReadyToRetry(event, overrideBackoff));`)
+        .writeLine(
+          `  const toSync = batch.filter((event: OutboxEventRecord) => event.retryable && isReadyToRetry(event, overrideBackoff));`
+        )
         .writeLine(`  if (toSync.length === 0) return;`)
         .writeLine(`  let results: PushResult[] = [];`)
         .writeLine(`  try {`)
@@ -234,7 +237,9 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
         .writeLine(`  } catch (err) {`)
         .writeLine(`    for (const event of toSync) {`)
         .writeLine(`      const error = err instanceof Error ? err.message : String(err);`)
-        .writeLine(`      await this.$outbox.markFailed(event.id, { type: "UNKNOWN_ERROR", message: error, retryable: true });`)
+        .writeLine(
+          `      await this.$outbox.markFailed(event.id, { type: "UNKNOWN_ERROR", message: error, retryable: true });`
+        )
         .writeLine(`    }`)
         .writeLine(`    return;`)
         .writeLine(`  }`)
@@ -265,7 +270,9 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
         .writeLine(`    while (true) {`)
         .writeLine(`      const batch = await this.$outbox.getNextBatch({ limit: batchSize });`)
         .writeLine(`      if (batch.length === 0) break;`)
-        .writeLine(`      const ready = batch.filter(event => event.retryable && isReadyToRetry(event, overrideBackoff));`)
+        .writeLine(
+          `      const ready = batch.filter(event => event.retryable && isReadyToRetry(event, overrideBackoff));`
+        )
         .writeLine(`      if (ready.length === 0) break;`)
         .writeLine(`      await pushBatch(ready, overrideBackoff);`)
         .writeLine(`    }`)
@@ -290,7 +297,9 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
         .writeLine(`  emitStatusChange();`)
         .writeLine(`  try {`)
         .writeLine(`    let cursor = getCursor ? await Promise.resolve(getCursor()) : undefined;`)
-        .writeLine(`    pullStats = { validationErrors: [], missingRecords: 0, staleRecords: 0, totalAppliedRecords: 0 };`)
+        .writeLine(
+          `    pullStats = { validationErrors: [], missingRecords: 0, staleRecords: 0, totalAppliedRecords: 0 };`
+        )
         .blankLine()
         .writeLine(`    while (true) {`)
         .writeLine(`      const res = await pullHandler(cursor);`)
@@ -453,26 +462,26 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
         .writeLine(`  /**`)
         .writeLine(`   * Listen for status changes or pull completion events.`)
         .writeLine(`   * @param event Event name ('statuschange' or 'pullcompleted')`)
-        .writeLine(`   * @param callback Callback function. For 'pullcompleted', receives pull statistics as detail.`)
+        .writeLine(`   * @param callback Callback function. For 'statuschange', receives Event. For 'pullcompleted', receives CustomEvent with ApplyPullResult detail.`)
         .writeLine(`   * @returns Unsubscribe function`)
         .writeLine(`   * @example`)
         .writeLine(`   * // Listen to status changes`)
-        .writeLine(`   * const unsubscribe = worker.on('statuschange', () => {`)
-        .writeLine(`   *   console.log('Status:', worker.status);`)
+        .writeLine(`   * const unsubscribe = worker.on('statuschange', (event: Event) => {`)
+        .writeLine(`   *   console.log('Status changed');`)
         .writeLine(`   * });`)
         .writeLine(`   * `)
         .writeLine(`   * // Listen to pull completion`)
-        .writeLine(`   * const unsubscribePull = worker.on('pullcompleted', (event: any) => {`)
+        .writeLine(`   * const unsubscribePull = worker.on('pullcompleted', (event: CustomEvent<ApplyPullResult>) => {`)
         .writeLine(`   *   console.log('Applied:', event.detail.totalAppliedRecords);`)
         .writeLine(`   *   console.log('Errors:', event.detail.validationErrors);`)
         .writeLine(`   * });`)
         .writeLine(`   * // Later: unsubscribe(), unsubscribePull()`)
         .writeLine(`   */`)
-        .writeLine(`  on(event: 'statuschange' | 'pullcompleted', callback: (e?: any) => void): () => void {`)
-        .writeLine(`    const listener = (e?: any) => callback(e);`)
+        .writeLine(`  on(event: "statuschange" | "pullcompleted", callback: (e: Event | CustomEvent<ApplyPullResult>) => void): () => void {`)
+        .writeLine(`    const listener = (e: Event | CustomEvent<ApplyPullResult>) => callback(e);`)
         .writeLine(`    eventTarget.addEventListener(event, listener);`)
         .writeLine(`    return () => eventTarget.removeEventListener(event, listener);`)
-        .writeLine(`  },`)
+        .writeLine(`  }`)
         .writeLine(`};`);
     });
 }

@@ -17,12 +17,13 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], ve
   writer.blankLine();
 
   // Write type definition for applyPull return value
-  writer.writeLine(`export type ApplyPullResult = {`);
-  writer.writeLine(`	validationErrors: { model: string; error: unknown }[];`);
-  writer.writeLine(`	missingRecords: number;`);
-  writer.writeLine(`	staleRecords: number;`);
-  writer.writeLine(`	totalAppliedRecords: number;`);
-  writer.writeLine(`};`);
+  writer.writeLine(`export type ApplyPullResult =`);
+  writer.block(() => {
+    writer.writeLine(`validationErrors: { model: string; error: unknown }[];`);
+    writer.writeLine(`missingRecords: number;`);
+    writer.writeLine(`staleRecords: number;`);
+    writer.writeLine(`totalAppliedRecords: number;`);
+  });
   writer.blankLine();
 
   // Write JSDoc for the applyPull function

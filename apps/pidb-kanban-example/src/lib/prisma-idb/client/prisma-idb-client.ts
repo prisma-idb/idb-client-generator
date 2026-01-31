@@ -71,8 +71,8 @@ export class PrismaIDBClient {
    * @param options.schedule Scheduling configuration
    * @param options.schedule.intervalMs Milliseconds between sync cycles (default: 5000)
    * @param options.schedule.maxRetries Max retry attempts for outbox events before abandoning (default: 5)
-   * @param options.schedule.backoffMs Exponential backoff base duration in milliseconds (default: 300000 = 5 minutes)."
-   *   For each failed attempt, the wait time is calculated as: backoffMs * 2^(tries-1). E.g., with default 5min:"
+   * @param options.schedule.backoffMs Exponential backoff base duration in milliseconds (default: 300000 = 5 minutes).
+   *   For each failed attempt, the wait time is calculated as: backoffMs * 2^(tries-1). E.g. with the default 5 minutes:
    *   First failure: wait 5 min, second: wait 10 min, third: wait 20 min, etc.
    *
    * @returns SyncWorker with start() and stop() methods
@@ -87,7 +87,6 @@ export class PrismaIDBClient {
    *   },
    *   pull: {
    *     handler: async (cursor) => {
-    async forceSync(options?: { overrideBackoff?: boolean }): Promise<void> {
    *     },
    *     getCursor: async () => {
    *       const value = localStorage.getItem('syncCursor');
@@ -105,7 +104,6 @@ export class PrismaIDBClient {
    * });
    *
    * worker.start();   // begins sync cycles
-    async syncNow(options?: { overrideBackoff?: boolean }): Promise<void> {
    */
   createSyncWorker(options: {
     push: { handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>; batchSize?: number };
@@ -392,23 +390,26 @@ export class PrismaIDBClient {
       /**
        * Listen for status changes or pull completion events.
        * @param event Event name ('statuschange' or 'pullcompleted')
-       * @param callback Callback function. For 'pullcompleted', receives pull statistics as detail.
+       * @param callback Callback function. For 'statuschange', receives Event. For 'pullcompleted', receives CustomEvent with ApplyPullResult detail.
        * @returns Unsubscribe function
        * @example
        * // Listen to status changes
-       * const unsubscribe = worker.on('statuschange', () => {
-       *   console.log('Status:', worker.status);
+       * const unsubscribe = worker.on('statuschange', (event: Event) => {
+       *   console.log('Status changed');
        * });
        *
        * // Listen to pull completion
-       * const unsubscribePull = worker.on('pullcompleted', (event: any) => {
+       * const unsubscribePull = worker.on('pullcompleted', (event: CustomEvent<ApplyPullResult>) => {
        *   console.log('Applied:', event.detail.totalAppliedRecords);
        *   console.log('Errors:', event.detail.validationErrors);
        * });
        * // Later: unsubscribe(), unsubscribePull()
        */
-      on(event: "statuschange" | "pullcompleted", callback: (e?: any) => void): () => void {
-        const listener = (e?: any) => callback(e);
+      on(
+        event: "statuschange" | "pullcompleted",
+        callback: (e: Event | CustomEvent<ApplyPullResult>) => void
+      ): () => void {
+        const listener = (e: Event | CustomEvent<ApplyPullResult>) => callback(e);
         eventTarget.addEventListener(event, listener);
         return () => eventTarget.removeEventListener(event, listener);
       },
@@ -3312,12 +3313,10 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
    * Used to gate pull phase in sync worker.
    */
   async hasAnyRetryableUnsynced(): Promise<boolean> {
-    {
-      const tx = this.client._db.transaction("OutboxEvent", "readonly");
-      const store = tx.objectStore("OutboxEvent");
-      const allEvents = await store.getAll();
-      return allEvents.some((e) => !e.synced && e.retryable);
-    }
+    const tx = this.client._db.transaction("OutboxEvent", "readonly");
+    const store = tx.objectStore("OutboxEvent");
+    const allEvents = await store.getAll();
+    return allEvents.some((e) => !e.synced && e.retryable);
   }
 
   async markSynced(appliedLogs: { id: string; lastAppliedChangeId: string | null }[]): Promise<void> {
