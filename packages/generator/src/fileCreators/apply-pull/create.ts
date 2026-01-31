@@ -76,15 +76,6 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], ve
         });
         writer.blankLine();
 
-        // Skip stale records
-        writer.writeLine(`const versionMeta = await idbClient.$versionMeta.get(model, keyPath, tx);`);
-        writer.writeLine(`const lastAppliedChangeId = versionMeta?.lastAppliedChangeId ?? null;`);
-        writer.writeLine(`if (lastAppliedChangeId !== null && lastAppliedChangeId >= changelogId) {`);
-        writer.writeLine(`  staleRecords++;`);
-        writer.writeLine(`  continue;`);
-        writer.writeLine(`}`);
-        writer.blankLine();
-
         // Early exit if transaction was aborted
         writer.writeLine(`// Exit early if transaction was aborted during previous operations`);
         writer.writeLine(`if (txAborted)`).block(() => {
@@ -94,6 +85,14 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], ve
         writer.blankLine();
 
         writer.writeLine(`try `).block(() => {
+          // Skip stale records
+          writer.writeLine(`const versionMeta = await idbClient.$versionMeta.get(model, keyPath, tx);`);
+          writer.writeLine(`const lastAppliedChangeId = versionMeta?.lastAppliedChangeId ?? null;`);
+          writer.writeLine(`if (lastAppliedChangeId !== null && lastAppliedChangeId >= changelogId) {`);
+          writer.writeLine(`  staleRecords++;`);
+          writer.writeLine(`  continue;`);
+          writer.writeLine(`}`);
+          writer.blankLine();
           models.forEach((model, index) => {
             const modelName = model.name;
             const camelCaseName = modelName.charAt(0).toLowerCase() + modelName.slice(1);

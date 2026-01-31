@@ -24,8 +24,14 @@ function addHasAnyRetryableUnsyncedMethod(writer: CodeBlockWriter, outboxModelNa
       writer
         .writeLine(`const tx = this.client._db.transaction("${outboxModelName}", "readonly");`)
         .writeLine(`const store = tx.objectStore("${outboxModelName}");`)
-        .writeLine(`const allEvents = await store.getAll();`)
-        .writeLine(`return allEvents.some((e) => !e.synced && e.retryable);`);
+        .writeLine(`let cursor = await store.openCursor();`)
+        .writeLine(`while (cursor) `)
+        .block(() => {
+          writer.writeLine(`const e = cursor.value;`);
+          writer.writeLine(`if (!e.synced && e.retryable) return true;`);
+          writer.writeLine(`cursor = await cursor.continue();`);
+        })
+        .writeLine(`return false;`);
     })
     .blankLine();
 }
@@ -112,7 +118,7 @@ function addMarkSyncedMethod(writer: CodeBlockWriter, outboxModelName: string) {
         .writeLine(`...event,`)
         .writeLine(`synced: true,`)
         .writeLine(`syncedAt,`)
-        .writeLine(`lastAttemptedAt: event.lastAttemptedAt ?? syncedAt,`)
+        .writeLine(`lastAttemptedAt: syncedAt,`)
         .writeLine(`};`)
         .writeLine(`await store.put(updatedEvent);`)
         .writeLine(

@@ -51,13 +51,6 @@ export async function applyPull(props: ApplyPullProps): Promise<ApplyPullResult>
         continue;
       }
 
-      const versionMeta = await idbClient.$versionMeta.get(model, keyPath, tx);
-      const lastAppliedChangeId = versionMeta?.lastAppliedChangeId ?? null;
-      if (lastAppliedChangeId !== null && lastAppliedChangeId >= changelogId) {
-        staleRecords++;
-        continue;
-      }
-
       // Exit early if transaction was aborted during previous operations
       if (txAborted) {
         validationErrors.push({ model, error: new Error("Transaction was aborted") });
@@ -65,6 +58,13 @@ export async function applyPull(props: ApplyPullProps): Promise<ApplyPullResult>
       }
 
       try {
+        const versionMeta = await idbClient.$versionMeta.get(model, keyPath, tx);
+        const lastAppliedChangeId = versionMeta?.lastAppliedChangeId ?? null;
+        if (lastAppliedChangeId !== null && lastAppliedChangeId >= changelogId) {
+          staleRecords++;
+          continue;
+        }
+
         if (model === "Board") {
           if (operation === "delete") {
             const validatedKeyPath = keyPathValidators.Board.parse(keyPath);

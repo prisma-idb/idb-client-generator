@@ -290,11 +290,11 @@ export class PrismaIDBClient {
 
       try {
         // Check for any retryable unsynced outbox events
-        const hasRetryable = await this.$outbox.hasAnyRetryableUnsynced?.();
+        const hasRetryable = await this.$outbox.hasAnyRetryableUnsynced();
         if (hasRetryable) {
           await drainPushPhase(overrideBackoff);
           // After push, check again; if still retryable, do not pull
-          const stillHasRetryable = await this.$outbox.hasAnyRetryableUnsynced?.();
+          const stillHasRetryable = await this.$outbox.hasAnyRetryableUnsynced();
           if (stillHasRetryable) {
             // Only push, skip pull
             return;
@@ -3324,8 +3324,13 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
   async hasAnyRetryableUnsynced(): Promise<boolean> {
     const tx = this.client._db.transaction("OutboxEvent", "readonly");
     const store = tx.objectStore("OutboxEvent");
-    const allEvents = await store.getAll();
-    return allEvents.some((e) => !e.synced && e.retryable);
+    let cursor = await store.openCursor();
+    while (cursor) {
+      const e = cursor.value;
+      if (!e.synced && e.retryable) return true;
+      cursor = await cursor.continue();
+    }
+    return false;
   }
 
   async markSynced(
@@ -3343,7 +3348,7 @@ class OutboxEventIDBClass extends BaseIDBModelClass<"OutboxEvent"> {
           ...event,
           synced: true,
           syncedAt,
-          lastAttemptedAt: event.lastAttemptedAt ?? syncedAt,
+          lastAttemptedAt: syncedAt,
         };
         await store.put(updatedEvent);
         this.emit("update", [event.id], undefined, updatedEvent, {

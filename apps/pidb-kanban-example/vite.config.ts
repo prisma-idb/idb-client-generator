@@ -4,9 +4,9 @@ import tailwindcss from "@tailwindcss/vite";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   define: {
-    "process.env.NODE_ENV": process.env.NODE_ENV === "production" ? '"production"' : '"development"',
+    "process.env.NODE_ENV": JSON.stringify(mode),
   },
   plugins: [
     tailwindcss(),
@@ -19,4 +19,4 @@ export default defineConfig({
       manifestFilename: "manifest.webmanifest",
     }),
   ],
-});
+}));
