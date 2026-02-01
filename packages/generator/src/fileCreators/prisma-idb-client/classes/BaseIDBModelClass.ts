@@ -24,19 +24,21 @@ export function addBaseModelClass(writer: CodeBlockWriter, outboxSync: boolean =
 function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean) {
   writer
     .writeLine(
-      `subscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: (e: CustomEventInit<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>) => void): () => void`
+      `subscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: (e: CustomEvent<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>) => void): () => void`
     )
     .block(() => {
       writer.write(`if (Array.isArray(event))`).block(() => {
-        writer.writeLine(`event.forEach((evt) => this.eventEmitter.addEventListener(evt, callback));`);
+        writer.writeLine(`event.forEach((evt) => this.eventEmitter.addEventListener(evt, callback as EventListener));`);
         writer.write(`return () =>`).block(() => {
-          writer.writeLine(`event.forEach((evt) => this.eventEmitter.removeEventListener(evt, callback));`);
+          writer.writeLine(
+            `event.forEach((evt) => this.eventEmitter.removeEventListener(evt, callback as EventListener));`
+          );
         });
       });
 
-      writer.writeLine(`this.eventEmitter.addEventListener(event, callback);`);
+      writer.writeLine(`this.eventEmitter.addEventListener(event, callback as EventListener);`);
       writer.write(`return () =>`).block(() => {
-        writer.writeLine(`this.eventEmitter.removeEventListener(event, callback);`);
+        writer.writeLine(`this.eventEmitter.removeEventListener(event, callback as EventListener);`);
       });
     });
 

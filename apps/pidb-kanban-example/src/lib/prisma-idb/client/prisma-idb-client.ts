@@ -461,19 +461,17 @@ class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
   }
   subscribe(
     event: "create" | "update" | "delete" | ("create" | "update" | "delete")[],
-    callback: (
-      e: CustomEventInit<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>
-    ) => void
+    callback: (e: CustomEvent<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>) => void
   ): () => void {
     if (Array.isArray(event)) {
-      event.forEach((evt) => this.eventEmitter.addEventListener(evt, callback));
+      event.forEach((evt) => this.eventEmitter.addEventListener(evt, callback as EventListener));
       return () => {
-        event.forEach((evt) => this.eventEmitter.removeEventListener(evt, callback));
+        event.forEach((evt) => this.eventEmitter.removeEventListener(evt, callback as EventListener));
       };
     }
-    this.eventEmitter.addEventListener(event, callback);
+    this.eventEmitter.addEventListener(event, callback as EventListener);
     return () => {
-      this.eventEmitter.removeEventListener(event, callback);
+      this.eventEmitter.removeEventListener(event, callback as EventListener);
     };
   }
   protected async emit(
