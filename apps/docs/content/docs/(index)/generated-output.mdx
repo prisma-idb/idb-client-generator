@@ -15,13 +15,13 @@ generated/
 │   │   ├── prisma-idb-client.ts       # Main client class
 │   │   ├── idb-interface.ts           # TypeScript interfaces
 │   │   ├── idb-utils.ts               # Filtering & comparison utilities
-│   │   ├── apply-pull.ts              # Sync pull application logic
-│   │   └── scoped-schema.prisma       # Generated schema for syncable models
+│   │   ├── apply-pull.ts              # Sync pull application logic (sync only)
+│   │   └── scoped-schema.prisma       # Generated schema for syncable models (sync only)
 │   │
 │   ├── validators.ts                  # Zod validation schemas
 │   │
-│   └── server/
-│       └── batch-processor.ts         # Server-side change processor
+│   └── server/                        # (sync only)
+│       └── batch-processor.ts         # Server-side change processor (sync only)
 │
 └── prisma/
     ├── client.ts                      # Prisma Client types
@@ -38,7 +38,7 @@ generated/
 The main entry point for using Prisma IDB:
 
 ```typescript
-// apps/usage/src/lib/prisma-idb/client/prisma-idb-client.ts
+// Import from your generated output directory
 import { PrismaIDBClient } from "./prisma-idb-client";
 
 const client = await PrismaIDBClient.createClient();
