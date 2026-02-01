@@ -315,7 +315,7 @@ const pending = await client.outboxEvent.count({
   where: { status: "pending" },
 });
 
-console.log(`${pending.count} changes waiting to sync`);
+console.log(`${pending} changes waiting to sync`);
 
 // Get details of failed events
 const failed = await client.outboxEvent.findMany({
