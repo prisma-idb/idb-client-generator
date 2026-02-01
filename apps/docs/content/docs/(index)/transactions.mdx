@@ -11,7 +11,8 @@ Transactions ensure multiple operations succeed or fail together, maintaining da
 A transaction groups operations on one or more IndexedDB stores. If any operation fails, the entire transaction is rolled back.
 
 <Callout type="info">
-  Most operations automatically create a transaction if you don't pass one. Explicitly creating transactions is useful when you need to group multiple operations together atomically.
+  Most operations automatically create a transaction if you don't pass one. Explicitly creating transactions is useful
+  when you need to group multiple operations together atomically.
 </Callout>
 
 ```typescript
@@ -34,9 +35,9 @@ try {
 ```
 
 <Callout type="info">
-  Always pass store names as arrays, even for single stores. Use `(["User"], "readwrite")` instead of `("User", "readwrite")` for better compatibility with the generated client.
+  Always pass store names as arrays, even for single stores. Use `(["User"], "readwrite")` instead of `("User",
+  "readwrite")` for better compatibility with the generated client.
 </Callout>
-
 
 ## Transaction Modes
 
@@ -72,7 +73,7 @@ await tx.done;
 Build reusable transactional operations:
 
 ```typescript
-import * as IDBUtils from 'path/to/client/idb-utils.ts';
+import * as IDBUtils from "path/to/client/idb-utils.ts";
 
 async function transferTodo(
   fromUserId: string,
@@ -312,7 +313,8 @@ try {
 ```
 
 <Callout type="info">
-  Single operations automatically include `OutboxEvent` and `VersionMeta` internally if you don't pass a transaction, so you only need to explicitly include them when using explicit transactions.
+  Single operations automatically include `OutboxEvent` and `VersionMeta` internally if you don't pass a transaction, so
+  you only need to explicitly include them when using explicit transactions.
 </Callout>
 
 ## ⚠️ Important: Async Operations in Transactions

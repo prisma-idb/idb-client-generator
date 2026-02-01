@@ -1,7 +1,6 @@
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import Favicon from "./assets/favicon.png";
 import Image from "next/image";
-import { Package } from "lucide-react";
 
 export function baseOptions(): BaseLayoutProps {
   return {

@@ -99,7 +99,7 @@ export default function HomePage() {
       </div>
 
       {/* Footer */}
-      <footer className="mt-32 border-t border-fd-border bg-fd-muted py-12">
+      <footer className="border-fd-border bg-fd-muted mt-32 border-t py-12">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="space-y-8">
             <div className="space-y-4">
@@ -110,8 +110,10 @@ export default function HomePage() {
                 its functionality.
               </p>
             </div>
-            <div className="border-t border-fd-border pt-8">
-              <p className="text-fd-muted-foreground text-sm">© {new Date().getFullYear()} Prisma IDB. All rights reserved.</p>
+            <div className="border-fd-border border-t pt-8">
+              <p className="text-fd-muted-foreground text-sm">
+                © {new Date().getFullYear()} Prisma IDB. All rights reserved.
+              </p>
             </div>
           </div>
         </div>
