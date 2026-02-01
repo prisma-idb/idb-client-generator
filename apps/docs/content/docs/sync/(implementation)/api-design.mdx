@@ -283,7 +283,7 @@ test("push creates changelog entries", async () => {
 test("pull returns changes since cursor", async () => {
   const result = await fetch("/api/sync/pull", {
     method: "POST",
-    body: JSON.stringify({ lastChangelogId: null }),
+    body: JSON.stringify({}),
   });
 
   expect(result.status).toBe(200);

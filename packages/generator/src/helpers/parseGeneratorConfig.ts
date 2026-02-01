@@ -166,7 +166,7 @@ function validateChangelogSchema(models: readonly DMMF.Model[], enums: readonly 
       `@prisma-idb/idb-client-generator: A "Changelog" model is required when "outboxSync" is enabled.\n\n` +
         `Add the following to your schema:\n\n` +
         `model Changelog {\n` +
-        `  id            String          @id @default(uuid())\n` +
+        `  id            String          @id @default(uuid(7))\n` +
         `  model         String\n` +
         `  keyPath       Json\n` +
         `  operation     ChangeOperation\n` +
