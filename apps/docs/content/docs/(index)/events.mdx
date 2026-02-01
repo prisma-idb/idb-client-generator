@@ -165,11 +165,12 @@ Subscribe in a SvelteKit component:
 
 ```svelte
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { PrismaIDBClient } from "$lib/prisma-idb";
 
   let todos = $state<Todo[]>([]);
   let client: PrismaIDBClient;
+  let unsubscribe = $state<() => void>();
 
   onMount(async () => {
     client = await PrismaIDBClient.createClient();
@@ -178,10 +179,14 @@ Subscribe in a SvelteKit component:
     todos = await client.todo.findMany();
 
     // Subscribe to changes
-    client.todo.subscribe(["create", "update", "delete"], async (event) => {
+    unsubscribe = client.todo.subscribe(["create", "update", "delete"], async (event) => {
       // Refresh list
       todos = await client.todo.findMany();
     });
+  });
+
+  onDestroy(() => {
+    unsubscribe();
   });
 </script>
 
