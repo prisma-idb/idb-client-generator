@@ -89,7 +89,7 @@ This provides:
 
 Full bidirectional sync has the following limitations:
 
-- **Ownership DAG Required:** Every syncable record must trace ownership back to a `rootModel` (see [Sync Architecture](/docs/implementation/sync-architecture))
+- **Ownership DAG Required:** Every syncable record must trace ownership back to a `rootModel`
 - **Client-Generated IDs:** All syncable models must use `uuid` or `cuid` (no auto-increment IDs)
 - **Conflict Resolution:** Last-write-wins strategy (field-level, not record-level)
 
@@ -99,12 +99,12 @@ These are architectural constraints, not bugs, and enable offline-first synchron
 
 All CRUD operations are fully supported:
 
-- ✅ Create, CreateMany, CreateManyAndReturn
-- ✅ FindUnique, FindFirst, FindMany
-- ✅ Update, UpdateMany
-- ✅ Delete, DeleteMany
-- ✅ Upsert
-- ✅ Count, Aggregate
+- ✅ `create`, `createMany`, `createManyAndReturn`
+- ✅ `findUnique`, `findFirst`, `findMany`
+- ✅ `update`, `updateMany`
+- ✅ `delete`, `deleteMany`
+- ✅ `upsert`
+- ✅ `count`, `aggregate`
 - ✅ Transactions
 - ✅ Subscriptions/Events
 
@@ -153,5 +153,3 @@ if (navigator.storage?.persist) {
 - Potential Prisma/Zod independence
 - Alternative database backends
 - Edge computing integrations
-
-See the [Roadmap](https://github.com/prisma-idb/idb-client-generator) for detailed plans.
