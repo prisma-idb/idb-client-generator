@@ -35,11 +35,11 @@ generator prismaIDB {
 
 ### Schema Constraints
 
-All syncable models **must** use client-generated IDs. This is a fundamental requirement for the sync system to work correctly:
+All syncable models **must** use client-generated IDs and single ID fields. This is a fundamental requirement for the sync system to work correctly:
 
 - **Required**: Use `@id @default(uuid())` or `@id @default(cuid())` for all models included in sync
-- **Forbidden**: Auto-incrementing IDs with `@id @default(autoincrement())` are **not supported** for syncable models
-- **Reason**: Client-generated IDs ensure that records created offline can be synchronized without ID conflicts
+- **Forbidden**: Composite `@@id([...])` keys are **not supported** for syncable models. Auto-incrementing IDs with `@id @default(autoincrement())` are **not supported** for syncable models
+- **Reason**: Client-generated single-field IDs ensure that records created offline can be synchronized without ID conflicts and enable proper ownership tracking
 
 Example of **correct** schema with client-generated IDs:
 

@@ -6,6 +6,7 @@ build
 .svelte-kit
 .vercel
 .next
+out
 .source
 
 .env*

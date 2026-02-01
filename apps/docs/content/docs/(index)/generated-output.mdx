@@ -273,7 +273,10 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
   }
 
   // Events
-  subscribe(events: ("create" | "update" | "delete")[], handler: (event: CustomEvent) => void): () => void {
+  subscribe(
+    event: "create" | "update" | "delete" | ("create" | "update" | "delete")[],
+    callback: (e: CustomEvent<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>) => void
+  ): () => void {
     /* ... */
   }
 

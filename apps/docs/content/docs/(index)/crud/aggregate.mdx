@@ -166,7 +166,8 @@ const progress = await client.task.aggregate({
   _sum: { progress: true },
 });
 
-const avgProgress = (progress._sum.progress || 0) / progress._count.id;
+const denominator = progress._count.id || 1;
+const avgProgress = (progress._sum.progress || 0) / denominator;
 console.log(`Project is ${Math.round(avgProgress)}% complete`);
 ```
 

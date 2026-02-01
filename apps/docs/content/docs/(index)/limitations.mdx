@@ -90,6 +90,7 @@ This provides:
 Full bidirectional sync has the following limitations:
 
 - **Ownership DAG Required:** Every syncable record must trace ownership back to a `rootModel`
+- **Single-ID Only:** Composite `@@id` keys are not supported for syncable models
 - **Client-Generated IDs:** All syncable models must use `uuid` or `cuid` (no auto-increment IDs)
 - **Conflict Resolution:** Last-write-wins strategy (field-level, not record-level)
 

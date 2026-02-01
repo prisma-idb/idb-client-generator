@@ -210,7 +210,8 @@ function validateChangelogSchema(models: readonly DMMF.Model[], enums: readonly 
           typeof field.default !== "object" ||
           !("name" in field.default) ||
           field.default.name !== "uuid" ||
-          (field.default.args && field.default.args[0] !== 7)
+          !field.default.args ||
+          field.default.args[0] !== 7
         ) {
           throw new Error(
             `@prisma-idb/idb-client-generator: Changelog.id @default must be uuid(7), got ${typeof field.default === "object" && "name" in field.default ? field.default.name : field.default}.`
