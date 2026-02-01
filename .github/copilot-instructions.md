@@ -6,7 +6,7 @@ You are working on a Prisma generator that creates a familiar, type-safe client 
 
 - **Generator-Centric**: Most core logic resides in `packages/generator`. If you need to change client behavior, edit the generator's `fileCreators`.
 - **Sync Flow**: Uses an **Outbox Pattern** on the client and a **Changelog Materialization** on the server.
-- **Ownership Invariants**: Syncability is gated by an ownership DAG. Every syncable record must be traceable to a `rootModel` (e.g., `User`) via `@db.map("ownerId")` or similar ownership fields. Refer to `todo.md` for the 4 core invariants.
+- **Ownership Invariants**: Syncability is gated by an ownership DAG. Every syncable record must be traceable to a `rootModel` (e.g., `User`) via a foreign key or similar ownership fields. Refer to `todo.md` for the 4 core invariants.
 - **Client-Side IDs**: All syncable models **must** use client-generated IDs (`uuid`, `cuid`). Auto-incrementing IDs are strictly forbidden for syncable data.
 
 ## Critical Workflows

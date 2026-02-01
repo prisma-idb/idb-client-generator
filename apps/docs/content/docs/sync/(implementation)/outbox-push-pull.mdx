@@ -283,16 +283,16 @@ The `applyPull` logic respects the Authoritatively-resolved Schema DAG:
 ```prisma
 // User owns their own record
 model User {
-  id String @id @db.map("id")
+  id String @id
   name String
   todos Todo[]
 }
 
 // Todo belongs to User (authority on changes)
 model Todo {
-  id String @id @db.map("id")
+  id String @id
   title String
-  userId String @db.map("ownerId")
+  userId String
   user User @relation(fields: [userId], references: [id])
 }
 ```
