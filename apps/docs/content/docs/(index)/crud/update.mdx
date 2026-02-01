@@ -136,20 +136,10 @@ const board = await client.board.update({
     name: "Updated Board",
     // Update existing todos
     todos: {
-      updateMany: [
-        {
-          where: { id: "todo-1" },
-          data: { priority: 5 },
-        },
-        {
-          where: { id: "todo-2" },
-          data: { done: true },
-        },
-      ],
-      // Create new
-      create: [{ title: "New task" }],
-      // Delete specific
-      delete: [{ id: "todo-old" }],
+      updateMany: {
+        where: { id: { in: ["todo-1", "todo-2"] } },
+        data: { priority: 5 },
+      },
     },
   },
 });
