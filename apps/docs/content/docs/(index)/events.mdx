@@ -126,7 +126,7 @@ Use cases:
 
 ### Default Behavior
 
-By default, all operations emit events (equivalent to `silent: false`). If you're using bidirectional sync, set `silent: false` to ensure the outbox captures the change.
+By default, all operations emit events (equivalent to `silent: false`).
 
 ## Outbox Integration
 
@@ -226,25 +226,6 @@ bus.subscribe("user:created", (user) => {
   console.log("User created globally:", user);
 });
 ```
-
-### Offline Queue Indicator
-
-Track pending sync operations:
-
-```typescript
-let pendingCount = $state(0);
-
-client.user.subscribe(["create", "update", "delete"], async (event) => {
-  const hasOutbox = client.outboxEvent !== undefined;
-
-  if (hasOutbox) {
-    const stats = await client.outboxEvent.count();
-    pendingCount = stats.count;
-  }
-});
-```
-
-(See [Outbox Stats](../sync/outbox-stats) for more details on monitoring pending operations.)
 
 ## Type Safety
 

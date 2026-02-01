@@ -10,7 +10,9 @@ Transactions ensure multiple operations succeed or fail together, maintaining da
 
 A transaction groups operations on one or more IndexedDB stores. If any operation fails, the entire transaction is rolled back.
 
-**Note:** Most operations automatically create a transaction if you don't pass one. Explicitly creating transactions is useful when you need to group multiple operations together atomically.
+<Callout type="info">
+  Most operations automatically create a transaction if you don't pass one. Explicitly creating transactions is useful when you need to group multiple operations together atomically.
+</Callout>
 
 ```typescript
 // Create a transaction for 2 stores in read-write mode
@@ -30,6 +32,11 @@ try {
   throw error;
 }
 ```
+
+<Callout type="info">
+  Always pass store names as arrays, even for single stores. Use `(["User"], "readwrite")` instead of `("User", "readwrite")` for better compatibility with the generated client.
+</Callout>
+
 
 ## Transaction Modes
 
@@ -65,11 +72,13 @@ await tx.done;
 Build reusable transactional operations:
 
 ```typescript
+import * as IDBUtils from 'path/to/client/idb-utils.ts';
+
 async function transferTodo(
   fromUserId: string,
   toUserId: string,
   todoId: string,
-  tx?: IDBPTransaction<any, any[], "readwrite">
+  tx?: IDBUtils.ReadwriteTransactionType
 ) {
   const txToUse = tx || client._db.transaction(["User", "Todo"], "readwrite");
 
@@ -286,15 +295,15 @@ async function safeTransfer(fromId: string, toId: string, amount: number) {
 
 ## With Sync
 
-When sync is enabled and you want to group multiple queries atomically, you should include the `OutboxEvent` model in your transaction:
+When sync is enabled and you want to group multiple queries atomically, you should include the `OutboxEvent` and `VersionMeta` stores in your transaction:
 
 ```typescript
-const tx = client._db.transaction(["User", "Todo", "OutboxEvent"], "readwrite");
+const tx = client._db.transaction(["User", "Todo", "OutboxEvent", "VersionMeta"], "readwrite");
 
 try {
   await client.user.update({ where: { id: 1 }, data: { name: "Alice" } }, { tx });
 
-  // Outbox entry is added in same transaction
+  // Outbox entry and version metadata are added in same transaction
   await tx.done;
 } catch (error) {
   tx.abort();
@@ -302,7 +311,9 @@ try {
 }
 ```
 
-**Note:** Single operations automatically include `OutboxEvent` internally if you don't pass a transaction, so you only need to explicitly include it when using explicit transactions.
+<Callout type="info">
+  Single operations automatically include `OutboxEvent` and `VersionMeta` internally if you don't pass a transaction, so you only need to explicitly include them when using explicit transactions.
+</Callout>
 
 ## ⚠️ Important: Async Operations in Transactions
 
