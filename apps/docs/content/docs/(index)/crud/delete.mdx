@@ -114,6 +114,10 @@ Or use [findUniqueOrThrow](/docs/crud/find-unique-or-throw):
 
 ```typescript
 try {
+  // Verify user exists first
+  await client.user.findUniqueOrThrow({
+    where: { id: userId },
+  });
   const deleted = await client.user.delete({
     where: { id: userId },
   });

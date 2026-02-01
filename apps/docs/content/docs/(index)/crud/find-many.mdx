@@ -84,17 +84,12 @@ const users = await client.user.findMany({
 
 ## Selection
 
-Control which fields are included:
+Control which fields are included using explicit inclusion:
 
 ```typescript
 // Select specific fields
 const users = await client.user.findMany({
   select: { id: true, name: true },
-});
-
-// All fields except specified ones (Prisma syntax)
-const users = await client.user.findMany({
-  select: { password: false }, // Exclude password
 });
 ```
 

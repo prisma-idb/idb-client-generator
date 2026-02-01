@@ -123,22 +123,45 @@ const updated = await client.$transaction(async (tx) => {
 
 ## Batch Update Pattern
 
-Update in batches to optimize performance:
+For simple bulk updates, use updateMany directly:
+
+```typescript
+const result = await client.user.updateMany({
+  where: {
+    active: false,
+    lastLogin: { lt: ninetyDaysAgo },
+  },
+  data: { archived: true },
+});
+
+console.log(`Updated ${result.count} total records`);
+```
+
+For real batching with pagination, fetch a page and update per page:
 
 ```typescript
 const batch = 100;
 let updated = 0;
 
 for (let skip = 0; ; skip += batch) {
-  const result = await client.user.updateMany({
+  const users = await client.user.findMany({
     where: {
       active: false,
       lastLogin: { lt: ninetyDaysAgo },
     },
+    skip,
+    take: batch,
+  });
+
+  if (users.length === 0) break;
+
+  const result = await client.user.updateMany({
+    where: {
+      id: { in: users.map((u) => u.id) },
+    },
     data: { archived: true },
   });
 
-  if (result.count === 0) break;
   updated += result.count;
 }
 
@@ -201,5 +224,5 @@ const result = await client.user.updateMany({
 ## See Also
 
 - [update](/docs/crud/update) - Update a single record
-- [upsert](/docs/crud/upsert) - Update or create multiple
+- [upsert](/docs/crud/upsert) - Update or create a single record
 - [Transactions](/docs/transactions) - Atomic multi-record operations

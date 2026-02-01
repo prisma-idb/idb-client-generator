@@ -160,7 +160,7 @@ const user = await client.user.findUniqueOrThrow({
 console.log(user.name); // ✅ Safe
 
 // Type system prevents null checks
-if (user === null) { // ❌ TypeScript error
+if (user === null) { // Redundant check - always false (may trigger linter warnings)
   // ...
 }
 ```

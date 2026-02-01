@@ -1,0 +1,27 @@
+{
+  "title": "CRUD Operations",
+  "icon": "Database",
+  "pages": [
+    "index",
+    "---Create---",
+    "create",
+    "create-many",
+    "create-many-and-return",
+    "---Read---",
+    "find-unique",
+    "find-unique-or-throw",
+    "find-first",
+    "find-first-or-throw",
+    "find-many",
+    "count",
+    "aggregate",
+    "---Update---",
+    "update",
+    "update-many",
+    "---Delete---",
+    "delete",
+    "delete-many",
+    "---Upsert---",
+    "upsert"
+  ]
+}

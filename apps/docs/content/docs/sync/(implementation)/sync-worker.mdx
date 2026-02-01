@@ -31,7 +31,7 @@ const syncWorker = client.createSyncWorker({
   apiUrl: "https://api.example.com",
   push: async (events) => {
     // Send to server
-    const response = await fetch(`${apiUrl}/sync/push`, {
+    const response = await fetch(`https://api.example.com/sync/push`, {
       method: "POST",
       body: JSON.stringify({ events }),
     });
@@ -39,7 +39,7 @@ const syncWorker = client.createSyncWorker({
   },
   pull: async (cursor) => {
     // Fetch from server
-    const response = await fetch(`${apiUrl}/sync/pull`, {
+    const response = await fetch(`https://api.example.com/sync/pull`, {
       method: "POST",
       body: JSON.stringify({ cursor }),
     });
@@ -140,29 +140,29 @@ console.log({
 The sync worker emits events for reactive UI updates:
 
 ```typescript
-syncWorker.on("sync:start", () => {
-  console.log("Sync cycle beginning");
-  // Show loading indicator
+syncWorker.on("statuschange", (e) => {
+  const { status, isLooping, lastSyncTime, lastError } = e.detail;
+  console.log(`Status: ${status}, Looping: ${isLooping}`);
+  // status: "STOPPED" | "IDLE" | "PUSHING" | "PULLING"
 });
 
-syncWorker.on("sync:progress", (progress) => {
-  console.log(`Syncing: ${progress.pushed}/${progress.total} changes`);
-  // Update progress bar
+syncWorker.on("pushcompleted", (e) => {
+  const { results } = e.detail;
+  results.forEach((result) => {
+    if (result.error) {
+      console.error(`Push failed: ${result.error.message}`);
+    } else {
+      console.log(`Applied: ${result.appliedChangelogId}`);
+    }
+  });
 });
 
-syncWorker.on("sync:complete", (result) => {
-  console.log("Sync successful", result);
-  // Hide loading, refresh UI
-});
-
-syncWorker.on("sync:error", (error) => {
-  console.error("Sync failed:", error);
-  // Show error message, suggest user action
-});
-
-syncWorker.on("conflict", (conflict) => {
-  console.log("Conflict detected:", conflict);
-  // Handle merge conflict
+syncWorker.on("pullcompleted", (e) => {
+  const { validationErrors, missingRecords, totalAppliedRecords } = e.detail;
+  console.log(`Applied ${totalAppliedRecords} records from server`);
+  if (validationErrors.length > 0) {
+    console.warn(`Validation errors: ${validationErrors.length}`);
+  }
 });
 ```
 
@@ -172,43 +172,61 @@ Use events for reactive components:
 
 ```svelte
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   
   let syncWorker;
-  let isSyncing = $state(false);
-  let lastSync = $state<Date>();
+  let syncStatus = $state("STOPPED");
+  let lastSyncTime = $state<Date>();
   let error = $state("");
   
   onMount(async () => {
     const client = await PrismaIDBClient.createClient();
     syncWorker = client.createSyncWorker({ /* ... */ });
     
-    syncWorker.on("sync:start", () => {
-      isSyncing = true;
-      error = "";
+    // Subscribe to status changes
+    const unsubscribeStatus = syncWorker.on("statuschange", (e) => {
+      syncStatus = e.detail.status;
+      if (e.detail.lastError) {
+        error = e.detail.lastError.message;
+      }
     });
     
-    syncWorker.on("sync:complete", () => {
-      isSyncing = false;
-      lastSync = new Date();
-    });
-    
-    syncWorker.on("sync:error", (err) => {
-      isSyncing = false;
-      error = err.message;
+    // Subscribe to push completion
+    const unsubscribePushCompleted = syncWorker.on("pushcompleted", (e) => {
+      const { results } = e.detail;
+      const failed = results.filter((r) => r.error);
+      if (failed.length > 0) {
+        error = `${failed.length} changes failed to sync`;
+      } else {
+        error = "";
+        lastSyncTime = new Date();
+      }
     });
     
     syncWorker.start();
+    
+    // Cleanup on unmount
+    return () => {
+      syncWorker.stop();
+      unsubscribeStatus();
+      unsubscribePushCompleted();
+    };
+  });
+  
+  onDestroy(() => {
+    if (syncWorker) {
+      syncWorker.stop();
+    }
   });
 </script>
 
 <div class="sync-status">
-  {#if isSyncing}
+  {#if syncStatus === "PUSHING" || syncStatus === "PULLING"}
     <span>Syncing...</span>
   {:else if error}
     <span class="error">{error}</span>
   {:else}
-    <span>Last synced: {lastSync?.toLocaleString()}</span>
+    <span>Last synced: {lastSyncTime?.toLocaleString()}</span>
   {/if}
 </div>
 ```

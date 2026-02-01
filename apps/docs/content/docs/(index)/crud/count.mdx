@@ -98,10 +98,10 @@ const stats = {
 
 ## Performance
 
-`count` filters results in-memory for complex conditions:
+All `count` filters are applied in-memory after IndexedDB retrieves the entire store via getAll(). Even simple where filters may incur a full table scan unless the filtered fields are indexed.
 
 ```typescript
-// Fast - index available
+// Faster when indexed
 const activeCount = await client.user.count({
   where: { active: true }, // If 'active' is indexed
 });

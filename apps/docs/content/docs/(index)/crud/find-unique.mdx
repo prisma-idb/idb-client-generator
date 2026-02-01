@@ -130,21 +130,21 @@ const userWithTodos = await client.user.findUnique({
 
 ## Performance
 
-`findUnique` is the fastest read operation because it uses direct index lookup:
+`findUnique` performs a direct indexed lookup, typically O(log n) in typical B-tree/index implementations:
 
 ```typescript
-// ✅ Fast - direct index
+// ✅ Faster - direct indexed lookup
 const user = await client.user.findUnique({
-  where: { id: userId }, // O(1)
+  where: { id: userId }, // Logarithmic via index
 });
 
-// ⚠️ Slower - full table scan
+// ⚠️ May be slower if fields are not indexed
 const user = await client.user.findFirst({
   where: { email: "alice@example.com" },
-}); // O(n)
+}); // Can be fast with appropriate indexes
 ```
 
-Ensure your lookup field is indexed in your schema.
+Ensure your lookup fields are indexed in your schema for best performance.
 
 ## Null Handling
 

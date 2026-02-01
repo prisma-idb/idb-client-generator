@@ -186,7 +186,7 @@ console.log(users); // []
 
 ## Isolation
 
-Transactions provide isolation from other operations:
+Transactions provide isolation from other operations. Reads are queued and will observe committed changes:
 
 ```typescript
 // Transaction 1
@@ -196,14 +196,14 @@ const user = await client.user.create(
   { tx: tx1 }
 );
 
-// Transaction 2 - can't see tx1's changes yet
-const userBefore = await client.user.findUnique({ where: { id: user.id } });
-console.log(userBefore); // null (tx1 not committed yet)
+// Concurrent read is queued and waits for tx1 to complete
+const userDuring = await client.user.findUnique({ where: { id: user.id } });
+// This waits for tx1 to commit, then returns the created user
 
 // Commit tx1
 await tx1.done;
 
-// Now visible
+// Now visible with the committed data
 const userAfter = await client.user.findUnique({ where: { id: user.id } });
 console.log(userAfter); // { id, name: "Alice" }
 ```

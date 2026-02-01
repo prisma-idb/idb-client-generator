@@ -194,16 +194,9 @@ const settings = await client.userSettings.upsert({
 **Atomic counter increment:**
 
 ```typescript
-// Get current count
-const stats = await client.stats.findUnique({
-  where: { page: "/home" },
-});
-
-const currentCount = stats?.views ?? 0;
-
 const updated = await client.stats.upsert({
   where: { page: "/home" },
-  update: { views: currentCount + 1 },
+  update: { views: { increment: 1 } },
   create: { page: "/home", views: 1 },
 });
 ```
