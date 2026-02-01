@@ -4,7 +4,7 @@
   "globalDependencies": ["tsconfig.json", "eslint.config.js", ".prettierrc", ".prettierignore", "package.json"],
   "tasks": {
     "build": {
-      "outputs": ["dist/**", ".svelte-kit/**"],
+      "outputs": ["dist/**", ".svelte-kit/**", "apps/docs/out/**"],
       "dependsOn": ["^build"],
       "env": ["DATABASE_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "BETTER_AUTH_SECRET"]
     },
