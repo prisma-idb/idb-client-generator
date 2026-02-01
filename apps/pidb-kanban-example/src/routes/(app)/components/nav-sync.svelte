@@ -56,13 +56,13 @@
       pullResult = e.detail;
     });
 
-    getClient().$outbox.subscribe(["create", "update", "delete"], updateOutboxStats);
+    const unsubscribeOutbox = getClient().$outbox.subscribe(["create", "update", "delete"], updateOutboxStats);
 
     return () => {
       unsubscribeStatusChange();
       unsubscribePushCompleted();
       unsubscribePullCompleted();
-      getClient().$outbox.unsubscribe(["create", "update", "delete"], updateOutboxStats);
+      unsubscribeOutbox();
     };
   });
 </script>
