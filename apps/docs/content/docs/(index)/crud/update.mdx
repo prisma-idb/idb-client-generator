@@ -120,7 +120,7 @@ const user = await client.user.update(
   {
     tx: transaction, // Use existing transaction
     silent: false, // Emit events (default: false)
-    addToOutbox: true, // Queue for sync (default: true)
+    addToOutbox: true, // Queue for sync (default: true if sync is enabled)
   }
 );
 ```

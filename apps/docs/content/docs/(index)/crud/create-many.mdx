@@ -44,7 +44,7 @@ const result = await client.user.createMany(
   {
     tx: transaction, // Use existing transaction
     silent: false, // Emit events for each (default: false)
-    addToOutbox: true, // Queue for sync (default: true)
+    addToOutbox: true, // Queue for sync (default: true if sync is enabled)
   }
 );
 ```
