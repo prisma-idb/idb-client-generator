@@ -301,71 +301,6 @@ await prisma.changeLog.create({
 });
 ```
 
-## API Middleware
-
-Protect endpoints with authentication and authorization:
-
-```typescript
-// middleware/auth.ts
-export async function requireAuth(req: Request) {
-  const authHeader = req.headers.get("authorization");
-  const token = authHeader?.split(" ")[1];
-
-  if (!token) {
-    throw new Error("Missing authorization token");
-  }
-
-  const userId = await verifyToken(token);
-  if (!userId) {
-    throw new Error("Invalid token");
-  }
-
-  return userId;
-}
-
-// pages/api/sync/push.ts
-export async function POST(req: Request) {
-  try {
-    const userId = await requireAuth(req);
-    const { events } = await req.json();
-
-    const result = await processBatch(prisma, events, userId, "User");
-    return Response.json(result);
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 401 });
-  }
-}
-```
-
-## Rate Limiting
-
-Prevent abuse by limiting sync frequency:
-
-```typescript
-// middleware/rateLimit.ts
-const syncLimits = new Map<string, number>();
-
-export function checkSyncLimit(userId: string, maxPerMinute = 60) {
-  const now = Date.now();
-  const lastCall = syncLimits.get(userId) ?? now;
-
-  const callsThisMinute = (now - lastCall) / 1000 / 60;
-  if (callsThisMinute > maxPerMinute) {
-    throw new Error("Rate limit exceeded");
-  }
-
-  syncLimits.set(userId, now);
-}
-
-// pages/api/sync/push.ts
-export async function POST(req: Request) {
-  const userId = await requireAuth(req);
-  checkSyncLimit(userId, 60); // Max 60 syncs/minute
-
-  // ... rest of handler
-}
-```
-
 ## Error Responses
 
 Return detailed error information for client retry logic:
@@ -373,43 +308,44 @@ Return detailed error information for client retry logic:
 ```typescript
 interface SyncError {
   code:
-    | "UNAUTHORIZED"
-    | "CONFLICT"
-    | "VALIDATION_ERROR"
-    | "OWNERSHIP_ERROR"
-    | "SERVER_ERROR";
+    | "INVALID_MODEL"
+    | "RECORD_VALIDATION_FAILURE"
+    | "KEYPATH_VALIDATION_FAILURE"
+    | "MISSING_PARENT"
+    | "SCOPE_VIOLATION"
+    | "UNKNOWN_OPERATION"
+    | "CUSTOM_VALIDATION_FAILED"
+    | "MAX_RETRIES"
+    | "UNKNOWN_ERROR";
   message: string;
-  details?: any;
   retryable?: boolean; // Client should retry
 }
 
-// Example: validation error
+// Example: validation error (not retryable)
 {
-  code: "VALIDATION_ERROR",
-  message: "Invalid data",
-  details: {
-    model: "User",
-    field: "email",
-    error: "Invalid email format"
-  },
+  code: "RECORD_VALIDATION_FAILURE",
+  message: "Validation failed for model User: email must be a valid email",
   retryable: false
 }
 
-// Example: ownership error
+// Example: ownership error (not retryable)
 {
-  code: "OWNERSHIP_ERROR",
-  message: "User lacks permission",
-  details: {
-    model: "Todo",
-    keyPath: ["todo123"]
-  },
+  code: "SCOPE_VIOLATION",
+  message: "Record does not belong to user's scope",
+  retryable: false
+}
+
+// Example: missing parent (not retryable)
+{
+  code: "MISSING_PARENT",
+  message: "Parent record not found",
   retryable: false
 }
 
 // Example: temporary error (retryable)
 {
-  code: "SERVER_ERROR",
-  message: "Database temporarily unavailable",
+  code: "UNKNOWN_ERROR",
+  message: "An unexpected error occurred",
   retryable: true
 }
 ```
