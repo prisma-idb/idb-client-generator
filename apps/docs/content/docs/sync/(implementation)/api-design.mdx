@@ -1,0 +1,511 @@
+---
+title: "API Design & Helpers"
+description: "Building sync endpoints and using server-side helpers"
+icon: Zap
+---
+
+The server-side API for sync uses a push/pull pattern. The generator provides helpers to implement it correctly.
+
+## API Endpoints
+
+Create two endpoints for bidirectional sync: one for pushing client changes, one for pulling server changes.
+
+### Push Endpoint
+
+Receive local mutations and apply them to the database:
+
+```typescript
+// pages/api/sync/push.ts
+import { processBatch } from "@prisma-idb/generated/server";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+export async function POST(req: Request) {
+  try {
+    const { events } = await req.json();
+    const userId = getSessionUserId(req);
+
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Use generated helper to process mutations
+    const result = await processBatch(
+      prisma,
+      events,
+      userId,
+      "User" // rootModel
+    );
+
+    return Response.json(result);
+  } catch (error) {
+    console.error("Push failed:", error);
+    return Response.json({ error: "Push failed" }, { status: 500 });
+  }
+}
+```
+
+**Request Format:**
+
+```typescript
+interface PushRequest {
+  events: Array<{
+    id: string;
+    model: string;
+    operation: "create" | "update" | "delete";
+    keyPath: any[];
+    data: any;
+    createdAt: Date;
+  }>;
+}
+```
+
+**Response Format:**
+
+```typescript
+interface PushResult {
+  applied: Array<{
+    id: string; // Event ID
+    model: string;
+    keyPath: any[];
+    success: true;
+  }>;
+  errors: Array<{
+    id: string;
+    model: string;
+    keyPath: any[];
+    error: string;
+    code: string;
+  }>;
+}
+```
+
+### Pull Endpoint
+
+Send changelog entries and record data since cursor:
+
+```typescript
+// pages/api/sync/pull.ts
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+export async function POST(req: Request) {
+  try {
+    const { cursor } = await req.json();
+    const userId = getSessionUserId(req);
+
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Fetch changelog since cursor
+    const changeLog = await prisma.changeLog.findMany({
+      where: {
+        id: cursor
+          ? {
+              gt: cursor, // UUID v7 is sortable
+            }
+          : {},
+        scopeKey: userId,
+      },
+      take: 1000, // Limit batch size
+      orderBy: { id: "asc" },
+    });
+
+    if (changeLog.length === 0) {
+      return Response.json({
+        changelog: [],
+        records: {},
+      });
+    }
+
+    // Fetch actual records from changelog entries
+    const records: Record<string, any[]> = {};
+
+    for (const log of changeLog) {
+      if (!records[log.model]) {
+        records[log.model] = [];
+      }
+
+      if (log.operation !== "delete") {
+        const record = await prisma[log.model].findUnique({
+          where: { id: log.keyPath[0] },
+        });
+        if (record) {
+          records[log.model].push(record);
+        }
+      }
+    }
+
+    return Response.json({
+      changelog: changeLog.map((log) => ({
+        id: log.id,
+        model: log.model,
+        operation: log.operation,
+        keyPath: log.keyPath,
+        scopeKey: log.scopeKey,
+      })),
+      records,
+    });
+  } catch (error) {
+    console.error("Pull failed:", error);
+    return Response.json({ error: "Pull failed" }, { status: 500 });
+  }
+}
+```
+
+**Request Format:**
+
+```typescript
+interface PullRequest {
+  cursor?: string; // Last changelog ID received
+}
+```
+
+**Response Format:**
+
+```typescript
+interface PullResponse {
+  changelog: Array<{
+    id: string;
+    model: string;
+    operation: "create" | "update" | "delete";
+    keyPath: any[];
+    scopeKey: string;
+  }>;
+  records: Record<string, any[]>; // Model name -> records
+}
+```
+
+## Batch Processor Helper
+
+The generated `processBatch` helper handles:
+
+- Ownership validation (ensures user can modify records)
+- Schema validation (ensures data matches Prisma schema)
+- Database mutation application
+- Changelog recording
+- Error collection
+
+```typescript
+import { processBatch } from "@prisma-idb/generated/server";
+
+const result = await processBatch(
+  prisma,
+  events,
+  userId,
+  "User" // rootModel - required for ownership validation
+);
+
+// result.applied contains successfully applied events
+// result.errors contains failed events with reasons
+```
+
+### What It Validates
+
+**Ownership:**
+
+Each event must be traceable to the `rootModel`. For example, if rootModel is "User":
+
+```typescript
+// ✅ Valid: event belongs to user
+{
+  model: "User",
+  keyPath: ["user123"],
+  // ...
+}
+
+// ✅ Valid: event belongs to user's todo
+{
+  model: "Todo",
+  keyPath: ["todo456"],
+  // (todo456 has userId: user123)
+}
+
+// ❌ Invalid: can't trace to user
+{
+  model: "Board",
+  keyPath: ["board789"],
+  // (board789 belongs to different user)
+}
+```
+
+**Data Schema:**
+
+Generated validators ensure data matches your Prisma schema:
+
+```typescript
+// Data is validated against Prisma schema
+const validEvent = {
+  model: "Todo",
+  operation: "create",
+  data: {
+    id: "1",
+    title: "Task", // ✅ string field
+    userId: "user123", // ✅ valid FK
+  },
+};
+
+const invalidEvent = {
+  model: "Todo",
+  operation: "create",
+  data: {
+    title: "Task",
+    priority: 99, // ❌ field doesn't exist
+  },
+};
+```
+
+## Changelog Recording
+
+Create the `ChangeLog` table to track server mutations:
+
+```prisma
+model ChangeLog {
+  id            String          @id @default(uuid(7))
+  model         String
+  keyPath       Json
+  operation     ChangeOperation
+  scopeKey      String
+  outboxEventId String          @unique
+
+  @@index([model, id])
+  @@index([scopeKey, id])
+}
+
+enum ChangeOperation {
+  create
+  update
+  delete
+}
+```
+
+When `processBatch` applies an event, it automatically records it:
+
+```typescript
+// processBatch internally does:
+// 1. Apply mutation to database
+// 2. Record in ChangeLog for client pull
+
+await prisma.changeLog.create({
+  data: {
+    id: uuid7(),
+    model: event.model,
+    keyPath: event.keyPath,
+    operation: event.operation,
+    scopeKey: userId,
+    outboxEventId: event.id,
+  },
+});
+```
+
+## API Middleware
+
+Protect endpoints with authentication and authorization:
+
+```typescript
+// middleware/auth.ts
+export async function requireAuth(req: Request) {
+  const authHeader = req.headers.get("authorization");
+  const token = authHeader?.split(" ")[1];
+
+  if (!token) {
+    throw new Error("Missing authorization token");
+  }
+
+  const userId = await verifyToken(token);
+  if (!userId) {
+    throw new Error("Invalid token");
+  }
+
+  return userId;
+}
+
+// pages/api/sync/push.ts
+export async function POST(req: Request) {
+  try {
+    const userId = await requireAuth(req);
+    const { events } = await req.json();
+
+    const result = await processBatch(prisma, events, userId, "User");
+    return Response.json(result);
+  } catch (error) {
+    return Response.json({ error: error.message }, { status: 401 });
+  }
+}
+```
+
+## Rate Limiting
+
+Prevent abuse by limiting sync frequency:
+
+```typescript
+// middleware/rateLimit.ts
+const syncLimits = new Map<string, number>();
+
+export function checkSyncLimit(userId: string, maxPerMinute = 60) {
+  const now = Date.now();
+  const lastCall = syncLimits.get(userId) ?? now;
+
+  const callsThisMinute = (now - lastCall) / 1000 / 60;
+  if (callsThisMinute > maxPerMinute) {
+    throw new Error("Rate limit exceeded");
+  }
+
+  syncLimits.set(userId, now);
+}
+
+// pages/api/sync/push.ts
+export async function POST(req: Request) {
+  const userId = await requireAuth(req);
+  checkSyncLimit(userId, 60); // Max 60 syncs/minute
+
+  // ... rest of handler
+}
+```
+
+## Error Responses
+
+Return detailed error information for client retry logic:
+
+```typescript
+interface SyncError {
+  code:
+    | "UNAUTHORIZED"
+    | "CONFLICT"
+    | "VALIDATION_ERROR"
+    | "OWNERSHIP_ERROR"
+    | "SERVER_ERROR";
+  message: string;
+  details?: any;
+  retryable?: boolean; // Client should retry
+}
+
+// Example: validation error
+{
+  code: "VALIDATION_ERROR",
+  message: "Invalid data",
+  details: {
+    model: "User",
+    field: "email",
+    error: "Invalid email format"
+  },
+  retryable: false
+}
+
+// Example: ownership error
+{
+  code: "OWNERSHIP_ERROR",
+  message: "User lacks permission",
+  details: {
+    model: "Todo",
+    keyPath: ["todo123"]
+  },
+  retryable: false
+}
+
+// Example: temporary error (retryable)
+{
+  code: "SERVER_ERROR",
+  message: "Database temporarily unavailable",
+  retryable: true
+}
+```
+
+## Monitoring & Logging
+
+Log sync operations for debugging:
+
+```typescript
+// pages/api/sync/push.ts
+export async function POST(req: Request) {
+  const userId = await requireAuth(req);
+  const { events } = await req.json();
+  const requestId = crypto.randomUUID();
+
+  console.log(`[${requestId}] Push from ${userId}:`, {
+    eventCount: events.length,
+    models: [...new Set(events.map((e) => e.model))],
+  });
+
+  try {
+    const result = await processBatch(prisma, events, userId, "User");
+
+    console.log(`[${requestId}] Push complete:`, {
+      applied: result.applied.length,
+      errors: result.errors.length,
+    });
+
+    return Response.json(result);
+  } catch (error) {
+    console.error(`[${requestId}] Push failed:`, error);
+    return Response.json({ error: "Server error" }, { status: 500 });
+  }
+}
+```
+
+## Testing
+
+Test your endpoints with realistic sync scenarios:
+
+```typescript
+// tests/sync.test.ts
+import { describe, it, expect } from "vitest";
+
+describe("Sync API", () => {
+  it("pushes valid events", async () => {
+    const response = await fetch("/api/sync/push", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        events: [
+          {
+            id: "1",
+            model: "User",
+            operation: "create",
+            keyPath: ["user123"],
+            data: { id: "user123", name: "Alice" },
+          },
+        ],
+      }),
+    });
+
+    const result = await response.json();
+    expect(result.applied).toHaveLength(1);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("rejects unauthorized requests", async () => {
+    const response = await fetch("/api/sync/push", {
+      method: "POST",
+      body: JSON.stringify({ events: [] }),
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("pulls changes since cursor", async () => {
+    const response = await fetch("/api/sync/pull", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${token}` },
+      body: JSON.stringify({ cursor: "last-id" }),
+    });
+
+    const result = await response.json();
+    expect(result.changelog).toBeDefined();
+    expect(result.records).toBeDefined();
+  });
+});
+```
+
+## See Also
+
+- [Outbox Pattern](./outbox) - Client-side queueing
+- [Push & Pull Results](./push-pull) - Understanding results
+- [Conflict Resolution](./conflict-resolution) - Handling conflicts
+- [Schema Requirements](./schema-requirements) - Ownership validation

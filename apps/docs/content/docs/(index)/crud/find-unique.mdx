@@ -1,0 +1,202 @@
+---
+title: "findUnique"
+description: "Get a single record by unique identifier"
+icon: Target
+---
+
+Retrieve a single record by its primary key or unique field.
+
+```typescript
+// By primary key
+const user = await client.user.findUnique({
+  where: { id: "user-123" },
+});
+
+// By unique field
+const user = await client.user.findUnique({
+  where: { email: "alice@example.com" },
+});
+```
+
+## Return Type
+
+Returns the record or `null` if not found:
+
+```typescript
+const user: User | null = await client.user.findUnique({
+  where: { id: userId },
+});
+
+if (user === null) {
+  // Record doesn't exist
+}
+```
+
+For error handling, use [`findUniqueOrThrow`](/docs/crud/find-unique-or-throw).
+
+## By Primary Key
+
+Use the `@id` field:
+
+```typescript
+const user = await client.user.findUnique({
+  where: { id: "123" },
+});
+
+const todo = await client.todo.findUnique({
+  where: { id: "456" },
+});
+```
+
+## By Unique Field
+
+Use any field marked with `@unique`:
+
+```typescript
+const user = await client.user.findUnique({
+  where: { email: "alice@example.com" },
+});
+```
+
+Your Prisma schema determines which fields support unique lookup:
+
+```prisma
+model User {
+  id    String  @id
+  email String  @unique  // Can use in findUnique
+  name  String
+}
+```
+
+## Composite Unique Keys
+
+For models with `@@unique` on multiple fields:
+
+```prisma
+model Post {
+  id        String  @id
+  slug      String
+  boardId   String
+  
+  @@unique([slug, boardId])  // Composite unique constraint
+}
+```
+
+Query using both fields:
+
+```typescript
+const post = await client.post.findUnique({
+  where: {
+    slug_boardId: { // Composite key name
+      slug: "hello-world",
+      boardId: "board-123",
+    },
+  },
+});
+```
+
+## Selection
+
+Control which fields are returned:
+
+```typescript
+const user = await client.user.findUnique({
+  where: { id: userId },
+  select: { id: true, name: true, email: true },
+});
+```
+
+## Relations
+
+Include related records:
+
+```typescript
+const user = await client.user.findUnique({
+  where: { id: userId },
+  include: { profile: true },
+});
+
+const userWithTodos = await client.user.findUnique({
+  where: { id: userId },
+  include: {
+    profile: true,
+    todos: {
+      where: { done: false },
+      orderBy: { createdAt: "desc" },
+    },
+  },
+});
+```
+
+## Performance
+
+`findUnique` is the fastest read operation because it uses direct index lookup:
+
+```typescript
+// ✅ Fast - direct index
+const user = await client.user.findUnique({
+  where: { id: userId }, // O(1)
+});
+
+// ⚠️ Slower - full table scan
+const user = await client.user.findFirst({
+  where: { email: "alice@example.com" },
+}); // O(n)
+```
+
+Ensure your lookup field is indexed in your schema.
+
+## Null Handling
+
+```typescript
+const user = await client.user.findUnique({
+  where: { id: userId },
+});
+
+// Type-safe null check
+if (user === null) {
+  console.log("User not found");
+} else {
+  console.log(user.name);
+}
+
+// Optional chaining
+console.log(user?.name);
+```
+
+## Use Cases
+
+### User Session
+
+```typescript
+const currentUser = await client.user.findUnique({
+  where: { id: sessionUserId },
+});
+
+if (!currentUser) {
+  redirectToLogin();
+}
+```
+
+### Resource Access
+
+```typescript
+const todo = await client.todo.findUnique({
+  where: { id: todoId },
+});
+
+if (!todo) {
+  throw new Error("Todo not found");
+}
+
+// Verify ownership
+if (todo.userId !== currentUserId) {
+  throw new Error("Access denied");
+}
+```
+
+## See Also
+
+- [findUniqueOrThrow](/docs/crud/find-unique-or-throw) - Throws if not found
+- [findFirst](/docs/crud/find-first) - Get first matching record
+- [findMany](/docs/crud/find-many) - Get multiple records

@@ -1,11 +1,11 @@
 {
   "pages": [
-    "---Basics---",
+    "---Overview---",
     "index",
+    "---Design---",
     "schema-requirements",
     "authoritative-schema-dag",
     "sync-worker-lifecycle",
-    "---Implementation---",
     "...(implementation)"
   ],
   "root": true,

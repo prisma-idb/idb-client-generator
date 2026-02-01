@@ -1,0 +1,120 @@
+---
+title: "count"
+description: "Count records matching conditions"
+icon: Hash
+---
+
+Get the number of records matching your conditions.
+
+```typescript
+// Count all
+const total = await client.user.count();
+
+// Count with filter
+const activeCount = await client.user.count({
+  where: { active: true },
+});
+
+console.log(`${activeCount} of ${total} users are active`);
+```
+
+## Return Type
+
+Returns a number:
+
+```typescript
+const count: number = await client.user.count();
+```
+
+## Filtering
+
+Use `where` to count specific records:
+
+```typescript
+const pendingTodos = await client.todo.count({
+  where: { done: false },
+});
+
+const recentUsers = await client.user.count({
+  where: {
+    createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+  },
+});
+```
+
+## With Selection
+
+Count specific fields instead of total:
+
+```typescript
+const stats = await client.user.count({
+  select: {
+    _all: true, // Total count
+    email: true, // Count non-null emails
+  },
+});
+
+console.log(`Total: ${stats._all}, with email: ${stats.email}`);
+```
+
+## Use Cases
+
+### Pagination
+
+```typescript
+const pageSize = 10;
+const total = await client.user.count();
+const pages = Math.ceil(total / pageSize);
+
+const page1 = await client.user.findMany({
+  skip: 0,
+  take: pageSize,
+});
+```
+
+### Empty State Detection
+
+```typescript
+const todoCount = await client.todo.count({
+  where: { boardId },
+});
+
+if (todoCount === 0) {
+  showEmptyState();
+} else {
+  displayTodos();
+}
+```
+
+### Statistics
+
+```typescript
+const stats = {
+  totalUsers: await client.user.count(),
+  activeUsers: await client.user.count({ where: { active: true } }),
+  unreadMessages: await client.message.count({ where: { read: false } }),
+};
+```
+
+## Performance
+
+`count` filters results in-memory for complex conditions:
+
+```typescript
+// Fast - index available
+const activeCount = await client.user.count({
+  where: { active: true }, // If 'active' is indexed
+});
+
+// Slower - full table scan
+const premiumCount = await client.user.count({
+  where: { tier: "premium" },
+});
+```
+
+For better performance on large datasets, ensure your filter fields are indexed.
+
+## See Also
+
+- [aggregate](/docs/crud/aggregate) - Min, max, avg, sum
+- [findMany](/docs/crud/find-many) - Get matching records with count

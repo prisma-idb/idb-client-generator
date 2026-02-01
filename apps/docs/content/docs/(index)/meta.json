@@ -2,6 +2,45 @@
   "title": "Basics",
   "description": "Get started with the Prisma IDB client",
   "icon": "Pyramid",
-  "pages": ["---Home---", "index", "why-prisma-idb", "quick-start"],
+  "pages": [
+    "---Getting Started---",
+    "index",
+    "why-prisma-idb",
+    "quick-start",
+    "limitations",
+    "---Core API---",
+    "crud",
+    "events",
+    "transactions",
+    "---Reference---",
+    "generated-output"
+  ],
+  "crud/meta": {
+    "title": "CRUD Operations",
+    "icon": "Database",
+    "pages": [
+      "index",
+      "---Create---",
+      "create",
+      "create-many",
+      "create-many-and-return",
+      "---Read---",
+      "find-unique",
+      "find-unique-or-throw",
+      "find-first",
+      "find-first-or-throw",
+      "find-many",
+      "count",
+      "aggregate",
+      "---Update---",
+      "update",
+      "update-many",
+      "---Delete---",
+      "delete",
+      "delete-many",
+      "---Upsert---",
+      "upsert"
+    ]
+  },
   "root": true
 }

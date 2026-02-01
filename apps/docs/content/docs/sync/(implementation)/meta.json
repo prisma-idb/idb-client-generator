@@ -1,9 +1,16 @@
 {
   "pages": [
+    "---Setup Guide---",
     "step-1-generator-config",
     "step-2-changelog-schema",
     "step-3-push-endpoint",
     "step-4-pull-endpoint",
-    "step-5-sync-worker"
-  ]
+    "step-5-sync-worker",
+    "---Deep Dives---",
+    "sync-worker",
+    "validation",
+    "api-design",
+    "outbox-push-pull"
+  ],
+  "title": "Implementation"
 }

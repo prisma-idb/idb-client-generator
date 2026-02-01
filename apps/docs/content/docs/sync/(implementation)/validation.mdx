@@ -1,0 +1,325 @@
+---
+title: "Validation & Schemas"
+description: "Type-safe validation with Zod and generated schemas"
+icon: ListChecks
+---
+
+Prisma IDB generates Zod schemas for validating input data, ensuring type safety and consistency across client and server.
+
+## Generated Validators
+
+The generator creates validators for each model's operations:
+
+```typescript
+// validators.ts (generated)
+import { z } from "zod";
+
+// For create operations
+export const userCreateSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string().email(),
+});
+
+// For update operations
+export const userUpdateSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().optional(),
+  email: z.string().email().optional(),
+});
+
+// For where clauses
+export const userWhereSchema = z.object({
+  id: z.string().optional(),
+  email: z.string().optional(),
+});
+```
+
+## Using Validators
+
+Validate data before sending to the server or before CRUD operations:
+
+```typescript
+import { validators } from "$lib/prisma-idb";
+
+// Validate user creation data
+try {
+  const validData = await validators.userCreateSchema.parseAsync({
+    id: "1",
+    name: "Alice",
+    email: "alice@example.com",
+  });
+
+  const user = await client.user.create({ data: validData });
+} catch (error) {
+  console.error("Validation failed:", error.errors);
+}
+```
+
+## In Your API
+
+Validate incoming sync requests on the server:
+
+```typescript
+// pages/api/sync/push.ts
+import { validators } from "@prisma-idb/generated";
+
+export async function POST(req: Request) {
+  const body = await req.json();
+
+  // Validate the entire push request
+  const validatedEvents = await Promise.all(
+    body.events.map(async (event) => {
+      if (event.model === "User") {
+        return {
+          ...event,
+          data: await validators.userCreateSchema.parseAsync(event.data),
+        };
+      }
+      // Handle other models...
+      return event;
+    })
+  );
+
+  // Process validated events
+  const result = await processBatch(prisma, validatedEvents, userId);
+  return Response.json(result);
+}
+```
+
+## Type Inference
+
+Validators are generated from your Prisma schema and provide accurate types:
+
+```typescript
+import { z } from "zod";
+import { validators } from "$lib/prisma-idb";
+
+// Get the inferred type from the validator
+type UserCreateInput = z.infer<typeof validators.userCreateSchema>;
+
+// This type is equivalent to:
+// type UserCreateInput = {
+//   id: string;
+//   name: string;
+//   email: string;
+// }
+
+const createUserData: UserCreateInput = {
+  id: "123",
+  name: "Alice",
+  email: "alice@example.com",
+};
+```
+
+## Custom Validators
+
+Extend generated validators for domain-specific rules:
+
+```typescript
+import { z } from "zod";
+import { validators } from "$lib/prisma-idb";
+
+// Extend the generated schema
+export const userCreateWithValidation = validators.userCreateSchema.extend({
+  email: z.string().email().refine(
+    async (email) => {
+      // Check if email already exists
+      const existing = await client.user.findUnique({
+        where: { email },
+      });
+      return !existing;
+    },
+    { message: "Email already in use" }
+  ),
+  name: z.string().min(2).max(100),
+});
+
+// Use in your form
+async function handleSignup(formData: FormData) {
+  try {
+    const input = {
+      id: generateId(),
+      name: formData.get("name"),
+      email: formData.get("email"),
+    };
+
+    const validated = await userCreateWithValidation.parseAsync(input);
+    const user = await client.user.create({ data: validated });
+    return user;
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return { errors: error.flatten() };
+    }
+    throw error;
+  }
+}
+```
+
+## Error Handling
+
+Zod provides detailed error information:
+
+```typescript
+import { z } from "zod";
+import { validators } from "$lib/prisma-idb";
+
+try {
+  await validators.userCreateSchema.parseAsync({
+    id: "1",
+    name: "", // Invalid: empty string
+    email: "not-an-email", // Invalid: bad format
+  });
+} catch (error) {
+  if (error instanceof z.ZodError) {
+    error.errors.forEach((err) => {
+      console.log(`${err.path.join(".")}: ${err.message}`);
+    });
+    // Output:
+    // name: String must contain at least 1 character(s)
+    // email: Invalid email
+  }
+}
+```
+
+## Sync-Specific Schemas
+
+When sync is enabled, additional validators are generated for sync operations:
+
+```typescript
+// validators.ts (with sync enabled)
+
+// Outbox event validation
+export const outboxEventSchema = z.object({
+  id: z.string().uuid(),
+  model: z.string(),
+  operation: z.enum(["create", "update", "delete"]),
+  keyPath: z.array(z.any()),
+  data: z.record(z.any()),
+  createdAt: z.date(),
+});
+
+// Push request validation
+export const pushRequestSchema = z.object({
+  events: z.array(outboxEventSchema),
+  userId: z.string(),
+});
+
+// Pull request validation
+export const pullRequestSchema = z.object({
+  cursor: z.string().optional(),
+  userId: z.string(),
+});
+
+// Pull response validation
+export const pullResponseSchema = z.object({
+  changelog: z.array(
+    z.object({
+      id: z.string(),
+      model: z.string(),
+      operation: z.enum(["create", "update", "delete"]),
+      keyPath: z.array(z.any()),
+      scopeKey: z.string(),
+    })
+  ),
+  records: z.record(z.array(z.any())),
+});
+```
+
+## Validation at the Boundary
+
+Always validate at API boundaries:
+
+```typescript
+// Server-side sync endpoint
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+
+    // Validate request
+    const validated = await pushRequestSchema.parseAsync(body);
+
+    // Process
+    const result = await processBatch(
+      prisma,
+      validated.events,
+      validated.userId
+    );
+
+    // Validate response
+    const response = await pushResponseSchema.parseAsync(result);
+
+    return Response.json(response);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return Response.json(
+        { error: "Invalid request", details: error.errors },
+        { status: 400 }
+      );
+    }
+
+    return Response.json({ error: "Server error" }, { status: 500 });
+  }
+}
+```
+
+## Performance Considerations
+
+### Cache Validators
+
+Parse validators once if reused:
+
+```typescript
+// ✅ Good - cache the parsed schema
+const userValidator = validators.userCreateSchema;
+
+async function createUser(data: any) {
+  const validated = await userValidator.parseAsync(data);
+  return client.user.create({ data: validated });
+}
+
+// ❌ Avoid - re-parsing schema each call
+async function createUser(data: any) {
+  const validated = await validators.userCreateSchema.parseAsync(data);
+  return client.user.create({ data: validated });
+}
+```
+
+### Async Validators
+
+Validators can perform async operations (like database checks):
+
+```typescript
+const uniqueEmailSchema = z.string().email().refine(
+  async (email) => {
+    const existing = await client.user.findUnique({ where: { email } });
+    return !existing;
+  },
+  { message: "Email already registered" }
+);
+
+// This is async - handle appropriately
+const result = await uniqueEmailSchema.parseAsync("alice@example.com");
+```
+
+### Safe Parsing
+
+Use `safeParse` for non-throwing validation:
+
+```typescript
+const result = validators.userCreateSchema.safeParse(data);
+
+if (!result.success) {
+  // Errors in result.error
+  console.log(result.error.errors);
+} else {
+  // Data in result.data
+  const user = await client.user.create({ data: result.data });
+}
+```
+
+## See Also
+
+- [Generated Output](../basics/generated-output) - Understanding validators.ts
+- [Sync Worker](./sync-worker) - Sync configuration and operation
+- [Conflict Resolution](./conflict-resolution) - Handling validation in sync

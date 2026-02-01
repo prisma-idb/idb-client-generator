@@ -1,0 +1,205 @@
+---
+title: "updateMany"
+description: "Modify multiple records at once"
+icon: NotebookPen
+---
+
+Update multiple records that match a filter.
+
+```typescript
+const result = await client.user.updateMany({
+  where: { role: "admin" },
+  data: { lastLogin: new Date() },
+});
+
+console.log(`Updated ${result.count} records`);
+```
+
+## Basic Updates
+
+Update records matching a filter:
+
+```typescript
+// Mark all inactive users as archived
+const result = await client.user.updateMany({
+  where: { active: false },
+  data: { archived: true },
+});
+
+console.log(`Updated ${result.count} users`);
+```
+
+## Complex Filters
+
+Multiple conditions:
+
+```typescript
+// Archive users inactive for 90 days
+const result = await client.user.updateMany({
+  where: {
+    active: false,
+    lastLogin: {
+      lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+    },
+  },
+  data: { archived: true },
+});
+```
+
+## Partial Updates
+
+Only change specific fields:
+
+```typescript
+// Update only the role field
+const result = await client.user.updateMany({
+  where: { department: "sales" },
+  data: { role: "sales-lead" },
+});
+```
+
+## Return Value
+
+Returns count of updated records:
+
+```typescript
+const result = await client.user.updateMany({
+  where: { active: false },
+  data: { archived: true },
+});
+
+console.log(result.count); // Number of updated records
+```
+
+## With Options
+
+```typescript
+const result = await client.user.updateMany(
+  {
+    where: { role: "user" },
+    data: { verified: true },
+  },
+  {
+    tx: transaction,      // Use existing transaction
+    silent: false,        // Emit events (default: false)
+    addToOutbox: true,    // Queue for sync (default: true)
+  }
+);
+```
+
+## Bulk Operations
+
+Update many records with different data:
+
+```typescript
+// Update multiple records with specific changes
+// Note: updateMany updates ALL matching records with SAME data
+// For different updates per record, use update in a loop or use a transaction
+
+const result = await client.todo.updateMany({
+  where: { done: false, priority: { lt: 3 } },
+  data: { priority: 5 }, // Same data for all
+});
+```
+
+For per-record updates, use a transaction:
+
+```typescript
+const updated = await client.$transaction(async (tx) => {
+  const todos = await tx.todo.findMany({
+    where: { userId },
+  });
+
+  return Promise.all(
+    todos.map((todo) =>
+      tx.todo.update({
+        where: { id: todo.id },
+        data: { priority: calculatePriority(todo) },
+      })
+    )
+  );
+});
+```
+
+## Batch Update Pattern
+
+Update in batches to optimize performance:
+
+```typescript
+const batch = 100;
+let updated = 0;
+
+for (let skip = 0; ; skip += batch) {
+  const result = await client.user.updateMany({
+    where: {
+      active: false,
+      lastLogin: { lt: ninetyDaysAgo },
+    },
+    data: { archived: true },
+  });
+
+  if (result.count === 0) break;
+  updated += result.count;
+}
+
+console.log(`Updated ${updated} total records`);
+```
+
+## Events
+
+updateMany emits `update` events for each record (unless `silent: true`):
+
+```typescript
+client.user.subscribe(["update"], (event) => {
+  console.log("User updated:", event.detail.id);
+});
+
+await client.user.updateMany({
+  where: { role: "user" },
+  data: { verified: true },
+});
+// Logs event for each updated user
+```
+
+## Performance Notes
+
+- updateMany is **efficient** - filters in memory, updates all at once
+- Avoid massive updates without filters
+- Use in transactions for atomic multi-model updates
+
+## Common Use Cases
+
+**Verify users in bulk:**
+
+```typescript
+const result = await client.user.updateMany({
+  where: { email: { in: verifiedEmails } },
+  data: { verified: true },
+});
+```
+
+**Reset state:**
+
+```typescript
+// Clear all sessions for users who logged out
+const result = await client.session.updateMany({
+  where: { active: true, userId: { in: loggedOutUserIds } },
+  data: { active: false, endedAt: new Date() },
+});
+```
+
+**Update based on conditions:**
+
+```typescript
+// Promote users with high engagement
+const result = await client.user.updateMany({
+  where: { tier: "free", engagementScore: { gte: 100 } },
+  data: { tier: "pro" },
+});
+```
+
+## See Also
+
+- [update](/docs/crud/update) - Update a single record
+- [upsert](/docs/crud/upsert) - Update or create multiple
+- [Transactions](/docs/transactions) - Atomic multi-record operations

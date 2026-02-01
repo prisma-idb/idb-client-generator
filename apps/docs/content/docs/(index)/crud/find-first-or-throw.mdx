@@ -1,0 +1,141 @@
+---
+title: "findFirstOrThrow"
+description: "Get the first matching record or throw"
+icon: CircleAlert
+---
+
+Retrieve the first record matching your conditions, or throw an error if no match.
+
+```typescript
+try {
+  const user = await client.user.findFirstOrThrow({
+    where: { email: "alice@example.com" },
+  });
+  console.log("Found:", user.name);
+} catch (error) {
+  console.error("User not found");
+}
+```
+
+## Return Type
+
+Returns the matching record or throws an error:
+
+```typescript
+const user: User = await client.user.findFirstOrThrow({
+  where: { /* ... */ },
+});
+// Type is User, not User | null
+```
+
+Compare with [`findFirst`](/docs/crud/find-first) which returns `null` if no match.
+
+## Error Handling
+
+The method throws if no record matches:
+
+```typescript
+try {
+  const admin = await client.user.findFirstOrThrow({
+    where: { role: "admin" },
+  });
+} catch (error) {
+  // Thrown: NotFoundError or similar
+  console.error("No admin user exists");
+}
+```
+
+## Use Cases
+
+### Required Records
+
+Use when the record **must** exist:
+
+```typescript
+const currentUser = await client.user.findFirstOrThrow({
+  where: { id: userId },
+});
+// No need to check for null
+```
+
+### Validated Lookups
+
+```typescript
+const board = await client.board.findFirstOrThrow({
+  where: {
+    id: boardId,
+    userId: currentUserId, // Validate ownership
+  },
+});
+```
+
+### Transaction Integrity
+
+Fail fast in transactions if preconditions aren't met:
+
+```typescript
+const tx = client._db.transaction(["user", "todo"], "readwrite");
+
+try {
+  const user = await client.user.findFirstOrThrow(
+    { where: { id: userId } },
+    { tx }
+  );
+
+  const todo = await client.todo.findFirstOrThrow(
+    { where: { id: todoId, userId } },
+    { tx }
+  );
+
+  // Process with guarantee both exist
+  await tx.done;
+} catch (error) {
+  tx.abort();
+}
+```
+
+## Filtering
+
+Same as [`findFirst`](/docs/crud/find-first):
+
+```typescript
+const user = await client.user.findFirstOrThrow({
+  where: {
+    active: true,
+    role: "admin",
+  },
+});
+```
+
+## Ordering
+
+Control which record when multiple match:
+
+```typescript
+const latestUpdate = await client.todo.findFirstOrThrow({
+  where: { boardId: "board-1" },
+  orderBy: { updatedAt: "desc" },
+});
+```
+
+## Selection and Relations
+
+Control returned data:
+
+```typescript
+const user = await client.user.findFirstOrThrow({
+  where: { email: "alice@example.com" },
+  select: { id: true, name: true, email: true },
+});
+
+const userWithProfile = await client.user.findFirstOrThrow({
+  where: { email: "alice@example.com" },
+  include: { profile: true },
+});
+```
+
+## See Also
+
+- [findFirst](/docs/crud/find-first) - Returns null if not found
+- [findUniqueOrThrow](/docs/crud/find-unique-or-throw) - By unique field
+- [findUnique](/docs/crud/find-unique) - Returns null if not found

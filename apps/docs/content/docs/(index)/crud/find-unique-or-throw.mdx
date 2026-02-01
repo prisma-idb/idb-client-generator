@@ -1,0 +1,172 @@
+---
+title: "findUniqueOrThrow"
+description: "Get a record by unique field or throw"
+icon: OctagonAlert
+---
+
+Retrieve a record by its primary key or unique field, or throw an error if not found.
+
+```typescript
+try {
+  const user = await client.user.findUniqueOrThrow({
+    where: { id: userId },
+  });
+  console.log(user.name); // Guaranteed to exist
+} catch (error) {
+  console.error("User not found");
+}
+```
+
+## Return Type
+
+Returns the record or throws an error:
+
+```typescript
+const user: User = await client.user.findUniqueOrThrow({
+  where: { id: userId },
+});
+// Type is User, not User | null
+```
+
+Compare with [`findUnique`](/docs/crud/find-unique) which returns `null` if not found.
+
+## By Primary Key
+
+```typescript
+const user = await client.user.findUniqueOrThrow({
+  where: { id: userId },
+});
+// Throws if user doesn't exist
+```
+
+## By Unique Field
+
+```typescript
+const user = await client.user.findUniqueOrThrow({
+  where: { email: "alice@example.com" },
+});
+```
+
+## Composite Unique Keys
+
+For composite unique constraints:
+
+```typescript
+const post = await client.post.findUniqueOrThrow({
+  where: {
+    slug_boardId: {
+      slug: "hello-world",
+      boardId: "board-123",
+    },
+  },
+});
+```
+
+## Error Handling
+
+```typescript
+try {
+  const user = await client.user.findUniqueOrThrow({
+    where: { id: invalidId },
+  });
+} catch (error) {
+  // Thrown if not found
+  console.error("User does not exist");
+}
+```
+
+## Use Cases
+
+### Guaranteed Lookups
+
+When the record **must** exist:
+
+```typescript
+const user = await client.user.findUniqueOrThrow({
+  where: { id: userId },
+});
+// No null check needed
+console.log(user.name);
+```
+
+### Fail-Fast Patterns
+
+Throw immediately if preconditions aren't met:
+
+```typescript
+async function updateTodo(todoId: string, data: any) {
+  const todo = await client.todo.findUniqueOrThrow({
+    where: { id: todoId },
+  });
+
+  const board = await client.board.findUniqueOrThrow({
+    where: { id: todo.boardId },
+  });
+
+  // Both records guaranteed to exist
+  return await client.todo.update({
+    where: { id: todoId },
+    data,
+  });
+}
+```
+
+### Permissions Validation
+
+```typescript
+const todo = await client.todo.findUniqueOrThrow({
+  where: { id: todoId },
+});
+
+if (todo.userId !== currentUserId) {
+  throw new Error("Access denied");
+}
+```
+
+## Selection and Relations
+
+```typescript
+const user = await client.user.findUniqueOrThrow({
+  where: { id: userId },
+  select: { id: true, name: true, email: true },
+});
+
+const userWithProfile = await client.user.findUniqueOrThrow({
+  where: { id: userId },
+  include: { profile: true },
+});
+```
+
+## Performance
+
+Same performance characteristics as [`findUnique`](/docs/crud/find-unique) - fast index-based lookup:
+
+```typescript
+const user = await client.user.findUniqueOrThrow({
+  where: { id: userId }, // O(1) lookup
+});
+```
+
+## Type Safety
+
+The return type is never null:
+
+```typescript
+const user = await client.user.findUniqueOrThrow({
+  where: { id: userId },
+});
+
+// No null check needed
+console.log(user.name); // ✅ Safe
+
+// Type system prevents null checks
+if (user === null) { // ❌ TypeScript error
+  // ...
+}
+```
+
+## See Also
+
+- [findUnique](/docs/crud/find-unique) - Returns null if not found
+- [findFirstOrThrow](/docs/crud/find-first-or-throw) - First matching with throw
+- [findFirst](/docs/crud/find-first) - Returns null if not found

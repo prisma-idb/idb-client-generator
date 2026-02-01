@@ -1,0 +1,121 @@
+---
+title: "createManyAndReturn"
+description: "Insert multiple records and get results"
+icon: CirclePlus
+---
+
+Insert multiple records and receive the created records back.
+
+```typescript
+const users = await client.user.createManyAndReturn({
+  data: [
+    { name: "Alice", email: "alice@example.com" },
+    { name: "Bob", email: "bob@example.com" },
+  ],
+});
+
+users.forEach((user) => {
+  console.log(`Created user: ${user.id} - ${user.name}`);
+});
+```
+
+## Return Type
+
+Returns an array of created records:
+
+```typescript
+const users: User[] = await client.user.createManyAndReturn({
+  data: [/* ... */],
+});
+```
+
+Compare with [`createMany`](/docs/crud/create-many) which only returns a count.
+
+## With Selection
+
+Control which fields are returned:
+
+```typescript
+const users = await client.user.createManyAndReturn({
+  data: [
+    { name: "Alice", email: "alice@example.com" },
+    { name: "Bob", email: "bob@example.com" },
+  ],
+  select: {
+    id: true,
+    name: true,
+    // email field excluded
+  },
+});
+```
+
+## With Relations
+
+Include related records:
+
+```typescript
+const users = await client.user.createManyAndReturn({
+  data: [
+    {
+      name: "Alice",
+      profile: { create: { bio: "Alice's bio" } },
+    },
+    {
+      name: "Bob",
+      profile: { create: { bio: "Bob's bio" } },
+    },
+  ],
+  include: { profile: true },
+});
+
+users.forEach((user) => {
+  console.log(`${user.name}: ${user.profile?.bio}`);
+});
+```
+
+## With Options
+
+```typescript
+const users = await client.user.createManyAndReturn(
+  {
+    data: [
+      { name: "Alice", email: "alice@example.com" },
+      { name: "Bob", email: "bob@example.com" },
+    ],
+  },
+  {
+    tx: transaction,      // Use existing transaction
+    silent: false,        // Emit events (default: false)
+    addToOutbox: true,    // Queue for sync (default: true)
+  }
+);
+```
+
+## Processing Results
+
+Chain operations on the returned records:
+
+```typescript
+const users = await client.user.createManyAndReturn({
+  data: [
+    { name: "Alice", email: "alice@example.com" },
+    { name: "Bob", email: "bob@example.com" },
+  ],
+});
+
+// Create todos for each user
+for (const user of users) {
+  await client.todo.create({
+    data: {
+      title: `Welcome ${user.name}`,
+      userId: user.id,
+    },
+  });
+}
+```
+
+## See Also
+
+- [createMany](/docs/crud/create-many) - Batch without getting results
+- [create](/docs/crud/create) - Create single record
+- [Transactions](/docs/transactions) - Atomic operations

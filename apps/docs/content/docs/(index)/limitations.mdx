@@ -1,0 +1,150 @@
+---
+title: "Limitations"
+description: "Current constraints and planned improvements"
+icon: Bug
+---
+
+Prisma IDB is actively developed. Here are current limitations and what's planned.
+
+## Decimal Type
+
+**Status:** Limited Support
+
+Decimal fields are supported but with important caveats:
+
+- Stored as JavaScript `number` in IndexedDB (not arbitrary precision)
+- Affected by IEEE 754 floating-point precision limits
+- Suitable for most financial/monetary use cases with reasonable precision requirements
+
+```typescript
+// This works but be aware of precision limits
+const price = await client.product.create({
+  data: {
+    name: "Item",
+    price: 19.99, // Treated as number
+  },
+});
+```
+
+**Recommendation:** If you need arbitrary precision (e.g., high-precision financial calculations), consider:
+- Storing Decimal as a string in a separate field
+- Performing precision-sensitive calculations on the server
+- Using a custom type mapper
+
+This limitation may be addressed in future versions with proper Decimal support.
+
+## Migrations
+
+**Status:** Not Yet Supported (Coming Soon)
+
+Schema changes currently require manual client regeneration:
+
+```typescript
+// After modifying schema.prisma, you must run:
+// pnpm generate
+
+// The generated client updates automatically
+```
+
+**What's planned:**
+- Built-in migration support for data structure changes
+- Version tracking for schema evolution
+- Automatic data transformation during client updates
+
+**Current Workaround:** Manual schema management and careful version coordination between client and server.
+
+## Dependency on Prisma & Zod
+
+**Status:** Current Design (Future Abstraction Planned)
+
+The generated client currently has tight integration with:
+
+- **Prisma** - Schema parsing and type generation
+- **Zod** - Validation logic in generated code
+
+This provides:
+- ✅ Type-safe generated APIs
+- ✅ Built-in validation with Zod
+- ✅ Schema-driven code generation
+- ✅ Consistency with Prisma ecosystem
+
+**Known implications:**
+- Client bundle includes Zod validators
+- Schema changes require regeneration via Prisma tooling
+- Validation rules tied to Prisma schema syntax
+
+**What's planned:**
+- Progressive abstraction of Prisma/Zod dependencies
+- Potential for alternative validation backends
+- Schema-agnostic client generation options
+
+**For now:** The dependency on Prisma and Zod is by design and provides significant benefits in terms of type safety and developer experience.
+
+## Syncing Constraints
+
+Full bidirectional sync has the following limitations:
+
+- **Ownership DAG Required:** Every syncable record must trace ownership back to a `rootModel` (see [Sync Architecture](/docs/implementation/sync-architecture))
+- **Client-Generated IDs:** All syncable models must use `uuid` or `cuid` (no auto-increment IDs)
+- **Conflict Resolution:** Last-write-wins strategy (field-level, not record-level)
+
+These are architectural constraints, not bugs, and enable offline-first synchronization.
+
+## API Coverage
+
+All CRUD operations are fully supported:
+
+- ✅ Create, CreateMany, CreateManyAndReturn
+- ✅ FindUnique, FindFirst, FindMany
+- ✅ Update, UpdateMany
+- ✅ Delete, DeleteMany
+- ✅ Upsert
+- ✅ Count, Aggregate
+- ✅ Transactions
+- ✅ Subscriptions/Events
+
+## IndexedDB Browser Limits
+
+These are browser constraints, not Prisma IDB limitations:
+
+- **Storage Quota:** Typically 10-50% of available disk space
+- **Same-Origin Policy:** IndexedDB is isolated per origin
+- **Quota Exceeded:** Operations fail if storage quota is exceeded
+
+Use [`StorageManager API`](https://developer.mozilla.org/en-US/docs/Web/API/StorageManager) to:
+- Check available quota
+- Request persistent storage
+- Monitor usage
+
+```typescript
+// Check available storage
+const estimate = await navigator.storage.estimate();
+console.log(
+  `Using ${estimate.usage} of ${estimate.quota} bytes`
+);
+
+// Request persistent storage (shows browser permission dialog)
+if (navigator.storage?.persist) {
+  const persistent = await navigator.storage.persist();
+  console.log(`Persistent: ${persistent}`);
+}
+```
+
+## What's Coming
+
+**Near-term:**
+- Migration support
+- Improved Decimal handling
+- Performance optimizations
+
+**Medium-term:**
+- Schema abstraction layer
+- Validation framework abstraction
+- Enhanced offline sync patterns
+
+**Long-term:**
+- Potential Prisma/Zod independence
+- Alternative database backends
+- Edge computing integrations
+
+See the [Roadmap](https://github.com/prisma-idb/idb-client-generator) for detailed plans.

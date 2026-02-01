@@ -1,0 +1,172 @@
+---
+title: "findMany"
+description: "Query multiple records with filtering and pagination"
+icon: List
+---
+
+Retrieve multiple records from a model store.
+
+```typescript
+// Get all records
+const users = await client.user.findMany();
+
+// With filtering
+const users = await client.user.findMany({
+  where: { active: true },
+});
+```
+
+## Filtering
+
+Use the `where` clause to filter records:
+
+```typescript
+// Equality
+const users = await client.user.findMany({
+  where: { name: "Alice" },
+});
+
+// Comparisons
+const users = await client.user.findMany({
+  where: { age: { gt: 18 } }, // greater than
+});
+
+const users = await client.user.findMany({
+  where: { priority: { gte: 5, lte: 10 } }, // between
+});
+
+// Multiple conditions (AND)
+const users = await client.user.findMany({
+  where: {
+    active: true,
+    age: { gt: 18 },
+  },
+});
+```
+
+## Sorting
+
+Use `orderBy` to sort results:
+
+```typescript
+// Ascending (default)
+const users = await client.user.findMany({
+  orderBy: { createdAt: "asc" },
+});
+
+// Descending
+const users = await client.user.findMany({
+  orderBy: { name: "desc" },
+});
+
+// Multiple fields
+const users = await client.user.findMany({
+  orderBy: [
+    { active: "desc" },
+    { name: "asc" },
+  ],
+});
+```
+
+## Pagination
+
+Use `skip` and `take` for pagination:
+
+```typescript
+const pageSize = 10;
+const page = 1;
+
+const users = await client.user.findMany({
+  skip: (page - 1) * pageSize,
+  take: pageSize,
+});
+```
+
+## Selection
+
+Control which fields are included:
+
+```typescript
+// Select specific fields
+const users = await client.user.findMany({
+  select: { id: true, name: true },
+});
+
+// All fields except specified ones (Prisma syntax)
+const users = await client.user.findMany({
+  select: { password: false }, // Exclude password
+});
+```
+
+## Relations
+
+Include related records:
+
+```typescript
+const users = await client.user.findMany({
+  include: { profile: true },
+});
+
+// Nested relations
+const users = await client.user.findMany({
+  include: {
+    profile: {
+      include: { settings: true },
+    },
+  },
+});
+
+// Filtered relations
+const users = await client.user.findMany({
+  include: {
+    todos: {
+      where: { done: false },
+      orderBy: { createdAt: "desc" },
+    },
+  },
+});
+```
+
+## Combined Example
+
+```typescript
+const recentIncompleteTodos = await client.todo.findMany({
+  where: {
+    done: false,
+    createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }, // Last 7 days
+  },
+  select: {
+    id: true,
+    title: true,
+    priority: true,
+  },
+  orderBy: { priority: "desc" },
+  take: 10,
+});
+```
+
+## With Transactions
+
+```typescript
+const tx = client._db.transaction(["user", "profile"], "readonly");
+
+const users = await client.user.findMany(
+  { include: { profile: true } },
+  { tx }
+);
+
+await tx.done;
+```
+
+## Performance Notes
+
+- **Filtering**: Complex `where` clauses are evaluated in-memory after fetching. Use indexed fields when possible.
+- **Sorting**: Large result sets with sorting may be slow. Consider pagination.
+- **Relations**: Each relation adds overhead. Be specific with `select` when possible.
+
+## See Also
+
+- [findFirst](/docs/crud/find-first) - Get first matching record
+- [findUnique](/docs/crud/find-unique) - Get by unique field
+- [count](/docs/crud/count) - Count matching records
+- [Transactions](/docs/transactions) - Atomic operations
