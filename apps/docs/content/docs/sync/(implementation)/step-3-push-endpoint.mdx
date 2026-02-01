@@ -1,0 +1,136 @@
+---
+title: "Step 3: Push Endpoint"
+description: "Implement the endpoint that accepts and applies client mutations"
+icon: Upload
+---
+
+## Step 3: Create the Push Endpoint
+
+The push endpoint receives mutations from the client (stored in the outbox) and applies them to the server database. The sync worker will automatically send outbox events to this endpoint.
+
+### Endpoint Setup
+
+Create a new API route in your framework (e.g., `routes/api/sync/push/+server.ts` for SvelteKit):
+
+```typescript
+import { applyPush } from "$lib/prisma-idb/server/batch-processor";
+import { outboxEventSchema } from "$lib/prisma-idb/validators";
+import { auth } from "$lib/server/auth";
+import { prisma } from "$lib/server/prisma";
+import z from "zod";
+
+export async function POST({ request }) {
+  // Parse and validate request body
+  let pushRequestBody;
+  try {
+    pushRequestBody = await request.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Malformed JSON" }), { status: 400 });
+  }
+
+  const parsed = z.object({ events: z.array(outboxEventSchema) }).safeParse({
+    events: pushRequestBody.events,
+  });
+
+  if (!parsed.success) {
+    return new Response(JSON.stringify({ error: "Invalid request", details: parsed.error }), {
+      status: 400,
+    });
+  }
+
+  // Authenticate the request
+  const authResult = await auth.api.getSession({ headers: request.headers });
+  if (!authResult?.user.id) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+  }
+
+  // Apply the mutations
+  let pushResults;
+  try {
+    pushResults = await applyPush({
+      events: parsed.data.events,
+      scopeKey: authResult.user.id,
+      prisma,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    const status = message.startsWith("Batch size") ? 413 : 500;
+    return new Response(JSON.stringify({ error: message }), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  return new Response(JSON.stringify(pushResults), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+```
+
+### How It Works
+
+1. **Validate Input**: Parse the request as an array of `OutboxEvent` objects
+2. **Authenticate**: Get the user ID from the session/auth context
+3. **Apply Mutations**: Call `applyPush()` with the events
+4. **Return Results**: Each event gets a `PushResult` indicating success or failure
+
+### Key Parameters
+
+#### `applyPush()` Options
+
+- **`events`**: Array of outbox mutations from the client
+- **`scopeKey`**: User ID or function that extracts the owner from each event. This ensures users can only modify their own data.
+- **`prisma`**: Prisma Client instance to access your database
+- **`customValidation`** (optional): Add business logic validation before applying changes
+
+### Error Handling
+
+The endpoint catches two main error types:
+
+- **Batch Size Exceeded** (413): Client sent more than 100 events in one request. The client's sync worker automatically batches events, but this prevents denial-of-service attacks.
+- **Other Errors** (500): Database errors or validation failures. The `PushResult` for each event indicates which ones succeeded and which ones failed (with details for retries).
+
+### Custom Validation (Optional)
+
+For advanced use cases, add custom business logic:
+
+```typescript
+pushResults = await applyPush({
+  events: parsed.data.events,
+  scopeKey: authResult.user.id,
+  prisma,
+  customValidation: async (event) => {
+    // Example: Reject if user isn't a board admin
+    if (event.entityType === "Task") {
+      const board = await prisma.board.findUnique({
+        where: { id: event.payload.boardId },
+        include: { admins: { where: { id: authResult.user.id } } },
+      });
+      if (!board?.admins.length) {
+        return { errorMessage: "Only board admins can create tasks" };
+      }
+    }
+    return { errorMessage: null };
+  },
+});
+```
+
+### Scope Key Enforcement
+
+The `scopeKey` ensures data isolation:
+
+- For a single-user app: `scopeKey: authResult.user.id`
+- For a multi-tenant app: `scopeKey: (event) => event.payload.tenantId` or similar
+
+The `applyPush` function will:
+
+1. Validate that the event's ownership chain traces back to the scope key
+2. Reject any mutations that attempt to change a different user's data
+3. Create changelog entries with the correct `scopeKey` for pull operations
+
+### Next Steps
+
+Once the push endpoint is working, implement the complementary pull endpoint to send server changes back to clients.
+
+Continue to [Step 4: Pull Endpoint](./step-4-pull-endpoint).
