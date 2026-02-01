@@ -24,7 +24,7 @@ generator prismaIDB {
   rootModel  = "User"
 
   // Models to exclude from sync (optional)
-  exclude    = ["Session", "Verification", "Account", "Changelog"]
+  exclude    = ["Session", "Verification", "Account"]
 }
 ```
 
@@ -69,9 +69,13 @@ model User {
 
 - **`exclude`**: Array of model names to skip during client generation. Use this for:
   - Authentication models (`Session`, `Account`, `Verification`)
-  - Changelog models (excluded automatically, but good practice to list explicitly)
   - Server-only models that shouldn't be synced to clients
   - Large or temporary tables
+
+<Callout type="info">
+  The `Changelog` model is **automatically excluded** and reserved for internal sync infrastructure. You don't need to
+  manually exclude it, though it's harmless to do so.
+</Callout>
 
 ### Scoping Rules
 
@@ -102,7 +106,7 @@ generator prismaIDB {
   output     = "./prisma-idb"
   outboxSync = true
   rootModel  = "User"
-  exclude    = ["Changelog", "AuditLog"]
+  exclude    = ["AuditLog"]
 }
 ```
 

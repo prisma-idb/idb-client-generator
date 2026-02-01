@@ -19,7 +19,7 @@ export interface ParsedGeneratorConfig {
  * Extracts prisma client import path, outbox settings, and model filters
  */
 export function parseGeneratorConfig(options: GeneratorOptions): ParsedGeneratorConfig {
-  const { models } = options.dmmf.datamodel;
+  const { models, enums } = options.dmmf.datamodel;
   const outputPath = options.generator.output?.value as string;
   const generatorConfig = options.generator.config;
 
@@ -81,6 +81,11 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
     );
   }
 
+  // === Validate Changelog model and ChangeOperation enum if sync is enabled ===
+  if (outboxSync) {
+    validateChangelogSchema(models, enums);
+  }
+
   // === Parse exportEnums setting ===
   const exportEnums = generatorConfig.exportEnums === "true";
 
@@ -100,15 +105,20 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
     exclude = generatorConfig.exclude;
   }
 
-  // Validate XOR: either include or exclude, not both
-  if (include.length > 0 && include[0] !== "*" && exclude.length > 0) {
+  // === Auto-exclude Changelog model ===
+  // Check if user is trying to manually include Changelog
+  if (include[0] !== "*" && include.some((pattern) => matchPattern("Changelog", pattern))) {
     throw new Error(
-      `@prisma-idb/idb-client-generator: "include" and "exclude" are mutually exclusive (XOR).\n` +
-        `You can use either "include" or "exclude", but not both.`
+      `@prisma-idb/idb-client-generator: "Changelog" model is automatically excluded and cannot be manually included. It is reserved for internal sync infrastructure.`
     );
   }
 
-  // === Filter models based on include/exclude patterns ===
+  // Auto-exclude Changelog (unless it's already in exclude list to avoid redundancy)
+  if (!exclude.includes("Changelog")) {
+    exclude.push("Changelog");
+  }
+
+  // Define matchPattern before using it
   const matchPattern = (name: string, pattern: string): boolean => {
     const globToRegex = (glob: string): RegExp => {
       const escaped = glob.replace(/[.+^${}()|[\]\\]/g, "\\$&");
@@ -117,6 +127,14 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
     };
     return globToRegex(pattern).test(name);
   };
+
+  // Validate XOR: either include or exclude, not both
+  if (include.length > 0 && include[0] !== "*" && exclude.length > 1) {
+    throw new Error(
+      `@prisma-idb/idb-client-generator: "include" and "exclude" are mutually exclusive (XOR).\n` +
+        `You can use either "include" or "exclude", but not both.`
+    );
+  }
 
   const isIncluded = (modelName: string) => {
     if (include[0] !== "*") {
@@ -138,4 +156,210 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
     filteredModels,
     rootModel,
   };
+}
+
+function validateChangelogSchema(models: readonly DMMF.Model[], enums: readonly DMMF.DatamodelEnum[]) {
+  // Check for Changelog model
+  const changelogModel = models.find((m) => m.name === "Changelog");
+  if (!changelogModel) {
+    throw new Error(
+      `@prisma-idb/idb-client-generator: A "Changelog" model is required when "outboxSync" is enabled.\n\n` +
+        `Add the following to your schema:\n\n` +
+        `model Changelog {\n` +
+        `  id            String          @id @default(uuid())\n` +
+        `  model         String\n` +
+        `  keyPath       Json\n` +
+        `  operation     ChangeOperation\n` +
+        `  scopeKey      String\n` +
+        `  outboxEventId String          @unique\n` +
+        `  @@index([model, id])\n` +
+        `}\n\n` +
+        `enum ChangeOperation {\n` +
+        `  create\n` +
+        `  update\n` +
+        `  delete\n` +
+        `}`
+    );
+  }
+
+  // Validate Changelog model has exactly 6 fields
+  const expectedFieldCount = 6;
+  if (changelogModel.fields.length !== expectedFieldCount) {
+    throw new Error(
+      `@prisma-idb/idb-client-generator: Changelog model must have exactly ${expectedFieldCount} fields, but has ${changelogModel.fields.length}.`
+    );
+  }
+
+  // Validate each field individually with switch cases
+  for (const field of changelogModel.fields) {
+    switch (field.name) {
+      case "id":
+        if (field.type !== "String") {
+          throw new Error(`@prisma-idb/idb-client-generator: Changelog.id must be of type String, got ${field.type}.`);
+        }
+        if (field.isList) {
+          throw new Error(`@prisma-idb/idb-client-generator: Changelog.id must not be a list.`);
+        }
+        if (!field.isId) {
+          throw new Error(`@prisma-idb/idb-client-generator: Changelog.id must have @id attribute.`);
+        }
+        if (!field.hasDefaultValue) {
+          throw new Error(`@prisma-idb/idb-client-generator: Changelog.id must have @default(uuid(7)).`);
+        }
+        if (
+          typeof field.default !== "object" ||
+          !("name" in field.default) ||
+          field.default.name !== "uuid" ||
+          (field.default.args && field.default.args[0] !== 7)
+        ) {
+          throw new Error(
+            `@prisma-idb/idb-client-generator: Changelog.id @default must be uuid(7), got ${typeof field.default === "object" && "name" in field.default ? field.default.name : field.default}.`
+          );
+        }
+        break;
+
+      case "model":
+        if (field.type !== "String") {
+          throw new Error(
+            `@prisma-idb/idb-client-generator: Changelog.model must be of type String, got ${field.type}.`
+          );
+        }
+        if (field.isList) {
+          throw new Error(`@prisma-idb/idb-client-generator: Changelog.model must not be a list.`);
+        }
+        if (!field.isRequired) {
+          throw new Error(`@prisma-idb/idb-client-generator: Changelog.model must be required (no ? modifier).`);
+        }
+        if (field.hasDefaultValue) {
+          throw new Error(`@prisma-idb/idb-client-generator: Changelog.model must not have a default value.`);
+        }
+        break;
+
+      case "keyPath":
+        if (field.type !== "Json") {
+          throw new Error(
+            `@prisma-idb/idb-client-generator: Changelog.keyPath must be of type Json, got ${field.type}.`
+          );
+        }
+        if (field.isList) {
+          throw new Error(`@prisma-idb/idb-client-generator: Changelog.keyPath must not be a list.`);
+        }
+        if (!field.isRequired) {
+          throw new Error(`@prisma-idb/idb-client-generator: Changelog.keyPath must be required (no ? modifier).`);
+        }
+        if (field.hasDefaultValue) {
+          throw new Error(`@prisma-idb/idb-client-generator: Changelog.keyPath must not have a default value.`);
+        }
+        break;
+
+      case "operation":
+        if (field.type !== "ChangeOperation") {
+          throw new Error(
+            `@prisma-idb/idb-client-generator: Changelog.operation must be of type ChangeOperation, got ${field.type}.`
+          );
+        }
+        if (field.isList) {
+          throw new Error(`@prisma-idb/idb-client-generator: Changelog.operation must not be a list.`);
+        }
+        if (!field.isRequired) {
+          throw new Error(`@prisma-idb/idb-client-generator: Changelog.operation must be required (no ? modifier).`);
+        }
+        if (field.hasDefaultValue) {
+          throw new Error(`@prisma-idb/idb-client-generator: Changelog.operation must not have a default value.`);
+        }
+        break;
+
+      case "scopeKey":
+        if (field.type !== "String") {
+          throw new Error(
+            `@prisma-idb/idb-client-generator: Changelog.scopeKey must be of type String, got ${field.type}.`
+          );
+        }
+        if (field.isList) {
+          throw new Error(`@prisma-idb/idb-client-generator: Changelog.scopeKey must not be a list.`);
+        }
+        if (!field.isRequired) {
+          throw new Error(`@prisma-idb/idb-client-generator: Changelog.scopeKey must be required (no ? modifier).`);
+        }
+        if (field.hasDefaultValue) {
+          throw new Error(`@prisma-idb/idb-client-generator: Changelog.scopeKey must not have a default value.`);
+        }
+        break;
+
+      case "outboxEventId":
+        if (field.type !== "String") {
+          throw new Error(
+            `@prisma-idb/idb-client-generator: Changelog.outboxEventId must be of type String, got ${field.type}.`
+          );
+        }
+        if (field.isList) {
+          throw new Error(`@prisma-idb/idb-client-generator: Changelog.outboxEventId must not be a list.`);
+        }
+        if (!field.isRequired) {
+          throw new Error(
+            `@prisma-idb/idb-client-generator: Changelog.outboxEventId must be required (no ? modifier).`
+          );
+        }
+        if (!field.isUnique) {
+          throw new Error(`@prisma-idb/idb-client-generator: Changelog.outboxEventId must have @unique attribute.`);
+        }
+        if (field.hasDefaultValue) {
+          throw new Error(`@prisma-idb/idb-client-generator: Changelog.outboxEventId must not have a default value.`);
+        }
+        break;
+
+      default:
+        throw new Error(
+          `@prisma-idb/idb-client-generator: Changelog model has unexpected field "${field.name}". Only these fields are allowed: id, model, keyPath, operation, scopeKey, outboxEventId.`
+        );
+    }
+  }
+
+  // Check for ChangeOperation enum
+  const changeOperationEnum = enums.find((e) => e.name === "ChangeOperation");
+  if (!changeOperationEnum) {
+    throw new Error(
+      `@prisma-idb/idb-client-generator: A "ChangeOperation" enum is required when "outboxSync" is enabled.\n\n` +
+        `Add the following to your schema:\n\n` +
+        `enum ChangeOperation {\n` +
+        `  create\n` +
+        `  update\n` +
+        `  delete\n` +
+        `}`
+    );
+  }
+
+  // Validate ChangeOperation enum has exactly 3 values
+  if (changeOperationEnum.values.length !== 3) {
+    throw new Error(
+      `@prisma-idb/idb-client-generator: ChangeOperation enum must have exactly 3 values (create, update, delete), but has ${changeOperationEnum.values.length}.`
+    );
+  }
+
+  // Validate each enum value with switch case
+  const enumValueNames = new Set<string>();
+  for (const enumValue of changeOperationEnum.values) {
+    enumValueNames.add(enumValue.name);
+    switch (enumValue.name) {
+      case "create":
+      case "update":
+      case "delete":
+        // Valid values, continue
+        break;
+      default:
+        throw new Error(
+          `@prisma-idb/idb-client-generator: ChangeOperation enum has invalid value "${enumValue.name}". Only valid values are: create, update, delete.`
+        );
+    }
+  }
+
+  // Verify all required values are present
+  const requiredEnumValues = ["create", "update", "delete"];
+  for (const required of requiredEnumValues) {
+    if (!enumValueNames.has(required)) {
+      throw new Error(
+        `@prisma-idb/idb-client-generator: ChangeOperation enum is missing required value "${required}". Required values: create, update, delete.`
+      );
+    }
+  }
 }
