@@ -1,0 +1,29 @@
+datasource dbAutoincrementId {
+  provider = "postgresql"
+}
+
+generator clientAutoincrementId {
+  provider = "prisma-client"
+  output   = "../../generated/prisma"
+}
+
+generator idbClientAutoincrementId {
+  provider   = "idb-client-generator"
+  output     = "../../generated/prisma-idb"
+  outboxSync = true
+  rootModel  = "UserAutoincrementId"
+  exclude    = []
+}
+
+model UserAutoincrementId {
+  id    Int     @id
+  name  String
+  todos TodoAutoincrementId[]
+}
+
+model TodoAutoincrementId {
+  id     Int                  @id @default(autoincrement())
+  title  String
+  userId Int
+  user   UserAutoincrementId  @relation(fields: [userId], references: [id])
+}

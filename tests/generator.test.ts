@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 import { describe, it, expect } from "vitest";
 import { execa } from "execa";
 import fs from "fs/promises";
@@ -35,6 +37,14 @@ describe("schema projection", () => {
 
     await expect(execa("pnpm", ["prisma", "generate", "--schema", schemaPath])).rejects.toThrow(
       `Cycle detected in the model relationships involving model "Todo".`
+    );
+  });
+
+  it("fails on autoincrement id", async () => {
+    const schemaPath = path.resolve("./schemas/invalid/autoincrement-id.prisma");
+
+    await expect(execa("pnpm", ["prisma", "generate", "--schema", schemaPath])).rejects.toThrow(
+      `Model "TodoAutoincrementId" has @id field "id" with invalid default "autoincrement". Required: Use random defaults like uuid() or cuid() for all models (except rootModel) included in sync.`
     );
   });
 });
