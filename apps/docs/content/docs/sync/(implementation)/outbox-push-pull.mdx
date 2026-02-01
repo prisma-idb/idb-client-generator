@@ -310,21 +310,23 @@ See [Authoritative Schema DAG](./authoritative-schema-dag) for depth.
 Monitor pending sync operations:
 
 ```typescript
-// Count pending events
-const pending = await client.outboxEvent.count({
-  where: { status: "pending" },
-});
+// Get outbox statistics
+const stats = await client.$outbox.stats();
 
-console.log(`${pending} changes waiting to sync`);
+console.log(`${stats.unsynced} changes waiting to sync`);
+console.log(`${stats.failed} failed changes`);
 
-// Get details of failed events
-const failed = await client.outboxEvent.findMany({
-  where: { status: "failed" },
-  include: { model: true, operation: true },
-});
+if (stats.lastError) {
+  console.log(`Last error: ${stats.lastError}`);
+}
+```
 
-failed.forEach((event) => {
-  console.log(`Failed to sync: ${event.model} ${event.operation}`);
+Subscribe to outbox changes:
+
+```typescript
+client.$outbox.subscribe(["create", "update", "delete"], async () => {
+  const stats = await client.$outbox.stats();
+  console.log("Outbox updated:", stats);
 });
 ```
 
