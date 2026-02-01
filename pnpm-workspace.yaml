@@ -1,7 +1,7 @@
 packages:
   - packages/*
   - apps/*
-  - tests/*
+  - tests
 
 onlyBuiltDependencies:
   - "@prisma/client"
