@@ -1,0 +1,213 @@
+---
+title: "aggregate"
+description: "Calculate min, max, avg, sum across records"
+icon: ChartArea
+---
+
+Aggregate numeric and comparable values across records.
+
+```typescript
+const stats = await client.todo.aggregate({
+  _count: true,
+  _avg: { priority: true },
+  _max: { priority: true },
+});
+
+console.log(`${stats._count} todos, average priority: ${stats._avg.priority}`);
+```
+
+## Available Aggregations
+
+### Count
+
+Count total records or specific fields:
+
+```typescript
+const stats = await client.user.aggregate({
+  _count: true, // Total count
+});
+
+const fieldStats = await client.user.aggregate({
+  _count: {
+    email: true, // Count non-null emails
+    _all: true, // Count all records
+  },
+});
+```
+
+### Min & Max
+
+Find minimum and maximum values:
+
+```typescript
+const todoStats = await client.todo.aggregate({
+  _min: { priority: true, createdAt: true },
+  _max: { priority: true, createdAt: true },
+});
+
+console.log(`Priority range: ${todoStats._min.priority} - ${todoStats._max.priority}`);
+console.log(`Date range: ${todoStats._min.createdAt} to ${todoStats._max.createdAt}`);
+```
+
+Works on:
+
+- Numeric fields (Int, Float, Decimal)
+- DateTime fields
+- String fields
+
+### Avg
+
+Calculate average of numeric fields:
+
+```typescript
+const stats = await client.product.aggregate({
+  _avg: { price: true, rating: true },
+});
+
+console.log(`Average price: $${stats._avg.price}`);
+console.log(`Average rating: ${stats._avg.rating}/5`);
+```
+
+Only available for: Int, Float, Decimal
+
+### Sum
+
+Sum numeric values:
+
+```typescript
+const stats = await client.order.aggregate({
+  _sum: { amount: true, quantity: true },
+});
+
+console.log(`Total revenue: $${stats._sum.amount}`);
+console.log(`Total items: ${stats._sum.quantity}`);
+```
+
+Only available for: Int, Float, Decimal
+
+## With Filtering
+
+Aggregate over filtered records:
+
+```typescript
+const thisMonth = await client.sale.aggregate({
+  where: {
+    createdAt: {
+      gte: new Date(new Date().setDate(1)), // Start of month
+    },
+  },
+  _sum: { amount: true },
+  _avg: { amount: true },
+  _count: true,
+});
+
+console.log(`This month:
+  Total sales: ${thisMonth._count}
+  Total revenue: $${thisMonth._sum.amount}
+  Average sale: $${thisMonth._avg.amount}
+`);
+```
+
+## Combined Example
+
+```typescript
+const comprehensive = await client.order.aggregate({
+  where: {
+    status: "completed",
+  },
+  _count: true,
+  _sum: { amount: true, quantity: true },
+  _avg: { amount: true, quantity: true },
+  _min: { amount: true, createdAt: true },
+  _max: { amount: true, createdAt: true },
+});
+
+console.log({
+  totalOrders: comprehensive._count,
+  totalRevenue: comprehensive._sum.amount,
+  avgOrderValue: comprehensive._avg.amount,
+  minOrder: comprehensive._min.amount,
+  maxOrder: comprehensive._max.amount,
+  dateRange: [comprehensive._min.createdAt, comprehensive._max.createdAt],
+});
+```
+
+## Use Cases
+
+### Dashboard Statistics
+
+```typescript
+const dashboardStats = await Promise.all([
+  client.user.aggregate({
+    _count: true,
+  }),
+  client.todo.aggregate({
+    where: { done: true },
+    _count: true,
+  }),
+  client.todo.aggregate({
+    where: { done: false },
+    _count: true,
+  }),
+  client.board.aggregate({
+    _count: true,
+  }),
+]);
+
+const [users, completedTodos, pendingTodos, boards] = dashboardStats;
+```
+
+### Progress Tracking
+
+```typescript
+const progress = await client.task.aggregate({
+  where: { projectId },
+  _count: { id: true },
+  _sum: { progress: true },
+});
+
+const denominator = progress._count.id || 1;
+const avgProgress = (progress._sum.progress || 0) / denominator;
+console.log(`Project is ${Math.round(avgProgress)}% complete`);
+```
+
+### Data Quality Metrics
+
+```typescript
+const quality = await client.record.aggregate({
+  _count: {
+    email: true, // Count records with email
+    phone: true, // Count records with phone
+    address: true, // Count records with address
+    _all: true, // Total records
+  },
+});
+
+console.log(`Email coverage: ${((quality._count.email / quality._count._all) * 100).toFixed(1)}%`);
+```
+
+## Performance Notes
+
+Aggregation is performed in-memory after filtering. For large datasets:
+
+```typescript
+// Better - filter first, then aggregate
+const stats = await client.order.aggregate({
+  where: {
+    createdAt: { gte: lastMonth },
+    status: "completed",
+  },
+  _sum: { amount: true },
+});
+
+// Less efficient - aggregates all, then filters in code
+const allStats = await client.order.aggregate({
+  _sum: { amount: true },
+});
+```
+
+## See Also
+
+- [count](/docs/crud/count) - Just count records
+- [findMany](/docs/crud/find-many) - Get matching records
+- [Transactions](/docs/transactions) - Atomic aggregation operations

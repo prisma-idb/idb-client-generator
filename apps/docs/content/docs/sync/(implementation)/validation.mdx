@@ -1,0 +1,202 @@
+---
+title: "Validation & Schemas"
+description: "Type-safe validation with Zod and generated schemas"
+icon: ListChecks
+---
+
+Prisma IDB generates Zod schemas from your Prisma schema for type-safe validation across client and server.
+
+## Generated Validators
+
+The generator creates validators for each model defined in your schema. Here's a real example from [pidb-kanban-example](https://github.com/prisma-idb/idb-client-generator/blob/fumadocs/apps/pidb-kanban-example/src/lib/prisma-idb/validators.ts):
+
+```typescript
+// validators.ts (generated from schema.prisma)
+import { z } from "zod";
+
+export const validators = {
+  User: z.strictObject({
+    id: z.string(),
+    name: z.string(),
+    email: z.string(),
+    emailVerified: z.boolean(),
+    image: z.string().nullable(),
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+    isAnonymous: z.boolean().nullable(),
+  }),
+  Board: z.strictObject({
+    id: z.string(),
+    name: z.string(),
+    createdAt: z.coerce.date(),
+    userId: z.string(),
+  }),
+  Todo: z.strictObject({
+    id: z.string(),
+    title: z.string(),
+    description: z.string().nullable(),
+    isCompleted: z.boolean(),
+    createdAt: z.coerce.date(),
+    boardId: z.string(),
+  }),
+} as const;
+
+// Key path validators - extract primary keys from records
+export const keyPathValidators = {
+  User: z.tuple([z.string()]),
+  Board: z.tuple([z.string()]),
+  Todo: z.tuple([z.string()]),
+} as const;
+
+// Helper to convert records to their key path representation
+export const modelRecordToKeyPath = {
+  User: (record: unknown) => {
+    const validated = validators.User.parse(record);
+    const keyPathArray = [validated.id] as const;
+    return keyPathValidators.User.parse(keyPathArray);
+  },
+  Board: (record: unknown) => {
+    const validated = validators.Board.parse(record);
+    const keyPathArray = [validated.id] as const;
+    return keyPathValidators.Board.parse(keyPathArray);
+  },
+  // ... same for other models
+} as const;
+```
+
+## Outbox Event Schema
+
+When sync is enabled, the generator also creates `outboxEventSchema`:
+
+```typescript
+export const outboxEventSchema = z.strictObject({
+  id: z.string(),
+  entityType: z.string(),
+  operation: z.enum(["create", "update", "delete"]),
+  payload: z.record(z.string(), z.unknown()),
+  createdAt: z.coerce.date(),
+  tries: z.number(),
+  lastError: z.string().nullable(),
+  synced: z.boolean(),
+  syncedAt: z.coerce.date().nullable(),
+  retryable: z.boolean(),
+  lastAttemptedAt: z.coerce.date().nullable(),
+});
+```
+
+## Using Validators
+
+Use validators to validate data before operations:
+
+```typescript
+import { validators } from "$lib/prisma-idb/validators";
+
+// Validate a record
+try {
+  const validData = validators.Board.parse({
+    id: "board-123",
+    name: "Q4 Planning",
+    createdAt: new Date(),
+    userId: "user-456",
+  });
+
+  await client.board.create({ data: validData });
+} catch (error) {
+  if (error instanceof z.ZodError) {
+    console.error("Validation errors:", error.errors);
+  }
+}
+
+// Use safeParse for non-throwing validation
+const result = validators.Board.safeParse(data);
+if (!result.success) {
+  console.error("Invalid data:", result.error.flatten());
+} else {
+  await client.board.create({ data: result.data });
+}
+```
+
+## Type Inference
+
+Extract types from validators using `z.infer`:
+
+```typescript
+import { z } from "zod";
+import { validators } from "$lib/prisma-idb/validators";
+
+// Extract type from validator
+type BoardRecord = z.infer<typeof validators.Board>;
+
+const board: BoardRecord = {
+  id: "board-123",
+  name: "My Board",
+  createdAt: new Date(),
+  userId: "user-456",
+};
+```
+
+## Field Type Mappings
+
+The generator maps Prisma field types to Zod validators:
+
+- **String** → `z.string()`
+- **Int** → `z.number().int()`
+- **Float** → `z.number()`
+- **Boolean** → `z.boolean()`
+- **DateTime** → `z.coerce.date()` (coerces ISO strings to Date)
+- **Json** → `z.any()`
+- **Bytes** → `z.instanceof(Uint8Array)`
+- **BigInt** → `z.bigint()`
+- **Enum** → `z.enum(["VALUE1", "VALUE2"])`
+
+Optional/nullable fields get `.nullable()` appended.
+
+## Validation at API Boundaries
+
+Always validate incoming requests using the generated schemas:
+
+```typescript
+// routes/api/sync/push/+server.ts
+import { z } from "zod";
+import { outboxEventSchema } from "$lib/prisma-idb/validators";
+import { applyPush } from "$lib/prisma-idb/server/batch-processor";
+import { auth } from "$lib/server/auth";
+import { prisma } from "$lib/server/prisma";
+
+export async function POST({ request }) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Malformed JSON" }), { status: 400 });
+  }
+
+  // Validate request structure
+  const parsed = z.object({ events: z.array(outboxEventSchema) }).safeParse({
+    events: body.events,
+  });
+
+  if (!parsed.success) {
+    return new Response(JSON.stringify({ error: "Invalid request", details: parsed.error.flatten() }), { status: 400 });
+  }
+
+  const authResult = await auth.api.getSession({ headers: request.headers });
+  if (!authResult?.user.id) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+  }
+
+  // Process validated events
+  const result = await applyPush({
+    events: parsed.data.events,
+    scopeKey: authResult.user.id,
+    prisma,
+  });
+
+  return new Response(JSON.stringify(result), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+```
+
+See [Step 3: Push Endpoint](./step-3-push-endpoint) for the complete implementation.

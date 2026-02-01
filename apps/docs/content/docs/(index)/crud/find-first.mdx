@@ -1,0 +1,154 @@
+---
+title: "findFirst"
+description: "Get the first matching record"
+icon: Funnel
+---
+
+Retrieve the first record matching your conditions.
+
+```typescript
+const user = await client.user.findFirst({
+  where: { active: true },
+  orderBy: { createdAt: "desc" },
+});
+
+if (user) {
+  console.log("Found:", user.name);
+} else {
+  console.log("No match found");
+}
+```
+
+## Return Type
+
+Returns the first matching record or `null` if no match:
+
+```typescript
+const user: User | null = await client.user.findFirst({
+  where: {
+    /* ... */
+  },
+});
+
+if (user === null) {
+  // No record matched
+}
+```
+
+For error handling, use [`findFirstOrThrow`](/docs/crud/find-first-or-throw).
+
+## Filtering
+
+Use the same `where` syntax as [`findMany`](/docs/crud/find-many):
+
+```typescript
+const user = await client.user.findFirst({
+  where: {
+    email: "alice@example.com",
+  },
+});
+
+const admin = await client.user.findFirst({
+  where: {
+    role: "admin",
+    active: true,
+  },
+});
+```
+
+## Ordering
+
+Control which record is returned when multiple match:
+
+```typescript
+// Most recently created
+const user = await client.user.findFirst({
+  where: { active: true },
+  orderBy: { createdAt: "desc" },
+});
+
+// Highest priority
+const todo = await client.todo.findFirst({
+  where: { done: false },
+  orderBy: { priority: "desc" },
+});
+```
+
+## Selection
+
+Control returned fields:
+
+```typescript
+const user = await client.user.findFirst({
+  where: { active: true },
+  select: { id: true, name: true },
+});
+```
+
+## Relations
+
+Include related records:
+
+```typescript
+const user = await client.user.findFirst({
+  where: { email: "alice@example.com" },
+  include: { profile: true },
+});
+
+console.log(user?.profile?.bio);
+```
+
+## Use Cases
+
+### Last Created Record
+
+```typescript
+const lastCreated = await client.user.findFirst({
+  orderBy: { createdAt: "desc" },
+});
+```
+
+### Find or Create Pattern
+
+```typescript
+let user = await client.user.findFirst({
+  where: { email },
+});
+
+if (!user) {
+  user = await client.user.create({
+    data: { email, name },
+  });
+}
+```
+
+### Soft Deletes
+
+```typescript
+const user = await client.user.findFirst({
+  where: {
+    id: userId,
+    deletedAt: null, // Not soft-deleted
+  },
+});
+```
+
+## Error Handling
+
+Use `findFirstOrThrow` if not finding a record is an error:
+
+```typescript
+try {
+  const user = await client.user.findFirstOrThrow({
+    where: { email: "admin@example.com" },
+  });
+} catch (error) {
+  console.log("No admin user found");
+}
+```
+
+## See Also
+
+- [findFirstOrThrow](/docs/crud/find-first-or-throw) - With error on not found
+- [findUnique](/docs/crud/find-unique) - Get by unique field
+- [findMany](/docs/crud/find-many) - Get all matching records

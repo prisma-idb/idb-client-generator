@@ -1,0 +1,346 @@
+---
+title: "Generated Output"
+description: "Understanding the generated client structure and files"
+icon: Package
+---
+
+The Prisma IDB generator creates a complete, type-safe client in your output directory with the following structure:
+
+## Directory Structure
+
+```
+generated/
+├── prisma-idb/
+│   ├── client/
+│   │   ├── prisma-idb-client.ts       # Main client class
+│   │   ├── idb-interface.ts           # TypeScript interfaces
+│   │   ├── idb-utils.ts               # Filtering & comparison utilities
+│   │   ├── apply-pull.ts              # Sync pull application logic (sync only)
+│   │   └── scoped-schema.prisma       # Generated schema for syncable models (sync only)
+│   │
+│   ├── validators.ts                  # Zod validation schemas
+│   │
+│   └── server/                        # (sync only)
+│       └── batch-processor.ts         # Server-side change processor (sync only)
+│
+└── prisma/
+    ├── client.ts                      # Prisma Client types
+    ├── browser.ts                     # Browser compatibility shims
+    ├── models.ts                      # Generated model types
+    ├── enums.ts                       # Generated enum types
+    └── ...
+```
+
+## Core Files
+
+### Client
+
+The main entry point for using Prisma IDB:
+
+```typescript
+// Import from your generated output directory
+import { PrismaIDBClient } from "./prisma-idb-client";
+
+const client = await PrismaIDBClient.createClient();
+
+// Access models
+await client.user.findMany();
+await client.todo.create({ data: { title: "Task" } });
+```
+
+**Key Methods:**
+
+- `createClient()`: Initialize the client with IndexedDB
+- `<modelName>`: Access per-model API (user, todo, etc.)
+- `_db`: Direct access to the underlying IDBPDatabase instance
+- `$outbox`: Access outbox for sync monitoring (if sync enabled)
+- `versionMeta`: Track sync state (if sync enabled)
+
+### IDB Interface
+
+TypeScript type definitions for the generated schema:
+
+```typescript
+// idb-interface.ts
+export interface PrismaIDBSchema {
+  User: {
+    key: [string]; // Primary key type
+    value: {
+      id: string;
+      name: string;
+      email: string;
+      // ... all fields
+    };
+    indexes: {
+      emailIndex: string;
+    };
+  };
+  Todo: {
+    key: [string];
+    value: {
+      id: string;
+      title: string;
+      userId: string;
+      // ... all fields
+    };
+    indexes: {
+      userIdIndex: string;
+    };
+  };
+  // ... other models
+}
+
+export interface OutboxEventRecord {
+  id: string;
+  model: string;
+  operation: "create" | "update" | "delete";
+  keyPath: any[];
+  data: any;
+  // ... timestamp, status, etc.
+}
+```
+
+Use these types when working directly with the `client._db` instance:
+
+```typescript
+const user: PrismaIDBSchema["User"]["value"] = await tx.objectStore("User").get([userId]);
+```
+
+### IDB Utils
+
+Utility functions for filtering and comparisons that IndexedDB can't handle natively:
+
+```typescript
+// idb-utils.ts
+export function whereBoolFilter(records: any[], where: any): any[] {
+  return records.filter(/* complex filtering logic */);
+}
+
+export function orderByComparator(a: any, b: any, orderBy: any): number {
+  // Sorting logic
+}
+```
+
+<Callout type="tip">
+  These utilities run client-side in memory. For large datasets, consider fetching and filtering strategically.
+</Callout>
+
+### Validators
+
+Zod schemas for validating input data:
+
+```typescript
+// validators.ts
+import { z } from "zod";
+
+export const userCreateSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string().email(),
+  profile: z.any().optional(),
+});
+
+export const todoUpdateSchema = z.object({
+  title: z.string().optional(),
+  done: z.boolean().optional(),
+});
+
+// Use in your code
+const data = await userCreateSchema.parseAsync(input);
+```
+
+These are generated from your Prisma schema and enable type-safe validation.
+
+## Sync Files (When Enabled)
+
+### Apply Pull
+
+Logic for applying remote changes to local IndexedDB:
+
+```typescript
+// apply-pull.ts
+export async function applyPull(
+  db: IDBPDatabase,
+  changelog: ChangelogRecord[],
+  records: Record<string, any[]>,
+  versionMeta: VersionMetaRecord
+): Promise<ApplyPullResult> {
+  // Merges remote changes into local stores
+  // Handles conflict resolution
+  // Updates version cursors
+}
+```
+
+Called by the sync worker to materialize changelog entries.
+
+### Batch Processor
+
+Server-side handler for processing outbox events:
+
+```typescript
+// server/batch-processor.ts
+export async function processBatch(
+  prisma: PrismaClient,
+  events: OutboxEventRecord[],
+  userId: string,
+  rootModel: string
+): Promise<PushResult> {
+  // Validates ownership
+  // Applies mutations
+  // Returns results/errors
+}
+```
+
+Implement your API endpoint to call this:
+
+```typescript
+// pages/api/sync/push.ts
+export async function POST(req: Request) {
+  const { events } = await req.json();
+  const userId = getSessionUserId(req);
+
+  const result = await processBatch(
+    prisma,
+    events,
+    userId,
+    "User" // rootModel
+  );
+
+  return Response.json(result);
+}
+```
+
+### Scoped Schema
+
+The generated Prisma schema containing only syncable models:
+
+```prisma
+// scoped-schema.prisma
+model User {
+  id    String  @id
+  name  String
+  email String  @unique
+
+  boards Board[]
+
+  @@map("user")
+}
+
+model Board {
+  id     String  @id
+  name   String
+  userId String
+  user   User    @relation(fields: [userId], references: [id])
+
+  todos Todo[]
+
+  @@map("board")
+}
+
+model Todo {
+  id      String  @id
+  title   String
+  boardId String
+  board   Board   @relation(fields: [boardId], references: [id])
+
+  @@map("todo")
+}
+```
+
+Use this as reference for your server-side schema, or as validation that your setup is correct.
+
+## Model Classes
+
+Each model has a generated class with CRUD methods:
+
+```typescript
+// Generated for each model
+class UserIDBClass extends BaseIDBModelClass<"User"> {
+  async findMany(query?: any, options?: any): Promise<any[]> {
+    /* ... */
+  }
+  async findUnique(query: any, options?: any): Promise<any | null> {
+    /* ... */
+  }
+  async create(query: any, options?: any): Promise<any> {
+    /* ... */
+  }
+  async update(query: any, options?: any): Promise<any> {
+    /* ... */
+  }
+  async delete(query: any, options?: any): Promise<any> {
+    /* ... */
+  }
+
+  // Events
+  subscribe(
+    event: "create" | "update" | "delete" | ("create" | "update" | "delete")[],
+    callback: (e: CustomEvent<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>) => void
+  ): () => void {
+    /* ... */
+  }
+
+  // Sync helpers
+  readOutbox(): Promise<OutboxEventRecord[]> {
+    /* ... */
+  }
+  // ... other sync methods
+}
+```
+
+## Type Safety
+
+All generated types come from your Prisma schema:
+
+```typescript
+// Inferred from Prisma schema
+const user = await client.user.create({
+  data: {
+    name: "Alice", // ✅ string
+    email: "alice@example.com", // ✅ string
+    age: 30, // ❌ TypeScript error - field doesn't exist
+  },
+});
+
+// Result type is precise
+const result: User = user;
+result.id; // ✅ string
+result.missing; // ❌ TypeScript error
+```
+
+## Regenerating
+
+After modifying your `schema.prisma` or generator config, regenerate:
+
+```bash
+pnpm exec prisma generate
+```
+
+This updates all generated files in your output directory. The generated code is deterministic—same schema produces identical output.
+
+<Callout type="warn">
+  Don't manually edit generated files. Regeneration will overwrite your changes. If you need customization, extend the
+  generated classes or create wrapper utilities.
+</Callout>
+
+## Configuration
+
+Control what gets generated via your `schema.prisma`:
+
+```prisma
+generator prismaIDBrowser {
+  provider   = "idb-client-generator"
+  output     = "../generated"
+  outboxSync = true              # Enable sync
+  rootModel  = "User"            # Root for ownership DAG
+  exclude    = ["Session", "Verification"]  # Skip these models
+}
+```
+
+**Configuration Options:**
+
+- `output`: Directory for generated files
+- `outboxSync`: Enable sync engine (default: false)
+- `rootModel`: Root model for ownership (required if outboxSync = true)
+- `exclude`: Models to skip generation
+- `include`: Models to include (default: all); mutually exclusive with `exclude` (cannot set both to non-default values)

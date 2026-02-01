@@ -68,7 +68,7 @@ export function createBatchProcessorFile(
   // Write imports
   writer.writeLine(`import { z, type ZodTypeAny } from "zod";`);
   writer.writeLine(`import type { OutboxEventRecord } from "../client/idb-interface";`);
-  writer.writeLine(`import type { ChangeLog } from "${prismaClientImport}";`);
+  writer.writeLine(`import type { Changelog } from "${prismaClientImport}";`);
   writer.writeLine(`import type { PrismaClient } from "${prismaClientImport}";`);
   writer.writeLine(`import { validators, keyPathValidators } from "../validators";`);
   writer.blankLine();
@@ -91,7 +91,7 @@ export function createBatchProcessorFile(
 
   // Write LogWithRecord type - maps model names to their record types
   writer.writeLine(`export type LogWithRecord<V extends Partial<Record<string, ZodTypeAny>>> = {`);
-  writer.writeLine(`  [M in keyof V & string]: Omit<ChangeLog, "model" | "keyPath"> & {`);
+  writer.writeLine(`  [M in keyof V & string]: Omit<Changelog, "model" | "keyPath"> & {`);
   writer.writeLine(`    model: M;`);
   writer.writeLine(`    keyPath: Array<string | number>;`);
   writer.writeLine(`    record?: z.infer<V[M]> | null;`);
@@ -221,7 +221,7 @@ export function createBatchProcessorFile(
   writer.writeLine(`}): Promise<Array<LogWithRecord<typeof validators>>>`);
   writer.block(() => {
     writer
-      .writeLine(`const logs = await prisma.changeLog.findMany(`)
+      .writeLine(`const logs = await prisma.changelog.findMany(`)
       .block(() => {
         writer
           .writeLine(`where: `)
@@ -373,7 +373,7 @@ function generateModelSyncHandler(
     writer.writeLine(`    const result = await prisma.$transaction(async (tx) => {`);
 
     // Idempotency check first
-    writer.writeLine(`      const existingLog = await tx.changeLog.findUnique({`);
+    writer.writeLine(`      const existingLog = await tx.changelog.findUnique({`);
     writer.writeLine(`        where: { outboxEventId: event.id },`);
     writer.writeLine(`      });`);
     writer.writeLine(`      if (existingLog) {`);
@@ -466,7 +466,7 @@ function generateModelSyncHandler(
       writer.blankLine();
     }
 
-    writer.writeLine(`      const newLog = await tx.changeLog.create({`);
+    writer.writeLine(`      const newLog = await tx.changelog.create({`);
     writer.writeLine(`        data: {`);
     writer.writeLine(`          model: "${model.name}",`);
     writer.writeLine(`          keyPath: validKeyPath,`);
@@ -487,7 +487,7 @@ function generateModelSyncHandler(
     writer.writeLine(`    const result = await prisma.$transaction(async (tx) => {`);
 
     // Idempotency check first
-    writer.writeLine(`      const existingLog = await tx.changeLog.findUnique({`);
+    writer.writeLine(`      const existingLog = await tx.changelog.findUnique({`);
     writer.writeLine(`        where: { outboxEventId: event.id },`);
     writer.writeLine(`      });`);
     writer.writeLine(`      if (existingLog) {`);
@@ -635,7 +635,7 @@ function generateModelSyncHandler(
     }
     writer.blankLine();
 
-    writer.writeLine(`      const newLog = await tx.changeLog.create({`);
+    writer.writeLine(`      const newLog = await tx.changelog.create({`);
     writer.writeLine(`        data: {`);
     writer.writeLine(`          model: "${model.name}",`);
     writer.writeLine(`          keyPath: validKeyPath,`);
@@ -661,7 +661,7 @@ function generateModelSyncHandler(
     writer.writeLine(`    const result = await prisma.$transaction(async (tx) => {`);
 
     // Idempotency check first
-    writer.writeLine(`      const existingLog = await tx.changeLog.findUnique({`);
+    writer.writeLine(`      const existingLog = await tx.changelog.findUnique({`);
     writer.writeLine(`        where: { outboxEventId: event.id },`);
     writer.writeLine(`      });`);
     writer.writeLine(`      if (existingLog) {`);
@@ -704,7 +704,7 @@ function generateModelSyncHandler(
     }
     writer.blankLine();
 
-    writer.writeLine(`      const newLog = await tx.changeLog.create({`);
+    writer.writeLine(`      const newLog = await tx.changelog.create({`);
     writer.writeLine(`        data: {`);
     writer.writeLine(`          model: "${model.name}",`);
     writer.writeLine(`          keyPath: validKeyPath,`);

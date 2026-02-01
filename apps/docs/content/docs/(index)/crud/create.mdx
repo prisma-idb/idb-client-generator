@@ -1,0 +1,136 @@
+---
+title: "create"
+description: "Insert a single record"
+icon: Plus
+---
+
+Insert a new record into a model store.
+
+```typescript
+const user = await client.user.create({
+  data: {
+    name: "Alice",
+    email: "alice@example.com",
+  },
+});
+```
+
+## With Relations
+
+Nested creates allow you to establish relationships in a single operation:
+
+```typescript
+const user = await client.user.create({
+  data: {
+    name: "Alice",
+    email: "alice@example.com",
+    profile: {
+      create: {
+        bio: "Alice's bio",
+      },
+    },
+  },
+});
+```
+
+## With Selection and Inclusion
+
+Control what fields are returned:
+
+```typescript
+// Only specific fields
+const user = await client.user.create({
+  data: { name: "Alice", email: "alice@example.com" },
+  select: { id: true, name: true },
+});
+
+// Include relations
+const user = await client.user.create({
+  data: { name: "Alice", email: "alice@example.com" },
+  include: { profile: true },
+});
+```
+
+## With Options
+
+```typescript
+const user = await client.user.create(
+  {
+    data: { name: "Alice", email: "alice@example.com" },
+  },
+  {
+    tx: transaction, // Use existing transaction
+    silent: false, // Emit events (default: false)
+    addToOutbox: true, // Queue for sync (default: true if sync is enabled)
+  }
+);
+```
+
+## Generated IDs
+
+If your model uses client-generated IDs (`uuid()`, `cuid()`, `cuid(2)`), you can:
+
+```typescript
+// Explicitly provide
+const user = await client.user.create({
+  data: {
+    id: crypto.randomUUID(),
+    name: "Alice",
+  },
+});
+
+// Or let the generator auto-generate
+const user = await client.user.create({
+  data: {
+    name: "Alice",
+  },
+  // id is auto-generated if schema has @default()
+});
+```
+
+## Multiple Relations
+
+Create nested records across multiple relations:
+
+```typescript
+const user = await client.user.create({
+  data: {
+    name: "Alice",
+    email: "alice@example.com",
+    profile: {
+      create: {
+        bio: "Bio",
+        settings: {
+          create: {
+            theme: "dark",
+          },
+        },
+      },
+    },
+    todos: {
+      create: [{ title: "Task 1" }, { title: "Task 2" }],
+    },
+  },
+});
+```
+
+## Events
+
+Create operations emit `create` events (unless `silent: true`):
+
+```typescript
+client.user.subscribe(["create"], (event) => {
+  console.log("User created:", event.detail);
+});
+
+await client.user.create({
+  data: { name: "Alice" },
+});
+// Logs: "User created: { id: '...', name: 'Alice' }"
+```
+
+## See Also
+
+- [createMany](/docs/crud/create-many) - Insert multiple records
+- [Transactions](/docs/transactions) - Atomic operations
+- [Events & Subscriptions](/docs/events) - React to mutations

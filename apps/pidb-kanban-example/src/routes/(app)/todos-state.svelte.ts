@@ -16,6 +16,8 @@ export class TodosState {
 
   private boardCallback = () => this.loadBoards();
   private todoCallback = () => this.loadBoards();
+  private unsubscribeBoard?: () => void;
+  private unsubscribeTodo?: () => void;
 
   constructor() {
     if (browser) {
@@ -59,8 +61,8 @@ export class TodosState {
       });
       this.loadBoards();
 
-      getClient().board.subscribe(["create", "update", "delete"], this.boardCallback);
-      getClient().todo.subscribe(["create", "update", "delete"], this.todoCallback);
+      this.unsubscribeBoard = getClient().board.subscribe(["create", "update", "delete"], this.boardCallback);
+      this.unsubscribeTodo = getClient().todo.subscribe(["create", "update", "delete"], this.todoCallback);
     }
   }
 
@@ -180,8 +182,8 @@ export class TodosState {
   }
 
   destroy() {
-    getClient().board.unsubscribe(["create", "update", "delete"], this.boardCallback);
-    getClient().todo.unsubscribe(["create", "update", "delete"], this.todoCallback);
+    this.unsubscribeBoard?.();
+    this.unsubscribeTodo?.();
     this.syncWorker?.stop?.();
   }
 }

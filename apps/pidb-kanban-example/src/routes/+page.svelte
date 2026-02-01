@@ -55,7 +55,7 @@
       </div>
 
       <!-- Warning Section -->
-      <div class="bg-destructive text-foreground my-8 rounded-lg border p-4" role="alert" aria-live="polite">
+      <div class="border-destructive bg-card my-8 rounded-lg border p-4" role="alert" aria-live="polite">
         <div class="flex items-start gap-3">
           <AlertCircle class="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
           <div>
@@ -107,8 +107,18 @@
   <!-- Footer -->
   <footer class="border-border mt-20 border-t">
     <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <div class="text-muted-foreground text-center text-sm">
+      <div class="text-muted-foreground space-y-4 text-center text-sm">
         <p>Built with Prisma • Powered by IndexedDB</p>
+        <div class="border-muted-foreground/30 border-t pt-4">
+          <p class="text-xs">
+            © {new Date().getFullYear()} Prisma IDB. This project is licensed under the GNU Affero General Public License
+            v3.0.
+          </p>
+          <p class="mt-2 text-xs">
+            Prisma is a trademark of Prisma. Prisma IDB is an independent open-source project and is not affiliated
+            with, endorsed by, or sponsored by Prisma.
+          </p>
+        </div>
       </div>
     </div>
   </footer>

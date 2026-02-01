@@ -1,0 +1,45 @@
+datasource dbAutoincrementId {
+  provider = "postgresql"
+}
+
+generator clientAutoincrementId {
+  provider = "prisma-client"
+  output   = "../../generated/prisma"
+}
+
+generator idbClientAutoincrementId {
+  provider   = "idb-client-generator"
+  output     = "../../generated/prisma-idb"
+  outboxSync = true
+  rootModel  = "UserAutoincrementId"
+}
+
+model UserAutoincrementId {
+  id    Int     @id
+  name  String
+  todos TodoAutoincrementId[]
+}
+
+model TodoAutoincrementId {
+  id     Int                  @id @default(autoincrement())
+  title  String
+  userId Int
+  user   UserAutoincrementId  @relation(fields: [userId], references: [id])
+}
+
+model Changelog {
+  id              String            @id @default(uuid(7))
+  model           String
+  keyPath         Json
+  operation       ChangeOperation
+  scopeKey        String
+  outboxEventId   String  @unique
+
+  @@index([model, id])
+}
+
+enum ChangeOperation {
+  create
+  update
+  delete
+}

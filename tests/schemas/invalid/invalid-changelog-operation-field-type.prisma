@@ -1,0 +1,45 @@
+datasource dbInvalidChangelogField {
+  provider = "postgresql"
+}
+
+generator clientInvalidChangelogField {
+  provider = "prisma-client"
+  output   = "../../generated/prisma"
+}
+
+generator idbClientInvalidChangelogField {
+  provider   = "idb-client-generator"
+  output     = "../../generated/prisma-idb"
+  outboxSync = true
+  rootModel  = "UserInvalidChangelogField"
+}
+
+model UserInvalidChangelogField {
+  id        String @id @default(uuid())
+  name      String
+  todos     TodoInvalidChangelogField[]
+}
+
+model TodoInvalidChangelogField {
+  id     String                      @id @default(uuid())
+  title  String
+  userId String
+  user   UserInvalidChangelogField   @relation(fields: [userId], references: [id])
+}
+
+model Changelog {
+  id            String  @id @default(uuid(7))
+  model         String
+  keyPath       Json
+  operation     String
+  scopeKey      String
+  outboxEventId String  @unique
+
+  @@index([model, id])
+}
+
+enum ChangeOperation {
+  create
+  update
+  delete
+}

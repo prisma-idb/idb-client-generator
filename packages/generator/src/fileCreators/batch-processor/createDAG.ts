@@ -20,6 +20,7 @@ export function createDAG(filteredModels: readonly Model[], rootModel: Model) {
 
   validateRootAuthority(dag, rootModel);
   checkForCycles(dag);
+  validateClientGeneratedIds(filteredModels);
   return dag;
 }
 
@@ -83,6 +84,33 @@ function checkForCycles(dag: Record<string, Set<string>>) {
   for (const node of Object.keys(dag)) {
     if (visit(node)) {
       throw new Error(`Cycle detected in the model relationships involving model "${node}".`);
+    }
+  }
+}
+
+function validateClientGeneratedIds(models: readonly Model[]) {
+  for (const model of models) {
+    const idField = model.fields.find((f) => f.isId);
+
+    if (!idField) {
+      throw new Error(`Model "${model.name}" is missing an @id field. All syncable models must have a primary key.`);
+    }
+
+    if (!idField.hasDefaultValue) {
+      throw new Error(
+        `Model "${model.name}" has @id field "${idField.name}" without a default value. Required: Use random defaults like uuid() or cuid() for all models (except rootModel) included in sync.`
+      );
+    }
+
+    const isValidClientGeneratedId =
+      typeof idField.default === "object" &&
+      "name" in idField.default &&
+      (idField.default.name === "uuid" || idField.default.name === "cuid");
+
+    if (!isValidClientGeneratedId) {
+      throw new Error(
+        `Model "${model.name}" has @id field "${idField.name}" with invalid default "${typeof idField.default === "object" && "name" in idField.default ? idField.default.name : idField.default}". Required: Use random defaults like uuid() or cuid() for all models (except rootModel) included in sync.`
+      );
     }
   }
 }

@@ -1,0 +1,246 @@
+---
+title: "delete"
+description: "Delete a single record"
+icon: Trash
+---
+
+Remove a record by its primary key.
+
+```typescript
+const user = await client.user.delete({
+  where: { id: userId },
+});
+```
+
+## Basic Delete
+
+Remove a record:
+
+```typescript
+const user = await client.user.delete({
+  where: { id: "user-123" },
+});
+
+console.log("Deleted user:", user.id);
+```
+
+## Delete by Unique Field
+
+Delete using any unique identifier:
+
+```typescript
+// Delete by email
+const user = await client.user.delete({
+  where: { email: "user@example.com" },
+});
+
+// Delete by composite unique key
+const session = await client.session.delete({
+  where: { userId_token: { userId, token } },
+});
+```
+
+## Return Deleted Record
+
+The deleted record is returned:
+
+```typescript
+const user = await client.user.delete({
+  where: { id: userId },
+});
+
+// Access deleted data
+console.log(`Deleted user: ${user.name} (${user.email})`);
+```
+
+## Selection
+
+Control which fields are returned:
+
+```typescript
+const user = await client.user.delete({
+  where: { id: userId },
+  select: { id: true, name: true, email: true },
+});
+```
+
+## Cascading Deletes
+
+Dependent records are handled per schema definition:
+
+```typescript
+// If Todo has @relation with onDelete: Cascade
+const user = await client.user.delete({
+  where: { id: userId },
+});
+// All user's todos are automatically deleted
+```
+
+## With Options
+
+```typescript
+const user = await client.user.delete(
+  {
+    where: { id: userId },
+  },
+  {
+    tx: transaction, // Use existing transaction
+    silent: false, // Emit events (default: false)
+    addToOutbox: true, // Queue for sync (default: true if sync is enabled)
+  }
+);
+```
+
+## Check Before Delete
+
+Verify record exists first:
+
+```typescript
+const user = await client.user.findUnique({
+  where: { id: userId },
+});
+
+if (!user) {
+  console.log("User not found");
+} else {
+  const deleted = await client.user.delete({
+    where: { id: userId },
+  });
+  console.log("User deleted");
+}
+```
+
+Or use [findUniqueOrThrow](/docs/crud/find-unique-or-throw):
+
+```typescript
+try {
+  // Verify user exists first
+  await client.user.findUniqueOrThrow({
+    where: { id: userId },
+  });
+  const deleted = await client.user.delete({
+    where: { id: userId },
+  });
+} catch (error) {
+  console.error("User not found");
+}
+```
+
+## Soft Delete Pattern
+
+Instead of permanent deletion, mark as deleted:
+
+```typescript
+// Keep record but mark as deleted
+const user = await client.user.update({
+  where: { id: userId },
+  data: { deletedAt: new Date() },
+});
+
+// Query only active records
+const activeUsers = await client.user.findMany({
+  where: { deletedAt: null },
+});
+```
+
+Then periodically clean up:
+
+```typescript
+const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+const result = await client.user.deleteMany({
+  where: {
+    deletedAt: { lt: thirtyDaysAgo },
+  },
+});
+```
+
+## Delete with Relations
+
+Clean up related data:
+
+```typescript
+// If schema uses ON DELETE RESTRICT, must delete children first
+const todos = await client.todo.deleteMany({
+  where: { userId },
+});
+
+const user = await client.user.delete({
+  where: { id: userId },
+});
+
+console.log(`Deleted user and ${todos.count} todos`);
+```
+
+Or use a transaction:
+
+```typescript
+const result = await client.$transaction(async (tx) => {
+  await tx.todo.deleteMany({ where: { userId } });
+  await tx.profile.deleteMany({ where: { userId } });
+  return tx.user.delete({ where: { id: userId } });
+});
+```
+
+## Events
+
+Delete operations emit `delete` events (unless `silent: true`):
+
+```typescript
+client.user.subscribe(["delete"], (event) => {
+  console.log("User deleted:", event.detail.id);
+});
+
+await client.user.delete({
+  where: { id: userId },
+});
+// Logs: "User deleted: user-123"
+```
+
+## Error Handling
+
+Throws if record not found:
+
+```typescript
+try {
+  const user = await client.user.delete({
+    where: { id: invalidId },
+  });
+} catch (error) {
+  console.error("User not found");
+}
+```
+
+## Common Use Cases
+
+**Remove user account:**
+
+```typescript
+const user = await client.user.delete({
+  where: { id: userId },
+});
+console.log(`Deleted ${user.name}'s account`);
+```
+
+**Clean up old records:**
+
+```typescript
+const temp = await client.tempFile.delete({
+  where: { id: fileId },
+});
+```
+
+**Delete specific relation:**
+
+```typescript
+// Delete a single todo
+const todo = await client.todo.delete({
+  where: { id: "todo-123" },
+});
+```
+
+## See Also
+
+- [deleteMany](/docs/crud/delete-many) - Delete multiple records
+- [update](/docs/crud/update) - Use soft delete pattern
+- [Transactions](/docs/transactions) - Atomic cascading deletes

@@ -42,9 +42,9 @@
     updateOutboxStats();
 
     // Subscribe to status changes
-    const unsubscribeStatusChange = todosState.syncWorker.on("statuschange", () => {
+    const unsubscribeStatusChange = todosState.syncWorker.on("statuschange", (e) => {
       if (todosState.syncWorker) {
-        ({ status, isLooping } = todosState.syncWorker.status);
+        ({ status, isLooping } = e.detail);
       }
     });
 
@@ -56,13 +56,13 @@
       pullResult = e.detail;
     });
 
-    getClient().$outbox.subscribe(["create", "update", "delete"], updateOutboxStats);
+    const unsubscribeOutbox = getClient().$outbox.subscribe(["create", "update", "delete"], updateOutboxStats);
 
     return () => {
       unsubscribeStatusChange();
       unsubscribePushCompleted();
       unsubscribePullCompleted();
-      getClient().$outbox.unsubscribe(["create", "update", "delete"], updateOutboxStats);
+      unsubscribeOutbox();
     };
   });
 </script>

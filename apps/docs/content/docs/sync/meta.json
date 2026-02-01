@@ -1,0 +1,15 @@
+{
+  "pages": [
+    "---Overview---",
+    "index",
+    "---Design---",
+    "schema-requirements",
+    "authoritative-schema-dag",
+    "sync-worker-lifecycle",
+    "...(implementation)"
+  ],
+  "root": true,
+  "title": "Sync",
+  "description": "The bi-directional sync system in Prisma IDB",
+  "icon": "CloudSync"
+}

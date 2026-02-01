@@ -1,0 +1,200 @@
+---
+title: "update"
+description: "Modify a single record"
+icon: Pencil
+---
+
+Update a record by a unique field (e.g., primary key).
+
+```typescript
+const user = await client.user.update({
+  where: { id: userId },
+  data: {
+    name: "Alice Updated",
+    email: "newemail@example.com",
+  },
+});
+```
+
+## Basic Update
+
+Modify one or more fields:
+
+```typescript
+const user = await client.user.update({
+  where: { id: "user-123" },
+  data: {
+    name: "New Name",
+    active: true,
+  },
+});
+```
+
+## Partial Updates
+
+Only include fields you want to change:
+
+```typescript
+// Update only name, leave other fields unchanged
+const user = await client.user.update({
+  where: { id: userId },
+  data: { name: "Alice" },
+});
+```
+
+## Nested Updates
+
+Update related records:
+
+```typescript
+const user = await client.user.update({
+  where: { id: userId },
+  data: {
+    name: "Alice",
+    // Update existing profile
+    profile: {
+      update: {
+        bio: "Updated bio",
+      },
+    },
+    // Create new todos
+    todos: {
+      create: [{ title: "New task 1" }, { title: "New task 2" }],
+    },
+  },
+});
+```
+
+## Delete Relations
+
+Remove related records:
+
+```typescript
+const user = await client.user.update({
+  where: { id: userId },
+  data: {
+    // Delete all todos for this user
+    todos: {
+      deleteMany: {},
+    },
+    // Or disconnect profile (if relation is optional)
+    profile: {
+      disconnect: true,
+    },
+  },
+});
+```
+
+## Selection
+
+Control returned fields:
+
+```typescript
+const user = await client.user.update({
+  where: { id: userId },
+  data: { name: "Alice" },
+  select: { id: true, name: true, email: true },
+});
+```
+
+## Relations
+
+Include related records in response:
+
+```typescript
+const user = await client.user.update({
+  where: { id: userId },
+  data: { name: "Alice" },
+  include: { profile: true },
+});
+```
+
+## With Options
+
+```typescript
+const user = await client.user.update(
+  {
+    where: { id: userId },
+    data: { name: "Alice" },
+  },
+  {
+    tx: transaction, // Use existing transaction
+    silent: false, // Emit events (default: false)
+    addToOutbox: true, // Queue for sync (default: true if sync is enabled)
+  }
+);
+```
+
+## Complex Updates
+
+Multiple nested operations:
+
+```typescript
+const board = await client.board.update({
+  where: { id: boardId },
+  data: {
+    name: "Updated Board",
+    // Update existing todos
+    todos: {
+      updateMany: {
+        where: { id: { in: ["todo-1", "todo-2"] } },
+        data: { priority: 5 },
+      },
+    },
+  },
+});
+```
+
+## Events
+
+Update operations emit `update` events (unless `silent: true`):
+
+```typescript
+client.user.subscribe(["update"], (event) => {
+  console.log("User updated:", event.detail);
+});
+
+await client.user.update({
+  where: { id: userId },
+  data: { name: "Alice" },
+});
+// Logs: "User updated: { id: '...', name: 'Alice' }"
+```
+
+## Error Handling
+
+Throws if record not found:
+
+```typescript
+try {
+  const user = await client.user.update({
+    where: { id: invalidId },
+    data: { name: "Alice" },
+  });
+} catch (error) {
+  console.error("Record not found");
+}
+```
+
+Use [`findUnique`](/docs/crud/find-unique) first to check existence:
+
+```typescript
+const user = await client.user.findUnique({
+  where: { id: userId },
+});
+
+if (!user) {
+  console.log("User not found");
+} else {
+  const updated = await client.user.update({
+    where: { id: userId },
+    data: { name: "Alice" },
+  });
+}
+```
+
+## See Also
+
+- [updateMany](/docs/crud/update-many) - Update multiple records
+- [upsert](/docs/crud/upsert) - Update or create
+- [Transactions](/docs/transactions) - Atomic updates

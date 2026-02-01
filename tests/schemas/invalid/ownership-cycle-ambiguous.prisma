@@ -16,6 +16,7 @@ generator idbClientOwnershipCycleAmbiguous {
   output     = "../../generated/prisma-idb"
   outboxSync = true
   rootModel  = "UserOwnershipCycleAmbiguous"
+  exclude    = ["Changelog"]
 }
 
 model UserOwnershipCycleAmbiguous {
@@ -39,4 +40,21 @@ model Todo {
   mirrorId String?
   mirror   Todo?   @relation("Mirror", fields: [mirrorId], references: [id])
   mirrors  Todo[]  @relation("Mirror")
+}
+
+model Changelog {
+  id              String          @id @default(uuid(7))
+  model           String
+  keyPath         Json
+  operation       ChangeOperation
+  scopeKey        String
+  outboxEventId   String  @unique
+
+  @@index([model, id])
+}
+
+enum ChangeOperation {
+  create
+  update
+  delete
 }

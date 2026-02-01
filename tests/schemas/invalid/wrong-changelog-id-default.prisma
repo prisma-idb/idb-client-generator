@@ -1,0 +1,44 @@
+datasource dbWrongChangelogIdDefault {
+  provider = "postgresql"
+}
+
+generator clientWrongChangelogIdDefault {
+  provider = "prisma-client"
+  output   = "../../generated/prisma"
+}
+
+generator idbClientWrongChangelogIdDefault {
+  provider   = "idb-client-generator"
+  output     = "../../generated/prisma-idb"
+  outboxSync = true
+  rootModel  = "UserWrongChangelogIdDefault"
+}
+
+model UserWrongChangelogIdDefault {
+  id        String @id @default(uuid())
+  name      String
+  todos     TodoWrongChangelogIdDefault[]
+}
+
+model TodoWrongChangelogIdDefault {
+  id     String                        @id @default(uuid())
+  title  String
+  userId String
+  user   UserWrongChangelogIdDefault   @relation(fields: [userId], references: [id])
+}
+
+model Changelog {
+  id            String          @id @default(uuid())
+  model         String
+  keyPath       Json
+  operation     ChangeOperation
+  scopeKey      String
+  outboxEventId String          @unique
+  @@index([model, id])
+}
+
+enum ChangeOperation {
+  create
+  update
+  delete
+}

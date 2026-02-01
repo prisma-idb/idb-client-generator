@@ -1,0 +1,56 @@
+---
+title: "Schema Requirements"
+description: "The specific Schema Requirements for enabling sync in Prisma IDB"
+icon: Database
+---
+
+## Sync Schema Requirements
+
+To utilize the Prisma IDB Sync Engine, your database schema must adhere to specific requirements to ensure proper synchronization functionality. Below are the key schema components necessary for enabling sync capabilities.
+
+### Required Changelog Table
+
+The changelog table is essential for tracking changes made on the server side. It must include the following columns:
+
+- `id`: A unique identifier for each change log entry (UUID v7, which is time-ordered for natural sorting)
+- `model`: The name of the model (table) that the change pertains to
+- `keyPath`: A JSON representation of the primary key(s) of the affected record
+- `operation`: An enumeration indicating the type of operation performed (`create`, `update`, or `delete`)
+- `scopeKey`: A string used to identify the scope of the change (e.g., user-specific changes)
+- `outboxEventId`: A unique identifier linking the change log entry to the corresponding outbox event
+
+<Callout title="Exclude from sync">
+  The `Changelog` model is automatically excluded from the sync process and should not be included in your schema's sync
+  configuration. While it can also be manually excluded via the `exclude` option, it's important to keep it out of sync
+  since it is only relevant for server-side change tracking and does not need to be synchronized with clients. Including
+  it in sync will cause errors.
+</Callout>
+
+```prisma
+model Changelog {
+  id            String          @id @default(uuid(7))
+  model         String
+  keyPath       Json
+  operation     ChangeOperation
+  scopeKey      String
+  outboxEventId String          @unique
+
+  @@index([model, id])
+}
+
+enum ChangeOperation {
+  create
+  update
+  delete
+}
+```
+
+### Relationship Requirements
+
+All models must establish a traceable ownership chain to the `rootModel`. This is enforced through foreign key relationships:
+
+- Every syncable model must have a direct or indirect path back to the `rootModel`
+- Ownership fields (e.g., `ownerId`, `userId`) ensure data is scoped correctly during sync
+- No cyclic dependencies are allowed; relationships must form a directed acyclic graph (DAG)
+
+For a detailed explanation of how this DAG works and how to structure your schema, see the [Authoritative Schema DAG](./authoritative-schema-dag) guide.

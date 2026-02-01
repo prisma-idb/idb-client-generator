@@ -1,0 +1,359 @@
+---
+title: "Transactions"
+description: "Execute multiple operations atomically with transactions"
+icon: Lock
+---
+
+Transactions ensure multiple operations succeed or fail together, maintaining data consistency even in complex multi-step operations.
+
+## The Basics
+
+A transaction groups operations on one or more IndexedDB stores. If any operation fails, the entire transaction is rolled back.
+
+<Callout type="info">
+  Most operations automatically create a transaction if you don't pass one. Explicitly creating transactions is useful
+  when you need to group multiple operations together atomically.
+</Callout>
+
+```typescript
+// Create a transaction for 2 stores in read-write mode
+const tx = client._db.transaction(["User", "Todo"], "readwrite");
+
+try {
+  // Both operations use the same transaction
+  const user = await client.user.create({ data: { name: "Alice" } }, { tx });
+
+  await client.todo.create({ data: { title: "Task 1", userId: user.id } }, { tx });
+
+  // Wait for transaction to complete
+  await tx.done;
+} catch (error) {
+  // Automatic rollback on error
+  tx.abort();
+  throw error;
+}
+```
+
+<Callout type="info">
+  Always pass store names as arrays, even for single stores. Use `(["User"], "readwrite")` instead of `("User",
+  "readwrite")` for better compatibility with the generated client.
+</Callout>
+
+## Transaction Modes
+
+### Read-Write
+
+Modify data and read it back:
+
+```typescript
+const tx = client._db.transaction(["User", "Profile"], "readwrite");
+
+const user = await client.user.update({ where: { id: 1 }, data: { name: "Alice" } }, { tx });
+
+const profile = await client.profile.findUnique({ where: { userId: user.id } }, { tx });
+
+await tx.done;
+```
+
+### Read-Only
+
+Query multiple stores atomically. Use for complex read operations:
+
+```typescript
+const tx = client._db.transaction(["User", "Todo"], "readonly");
+
+const users = await client.user.findMany({}, { tx });
+const todos = await client.todo.findMany({}, { tx });
+
+await tx.done;
+```
+
+## Composing Transactions
+
+Build reusable transactional operations:
+
+```typescript
+import * as IDBUtils from "path/to/client/idb-utils.ts";
+
+async function transferTodo(
+  fromUserId: string,
+  toUserId: string,
+  todoId: string,
+  tx?: IDBUtils.ReadwriteTransactionType
+) {
+  const txToUse = tx || client._db.transaction(["User", "Todo"], "readwrite");
+
+  try {
+    const todo = await client.todo.findUnique({ where: { id: todoId } }, { tx: txToUse });
+
+    if (!todo || todo.userId !== fromUserId) {
+      throw new Error("Todo not found or doesn't belong to user");
+    }
+
+    await client.todo.update({ where: { id: todoId }, data: { userId: toUserId } }, { tx: txToUse });
+
+    if (!tx) {
+      await txToUse.done;
+    }
+  } catch (error) {
+    if (!tx) {
+      txToUse.abort();
+    }
+    throw error;
+  }
+}
+
+// Use standalone
+await transferTodo(user1Id, user2Id, todoId);
+
+// Or nest within larger transaction
+const tx = client._db.transaction(["User", "Todo", "AuditLog"], "readwrite");
+await transferTodo(user1Id, user2Id, todoId, tx);
+await client.auditLog.create({ data: { action: "transfer" } }, { tx });
+await tx.done;
+```
+
+## Atomicity Guarantees
+
+### Success
+
+All operations complete and persist:
+
+```typescript
+const tx = client._db.transaction(["User", "Todo"], "readwrite");
+
+// Both succeed
+const user = await client.user.create({ data: { name: "Alice" } }, { tx });
+const todo = await client.todo.create({ data: { title: "Task 1", userId: user.id } }, { tx });
+
+await tx.done; // ✅ Both persisted
+```
+
+### Failure
+
+If any operation fails, everything is rolled back:
+
+```typescript
+const tx = client._db.transaction(["User", "Todo"], "readwrite");
+
+try {
+  const user = await client.user.create({ data: { name: "Alice" } }, { tx });
+
+  // This throws because user 999 doesn't exist
+  await client.todo.create(
+    {
+      data: {
+        title: "Task 1",
+        userId: "999", // Invalid FK
+      },
+    },
+    { tx }
+  );
+
+  await tx.done;
+} catch (error) {
+  tx.abort(); // ❌ User creation was also rolled back
+}
+
+// User was NOT created
+const users = await client.user.findMany();
+console.log(users); // []
+```
+
+## Isolation
+
+Transactions provide isolation from other operations. Reads are queued and will observe committed changes:
+
+```typescript
+// Transaction 1
+const tx1 = client._db.transaction(["User"], "readwrite");
+const user = await client.user.create({ data: { name: "Alice" } }, { tx: tx1 });
+
+// Concurrent read is queued and waits for tx1 to complete
+const userDuring = await client.user.findUnique({ where: { id: user.id } });
+// This waits for tx1 to commit, then returns the created user
+
+// Commit tx1
+await tx1.done;
+
+// Now visible with the committed data
+const userAfter = await client.user.findUnique({ where: { id: user.id } });
+console.log(userAfter); // { id, name: "Alice" }
+```
+
+## Nested Operations with Transactions
+
+Pass transactions to nested operations:
+
+```typescript
+const tx = client._db.transaction(["User", "Profile", "Settings"], "readwrite");
+
+try {
+  const user = await client.user.create(
+    {
+      data: {
+        name: "Alice",
+        profile: {
+          create: { bio: "New user" },
+        },
+      },
+    },
+    { tx }
+  );
+
+  await client.settings.create(
+    {
+      data: {
+        userId: user.id,
+        theme: "dark",
+      },
+    },
+    { tx }
+  );
+
+  await tx.done;
+} catch (error) {
+  tx.abort(); // All three creations rolled back
+  throw error;
+}
+```
+
+## When to Use Transactions
+
+Transactions are most useful when you need to:
+
+- **Group multiple operations atomically** - Ensure all succeed or all fail together
+- **Maintain consistency across models** - Update related records in one atomic step
+- **Prevent race conditions** - Isolate operations from concurrent changes
+
+For simple single-model operations, you don't need to create a transaction—the API handles it automatically.
+
+```typescript
+// ✅ Good - operation automatically creates transaction
+await client.user.create({ data: { name: "Alice" } });
+
+// ✅ Good - explicit transaction for atomicity
+const tx = client._db.transaction(["User", "Todo"], "readwrite");
+await client.user.create({ data: { name: "Alice" } }, { tx });
+await client.todo.create({ data: { title: "Task", userId: userId } }, { tx });
+await tx.done;
+```
+
+### Scope Minimally
+
+When creating explicit transactions, only include stores you need:
+
+```typescript
+// ✅ Good - only the stores we use
+const tx = client._db.transaction(["User", "Todo"], "readwrite");
+
+// ❌ Avoid - unnecessary stores
+const tx = client._db.transaction(["User", "Todo", "Profile", "Settings", "AuditLog"], "readwrite");
+```
+
+## Error Handling
+
+Always abort on error if not letting it propagate:
+
+```typescript
+async function safeTransfer(fromId: string, toId: string, amount: number) {
+  const tx = client._db.transaction(["Account"], "readwrite");
+
+  try {
+    const from = await client.account.findUnique({ where: { id: fromId } }, { tx });
+
+    if (!from || from.balance < amount) {
+      throw new Error("Insufficient funds");
+    }
+
+    await client.account.update(
+      {
+        where: { id: fromId },
+        data: { balance: from.balance - amount },
+      },
+      { tx }
+    );
+
+    const to = await client.account.findUnique({ where: { id: toId } }, { tx });
+
+    await client.account.update(
+      {
+        where: { id: toId },
+        data: { balance: (to?.balance ?? 0) + amount },
+      },
+      { tx }
+    );
+
+    await tx.done;
+    return true;
+  } catch (error) {
+    tx.abort();
+    console.error("Transfer failed:", error);
+    return false;
+  }
+}
+```
+
+## With Sync
+
+When sync is enabled and you want to group multiple queries atomically, you should include the `OutboxEvent` and `VersionMeta` stores in your transaction:
+
+```typescript
+const tx = client._db.transaction(["User", "Todo", "OutboxEvent", "VersionMeta"], "readwrite");
+
+try {
+  await client.user.update({ where: { id: 1 }, data: { name: "Alice" } }, { tx });
+
+  // Outbox entry and version metadata are added in same transaction
+  await tx.done;
+} catch (error) {
+  tx.abort();
+  throw error;
+}
+```
+
+<Callout type="info">
+  Single operations automatically include `OutboxEvent` and `VersionMeta` internally if you don't pass a transaction, so
+  you only need to explicitly include them when using explicit transactions.
+</Callout>
+
+## ⚠️ Important: Async Operations in Transactions
+
+IndexedDB transactions will **immediately close** if you await any async operation that isn't a database query. Once closed, any further database operations fail.
+
+```typescript
+// ❌ WRONG - Transaction closes while awaiting the API call
+const tx = client._db.transaction(["User", "Todo"], "readwrite");
+const user = await client.user.findUnique({ where: { id: 1 } }, { tx });
+const userData = await fetch(`/api/user/${user.id}`).then((r) => r.json()); // ❌ Tx closed!
+await client.user.update({ where: { id: 1 }, data: userData }, { tx }); // ❌ Fails
+```
+
+**Best practices:**
+
+1. **Use nested queries and includes** to fetch related data in one operation:
+
+```typescript
+// ✅ CORRECT - All data fetched in one query
+const user = await client.user.findUnique({
+  where: { id: 1 },
+  include: { profile: true, todos: true },
+});
+```
+
+2. **Do async work before or after transactions**:
+
+```typescript
+// ✅ CORRECT
+const externalData = await fetch("/api/data").then((r) => r.json());
+
+const tx = client._db.transaction(["User"], "readwrite");
+await client.user.update(
+  {
+    where: { id: 1 },
+    data: externalData,
+  },
+  { tx }
+);
+await tx.done;
+```

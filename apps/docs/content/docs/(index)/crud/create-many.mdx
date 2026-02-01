@@ -1,0 +1,96 @@
+---
+title: "createMany"
+description: "Insert multiple records efficiently"
+icon: CircleFadingPlus
+---
+
+Insert multiple records in a single operation.
+
+```typescript
+const result = await client.user.createMany({
+  data: [
+    { name: "Alice", email: "alice@example.com" },
+    { name: "Bob", email: "bob@example.com" },
+    { name: "Charlie", email: "charlie@example.com" },
+  ],
+});
+
+console.log(`Created ${result.count} users`);
+```
+
+## Return Type
+
+`createMany` returns a count object:
+
+```typescript
+interface CreateManyResult {
+  count: number; // Number of records created
+}
+```
+
+If you need the actual created records, use [`createManyAndReturn`](/docs/crud/create-many-and-return) instead.
+
+## With Options
+
+```typescript
+const result = await client.user.createMany(
+  {
+    data: [
+      { name: "Alice", email: "alice@example.com" },
+      { name: "Bob", email: "bob@example.com" },
+    ],
+    skipDuplicates: true, // Skip records that would violate unique constraints
+  },
+  {
+    tx: transaction, // Use existing transaction
+    silent: false, // Emit events for each (default: false)
+    addToOutbox: true, // Queue for sync (default: true if sync is enabled)
+  }
+);
+```
+
+## Batch Processing
+
+Process large datasets in batches:
+
+```typescript
+const items = [
+  /* 10000 items */
+];
+const batchSize = 100;
+
+for (let i = 0; i < items.length; i += batchSize) {
+  const batch = items.slice(i, i + batchSize);
+
+  await client.item.createMany({
+    data: batch,
+  });
+}
+```
+
+## Events
+
+Multiple create events are emitted (unless `silent: true`):
+
+```typescript
+let createCount = 0;
+
+client.user.subscribe(["create"], () => {
+  createCount++;
+});
+
+await client.user.createMany({
+  data: [
+    { name: "Alice", email: "alice@example.com" },
+    { name: "Bob", email: "bob@example.com" },
+  ],
+});
+
+console.log(`${createCount} create events emitted`); // 2
+```
+
+## See Also
+
+- [create](/docs/crud/create) - Create a single record
+- [createManyAndReturn](/docs/crud/create-many-and-return) - Batch with results
+- [Transactions](/docs/transactions) - Atomic bulk operations

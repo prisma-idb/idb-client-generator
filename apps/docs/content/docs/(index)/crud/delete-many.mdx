@@ -1,0 +1,267 @@
+---
+title: "deleteMany"
+description: "Delete multiple records at once"
+icon: Trash2
+---
+
+Remove multiple records that match a filter.
+
+```typescript
+const result = await client.user.deleteMany({
+  where: { archived: true },
+});
+
+console.log(`Deleted ${result.count} records`);
+```
+
+## Basic Delete
+
+Remove records matching a filter:
+
+```typescript
+// Delete all inactive users
+const result = await client.user.deleteMany({
+  where: { active: false },
+});
+
+console.log(`Deleted ${result.count} users`);
+```
+
+## Complex Filters
+
+Multiple conditions:
+
+```typescript
+// Delete archived users inactive for 6 months
+const result = await client.user.deleteMany({
+  where: {
+    archived: true,
+    lastLogin: {
+      lt: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000),
+    },
+  },
+});
+```
+
+## Return Value
+
+Returns count of deleted records:
+
+```typescript
+const result = await client.user.deleteMany({
+  where: { active: false },
+});
+
+console.log(result.count); // Number of deleted records
+```
+
+## Delete All
+
+Remove all records (use with caution):
+
+```typescript
+// Delete everything in a table
+const result = await client.user.deleteMany({
+  where: {}, // No filter = all records
+});
+
+console.log(`Deleted all ${result.count} users`);
+```
+
+## With Options
+
+```typescript
+const result = await client.user.deleteMany(
+  {
+    where: { archived: true },
+  },
+  {
+    tx: transaction, // Use existing transaction
+    silent: false, // Emit events (default: false)
+    addToOutbox: true, // Queue for sync (default: true if sync is enabled)
+  }
+);
+```
+
+## Cascading Deletes
+
+Dependent records are handled per schema definition:
+
+```typescript
+// If Todo has @relation with onDelete: Cascade
+const result = await client.user.deleteMany({
+  where: { role: "test" },
+});
+// All associated todos are automatically deleted
+```
+
+## Safe Delete Pattern
+
+Verify count before deleting:
+
+```typescript
+// Preview what will be deleted
+const preview = await client.user.findMany({
+  where: { archived: true },
+});
+
+console.log(`Will delete ${preview.length} users`);
+
+if (preview.length > 0 && confirm("Delete?")) {
+  const result = await client.user.deleteMany({
+    where: { archived: true },
+  });
+  console.log(`Deleted ${result.count} records`);
+}
+```
+
+## Batch Delete
+
+Delete in batches to optimize performance:
+
+```typescript
+const batch = 100;
+let deleted = 0;
+
+for (let i = 0; i < 10; i++) {
+  // Find ids to delete (limit batch size)
+  const records = await client.user.findMany({
+    where: { archived: true },
+    select: { id: true },
+    take: batch,
+  });
+
+  if (records.length === 0) break;
+
+  const result = await client.user.deleteMany({
+    where: { id: { in: records.map((r) => r.id) } },
+  });
+
+  deleted += result.count;
+}
+
+console.log(`Deleted ${deleted} total records`);
+```
+
+## Delete Related Data
+
+Remove dependent records first (if not cascaded):
+
+```typescript
+// Delete all todos first (if schema doesn't cascade)
+const todoResult = await client.todo.deleteMany({
+  where: { userId: { in: userIds } },
+});
+
+// Then delete users
+const userResult = await client.user.deleteMany({
+  where: { id: { in: userIds } },
+});
+
+console.log(`Deleted ${todoResult.count} todos and ${userResult.count} users`);
+```
+
+Or use a transaction:
+
+```typescript
+const result = await client.$transaction(async (tx) => {
+  const todoCount = await tx.todo.deleteMany({
+    where: { userId: { in: userIds } },
+  });
+
+  const userCount = await tx.user.deleteMany({
+    where: { id: { in: userIds } },
+  });
+
+  return { todos: todoCount.count, users: userCount.count };
+});
+```
+
+## Events
+
+deleteMany emits `delete` events for each record (unless `silent: true`):
+
+```typescript
+client.user.subscribe(["delete"], (event) => {
+  console.log("User deleted:", event.detail.id);
+});
+
+await client.user.deleteMany({
+  where: { archived: true },
+});
+// Logs event for each deleted user
+```
+
+## Soft Delete Pattern
+
+Instead of permanent deletion, mark records:
+
+```typescript
+// Mark as deleted instead of removing
+const result = await client.user.updateMany({
+  where: { archived: true },
+  data: { deletedAt: new Date() },
+});
+
+// Query only active records
+const activeUsers = await client.user.findMany({
+  where: { deletedAt: null },
+});
+
+// Later, permanently delete old soft-deleted records
+const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+const deleted = await client.user.deleteMany({
+  where: {
+    deletedAt: { lt: thirtyDaysAgo },
+  },
+});
+```
+
+## Common Use Cases
+
+**Clean up archived data:**
+
+```typescript
+const result = await client.user.deleteMany({
+  where: { archived: true },
+});
+console.log(`Deleted ${result.count} archived users`);
+```
+
+**Remove test data:**
+
+```typescript
+const result = await client.user.deleteMany({
+  where: { email: { endsWith: "@test.example.com" } },
+});
+```
+
+**Cleanup old sessions:**
+
+```typescript
+const expiredSessions = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+const result = await client.session.deleteMany({
+  where: { expiresAt: { lt: expiredSessions } },
+});
+```
+
+**Delete inactive records:**
+
+```typescript
+const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+
+const result = await client.user.deleteMany({
+  where: {
+    active: false,
+    lastLogin: { lt: ninetyDaysAgo },
+  },
+});
+```
+
+## See Also
+
+- [delete](/docs/crud/delete) - Delete a single record
+- [update](/docs/crud/update) - Use soft delete pattern
+- [Transactions](/docs/transactions) - Atomic multi-record operations

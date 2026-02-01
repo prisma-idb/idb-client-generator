@@ -1,0 +1,290 @@
+---
+title: "upsert"
+description: "Update a record if it exists, otherwise create it"
+icon: ArrowUpDown
+---
+
+Create a record if it doesn't exist, update it if it does.
+
+```typescript
+const user = await client.user.upsert({
+  where: { email: "user@example.com" },
+  update: { lastLogin: new Date() },
+  create: { email: "user@example.com", name: "New User" },
+});
+```
+
+## Basic Upsert
+
+Create or update based on a unique field:
+
+```typescript
+const user = await client.user.upsert({
+  where: { email: "alice@example.com" },
+  update: { name: "Alice Updated", lastLogin: new Date() },
+  create: { email: "alice@example.com", name: "Alice" },
+});
+```
+
+## Composite Unique Keys
+
+Use composite keys:
+
+```typescript
+const session = await client.session.upsert({
+  where: {
+    userId_deviceId: { userId, deviceId },
+  },
+  update: { lastActive: new Date() },
+  create: {
+    userId,
+    deviceId,
+    lastActive: new Date(),
+  },
+});
+```
+
+## Partial Updates
+
+Update only some fields if exists:
+
+```typescript
+const user = await client.user.upsert({
+  where: { id: userId },
+  // Only update timestamp
+  update: { lastSeen: new Date() },
+  // Full data for create
+  create: {
+    id: userId,
+    email: "user@example.com",
+    name: "User",
+    lastSeen: new Date(),
+  },
+});
+```
+
+## Nested Create
+
+Include related records in create:
+
+```typescript
+const user = await client.user.upsert({
+  where: { email: "alice@example.com" },
+  update: { name: "Alice" },
+  create: {
+    email: "alice@example.com",
+    name: "Alice",
+    // Create related profile
+    profile: {
+      create: {
+        bio: "New user",
+      },
+    },
+    // Create todos
+    todos: {
+      create: [{ title: "Welcome task" }],
+    },
+  },
+});
+```
+
+## Nested Updates
+
+Modify related records on update:
+
+```typescript
+const user = await client.user.upsert({
+  where: { email: "alice@example.com" },
+  update: {
+    name: "Alice",
+    // Update profile if exists
+    profile: {
+      update: { lastUpdated: new Date() },
+    },
+  },
+  create: {
+    email: "alice@example.com",
+    name: "Alice",
+  },
+});
+```
+
+## Selection
+
+Control returned fields:
+
+```typescript
+const user = await client.user.upsert({
+  where: { email: "alice@example.com" },
+  update: { name: "Alice" },
+  create: { email: "alice@example.com", name: "Alice" },
+  select: { id: true, email: true, name: true },
+});
+```
+
+## Relations
+
+Include related records:
+
+```typescript
+const user = await client.user.upsert({
+  where: { email: "alice@example.com" },
+  update: { name: "Alice" },
+  create: { email: "alice@example.com", name: "Alice" },
+  include: { profile: true, todos: true },
+});
+```
+
+## With Options
+
+```typescript
+const user = await client.user.upsert(
+  {
+    where: { email: "alice@example.com" },
+    update: { lastLogin: new Date() },
+    create: { email: "alice@example.com", name: "Alice" },
+  },
+  {
+    tx: transaction, // Use existing transaction
+    silent: false, // Emit events (default: false)
+    addToOutbox: true, // Queue for sync (default: true if sync is enabled)
+  }
+);
+```
+
+## Complex Scenarios
+
+**Sync external data:**
+
+```typescript
+// Upsert based on external ID
+const user = await client.user.upsert({
+  where: { externalId: apiUserId },
+  update: {
+    name: apiUser.name,
+    email: apiUser.email,
+    lastSynced: new Date(),
+  },
+  create: {
+    externalId: apiUserId,
+    name: apiUser.name,
+    email: apiUser.email,
+    lastSynced: new Date(),
+  },
+});
+```
+
+**Initialize with defaults:**
+
+```typescript
+const settings = await client.userSettings.upsert({
+  where: { userId },
+  update: { lastModified: new Date() },
+  create: {
+    userId,
+    theme: "light", // Default
+    notifications: true, // Default
+    language: "en", // Default
+  },
+});
+```
+
+**Atomic counter increment:**
+
+```typescript
+const updated = await client.stats.upsert({
+  where: { page: "/home" },
+  update: { views: { increment: 1 } },
+  create: { page: "/home", views: 1 },
+});
+```
+
+## Events
+
+Upsert emits either `create` or `update` event (unless `silent: true`):
+
+```typescript
+client.user.subscribe(["create", "update"], (event) => {
+  if (event.type === "create") {
+    console.log("User created:", event.detail.id);
+  } else {
+    console.log("User updated:", event.detail.id);
+  }
+});
+
+await client.user.upsert({
+  where: { email: "alice@example.com" },
+  update: { name: "Alice" },
+  create: { email: "alice@example.com", name: "Alice" },
+});
+// Logs either "User created" or "User updated"
+```
+
+## Common Use Cases
+
+**External data sync:**
+
+```typescript
+const user = await client.user.upsert({
+  where: { oauthId: provider_userId },
+  update: { lastLogin: new Date() },
+  create: {
+    oauthId: provider_userId,
+    email: providerUser.email,
+    name: providerUser.name,
+  },
+});
+```
+
+**Initialize user preferences:**
+
+```typescript
+const prefs = await client.preferences.upsert({
+  where: { userId },
+  update: {},
+  create: {
+    userId,
+    theme: "auto",
+    emailNotifications: true,
+  },
+});
+```
+
+**Session management:**
+
+```typescript
+const session = await client.session.upsert({
+  where: { userId_deviceId: { userId, deviceId } },
+  update: { lastActive: new Date(), expiresAt: tomorrow },
+  create: {
+    userId,
+    deviceId,
+    token: generateToken(),
+    expiresAt: tomorrow,
+  },
+});
+```
+
+**Merge records from multiple sources:**
+
+```typescript
+const contact = await client.contact.upsert({
+  where: { externalId: syncId },
+  update: {
+    name: mergeNames(existing, incoming),
+    email: incoming.email ?? existing.email,
+    lastSynced: new Date(),
+  },
+  create: {
+    externalId: syncId,
+    name: incoming.name,
+    email: incoming.email,
+  },
+});
+```
+
+## See Also
+
+- [create](/docs/crud/create) - Create a new record
+- [update](/docs/crud/update) - Update an existing record
+- [Transactions](/docs/transactions) - Atomic upsert operations

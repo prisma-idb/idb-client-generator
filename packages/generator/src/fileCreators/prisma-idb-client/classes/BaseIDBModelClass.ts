@@ -24,30 +24,22 @@ export function addBaseModelClass(writer: CodeBlockWriter, outboxSync: boolean =
 function addEventEmitters(writer: CodeBlockWriter, outboxSync: boolean) {
   writer
     .writeLine(
-      `subscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: (e: CustomEventInit<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>) => void)`
+      `subscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: (e: CustomEvent<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>) => void): () => void`
     )
     .block(() => {
-      writer
-        .writeLine(`if (Array.isArray(event))`)
-        .block(() => {
-          writer.writeLine(`event.forEach((event) => this.eventEmitter.addEventListener(event, callback));`);
-        })
-        .writeLine(`else`)
-        .block(() => {
-          writer.writeLine(`this.eventEmitter.addEventListener(event, callback);`);
+      writer.write(`if (Array.isArray(event))`).block(() => {
+        writer.writeLine(`event.forEach((evt) => this.eventEmitter.addEventListener(evt, callback as EventListener));`);
+        writer.write(`return () =>`).block(() => {
+          writer.writeLine(
+            `event.forEach((evt) => this.eventEmitter.removeEventListener(evt, callback as EventListener));`
+          );
         });
-    });
-
-  writer
-    .writeLine(
-      `unsubscribe(event: "create" | "update" | "delete" | ("create" | "update" | "delete")[], callback: (e: CustomEventInit<{ keyPath: PrismaIDBSchema[T]["key"]; oldKeyPath?: PrismaIDBSchema[T]["key"] }>) => void)`
-    )
-    .block(() => {
-      writer.writeLine(`if (Array.isArray(event))`).block(() => {
-        writer.writeLine(`event.forEach((event) => this.eventEmitter.removeEventListener(event, callback));`);
-        writer.writeLine(`return;`);
       });
-      writer.writeLine(`this.eventEmitter.removeEventListener(event, callback);`);
+
+      writer.writeLine(`this.eventEmitter.addEventListener(event, callback as EventListener);`);
+      writer.write(`return () =>`).block(() => {
+        writer.writeLine(`this.eventEmitter.removeEventListener(event, callback as EventListener);`);
+      });
     });
 
   writer

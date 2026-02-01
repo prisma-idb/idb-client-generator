@@ -1,0 +1,127 @@
+---
+title: "Introduction to CRUD"
+description: "Complete guide to creating, reading, updating, and deleting data"
+icon: Info
+---
+
+The Prisma IDB client provides a comprehensive CRUD API that mirrors Prisma Client, making it easy to work with IndexedDB.
+
+## Overview
+
+All CRUD operations are **asynchronous** and return typed results matching your Prisma schema. They support:
+
+- **Filtering**: Query with `where` clauses
+- **Sorting**: Order results with `orderBy`
+- **Pagination**: Use `skip` and `take`
+- **Selection**: Include/exclude fields with `select` and `include`
+- **Transactions**: Execute atomically across multiple stores
+- **Events**: Mutations emit events for reactive updates
+- **Outbox**: Changes queue for server sync (when enabled)
+
+## Operations
+
+### Create
+
+- [create](/docs/crud/create) - Insert a single record
+- [createMany](/docs/crud/create-many) - Insert multiple records
+- [createManyAndReturn](/docs/crud/create-many-and-return) - Batch insert with results
+
+### Read
+
+- [findMany](/docs/crud/find-many) - Query multiple records
+- [findFirst](/docs/crud/find-first) - Get first matching record
+- [findFirstOrThrow](/docs/crud/find-first-or-throw) - First with error handling
+- [findUnique](/docs/crud/find-unique) - Get by unique identifier
+- [findUniqueOrThrow](/docs/crud/find-unique-or-throw) - Unique with error handling
+- [count](/docs/crud/count) - Count matching records
+- [aggregate](/docs/crud/aggregate) - Min, max, avg, sum across records
+
+### Update
+
+- [update](/docs/crud/update) - Modify a single record
+- [updateMany](/docs/crud/update-many) - Modify multiple records
+
+### Delete
+
+- [delete](/docs/crud/delete) - Remove a single record
+- [deleteMany](/docs/crud/delete-many) - Remove multiple records
+
+### Upsert
+
+- [upsert](/docs/crud/upsert) - Insert or update
+
+## Common Options
+
+All mutation operations (`create`, `update`, `delete`, `upsert`) accept options:
+
+```typescript
+{
+  tx?: IDBPTransaction,    // Use existing transaction
+  silent?: boolean,        // Don't emit events (default: false)
+  addToOutbox?: boolean,   // Queue for sync (default: true if sync enabled)
+}
+```
+
+All read operations accept:
+
+```typescript
+{
+  tx?: IDBPTransaction,    // Use existing transaction (read-only)
+}
+```
+
+## Examples
+
+### Simple Create and Read
+
+```typescript
+// Create
+const user = await client.user.create({
+  data: { name: "Alice", email: "alice@example.com" },
+});
+
+// Read
+const users = await client.user.findMany();
+const alice = await client.user.findUnique({ where: { email: "alice@example.com" } });
+```
+
+### With Relations
+
+```typescript
+const user = await client.user.create({
+  data: {
+    name: "Alice",
+    profile: { create: { bio: "Hi!" } },
+  },
+  include: { profile: true },
+});
+```
+
+### Filtering and Pagination
+
+```typescript
+const todos = await client.todo.findMany({
+  where: { done: false, priority: { gt: 5 } },
+  orderBy: { createdAt: "desc" },
+  skip: 0,
+  take: 10,
+});
+```
+
+### Aggregations
+
+```typescript
+const stats = await client.todo.aggregate({
+  _count: true,
+  _avg: { priority: true },
+  _max: { priority: true },
+});
+
+console.log(`${stats._count} todos, avg priority: ${stats._avg.priority}`);
+```
+
+## See Also
+
+- [Events & Subscriptions](/docs/events) - React to mutations
+- [Transactions](/docs/transactions) - Atomic multi-operation
+- [Generated Output](/docs/generated-output) - Understanding the client

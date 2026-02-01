@@ -1,6 +1,6 @@
 import { z, type ZodTypeAny } from "zod";
 import type { OutboxEventRecord } from "../client/idb-interface";
-import type { ChangeLog } from "../../generated/prisma/client";
+import type { Changelog } from "../../generated/prisma/client";
 import type { PrismaClient } from "../../generated/prisma/client";
 import { validators, keyPathValidators } from "../validators";
 
@@ -17,7 +17,7 @@ type EventsFor<V extends Partial<Record<string, ZodTypeAny>>> = {
 }[keyof V & string];
 
 export type LogWithRecord<V extends Partial<Record<string, ZodTypeAny>>> = {
-  [M in keyof V & string]: Omit<ChangeLog, "model" | "keyPath"> & {
+  [M in keyof V & string]: Omit<Changelog, "model" | "keyPath"> & {
     model: M;
     keyPath: Array<string | number>;
     record?: z.infer<V[M]> | null;
@@ -211,7 +211,7 @@ export async function pullAndMaterializeLogs({
   scopeKey: string;
   lastChangelogId?: string;
 }): Promise<Array<LogWithRecord<typeof validators>>> {
-  const logs = await prisma.changeLog.findMany({
+  const logs = await prisma.changelog.findMany({
     where: {
       scopeKey,
       id: { gt: lastChangelogId },
@@ -301,7 +301,7 @@ async function syncBoard(
   switch (operation) {
     case "create": {
       const result = await prisma.$transaction(async (tx) => {
-        const existingLog = await tx.changeLog.findUnique({
+        const existingLog = await tx.changelog.findUnique({
           where: { outboxEventId: event.id },
         });
         if (existingLog) {
@@ -320,7 +320,7 @@ async function syncBoard(
           );
         }
 
-        const newLog = await tx.changeLog.create({
+        const newLog = await tx.changelog.create({
           data: {
             model: "Board",
             keyPath: validKeyPath,
@@ -337,7 +337,7 @@ async function syncBoard(
 
     case "update": {
       const result = await prisma.$transaction(async (tx) => {
-        const existingLog = await tx.changeLog.findUnique({
+        const existingLog = await tx.changelog.findUnique({
           where: { outboxEventId: event.id },
         });
         if (existingLog) {
@@ -367,7 +367,7 @@ async function syncBoard(
           }
         }
 
-        const newLog = await tx.changeLog.create({
+        const newLog = await tx.changelog.create({
           data: {
             model: "Board",
             keyPath: validKeyPath,
@@ -388,7 +388,7 @@ async function syncBoard(
 
     case "delete": {
       const result = await prisma.$transaction(async (tx) => {
-        const existingLog = await tx.changeLog.findUnique({
+        const existingLog = await tx.changelog.findUnique({
           where: { outboxEventId: event.id },
         });
         if (existingLog) {
@@ -409,7 +409,7 @@ async function syncBoard(
           }
         }
 
-        const newLog = await tx.changeLog.create({
+        const newLog = await tx.changelog.create({
           data: {
             model: "Board",
             keyPath: validKeyPath,
@@ -449,7 +449,7 @@ async function syncTodo(
   switch (operation) {
     case "create": {
       const result = await prisma.$transaction(async (tx) => {
-        const existingLog = await tx.changeLog.findUnique({
+        const existingLog = await tx.changelog.findUnique({
           where: { outboxEventId: event.id },
         });
         if (existingLog) {
@@ -468,7 +468,7 @@ async function syncTodo(
           );
         }
 
-        const newLog = await tx.changeLog.create({
+        const newLog = await tx.changelog.create({
           data: {
             model: "Todo",
             keyPath: validKeyPath,
@@ -485,7 +485,7 @@ async function syncTodo(
 
     case "update": {
       const result = await prisma.$transaction(async (tx) => {
-        const existingLog = await tx.changeLog.findUnique({
+        const existingLog = await tx.changelog.findUnique({
           where: { outboxEventId: event.id },
         });
         if (existingLog) {
@@ -525,7 +525,7 @@ async function syncTodo(
           }
         }
 
-        const newLog = await tx.changeLog.create({
+        const newLog = await tx.changelog.create({
           data: {
             model: "Todo",
             keyPath: validKeyPath,
@@ -546,7 +546,7 @@ async function syncTodo(
 
     case "delete": {
       const result = await prisma.$transaction(async (tx) => {
-        const existingLog = await tx.changeLog.findUnique({
+        const existingLog = await tx.changelog.findUnique({
           where: { outboxEventId: event.id },
         });
         if (existingLog) {
@@ -567,7 +567,7 @@ async function syncTodo(
           }
         }
 
-        const newLog = await tx.changeLog.create({
+        const newLog = await tx.changelog.create({
           data: {
             model: "Todo",
             keyPath: validKeyPath,
@@ -607,7 +607,7 @@ async function syncUser(
   switch (operation) {
     case "create": {
       const result = await prisma.$transaction(async (tx) => {
-        const existingLog = await tx.changeLog.findUnique({
+        const existingLog = await tx.changelog.findUnique({
           where: { outboxEventId: event.id },
         });
         if (existingLog) {
@@ -618,7 +618,7 @@ async function syncUser(
           throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: root model pk must match authenticated scope`);
         }
 
-        const newLog = await tx.changeLog.create({
+        const newLog = await tx.changelog.create({
           data: {
             model: "User",
             keyPath: validKeyPath,
@@ -635,7 +635,7 @@ async function syncUser(
 
     case "update": {
       const result = await prisma.$transaction(async (tx) => {
-        const existingLog = await tx.changeLog.findUnique({
+        const existingLog = await tx.changelog.findUnique({
           where: { outboxEventId: event.id },
         });
         if (existingLog) {
@@ -647,7 +647,7 @@ async function syncUser(
           throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: User pk does not match authenticated scope`);
         }
 
-        const newLog = await tx.changeLog.create({
+        const newLog = await tx.changelog.create({
           data: {
             model: "User",
             keyPath: validKeyPath,
@@ -668,7 +668,7 @@ async function syncUser(
 
     case "delete": {
       const result = await prisma.$transaction(async (tx) => {
-        const existingLog = await tx.changeLog.findUnique({
+        const existingLog = await tx.changelog.findUnique({
           where: { outboxEventId: event.id },
         });
         if (existingLog) {
@@ -679,7 +679,7 @@ async function syncUser(
           throw new PermanentSyncError("SCOPE_VIOLATION", `Unauthorized: User pk does not match authenticated scope`);
         }
 
-        const newLog = await tx.changeLog.create({
+        const newLog = await tx.changelog.create({
           data: {
             model: "User",
             keyPath: validKeyPath,

@@ -3,7 +3,7 @@
   import { Label } from "$lib/components/ui/label";
   import Textarea from "$lib/components/ui/textarea/textarea.svelte";
   import { cn } from "$lib/utils";
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import { toast } from "svelte-sonner";
   import { PrismaIDBClient } from "$lib/prisma-idb/client/prisma-idb-client";
 
@@ -13,11 +13,17 @@
   let eventOutput = $state("");
   let executing = $state(false);
 
+  let unsubscribe = $state<() => void>();
+
   onMount(async () => {
     client = await PrismaIDBClient.createClient();
-    client.user.subscribe(["create", "delete", "update"], (e) => {
+    unsubscribe = client.user.subscribe(["create", "delete", "update"], (e) => {
       eventOutput = JSON.stringify(e.detail, null, 2);
     });
+  });
+
+  onDestroy(() => {
+    if (unsubscribe) unsubscribe();
   });
 
   async function executeQuery(e: SubmitEvent) {

@@ -11,6 +11,7 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "newLine": "lf",
+    "moduleResolution": "node",
     "module": "commonjs",
     "target": "ES2023"
   },

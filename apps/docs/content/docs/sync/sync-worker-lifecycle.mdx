@@ -1,0 +1,52 @@
+---
+title: "Sync Worker Lifecycle"
+description: "Understanding the Prisma IDB Sync Engine"
+icon: RefreshCw
+---
+
+## Prisma IDB Sync Engine
+
+The Prisma IDB Sync Engine is an optional component that enables bidirectional synchronization between the local IndexedDB database and a remote server. It is designed to ensure data consistency across multiple devices while providing robust conflict resolution and authorization mechanisms.
+
+### The Core Components
+
+- **Sync Worker**: Manages push and pull operations, ensuring local changes are sent to the server and remote changes are applied locally.
+- **Outbox**: Stores local mutations awaiting server synchronization.
+- **Version Table**: Tracks local database state relative to the server, determining what changes to pull.
+- **Changelog Table**: Records server-side changes that are materialized into IndexedDB during pull operations.
+
+### Synchronization Process
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant App as Browser/App
+  participant IDB as IndexedDB
+  participant SW as SyncWorker
+  participant API as Server API
+  participant DB as Postgres
+
+  App->>IDB: Mutate local data
+  IDB->>IDB: Persist + enqueue OutboxEvent
+
+  loop Sync Cycle
+    SW->>IDB: readOutbox()
+    IDB-->>SW: events[]
+
+    SW->>API: PUSH events
+    API->>DB: apply changes
+    DB-->>API: results
+    API-->>SW: applied/errors
+    SW->>IDB: markSynced / retryFailed
+
+    SW->>API: PULL changelog(since cursor)
+    API->>DB: fetch changes
+    DB-->>API: logs + records
+    API-->>SW: remote updates
+    SW->>IDB: applyPull() + advance cursor
+
+    SW-->>App: notify sync complete
+  end
+
+  SW->>SW: backoff + schedule next run
+```

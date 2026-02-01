@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../../generated/prisma"
+}
+
+generator prismaIDBrowser {
+  provider   = "idb-client-generator"
+  output     = "../../generated/prisma-idb"
+  outboxSync = true
+  include    = ["User", "Changelog"]
+  rootModel  = "User"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id    String @id @default(cuid())
+  name  String
+  todos Todo[]
+}
+
+model Todo {
+  id     String @id @default(cuid())
+  title  String
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Changelog {
+  id            String          @id @default(uuid(7))
+  model         String
+  keyPath       Json
+  operation     ChangeOperation
+  scopeKey      String
+  outboxEventId String          @unique
+
+  @@index([model])
+}
+
+enum ChangeOperation {
+  create
+  update
+  delete
+}

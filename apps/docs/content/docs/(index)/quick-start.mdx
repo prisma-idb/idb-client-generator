@@ -1,0 +1,114 @@
+---
+title: Quick Start
+description: Get up and running with Prisma IDB in minutes
+icon: Rocket
+---
+
+Get Prisma IDB up and running in your project in just a few steps.
+
+### Installation
+
+First, install the required dependencies:
+
+```bash
+pnpm add idb
+pnpm add @prisma-idb/idb-client-generator --save-dev
+```
+
+Optionally, if you're using auto-generated UUIDs or CUIDs:
+
+```bash
+pnpm add @paralleldrive/cuid2 uuid
+```
+
+For sync schema validation:
+
+```bash
+pnpm add zod
+```
+
+### Step 1: Configure Generator
+
+Add the generator to your `prisma/schema.prisma`:
+
+```prisma
+generator prismaIDB {
+  provider = "idb-client-generator"
+  output   = "./prisma-idb"
+
+  // Optional: Enable sync engine
+  outboxSync = true
+  rootModel  = "User"  // Anchor for ownership DAG
+  exclude    = ["Changelog", "Session", "PrivateModel"]  // Skip Changelog and server-only models
+}
+```
+
+### Step 2: Define Your Schema
+
+```prisma
+model User {
+  id    String  @id @default(cuid())  // Client-generated IDs required for sync
+  name  String
+  email String  @unique
+
+  todos Todo[]
+}
+
+model Todo {
+  id    String  @id @default(cuid())
+  title String
+  done  Boolean @default(false)
+
+  userId String
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+```
+
+### Step 3: Generate & Use
+
+Generate the client:
+
+```bash
+pnpm exec prisma generate
+```
+
+Start using it in your code with familiar CRUD operations:
+
+```typescript
+import { PrismaIDBClient } from "./prisma-idb";
+
+const client = await PrismaIDBClient.createClient();
+
+// Create
+const user = await client.user.create({
+  data: { name: "Alice", email: "alice@example.com" },
+});
+
+// Create a todo linked to the user
+const todo = await client.todo.create({
+  data: { title: "Get started with Prisma IDB", userId: user.id },
+});
+
+// Read
+const todos = await client.todo.findMany({
+  where: { userId: user.id, done: false },
+});
+
+// Update
+await client.todo.update({
+  where: { id: todo.id },
+  data: { done: true },
+});
+
+// Delete
+await client.todo.delete({
+  where: { id: todo.id },
+});
+```
+
+### More Resources
+
+<Cards>
+  <Card title="Sync Engine" href="/docs/sync" />
+  <Card title="Schema Requirements" href="/docs/sync/schema-requirements" />
+</Cards>
