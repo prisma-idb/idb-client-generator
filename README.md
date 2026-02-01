@@ -194,3 +194,12 @@ If you discover a security vulnerability, please follow our SECURITY.md guidelin
 ## License
 
 This project is licensed under the GNU Affero General Public License v3.0. See the LICENSE file for more details.
+
+## Disclaimer
+
+Prisma is a trademark of Prisma.
+
+Prisma IDB is an independent open-source project and is not affiliated with,
+endorsed by, or sponsored by Prisma. This library is a generator built on top
+of Prisma to extend its functionality.
+

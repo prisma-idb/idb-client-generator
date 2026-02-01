@@ -35,7 +35,7 @@
   --color-fd-primary-foreground: hsl(0, 0%, 6%);
   --color-fd-secondary: hsl(0, 0%, 18%);
   --color-fd-secondary-foreground: hsl(0, 0%, 92%);
-  --color-fd-accent: hsl(32, 100%, 50%);
+  --color-fd-accent: hsla(32, 100%, 50%, 0.8);
   --color-fd-accent-foreground: hsl(0, 0%, 94%);
   --color-fd-ring: hsl(32, 100%, 50%);
 }

@@ -6,6 +6,10 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
+export const metadata = {
+  title: "IDB Client Generator Docs",
+};
+
 export default function Layout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={inter.className} suppressHydrationWarning>

@@ -13,7 +13,8 @@
     "events",
     "transactions",
     "---Reference---",
-    "generated-output"
+    "generated-output",
+    "about"
   ],
   "root": true
 }
