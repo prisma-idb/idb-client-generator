@@ -125,8 +125,8 @@ await syncWorker.syncNow();
 syncWorker.stop();
 
 // Monitor sync status
-syncWorker.on("statuschange", () => {
-  console.log("Status:", syncWorker.status);
+syncWorker.on("statuschange", (e) => {
+  console.log("Status:", e.detail);
   // { isLooping: true, status: "PUSHING", lastSyncTime: Date, lastError: null }
 });
 ```
@@ -168,8 +168,8 @@ Access the last error via `syncWorker.status.lastError`.
 Monitor sync progress with status events:
 
 ```typescript
-const unsubscribe = syncWorker.on("statuschange", () => {
-  const { isLooping, status, lastSyncTime, lastError } = syncWorker.status;
+const unsubscribe = syncWorker.on("statuschange", (e) => {
+  const { isLooping, status, lastSyncTime, lastError } = e.detail;
 
   if (status === "IDLE" && lastSyncTime) {
     console.log("Sync complete at", lastSyncTime);
@@ -267,4 +267,4 @@ Your sync system is now complete and operational. The client can:
 - ✅ Resume from checkpoints across page reloads
 - ✅ Handle errors gracefully with retries
 
-For monitoring and advanced patterns, see [Sync Worker Lifecycle](../sync-worker-lifecycle).
+For monitoring and advanced patterns, see [Sync Worker Lifecycle](../sync/sync-worker-lifecycle).

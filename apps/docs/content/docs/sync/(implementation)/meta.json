@@ -7,7 +7,6 @@
     "step-4-pull-endpoint",
     "step-5-sync-worker",
     "---Deep Dives---",
-    "sync-worker",
     "validation",
     "api-design",
     "outbox-push-pull"

@@ -105,7 +105,7 @@ function validateClientGeneratedIds(models: readonly Model[]) {
     const isValidClientGeneratedId =
       typeof idField.default === "object" &&
       "name" in idField.default &&
-      (idField.default.name === "uuid" || idField.default.name === "cuid" || idField.default.name === "cuid2");
+      (idField.default.name === "uuid" || idField.default.name === "cuid");
 
     if (!isValidClientGeneratedId) {
       throw new Error(

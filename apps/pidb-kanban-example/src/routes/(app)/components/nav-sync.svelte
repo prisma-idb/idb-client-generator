@@ -42,9 +42,9 @@
     updateOutboxStats();
 
     // Subscribe to status changes
-    const unsubscribeStatusChange = todosState.syncWorker.on("statuschange", () => {
+    const unsubscribeStatusChange = todosState.syncWorker.on("statuschange", (e) => {
       if (todosState.syncWorker) {
-        ({ status, isLooping } = todosState.syncWorker.status);
+        ({ status, isLooping } = e.detail);
       }
     });
 
