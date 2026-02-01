@@ -59,10 +59,7 @@ const user = await client.user.update({
     },
     // Create new todos
     todos: {
-      create: [
-        { title: "New task 1" },
-        { title: "New task 2" },
-      ],
+      create: [{ title: "New task 1" }, { title: "New task 2" }],
     },
   },
 });
@@ -121,9 +118,9 @@ const user = await client.user.update(
     data: { name: "Alice" },
   },
   {
-    tx: transaction,      // Use existing transaction
-    silent: false,        // Emit events (default: false)
-    addToOutbox: true,    // Queue for sync (default: true)
+    tx: transaction, // Use existing transaction
+    silent: false, // Emit events (default: false)
+    addToOutbox: true, // Queue for sync (default: true)
   }
 );
 ```
@@ -150,13 +147,9 @@ const board = await client.board.update({
         },
       ],
       // Create new
-      create: [
-        { title: "New task" },
-      ],
+      create: [{ title: "New task" }],
       // Delete specific
-      delete: [
-        { id: "todo-old" },
-      ],
+      delete: [{ id: "todo-old" }],
     },
   },
 });

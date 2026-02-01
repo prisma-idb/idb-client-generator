@@ -30,7 +30,7 @@ const stats = await client.user.aggregate({
 const fieldStats = await client.user.aggregate({
   _count: {
     email: true, // Count non-null emails
-    _all: true,  // Count all records
+    _all: true, // Count all records
   },
 });
 ```
@@ -50,6 +50,7 @@ console.log(`Date range: ${todoStats._min.createdAt} to ${todoStats._max.created
 ```
 
 Works on:
+
 - Numeric fields (Int, Float, Decimal)
 - DateTime fields
 - String fields
@@ -174,14 +175,14 @@ console.log(`Project is ${Math.round(avgProgress)}% complete`);
 ```typescript
 const quality = await client.record.aggregate({
   _count: {
-    email: true,     // Count records with email
-    phone: true,     // Count records with phone
-    address: true,   // Count records with address
-    _all: true,      // Total records
+    email: true, // Count records with email
+    phone: true, // Count records with phone
+    address: true, // Count records with address
+    _all: true, // Total records
   },
 });
 
-console.log(`Email coverage: ${(quality._count.email / quality._count._all * 100).toFixed(1)}%`);
+console.log(`Email coverage: ${((quality._count.email / quality._count._all) * 100).toFixed(1)}%`);
 ```
 
 ## Performance Notes

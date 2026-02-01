@@ -101,10 +101,14 @@ const pushRequestSchema = z.object({
 // Define push response schema
 const pushResponseSchema = z.object({
   applied: z.array(z.string()), // Applied event IDs
-  errors: z.array(z.object({
-    id: z.string(),
-    error: z.string(),
-  })).optional(),
+  errors: z
+    .array(
+      z.object({
+        id: z.string(),
+        error: z.string(),
+      })
+    )
+    .optional(),
 });
 
 export async function POST(req: Request) {
@@ -114,11 +118,7 @@ export async function POST(req: Request) {
   const validatedRequest = await pushRequestSchema.parseAsync(body);
 
   // Process validated events
-  const result = await processBatch(
-    prisma,
-    validatedRequest.events,
-    validatedRequest.userId
-  );
+  const result = await processBatch(prisma, validatedRequest.events, validatedRequest.userId);
 
   // Validate response before sending
   const response = await pushResponseSchema.parseAsync(result);
@@ -167,16 +167,19 @@ export const userCreateWithValidation = validators.User.pick({
   name: true,
   email: true,
 }).extend({
-  email: z.string().email().refine(
-    async (email) => {
-      // Check if email already exists
-      const existing = await client.user.findUnique({
-        where: { email },
-      });
-      return !existing;
-    },
-    { message: "Email already in use" }
-  ),
+  email: z
+    .string()
+    .email()
+    .refine(
+      async (email) => {
+        // Check if email already exists
+        const existing = await client.user.findUnique({
+          where: { email },
+        });
+        return !existing;
+      },
+      { message: "Email already in use" }
+    ),
   name: z.string().min(2).max(100),
 });
 
@@ -262,10 +265,14 @@ const pushRequestSchema = z.object({
 
 const pushResponseSchema = z.object({
   applied: z.array(z.string()), // Event IDs that were applied
-  errors: z.array(z.object({
-    id: z.string(),
-    error: z.string(),
-  })).optional(),
+  errors: z
+    .array(
+      z.object({
+        id: z.string(),
+        error: z.string(),
+      })
+    )
+    .optional(),
 });
 
 const pullRequestSchema = z.object({
@@ -274,13 +281,15 @@ const pullRequestSchema = z.object({
 });
 
 const pullResponseSchema = z.object({
-  changelog: z.array(z.object({
-    id: z.string(),
-    entityType: z.string(),
-    operation: z.enum(["create", "update", "delete"]),
-    keyPath: z.array(z.any()),
-    scopeKey: z.string(),
-  })),
+  changelog: z.array(
+    z.object({
+      id: z.string(),
+      entityType: z.string(),
+      operation: z.enum(["create", "update", "delete"]),
+      keyPath: z.array(z.any()),
+      scopeKey: z.string(),
+    })
+  ),
   records: z.record(z.array(z.any())),
 });
 ```
@@ -301,10 +310,14 @@ const pushRequestSchema = z.object({
 
 const pushResponseSchema = z.object({
   applied: z.array(z.string()),
-  errors: z.array(z.object({
-    id: z.string(),
-    error: z.string(),
-  })).optional(),
+  errors: z
+    .array(
+      z.object({
+        id: z.string(),
+        error: z.string(),
+      })
+    )
+    .optional(),
 });
 
 // Server-side sync endpoint
@@ -316,11 +329,7 @@ export async function POST(req: Request) {
     const validatedRequest = await pushRequestSchema.parseAsync(body);
 
     // Process
-    const result = await processBatch(
-      prisma,
-      validatedRequest.events,
-      validatedRequest.userId
-    );
+    const result = await processBatch(prisma, validatedRequest.events, validatedRequest.userId);
 
     // Validate response
     const response = await pushResponseSchema.parseAsync(result);
@@ -328,10 +337,7 @@ export async function POST(req: Request) {
     return Response.json(response);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return Response.json(
-        { error: "Invalid request", details: error.errors },
-        { status: 400 }
-      );
+      return Response.json({ error: "Invalid request", details: error.errors }, { status: 400 });
     }
 
     return Response.json({ error: "Server error" }, { status: 500 });
@@ -346,13 +352,16 @@ export async function POST(req: Request) {
 Validators can perform async operations (like database checks):
 
 ```typescript
-const uniqueEmailSchema = z.string().email().refine(
-  async (email) => {
-    const existing = await client.user.findUnique({ where: { email } });
-    return !existing;
-  },
-  { message: "Email already registered" }
-);
+const uniqueEmailSchema = z
+  .string()
+  .email()
+  .refine(
+    async (email) => {
+      const existing = await client.user.findUnique({ where: { email } });
+      return !existing;
+    },
+    { message: "Email already registered" }
+  );
 
 // This is async - handle appropriately
 const result = await uniqueEmailSchema.parseAsync("alice@example.com");

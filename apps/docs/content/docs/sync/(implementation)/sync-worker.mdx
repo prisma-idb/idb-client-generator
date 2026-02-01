@@ -59,8 +59,12 @@ Configure the sync worker behavior:
 const syncWorker = client.createSyncWorker({
   // API endpoints
   apiUrl: "https://api.example.com",
-  push: async (events) => { /* ... */ },
-  pull: async (cursor) => { /* ... */ },
+  push: async (events) => {
+    /* ... */
+  },
+  pull: async (cursor) => {
+    /* ... */
+  },
 
   // Timing
   syncInterval: 5000, // ms between sync cycles (default: 5s)
@@ -173,16 +177,18 @@ Use events for reactive components:
 ```svelte
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  
+
   let syncWorker;
   let syncStatus = $state("STOPPED");
   let lastSyncTime = $state<Date>();
   let error = $state("");
-  
+
   onMount(async () => {
     const client = await PrismaIDBClient.createClient();
-    syncWorker = client.createSyncWorker({ /* ... */ });
-    
+    syncWorker = client.createSyncWorker({
+      /* ... */
+    });
+
     // Subscribe to status changes
     const unsubscribeStatus = syncWorker.on("statuschange", (e) => {
       syncStatus = e.detail.status;
@@ -190,7 +196,7 @@ Use events for reactive components:
         error = e.detail.lastError.message;
       }
     });
-    
+
     // Subscribe to push completion
     const unsubscribePushCompleted = syncWorker.on("pushcompleted", (e) => {
       const { results } = e.detail;
@@ -202,9 +208,9 @@ Use events for reactive components:
         lastSyncTime = new Date();
       }
     });
-    
+
     syncWorker.start();
-    
+
     // Cleanup on unmount
     return () => {
       syncWorker.stop();
@@ -212,7 +218,7 @@ Use events for reactive components:
       unsubscribePushCompleted();
     };
   });
-  
+
   onDestroy(() => {
     if (syncWorker) {
       syncWorker.stop();
@@ -267,7 +273,7 @@ The sync worker includes retry logic for transient failures:
 const syncWorker = client.createSyncWorker({
   maxRetries: 5,
   retryDelay: 2000,
-  
+
   onError: (error) => {
     if (error.code === "NETWORK_ERROR") {
       // Temporary network issue, will retry
@@ -291,7 +297,7 @@ sequenceDiagram
   participant Worker
   participant IDB as IndexedDB
   participant API as Server API
-  
+
   rect rgb(200, 220, 255)
     note over Worker,API: Push Phase
     Worker->>IDB: readOutbox()
@@ -301,7 +307,7 @@ sequenceDiagram
     Worker->>IDB: markSynced(applied)
     Worker->>IDB: markRetry(errors)
   end
-  
+
   rect rgb(220, 200, 255)
     note over Worker,API: Pull Phase
     Worker->>IDB: getVersionCursor()
@@ -310,7 +316,7 @@ sequenceDiagram
     Worker->>IDB: applyPull(changelog, records)
     Worker->>IDB: advanceCursor()
   end
-  
+
   Worker-->>Worker: wait(syncInterval)
   Worker->>Worker: loop back to Push
 ```
@@ -328,7 +334,7 @@ const syncWorker = client.createSyncWorker({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${getToken()}`,
+        Authorization: `Bearer ${getToken()}`,
       },
       body: JSON.stringify({
         events,
@@ -348,7 +354,7 @@ const syncWorker = client.createSyncWorker({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${getToken()}`,
+        Authorization: `Bearer ${getToken()}`,
       },
       body: JSON.stringify({
         cursor,

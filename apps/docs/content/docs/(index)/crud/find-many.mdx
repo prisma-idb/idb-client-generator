@@ -61,10 +61,7 @@ const users = await client.user.findMany({
 
 // Multiple fields
 const users = await client.user.findMany({
-  orderBy: [
-    { active: "desc" },
-    { name: "asc" },
-  ],
+  orderBy: [{ active: "desc" }, { name: "asc" }],
 });
 ```
 
@@ -145,10 +142,7 @@ const recentIncompleteTodos = await client.todo.findMany({
 ```typescript
 const tx = client._db.transaction(["user", "profile"], "readonly");
 
-const users = await client.user.findMany(
-  { include: { profile: true } },
-  { tx }
-);
+const users = await client.user.findMany({ include: { profile: true } }, { tx });
 
 await tx.done;
 ```

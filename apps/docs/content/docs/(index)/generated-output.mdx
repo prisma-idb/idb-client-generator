@@ -50,6 +50,7 @@ await client.todo.create({ data: { title: "Task" } });
 ```
 
 **Key Methods:**
+
 - `createClient()`: Initialize the client with IndexedDB
 - `<modelName>`: Access per-model API (user, todo, etc.)
 - `_db`: Direct access to the underlying IDBPDatabase instance
@@ -103,9 +104,7 @@ export interface OutboxEventRecord {
 Use these types when working directly with the `client._db` instance:
 
 ```typescript
-const user: PrismaIDBSchema["User"]["value"] = await tx
-  .objectStore("User")
-  .get([userId]);
+const user: PrismaIDBSchema["User"]["value"] = await tx.objectStore("User").get([userId]);
 ```
 
 ### IDB Utils
@@ -114,18 +113,11 @@ Utility functions for filtering and comparisons that IndexedDB can't handle nati
 
 ```typescript
 // idb-utils.ts
-export function whereBoolFilter(
-  records: any[],
-  where: any
-): any[] {
+export function whereBoolFilter(records: any[], where: any): any[] {
   return records.filter(/* complex filtering logic */);
 }
 
-export function orderByComparator(
-  a: any,
-  b: any,
-  orderBy: any
-): number {
+export function orderByComparator(a: any, b: any, orderBy: any): number {
   // Sorting logic
 }
 ```
@@ -229,9 +221,9 @@ model User {
   id    String  @id
   name  String
   email String  @unique
-  
+
   boards Board[]
-  
+
   @@map("user")
 }
 
@@ -240,9 +232,9 @@ model Board {
   name   String
   userId String
   user   User    @relation(fields: [userId], references: [id])
-  
+
   todos Todo[]
-  
+
   @@map("board")
 }
 
@@ -251,7 +243,7 @@ model Todo {
   title   String
   boardId String
   board   Board   @relation(fields: [boardId], references: [id])
-  
+
   @@map("todo")
 }
 ```
@@ -265,20 +257,31 @@ Each model has a generated class with CRUD methods:
 ```typescript
 // Generated for each model
 class UserIDBClass extends BaseIDBModelClass<"User"> {
-  async findMany(query?: any, options?: any): Promise<any[]> { /* ... */ }
-  async findUnique(query: any, options?: any): Promise<any | null> { /* ... */ }
-  async create(query: any, options?: any): Promise<any> { /* ... */ }
-  async update(query: any, options?: any): Promise<any> { /* ... */ }
-  async delete(query: any, options?: any): Promise<any> { /* ... */ }
-  
+  async findMany(query?: any, options?: any): Promise<any[]> {
+    /* ... */
+  }
+  async findUnique(query: any, options?: any): Promise<any | null> {
+    /* ... */
+  }
+  async create(query: any, options?: any): Promise<any> {
+    /* ... */
+  }
+  async update(query: any, options?: any): Promise<any> {
+    /* ... */
+  }
+  async delete(query: any, options?: any): Promise<any> {
+    /* ... */
+  }
+
   // Events
-  subscribe(
-    events: ("create" | "update" | "delete")[],
-    handler: (event: CustomEvent) => void
-  ): () => void { /* ... */ }
-  
+  subscribe(events: ("create" | "update" | "delete")[], handler: (event: CustomEvent) => void): () => void {
+    /* ... */
+  }
+
   // Sync helpers
-  readOutbox(): Promise<OutboxEventRecord[]> { /* ... */ }
+  readOutbox(): Promise<OutboxEventRecord[]> {
+    /* ... */
+  }
   // ... other sync methods
 }
 ```
@@ -314,7 +317,8 @@ pnpm exec prisma generate
 This updates all generated files in your output directory. The generated code is deterministic—same schema produces identical output.
 
 <Callout type="warn">
-  Don't manually edit generated files. Regeneration will overwrite your changes. If you need customization, extend the generated classes or create wrapper utilities.
+  Don't manually edit generated files. Regeneration will overwrite your changes. If you need customization, extend the
+  generated classes or create wrapper utilities.
 </Callout>
 
 ## Configuration
@@ -333,6 +337,7 @@ generator prismaIDBrowser {
 ```
 
 **Configuration Options:**
+
 - `output`: Directory for generated files
 - `outboxSync`: Enable sync engine (default: false)
 - `rootModel`: Root model for ownership (required if outboxSync = true)

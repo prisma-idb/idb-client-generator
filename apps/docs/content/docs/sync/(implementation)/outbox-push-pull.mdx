@@ -19,6 +19,7 @@ graph LR
 ```
 
 This ensures:
+
 - **Offline resilience**: Changes are durable even if network fails
 - **Reliable delivery**: Automatic retry until server ACKs
 - **Ordering**: Changes are processed in the order they happened
@@ -209,12 +210,7 @@ The generated `applyPull` function merges remote changes:
 ```typescript
 import { applyPull } from "$lib/prisma-idb/client";
 
-const result = await applyPull(
-  client._db,
-  pullResponse.changelog,
-  pullResponse.records,
-  versionMetaRecord
-);
+const result = await applyPull(client._db, pullResponse.changelog, pullResponse.records, versionMetaRecord);
 
 // result.applied: count of applied changes
 // result.conflicts: any conflicts detected and resolved
@@ -232,7 +228,7 @@ graph TD
   D["Timestamp Comparison"]
   E["Remote Wins<br/>(newer)"]
   F["Local Wins<br/>(newer)"]
-  
+
   A --> C
   B --> C
   C -->|Different values<br/>same field| D
@@ -274,9 +270,7 @@ const syncWorker = client.createSyncWorker({
 
     // Notify user
     if (conflict.resolution === "remote") {
-      alert(
-        `Your changes to ${conflict.model} were overwritten by a remote update.`
-      );
+      alert(`Your changes to ${conflict.model} were overwritten by a remote update.`);
     }
   },
 });
@@ -345,18 +339,17 @@ Show sync status in your app:
 
   onMount(async () => {
     const client = await PrismaIDBClient.createClient();
-    const syncWorker = client.createSyncWorker({ /* ... */ });
+    const syncWorker = client.createSyncWorker({
+      /* ... */
+    });
 
     // Monitor pending count
-    client.outboxEvent.subscribe(
-      ["create", "delete", "update"],
-      async () => {
-        const result = await client.outboxEvent.count({
-          where: { status: "pending" },
-        });
-        pendingCount = result.count;
-      }
-    );
+    client.outboxEvent.subscribe(["create", "delete", "update"], async () => {
+      const result = await client.outboxEvent.count({
+        where: { status: "pending" },
+      });
+      pendingCount = result.count;
+    });
 
     syncWorker.on("sync:start", () => {
       isSyncing = true;

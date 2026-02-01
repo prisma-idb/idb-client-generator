@@ -23,7 +23,9 @@ Returns the matching record or throws an error:
 
 ```typescript
 const user: User = await client.user.findFirstOrThrow({
-  where: { /* ... */ },
+  where: {
+    /* ... */
+  },
 });
 // Type is User, not User | null
 ```
@@ -77,15 +79,9 @@ Fail fast in transactions if preconditions aren't met:
 const tx = client._db.transaction(["user", "todo"], "readwrite");
 
 try {
-  const user = await client.user.findFirstOrThrow(
-    { where: { id: userId } },
-    { tx }
-  );
+  const user = await client.user.findFirstOrThrow({ where: { id: userId } }, { tx });
 
-  const todo = await client.todo.findFirstOrThrow(
-    { where: { id: todoId, userId } },
-    { tx }
-  );
+  const todo = await client.todo.findFirstOrThrow({ where: { id: todoId, userId } }, { tx });
 
   // Process with guarantee both exist
   await tx.done;

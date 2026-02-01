@@ -25,7 +25,9 @@ Returns an array of created records:
 
 ```typescript
 const users: User[] = await client.user.createManyAndReturn({
-  data: [/* ... */],
+  data: [
+    /* ... */
+  ],
 });
 ```
 
@@ -84,9 +86,9 @@ const users = await client.user.createManyAndReturn(
     ],
   },
   {
-    tx: transaction,      // Use existing transaction
-    silent: false,        // Emit events (default: false)
-    addToOutbox: true,    // Queue for sync (default: true)
+    tx: transaction, // Use existing transaction
+    silent: false, // Emit events (default: false)
+    addToOutbox: true, // Queue for sync (default: true)
   }
 );
 ```

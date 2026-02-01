@@ -59,9 +59,9 @@ const user = await client.user.create(
     data: { name: "Alice", email: "alice@example.com" },
   },
   {
-    tx: transaction,      // Use existing transaction
-    silent: false,        // Emit events (default: false)
-    addToOutbox: true,    // Queue for sync (default: true)
+    tx: transaction, // Use existing transaction
+    silent: false, // Emit events (default: false)
+    addToOutbox: true, // Queue for sync (default: true)
   }
 );
 ```
@@ -108,10 +108,7 @@ const user = await client.user.create({
       },
     },
     todos: {
-      create: [
-        { title: "Task 1" },
-        { title: "Task 2" },
-      ],
+      create: [{ title: "Task 1" }, { title: "Task 2" }],
     },
   },
 });

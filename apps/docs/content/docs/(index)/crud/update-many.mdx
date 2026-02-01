@@ -80,9 +80,9 @@ const result = await client.user.updateMany(
     data: { verified: true },
   },
   {
-    tx: transaction,      // Use existing transaction
-    silent: false,        // Emit events (default: false)
-    addToOutbox: true,    // Queue for sync (default: true)
+    tx: transaction, // Use existing transaction
+    silent: false, // Emit events (default: false)
+    addToOutbox: true, // Queue for sync (default: true)
   }
 );
 ```

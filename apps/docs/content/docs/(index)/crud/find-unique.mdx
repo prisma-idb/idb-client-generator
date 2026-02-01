@@ -77,7 +77,7 @@ model Post {
   id        String  @id
   slug      String
   boardId   String
-  
+
   @@unique([slug, boardId])  // Composite unique constraint
 }
 ```
@@ -87,7 +87,8 @@ Query using both fields:
 ```typescript
 const post = await client.post.findUnique({
   where: {
-    slug_boardId: { // Composite key name
+    slug_boardId: {
+      // Composite key name
       slug: "hello-world",
       boardId: "board-123",
     },

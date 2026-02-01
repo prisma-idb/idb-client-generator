@@ -18,15 +18,9 @@ const tx = client._db.transaction(["User", "Todo"], "readwrite");
 
 try {
   // Both operations use the same transaction
-  const user = await client.user.create(
-    { data: { name: "Alice" } },
-    { tx }
-  );
+  const user = await client.user.create({ data: { name: "Alice" } }, { tx });
 
-  await client.todo.create(
-    { data: { title: "Task 1", userId: user.id } },
-    { tx }
-  );
+  await client.todo.create({ data: { title: "Task 1", userId: user.id } }, { tx });
 
   // Wait for transaction to complete
   await tx.done;
@@ -46,15 +40,9 @@ Modify data and read it back:
 ```typescript
 const tx = client._db.transaction(["User", "Profile"], "readwrite");
 
-const user = await client.user.update(
-  { where: { id: 1 }, data: { name: "Alice" } },
-  { tx }
-);
+const user = await client.user.update({ where: { id: 1 }, data: { name: "Alice" } }, { tx });
 
-const profile = await client.profile.findUnique(
-  { where: { userId: user.id } },
-  { tx }
-);
+const profile = await client.profile.findUnique({ where: { userId: user.id } }, { tx });
 
 await tx.done;
 ```
@@ -83,23 +71,16 @@ async function transferTodo(
   todoId: string,
   tx?: IDBPTransaction<any, any[], "readwrite">
 ) {
-  const txToUse =
-    tx || client._db.transaction(["User", "Todo"], "readwrite");
+  const txToUse = tx || client._db.transaction(["User", "Todo"], "readwrite");
 
   try {
-    const todo = await client.todo.findUnique(
-      { where: { id: todoId } },
-      { tx: txToUse }
-    );
+    const todo = await client.todo.findUnique({ where: { id: todoId } }, { tx: txToUse });
 
     if (!todo || todo.userId !== fromUserId) {
       throw new Error("Todo not found or doesn't belong to user");
     }
 
-    await client.todo.update(
-      { where: { id: todoId }, data: { userId: toUserId } },
-      { tx: txToUse }
-    );
+    await client.todo.update({ where: { id: todoId }, data: { userId: toUserId } }, { tx: txToUse });
 
     if (!tx) {
       await txToUse.done;
@@ -116,15 +97,9 @@ async function transferTodo(
 await transferTodo(user1Id, user2Id, todoId);
 
 // Or nest within larger transaction
-const tx = client._db.transaction(
-  ["User", "Todo", "AuditLog"],
-  "readwrite"
-);
+const tx = client._db.transaction(["User", "Todo", "AuditLog"], "readwrite");
 await transferTodo(user1Id, user2Id, todoId, tx);
-await client.auditLog.create(
-  { data: { action: "transfer" } },
-  { tx }
-);
+await client.auditLog.create({ data: { action: "transfer" } }, { tx });
 await tx.done;
 ```
 
@@ -138,14 +113,8 @@ All operations complete and persist:
 const tx = client._db.transaction(["User", "Todo"], "readwrite");
 
 // Both succeed
-const user = await client.user.create(
-  { data: { name: "Alice" } },
-  { tx }
-);
-const todo = await client.todo.create(
-  { data: { title: "Task 1", userId: user.id } },
-  { tx }
-);
+const user = await client.user.create({ data: { name: "Alice" } }, { tx });
+const todo = await client.todo.create({ data: { title: "Task 1", userId: user.id } }, { tx });
 
 await tx.done; // ✅ Both persisted
 ```
@@ -158,22 +127,19 @@ If any operation fails, everything is rolled back:
 const tx = client._db.transaction(["User", "Todo"], "readwrite");
 
 try {
-  const user = await client.user.create(
-    { data: { name: "Alice" } },
-    { tx }
-  );
-  
+  const user = await client.user.create({ data: { name: "Alice" } }, { tx });
+
   // This throws because user 999 doesn't exist
   await client.todo.create(
-    { 
-      data: { 
-        title: "Task 1", 
-        userId: "999" // Invalid FK
-      } 
+    {
+      data: {
+        title: "Task 1",
+        userId: "999", // Invalid FK
+      },
     },
     { tx }
   );
-  
+
   await tx.done;
 } catch (error) {
   tx.abort(); // ❌ User creation was also rolled back
@@ -191,10 +157,7 @@ Transactions provide isolation from other operations. Reads are queued and will 
 ```typescript
 // Transaction 1
 const tx1 = client._db.transaction(["User"], "readwrite");
-const user = await client.user.create(
-  { data: { name: "Alice" } },
-  { tx: tx1 }
-);
+const user = await client.user.create({ data: { name: "Alice" } }, { tx: tx1 });
 
 // Concurrent read is queued and waits for tx1 to complete
 const userDuring = await client.user.findUnique({ where: { id: user.id } });
@@ -213,10 +176,7 @@ console.log(userAfter); // { id, name: "Alice" }
 Pass transactions to nested operations:
 
 ```typescript
-const tx = client._db.transaction(
-  ["User", "Profile", "Settings"],
-  "readwrite"
-);
+const tx = client._db.transaction(["User", "Profile", "Settings"], "readwrite");
 
 try {
   const user = await client.user.create(
@@ -278,10 +238,7 @@ When creating explicit transactions, only include stores you need:
 const tx = client._db.transaction(["User", "Todo"], "readwrite");
 
 // ❌ Avoid - unnecessary stores
-const tx = client._db.transaction(
-  ["User", "Todo", "Profile", "Settings", "AuditLog"],
-  "readwrite"
-);
+const tx = client._db.transaction(["User", "Todo", "Profile", "Settings", "AuditLog"], "readwrite");
 ```
 
 ## Error Handling
@@ -289,18 +246,11 @@ const tx = client._db.transaction(
 Always abort on error if not letting it propagate:
 
 ```typescript
-async function safeTransfer(
-  fromId: string,
-  toId: string,
-  amount: number
-) {
+async function safeTransfer(fromId: string, toId: string, amount: number) {
   const tx = client._db.transaction(["Account"], "readwrite");
 
   try {
-    const from = await client.account.findUnique(
-      { where: { id: fromId } },
-      { tx }
-    );
+    const from = await client.account.findUnique({ where: { id: fromId } }, { tx });
 
     if (!from || from.balance < amount) {
       throw new Error("Insufficient funds");
@@ -314,10 +264,7 @@ async function safeTransfer(
       { tx }
     );
 
-    const to = await client.account.findUnique(
-      { where: { id: toId } },
-      { tx }
-    );
+    const to = await client.account.findUnique({ where: { id: toId } }, { tx });
 
     await client.account.update(
       {
@@ -342,17 +289,11 @@ async function safeTransfer(
 When sync is enabled and you want to group multiple queries atomically, you should include the `OutboxEvent` model in your transaction:
 
 ```typescript
-const tx = client._db.transaction(
-  ["User", "Todo", "OutboxEvent"],
-  "readwrite"
-);
+const tx = client._db.transaction(["User", "Todo", "OutboxEvent"], "readwrite");
 
 try {
-  await client.user.update(
-    { where: { id: 1 }, data: { name: "Alice" } },
-    { tx }
-  );
-  
+  await client.user.update({ where: { id: 1 }, data: { name: "Alice" } }, { tx });
+
   // Outbox entry is added in same transaction
   await tx.done;
 } catch (error) {
@@ -371,7 +312,7 @@ IndexedDB transactions will **immediately close** if you await any async operati
 // ❌ WRONG - Transaction closes while awaiting the API call
 const tx = client._db.transaction(["User", "Todo"], "readwrite");
 const user = await client.user.findUnique({ where: { id: 1 } }, { tx });
-const userData = await fetch(`/api/user/${user.id}`).then(r => r.json()); // ❌ Tx closed!
+const userData = await fetch(`/api/user/${user.id}`).then((r) => r.json()); // ❌ Tx closed!
 await client.user.update({ where: { id: 1 }, data: userData }, { tx }); // ❌ Fails
 ```
 
@@ -397,19 +338,22 @@ const activeTodos = await client.todo.findMany({
 
 // ❌ WRONG - If inside transaction, it closes before filtering completes
 const allTodos = await client.todo.findMany({ where: { userId: 1 } });
-const activeTodos = allTodos.filter(t => !t.done);
+const activeTodos = allTodos.filter((t) => !t.done);
 ```
 
 3. **Do async work before or after transactions**:
 
 ```typescript
 // ✅ CORRECT
-const externalData = await fetch("/api/data").then(r => r.json());
+const externalData = await fetch("/api/data").then((r) => r.json());
 
 const tx = client._db.transaction(["User"], "readwrite");
-await client.user.update({
-  where: { id: 1 },
-  data: externalData,
-}, { tx });
+await client.user.update(
+  {
+    where: { id: 1 },
+    data: externalData,
+  },
+  { tx }
+);
 await tx.done;
 ```

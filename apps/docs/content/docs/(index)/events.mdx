@@ -42,23 +42,17 @@ Listen for changes on a specific model:
 
 ```typescript
 // Subscribe to all events on a model
-client.user.subscribe(
-  ["create", "update", "delete"],
-  (event) => {
-    console.log("Change detected:", event.detail);
-  }
-);
+client.user.subscribe(["create", "update", "delete"], (event) => {
+  console.log("Change detected:", event.detail);
+});
 ```
 
 Subscribe returns an `unsubscribe` function:
 
 ```typescript
-const unsubscribe = client.user.subscribe(
-  ["create"],
-  (event) => {
-    console.log("User created:", event.detail);
-  }
-);
+const unsubscribe = client.user.subscribe(["create"], (event) => {
+  console.log("User created:", event.detail);
+});
 
 // Later, stop listening
 unsubscribe();
@@ -125,6 +119,7 @@ await client.user.create(
 ```
 
 Use cases:
+
 - Bulk operations without notification overhead
 - Loading initial data from server
 - Avoiding infinite loops with bidirectional sync
@@ -141,16 +136,10 @@ When sync is enabled, mutations are automatically captured for server synchroniz
 
 ```typescript
 // Add to outbox (default with sync enabled)
-await client.user.create(
-  { data: { name: "Alice" } },
-  { addToOutbox: true }
-);
+await client.user.create({ data: { name: "Alice" } }, { addToOutbox: true });
 
 // Skip outbox capture
-await client.user.create(
-  { data: { name: "Alice" } },
-  { addToOutbox: false }
-);
+await client.user.create({ data: { name: "Alice" } }, { addToOutbox: false });
 ```
 
 ### Silent + Outbox
@@ -184,7 +173,7 @@ Subscribe in a SvelteKit component:
 
   onMount(async () => {
     client = await PrismaIDBClient.createClient();
-    
+
     // Load initial data
     todos = await client.todo.findMany();
 
@@ -247,7 +236,7 @@ let pendingCount = $state(0);
 
 client.user.subscribe(["create", "update", "delete"], async (event) => {
   const hasOutbox = client.outboxEvent !== undefined;
-  
+
   if (hasOutbox) {
     const stats = await client.outboxEvent.count();
     pendingCount = stats.count;
@@ -265,7 +254,7 @@ Event details are fully typed based on your Prisma schema:
 client.user.subscribe(["create"], (event) => {
   // event.detail has type User
   const user = event.detail;
-  
+
   // Full TypeScript support
   console.log(user.email); // ✅ Valid
   console.log(user.unknown); // ❌ TypeScript error

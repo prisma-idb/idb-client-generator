@@ -27,6 +27,7 @@ const price = await client.product.create({
 ```
 
 **Recommendation:** If you need arbitrary precision (e.g., high-precision financial calculations), consider:
+
 - Storing Decimal as a string in a separate field
 - Performing precision-sensitive calculations on the server
 - Using a custom type mapper
@@ -47,6 +48,7 @@ Schema changes currently require manual client regeneration:
 ```
 
 **What's planned:**
+
 - Built-in migration support for data structure changes
 - Version tracking for schema evolution
 - Automatic data transformation during client updates
@@ -63,17 +65,20 @@ The generated client currently has tight integration with:
 - **Zod** - Validation logic in generated code
 
 This provides:
+
 - ✅ Type-safe generated APIs
 - ✅ Built-in validation with Zod
 - ✅ Schema-driven code generation
 - ✅ Consistency with Prisma ecosystem
 
 **Known implications:**
+
 - Client bundle includes Zod validators
 - Schema changes require regeneration via Prisma tooling
 - Validation rules tied to Prisma schema syntax
 
 **What's planned:**
+
 - Progressive abstraction of Prisma/Zod dependencies
 - Potential for alternative validation backends
 - Schema-agnostic client generation options
@@ -112,6 +117,7 @@ These are browser constraints, not Prisma IDB limitations:
 - **Quota Exceeded:** Operations fail if storage quota is exceeded
 
 Use [`StorageManager API`](https://developer.mozilla.org/en-US/docs/Web/API/StorageManager) to:
+
 - Check available quota
 - Request persistent storage
 - Monitor usage
@@ -119,9 +125,7 @@ Use [`StorageManager API`](https://developer.mozilla.org/en-US/docs/Web/API/Stor
 ```typescript
 // Check available storage
 const estimate = await navigator.storage.estimate();
-console.log(
-  `Using ${estimate.usage} of ${estimate.quota} bytes`
-);
+console.log(`Using ${estimate.usage} of ${estimate.quota} bytes`);
 
 // Request persistent storage (shows browser permission dialog)
 if (navigator.storage?.persist) {
@@ -133,16 +137,19 @@ if (navigator.storage?.persist) {
 ## What's Coming
 
 **Near-term:**
+
 - Migration support
 - Improved Decimal handling
 - Performance optimizations
 
 **Medium-term:**
+
 - Schema abstraction layer
 - Validation framework abstraction
 - Enhanced offline sync patterns
 
 **Long-term:**
+
 - Potential Prisma/Zod independence
 - Alternative database backends
 - Edge computing integrations

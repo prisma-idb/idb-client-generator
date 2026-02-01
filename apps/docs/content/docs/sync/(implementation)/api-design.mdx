@@ -459,7 +459,7 @@ describe("Sync API", () => {
     const response = await fetch("/api/sync/push", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -492,7 +492,7 @@ describe("Sync API", () => {
   it("pulls changes since cursor", async () => {
     const response = await fetch("/api/sync/pull", {
       method: "POST",
-      headers: { "Authorization": `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ cursor: "last-id" }),
     });
 
