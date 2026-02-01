@@ -341,20 +341,7 @@ const user = await client.user.findUnique({
 });
 ```
 
-2. **Use filters instead of client-side filtering**:
-
-```typescript
-// ✅ CORRECT - Filter happens in database
-const activeTodos = await client.todo.findMany({
-  where: { userId: 1, done: false },
-});
-
-// ❌ WRONG - If inside transaction, it closes before filtering completes
-const allTodos = await client.todo.findMany({ where: { userId: 1 } });
-const activeTodos = allTodos.filter((t) => !t.done);
-```
-
-3. **Do async work before or after transactions**:
+2. **Do async work before or after transactions**:
 
 ```typescript
 // ✅ CORRECT
