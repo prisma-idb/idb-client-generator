@@ -161,7 +161,7 @@ Logic for applying remote changes to local IndexedDB:
 // apply-pull.ts
 export async function applyPull(
   db: IDBPDatabase,
-  changeLog: ChangeLogRecord[],
+  changelog: ChangelogRecord[],
   records: Record<string, any[]>,
   versionMeta: VersionMetaRecord
 ): Promise<ApplyPullResult> {

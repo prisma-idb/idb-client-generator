@@ -26,41 +26,44 @@ This ensures:
 
 ### Outbox Table
 
-The outbox is automatically managed by the generated client:
+The outbox is automatically managed by the generated client. The `$outbox` field is a special helper with dedicated sync methods (not standard Prisma CRUD):
 
 ```typescript
 interface OutboxEventRecord {
   id: string; // Unique event ID
-  model: string; // Model name (User, Todo, etc)
+  entityType: string; // Model name (User, Todo, etc)
   operation: "create" | "update" | "delete";
-  keyPath: any[]; // Primary key(s)
-  data: any; // The mutation data
+  payload: any; // The mutation data
   createdAt: Date;
-  status: "pending" | "synced" | "failed";
-  retryCount: number;
-  lastRetryAt?: Date;
+  synced: boolean;
+  syncedAt: Date | null;
+  lastAttemptedAt: Date | null;
+  tries: number;
+  lastError: string | null;
+  retryable: boolean;
 }
 ```
 
 ## Reading Outbox
 
-Check pending sync operations:
+Get batch of unsynced events:
 
 ```typescript
-// Get all pending events
-const pending = await client.outboxEvent.findMany({
-  where: { status: "pending" },
-});
+// Get next batch of unsynced events (default limit: 20)
+const events = await client.$outbox.getNextBatch({ limit: 20 });
 
-console.log(`${pending.length} changes waiting to sync`);
+console.log(`${events.length} changes waiting to sync`);
 ```
 
-Monitor during sync:
+Check for retryable events:
 
 ```typescript
-client.outboxEvent.subscribe(["create", "delete"], (event) => {
-  console.log("Outbox event:", event.detail);
-});
+// Used by sync worker to determine if pull phase should run
+const hasRetryable = await client.$outbox.hasAnyRetryableUnsynced();
+
+if (hasRetryable) {
+  console.log("Attempting to sync...");
+}
 ```
 
 ## Push Results
@@ -321,22 +324,13 @@ if (stats.lastError) {
 }
 ```
 
-Subscribe to outbox changes:
-
-```typescript
-client.$outbox.subscribe(["create", "update", "delete"], async () => {
-  const stats = await client.$outbox.stats();
-  console.log("Outbox updated:", stats);
-});
-```
-
 ### UI Indicator
 
 Show sync status in your app:
 
 ```svelte
 <script lang="ts">
-  let pendingCount = $state(0);
+  let syncStats = $state({ unsynced: 0, failed: 0 });
   let isSyncing = $state(false);
 
   onMount(async () => {
@@ -345,30 +339,31 @@ Show sync status in your app:
       /* ... */
     });
 
-    // Monitor pending count
-    client.outboxEvent.subscribe(["create", "delete", "update"], async () => {
-      const result = await client.outboxEvent.count({
-        where: { status: "pending" },
-      });
-      pendingCount = result.count;
-    });
+    // Check stats periodically or after sync
+    const updateStats = async () => {
+      syncStats = await client.$outbox.stats();
+    };
 
     syncWorker.on("sync:start", () => {
       isSyncing = true;
     });
 
-    syncWorker.on("sync:complete", () => {
+    syncWorker.on("sync:complete", async () => {
+      await updateStats();
       isSyncing = false;
     });
 
+    await updateStats();
     syncWorker.start();
   });
 </script>
 
 {#if isSyncing}
   <div class="sync-indicator">Syncing...</div>
-{:else if pendingCount > 0}
-  <div class="sync-warning">{pendingCount} changes pending</div>
+{:else if syncStats.unsynced > 0}
+  <div class="sync-warning">{syncStats.unsynced} changes pending</div>
+{:else if syncStats.failed > 0}
+  <div class="sync-error">{syncStats.failed} changes failed - {syncStats.lastError}</div>
 {:else}
   <div class="sync-success">✓ All synced</div>
 {/if}
@@ -376,31 +371,37 @@ Show sync status in your app:
 
 ## Retry Logic
 
-Failed events are automatically retried:
+Failed events are automatically tracked and retried by the sync worker. Each outbox event tracks:
 
 ```typescript
-const syncWorker = client.createSyncWorker({
-  maxRetries: 5, // Max retry attempts
-  retryDelay: 2000, // ms between retries
+interface OutboxEventRecord {
+  tries: number; // Retry attempt count
+  lastError: string | null; // Error message if failed
+  retryable: boolean; // Whether error allows retries
+  lastAttemptedAt: Date | null; // Timestamp of last attempt
+}
+```
 
-  push: async (events) => {
-    // Called with events up to maxRetries times
-    // until success or exhausted
-  },
+Manually mark events as failed:
+
+```typescript
+await client.$outbox.markFailed(eventId, {
+  type: "OWNERSHIP_ERROR",
+  message: "User is not authorized",
+  retryable: false, // Non-retryable: won't retry
 });
 ```
 
-Retry backoff:
+Non-retryable errors (like `OWNERSHIP_ERROR`) are logged and require manual intervention. Retryable errors are automatically retried by the sync worker.
 
-```
-Attempt 1: Immediate
-Attempt 2: Wait 2s
-Attempt 3: Wait 4s
-Attempt 4: Wait 8s
-Attempt 5: Wait 16s
-```
+Clear old synced events:
 
-Non-retryable errors (like `OWNERSHIP_ERROR`) fail immediately and are logged for manual intervention.
+```typescript
+// Remove synced events older than 7 days
+const deletedCount = await client.$outbox.clearSynced({ olderThanDays: 7 });
+
+console.log(`Cleaned up ${deletedCount} old synced events`);
+```
 
 ## Performance
 
@@ -410,7 +411,7 @@ Pull uses reasonable batch sizes to avoid overwhelming the database:
 
 ```typescript
 // pages/api/sync/pull.ts
-const changelog = await prisma.changeLog.findMany({
+const changelog = await prisma.changelog.findMany({
   take: 1000, // Reasonable batch size
   orderBy: { id: "asc" },
 });

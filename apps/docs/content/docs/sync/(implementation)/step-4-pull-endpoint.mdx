@@ -134,7 +134,7 @@ See [Sync Engine](../sync-worker-lifecycle) for how the sync worker orchestrates
 - **Authentication**: Always verify the user before accessing their data
 - **Error Recovery**: Return proper HTTP status codes so the client knows if an error is retryable
 - **Performance**: The `pullAndMaterializeLogs()` function is optimized; trust it to fetch only necessary records
-- **Changelog Cleanup**: The `ChangeLog` table grows over time. Implement a periodic job to clean up old entries (keep at least 7 days of history for active users)
+- **Changelog Cleanup**: The `Changelog` table grows over time. Implement a periodic job to clean up old entries (keep at least 7 days of history for active users)
 
 ### Complete Example with Error Handling
 

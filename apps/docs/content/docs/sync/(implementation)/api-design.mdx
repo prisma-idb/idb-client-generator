@@ -101,7 +101,7 @@ export async function POST(req: Request) {
     }
 
     // Fetch changelog since cursor
-    const changeLog = await prisma.changeLog.findMany({
+    const changelog = await prisma.changelog.findMany({
       where: {
         id: cursor
           ? {
@@ -114,7 +114,7 @@ export async function POST(req: Request) {
       orderBy: { id: "asc" },
     });
 
-    if (changeLog.length === 0) {
+    if (changelog.length === 0) {
       return Response.json({
         changelog: [],
         records: {},
@@ -124,7 +124,7 @@ export async function POST(req: Request) {
     // Fetch actual records from changelog entries
     const records: Record<string, any[]> = {};
 
-    for (const log of changeLog) {
+    for (const log of changelog) {
       if (!records[log.model]) {
         records[log.model] = [];
       }
@@ -140,7 +140,7 @@ export async function POST(req: Request) {
     }
 
     return Response.json({
-      changelog: changeLog.map((log) => ({
+      changelog: changelog.map((log) => ({
         id: log.id,
         model: log.model,
         operation: log.operation,
@@ -260,10 +260,10 @@ const invalidEvent = {
 
 ## Changelog Recording
 
-Create the `ChangeLog` table to track server mutations:
+Create the `Changelog` table to track server mutations:
 
 ```prisma
-model ChangeLog {
+model Changelog {
   id            String          @id @default(uuid(7))
   model         String
   keyPath       Json
@@ -287,9 +287,9 @@ When `processBatch` applies an event, it automatically records it:
 ```typescript
 // processBatch internally does:
 // 1. Apply mutation to database
-// 2. Record in ChangeLog for client pull
+// 2. Record in Changelog for client pull
 
-await prisma.changeLog.create({
+await prisma.changelog.create({
   data: {
     id: uuid7(),
     model: event.model,

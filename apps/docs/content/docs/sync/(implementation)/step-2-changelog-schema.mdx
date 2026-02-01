@@ -13,7 +13,7 @@ The changelog table is essential for the sync engine. It tracks all changes made
 Add the following to your `prisma/schema.prisma`:
 
 ```prisma
-model ChangeLog {
+model Changelog {
   id            String          @id @default(uuid(7))
   model         String
   keyPath       Json
@@ -60,7 +60,7 @@ Using `uuid(7)` ensures:
 
 #### No Manual Deletes
 
-Never manually delete from the `ChangeLog` table. It's the source of truth for what changed on the server.
+Never manually delete from the `Changelog` table. It's the source of truth for what changed on the server.
 
 ### Migration
 
@@ -70,7 +70,7 @@ After adding the schema, create a migration:
 pnpm exec prisma migrate dev --name add_changelog
 ```
 
-First, update your `schema.prisma` file with the `ChangeLog` model. Then, run the migration to create the `ChangeLog` table in your database.
+First, update your `schema.prisma` file with the `Changelog` model. Then, run the migration to create the `Changelog` table in your database.
 
 ### Next Steps
 

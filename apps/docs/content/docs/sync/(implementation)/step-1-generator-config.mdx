@@ -24,7 +24,7 @@ generator prismaIDB {
   rootModel  = "User"
 
   // Models to exclude from sync (optional)
-  exclude    = ["Session", "Verification", "Account", "ChangeLog"]
+  exclude    = ["Session", "Verification", "Account", "Changelog"]
 }
 ```
 
@@ -102,7 +102,7 @@ generator prismaIDB {
   output     = "./prisma-idb"
   outboxSync = true
   rootModel  = "User"
-  exclude    = ["ChangeLog", "AuditLog"]
+  exclude    = ["Changelog", "AuditLog"]
 }
 ```
 
@@ -116,7 +116,7 @@ In this setup:
 
 After configuring the generator, you need to:
 
-1. Add the `ChangeLog` table to your schema
+1. Add the `Changelog` table to your schema
 2. Implement the push endpoint
 3. Implement the pull endpoint
 4. Initialize the sync worker on the client
