@@ -11,6 +11,7 @@ generator idbClientNoRootModelWithSync {
   provider   = "idb-client-generator"
   output     = "../../generated/prisma-idb"
   outboxSync = true
+  exclude    = ["Changelog"]
 
   // missing rootModel field while outboxSync is enabled, should fail
   // rootModel = "UserNoRootModelWithSync"
@@ -26,4 +27,21 @@ model ChildModel {
   id     String                  @id
   userId String
   user   UserNoRootModelWithSync @relation(fields: [userId], references: [id])
+}
+
+model Changelog {
+  id              String          @id @default(uuid(7))
+  model           String
+  keyPath         Json
+  operation       ChangeOperation
+  scopeKey        String
+  outboxEventId   String  @unique
+
+  @@index([model, id])
+}
+
+enum ChangeOperation {
+  create
+  update
+  delete
 }

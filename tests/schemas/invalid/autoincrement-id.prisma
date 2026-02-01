@@ -12,7 +12,6 @@ generator idbClientAutoincrementId {
   output     = "../../generated/prisma-idb"
   outboxSync = true
   rootModel  = "UserAutoincrementId"
-  exclude    = []
 }
 
 model UserAutoincrementId {
@@ -26,4 +25,21 @@ model TodoAutoincrementId {
   title  String
   userId Int
   user   UserAutoincrementId  @relation(fields: [userId], references: [id])
+}
+
+model Changelog {
+  id              String            @id @default(uuid(7))
+  model           String
+  keyPath         Json
+  operation       ChangeOperation
+  scopeKey        String
+  outboxEventId   String  @unique
+
+  @@index([model, id])
+}
+
+enum ChangeOperation {
+  create
+  update
+  delete
 }

@@ -47,4 +47,60 @@ describe("schema projection", () => {
       `Model "TodoAutoincrementId" has @id field "id" with invalid default "autoincrement". Required: Use random defaults like uuid() or cuid() for all models (except rootModel) included in sync.`
     );
   });
+
+  it("fails on missing Changelog model", async () => {
+    const schemaPath = path.resolve("./schemas/invalid/missing-changelog.prisma");
+
+    await expect(execa("pnpm", ["prisma", "generate", "--schema", schemaPath])).rejects.toThrow(
+      `@prisma-idb/idb-client-generator: A "Changelog" model is required when "outboxSync" is enabled.`
+    );
+  });
+
+  it("fails on extra ChangeOperation enum value", async () => {
+    const schemaPath = path.resolve("./schemas/invalid/extra-change-operation-enum-value.prisma");
+
+    await expect(execa("pnpm", ["prisma", "generate", "--schema", schemaPath])).rejects.toThrow(
+      `@prisma-idb/idb-client-generator: ChangeOperation enum must have exactly 3 values (create, update, delete), but has 4.`
+    );
+  });
+
+  it("fails on invalid ChangeOperation enum value", async () => {
+    const schemaPath = path.resolve("./schemas/invalid/invalid-change-operation-enum-value.prisma");
+
+    await expect(execa("pnpm", ["prisma", "generate", "--schema", schemaPath])).rejects.toThrow(
+      `@prisma-idb/idb-client-generator: ChangeOperation enum has invalid value "read". Only valid values are: create, update, delete.`
+    );
+  });
+
+  it("fails on extra Changelog field", async () => {
+    const schemaPath = path.resolve("./schemas/invalid/extra-changelog-field.prisma");
+
+    await expect(execa("pnpm", ["prisma", "generate", "--schema", schemaPath])).rejects.toThrow(
+      `@prisma-idb/idb-client-generator: Changelog model must have exactly 6 fields, but has 7.`
+    );
+  });
+
+  it("fails on invalid Changelog operation field type", async () => {
+    const schemaPath = path.resolve("./schemas/invalid/invalid-changelog-operation-field-type.prisma");
+
+    await expect(execa("pnpm", ["prisma", "generate", "--schema", schemaPath])).rejects.toThrow(
+      `@prisma-idb/idb-client-generator: Changelog.operation must be of type ChangeOperation, got String.`
+    );
+  });
+
+  it("fails on wrong Changelog id default", async () => {
+    const schemaPath = path.resolve("./schemas/invalid/wrong-changelog-id-default.prisma");
+
+    await expect(execa("pnpm", ["prisma", "generate", "--schema", schemaPath])).rejects.toThrow(
+      `@prisma-idb/idb-client-generator: Changelog.id @default must be uuid(7), got uuid.`
+    );
+  });
+
+  it("fails when Changelog model is manually included", async () => {
+    const schemaPath = path.resolve("./schemas/invalid/changelog-manually-included.prisma");
+
+    await expect(execa("pnpm", ["prisma", "generate", "--schema", schemaPath])).rejects.toThrow(
+      `@prisma-idb/idb-client-generator: "Changelog" model is automatically excluded and cannot be manually included. It is reserved for internal sync infrastructure.`
+    );
+  });
 });

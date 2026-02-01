@@ -1,0 +1,46 @@
+datasource dbExtraChangelogField {
+  provider = "postgresql"
+}
+
+generator clientExtraChangelogField {
+  provider = "prisma-client"
+  output   = "../../generated/prisma"
+}
+
+generator idbClientExtraChangelogField {
+  provider   = "idb-client-generator"
+  output     = "../../generated/prisma-idb"
+  outboxSync = true
+  rootModel  = "UserExtraChangelogField"
+}
+
+model UserExtraChangelogField {
+  id        String @id @default(uuid())
+  name      String
+  todos     TodoExtraChangelogField[]
+}
+
+model TodoExtraChangelogField {
+  id     String                    @id @default(uuid())
+  title  String
+  userId String
+  user   UserExtraChangelogField   @relation(fields: [userId], references: [id])
+}
+
+model Changelog {
+  id            String          @id @default(uuid(7))
+  model         String
+  keyPath       Json
+  operation     ChangeOperation
+  scopeKey      String
+  outboxEventId String          @unique
+  metadata      String
+
+  @@index([model, id])
+}
+
+enum ChangeOperation {
+  create
+  update
+  delete
+}

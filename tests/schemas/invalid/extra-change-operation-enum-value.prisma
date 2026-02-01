@@ -1,0 +1,46 @@
+datasource dbExtraChangeOp {
+  provider = "postgresql"
+}
+
+generator clientExtraChangeOp {
+  provider = "prisma-client"
+  output   = "../../generated/prisma"
+}
+
+generator idbClientExtraChangeOp {
+  provider   = "idb-client-generator"
+  output     = "../../generated/prisma-idb"
+  outboxSync = true
+  rootModel  = "UserExtraChangeOp"
+}
+
+model UserExtraChangeOp {
+  id        String @id @default(uuid())
+  name      String
+  todos     TodoExtraChangeOp[]
+}
+
+model TodoExtraChangeOp {
+  id     String                @id @default(uuid())
+  title  String
+  userId String
+  user   UserExtraChangeOp     @relation(fields: [userId], references: [id])
+}
+
+model Changelog {
+  id            String          @id @default(uuid(7))
+  model         String
+  keyPath       Json
+  operation     ChangeOperation
+  scopeKey      String
+  outboxEventId String          @unique
+
+  @@index([model, id])
+}
+
+enum ChangeOperation {
+  create
+  update
+  delete
+  restore
+}

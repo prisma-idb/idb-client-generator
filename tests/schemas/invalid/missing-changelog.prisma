@@ -1,0 +1,28 @@
+datasource dbMissingChangelog {
+  provider = "postgresql"
+}
+
+generator clientMissingChangelog {
+  provider = "prisma-client"
+  output   = "../../generated/prisma"
+}
+
+generator idbClientMissingChangelog {
+  provider   = "idb-client-generator"
+  output     = "../../generated/prisma-idb"
+  outboxSync = true
+  rootModel  = "UserMissingChangelog"
+}
+
+model UserMissingChangelog {
+  id    String @id @default(uuid())
+  name  String
+  todos TodoMissingChangelog[]
+}
+
+model TodoMissingChangelog {
+  id     String                  @id @default(uuid())
+  title  String
+  userId String
+  user   UserMissingChangelog    @relation(fields: [userId], references: [id])
+}

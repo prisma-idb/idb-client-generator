@@ -105,6 +105,16 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
     exclude = generatorConfig.exclude;
   }
 
+  // Define matchPattern before using it
+  const matchPattern = (name: string, pattern: string): boolean => {
+    const globToRegex = (glob: string): RegExp => {
+      const escaped = glob.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+      const withWildcard = escaped.replace(/\\\*/g, ".*");
+      return new RegExp(`^${withWildcard}$`);
+    };
+    return globToRegex(pattern).test(name);
+  };
+
   // === Auto-exclude Changelog model ===
   // Check if user is trying to manually include Changelog
   if (include[0] !== "*" && include.some((pattern) => matchPattern("Changelog", pattern))) {
@@ -117,16 +127,6 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
   if (!exclude.includes("Changelog")) {
     exclude.push("Changelog");
   }
-
-  // Define matchPattern before using it
-  const matchPattern = (name: string, pattern: string): boolean => {
-    const globToRegex = (glob: string): RegExp => {
-      const escaped = glob.replace(/[.+^${}()|[\]\\]/g, "\\$&");
-      const withWildcard = escaped.replace(/\\\*/g, ".*");
-      return new RegExp(`^${withWildcard}$`);
-    };
-    return globToRegex(pattern).test(name);
-  };
 
   // Validate XOR: either include or exclude, not both
   if (include.length > 0 && include[0] !== "*" && exclude.length > 1) {

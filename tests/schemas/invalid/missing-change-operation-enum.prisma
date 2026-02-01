@@ -1,0 +1,39 @@
+datasource dbMissingChangeOp {
+  provider = "postgresql"
+}
+
+generator clientMissingChangeOp {
+  provider = "prisma-client"
+  output   = "../../generated/prisma"
+}
+
+generator idbClientMissingChangeOp {
+  provider   = "idb-client-generator"
+  output     = "../../generated/prisma-idb"
+  outboxSync = true
+  rootModel  = "UserMissingChangeOp"
+}
+
+model UserMissingChangeOp {
+  id        String @id @default(uuid())
+  name      String
+  todos     TodoMissingChangeOp[]
+}
+
+model TodoMissingChangeOp {
+  id     String                @id @default(uuid())
+  title  String
+  userId String
+  user   UserMissingChangeOp   @relation(fields: [userId], references: [id])
+}
+
+model Changelog {
+  id              String          @id @default(uuid(7))
+  model           String
+  keyPath         Json
+  scopeKey        String
+  outboxEventId   String  @unique
+
+  @@index([model, id])
+}
+
