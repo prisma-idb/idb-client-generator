@@ -332,7 +332,6 @@ generator prismaIDBrowser {
   outboxSync = true              # Enable sync
   rootModel  = "User"            # Root for ownership DAG
   exclude    = ["Session", "Verification"]  # Skip these models
-  include    = ["*"]             # Include all others (default)
 }
 ```
 
@@ -342,5 +341,4 @@ generator prismaIDBrowser {
 - `outboxSync`: Enable sync engine (default: false)
 - `rootModel`: Root model for ownership (required if outboxSync = true)
 - `exclude`: Models to skip generation
-- `include`: Models to include (default: all)
-- `prismaClientImport`: Custom Prisma Client import path
+- `include`: Models to include (default: all); mutually exclusive with `exclude` (cannot set both to non-default values)
