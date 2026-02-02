@@ -4,14 +4,31 @@
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "$lib/components/ui/card";
   import { ArrowRight, Database, Zap, GithubIcon, AlertCircle, BookOpen, Code } from "@lucide/svelte";
   import favicon from "$lib/assets/favicon.png";
+  import logo from "$lib/assets/prisma-idb-logo.png";
 </script>
+
+<svelte:head>
+  <title>Prisma IDB Kanban</title>
+  <meta
+    name="description"
+    content="A type-safe, offline-first IndexedDB client for Prisma with built-in bidirectional synchronization."
+  />
+</svelte:head>
 
 <div class="bg-background flex min-h-screen flex-col">
   <!-- Navigation -->
   <nav class="border-border/50 sticky top-0 z-50 border-b backdrop-blur-sm">
     <div class="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4 sm:px-6 lg:px-8">
-      <img src={favicon} alt="Prisma IDB Logo" class="h-8 w-8" />
-      <div class="text-foreground text-xl font-bold">Prisma IDB</div>
+      <a
+        href="https://idb-client-generator-docs.vercel.app/"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex items-center gap-2"
+      >
+        <img src={logo} alt="Prisma IDB Logo" class="h-8 w-8" />
+      </a>
+      <img src={favicon} alt="Prisma IDB Kanban Logo" class="h-8 w-8" />
+      <div class="text-foreground text-xl font-bold">Prisma IDB Kanban</div>
       <div class="ml-auto flex items-center gap-4">
         <a
           href="https://idb-client-generator-docs.vercel.app/"
