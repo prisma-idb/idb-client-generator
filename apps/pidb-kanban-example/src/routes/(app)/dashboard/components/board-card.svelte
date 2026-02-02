@@ -12,7 +12,7 @@
   let { board }: { board: Prisma.BoardGetPayload<{ include: { todos: true } }> } = $props();
 </script>
 
-<Card.Root>
+<Card.Root class="mb-2">
   <Card.Header>
     <Card.Title>{board.name}</Card.Title>
     <Card.Action>

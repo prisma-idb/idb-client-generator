@@ -95,7 +95,11 @@
             Documentation
           </Button>
         </a>
-        <a href="https://github.com/prisma-idb/idb-client-generator" target="_blank" rel="noopener noreferrer">
+        <a
+          href="https://github.com/prisma-idb/idb-client-generator/tree/main/apps/pidb-kanban-example"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           <Button size="lg" variant="outline" class="w-full sm:w-auto">
             <GithubIcon class="mr-2 h-4 w-4" />
             View Source
