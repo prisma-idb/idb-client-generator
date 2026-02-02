@@ -2,7 +2,7 @@
   import { resolve } from "$app/paths";
   import Button from "$lib/components/ui/button/button.svelte";
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "$lib/components/ui/card";
-  import { ArrowRight, Database, Zap, GithubIcon, AlertCircle } from "@lucide/svelte";
+  import { ArrowRight, Database, Zap, GithubIcon, AlertCircle, BookOpen, Code } from "@lucide/svelte";
   import favicon from "$lib/assets/favicon.png";
 </script>
 
@@ -14,13 +14,35 @@
       <div class="text-foreground text-xl font-bold">Prisma IDB</div>
       <div class="ml-auto flex items-center gap-4">
         <a
+          href="https://idb-client-generator-docs.vercel.app/"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-muted-foreground hover:text-foreground transition"
+          title="Documentation"
+        >
+          <BookOpen class="h-5 w-5" />
+        </a>
+        <a
+          href="https://www.npmjs.com/package/@prisma-idb/idb-client-generator"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-muted-foreground hover:text-foreground transition"
+          title="npm Package"
+        >
+          <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 fill-current">
+            <path
+              d="M1.763 0C.786 0 0 .786 0 1.763v20.474C0 23.214.786 24 1.763 24h20.474c.977 0 1.763-.786 1.763-1.763V1.763C24 .786 23.214 0 22.237 0zM5.13 5.323l13.837.019-.009 13.836h-3.464l.01-10.382h-3.456L12.04 19.17H5.113z"
+            />
+          </svg>
+        </a>
+        <a
           href="https://github.com/prisma-idb/idb-client-generator"
           target="_blank"
           rel="noopener noreferrer"
-          class="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm transition"
+          class="text-muted-foreground hover:text-foreground transition"
+          title="GitHub Repository"
         >
-          <GithubIcon />
-          GitHub
+          <GithubIcon class="h-5 w-5" />
         </a>
       </div>
     </div>
@@ -45,12 +67,22 @@
       <div class="mb-16 flex flex-col justify-center gap-4 sm:flex-row">
         <a href={resolve("/dashboard")}>
           <Button size="lg" class="w-full sm:w-auto">
+            <Code class="mr-2 h-4 w-4" />
             Open App
             <ArrowRight class="ml-2 h-4 w-4" />
           </Button>
         </a>
+        <a href="https://idb-client-generator-docs.vercel.app/" target="_blank" rel="noopener noreferrer">
+          <Button size="lg" variant="outline" class="w-full sm:w-auto">
+            <BookOpen class="mr-2 h-4 w-4" />
+            Documentation
+          </Button>
+        </a>
         <a href="https://github.com/prisma-idb/idb-client-generator" target="_blank" rel="noopener noreferrer">
-          <Button size="lg" variant="outline" class="w-full sm:w-auto">View Source</Button>
+          <Button size="lg" variant="outline" class="w-full sm:w-auto">
+            <GithubIcon class="mr-2 h-4 w-4" />
+            View Source
+          </Button>
         </a>
       </div>
 
