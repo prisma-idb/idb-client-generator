@@ -5,7 +5,7 @@
 
 import { cleanupOutdatedCaches, precacheAndRoute } from "workbox-precaching";
 import { registerRoute } from "workbox-routing";
-import { StaleWhileRevalidate, NetworkOnly } from "workbox-strategies";
+import { StaleWhileRevalidate } from "workbox-strategies";
 declare let self: ServiceWorkerGlobalScope;
 
 cleanupOutdatedCaches();
@@ -20,7 +20,4 @@ self.addEventListener("activate", (event) => {
 });
 
 // Cache everything else (except API requests)
-registerRoute(
-  ({ url }) => !url.pathname.startsWith("/api"),
-  new StaleWhileRevalidate()
-);
+registerRoute(({ url }) => !url.pathname.startsWith("/api"), new StaleWhileRevalidate());
