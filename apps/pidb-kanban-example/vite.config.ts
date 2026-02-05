@@ -16,7 +16,12 @@ export default defineConfig(({ mode }) => ({
       strategies: "injectManifest",
       srcDir: "src",
       filename: "service-worker.ts",
-      manifestFilename: "manifest.webmanifest",
+      includeManifestIcons: false,
+      manifest: false,
+      devOptions: {
+        enabled: true,
+        type: "module",
+      },
     }),
   ],
 }));

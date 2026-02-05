@@ -7,7 +7,6 @@
   import { BookOpenIcon, GithubIcon, PackageIcon } from "@lucide/svelte";
   import favicon from "$lib/assets/favicon.png";
   import NavSync from "./nav-sync.svelte";
-  import PwaButton from "./pwa-button.svelte";
 
   const sidebar = Sidebar.useSidebar();
 
@@ -140,6 +139,5 @@
   <Sidebar.Footer>
     <NavSync />
     <NavUser />
-    <PwaButton />
   </Sidebar.Footer>
 </Sidebar.Root>

@@ -19,11 +19,8 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-// Don't cache API endpoints - always fetch fresh
-registerRoute(({ request }) => {
-  const url = new URL(request.url);
-  return url.pathname.startsWith("/api/");
-}, new NetworkOnly());
-
-// Cache everything else
-registerRoute(/.*/, new StaleWhileRevalidate());
+// Cache everything else (except API requests)
+registerRoute(
+  ({ url }) => !url.pathname.startsWith("/api"),
+  new StaleWhileRevalidate()
+);
