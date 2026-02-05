@@ -136,15 +136,12 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
     .writeLine(` * @param options.schedule Scheduling configuration`)
     .writeLine(` * @param options.schedule.intervalMs Milliseconds between sync cycles (default: 5000)`)
     .writeLine(
-      ` * @param options.schedule.maxRetries Max retry attempts for outbox events before abandoning (default: 5)`
+      ` * @param options.schedule.backoffMs Exponential backoff base duration in milliseconds (default: 30000 = 30 seconds).`
     )
     .writeLine(
-      ` * @param options.schedule.backoffMs Exponential backoff base duration in milliseconds (default: 300000 = 5 minutes).`
+      ` *   For each failed attempt, the wait time is calculated as: backoffMs * 2^(tries-1). E.g. with the default 30 seconds:`
     )
-    .writeLine(
-      ` *   For each failed attempt, the wait time is calculated as: backoffMs * 2^(tries-1). E.g. with the default 5 minutes:`
-    )
-    .writeLine(` *   First failure: wait 5 min, second: wait 10 min, third: wait 20 min, etc.`)
+    .writeLine(` *   First failure: wait 30s, second: wait 60s, third: wait 120s, etc.`)
     .writeLine(` *`)
     .writeLine(` * @returns SyncWorker with start() and stop() methods`)
     .writeLine(` *`)
@@ -171,20 +168,20 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
     .writeLine(` *       }`)
     .writeLine(` *     }`)
     .writeLine(` *   },`)
-    .writeLine(` *   schedule: { intervalMs: 3000, maxRetries: 10 }`)
+    .writeLine(` *   schedule: { intervalMs: 3000 }`)
     .writeLine(` * });`)
     .writeLine(` *`)
     .writeLine(` * worker.start();   // begins sync cycles`)
     .writeLine(` */`)
     .writeLine(
-      `createSyncWorker(options: { push: { handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>; batchSize?: number }; pull: { handler: (cursor?: string) => Promise<{ cursor?: string; logsWithRecords: LogWithRecord<typeof validators>[] }>; getCursor?: () => Promise<string | undefined> | string | undefined; setCursor?: (cursor: string | undefined) => Promise<void> | void }; schedule?: { intervalMs?: number; maxRetries?: number; backoffMs?: number } }): SyncWorker`
+      `createSyncWorker(options: { push: { handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>; batchSize?: number }; pull: { handler: (cursor?: string) => Promise<{ cursor?: string; logsWithRecords: LogWithRecord<typeof validators>[] }>; getCursor?: () => Promise<string | undefined> | string | undefined; setCursor?: (cursor: string | undefined) => Promise<void> | void }; schedule?: { intervalMs?: number; backoffMs?: number } }): SyncWorker`
     )
     .block(() => {
       writer
         .writeLine(`const { push, pull } = options;`)
         .writeLine(`const { handler: pushHandler, batchSize = 10 } = push;`)
         .writeLine(`const { handler: pullHandler, getCursor, setCursor } = pull;`)
-        .writeLine(`const { intervalMs = 5000, maxRetries = 5, backoffMs = 300000 } = options.schedule || {};`)
+        .writeLine(`const { intervalMs = 5000, backoffMs = 30000 } = options.schedule || {};`)
         .blankLine()
         .writeLine(`let intervalId: ReturnType<typeof setInterval | typeof setTimeout> | null = null;`)
         .writeLine(`let status: 'STOPPED' | 'IDLE' | 'PUSHING' | 'PULLING' = 'STOPPED';`)

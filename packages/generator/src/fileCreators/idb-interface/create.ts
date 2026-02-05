@@ -93,7 +93,6 @@ function addSyncWorkerTypes(writer: CodeBlockWriter) {
       .writeLine(`syncHandler: (events: OutboxEventRecord[]) => Promise<PushResult[]>;`)
       .writeLine(`batchSize?: number;`)
       .writeLine(`intervalMs?: number;`)
-      .writeLine(`maxRetries?: number;`)
       .writeLine(`backoffBaseMs?: number;`);
   });
 

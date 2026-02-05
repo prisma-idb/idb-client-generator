@@ -6,6 +6,7 @@
   import CloudIcon from "@lucide/svelte/icons/cloud";
   import PlayIcon from "@lucide/svelte/icons/play";
   import StopCircleIcon from "@lucide/svelte/icons/stop-circle";
+  import ZapIcon from "@lucide/svelte/icons/zap";
   import { getTodosContext } from "../todos-state.svelte";
   import { CloudDownloadIcon, CloudOffIcon, CloudUploadIcon } from "@lucide/svelte";
   import SyncDetailsPopover from "./sync-details/sync-details-popover.svelte";
@@ -107,6 +108,19 @@
     >
       <CloudIcon />
       Sync now
+    </Button>
+    <Button
+      variant="secondary"
+      class="h-fit w-full"
+      data-testid="sync-now-override-backoff-button"
+      onclick={() => todosState.syncWorker?.syncNow({ overrideBackoff: true })}
+      disabled={!todosState.syncWorker}
+      title="Sync immediately without waiting for exponential backoff"
+    >
+      <ZapIcon />
+      Sync now
+      <br />
+      <span class="contents text-xs font-light">(skip backoff)</span>
     </Button>
   </Card.Footer>
 </Card.Root>

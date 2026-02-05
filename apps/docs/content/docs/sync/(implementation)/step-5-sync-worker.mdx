@@ -53,7 +53,6 @@ export class AppState {
         },
         schedule: {
           intervalMs: 10000,
-          maxRetries: 3,
         },
       });
     }
@@ -89,7 +88,7 @@ export class AppState {
 #### Schedule Configuration
 
 - **`intervalMs`** (optional): Milliseconds between sync cycles (default: 5000)
-- **`maxRetries`** (optional): Max retry attempts for failed outbox events before abandoning them (default: 5)
+- **`backoffMs`** (optional): Exponential backoff base duration in milliseconds (default: 30000 = 30 seconds)
 
 ### The Sync Cycle
 
@@ -98,7 +97,7 @@ Once you call `syncWorker.start()`, the worker enters a repeating cycle:
 ```
 1. Push: Send all outbox events in batches
    - If batch succeeds: mark events as synced, continue
-   - If batch fails: retry up to maxRetries times
+   - If batch fails: apply exponential backoff and retry (up to maxRetries set by server)
 
 2. Pull: Fetch changelog entries since last cursor
    - Apply changes to IndexedDB
@@ -157,7 +156,7 @@ setCursor(cursor: string | undefined) {
 
 The sync worker gracefully handles errors:
 
-- **Push errors**: Events are marked failed and retried on the next cycle (up to `maxRetries`)
+- **Push errors**: Events are marked failed and retried with exponential backoff on the next cycle
 - **Pull errors**: The pull phase stops gracefully; the worker will retry next cycle
 - **Network errors**: Treated as transient; the worker retries on the next schedule interval
 
@@ -229,7 +228,6 @@ export class PageState {
       },
       schedule: {
         intervalMs: 10000,
-        maxRetries: 3,
       },
     });
 
