@@ -27,10 +27,14 @@
       : null;
 
     if (!sessionData && !existingUser) {
+      const firstUser = await client.user.findFirst();
+      if (firstUser) return;
+
       if (!UNPROTECTED_ROUTES.includes(page.url.pathname)) {
         localStorage.removeItem("lastSyncedAt");
         await client.resetDatabase();
         const redirect = `${page.url.pathname}${page.url.search}${page.url.hash}`;
+
         // eslint-disable-next-line svelte/no-navigation-without-resolve
         goto(`/login?redirect=${encodeURIComponent(redirect)}`);
         return toast.info("Please login to continue");

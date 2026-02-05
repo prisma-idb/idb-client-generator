@@ -6,10 +6,10 @@
   import { ModeWatcher } from "mode-watcher";
   import { pwaInfo } from "virtual:pwa-info";
   import "./layout.css";
-
-  let webManifestLink = $derived(pwaInfo ? pwaInfo.webManifest.linkTag : "");
+  import PwaButton from "./components/pwa-button.svelte";
 
   let { children } = $props();
+  let webManifestLink = $derived(pwaInfo?.webManifest.linkTag);
 
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -28,6 +28,7 @@
 
 <ModeWatcher />
 <Toaster />
+<PwaButton />
 
 <QueryClientProvider client={queryClient}>
   {@render children()}

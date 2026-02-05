@@ -2,6 +2,8 @@
 
 A fully functional **offline-first kanban board** that demonstrates the power of the [Prisma IDB generator](https://github.com/prisma-idb/idb-client-generator). Create, organize, and sync your tasks seamlessly.
 
+**[🚀 Live Demo](https://pidb-kanban-example.vercel.app/) • [📖 Full Documentation](https://idb-client-generator-docs.vercel.app/) • [📦 npm Package](https://www.npmjs.com/package/@prisma-idb/idb-client-generator) • [🏗️ Main Repository](https://github.com/prisma-idb/idb-client-generator)**
+
 ## Features
 
 ### 🗂️ Full Kanban Functionality
@@ -170,7 +172,9 @@ Manages application state:
 
 ## Learning Resources
 
-- [Prisma IDB Generator](https://github.com/prisma-idb/idb-client-generator) - Core package documentation
+- [Prisma IDB Generator](https://idb-client-generator-docs.vercel.app/) - Complete documentation and guides
+- [Main Repository](https://github.com/prisma-idb/idb-client-generator) - Source code and issue tracking
+- [npm Package](https://www.npmjs.com/package/@prisma-idb/idb-client-generator) - Install the generator
 - [IndexedDB API](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API)
 - [Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API)
 - [Outbox Pattern](https://microservices.io/patterns/data/transactional-outbox.html)

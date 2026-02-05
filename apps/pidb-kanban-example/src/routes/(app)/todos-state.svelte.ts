@@ -56,7 +56,7 @@ export class TodosState {
         },
         schedule: {
           intervalMs: 10000,
-          maxRetries: 3,
+          backoffMs: 30000,
         },
       });
       this.loadBoards();

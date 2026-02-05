@@ -2,6 +2,8 @@
 
 A **Prisma generator** that creates a familiar, type-safe client for IndexedDB with optional **bidirectional synchronization** to a remote server. Define your data model once in Prisma schema, and get both a local-first IndexedDB client and a complete sync engine built for conflict resolution and authorization.
 
+**[📖 Documentation](https://idb-client-generator-docs.vercel.app/) • [🚀 Live Demo](https://pidb-kanban-example.vercel.app/) • [📦 npm Package](https://www.npmjs.com/package/@prisma-idb/idb-client-generator) • [🏗️ GitHub Repository](https://github.com/prisma-idb/idb-client-generator)**
+
 ## Features
 
 - **Prisma-like API**: Use the syntax you already know. CRUD operations feel exactly like Prisma Client.
@@ -183,17 +185,25 @@ idbClient.modelName.delete({
 });
 ```
 
+## Resources
+
+- **[📖 Full Documentation](https://idb-client-generator-docs.vercel.app/)** - Complete API reference and guides
+- **[🚀 Live Kanban Demo](https://pidb-kanban-example.vercel.app/)** - See the sync engine in action
+- **[📦 npm Package](https://www.npmjs.com/package/@prisma-idb/idb-client-generator)** - Install from npm
+- **[🏗️ GitHub Repository](https://github.com/prisma-idb/idb-client-generator)** - Source code and issue tracking
+- **[Example App Source](./apps/pidb-kanban-example)** - Real-world implementation reference
+
 ## Contributing
 
-We welcome contributions! Please see our CONTRIBUTING.md for guidelines on how to contribute to this project.
+We welcome contributions! Please see our [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on how to contribute to this project.
 
 ## Security
 
-If you discover a security vulnerability, please follow our SECURITY.md guidelines on reporting issues responsibly.
+If you discover a security vulnerability, please follow our [SECURITY.md](./SECURITY.md) guidelines on reporting issues responsibly.
 
 ## License
 
-This project is licensed under the GNU Affero General Public License v3.0. See the LICENSE file for more details.
+This project is licensed under the GNU Affero General Public License v3.0. See the [LICENSE](./LICENSE) file for more details.
 
 ## Disclaimer
 

@@ -51,7 +51,6 @@ export interface SyncWorkerOptions {
   syncHandler: (events: OutboxEventRecord[]) => Promise<PushResult[]>;
   batchSize?: number;
   intervalMs?: number;
-  maxRetries?: number;
   backoffBaseMs?: number;
 }
 export interface SyncWorkerStatus {
