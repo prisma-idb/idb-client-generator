@@ -91,7 +91,7 @@ importers:
         specifier: ^2.0.13
         version: 2.0.13
       '@types/node':
-        specifier: ^24.10.10
+        specifier: ^24.10.9
         version: 24.10.10
       '@types/react':
         specifier: ^19.2.11
@@ -9469,11 +9469,11 @@ snapshots:
   '@simple-libs/child-process-utils@1.0.1':
     dependencies:
       '@simple-libs/stream-utils': 1.1.0
-      '@types/node': 24.10.9
+      '@types/node': 24.10.10
 
   '@simple-libs/stream-utils@1.1.0':
     dependencies:
-      '@types/node': 24.10.9
+      '@types/node': 24.10.10
 
   '@sindresorhus/merge-streams@4.0.0': {}
 
