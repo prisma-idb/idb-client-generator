@@ -22,7 +22,7 @@
 </svelte:head>
 
 <CustomScrollArea class="h-px grow">
-  {#each todosState.boards as board (board.id)}
+  {#each todosState.boards ?? [] as board (board.id)}
     <BoardCard {board} />
   {:else}
     <Empty.Root class="h-full">

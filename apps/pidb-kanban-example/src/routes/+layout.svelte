@@ -4,10 +4,12 @@
   import { Toaster } from "$lib/components/ui/sonner/index.js";
   import { QueryClient, QueryClientProvider } from "@tanstack/svelte-query";
   import { ModeWatcher } from "mode-watcher";
+  import { pwaInfo } from "virtual:pwa-info";
   import "./layout.css";
   import PwaButton from "./components/pwa-button.svelte";
 
   let { children } = $props();
+  let webManifestLink = $derived(pwaInfo?.webManifest.linkTag);
 
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -19,8 +21,9 @@
 </script>
 
 <svelte:head>
+  <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+  {@html webManifestLink}
   <link rel="icon" href={favicon} />
-  <link rel="manifest" href="manifest.webmanifest" />
 </svelte:head>
 
 <ModeWatcher />
