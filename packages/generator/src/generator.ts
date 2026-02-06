@@ -9,6 +9,8 @@ import { createApplyPullFile } from "./fileCreators/apply-pull/create";
 import { parseGeneratorConfig } from "./helpers/parseGeneratorConfig";
 import { createValidatorsFile } from "./fileCreators/validators/create";
 import { createEnumsFile } from "./fileCreators/enums/create";
+import { createClientIndexFile } from "./fileCreators/index/create-client-index";
+import { createServerIndexFile } from "./fileCreators/index/create-server-index";
 import { spawnSync } from "child_process";
 import { createScopedSchemaFile } from "./fileCreators/scoped-schema/create";
 import path from "path";
@@ -56,6 +58,10 @@ generatorHandler({
         createScopedSchemaFile(writer, filteredModels, options.dmmf.datamodel.enums);
       });
 
+      await writeCodeFile("server/index.ts", outputPath, (writer) => {
+        createServerIndexFile(writer);
+      });
+
       const result = spawnSync(
         "prisma",
         ["generate", "--schema", path.join(outputPath, "client/scoped-schema.prisma")],
@@ -95,6 +101,10 @@ generatorHandler({
 
     await writeCodeFile("client/idb-utils.ts", outputPath, (writer) => {
       createUtilsFile(writer, filteredModels, scopedPrismaImport, outboxSync);
+    });
+
+    await writeCodeFile("client/index.ts", outputPath, (writer) => {
+      createClientIndexFile(writer, outboxSync);
     });
 
     if (exportEnums) {
