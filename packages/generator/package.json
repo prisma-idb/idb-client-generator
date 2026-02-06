@@ -36,8 +36,12 @@
     "@prisma/client": "^6.0.0 || ^7.0.0",
     "idb": "^8.0.0",
     "prisma": "^6.0.0 || ^7.0.0",
-    "uuid": "^9.0.0",
+    "uuid": ">=9.0.0",
     "@paralleldrive/cuid2": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "uuid": { "optional": true },
+    "@paralleldrive/cuid2": { "optional": true }
   },
   "homepage": "https://github.com/prisma-idb/idb-client-generator",
   "repository": {

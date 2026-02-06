@@ -17,7 +17,28 @@ export default defineConfig(({ mode }) => ({
       srcDir: "src",
       filename: "service-worker.ts",
       includeManifestIcons: false,
-      manifest: false,
+      manifest: {
+        name: "PIDB Kanban",
+        short_name: "PIDBKanban",
+        start_url: "/",
+        display: "standalone",
+        background_color: "#ffffff",
+        theme_color: "#FFA500",
+        icons: [
+          {
+            src: "icons/icon-144x144.png",
+            sizes: "144x144",
+          },
+          {
+            src: "icons/icon-192x192.png",
+            sizes: "192x192",
+          },
+          {
+            src: "icons/icon-512x512.png",
+            sizes: "512x512",
+          },
+        ],
+      },
       devOptions: {
         enabled: true,
         type: "module",
