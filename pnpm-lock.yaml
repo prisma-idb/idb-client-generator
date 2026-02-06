@@ -351,8 +351,8 @@ importers:
         specifier: ^6.0.0 || ^7.0.0
         version: 7.3.0(@types/react@19.2.11)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
       uuid:
-        specifier: ^9.0.0
-        version: 9.0.1
+        specifier: '>=9.0.0'
+        version: 13.0.0
     devDependencies:
       '@prisma/internals':
         specifier: ^7.3.0
@@ -6969,10 +6969,6 @@ packages:
 
   uuid@13.0.0:
     resolution: {integrity: sha512-XQegIaBTVUjSHliKqcnFqYypAd4S+WCYt5NIeRs6w/UAry7z8Y9j5ZwRRL4kzq9U3sD6v+85er9FvkEaBpji2w==}
-    hasBin: true
-
-  uuid@9.0.1:
-    resolution: {integrity: sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA==}
     hasBin: true
 
   valibot@1.2.0:
@@ -14545,8 +14541,6 @@ snapshots:
   uuid@11.1.0: {}
 
   uuid@13.0.0: {}
-
-  uuid@9.0.1: {}
 
   valibot@1.2.0(typescript@5.9.3):
     optionalDependencies:
