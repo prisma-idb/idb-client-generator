@@ -1,5 +1,5 @@
 {
-  "name": "tests",
+  "name": "@prisma-idb/tests",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -13,9 +13,9 @@
   "packageManager": "pnpm@10.28.0",
   "devDependencies": {
     "@prisma-idb/idb-client-generator": "workspace:*",
-    "@types/node": "^24.10.9",
-    "execa": "9.6.1",
-    "prisma": "7.3.0",
-    "vitest": "4.0.18"
+    "@types/node": "^24.12.0",
+    "execa": "^9.6.1",
+    "prisma": "^7.4.2",
+    "vitest": "^4.0.18"
   }
 }

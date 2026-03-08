@@ -1,4 +1,4 @@
-import { test as base, expect, Page } from "@playwright/test";
+import { test as base, expect, type Page } from "@playwright/test";
 import { prisma } from "./prisma";
 
 export const test = base.extend<{ pages: [Page, Page] }>({
