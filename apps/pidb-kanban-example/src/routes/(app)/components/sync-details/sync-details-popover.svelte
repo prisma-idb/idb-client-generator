@@ -25,7 +25,7 @@
       <Button variant="outline" size="icon" {...props} aria-label="More info"><EllipsisIcon /></Button>
     {/snippet}
   </Popover.Trigger>
-  <Popover.Content side="right" align="end" class="w-96 rounded-lg border-0 p-0">
+  <Popover.Content side="top" align="start" class="w-80 rounded-lg border-0 p-0">
     <Card.Root>
       <Card.Header>
         <Card.Title>Sync details</Card.Title>
