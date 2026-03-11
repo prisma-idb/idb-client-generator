@@ -174,7 +174,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
     .writeLine(` * worker.start();   // begins sync cycles`)
     .writeLine(` */`)
     .writeLine(
-      `createSyncWorker(options: { push: { handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>; batchSize?: number }; pull: { handler: (cursor?: string) => Promise<{ cursor?: string; logsWithRecords: LogWithRecord<typeof validators>[] }>; getCursor?: () => Promise<string | undefined> | string | undefined; setCursor?: (cursor: string | undefined) => Promise<void> | void }; schedule?: { intervalMs?: number; backoffMs?: number } }): SyncWorker`
+      `createSyncWorker(options: { push: { handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>; batchSize?: number }; pull: { handler: (cursor?: string) => Promise<{ cursor?: string; logsWithRecords: LogWithStringifiedRecord<typeof validators>[] }>; getCursor?: () => Promise<string | undefined> | string | undefined; setCursor?: (cursor: string | undefined) => Promise<void> | void }; schedule?: { intervalMs?: number; backoffMs?: number } }): SyncWorker`
     )
     .block(() => {
       writer

@@ -12,7 +12,7 @@ import type {
 } from "./idb-interface";
 import type { PushResult } from "../server/batch-processor";
 import { validators, keyPathValidators, modelRecordToKeyPath } from "../validators";
-import type { LogWithRecord } from "../server/batch-processor";
+import type { LogWithStringifiedRecord } from "../server/batch-processor";
 import { applyPull, type ApplyPullResult } from "./apply-pull";
 import { v4 as uuidv4 } from "uuid";
 const IDB_VERSION = 1;
@@ -107,7 +107,9 @@ export class PrismaIDBClient {
   createSyncWorker(options: {
     push: { handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>; batchSize?: number };
     pull: {
-      handler: (cursor?: string) => Promise<{ cursor?: string; logsWithRecords: LogWithRecord<typeof validators>[] }>;
+      handler: (
+        cursor?: string
+      ) => Promise<{ cursor?: string; logsWithRecords: LogWithStringifiedRecord<typeof validators>[] }>;
       getCursor?: () => Promise<string | undefined> | string | undefined;
       setCursor?: (cursor: string | undefined) => Promise<void> | void;
     };

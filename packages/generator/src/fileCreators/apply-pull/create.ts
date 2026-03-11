@@ -4,7 +4,7 @@ import { getUniqueIdentifiers } from "../../helpers/utils";
 
 export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], versionMetaModelName: string) {
   // Write imports
-  writer.writeLine(`import type { LogWithRecord } from '../server/batch-processor';`);
+  writer.writeLine(`import type { LogWithStringifiedRecord } from '../server/batch-processor';`);
   writer.writeLine(`import { validators, keyPathValidators } from '../validators';`);
   writer.writeLine(`import type { PrismaIDBClient } from './prisma-idb-client';`);
   writer.blankLine();
@@ -12,7 +12,7 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], ve
   // Write type definition for applyPull props
   writer.writeLine(`type ApplyPullProps = {`);
   writer.writeLine(`	idbClient: PrismaIDBClient;`);
-  writer.writeLine(`	logsWithRecords: LogWithRecord<typeof validators>[];`);
+  writer.writeLine(`	logsWithRecords: LogWithStringifiedRecord<typeof validators>[];`);
   writer.writeLine(`};`);
   writer.blankLine();
 
