@@ -34,8 +34,8 @@ const syncWorker = idbClient.createSyncWorker({
     setCursor: (cursor) => localStorage.setItem("sync-cursor", cursor),
   },
   schedule: {
-    intervalMs: 5000,  // Default: 5 seconds between syncs
-    backoffMs: 30000,  // Default: 30 seconds, exponential: backoffMs * 2^(tries-1)
+    intervalMs: 5000, // Default: 5 seconds between syncs
+    backoffMs: 30000, // Default: 30 seconds, exponential: backoffMs * 2^(tries-1)
   },
 });
 ```
@@ -78,6 +78,7 @@ await syncWorker.syncNow({ overrideBackoff: true });
 ```
 
 **Parameters**:
+
 - `options.overrideBackoff` (optional): If `true`, ignores exponential backoff limits and retries immediately. Default: `false`.
 
 **Returns**: `Promise<void>`
@@ -98,6 +99,7 @@ await syncWorker.forceSync({ overrideBackoff: true });
 ```
 
 **Parameters**:
+
 - `options.overrideBackoff` (optional): If `true`, ignores exponential backoff limits. Default: `false`.
 
 **Returns**: `Promise<void>`
@@ -115,16 +117,17 @@ Retrieve the current synchronization status.
 ```typescript
 const status = syncWorker.status;
 
-console.log(status.status);        // 'STOPPED' | 'IDLE' | 'PUSHING' | 'PULLING'
-console.log(status.isLooping);     // true if start() was called
-console.log(status.lastSyncTime);  // Date of last completed sync, or null
-console.log(status.lastError);     // Error from last failed sync, or null
+console.log(status.status); // 'STOPPED' | 'IDLE' | 'PUSHING' | 'PULLING'
+console.log(status.isLooping); // true if start() was called
+console.log(status.lastSyncTime); // Date of last completed sync, or null
+console.log(status.lastError); // Error from last failed sync, or null
 ```
 
 **Return Type**:
+
 ```typescript
 interface SyncWorkerStatus {
-  status: 'STOPPED' | 'IDLE' | 'PUSHING' | 'PULLING';
+  status: "STOPPED" | "IDLE" | "PUSHING" | "PULLING";
   isLooping: boolean;
   lastSyncTime: Date | null;
   lastError: Error | null;
@@ -132,6 +135,7 @@ interface SyncWorkerStatus {
 ```
 
 **Field Meanings**:
+
 - `status`: Current phase of sync (STOPPED = not running, IDLE = running but not syncing, PUSHING = uploading local changes, PULLING = downloading remote changes)
 - `isLooping`: Whether automatic scheduling is active
 - `lastSyncTime`: Timestamp of the most recent completed sync cycle
@@ -144,18 +148,18 @@ interface SyncWorkerStatus {
 Subscribe to sync events using `on()`:
 
 ```typescript
-syncWorker.on('statuschange', (event) => {
+syncWorker.on("statuschange", (event) => {
   console.log(event.detail);
   // { status: 'PUSHING', isLooping: true, lastSyncTime, lastError }
 });
 
-syncWorker.on('pushcompleted', (event) => {
+syncWorker.on("pushcompleted", (event) => {
   console.log("Push phase completed");
-  console.log(event.detail); 
+  console.log(event.detail);
   // { results: [{ id, appliedChangelogId, error }] }
 });
 
-syncWorker.on('pullcompleted', (event) => {
+syncWorker.on("pullcompleted", (event) => {
   console.log("Pull phase completed");
   console.log(event.detail);
   // { affectedModels: [...], changesApplied: number }
@@ -163,6 +167,7 @@ syncWorker.on('pullcompleted', (event) => {
 ```
 
 **Event Types**:
+
 - `statuschange`: Fired whenever `status` changes
 - `pushcompleted`: Fired after outbox events are sent to the server
 - `pullcompleted`: Fired after remote changes are applied locally
@@ -171,19 +176,19 @@ syncWorker.on('pullcompleted', (event) => {
 
 ## Configuration & Defaults
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `schedule.intervalMs` | 5000 | Milliseconds between automatic sync cycles (when `start()` is active) |
-| `schedule.backoffMs` | 30000 | Initial backoff duration on sync failure; increases exponentially: `backoffMs * 2^(tries - 1)` |
-| `push.batchSize` | 10 | Maximum outbox events sent per request |
-| `pull.getCursor` | undefined | Function to retrieve last-synced cursor from persistent storage |
-| `pull.setCursor` | undefined | Function to persist cursor after successful pull |
+| Option                | Default   | Description                                                                                    |
+| --------------------- | --------- | ---------------------------------------------------------------------------------------------- |
+| `schedule.intervalMs` | 5000      | Milliseconds between automatic sync cycles (when `start()` is active)                          |
+| `schedule.backoffMs`  | 30000     | Initial backoff duration on sync failure; increases exponentially: `backoffMs * 2^(tries - 1)` |
+| `push.batchSize`      | 10        | Maximum outbox events sent per request                                                         |
+| `pull.getCursor`      | undefined | Function to retrieve last-synced cursor from persistent storage                                |
+| `pull.setCursor`      | undefined | Function to persist cursor after successful pull                                               |
 
 ---
 
 ## Real-World Example
 
-From [pidb-kanban-example](https://github.com/prisma-idb/idb-client-generator/blob/create-index-files/apps/pidb-kanban-example/src/routes/(app)/todos-state.svelte.ts):
+From [pidb-kanban-example](<https://github.com/prisma-idb/idb-client-generator/blob/create-index-files/apps/pidb-kanban-example/src/routes/(app)/todos-state.svelte.ts>):
 
 ```typescript
 import type { SyncWorker } from "$lib/prisma-idb/client/idb-interface";
@@ -248,14 +253,14 @@ button.onclick = () => {
 
 ```typescript
 // React to status changes
-syncWorker.on('statuschange', (e) => {
+syncWorker.on("statuschange", (e) => {
   const { status, isLooping, lastError } = e.detail;
-  
-  if (status === 'PUSHING') {
+
+  if (status === "PUSHING") {
     ui.showSpinner("Uploading...");
-  } else if (status === 'PULLING') {
+  } else if (status === "PULLING") {
     ui.showSpinner("Downloading...");
-  } else if (status === 'IDLE' && isLooping) {
+  } else if (status === "IDLE" && isLooping) {
     ui.hideSpinner();
   }
 
@@ -274,12 +279,12 @@ if (navigator.onLine) {
 }
 
 // Resume sync when connection restored
-window.addEventListener('online', () => {
+window.addEventListener("online", () => {
   syncWorker.start();
 });
 
 // Pause sync when offline
-window.addEventListener('offline', () => {
+window.addEventListener("offline", () => {
   syncWorker.stop();
 });
 ```
