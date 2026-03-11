@@ -31,7 +31,7 @@ export const outboxEventSchema = z.strictObject({
   id: z.string(),
   entityType: z.string(),
   operation: z.enum(["create", "update", "delete"]),
-  payload: z.record(z.string(), z.unknown()),
+  payload: z.unknown(),
   createdAt: z.coerce.date(),
   tries: z.number(),
   lastError: z.string().nullable(),
