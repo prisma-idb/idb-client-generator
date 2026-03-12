@@ -9,7 +9,8 @@
     "---Deep Dives---",
     "validation",
     "api-design",
-    "outbox-push-pull"
+    "outbox-push-pull",
+    "sync-worker-methods"
   ],
   "title": "Implementation"
 }

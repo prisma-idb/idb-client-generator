@@ -89,12 +89,40 @@ export function createBatchProcessorFile(
   writer.writeLine(`}[keyof V & string];`);
   writer.blankLine();
 
+  // Write StringifyDates utility type
+  writer.writeLine(`/**`);
+  writer.writeLine(` * Converts Date fields to string | Date to support JSON-serialized API responses.`);
+  writer.writeLine(` */`);
+  writer.writeLine(`type StringifyDates<T> = {`);
+  writer.writeLine(`  [K in keyof T]: T[K] extends Date`);
+  writer.writeLine(`    ? string | Date`);
+  writer.writeLine(`    : T[K] extends Date[]`);
+  writer.writeLine(`      ? (string | Date)[]`);
+  writer.writeLine(`      : T[K];`);
+  writer.writeLine(`};`);
+  writer.blankLine();
+
   // Write LogWithRecord type - maps model names to their record types
   writer.writeLine(`export type LogWithRecord<V extends Partial<Record<string, ZodTypeAny>>> = {`);
   writer.writeLine(`  [M in keyof V & string]: Omit<Changelog, "model" | "keyPath"> & {`);
   writer.writeLine(`    model: M;`);
   writer.writeLine(`    keyPath: Array<string | number>;`);
   writer.writeLine(`    record?: z.infer<V[M]> | null;`);
+  writer.writeLine(`    changelogId: string;`);
+  writer.writeLine(`  };`);
+  writer.writeLine(`}[keyof V & string];`);
+  writer.blankLine();
+
+  // Write LogWithStringifiedRecord type variant
+  writer.writeLine(`/**`);
+  writer.writeLine(` * Variant of LogWithRecord that accepts stringified Dates from JSON serialization.`);
+  writer.writeLine(` * All Date fields in records are converted to string | Date to support API responses.`);
+  writer.writeLine(` */`);
+  writer.writeLine(`export type LogWithStringifiedRecord<V extends Partial<Record<string, ZodTypeAny>>> = {`);
+  writer.writeLine(`  [M in keyof V & string]: Omit<Changelog, "model" | "keyPath"> & {`);
+  writer.writeLine(`    model: M;`);
+  writer.writeLine(`    keyPath: Array<string | number>;`);
+  writer.writeLine(`    record?: StringifyDates<z.infer<V[M]>> | null;`);
   writer.writeLine(`    changelogId: string;`);
   writer.writeLine(`  };`);
   writer.writeLine(`}[keyof V & string];`);

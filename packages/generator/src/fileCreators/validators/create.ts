@@ -37,7 +37,7 @@ export function createValidatorsFile(
   writer.writeLine(`  id: z.string(),`);
   writer.writeLine(`  entityType: z.string(),`);
   writer.writeLine(`  operation: z.enum(["create", "update", "delete"]),`);
-  writer.writeLine(`  payload: z.record(z.string(), z.unknown()),`);
+  writer.writeLine(`  payload: z.unknown(),`);
   writer.writeLine(`  createdAt: z.coerce.date(),`);
   writer.writeLine(`  tries: z.number(),`);
   writer.writeLine(`  lastError: z.string().nullable(),`);
