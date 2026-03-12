@@ -10,10 +10,11 @@ export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], ve
   writer.blankLine();
 
   // Write type definition for applyPull props
-  writer.writeLine(`type ApplyPullProps = {`);
-  writer.writeLine(`	idbClient: PrismaIDBClient;`);
-  writer.writeLine(`	logsWithRecords: LogWithStringifiedRecord<typeof validators>[];`);
-  writer.writeLine(`};`);
+  writer.writeLine(`type ApplyPullProps =`);
+  writer.block(() => {
+    writer.writeLine(`idbClient: PrismaIDBClient;`);
+    writer.writeLine(`logsWithRecords: LogWithStringifiedRecord<typeof validators>[];`);
+  });
   writer.blankLine();
 
   // Write type definition for applyPull return value

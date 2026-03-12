@@ -16,6 +16,24 @@ import type { LogWithStringifiedRecord } from "../server/batch-processor";
 import { applyPull, type ApplyPullResult } from "./apply-pull";
 import { v4 as uuidv4 } from "uuid";
 const IDB_VERSION = 1;
+type CreateSyncWorkerOptions = {
+  push: {
+    handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>;
+    batchSize?: number;
+  };
+  pull: {
+    handler: (
+      cursor?: string
+    ) => Promise<{ cursor?: string; logsWithRecords: LogWithStringifiedRecord<typeof validators>[] }>;
+    getCursor?: () => Promise<string | undefined> | string | undefined;
+    setCursor?: (cursor: string | undefined) => Promise<void> | void;
+  };
+  schedule?: {
+    intervalMs?: number;
+    backoffMs?: number;
+  };
+};
+
 export class PrismaIDBClient {
   private static instance: PrismaIDBClient;
   _db!: IDBPDatabase<PrismaIDBSchema>;
@@ -104,17 +122,7 @@ export class PrismaIDBClient {
    *
    * worker.start();   // begins sync cycles
    */
-  createSyncWorker(options: {
-    push: { handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>; batchSize?: number };
-    pull: {
-      handler: (
-        cursor?: string
-      ) => Promise<{ cursor?: string; logsWithRecords: LogWithStringifiedRecord<typeof validators>[] }>;
-      getCursor?: () => Promise<string | undefined> | string | undefined;
-      setCursor?: (cursor: string | undefined) => Promise<void> | void;
-    };
-    schedule?: { intervalMs?: number; backoffMs?: number };
-  }): SyncWorker {
+  createSyncWorker(options: CreateSyncWorkerOptions): SyncWorker {
     const { push, pull } = options;
     const { handler: pushHandler, batchSize = 10 } = push;
     const { handler: pullHandler, getCursor, setCursor } = pull;
