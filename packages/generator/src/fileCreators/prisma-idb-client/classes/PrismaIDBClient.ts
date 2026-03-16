@@ -28,7 +28,9 @@ export function addClientClass(
         writer.indent(() => {
           writer.writeLine(`cursor?: string`);
         });
-        writer.writeLine(`) => Promise<{ cursor?: string; logsWithRecords: LogWithStringifiedRecord<typeof validators>[] }>;`);
+        writer.writeLine(
+          `) => Promise<{ cursor?: string; logsWithRecords: LogWithStringifiedRecord<typeof validators>[] }>;`
+        );
         writer.writeLine(`getCursor?: () => Promise<string | undefined> | string | undefined;`);
         writer.writeLine(`setCursor?: (cursor: string | undefined) => Promise<void> | void;`);
       });
@@ -42,7 +44,7 @@ export function addClientClass(
     });
     writer.blankLine();
   }
-  
+
   writer.writeLine(`export class PrismaIDBClient`).block(() => {
     writer
       .writeLine(`private static instance: PrismaIDBClient;`)
