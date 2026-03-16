@@ -50,7 +50,7 @@ Begins automatic synchronization on a schedule. Does nothing if already running.
 syncWorker.start();
 ```
 
-**Behavior**: Once started, the worker will execute sync cycles at the configured `intervalMs`. Use `stop()` to halt automatic syncing.
+**Behavior**: `syncWorker.start()` triggers an immediate sync by calling `syncOnce()` first, then schedules further cycles at the configured `intervalMs`. This means the first sync runs right away rather than waiting one full interval. Use `stop()` to halt automatic syncing.
 
 ---
 
