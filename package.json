@@ -10,9 +10,9 @@
     "lint": "turbo run lint",
     "format": "turbo run format --no-cache",
     "test": "turbo run test",
-    "test:client": "turbo run test --filter=usage",
-    "test:sync": "turbo run test --filter=pidb-kanban-example",
-    "test:schema-gen": "turbo run test --filter=tests",
+    "test:client": "turbo run test --filter=@prisma-idb/usage",
+    "test:sync": "turbo run test --filter=@prisma-idb/pidb-kanban-example",
+    "test:schema-gen": "turbo run test --filter=@prisma-idb/tests",
     "test:watch": "turbo run test:watch --no-cache",
     "generate": "turbo run generate",
     "clean": "turbo clean && rm -rf node_modules",
@@ -20,19 +20,19 @@
     "run:ci": "pnpm format && pnpm generate && pnpm lint && pnpm check"
   },
   "devDependencies": {
-    "@eslint/compat": "2.0.1",
-    "@eslint/js": "^9.39.2",
-    "eslint": "^9.39.2",
-    "eslint-config-next": "16.1.4",
+    "@eslint/compat": "^2.0.3",
+    "@eslint/js": "^9.39.4",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.1.6",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-svelte": "^3.14.0",
-    "globals": "^17.3.0",
+    "eslint-plugin-svelte": "^3.15.2",
+    "globals": "^17.4.0",
     "prettier": "^3.8.1",
-    "prettier-plugin-svelte": "^3.4.1",
+    "prettier-plugin-svelte": "^3.5.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
-    "turbo": "^2.8.3",
+    "turbo": "^2.8.16",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.54.0"
+    "typescript-eslint": "^8.57.0"
   },
   "repository": {
     "type": "git",
@@ -42,6 +42,13 @@
   "pnpm": {
     "overrides": {
       "@types/node": "^24.10.9"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "esbuild",
+      "prisma",
+      "sharp"
+    ]
   }
 }

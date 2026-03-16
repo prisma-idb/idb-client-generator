@@ -1,10 +1,10 @@
-import type { LogWithRecord } from "../server/batch-processor";
+import type { LogWithStringifiedRecord } from "../server/batch-processor";
 import { validators, keyPathValidators } from "../validators";
 import type { PrismaIDBClient } from "./prisma-idb-client";
 
 type ApplyPullProps = {
   idbClient: PrismaIDBClient;
-  logsWithRecords: LogWithRecord<typeof validators>[];
+  logsWithRecords: LogWithStringifiedRecord<typeof validators>[];
 };
 
 export type ApplyPullResult = {

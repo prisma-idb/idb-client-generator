@@ -21,27 +21,31 @@
     "prepare": "tsc"
   },
   "dependencies": {
-    "@prisma/generator-helper": "^7.3.0",
+    "@prisma/generator-helper": "^7.4.2",
     "code-block-writer": "^13.0.3",
     "prettier": "^3.8.1"
   },
   "devDependencies": {
-    "@prisma/internals": "^7.3.0",
-    "@release-it/conventional-changelog": "^10.0.4",
-    "@types/node": "^24.10.9",
+    "@prisma/internals": "^7.4.2",
+    "@release-it/conventional-changelog": "^10.0.5",
+    "@types/node": "^24.12.0",
     "release-it": "^19.2.4",
     "typescript": "^5.9.3"
   },
   "peerDependencies": {
+    "@paralleldrive/cuid2": "^3.0.0",
     "@prisma/client": "^6.0.0 || ^7.0.0",
     "idb": "^8.0.0",
     "prisma": "^6.0.0 || ^7.0.0",
-    "uuid": ">=9.0.0",
-    "@paralleldrive/cuid2": "^3.0.0"
+    "uuid": ">=9.0.0"
   },
   "peerDependenciesMeta": {
-    "uuid": { "optional": true },
-    "@paralleldrive/cuid2": { "optional": true }
+    "uuid": {
+      "optional": true
+    },
+    "@paralleldrive/cuid2": {
+      "optional": true
+    }
   },
   "homepage": "https://github.com/prisma-idb/idb-client-generator",
   "repository": {

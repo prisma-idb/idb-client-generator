@@ -16,11 +16,31 @@ type EventsFor<V extends Partial<Record<string, ZodTypeAny>>> = {
   }[Op];
 }[keyof V & string];
 
+/**
+ * Converts Date fields to string | Date to support JSON-serialized API responses.
+ */
+type StringifyDates<T> = {
+  [K in keyof T]: T[K] extends Date ? string | Date : T[K] extends Date[] ? (string | Date)[] : T[K];
+};
+
 export type LogWithRecord<V extends Partial<Record<string, ZodTypeAny>>> = {
   [M in keyof V & string]: Omit<Changelog, "model" | "keyPath"> & {
     model: M;
     keyPath: Array<string | number>;
     record?: z.infer<V[M]> | null;
+    changelogId: string;
+  };
+}[keyof V & string];
+
+/**
+ * Variant of LogWithRecord that accepts stringified Dates from JSON serialization.
+ * All Date fields in records are converted to string | Date to support API responses.
+ */
+export type LogWithStringifiedRecord<V extends Partial<Record<string, ZodTypeAny>>> = {
+  [M in keyof V & string]: Omit<Changelog, "model" | "keyPath"> & {
+    model: M;
+    keyPath: Array<string | number>;
+    record?: StringifyDates<z.infer<V[M]>> | null;
     changelogId: string;
   };
 }[keyof V & string];

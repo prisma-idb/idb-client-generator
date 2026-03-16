@@ -12,6 +12,37 @@ export function addClientClass(
   include: string[] = ["*"],
   exclude: string[] = []
 ) {
+  // Write type definition for CreateSyncWorkerOptions if sync is enabled
+  if (outboxSync) {
+    writer.writeLine(`type CreateSyncWorkerOptions =`);
+    writer.block(() => {
+      writer.writeLine(`push: {`);
+      writer.indent(() => {
+        writer.writeLine(`handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>;`);
+        writer.writeLine(`batchSize?: number;`);
+      });
+      writer.writeLine(`};`);
+      writer.writeLine(`pull: {`);
+      writer.indent(() => {
+        writer.writeLine(`handler: (`);
+        writer.indent(() => {
+          writer.writeLine(`cursor?: string`);
+        });
+        writer.writeLine(`) => Promise<{ cursor?: string; logsWithRecords: LogWithStringifiedRecord<typeof validators>[] }>;`);
+        writer.writeLine(`getCursor?: () => Promise<string | undefined> | string | undefined;`);
+        writer.writeLine(`setCursor?: (cursor: string | undefined) => Promise<void> | void;`);
+      });
+      writer.writeLine(`};`);
+      writer.writeLine(`schedule?: {`);
+      writer.indent(() => {
+        writer.writeLine(`intervalMs?: number;`);
+        writer.writeLine(`backoffMs?: number;`);
+      });
+      writer.writeLine(`};`);
+    });
+    writer.blankLine();
+  }
+  
   writer.writeLine(`export class PrismaIDBClient`).block(() => {
     writer
       .writeLine(`private static instance: PrismaIDBClient;`)
@@ -173,9 +204,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
     .writeLine(` *`)
     .writeLine(` * worker.start();   // begins sync cycles`)
     .writeLine(` */`)
-    .writeLine(
-      `createSyncWorker(options: { push: { handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>; batchSize?: number }; pull: { handler: (cursor?: string) => Promise<{ cursor?: string; logsWithRecords: LogWithRecord<typeof validators>[] }>; getCursor?: () => Promise<string | undefined> | string | undefined; setCursor?: (cursor: string | undefined) => Promise<void> | void }; schedule?: { intervalMs?: number; backoffMs?: number } }): SyncWorker`
-    )
+    .writeLine(`createSyncWorker(options: CreateSyncWorkerOptions): SyncWorker`)
     .block(() => {
       writer
         .writeLine(`const { push, pull } = options;`)

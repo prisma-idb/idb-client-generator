@@ -1,0 +1,299 @@
+---
+title: "Sync Worker Methods"
+description: "Client-side API for controlling bidirectional synchronization"
+icon: Settings
+---
+
+The `SyncWorker` provides a client-side API for controlling bidirectional synchronization between IndexedDB and your server. This guide covers all available methods and patterns for manual sync control.
+
+## Creating a Sync Worker
+
+The `createSyncWorker()` method on your Prisma IDB client initializes a new sync worker:
+
+```typescript
+const syncWorker = idbClient.createSyncWorker({
+  push: {
+    handler: async (events) => {
+      const res = await fetch("/api/sync/push", {
+        method: "POST",
+        body: JSON.stringify({ events }),
+      });
+      return res.json();
+    },
+    batchSize: 10, // Optional: events per batch
+  },
+  pull: {
+    handler: async (cursor) => {
+      const res = await fetch("/api/sync/pull", {
+        method: "POST",
+        body: JSON.stringify({ cursor }),
+      });
+      return res.json();
+    },
+    getCursor: () => localStorage.getItem("sync-cursor"),
+    setCursor: (cursor) => localStorage.setItem("sync-cursor", cursor),
+  },
+  schedule: {
+    intervalMs: 5000, // Default: 5 seconds between syncs
+    backoffMs: 30000, // Default: 30 seconds, exponential: backoffMs * 2^(tries-1)
+  },
+});
+```
+
+## Core Methods
+
+### start()
+
+Begins automatic synchronization on a schedule. Does nothing if already running.
+
+```typescript
+syncWorker.start();
+```
+
+**Behavior**: `syncWorker.start()` triggers an immediate sync by calling `syncOnce()` first, then schedules further cycles at the configured `intervalMs`. This means the first sync runs right away rather than waiting one full interval. Use `stop()` to halt automatic syncing.
+
+---
+
+### stop()
+
+Stops automatic synchronization. In-flight sync operations are allowed to complete.
+
+```typescript
+syncWorker.stop();
+```
+
+**Behavior**: Terminates the scheduling loop but does not interrupt an actively running sync cycle. Any queued outbox events remain in IndexedDB and can be synced later.
+
+---
+
+### syncNow()
+
+Execute a single sync cycle immediately, **without** requiring the worker to be started. Useful for manual sync triggers on user action.
+
+```typescript
+await syncWorker.syncNow();
+
+// Skip backoff logic and force immediate retry
+await syncWorker.syncNow({ overrideBackoff: true });
+```
+
+**Parameters**:
+
+- `options.overrideBackoff` (optional): If `true`, ignores exponential backoff limits and retries immediately. Default: `false`.
+
+**Returns**: `Promise<void>`
+
+**Behavior**: Returns immediately if a sync cycle is already in progress. Safe to call even if `start()` has not been invoked.
+
+---
+
+### forceSync()
+
+Force an immediate sync cycle while the worker is actively running (scheduled mode).
+
+```typescript
+await syncWorker.forceSync();
+
+// Skip backoff and force retry
+await syncWorker.forceSync({ overrideBackoff: true });
+```
+
+**Parameters**:
+
+- `options.overrideBackoff` (optional): If `true`, ignores exponential backoff limits. Default: `false`.
+
+**Returns**: `Promise<void>`
+
+**Behavior**: Returns immediately if the worker is stopped or a sync is already in progress. **Requires** `start()` to be called first (i.e., `isLooping` must be `true`).
+
+**Difference from syncNow()**: `forceSync()` requires the worker to be started, while `syncNow()` executes independently.
+
+---
+
+### status (Property)
+
+Retrieve the current synchronization status.
+
+```typescript
+const status = syncWorker.status;
+
+console.log(status.status); // 'STOPPED' | 'IDLE' | 'PUSHING' | 'PULLING'
+console.log(status.isLooping); // true if start() was called
+console.log(status.lastSyncTime); // Date of last completed sync, or null
+console.log(status.lastError); // Error from last failed sync, or null
+```
+
+**Return Type**:
+
+```typescript
+interface SyncWorkerStatus {
+  status: "STOPPED" | "IDLE" | "PUSHING" | "PULLING";
+  isLooping: boolean;
+  lastSyncTime: Date | null;
+  lastError: Error | null;
+}
+```
+
+**Field Meanings**:
+
+- `status`: Current phase of sync (STOPPED = not running, IDLE = running but not syncing, PUSHING = uploading local changes, PULLING = downloading remote changes)
+- `isLooping`: Whether automatic scheduling is active
+- `lastSyncTime`: Timestamp of the most recent completed sync cycle
+- `lastError`: The last error encountered during sync; `null` if the most recent cycle succeeded
+
+---
+
+## Event Listeners
+
+Subscribe to sync events using `on()`:
+
+```typescript
+syncWorker.on("statuschange", (event) => {
+  console.log(event.detail);
+  // { status: 'PUSHING', isLooping: true, lastSyncTime, lastError }
+});
+
+syncWorker.on("pushcompleted", (event) => {
+  console.log("Push phase completed");
+  console.log(event.detail);
+  // { results: [{ id, appliedChangelogId, error }] }
+});
+
+syncWorker.on("pullcompleted", (event) => {
+  console.log("Pull phase completed");
+  console.log(event.detail);
+  // { affectedModels: [...], changesApplied: number }
+});
+```
+
+**Event Types**:
+
+- `statuschange`: Fired whenever `status` changes
+- `pushcompleted`: Fired after outbox events are sent to the server
+- `pullcompleted`: Fired after remote changes are applied locally
+
+---
+
+## Configuration & Defaults
+
+| Option                | Default   | Description                                                                                    |
+| --------------------- | --------- | ---------------------------------------------------------------------------------------------- |
+| `schedule.intervalMs` | 5000      | Milliseconds between automatic sync cycles (when `start()` is active)                          |
+| `schedule.backoffMs`  | 30000     | Initial backoff duration on sync failure; increases exponentially: `backoffMs * 2^(tries - 1)` |
+| `push.batchSize`      | 10        | Maximum outbox events sent per request                                                         |
+| `pull.getCursor`      | undefined | Function to retrieve last-synced cursor from persistent storage                                |
+| `pull.setCursor`      | undefined | Function to persist cursor after successful pull                                               |
+
+---
+
+## Real-World Example
+
+From [pidb-kanban-example](<https://github.com/prisma-idb/idb-client-generator/blob/main/apps/pidb-kanban-example/src/routes/(app)/todos-state.svelte.ts>):
+
+```typescript
+import type { SyncWorker } from "$lib/prisma-idb/client/idb-interface";
+
+class TodosState {
+  syncWorker: SyncWorker;
+
+  constructor() {
+    this.syncWorker = prisma.createSyncWorker({
+      push: {
+        handler: async (events) => {
+          const response = await fetch("/api/sync/push", {
+            method: "POST",
+            body: JSON.stringify({ events }),
+          });
+          return response.json();
+        },
+      },
+      pull: {
+        handler: async (cursor) => {
+          const response = await fetch("/api/sync/pull", {
+            method: "POST",
+            body: JSON.stringify({ cursor }),
+          });
+          return response.json();
+        },
+        getCursor: () => localStorage.getItem("sync-cursor"),
+        setCursor: (cursor) => {
+          if (cursor) {
+            localStorage.setItem("sync-cursor", cursor);
+          }
+        },
+      },
+      schedule: { intervalMs: 10000, backoffMs: 30000 },
+    });
+  }
+
+  syncWithServer() {
+    this.syncWorker.start();
+  }
+
+  cleanup() {
+    this.syncWorker?.stop?.();
+  }
+}
+```
+
+---
+
+## Common Patterns
+
+### Manual Sync on User Action
+
+```typescript
+// "Sync now" button
+button.onclick = async () => {
+  await syncWorker.syncNow();
+};
+```
+
+### Show Sync Status in UI
+
+```typescript
+// React to status changes
+syncWorker.on("statuschange", (e) => {
+  const { status, isLooping, lastError } = e.detail;
+
+  if (status === "PUSHING") {
+    ui.showSpinner("Uploading...");
+  } else if (status === "PULLING") {
+    ui.showSpinner("Downloading...");
+  } else if (status === "IDLE" && isLooping) {
+    ui.hideSpinner();
+  }
+
+  if (lastError) {
+    ui.showError(`Sync failed: ${lastError.message}`);
+  }
+});
+```
+
+### Conditional Auto-Sync
+
+```typescript
+// Start sync only if online
+if (navigator.onLine) {
+  syncWorker.start();
+}
+
+// Resume sync when connection restored
+window.addEventListener("online", () => {
+  syncWorker.start();
+});
+
+// Pause sync when offline
+window.addEventListener("offline", () => {
+  syncWorker.stop();
+});
+```
+
+### Skip Backoff on Retry
+
+```typescript
+// User explicitly wants to retry immediately
+button.onclick = async () => {
+  await syncWorker.syncNow({ overrideBackoff: true });
+};
+```
