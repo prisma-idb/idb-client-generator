@@ -1,5 +1,6 @@
 import { Inter } from "next/font/google";
 import { Provider } from "@/components/provider";
+import { Analytics } from "@vercel/analytics/next";
 import "./global.css";
 
 const inter = Inter({
@@ -15,6 +16,7 @@ export default function Layout({ children }: LayoutProps<"/">) {
     <html lang="en" className={inter.className} suppressHydrationWarning>
       <body className="flex min-h-screen flex-col">
         <Provider>{children}</Provider>
+        <Analytics />
       </body>
     </html>
   );
