@@ -19,19 +19,14 @@
   <!-- Navigation -->
   <nav class="border-border/50 sticky top-0 z-50 border-b backdrop-blur-sm">
     <div class="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4 sm:px-6 lg:px-8">
-      <a
-        href="https://idb-client-generator-docs.vercel.app/"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="flex items-center gap-2"
-      >
+      <a href="https://prisma-idb.dev/" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2">
         <img src={logo} alt="Prisma IDB Logo" class="h-8 w-8" />
       </a>
       <img src={favicon} alt="Prisma IDB Kanban Logo" class="h-8 w-8" />
       <div class="text-foreground text-xl font-bold">Prisma IDB Kanban</div>
       <div class="ml-auto flex items-center gap-4">
         <a
-          href="https://idb-client-generator-docs.vercel.app/"
+          href="https://prisma-idb.dev/"
           target="_blank"
           rel="noopener noreferrer"
           class="text-muted-foreground hover:text-foreground transition"
@@ -89,7 +84,7 @@
             <ArrowRight class="ml-2 h-4 w-4" />
           </Button>
         </a>
-        <a href="https://idb-client-generator-docs.vercel.app/" target="_blank" rel="noopener noreferrer">
+        <a href="https://prisma-idb.dev/" target="_blank" rel="noopener noreferrer">
           <Button size="lg" variant="outline" class="w-full sm:w-auto">
             <BookOpen class="mr-2 h-4 w-4" />
             Documentation

@@ -120,12 +120,7 @@
           <Sidebar.MenuItem>
             <Sidebar.MenuButton>
               {#snippet child({ props })}
-                <a
-                  href="https://idb-client-generator-docs.vercel.app/"
-                  {...props}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
+                <a href="https://prisma-idb.dev/" {...props} target="_blank" rel="noopener noreferrer">
                   <BookOpenIcon />
                   Package docs
                 </a>

@@ -2,7 +2,7 @@
 
 The official documentation site for the [Prisma IndexedDB Client Generator](https://github.com/prisma-idb/idb-client-generator). Built with [Next.js](https://nextjs.org/) and [Fumadocs](https://fumadocs.dev/).
 
-**[📖 Live Documentation](https://idb-client-generator-docs.vercel.app/) • [🚀 Live Demo](https://pidb-kanban-example.vercel.app/) • [📦 npm Package](https://www.npmjs.com/package/@prisma-idb/idb-client-generator) • [🏗️ Main Repository](https://github.com/prisma-idb/idb-client-generator)**
+**[📖 Live Documentation](https://prisma-idb.dev/) • [🚀 Live Demo](https://kanban.prisma-idb.dev/) • [📦 npm Package](https://www.npmjs.com/package/@prisma-idb/idb-client-generator) • [🏗️ Main Repository](https://github.com/prisma-idb/idb-client-generator)**
 
 ## About
 

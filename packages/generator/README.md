@@ -2,7 +2,7 @@
 
 This library is a **Prisma generator** that creates a client with a similar syntax and behavior to the Prisma Client but is designed to operate with **IndexedDB** for local storage. It allows developers to interact with IndexedDB using a familiar Prisma-like API.
 
-**[📖 Documentation](https://idb-client-generator-docs.vercel.app/) • [🚀 Live Demo](https://pidb-kanban-example.vercel.app/) • [📦 npm Package](https://www.npmjs.com/package/@prisma-idb/idb-client-generator) • [🏗️ Main Repository](https://github.com/prisma-idb/idb-client-generator)**
+**[📖 Documentation](https://prisma-idb.dev/) • [🚀 Live Demo](https://kanban.prisma-idb.dev/) • [📦 npm Package](https://www.npmjs.com/package/@prisma-idb/idb-client-generator) • [🏗️ Main Repository](https://github.com/prisma-idb/idb-client-generator)**
 
 ## ⚠️ Warning
 
@@ -135,8 +135,8 @@ idbClient.modelName.delete({
 
 ## Resources
 
-- **[📖 Full Documentation](https://idb-client-generator-docs.vercel.app/)** - Complete API reference, sync guides, and schema requirements
-- **[🚀 Kanban Example](https://pidb-kanban-example.vercel.app/)** - Live demonstration of the sync engine
+- **[📖 Full Documentation](https://prisma-idb.dev/)** - Complete API reference, sync guides, and schema requirements
+- **[🚀 Kanban Example](https://kanban.prisma-idb.dev/)** - Live demonstration of the sync engine
 - **[💻 Example Source Code](../../apps/pidb-kanban-example)** - Full working example with SvelteKit and sync workers
 - **[🏗️ Main Repository](https://github.com/prisma-idb/idb-client-generator)** - Source code and issue tracking
 - **[📦 npm Package](https://www.npmjs.com/package/@prisma-idb/idb-client-generator)** - Install from npm registry
