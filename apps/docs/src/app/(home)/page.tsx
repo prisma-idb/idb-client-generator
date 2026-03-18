@@ -122,7 +122,7 @@ export default function HomePage() {
           <p className="text-fd-muted-foreground">See it in action with our example Kanban app</p>
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <Link
-              href="https://pidb-kanban-example.vercel.app/"
+              href="https://kanban.prisma-idb.dev/"
               className="bg-fd-primary text-fd-primary-foreground inline-flex items-center justify-center gap-2 rounded-lg px-8 py-3 font-semibold transition-opacity hover:opacity-90"
             >
               <Rocket className="h-4 w-4" />

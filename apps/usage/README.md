@@ -2,7 +2,7 @@
 
 A test application for the [Prisma IndexedDB Client Generator](https://github.com/prisma-idb/idb-client-generator). This app demonstrates basic CRUD operations and serves as a validation suite for the generated client.
 
-**[📖 Documentation](https://idb-client-generator-docs.vercel.app/) • [🚀 Live Kanban Demo](https://pidb-kanban-example.vercel.app/) • [📦 npm Package](https://www.npmjs.com/package/@prisma-idb/idb-client-generator) • [🏗️ Main Repository](https://github.com/prisma-idb/idb-client-generator)**
+**[📖 Documentation](https://prisma-idb.dev/) • [🚀 Live Kanban Demo](https://kanban.prisma-idb.dev/) • [📦 npm Package](https://www.npmjs.com/package/@prisma-idb/idb-client-generator) • [🏗️ Main Repository](https://github.com/prisma-idb/idb-client-generator)**
 
 ## About This App
 
@@ -39,7 +39,7 @@ npm run test
 
 ## Resources
 
-- [Prisma IDB Generator Documentation](https://idb-client-generator-docs.vercel.app/)
+- [Prisma IDB Generator Documentation](https://prisma-idb.dev/)
 - [Full Kanban Example with Sync](../pidb-kanban-example/)
 - [GitHub Repository](https://github.com/prisma-idb/idb-client-generator)
 - [npm Package](https://www.npmjs.com/package/@prisma-idb/idb-client-generator)

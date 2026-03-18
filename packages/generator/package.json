@@ -47,7 +47,7 @@
       "optional": true
     }
   },
-  "homepage": "https://github.com/prisma-idb/idb-client-generator",
+  "homepage": "https://prisma-idb.dev/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/prisma-idb/idb-client-generator.git"
