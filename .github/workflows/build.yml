@@ -6,6 +6,8 @@ on:
   pull_request:
     branches: [main]
 
+permissions: read-all
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -46,6 +48,9 @@ jobs:
   test-sync:
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
 
     services:
       postgres:
@@ -90,6 +95,9 @@ jobs:
   test-client:
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
 
     services:
       postgres:
