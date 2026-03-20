@@ -159,8 +159,26 @@ The sync worker gracefully handles errors:
 - **Push errors**: Events are marked failed and retried with exponential backoff on the next cycle
 - **Pull errors**: The pull phase stops gracefully; the worker will retry next cycle
 - **Network errors**: Treated as transient; the worker retries on the next schedule interval
+- **Session expiry (401)**: The worker records the error as `lastError` and stops retrying until the error clears — the user must re-authenticate before syncing can resume
 
 Access the last error via `syncWorker.status.lastError`.
+
+#### Session Invalidation
+
+A common source of persistent sync failures is an expired session. When the server returns a `401`, pulls (and pushes) will keep failing even after backoff resets. The fix is to detect the 401 in `lastError` and prompt the user to log in again before restarting the worker:
+
+```typescript
+syncWorker.on("statuschange", (e) => {
+  const { lastError } = e.detail;
+  if (lastError?.message.includes("401")) {
+    syncWorker.stop();
+    // Redirect or show a prompt — do NOT restart until the user has re-authenticated
+    window.location.href = "/login";
+  }
+});
+```
+
+See [Handling Session Invalidation](./sync-worker-methods#handling-session-invalidation) for full details and UI patterns.
 
 ### Watching Sync Status
 
@@ -252,7 +270,7 @@ export class PageState {
 - **Browser Only**: Always check `if (browser)` before creating the sync worker (SSR safety)
 - **Single Instance**: Create one sync worker per client instance and reuse it
 - **Cleanup**: Call `stop()` when the user logs out or the app unmounts
-- **Error Resilience**: The worker handles transient errors automatically; you only need to handle authentication errors by redirecting to login
+- **Error Resilience**: The worker handles transient errors automatically; for authentication errors (401), stop the worker and redirect to login before restarting — see [Session Invalidation](./sync-worker-methods#handling-session-invalidation)
 - **Batch Size**: Start with 50 events per batch; increase if network is fast, decrease if you have slow devices
 
 ### You're Ready!
