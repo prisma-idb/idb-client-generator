@@ -24,6 +24,7 @@
 
   let status = $state<"STOPPED" | "IDLE" | "PUSHING" | "PULLING">("STOPPED");
   let isLooping = $state(false);
+  let lastError = $state<Error | null>(null);
 
   let pushResult = $state<{ results: PushResult[] }>();
   let pullResult = $state<ApplyPullResult>();
@@ -45,7 +46,7 @@
     // Subscribe to status changes
     const unsubscribeStatusChange = todosState.syncWorker.on("statuschange", (e) => {
       if (todosState.syncWorker) {
-        ({ status, isLooping } = e.detail);
+        ({ status, isLooping, lastError } = e.detail);
       }
     });
 
@@ -80,7 +81,7 @@
       {/if}
     </div>
     <Card.Action>
-      <SyncDetailsPopover {pushResult} {pullResult} {outboxStats} />
+      <SyncDetailsPopover {pushResult} {pullResult} {outboxStats} {lastError} />
     </Card.Action>
   </Card.Header>
   <Card.Footer class="grid gap-2">
