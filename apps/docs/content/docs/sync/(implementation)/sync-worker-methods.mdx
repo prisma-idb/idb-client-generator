@@ -340,9 +340,8 @@ syncWorker.on("statuschange", (e) => {
 ```
 
 <Callout type="warn">
-  Do not call `syncWorker.stop()` and immediately `start()` again after a 401 — this will just
-  hammer the server with unauthenticated requests. Wait until the user has successfully
-  re-authenticated before restarting the worker.
+  Do not call `syncWorker.stop()` and immediately `start()` again after a 401 — this will just hammer the server with
+  unauthenticated requests. Wait until the user has successfully re-authenticated before restarting the worker.
 </Callout>
 
 #### Throwing the Right Error

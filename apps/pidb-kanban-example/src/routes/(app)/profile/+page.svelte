@@ -88,7 +88,7 @@
   <div class="grid grid-cols-2 gap-3">
     <Card.Root>
       <Card.Content class="flex flex-col gap-1 p-4">
-        <div class="text-muted-foreground flex items-center gap-2 text-xs font-medium uppercase tracking-wide">
+        <div class="text-muted-foreground flex items-center gap-2 text-xs font-medium tracking-wide uppercase">
           <LayoutDashboardIcon class="h-3.5 w-3.5" />
           Boards
         </div>
@@ -100,7 +100,7 @@
 
     <Card.Root>
       <Card.Content class="flex flex-col gap-1 p-4">
-        <div class="text-muted-foreground flex items-center gap-2 text-xs font-medium uppercase tracking-wide">
+        <div class="text-muted-foreground flex items-center gap-2 text-xs font-medium tracking-wide uppercase">
           <ListTodoIcon class="h-3.5 w-3.5" />
           Total todos
         </div>
@@ -112,7 +112,7 @@
 
     <Card.Root>
       <Card.Content class="flex flex-col gap-1 p-4">
-        <div class="text-muted-foreground flex items-center gap-2 text-xs font-medium uppercase tracking-wide">
+        <div class="text-muted-foreground flex items-center gap-2 text-xs font-medium tracking-wide uppercase">
           <CheckCircle2Icon class="h-3.5 w-3.5" />
           Completed
         </div>
@@ -129,7 +129,7 @@
 
     <Card.Root>
       <Card.Content class="flex flex-col gap-1 p-4">
-        <div class="text-muted-foreground flex items-center gap-2 text-xs font-medium uppercase tracking-wide">
+        <div class="text-muted-foreground flex items-center gap-2 text-xs font-medium tracking-wide uppercase">
           <ActivityIcon class="h-3.5 w-3.5" />
           Outbox events
         </div>
