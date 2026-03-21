@@ -40,7 +40,7 @@
           >
             <CircleAlertIcon class="size-4" />
             <p>{lastError.message}</p>
-            {#if lastError.message.endsWith("401")}
+            {#if lastError?.message.includes("401")}
               <Button size="sm" href={resolve("/login")}>Login again</Button>
             {/if}
           </div>

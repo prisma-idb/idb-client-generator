@@ -25,32 +25,46 @@
   } | null>(null);
 
   onMount(async () => {
-    const client = getClient();
+    try {
+      const client = getClient();
 
-    const [user, boards, todos, outboxStats] = await Promise.all([
-      client.user.findFirst(),
-      client.board.findMany({ include: { todos: true } }),
-      client.todo.findMany(),
-      client.$outbox.stats(),
-    ]);
+      const [user, boards, todos, outboxStats] = await Promise.all([
+        client.user.findFirst(),
+        client.board.findMany({ include: { todos: true } }),
+        client.todo.findMany(),
+        client.$outbox.stats(),
+      ]);
 
-    const sessionUser = $auth.data?.user;
+      const sessionUser = $auth.data?.user;
 
-    stats = {
-      name: sessionUser?.name ?? user?.name ?? "Anonymous",
-      email: sessionUser?.email ?? user?.email ?? "—",
-      image: sessionUser?.image ?? user?.image,
-      totalBoards: boards.length,
-      totalTodos: todos.length,
-      completedTodos: todos.filter((t) => t.isCompleted).length,
-      changelogEvents: outboxStats.unsynced,
-    };
+      stats = {
+        name: sessionUser?.name ?? user?.name ?? "Anonymous",
+        email: sessionUser?.email ?? user?.email ?? "—",
+        image: sessionUser?.image ?? user?.image,
+        totalBoards: boards.length,
+        totalTodos: todos.length,
+        completedTodos: todos.filter((t) => t.isCompleted).length,
+        changelogEvents: outboxStats.unsynced,
+      };
+    } catch (err) {
+      console.error("Failed to load profile stats", err);
+      stats = {
+        name: $auth.data?.user?.name ?? "Anonymous",
+        email: $auth.data?.user?.email ?? "—",
+        image: $auth.data?.user?.image,
+        totalBoards: 0,
+        totalTodos: 0,
+        completedTodos: 0,
+        changelogEvents: 0,
+      };
+    }
   });
 
   function getInitials(name: string) {
     return name
-      .split(" ")
-      .map((n) => n[0])
+      .trim()
+      .split(/\s+/)
+      .map((n) => n.charAt(0))
       .join("")
       .toUpperCase()
       .slice(0, 2);
