@@ -297,3 +297,71 @@ button.onclick = async () => {
   await syncWorker.syncNow({ overrideBackoff: true });
 };
 ```
+
+### Handling Session Invalidation
+
+When a user's session expires, the server will return a `401 Unauthorized` response. Because the pull handler throws on non-OK responses, the sync worker captures this as `lastError` and **stops attempting further sync cycles until the user re-authenticates**.
+
+This is intentional — continuing to sync with an expired session would at best produce misleading errors and at worst leak data or corrupt the local state.
+
+#### What Happens
+
+1. The pull (or push) handler receives a `401` from the server.
+2. The handler throws, e.g. `throw new Error("Pull failed with status 401")`.
+3. The worker records this as `lastError` and surfaces it via `statuschange`.
+4. The worker enters backoff and will not make further network requests until the cycle restarts — but a 401 will keep failing until the session is valid again.
+
+#### Detecting and Recovering
+
+Listen for `statuschange` and inspect `lastError.message` for a `401` to prompt the user to log in again:
+
+```typescript
+syncWorker.on("statuschange", (e) => {
+  const { lastError } = e.detail;
+
+  if (lastError?.message.includes("401")) {
+    // Session has expired — stop the worker and redirect to login
+    syncWorker.stop();
+    window.location.href = "/login";
+  }
+});
+```
+
+Or, if you prefer to show an inline prompt rather than redirect automatically:
+
+```typescript
+syncWorker.on("statuschange", (e) => {
+  const { lastError } = e.detail;
+
+  if (lastError?.message.includes("401")) {
+    ui.showWarning("Your session has expired. Please log in again to resume syncing.");
+  }
+});
+```
+
+<Callout type="warn">
+  Do not call `syncWorker.stop()` and immediately `start()` again after a 401 — this will just hammer the server with
+  unauthenticated requests. Wait until the user has successfully re-authenticated before restarting the worker.
+</Callout>
+
+#### Throwing the Right Error
+
+For the worker to detect session expiry, your push and pull handlers **must** throw on non-OK responses. Make sure your handlers include a status check:
+
+```typescript
+pull: {
+  handler: async (cursor) => {
+    const res = await fetch("/api/sync/pull", {
+      method: "POST",
+      body: JSON.stringify({ lastChangelogId: cursor }),
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!res.ok) {
+      throw new Error(`Pull failed with status ${res.status}`);
+    }
+    return res.json();
+  },
+},
+```
+
+The error message is available on `syncWorker.status.lastError.message` and in every `statuschange` event.
