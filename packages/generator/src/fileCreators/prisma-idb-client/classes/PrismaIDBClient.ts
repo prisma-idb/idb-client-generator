@@ -62,7 +62,7 @@ export function addClientClass(
 
     addModelProperties(writer, models);
     addOutboxProperty(writer, outboxSync, outboxModelName, versionMetaModelName);
-    addCreateInstanceMethod(writer, migrationInfo);
+    addCreateInstanceMethod(writer);
     addResetDatabaseMethod(writer);
     addShouldTrackModelMethod(writer);
     if (outboxSync) {
@@ -88,16 +88,12 @@ function addOutboxProperty(
     .writeLine(`$versionMeta!: ${versionMetaModelName}IDBClass;`);
 }
 
-function addCreateInstanceMethod(writer: CodeBlockWriter, migrationInfo?: MigrationInfo) {
-  const hasMigrations = migrationInfo && migrationInfo.currentVersion > 0;
-
+function addCreateInstanceMethod(writer: CodeBlockWriter) {
   writer.writeLine(`public static async createClient(): Promise<PrismaIDBClient>`).block(() => {
     writer
       .writeLine(`if (!PrismaIDBClient.instance)`)
       .block(() => {
-        writer
-          .writeLine(`const client = new PrismaIDBClient();`)
-          .writeLine(`await client.initialize();`);
+        writer.writeLine(`const client = new PrismaIDBClient();`).writeLine(`await client.initialize();`);
 
         // Always check hash for schema drift detection
         writer
@@ -110,7 +106,7 @@ function addCreateInstanceMethod(writer: CodeBlockWriter, migrationInfo?: Migrat
               .block(() => {
                 writer.writeLine(
                   "throw new Error(" +
-                    "`IDB schema mismatch: stored hash \"${storedHash}\" does not match expected \"${IDB_SCHEMA_HASH}\". " +
+                    '`IDB schema mismatch: stored hash "${storedHash}" does not match expected "${IDB_SCHEMA_HASH}". ' +
                     "Set dropDbOnSchemaVersionMismatch = true in your generator config to automatically reset the database.`" +
                     ");"
                 );

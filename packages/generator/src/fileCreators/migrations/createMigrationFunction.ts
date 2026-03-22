@@ -26,10 +26,14 @@ export function createMigrationFunctionFile(
 
   // Check if this migration has structural IDB ops (store/index changes)
   // Field-level ops are informational only (no IDB DDL), so they don't count
-  const hasStructuralOps = diff.ops.some((op) =>
-    op.type !== "addField" && op.type !== "removeField" &&
-    op.type !== "addEnumValue" && op.type !== "removeEnumValue"
-  ) || includeMetaStore;
+  const hasStructuralOps =
+    diff.ops.some(
+      (op) =>
+        op.type !== "addField" &&
+        op.type !== "removeField" &&
+        op.type !== "addEnumValue" &&
+        op.type !== "removeEnumValue"
+    ) || includeMetaStore;
 
   if (!hasStructuralOps && diff.ambiguities.length === 0) {
     writeFieldRenameComment(writer);
@@ -66,9 +70,7 @@ function writeOp(writer: CodeBlockWriter, op: MigrationOp) {
       break;
 
     case "deleteObjectStore":
-      writer.writeLine(
-        `// [auto] dropped model: ${op.name} (DESTRUCTIVE — all ${op.name} records will be deleted)`
-      );
+      writer.writeLine(`// [auto] dropped model: ${op.name} (DESTRUCTIVE — all ${op.name} records will be deleted)`);
       writer.writeLine(`db.deleteObjectStore(${JSON.stringify(op.name)});`);
       writer.blankLine();
       break;
@@ -85,14 +87,14 @@ function writeOp(writer: CodeBlockWriter, op: MigrationOp) {
 
     case "deleteIndex":
       writer.writeLine(`// [auto] dropped index: ${op.storeName}.${op.indexName}`);
-      writer.writeLine(
-        `tx.objectStore(${JSON.stringify(op.storeName)}).deleteIndex(${JSON.stringify(op.indexName)});`
-      );
+      writer.writeLine(`tx.objectStore(${JSON.stringify(op.storeName)}).deleteIndex(${JSON.stringify(op.indexName)});`);
       writer.blankLine();
       break;
 
     case "addField":
-      writer.writeLine(`// [auto] new field: ${op.storeName}.${op.fieldName} (${op.fieldType}${op.isList ? "[]" : ""}${op.isRequired ? ", required" : ", optional"})`);
+      writer.writeLine(
+        `// [auto] new field: ${op.storeName}.${op.fieldName} (${op.fieldType}${op.isList ? "[]" : ""}${op.isRequired ? ", required" : ", optional"})`
+      );
       if (op.isRequired) {
         writer.writeLine(`// TODO: Existing ${op.storeName} records won't have this field.`);
         writer.writeLine(`// Backfill with a cursor loop if needed:`);
@@ -140,15 +142,9 @@ function writeAmbiguityComment(writer: CodeBlockWriter, ambiguity: AmbiguityNote
     writer.writeLine(`// This was generated as DROP + CREATE (data loss for ${ambiguity.removedModel}).`);
     writer.writeLine(`// If this was a rename, replace the body below with a data copy:`);
     writer.writeLine(`//`);
-    writer.writeLine(
-      `//   const records = await tx.objectStore("${ambiguity.removedModel}").getAll();`
-    );
-    writer.writeLine(
-      `//   db.createObjectStore("${ambiguity.addedModel}", { keyPath: "id" });`
-    );
-    writer.writeLine(
-      `//   for (const r of records) await tx.objectStore("${ambiguity.addedModel}").add(r);`
-    );
+    writer.writeLine(`//   const records = await tx.objectStore("${ambiguity.removedModel}").getAll();`);
+    writer.writeLine(`//   db.createObjectStore("${ambiguity.addedModel}", { keyPath: "id" });`);
+    writer.writeLine(`//   for (const r of records) await tx.objectStore("${ambiguity.addedModel}").add(r);`);
     writer.writeLine(`//   db.deleteObjectStore("${ambiguity.removedModel}");`);
     writer.blankLine();
   } else if (ambiguity.type === "possibleFieldRename") {
@@ -183,19 +179,13 @@ function writeAmbiguityComment(writer: CodeBlockWriter, ambiguity: AmbiguityNote
 
 function writeFieldRenameComment(writer: CodeBlockWriter) {
   writer.writeLine(`// [auto] No IDB-level changes detected for this migration.`);
-  writer.writeLine(
-    `// NOTE: If you renamed a field (e.g. \`firstName\` → \`givenName\`), existing`
-  );
-  writer.writeLine(
-    `// records still use the old key. Implement a data migration below if needed:`
-  );
+  writer.writeLine(`// NOTE: If you renamed a field (e.g. \`firstName\` → \`givenName\`), existing`);
+  writer.writeLine(`// records still use the old key. Implement a data migration below if needed:`);
   writer.writeLine(`//`);
   writer.writeLine(`//   const store = tx.objectStore("YourModel");`);
   writer.writeLine(`//   let cursor = await store.openCursor();`);
   writer.writeLine(`//   while (cursor) {`);
-  writer.writeLine(
-    `//     cursor.update({ ...cursor.value, newField: cursor.value.oldField });`
-  );
+  writer.writeLine(`//     cursor.update({ ...cursor.value, newField: cursor.value.oldField });`);
   writer.writeLine(`//     cursor = await cursor.continue();`);
   writer.writeLine(`//   }`);
   writer.blankLine();
