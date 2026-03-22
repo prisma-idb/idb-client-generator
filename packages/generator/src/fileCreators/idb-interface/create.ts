@@ -5,12 +5,16 @@ import CodeBlockWriter from "code-block-writer";
 
 export function createIDBInterfaceFile(
   writer: CodeBlockWriter,
-  models: DMMF.Datamodel["models"],
-  prismaClientImport: string,
-  outboxSync: boolean,
-  outboxModelName: string,
-  versionMetaModelName: string
+  options: {
+    models: DMMF.Datamodel["models"];
+    prismaClientImport: string;
+    outboxSync: boolean;
+    outboxModelName: string;
+    versionMetaModelName: string;
+    hasMigrations?: boolean;
+  }
 ) {
+  const { models, prismaClientImport, outboxSync, outboxModelName, versionMetaModelName, hasMigrations = false } = options;
   writer.writeLine(`import type { DBSchema } from "idb";`);
   writer.writeLine(`import type * as Prisma from "${prismaClientImport}";`);
   if (outboxSync) {
@@ -40,6 +44,13 @@ export function createIDBInterfaceFile(
       writer.writeLine(`${versionMetaModelName}: `).block(() => {
         writer.writeLine(`key: [model: string, key: IDBValidKey];`);
         writer.writeLine(`value: ChangeMetaRecord;`);
+      });
+    }
+
+    if (hasMigrations) {
+      writer.writeLine(`_idb_meta: `).block(() => {
+        writer.writeLine(`key: string;`);
+        writer.writeLine(`value: string;`);
       });
     }
   });
