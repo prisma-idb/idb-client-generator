@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { openDB } from "idb";
+import { openDB, deleteDB } from "idb";
 import type { IDBPDatabase, StoreNames, IDBPTransaction } from "idb";
 import type { Prisma } from "./generated/client";
 import * as IDBUtils from "./idb-utils";
@@ -14,8 +14,10 @@ import type { PushResult } from "../server/batch-processor";
 import { validators, keyPathValidators, modelRecordToKeyPath } from "../validators";
 import type { LogWithStringifiedRecord } from "../server/batch-processor";
 import { applyPull, type ApplyPullResult } from "./apply-pull";
+import { IDB_SCHEMA_HASH } from "./idb-schema-hash";
 import { v4 as uuidv4 } from "uuid";
 const IDB_VERSION = 1;
+const DROP_DB_ON_SCHEMA_VERSION_MISMATCH = false;
 type CreateSyncWorkerOptions = {
   push: {
     handler: (events: OutboxEventRecord[]) => Promise<PushResult[]>;
@@ -52,6 +54,18 @@ export class PrismaIDBClient {
     if (!PrismaIDBClient.instance) {
       const client = new PrismaIDBClient();
       await client.initialize();
+      const storedHash = await client._db.get("_idb_meta", "schemaHash");
+      if (storedHash !== undefined && storedHash !== IDB_SCHEMA_HASH) {
+        client._db.close();
+        if (!DROP_DB_ON_SCHEMA_VERSION_MISMATCH) {
+          throw new Error(
+            `IDB schema mismatch: stored hash "${storedHash}" does not match expected "${IDB_SCHEMA_HASH}". Set dropDbOnSchemaVersionMismatch = true in your generator config to automatically reset the database.`
+          );
+        }
+        await deleteDB("prisma-idb");
+        return PrismaIDBClient.createClient();
+      }
+      await client._db.put("_idb_meta", IDB_SCHEMA_HASH, "schemaHash");
       PrismaIDBClient.instance = client;
     }
     return PrismaIDBClient.instance;
@@ -439,7 +453,7 @@ export class PrismaIDBClient {
     };
   }
   private async initialize() {
-    this._db = await openDB<PrismaIDBSchema>("prisma-idb", IDB_VERSION, {
+    const db = await openDB<PrismaIDBSchema>("prisma-idb", IDB_VERSION, {
       upgrade(db) {
         db.createObjectStore("Board", { keyPath: ["id"] });
         db.createObjectStore("Todo", { keyPath: ["id"] });
@@ -447,8 +461,13 @@ export class PrismaIDBClient {
         UserStore.createIndex("emailIndex", ["email"], { unique: true });
         db.createObjectStore("OutboxEvent", { keyPath: ["id"] });
         db.createObjectStore("VersionMeta", { keyPath: ["model", "key"] });
+        db.createObjectStore("_idb_meta");
+      },
+      blocking() {
+        db.close();
       },
     });
+    this._db = db;
     this.board = new BoardIDBClass(this, ["id"]);
     this.todo = new TodoIDBClass(this, ["id"]);
     this.user = new UserIDBClass(this, ["id"]);

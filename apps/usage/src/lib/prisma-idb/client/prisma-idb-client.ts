@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { openDB } from "idb";
+import { openDB, deleteDB } from "idb";
 import type { IDBPDatabase, StoreNames, IDBPTransaction } from "idb";
 import type { Prisma } from "../../generated/prisma/client";
 import * as IDBUtils from "./idb-utils";
 import type { PrismaIDBSchema } from "./idb-interface";
+import { IDB_SCHEMA_HASH } from "./idb-schema-hash";
 import { createId } from "@paralleldrive/cuid2";
 import { v4 as uuidv4 } from "uuid";
 const IDB_VERSION = 1;
+const DROP_DB_ON_SCHEMA_VERSION_MISMATCH = false;
 export class PrismaIDBClient {
   private static instance: PrismaIDBClient;
   _db!: IDBPDatabase<PrismaIDBSchema>;
@@ -51,6 +53,18 @@ export class PrismaIDBClient {
     if (!PrismaIDBClient.instance) {
       const client = new PrismaIDBClient();
       await client.initialize();
+      const storedHash = await client._db.get("_idb_meta", "schemaHash");
+      if (storedHash !== undefined && storedHash !== IDB_SCHEMA_HASH) {
+        client._db.close();
+        if (!DROP_DB_ON_SCHEMA_VERSION_MISMATCH) {
+          throw new Error(
+            `IDB schema mismatch: stored hash "${storedHash}" does not match expected "${IDB_SCHEMA_HASH}". Set dropDbOnSchemaVersionMismatch = true in your generator config to automatically reset the database.`
+          );
+        }
+        await deleteDB("prisma-idb");
+        return PrismaIDBClient.createClient();
+      }
+      await client._db.put("_idb_meta", IDB_SCHEMA_HASH, "schemaHash");
       PrismaIDBClient.instance = client;
     }
     return PrismaIDBClient.instance;
@@ -64,7 +78,7 @@ export class PrismaIDBClient {
     return this.outboxEnabled && this.includedModels.has(modelName);
   }
   private async initialize() {
-    this._db = await openDB<PrismaIDBSchema>("prisma-idb", IDB_VERSION, {
+    const db = await openDB<PrismaIDBSchema>("prisma-idb", IDB_VERSION, {
       upgrade(db) {
         db.createObjectStore("User", { keyPath: ["id"] });
         db.createObjectStore("Group", { keyPath: ["id"] });
@@ -86,8 +100,13 @@ export class PrismaIDBClient {
         const ModelWithUniqueAttributesStore = db.createObjectStore("ModelWithUniqueAttributes", { keyPath: ["id"] });
         ModelWithUniqueAttributesStore.createIndex("codeIndex", ["code"], { unique: true });
         db.createObjectStore("Todo", { keyPath: ["id"] });
+        db.createObjectStore("_idb_meta");
+      },
+      blocking() {
+        db.close();
       },
     });
+    this._db = db;
     this.user = new UserIDBClass(this, ["id"]);
     this.group = new GroupIDBClass(this, ["id"]);
     this.userGroup = new UserGroupIDBClass(this, ["groupId", "userId"]);
