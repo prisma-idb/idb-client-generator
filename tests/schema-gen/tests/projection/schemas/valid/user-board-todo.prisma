@@ -1,11 +1,11 @@
 generator client {
   provider = "prisma-client"
-  output   = "../../generated/prisma"
+  output   = "../../../../generated/prisma"
 }
 
 generator prismaIDBrowser {
   provider   = "idb-client-generator"
-  output     = "../../generated/prisma-idb"
+  output     = "../../../../generated/prisma-idb"
   outboxSync = true
   exclude    = ["Session", "Verification", "Account"]
   rootModel  = "User"

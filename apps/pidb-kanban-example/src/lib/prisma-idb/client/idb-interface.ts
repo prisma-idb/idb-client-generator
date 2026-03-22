@@ -27,6 +27,10 @@ export interface PrismaIDBSchema extends DBSchema {
     key: [model: string, key: IDBValidKey];
     value: ChangeMetaRecord;
   };
+  _idb_meta: {
+    key: string;
+    value: string;
+  };
 }
 export interface OutboxEventRecord {
   id: string;

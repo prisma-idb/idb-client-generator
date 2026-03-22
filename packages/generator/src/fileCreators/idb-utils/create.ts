@@ -30,10 +30,13 @@ import { addAreUint8ArraysEqualHelper } from "./helpers/areUint8ArraysEqual";
 
 export function createUtilsFile(
   writer: CodeBlockWriter,
-  models: readonly Model[],
-  prismaClientImport: string,
-  outboxSync: boolean = false
+  options: {
+    models: readonly Model[];
+    prismaClientImport: string;
+    outboxSync?: boolean;
+  }
 ) {
+  const { models, prismaClientImport, outboxSync = false } = options;
   writer.writeLine(`import type { IDBPTransaction, StoreNames } from "idb";`);
   writer.writeLine(`import type { PrismaIDBSchema } from "./idb-interface";`);
   writer.writeLine(`import type { Prisma } from "${prismaClientImport}";`);

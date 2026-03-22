@@ -4,9 +4,12 @@ import { DMMF } from "@prisma/generator-helper";
 
 export function createScopedSchemaFile(
   writer: CodeBlockWriter,
-  filteredModels: readonly Model[],
-  enums: readonly DMMF.DatamodelEnum[]
+  options: {
+    filteredModels: readonly Model[];
+    enums: readonly DMMF.DatamodelEnum[];
+  }
 ) {
+  const { filteredModels, enums } = options;
   writerDatasourceAndClientGenerator(writer);
   writeModels(writer, filteredModels);
   writeEnums(writer, enums);

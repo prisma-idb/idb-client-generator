@@ -59,10 +59,13 @@ function buildAuthorizationPath(
 
 export function createBatchProcessorFile(
   writer: CodeBlockWriter,
-  models: readonly Model[],
-  prismaClientImport: string,
-  rootModel: Model
+  options: {
+    models: readonly Model[];
+    prismaClientImport: string;
+    rootModel: Model;
+  }
 ) {
+  const { models, prismaClientImport, rootModel } = options;
   const modelNames = models.map((m) => m.name);
 
   // Write imports

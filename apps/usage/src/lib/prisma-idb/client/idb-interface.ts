@@ -74,4 +74,8 @@ export interface PrismaIDBSchema extends DBSchema {
     key: [id: Prisma.Todo["id"]];
     value: Prisma.Todo;
   };
+  _idb_meta: {
+    key: string;
+    value: string;
+  };
 }
