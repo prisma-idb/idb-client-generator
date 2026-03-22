@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client"
+  output   = "./generated/prisma"
+}
+
+generator prismaIDBrowser {
+  provider   = "idb-client-generator"
+  output     = "./generated/prisma-idb"
+  outboxSync = true
+  rootModel  = "User"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id    String  @id @default(uuid())
+  name  String
+  email String?
+}
+
+model Changelog {
+  id            String          @id @default(uuid(7))
+  model         String
+  keyPath       Json
+  operation     ChangeOperation
+  scopeKey      String
+  outboxEventId String          @unique
+
+  @@index([model, id])
+}
+
+enum ChangeOperation {
+  create
+  update
+  delete
+}
