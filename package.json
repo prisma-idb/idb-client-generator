@@ -12,7 +12,7 @@
     "test": "turbo run test",
     "test:client": "turbo run test --filter=@prisma-idb/usage",
     "test:sync": "turbo run test --filter=@prisma-idb/pidb-kanban-example",
-    "test:schema-gen": "turbo run test --filter=@prisma-idb/tests",
+    "test:schema-gen": "turbo run test --filter=@prisma-idb/schema-gen-tests",
     "test:watch": "turbo run test:watch --no-cache",
     "generate": "turbo run generate",
     "clean": "turbo clean && rm -rf node_modules",
