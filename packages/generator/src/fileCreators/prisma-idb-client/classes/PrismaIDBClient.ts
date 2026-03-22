@@ -2,6 +2,7 @@ import CodeBlockWriter from "code-block-writer";
 import { getUniqueIdentifiers, toCamelCase as toCamelCaseUtil } from "../../../helpers/utils";
 import { shouldTrackModel } from "../../outbox/utils";
 import { Model } from "../../types";
+import type { MigrationInfo } from "../create";
 
 export function addClientClass(
   writer: CodeBlockWriter,
@@ -10,7 +11,8 @@ export function addClientClass(
   outboxModelName: string,
   versionMetaModelName: string,
   include: string[] = ["*"],
-  exclude: string[] = []
+  exclude: string[] = [],
+  migrationInfo?: MigrationInfo
 ) {
   // Write type definition for CreateSyncWorkerOptions if sync is enabled
   if (outboxSync) {
@@ -60,13 +62,13 @@ export function addClientClass(
 
     addModelProperties(writer, models);
     addOutboxProperty(writer, outboxSync, outboxModelName, versionMetaModelName);
-    addCreateInstanceMethod(writer);
+    addCreateInstanceMethod(writer, migrationInfo);
     addResetDatabaseMethod(writer);
     addShouldTrackModelMethod(writer);
     if (outboxSync) {
       addCreateSyncWorkerMethod(writer);
     }
-    addInitializeMethod(writer, models, outboxSync, outboxModelName, versionMetaModelName);
+    addInitializeMethod(writer, models, outboxSync, outboxModelName, versionMetaModelName, migrationInfo);
   });
 }
 
@@ -86,15 +88,39 @@ function addOutboxProperty(
     .writeLine(`$versionMeta!: ${versionMetaModelName}IDBClass;`);
 }
 
-function addCreateInstanceMethod(writer: CodeBlockWriter) {
+function addCreateInstanceMethod(writer: CodeBlockWriter, migrationInfo?: MigrationInfo) {
+  const hasMigrations = migrationInfo && migrationInfo.currentVersion > 0;
+
   writer.writeLine(`public static async createClient(): Promise<PrismaIDBClient>`).block(() => {
     writer
       .writeLine(`if (!PrismaIDBClient.instance)`)
       .block(() => {
         writer
           .writeLine(`const client = new PrismaIDBClient();`)
-          .writeLine(`await client.initialize();`)
-          .writeLine(`PrismaIDBClient.instance = client;`);
+          .writeLine(`await client.initialize();`);
+
+        // Always check hash for schema drift detection
+        writer
+          .writeLine(`const storedHash = await client._db.get("_idb_meta", "schemaHash");`)
+          .write(`if (storedHash !== undefined && storedHash !== IDB_SCHEMA_HASH) `)
+          .block(() => {
+            writer
+              .writeLine(`client._db.close();`)
+              .write(`if (!DROP_DB_ON_SCHEMA_VERSION_MISMATCH) `)
+              .block(() => {
+                writer.writeLine(
+                  "throw new Error(" +
+                    "`IDB schema mismatch: stored hash \"${storedHash}\" does not match expected \"${IDB_SCHEMA_HASH}\". " +
+                    "Set dropDbOnSchemaVersionMismatch = true in your generator config to automatically reset the database.`" +
+                    ");"
+                );
+              })
+              .writeLine(`await deleteDB("prisma-idb");`)
+              .writeLine(`return PrismaIDBClient.createClient();`);
+          })
+          .writeLine(`await client._db.put("_idb_meta", IDB_SCHEMA_HASH, "schemaHash");`);
+
+        writer.writeLine(`PrismaIDBClient.instance = client;`);
       })
       .writeLine(`return PrismaIDBClient.instance;`);
   });
@@ -105,21 +131,55 @@ function addInitializeMethod(
   models: readonly Model[],
   outboxSync: boolean,
   outboxModelName: string,
-  versionMetaModelName: string
+  versionMetaModelName: string,
+  migrationInfo?: MigrationInfo
 ) {
+  const hasMigrations = migrationInfo && migrationInfo.currentVersion > 0;
+
   writer.writeLine(`private async initialize()`).block(() => {
-    writer
-      .writeLine(`this._db = await openDB<PrismaIDBSchema>("prisma-idb", IDB_VERSION, `)
-      .block(() => {
-        writer.writeLine(`upgrade(db) `).block(() => {
-          models.forEach((model) => addObjectStoreInitialization(model, writer));
-          if (outboxSync) {
-            addOutboxObjectStoreInitialization(writer, outboxModelName);
-            addVersionMetaInitialization(writer, versionMetaModelName);
-          }
-        });
-      })
-      .writeLine(`);`);
+    if (hasMigrations) {
+      // Migration-based upgrade callback
+      writer
+        .writeLine(`const db = await openDB<PrismaIDBSchema>("prisma-idb", CURRENT_VERSION, `)
+        .block(() => {
+          writer.write(`async upgrade(db, oldVersion, _newVersion, tx) `).block(() => {
+            writer.write(`switch (oldVersion) `).block(() => {
+              for (let i = 0; i < migrationInfo.currentVersion; i++) {
+                writer.writeLine(`case ${i}: await migrateV${i + 1}(db, tx);`);
+              }
+              writer.writeLine(`// fallthrough intentional — runs all pending migrations in sequence`);
+            });
+          });
+          writer.write(`,`).newLine();
+          writer.write(`blocking() `).block(() => {
+            writer.writeLine(`db.close();`);
+          });
+          writer.write(`,`).newLine();
+        })
+        .writeLine(`);`)
+        .writeLine(`this._db = db;`);
+    } else {
+      // Legacy: single upgrade callback
+      writer
+        .writeLine(`const db = await openDB<PrismaIDBSchema>("prisma-idb", IDB_VERSION, `)
+        .block(() => {
+          writer.writeLine(`upgrade(db) `).block(() => {
+            models.forEach((model) => addObjectStoreInitialization(model, writer));
+            if (outboxSync) {
+              addOutboxObjectStoreInitialization(writer, outboxModelName);
+              addVersionMetaInitialization(writer, versionMetaModelName);
+            }
+            writer.writeLine(`db.createObjectStore("_idb_meta");`);
+          });
+          writer.write(`,`).newLine();
+          writer.write(`blocking() `).block(() => {
+            writer.writeLine(`db.close();`);
+          });
+          writer.write(`,`).newLine();
+        })
+        .writeLine(`);`)
+        .writeLine(`this._db = db;`);
+    }
 
     models.forEach((model) => {
       writer.writeLine(
