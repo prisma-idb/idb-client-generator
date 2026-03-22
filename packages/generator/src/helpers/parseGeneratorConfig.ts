@@ -12,6 +12,7 @@ export interface ParsedGeneratorConfig {
   outboxModelName: string;
   versionMetaModelName: string;
   rootModel?: DMMF.Model;
+  dropDbOnSchemaVersionMismatch: boolean;
 }
 
 /**
@@ -89,6 +90,9 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
   // === Parse exportEnums setting ===
   const exportEnums = generatorConfig.exportEnums === "true";
 
+  // === Parse dropDbOnSchemaVersionMismatch setting ===
+  const dropDbOnSchemaVersionMismatch = generatorConfig.dropDbOnSchemaVersionMismatch === "true";
+
   // === Parse include/exclude patterns ===
   let include: string[] = ["*"];
   let exclude: string[] = [];
@@ -155,6 +159,7 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
     exclude,
     filteredModels,
     rootModel,
+    dropDbOnSchemaVersionMismatch,
   };
 }
 
