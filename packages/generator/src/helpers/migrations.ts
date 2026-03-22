@@ -3,6 +3,18 @@ import path from "path";
 import { getUniqueIdentifiers } from "./utils";
 import type { DMMF } from "@prisma/generator-helper";
 
+export const prismaToTsTypeMap: Record<string, string> = {
+  Int: "number",
+  Float: "number",
+  String: "string",
+  Boolean: "boolean",
+  DateTime: "Date",
+  Json: "unknown",
+  BigInt: "bigint",
+  Decimal: "string",
+  Bytes: "Uint8Array",
+};
+
 // --- Snapshot types ---
 
 export interface SnapshotField {
@@ -107,7 +119,7 @@ export function extractSnapshot(
     const indexes: SnapshotIndex[] = uniqueIds.slice(1).map((uid) => {
       const idxKeyPath = JSON.parse(uid.keyPath) as string[];
       return {
-        name: uid.name,
+        name: `${uid.name}Index`,
         keyPath: idxKeyPath.length === 1 ? idxKeyPath[0] : idxKeyPath,
         unique: true,
       };

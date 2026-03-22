@@ -145,7 +145,8 @@ function addInitializeMethod(
           writer.write(`async upgrade(db, oldVersion, _newVersion, tx) `).block(() => {
             writer.write(`switch (oldVersion) `).block(() => {
               for (let i = 0; i < migrationInfo.currentVersion; i++) {
-                writer.writeLine(`case ${i}: await migrateV${i + 1}(db, tx);`);
+                writer.writeLine(`// eslint-disable-next-line @typescript-eslint/no-explicit-any`);
+                writer.writeLine(`case ${i}: await migrateV${i + 1}(db as any, tx as any);`);
               }
               writer.writeLine(`// fallthrough intentional — runs all pending migrations in sequence`);
             });

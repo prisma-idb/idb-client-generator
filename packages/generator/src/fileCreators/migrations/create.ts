@@ -79,18 +79,34 @@ export async function generateMigrations(
     fs.writeFileSync(snapshotJsonPath, JSON.stringify(snapshot, null, 2));
 
     // Always write dmmf.ts (overwrite)
+    // The MigrationSchema must include all stores at this version,
+    // including outbox/meta stores if created in V1
+    const isFirstMigration = version === 1;
+    const includeMetaStore = isFirstMigration;
+    const dmmfOptions = {
+      outboxSync: outboxSync && isFirstMigration,
+      outboxModelName,
+      versionMetaModelName,
+      includeMetaStore,
+    };
+
+    // For V2+, outbox/meta stores already exist from V1 — include them in schema
+    if (outboxSync && !isFirstMigration) {
+      dmmfOptions.outboxSync = true;
+    }
+    // _idb_meta always exists after V1
+    if (!isFirstMigration) {
+      dmmfOptions.includeMetaStore = true;
+    }
+
     await writeCodeFile(`${migrationDir}/dmmf.ts`, outputPath, (writer) => {
-      createDmmfSnapshotFile(writer, snapshot);
+      createDmmfSnapshotFile(writer, snapshot, dmmfOptions);
     });
 
     // Write migration.ts only if it does NOT exist (write-once contract)
     const migrationTsPath = path.join(outputPath, migrationDir, "migration.ts");
     if (!fs.existsSync(migrationTsPath)) {
       const diff = computeDiff(prevSnapshot, snapshot);
-      const isFirstMigration = version === 1;
-
-      // Include _idb_meta store creation in the first migration
-      const includeMetaStore = isFirstMigration;
 
       // If outboxSync, add OutboxEvent and VersionMeta stores to first migration
       if (isFirstMigration && outboxSync) {

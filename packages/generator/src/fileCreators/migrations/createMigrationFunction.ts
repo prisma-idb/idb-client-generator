@@ -16,7 +16,7 @@ export function createMigrationFunctionFile(
   writer.writeLine(`// You may edit this file to customize your migration logic.`);
   writer.blankLine();
   writer.writeLine(`import type { IDBPDatabase, IDBPTransaction, StoreNames } from "idb";`);
-  writer.writeLine(`import type { PrismaIDBSchema } from "../../idb-interface";`);
+  writer.writeLine(`import type { MigrationSchema } from "./dmmf";`);
   writer.blankLine();
 
   // Write ambiguity comments
@@ -37,7 +37,7 @@ export function createMigrationFunctionFile(
 
   writer
     .write(
-      `export async function migrate(db: IDBPDatabase<PrismaIDBSchema>, tx: IDBPTransaction<PrismaIDBSchema, StoreNames<PrismaIDBSchema>[], "versionchange">): Promise<void> `
+      `export async function migrate(db: IDBPDatabase<MigrationSchema>, tx: IDBPTransaction<MigrationSchema, StoreNames<MigrationSchema>[], "versionchange">): Promise<void> `
     )
     .block(() => {
       if (includeMetaStore) {
