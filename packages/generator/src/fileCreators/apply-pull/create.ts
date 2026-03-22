@@ -2,7 +2,14 @@ import CodeBlockWriter from "code-block-writer";
 import { Model } from "../types";
 import { getUniqueIdentifiers } from "../../helpers/utils";
 
-export function createApplyPullFile(writer: CodeBlockWriter, models: Model[], versionMetaModelName: string) {
+export function createApplyPullFile(
+  writer: CodeBlockWriter,
+  options: {
+    models: Model[];
+    versionMetaModelName: string;
+  }
+) {
+  const { models, versionMetaModelName } = options;
   // Write imports
   writer.writeLine(`import type { LogWithStringifiedRecord } from '../server/batch-processor';`);
   writer.writeLine(`import { validators, keyPathValidators } from '../validators';`);
