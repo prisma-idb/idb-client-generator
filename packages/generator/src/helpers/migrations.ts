@@ -66,7 +66,8 @@ export type AmbiguityNote =
  * Returns empty array if the directory doesn't exist.
  */
 export function listMigrationFolders(schemaPath: string): string[] {
-  const schemaDir = path.dirname(schemaPath);
+  const schemaDir =
+    fs.existsSync(schemaPath) && fs.statSync(schemaPath).isDirectory() ? schemaPath : path.dirname(schemaPath);
   const migrationsDir = path.join(schemaDir, "migrations");
 
   if (!fs.existsSync(migrationsDir)) return [];
@@ -82,7 +83,11 @@ export function listMigrationFolders(schemaPath: string): string[] {
  * Extract an IDB-structural snapshot from DMMF models.
  * Captures model names, keyPaths, index names, index keyPaths, and uniqueness.
  */
-export function extractSnapshot(models: readonly DMMF.Model[], version: number, enums?: readonly DMMF.DatamodelEnum[]): Snapshot {
+export function extractSnapshot(
+  models: readonly DMMF.Model[],
+  version: number,
+  enums?: readonly DMMF.DatamodelEnum[]
+): Snapshot {
   const snapshotModels: SnapshotModel[] = models.map((model) => {
     const uniqueIds = getUniqueIdentifiers(model);
     const primaryKey = uniqueIds[0];
@@ -214,7 +219,14 @@ export function computeDiff(prev: Snapshot | null, curr: Snapshot): MigrationDif
     for (const [fieldName, field] of currFields) {
       if (!prevFields.has(fieldName)) {
         addedFields.push(fieldName);
-        ops.push({ type: "addField", storeName: name, fieldName, fieldType: field.type, isList: field.isList, isRequired: field.isRequired });
+        ops.push({
+          type: "addField",
+          storeName: name,
+          fieldName,
+          fieldType: field.type,
+          isList: field.isList,
+          isRequired: field.isRequired,
+        });
       }
     }
 
@@ -239,7 +251,13 @@ export function computeDiff(prev: Snapshot | null, curr: Snapshot): MigrationDif
 
     for (const [idxName, idx] of currIndexes) {
       if (!prevIndexes.has(idxName)) {
-        ops.push({ type: "createIndex", storeName: name, indexName: idxName, keyPath: idx.keyPath, unique: idx.unique });
+        ops.push({
+          type: "createIndex",
+          storeName: name,
+          indexName: idxName,
+          keyPath: idx.keyPath,
+          unique: idx.unique,
+        });
       }
     }
   }
