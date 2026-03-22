@@ -3,18 +3,6 @@ import path from "path";
 import { getUniqueIdentifiers } from "./utils";
 import type { DMMF } from "@prisma/generator-helper";
 
-export const prismaToTsTypeMap: Record<string, string> = {
-  Int: "number",
-  Float: "number",
-  String: "string",
-  Boolean: "boolean",
-  DateTime: "Date",
-  Json: "unknown",
-  BigInt: "bigint",
-  Decimal: "string",
-  Bytes: "Uint8Array",
-};
-
 // --- Snapshot types ---
 
 export interface SnapshotField {

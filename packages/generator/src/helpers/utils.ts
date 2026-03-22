@@ -27,6 +27,22 @@ const prismaToPrimitiveTypesMap = {
   Bytes: "Uint8Array",
 };
 
+/**
+ * Standalone Prisma-to-TS type map for generated code that doesn't import Prisma types.
+ * Used by migration schema generation.
+ */
+export const prismaToStandaloneTsMap: Record<string, string> = {
+  Int: "number",
+  Float: "number",
+  String: "string",
+  Boolean: "boolean",
+  DateTime: "Date",
+  Json: "unknown",
+  BigInt: "bigint",
+  Decimal: "string",
+  Bytes: "Uint8Array",
+};
+
 export function getUniqueIdentifiers(model: Model) {
   const uniqueIdentifiers: { name: string; keyPath: string; keyPathType: string; keyPathTypes: string[] }[] = [];
 
