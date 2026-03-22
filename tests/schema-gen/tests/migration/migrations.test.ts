@@ -128,8 +128,8 @@ describe("migration generation", () => {
 
     // Check dmmf.ts was generated
     const dmmfTs = await readGenerated(`migrations/${initFolder}/dmmf.ts`);
-    expect(dmmfTs).toContain("as const");
-    expect(dmmfTs).toContain('"User"');
+    expect(dmmfTs).toContain("MigrationSchema");
+    expect(dmmfTs).toContain("User:");
 
     // Client should now use CURRENT_VERSION = 1
     const clientFile = await readGenerated("prisma-idb-client.ts");
@@ -224,7 +224,7 @@ describe("migration generation", () => {
 
     // But dmmf.ts and snapshot.json should be refreshed (always-overwrite)
     const dmmfTs = await readGenerated(`migrations/${initFolder}/dmmf.ts`);
-    expect(dmmfTs).toContain("as const");
+    expect(dmmfTs).toContain("MigrationSchema");
   }, 60000);
 
   it("schema hash changes across versions", async () => {
