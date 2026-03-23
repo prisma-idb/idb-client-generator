@@ -5,12 +5,15 @@ import CodeBlockWriter from "code-block-writer";
 
 export function createIDBInterfaceFile(
   writer: CodeBlockWriter,
-  models: DMMF.Datamodel["models"],
-  prismaClientImport: string,
-  outboxSync: boolean,
-  outboxModelName: string,
-  versionMetaModelName: string
+  options: {
+    models: DMMF.Datamodel["models"];
+    prismaClientImport: string;
+    outboxSync: boolean;
+    outboxModelName: string;
+    versionMetaModelName: string;
+  }
 ) {
+  const { models, prismaClientImport, outboxSync, outboxModelName, versionMetaModelName } = options;
   writer.writeLine(`import type { DBSchema } from "idb";`);
   writer.writeLine(`import type * as Prisma from "${prismaClientImport}";`);
   if (outboxSync) {

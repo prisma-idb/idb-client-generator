@@ -4,9 +4,12 @@ import { DMMF } from "@prisma/generator-helper";
 
 export function createScopedSchemaFile(
   writer: CodeBlockWriter,
-  filteredModels: readonly Model[],
-  enums: readonly DMMF.DatamodelEnum[]
+  options: {
+    filteredModels: readonly Model[];
+    enums: readonly DMMF.DatamodelEnum[];
+  }
 ) {
+  const { filteredModels, enums } = options;
   writerDatasourceAndClientGenerator(writer);
   writeModels(writer, filteredModels);
   writeEnums(writer, enums);
@@ -85,7 +88,7 @@ function writeFields(writer: CodeBlockWriter, filteredFields: readonly Field[]) 
     if (field.isId) attributes.push("@id");
     if (field.isUnique && !field.isId) attributes.push("@unique");
     if (field.isUpdatedAt) attributes.push("@updatedAt");
-    if (field.hasDefaultValue) attributes.push(`@default(${computeDefaultValueString(field.default)})`);
+    if (field.hasDefaultValue) attributes.push(`@default(${computeDefaultValueString(field.default, field.kind)})`);
     if (field.relationName || field.relationFromFields?.length) attributes.push(computeRelationAttribute(field)!);
     if (attributes.length > 0) writer.write(`\t${attributes.join(" ")}`);
 
@@ -93,10 +96,12 @@ function writeFields(writer: CodeBlockWriter, filteredFields: readonly Field[]) 
   }
 }
 
-function computeDefaultValueString(defaultValue: Field["default"]): string {
+function computeDefaultValueString(defaultValue: Field["default"], kind: string): string {
   if (Array.isArray(defaultValue)) {
-    return `[${defaultValue.map((v) => JSON.stringify(v)).join(", ")}]`;
+    return `[${defaultValue.map((v) => (kind === "enum" ? String(v) : JSON.stringify(v))).join(", ")}]`;
   } else if (typeof defaultValue !== "object") {
+    // Enum defaults must be unquoted in Prisma schema
+    if (kind === "enum") return String(defaultValue);
     return JSON.stringify(defaultValue);
   } else {
     const def = defaultValue as { name: string; args: string[] };

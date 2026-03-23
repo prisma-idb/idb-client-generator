@@ -1,5 +1,5 @@
 {
-  "name": "@prisma-idb/tests",
+  "name": "@prisma-idb/schema-gen-tests",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
