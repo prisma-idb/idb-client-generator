@@ -98,7 +98,7 @@ function writeFields(writer: CodeBlockWriter, filteredFields: readonly Field[]) 
 
 function computeDefaultValueString(defaultValue: Field["default"], kind: string): string {
   if (Array.isArray(defaultValue)) {
-    return `[${defaultValue.map((v) => JSON.stringify(v)).join(", ")}]`;
+    return `[${defaultValue.map((v) => (kind === "enum" ? String(v) : JSON.stringify(v))).join(", ")}]`;
   } else if (typeof defaultValue !== "object") {
     // Enum defaults must be unquoted in Prisma schema
     if (kind === "enum") return String(defaultValue);

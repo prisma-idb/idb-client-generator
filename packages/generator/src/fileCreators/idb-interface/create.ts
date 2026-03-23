@@ -11,7 +11,6 @@ export function createIDBInterfaceFile(
     outboxSync: boolean;
     outboxModelName: string;
     versionMetaModelName: string;
-    hasMigrations?: boolean;
   }
 ) {
   const {
@@ -20,7 +19,6 @@ export function createIDBInterfaceFile(
     outboxSync,
     outboxModelName,
     versionMetaModelName,
-    hasMigrations = false,
   } = options;
   writer.writeLine(`import type { DBSchema } from "idb";`);
   writer.writeLine(`import type * as Prisma from "${prismaClientImport}";`);
@@ -54,12 +52,7 @@ export function createIDBInterfaceFile(
       });
     }
 
-    if (hasMigrations) {
-      writer.writeLine(`_idb_meta: `).block(() => {
-        writer.writeLine(`key: string;`);
-        writer.writeLine(`value: string;`);
-      });
-    }
+
   });
 
   // Add type definition for OutboxEventRecord
