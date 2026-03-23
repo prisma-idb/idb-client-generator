@@ -52,14 +52,25 @@ function addVersionDeclaration(writer: CodeBlockWriter) {
 
 export function createPrismaIDBClientFile(
   writer: CodeBlockWriter,
-  models: DMMF.Datamodel["models"],
-  prismaClientImport: string,
-  outboxSync: boolean,
-  outboxModelName: string,
-  versionMetaModelName: string,
-  include: string[] = ["*"],
-  exclude: string[] = []
+  options: {
+    models: DMMF.Datamodel["models"];
+    prismaClientImport: string;
+    outboxSync: boolean;
+    outboxModelName: string;
+    versionMetaModelName: string;
+    include?: string[];
+    exclude?: string[];
+  }
 ) {
+  const {
+    models,
+    prismaClientImport,
+    outboxSync,
+    outboxModelName,
+    versionMetaModelName,
+    include = ["*"],
+    exclude = [],
+  } = options;
   addImports(writer, models, prismaClientImport, outboxSync);
   addVersionDeclaration(writer);
   addClientClass(writer, models, outboxSync, outboxModelName, versionMetaModelName, include, exclude);

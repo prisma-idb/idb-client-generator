@@ -78,14 +78,13 @@ generatorHandler({
     }
 
     await writeCodeFile("client/prisma-idb-client.ts", outputPath, (writer) => {
-      createPrismaIDBClientFile(
-        writer,
-        filteredModels,
-        scopedPrismaImport,
+      createPrismaIDBClientFile(writer, {
+        models: filteredModels,
+        prismaClientImport: scopedPrismaImport,
         outboxSync,
         outboxModelName,
         versionMetaModelName,
-      );
+      });
     });
 
     await writeCodeFile("client/idb-interface.ts", outputPath, (writer) => {
