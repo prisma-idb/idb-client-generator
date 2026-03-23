@@ -13,13 +13,7 @@ export function createIDBInterfaceFile(
     versionMetaModelName: string;
   }
 ) {
-  const {
-    models,
-    prismaClientImport,
-    outboxSync,
-    outboxModelName,
-    versionMetaModelName,
-  } = options;
+  const { models, prismaClientImport, outboxSync, outboxModelName, versionMetaModelName } = options;
   writer.writeLine(`import type { DBSchema } from "idb";`);
   writer.writeLine(`import type * as Prisma from "${prismaClientImport}";`);
   if (outboxSync) {
@@ -51,8 +45,6 @@ export function createIDBInterfaceFile(
         writer.writeLine(`value: ChangeMetaRecord;`);
       });
     }
-
-
   });
 
   // Add type definition for OutboxEventRecord
