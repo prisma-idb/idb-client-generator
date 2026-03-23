@@ -14,7 +14,14 @@ export function createIDBInterfaceFile(
     hasMigrations?: boolean;
   }
 ) {
-  const { models, prismaClientImport, outboxSync, outboxModelName, versionMetaModelName, hasMigrations = false } = options;
+  const {
+    models,
+    prismaClientImport,
+    outboxSync,
+    outboxModelName,
+    versionMetaModelName,
+    hasMigrations = false,
+  } = options;
   writer.writeLine(`import type { DBSchema } from "idb";`);
   writer.writeLine(`import type * as Prisma from "${prismaClientImport}";`);
   if (outboxSync) {
