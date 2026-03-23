@@ -13,7 +13,7 @@ describe("schema projection", () => {
 
     await execa("pnpm", ["prisma", "generate", "--schema", schemaPath]);
 
-    const projected = await fs.readFile("./generated/prisma-idb/client/scoped-schema.prisma", "utf8");
+    const projected = await fs.readFile("./tests/projection/generated/prisma-idb/client/scoped-schema.prisma", "utf8");
 
     expect(projected).toMatchSnapshot();
   }, 20000);
