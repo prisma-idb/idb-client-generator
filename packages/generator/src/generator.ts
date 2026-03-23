@@ -43,19 +43,19 @@ generatorHandler({
       }
 
       await writeCodeFile("validators.ts", outputPath, (writer) => {
-        createValidatorsFile(writer, filteredModels, options.dmmf.datamodel.enums);
+        createValidatorsFile(writer, { models: filteredModels, enums: options.dmmf.datamodel.enums });
       });
 
       await writeCodeFile("server/batch-processor.ts", outputPath, (writer) => {
-        createBatchProcessorFile(writer, filteredModels, prismaClientImport, rootModel!);
+        createBatchProcessorFile(writer, { models: filteredModels, prismaClientImport, rootModel: rootModel! });
       });
 
       await writeCodeFile("client/apply-pull.ts", outputPath, (writer) => {
-        createApplyPullFile(writer, filteredModels, versionMetaModelName);
+        createApplyPullFile(writer, { models: filteredModels, versionMetaModelName });
       });
 
       await writePrismaSchemaFile("client/scoped-schema.prisma", outputPath, (writer) => {
-        createScopedSchemaFile(writer, filteredModels, options.dmmf.datamodel.enums);
+        createScopedSchemaFile(writer, { filteredModels, enums: options.dmmf.datamodel.enums });
       });
 
       await writeCodeFile("server/index.ts", outputPath, (writer) => {
@@ -84,27 +84,26 @@ generatorHandler({
         scopedPrismaImport,
         outboxSync,
         outboxModelName,
-        versionMetaModelName
+        versionMetaModelName,
       );
     });
 
     await writeCodeFile("client/idb-interface.ts", outputPath, (writer) => {
-      createIDBInterfaceFile(
-        writer,
-        filteredModels,
-        scopedPrismaImport,
+      createIDBInterfaceFile(writer, {
+        models: filteredModels,
+        prismaClientImport: scopedPrismaImport,
         outboxSync,
         outboxModelName,
-        versionMetaModelName
-      );
+        versionMetaModelName,
+      });
     });
 
     await writeCodeFile("client/idb-utils.ts", outputPath, (writer) => {
-      createUtilsFile(writer, filteredModels, scopedPrismaImport, outboxSync);
+      createUtilsFile(writer, { models: filteredModels, prismaClientImport: scopedPrismaImport, outboxSync });
     });
 
     await writeCodeFile("client/index.ts", outputPath, (writer) => {
-      createClientIndexFile(writer, outboxSync);
+      createClientIndexFile(writer, { outboxSync });
     });
 
     if (exportEnums) {
