@@ -446,65 +446,47 @@ function generateModelSyncHandler(
         const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
         const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
         const accessChain = buildAccessChain(remainingPath, rootPkFieldName, parentModel, allModels);
-        const isOptionalFK = !relationField.isRequired;
-        const bp = isOptionalFK ? "  " : "";
-
-        if (isOptionalFK) {
-          const nullCheck = foreignKeyFields.length === 1
-            ? `data.${foreignKeyFields[0]} != null`
-            : foreignKeyFields.map(f => `data.${f} != null`).join(" && ");
-          writer.writeLine(`      if (${nullCheck}) {`);
+        if (!relationField.isRequired) {
+          emitOptionalFkGuard(writer, "      ", foreignKeyFields, model.name);
         }
-        writer.writeLine(`      ${bp}const parentRecord = await tx.${parentModelLower}.findUnique({`);
+        writer.writeLine(`      const parentRecord = await tx.${parentModelLower}.findUnique({`);
         if (parentPkFields.length === 1) {
-          writer.writeLine(`        ${bp}where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+          writer.writeLine(`        where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
         } else {
           const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
-          writer.writeLine(`        ${bp}where: { ${parentPk.name}: { ${compositeKey} } },`);
+          writer.writeLine(`        where: { ${parentPk.name}: { ${compositeKey} } },`);
         }
-        writer.writeLine(`        ${bp}select: ${parentSelectObj},`);
-        writer.writeLine(`      ${bp}});`);
+        writer.writeLine(`        select: ${parentSelectObj},`);
+        writer.writeLine(`      });`);
         writer.blankLine();
-        writer.writeLine(`      ${bp}if (!parentRecord || parentRecord${accessChain} !== scopeKey) {`);
+        writer.writeLine(`      if (!parentRecord || parentRecord${accessChain} !== scopeKey) {`);
         writer.writeLine(
-          `        ${bp}throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`
+          `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`
         );
-        writer.writeLine(`      ${bp}}`);
-        if (isOptionalFK) {
-          writer.writeLine(`      }`);
-        }
+        writer.writeLine(`      }`);
       } else {
         // Parent is the root model
         const parentPk = getUniqueIdentifiers(parentModel)[0];
         const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
         const parentPkFieldName = getUniqueIdentifiers(parentModel)[0].name;
-        const isOptionalFK = !relationField.isRequired;
-        const bp = isOptionalFK ? "  " : "";
-
-        if (isOptionalFK) {
-          const nullCheck = foreignKeyFields.length === 1
-            ? `data.${foreignKeyFields[0]} != null`
-            : foreignKeyFields.map(f => `data.${f} != null`).join(" && ");
-          writer.writeLine(`      if (${nullCheck}) {`);
+        if (!relationField.isRequired) {
+          emitOptionalFkGuard(writer, "      ", foreignKeyFields, model.name);
         }
-        writer.writeLine(`      ${bp}const parentRecord = await tx.${parentModelLower}.findUnique({`);
+        writer.writeLine(`      const parentRecord = await tx.${parentModelLower}.findUnique({`);
         if (parentPkFields.length === 1) {
-          writer.writeLine(`        ${bp}where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+          writer.writeLine(`        where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
         } else {
           const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
-          writer.writeLine(`        ${bp}where: { ${parentPk.name}: { ${compositeKey} } },`);
+          writer.writeLine(`        where: { ${parentPk.name}: { ${compositeKey} } },`);
         }
-        writer.writeLine(`        ${bp}select: { ${parentPkFieldName}: true },`);
-        writer.writeLine(`      ${bp}});`);
+        writer.writeLine(`        select: { ${parentPkFieldName}: true },`);
+        writer.writeLine(`      });`);
         writer.blankLine();
-        writer.writeLine(`      ${bp}if (!parentRecord || parentRecord.${parentPkFieldName} !== scopeKey) {`);
+        writer.writeLine(`      if (!parentRecord || parentRecord.${parentPkFieldName} !== scopeKey) {`);
         writer.writeLine(
-          `        ${bp}throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`
+          `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`
         );
-        writer.writeLine(`      ${bp}}`);
-        if (isOptionalFK) {
-          writer.writeLine(`      }`);
-        }
+        writer.writeLine(`      }`);
       }
       writer.blankLine();
     } else if (isRootModel) {
@@ -600,37 +582,28 @@ function generateModelSyncHandler(
               const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
               const rootPkFieldName2 = getUniqueIdentifiers(rootModel)[0].name;
               const accessChainRemaining = buildAccessChain(remainingPath, rootPkFieldName2, parentModel, allModels);
-              const isOptionalFK = !relationField.isRequired;
-              const bp = isOptionalFK ? "  " : "";
-
-              if (isOptionalFK) {
-                const nullCheck = foreignKeyFields.length === 1
-                  ? `data.${foreignKeyFields[0]} != null`
-                  : foreignKeyFields.map(f => `data.${f} != null`).join(" && ");
-                writer.writeLine(`        if (${nullCheck}) {`);
+              if (!relationField.isRequired) {
+                emitOptionalFkGuard(writer, "        ", foreignKeyFields, model.name);
               }
-              writer.writeLine(`        ${bp}const newParentRecord = await tx.${parentModelLower}.findUnique({`);
+              writer.writeLine(`        const newParentRecord = await tx.${parentModelLower}.findUnique({`);
               if (parentPkFields.length === 1) {
-                writer.writeLine(`          ${bp}where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+                writer.writeLine(`          where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
               } else {
                 const compositeKey = parentPkFields
                   .map((field, i) => `${field}: data.${foreignKeyFields[i]}`)
                   .join(", ");
-                writer.writeLine(`          ${bp}where: { ${parentPk.name}: { ${compositeKey} } },`);
+                writer.writeLine(`          where: { ${parentPk.name}: { ${compositeKey} } },`);
               }
-              writer.writeLine(`          ${bp}select: ${parentSelectObj},`);
-              writer.writeLine(`        ${bp}});`);
+              writer.writeLine(`          select: ${parentSelectObj},`);
+              writer.writeLine(`        });`);
               writer.blankLine();
               writer.writeLine(
-                `        ${bp}if (!newParentRecord || newParentRecord${accessChainRemaining} !== scopeKey) {`
+                `        if (!newParentRecord || newParentRecord${accessChainRemaining} !== scopeKey) {`
               );
               writer.writeLine(
-                `          ${bp}throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot reassign ${model.name} to parent outside scope\`);`
+                `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot reassign ${model.name} to parent outside scope\`);`
               );
-              writer.writeLine(`        ${bp}}`);
-              if (isOptionalFK) {
-                writer.writeLine(`        }`);
-              }
+              writer.writeLine(`        }`);
             } else {
               writer.writeLine(`        if (data.${foreignKeyFields[0]} !== scopeKey) {`);
               writer.writeLine(
@@ -663,35 +636,26 @@ function generateModelSyncHandler(
             const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
             const rootPkFieldName2 = getUniqueIdentifiers(rootModel)[0].name;
             const accessChainRemaining = buildAccessChain(remainingPath, rootPkFieldName2, parentModel, allModels);
-            const isOptionalFK = !relationField.isRequired;
-            const bp = isOptionalFK ? "  " : "";
-
-            if (isOptionalFK) {
-              const nullCheck = foreignKeyFields.length === 1
-                ? `data.${foreignKeyFields[0]} != null`
-                : foreignKeyFields.map(f => `data.${f} != null`).join(" && ");
-              writer.writeLine(`        if (${nullCheck}) {`);
+            if (!relationField.isRequired) {
+              emitOptionalFkGuard(writer, "        ", foreignKeyFields, model.name);
             }
-            writer.writeLine(`        ${bp}const parent = await tx.${parentModelLower}.findUnique({`);
+            writer.writeLine(`        const parent = await tx.${parentModelLower}.findUnique({`);
             if (parentPkFields.length === 1) {
-              writer.writeLine(`          ${bp}where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+              writer.writeLine(`          where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
             } else {
               const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
-              writer.writeLine(`          ${bp}where: { ${parentPk.name}: { ${compositeKey} } },`);
+              writer.writeLine(`          where: { ${parentPk.name}: { ${compositeKey} } },`);
             }
-            writer.writeLine(`          ${bp}select: ${parentSelectObj},`);
-            writer.writeLine(`        ${bp}});`);
+            writer.writeLine(`          select: ${parentSelectObj},`);
+            writer.writeLine(`        });`);
             writer.blankLine();
             writer.writeLine(
-              `        ${bp}if (!parent || parent${accessChainRemaining} !== scopeKey) {`
+              `        if (!parent || parent${accessChainRemaining} !== scopeKey) {`
             );
             writer.writeLine(
-              `          ${bp}throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot resurrect ${model.name} into unauthorized scope\`);`
+              `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot resurrect ${model.name} into unauthorized scope\`);`
             );
-            writer.writeLine(`        ${bp}}`);
-            if (isOptionalFK) {
-              writer.writeLine(`        }`);
-            }
+            writer.writeLine(`        }`);
           } else {
             writer.writeLine(`        if (data.${foreignKeyFields[0]} !== scopeKey) {`);
             writer.writeLine(
@@ -910,6 +874,26 @@ function buildWhereWithScopeCondition(authPath: string[], rootModel: Model): str
   }
 
   return result;
+}
+
+/**
+ * Emits a guard that throws PermanentSyncError when optional FK fields are null,
+ * preventing creation/resurrection of detached records with no ownership path.
+ */
+function emitOptionalFkGuard(
+  writer: CodeBlockWriter,
+  indent: string,
+  foreignKeyFields: readonly string[],
+  modelName: string,
+) {
+  const nullCheck = foreignKeyFields.length === 1
+    ? `data.${foreignKeyFields[0]} == null`
+    : foreignKeyFields.map(f => `data.${f} == null`).join(" || ");
+  writer.writeLine(`${indent}if (${nullCheck}) {`);
+  writer.writeLine(
+    `${indent}  throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${modelName} has null foreign key(s) in ownership path\`);`
+  );
+  writer.writeLine(`${indent}}`);
 }
 
 function generateWhereClause(pkName: string, pkFields: string[]): string {

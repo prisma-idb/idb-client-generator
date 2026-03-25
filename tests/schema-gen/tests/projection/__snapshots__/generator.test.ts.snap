@@ -582,18 +582,22 @@ async function syncFoodEntry(
           return { id, error: null, appliedChangelogId: existingLog.id };
         }
 
-        if (data.mealId != null) {
-          const parentRecord = await tx.meal.findUnique({
-            where: { id: data.mealId },
-            select: { user: { select: { id: true } } },
-          });
+        if (data.mealId == null) {
+          throw new PermanentSyncError(
+            "SCOPE_VIOLATION",
+            \`Unauthorized: FoodEntry has null foreign key(s) in ownership path\`
+          );
+        }
+        const parentRecord = await tx.meal.findUnique({
+          where: { id: data.mealId },
+          select: { user: { select: { id: true } } },
+        });
 
-          if (!parentRecord || parentRecord.user.id !== scopeKey) {
-            throw new PermanentSyncError(
-              "SCOPE_VIOLATION",
-              \`Unauthorized: FoodEntry parent is not owned by authenticated scope\`
-            );
-          }
+        if (!parentRecord || parentRecord.user.id !== scopeKey) {
+          throw new PermanentSyncError(
+            "SCOPE_VIOLATION",
+            \`Unauthorized: FoodEntry parent is not owned by authenticated scope\`
+          );
         }
 
         const newLog = await tx.changelog.create({
@@ -633,27 +637,35 @@ async function syncFoodEntry(
               \`Unauthorized: FoodEntry is not owned by the authenticated scope\`
             );
           }
-          if (data.mealId != null) {
-            const newParentRecord = await tx.meal.findUnique({
-              where: { id: data.mealId },
-              select: { user: { select: { id: true } } },
-            });
+          if (data.mealId == null) {
+            throw new PermanentSyncError(
+              "SCOPE_VIOLATION",
+              \`Unauthorized: FoodEntry has null foreign key(s) in ownership path\`
+            );
+          }
+          const newParentRecord = await tx.meal.findUnique({
+            where: { id: data.mealId },
+            select: { user: { select: { id: true } } },
+          });
 
-            if (!newParentRecord || newParentRecord.user.id !== scopeKey) {
-              throw new PermanentSyncError("SCOPE_VIOLATION", \`Cannot reassign FoodEntry to parent outside scope\`);
-            }
+          if (!newParentRecord || newParentRecord.user.id !== scopeKey) {
+            throw new PermanentSyncError("SCOPE_VIOLATION", \`Cannot reassign FoodEntry to parent outside scope\`);
           }
         } else {
           // Case B: Record doesn't exist (resurrection) - verify ownership from payload
-          if (data.mealId != null) {
-            const parent = await tx.meal.findUnique({
-              where: { id: data.mealId },
-              select: { user: { select: { id: true } } },
-            });
+          if (data.mealId == null) {
+            throw new PermanentSyncError(
+              "SCOPE_VIOLATION",
+              \`Unauthorized: FoodEntry has null foreign key(s) in ownership path\`
+            );
+          }
+          const parent = await tx.meal.findUnique({
+            where: { id: data.mealId },
+            select: { user: { select: { id: true } } },
+          });
 
-            if (!parent || parent.user.id !== scopeKey) {
-              throw new PermanentSyncError("SCOPE_VIOLATION", \`Cannot resurrect FoodEntry into unauthorized scope\`);
-            }
+          if (!parent || parent.user.id !== scopeKey) {
+            throw new PermanentSyncError("SCOPE_VIOLATION", \`Cannot resurrect FoodEntry into unauthorized scope\`);
           }
         }
 

@@ -27,8 +27,8 @@ describe("schema projection", () => {
 
     // Verify optional chaining is placed after the optional relation field, before the next access
     expect(batchProcessor).toContain("record.meal?.user.id !== scopeKey");
-    // Verify null pre-check guard for nullable FK where clauses (no ?? undefined)
-    expect(batchProcessor).toContain("if (data.mealId != null)");
+    // Verify null FK guard throws SCOPE_VIOLATION instead of skipping the ownership check
+    expect(batchProcessor).toContain("if (data.mealId == null)");
     expect(batchProcessor).not.toContain("?? undefined");
 
     expect(batchProcessor).toMatchSnapshot();
