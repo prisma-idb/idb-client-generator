@@ -14,9 +14,9 @@
   "dependencies": {
     "@orama/orama": "^3.1.18",
     "@vercel/analytics": "^2.0.1",
-    "fumadocs-core": "^16.7.4",
+    "fumadocs-core": "^16.7.6",
     "fumadocs-mdx": "^14.2.11",
-    "fumadocs-ui": "^16.7.4",
+    "fumadocs-ui": "^16.7.6",
     "lucide-react": "^0.563.0",
     "mermaid": "^11.13.0",
     "next": "^16.2.1",
