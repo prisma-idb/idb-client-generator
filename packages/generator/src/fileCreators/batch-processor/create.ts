@@ -442,11 +442,14 @@ function generateModelSyncHandler(
       if (remainingPath.length > 0) {
         // Parent is not root, need to trace to root
         const parentSelectObj = buildSelectObject(remainingPath, rootModel);
-        writer.writeLine(`      const parentRecord = await tx.${parentModelLower}.findUnique({`);
-
-        // Build where clause for parent lookup
         const parentPk = getUniqueIdentifiers(parentModel)[0];
         const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
+        const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
+        const accessChain = buildAccessChain(remainingPath, rootPkFieldName, parentModel, allModels);
+        if (!relationField.isRequired) {
+          emitOptionalFkGuard(writer, "      ", foreignKeyFields, model.name);
+        }
+        writer.writeLine(`      const parentRecord = await tx.${parentModelLower}.findUnique({`);
         if (parentPkFields.length === 1) {
           writer.writeLine(`        where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
         } else {
@@ -456,31 +459,29 @@ function generateModelSyncHandler(
         writer.writeLine(`        select: ${parentSelectObj},`);
         writer.writeLine(`      });`);
         writer.blankLine();
-
-        const accessChain = buildAccessChain(remainingPath);
-        const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
-        writer.writeLine(`      if (!parentRecord || parentRecord${accessChain}.${rootPkFieldName} !== scopeKey) {`);
+        writer.writeLine(`      if (!parentRecord || parentRecord${accessChain} !== scopeKey) {`);
         writer.writeLine(
           `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`
         );
         writer.writeLine(`      }`);
       } else {
         // Parent is the root model
-        writer.writeLine(`      const parentRecord = await tx.${parentModelLower}.findUnique({`);
-
         const parentPk = getUniqueIdentifiers(parentModel)[0];
         const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
+        const parentPkFieldName = getUniqueIdentifiers(parentModel)[0].name;
+        if (!relationField.isRequired) {
+          emitOptionalFkGuard(writer, "      ", foreignKeyFields, model.name);
+        }
+        writer.writeLine(`      const parentRecord = await tx.${parentModelLower}.findUnique({`);
         if (parentPkFields.length === 1) {
           writer.writeLine(`        where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
         } else {
           const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
           writer.writeLine(`        where: { ${parentPk.name}: { ${compositeKey} } },`);
         }
-        writer.writeLine(`        select: { ${getUniqueIdentifiers(parentModel)[0].name}: true },`);
+        writer.writeLine(`        select: { ${parentPkFieldName}: true },`);
         writer.writeLine(`      });`);
         writer.blankLine();
-
-        const parentPkFieldName = getUniqueIdentifiers(parentModel)[0].name;
         writer.writeLine(`      if (!parentRecord || parentRecord.${parentPkFieldName} !== scopeKey) {`);
         writer.writeLine(
           `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`
@@ -554,9 +555,9 @@ function generateModelSyncHandler(
       // Case A: Record exists (normal update)
       writer.writeLine(`      if (record) {`);
       writer.writeLine(`        // Case A: Record exists - verify ownership from DB`);
-      const accessChain = buildAccessChain(authPath);
       const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
-      writer.writeLine(`        if (record${accessChain}.${rootPkFieldName} !== scopeKey) {`);
+      const accessChain = buildAccessChain(authPath, rootPkFieldName, model, allModels);
+      writer.writeLine(`        if (record${accessChain} !== scopeKey) {`);
       writer.writeLine(
         `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} is not owned by the authenticated scope\`);`
       );
@@ -579,7 +580,11 @@ function generateModelSyncHandler(
               const parentSelectObj = buildSelectObject(remainingPath, rootModel);
               const parentPk = getUniqueIdentifiers(parentModel)[0];
               const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
-
+              const rootPkFieldName2 = getUniqueIdentifiers(rootModel)[0].name;
+              const accessChainRemaining = buildAccessChain(remainingPath, rootPkFieldName2, parentModel, allModels);
+              if (!relationField.isRequired) {
+                emitOptionalFkGuard(writer, "        ", foreignKeyFields, model.name);
+              }
               writer.writeLine(`        const newParentRecord = await tx.${parentModelLower}.findUnique({`);
               if (parentPkFields.length === 1) {
                 writer.writeLine(`          where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
@@ -592,11 +597,8 @@ function generateModelSyncHandler(
               writer.writeLine(`          select: ${parentSelectObj},`);
               writer.writeLine(`        });`);
               writer.blankLine();
-
-              const accessChainRemaining = buildAccessChain(remainingPath);
-              const rootPkFieldName2 = getUniqueIdentifiers(rootModel)[0].name;
               writer.writeLine(
-                `        if (!newParentRecord || newParentRecord${accessChainRemaining}.${rootPkFieldName2} !== scopeKey) {`
+                `        if (!newParentRecord || newParentRecord${accessChainRemaining} !== scopeKey) {`
               );
               writer.writeLine(
                 `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot reassign ${model.name} to parent outside scope\`);`
@@ -632,7 +634,11 @@ function generateModelSyncHandler(
             const parentSelectObj = buildSelectObject(remainingPath, rootModel);
             const parentPk = getUniqueIdentifiers(parentModel)[0];
             const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
-
+            const rootPkFieldName2 = getUniqueIdentifiers(rootModel)[0].name;
+            const accessChainRemaining = buildAccessChain(remainingPath, rootPkFieldName2, parentModel, allModels);
+            if (!relationField.isRequired) {
+              emitOptionalFkGuard(writer, "        ", foreignKeyFields, model.name);
+            }
             writer.writeLine(`        const parent = await tx.${parentModelLower}.findUnique({`);
             if (parentPkFields.length === 1) {
               writer.writeLine(`          where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
@@ -643,12 +649,7 @@ function generateModelSyncHandler(
             writer.writeLine(`          select: ${parentSelectObj},`);
             writer.writeLine(`        });`);
             writer.blankLine();
-
-            const accessChainRemaining = buildAccessChain(remainingPath);
-            const rootPkFieldName2 = getUniqueIdentifiers(rootModel)[0].name;
-            writer.writeLine(
-              `        if (!parent || parent${accessChainRemaining}.${rootPkFieldName2} !== scopeKey) {`
-            );
+            writer.writeLine(`        if (!parent || parent${accessChainRemaining} !== scopeKey) {`);
             writer.writeLine(
               `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot resurrect ${model.name} into unauthorized scope\`);`
             );
@@ -724,9 +725,9 @@ function generateModelSyncHandler(
       writer.blankLine();
       // Only check scope if record exists (for non-root models)
       writer.writeLine(`      if (record) {`);
-      const accessChain = buildAccessChain(authPath);
       const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
-      writer.writeLine(`        if (record${accessChain}.${rootPkFieldName} !== scopeKey) {`);
+      const accessChain = buildAccessChain(authPath, rootPkFieldName, model, allModels);
+      writer.writeLine(`        if (record${accessChain} !== scopeKey) {`);
       writer.writeLine(
         `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} is not owned by the authenticated scope\`);`
       );
@@ -812,11 +813,38 @@ function buildSelectObject(authPath: string[], rootModel: Model): string {
 }
 
 /**
- * Build access chain for navigating through nested objects
- * For example: ['board', 'user'] -> '.board.user'
+ * Build access chain for navigating through nested objects, including the terminal PK access.
+ * Places optional chaining (?.) AFTER an optional relation field, before the next access.
+ * For example: ['meal', 'user'] with optional 'meal' and pkField 'id' -> '.meal?.user.id'
  */
-function buildAccessChain(authPath: string[]): string {
-  return "." + authPath.join(".");
+function buildAccessChain(
+  authPath: string[],
+  rootPkFieldName: string,
+  startModel?: Model,
+  allModels?: readonly Model[]
+): string {
+  if (!startModel || !allModels) {
+    return "." + [...authPath, rootPkFieldName].join(".");
+  }
+
+  let result = "";
+  let currentModel = startModel;
+  let prevFieldOptional = false;
+
+  for (const fieldName of authPath) {
+    result += prevFieldOptional ? `?.${fieldName}` : `.${fieldName}`;
+    const field = currentModel.fields.find((f) => f.name === fieldName);
+    prevFieldOptional = field ? !field.isRequired : false;
+    if (field) {
+      const nextModel = allModels.find((m) => m.name === field.type);
+      if (nextModel) currentModel = nextModel;
+    }
+  }
+
+  // Terminal PK access — use ?. if the last relation was optional
+  result += prevFieldOptional ? `?.${rootPkFieldName}` : `.${rootPkFieldName}`;
+
+  return result;
 }
 
 /**
@@ -844,6 +872,27 @@ function buildWhereWithScopeCondition(authPath: string[], rootModel: Model): str
   }
 
   return result;
+}
+
+/**
+ * Emits a guard that throws PermanentSyncError when optional FK fields are null,
+ * preventing creation/resurrection of detached records with no ownership path.
+ */
+function emitOptionalFkGuard(
+  writer: CodeBlockWriter,
+  indent: string,
+  foreignKeyFields: readonly string[],
+  modelName: string
+) {
+  const nullCheck =
+    foreignKeyFields.length === 1
+      ? `data.${foreignKeyFields[0]} == null`
+      : foreignKeyFields.map((f) => `data.${f} == null`).join(" || ");
+  writer.writeLine(`${indent}if (${nullCheck}) {`);
+  writer.writeLine(
+    `${indent}  throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${modelName} has null foreign key(s) in ownership path\`);`
+  );
+  writer.writeLine(`${indent}}`);
 }
 
 function generateWhereClause(pkName: string, pkFields: string[]): string {

@@ -18,6 +18,22 @@ describe("schema projection", () => {
     expect(projected).toMatchSnapshot();
   }, 20000);
 
+  it("generates correct batch-processor for optional relations in ownership path", async () => {
+    const schemaPath = path.join(schemasDir, "valid", "user-meal-foodentry-optional.prisma");
+
+    await execa("pnpm", ["prisma", "generate", "--schema", schemaPath]);
+
+    const batchProcessor = await fs.readFile("./tests/projection/generated/prisma-idb/server/batch-processor.ts", "utf8");
+
+    // Verify optional chaining is placed after the optional relation field, before the next access
+    expect(batchProcessor).toContain("record.meal?.user.id !== scopeKey");
+    // Verify null FK guard throws SCOPE_VIOLATION instead of skipping the ownership check
+    expect(batchProcessor).toContain("if (data.mealId == null)");
+    expect(batchProcessor).not.toContain("?? undefined");
+
+    expect(batchProcessor).toMatchSnapshot();
+  }, 20000);
+
   it("fails on missing root model", async () => {
     const schemaPath = path.join(schemasDir, "invalid", "no-root-model-with-sync.prisma");
 
