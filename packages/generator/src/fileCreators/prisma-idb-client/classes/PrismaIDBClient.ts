@@ -558,7 +558,7 @@ function addResetDatabaseMethod(writer: CodeBlockWriter) {
   writer.writeLine(`public async resetDatabase()`).block(() => {
     writer
       .writeLine(`this._db.close();`)
-      .writeLine(`window.indexedDB.deleteDatabase("prisma-idb");`)
+      .writeLine(`globalThis.indexedDB.deleteDatabase("prisma-idb");`)
       .writeLine(`await PrismaIDBClient.instance.initialize();`);
   });
 }

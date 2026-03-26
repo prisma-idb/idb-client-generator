@@ -72,6 +72,9 @@ export function createPrismaIDBClientFile(
     exclude = [],
   } = options;
   addImports(writer, models, prismaClientImport, outboxSync);
+  if (outboxSync) {
+    writer.writeLine(`type IDBValidKey = string | number | Date | BufferSource | IDBValidKey[];`);
+  }
   addVersionDeclaration(writer);
   addClientClass(writer, models, outboxSync, outboxModelName, versionMetaModelName, include, exclude);
   addBaseModelClass(writer, outboxSync);

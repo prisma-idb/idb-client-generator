@@ -21,6 +21,10 @@ export function createIDBInterfaceFile(
     writer.writeLine(`import type { ApplyPullResult } from "./apply-pull";`);
   }
   writer.blankLine();
+  if (outboxSync) {
+    writer.writeLine(`type IDBValidKey = string | number | Date | BufferSource | IDBValidKey[];`);
+    writer.blankLine();
+  }
 
   writer.writeLine(`export interface PrismaIDBSchema extends DBSchema`).block(() => {
     models.forEach((model) => {
