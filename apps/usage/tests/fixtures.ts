@@ -17,7 +17,10 @@ async function resetDatabase() {
       "CompositeUniqueWithDateTime",
       "CompositeUniqueFloatInt",
       "MultipleCompositeUniques",
-      "ModelWithIndex"
+      "ModelWithIndex",
+      "Profile",
+      "TestUuid",
+      "ModelWithEnum"
       RESTART IDENTITY CASCADE;`);
 }
 
