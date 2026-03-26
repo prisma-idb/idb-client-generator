@@ -71,7 +71,7 @@ export class PrismaIDBClient {
   }
   public async resetDatabase() {
     this._db.close();
-    window.indexedDB.deleteDatabase("prisma-idb");
+    globalThis.indexedDB.deleteDatabase("prisma-idb");
     await PrismaIDBClient.instance.initialize();
   }
   shouldTrackModel(modelName: string): boolean {

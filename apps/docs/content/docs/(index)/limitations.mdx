@@ -104,22 +104,22 @@ IndexedDB only supports certain types as key values ([`IDBValidKey`](https://dev
 
 **Supported Prisma types in keys:**
 
-| Prisma Type | IDB Key Type |
-|---|---|
-| `Int` | `number` |
-| `Float` | `number` |
-| `String` | `string` |
-| `DateTime` | `Date` |
-| `Bytes` | `BufferSource` |
+| Prisma Type | IDB Key Type   |
+| ----------- | -------------- |
+| `Int`       | `number`       |
+| `Float`     | `number`       |
+| `String`    | `string`       |
+| `DateTime`  | `Date`         |
+| `Bytes`     | `BufferSource` |
 
 **Unsupported Prisma types in keys:**
 
-| Prisma Type | Why |
-|---|---|
-| `Boolean` | Not in `IDBValidKey` |
-| `BigInt` | Not in `IDBValidKey` |
-| `Decimal` | Stored as JS `number`, not a native IDB key type |
-| `Json` | Objects are not valid IDB keys |
+| Prisma Type | Why                                              |
+| ----------- | ------------------------------------------------ |
+| `Boolean`   | Not in `IDBValidKey`                             |
+| `BigInt`    | Not in `IDBValidKey`                             |
+| `Decimal`   | Stored as JS `number`, not a native IDB key type |
+| `Json`      | Objects are not valid IDB keys                   |
 
 If the generator detects a model using an unsupported type in a key or unique constraint, it will:
 

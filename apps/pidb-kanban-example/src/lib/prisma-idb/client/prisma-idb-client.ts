@@ -15,6 +15,7 @@ import { validators, keyPathValidators, modelRecordToKeyPath } from "../validato
 import type { LogWithStringifiedRecord } from "../server/batch-processor";
 import { applyPull, type ApplyPullResult } from "./apply-pull";
 import { v4 as uuidv4 } from "uuid";
+type IDBValidKey = string | number | Date | BufferSource | IDBValidKey[];
 const IDB_VERSION = 1;
 type CreateSyncWorkerOptions = {
   push: {
@@ -58,7 +59,7 @@ export class PrismaIDBClient {
   }
   public async resetDatabase() {
     this._db.close();
-    window.indexedDB.deleteDatabase("prisma-idb");
+    globalThis.indexedDB.deleteDatabase("prisma-idb");
     await PrismaIDBClient.instance.initialize();
   }
   shouldTrackModel(modelName: string): boolean {

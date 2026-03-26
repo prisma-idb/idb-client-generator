@@ -187,9 +187,10 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
     }
   }
 
-  const validModels = excludedByKeyType.size > 0
-    ? getProjectedFilteredModels(filteredModels.filter((model) => !excludedByKeyType.has(model.name)))
-    : filteredModels;
+  const validModels =
+    excludedByKeyType.size > 0
+      ? getProjectedFilteredModels(filteredModels.filter((model) => !excludedByKeyType.has(model.name)))
+      : filteredModels;
 
   // === Guard: root model must not be excluded ===
   if (outboxSync && rootModel && excludedByKeyType.has(rootModel.name)) {
