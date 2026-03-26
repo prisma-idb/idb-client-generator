@@ -71,7 +71,13 @@ export class PrismaIDBClient {
   }
   public async resetDatabase() {
     this._db.close();
-    globalThis.indexedDB.deleteDatabase("prisma-idb");
+    if (!globalThis.indexedDB) throw new Error("IndexedDB is not available in this environment");
+    await new Promise<void>((resolve, reject) => {
+      const req = globalThis.indexedDB.deleteDatabase("prisma-idb");
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+      req.onblocked = () => reject(new Error("Database deletion blocked"));
+    });
     await PrismaIDBClient.instance.initialize();
   }
   shouldTrackModel(modelName: string): boolean {

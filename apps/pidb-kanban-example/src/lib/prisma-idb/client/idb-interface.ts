@@ -3,7 +3,7 @@ import type * as Prisma from "./generated/client";
 import type { PushResult } from "../server/batch-processor";
 import type { ApplyPullResult } from "./apply-pull";
 
-type IDBValidKey = string | number | Date | BufferSource | IDBValidKey[];
+export type IDBValidKey = string | number | Date | BufferSource | IDBValidKey[];
 
 export interface PrismaIDBSchema extends DBSchema {
   Board: {
