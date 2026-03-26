@@ -649,9 +649,7 @@ function generateModelSyncHandler(
             writer.writeLine(`          select: ${parentSelectObj},`);
             writer.writeLine(`        });`);
             writer.blankLine();
-            writer.writeLine(
-              `        if (!parent || parent${accessChainRemaining} !== scopeKey) {`
-            );
+            writer.writeLine(`        if (!parent || parent${accessChainRemaining} !== scopeKey) {`);
             writer.writeLine(
               `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot resurrect ${model.name} into unauthorized scope\`);`
             );
@@ -884,11 +882,12 @@ function emitOptionalFkGuard(
   writer: CodeBlockWriter,
   indent: string,
   foreignKeyFields: readonly string[],
-  modelName: string,
+  modelName: string
 ) {
-  const nullCheck = foreignKeyFields.length === 1
-    ? `data.${foreignKeyFields[0]} == null`
-    : foreignKeyFields.map(f => `data.${f} == null`).join(" || ");
+  const nullCheck =
+    foreignKeyFields.length === 1
+      ? `data.${foreignKeyFields[0]} == null`
+      : foreignKeyFields.map((f) => `data.${f} == null`).join(" || ");
   writer.writeLine(`${indent}if (${nullCheck}) {`);
   writer.writeLine(
     `${indent}  throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${modelName} has null foreign key(s) in ownership path\`);`

@@ -71,7 +71,8 @@ A model's ownership path is the chain of foreign keys traced from that model bac
 If a relation along this ownership path is **optional** (i.e. the foreign key field is nullable), the sync engine will **reject** any create, update, or resurrection of a record where that foreign key is `null`. A `null` FK on the ownership path would break the chain to the root model, making scope verification impossible — so the engine throws a `SCOPE_VIOLATION` error instead of silently allowing a detached record.
 
 <Callout title="Only the ownership path is enforced">
-  This restriction applies **only** to the relation on the ownership path to the `rootModel`. Optional relations to other models that are not part of the ownership path are completely unaffected — they can be `null` without issue.
+  This restriction applies **only** to the relation on the ownership path to the `rootModel`. Optional relations to
+  other models that are not part of the ownership path are completely unaffected — they can be `null` without issue.
 </Callout>
 
 For example, given this schema:
