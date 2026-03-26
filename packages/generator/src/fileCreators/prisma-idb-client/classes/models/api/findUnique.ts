@@ -39,7 +39,10 @@ function getFromKeyIdentifier(writer: CodeBlockWriter, model: Model) {
     fields = JSON.stringify(fieldNames.map((fieldName: string) => `query.where.${fieldName}`));
   } else {
     fields = JSON.stringify(
-      fieldNames.map((fieldName: string) => `query.where.${keyUniqueIdentifier.name}.${fieldName}`)
+      fieldNames.map((fieldName: string, i: number) => {
+        const access = `query.where.${keyUniqueIdentifier.name}.${fieldName}`;
+        return keyUniqueIdentifier.keyPathTypes[i] === "Date" ? `new Date(${access})` : access;
+      })
     );
   }
   fields = fields.replaceAll('"', "");
@@ -52,14 +55,19 @@ function getFromKeyIdentifier(writer: CodeBlockWriter, model: Model) {
 function getFromNonKeyIdentifier(writer: CodeBlockWriter, model: Model) {
   const nonKeyUniqueIdentifiers = getUniqueIdentifiers(model).slice(1);
 
-  nonKeyUniqueIdentifiers.forEach(({ name, keyPath }) => {
+  nonKeyUniqueIdentifiers.forEach(({ name, keyPath, keyPathTypes }) => {
     const fieldNames = JSON.parse(keyPath) as string[];
 
     let fields: string;
     if (fieldNames.length === 1) {
       fields = JSON.stringify(fieldNames.map((fieldName: string) => `query.where.${fieldName}`));
     } else {
-      fields = JSON.stringify(fieldNames.map((fieldName: string) => `query.where.${name}.${fieldName}`));
+      fields = JSON.stringify(
+        fieldNames.map((fieldName: string, i: number) => {
+          const access = `query.where.${name}.${fieldName}`;
+          return keyPathTypes[i] === "Date" ? `new Date(${access})` : access;
+        })
+      );
     }
     fields = fields.replaceAll('"', "");
 
