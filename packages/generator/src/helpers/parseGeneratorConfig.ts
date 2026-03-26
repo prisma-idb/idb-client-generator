@@ -192,12 +192,15 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
       ? getProjectedFilteredModels(filteredModels.filter((model) => !excludedByKeyType.has(model.name)))
       : filteredModels;
 
-  // === Guard: root model must not be excluded ===
-  if (outboxSync && rootModel && excludedByKeyType.has(rootModel.name)) {
-    throw new Error(
-      `@prisma-idb/idb-client-generator: Root model "${rootModel.name}" was excluded due to unsupported IDB key types. ` +
-        `The ownership DAG cannot be constructed without it. Fix the root model's key fields to use valid IDB key types.`
-    );
+  // === Guard: root model must survive the full pipeline ===
+  if (outboxSync && rootModel) {
+    if (!validModels.some((m) => m.name === rootModel.name)) {
+      throw new Error(
+        `@prisma-idb/idb-client-generator: Root model "${rootModel.name}" is not present in the final set of valid models. ` +
+          `It may have been excluded by include/exclude patterns or due to unsupported IDB key types. ` +
+          `The ownership DAG cannot be constructed without it.`
+      );
+    }
   }
 
   return {

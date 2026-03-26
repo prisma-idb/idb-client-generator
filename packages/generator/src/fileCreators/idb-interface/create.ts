@@ -22,7 +22,7 @@ export function createIDBInterfaceFile(
   }
   writer.blankLine();
   if (outboxSync) {
-    writer.writeLine(`type IDBValidKey = string | number | Date | BufferSource | IDBValidKey[];`);
+    writer.writeLine(`export type IDBValidKey = string | number | Date | BufferSource | IDBValidKey[];`);
     writer.blankLine();
   }
 

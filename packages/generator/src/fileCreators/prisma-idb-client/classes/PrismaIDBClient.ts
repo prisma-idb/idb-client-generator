@@ -558,7 +558,15 @@ function addResetDatabaseMethod(writer: CodeBlockWriter) {
   writer.writeLine(`public async resetDatabase()`).block(() => {
     writer
       .writeLine(`this._db.close();`)
-      .writeLine(`globalThis.indexedDB.deleteDatabase("prisma-idb");`)
-      .writeLine(`await PrismaIDBClient.instance.initialize();`);
+      .writeLine(`if (!globalThis.indexedDB) throw new Error("IndexedDB is not available in this environment");`)
+      .writeLine(`await new Promise<void>((resolve, reject) => {`);
+    writer.indent(() => {
+      writer
+        .writeLine(`const req = globalThis.indexedDB.deleteDatabase("prisma-idb");`)
+        .writeLine(`req.onsuccess = () => resolve();`)
+        .writeLine(`req.onerror = () => reject(req.error);`)
+        .writeLine(`req.onblocked = () => reject(new Error("Database deletion blocked"));`);
+    });
+    writer.writeLine(`});`).writeLine(`await PrismaIDBClient.instance.initialize();`);
   });
 }

@@ -23,7 +23,7 @@ function addImports(
   if (outboxSync) {
     writer
       .writeLine(
-        `import type { OutboxEventRecord, ChangeMetaRecord, PrismaIDBSchema, SyncWorkerOptions, SyncWorker } from "./idb-interface";`
+        `import type { OutboxEventRecord, ChangeMetaRecord, PrismaIDBSchema, SyncWorkerOptions, SyncWorker, IDBValidKey } from "./idb-interface";`
       )
       .writeLine(`import type { PushResult } from "../server/batch-processor";`)
       .writeLine(`import { validators, keyPathValidators, modelRecordToKeyPath } from "../validators";`)
@@ -72,9 +72,6 @@ export function createPrismaIDBClientFile(
     exclude = [],
   } = options;
   addImports(writer, models, prismaClientImport, outboxSync);
-  if (outboxSync) {
-    writer.writeLine(`type IDBValidKey = string | number | Date | BufferSource | IDBValidKey[];`);
-  }
   addVersionDeclaration(writer);
   addClientClass(writer, models, outboxSync, outboxModelName, versionMetaModelName, include, exclude);
   addBaseModelClass(writer, outboxSync);
