@@ -63,3 +63,39 @@ In order to effectively build and utilize the authoritative schema DAG, certain 
 - **Dependent Models**: All models that are included in the sync process must have a direct or indirect relationship with the `rootModel`.
 - **Ownership Invariants**: Models should include ownership fields (e.g., `ownerId`) to enforce data access rules during synchronization.
 - **No Cyclic Dependencies**: The relationships between models must not form cycles, as this would violate the acyclic nature of the DAG.
+
+### Optional Relations in the Ownership Path
+
+A model's ownership path is the chain of foreign keys traced from that model back to the `rootModel` through the DAG. The sync engine uses this path to verify that every record belongs to the authenticated user's scope.
+
+If a relation along this ownership path is **optional** (i.e. the foreign key field is nullable), the sync engine will **reject** any create, update, or resurrection of a record where that foreign key is `null`. A `null` FK on the ownership path would break the chain to the root model, making scope verification impossible — so the engine throws a `SCOPE_VIOLATION` error instead of silently allowing a detached record.
+
+<Callout title="Only the ownership path is enforced">
+  This restriction applies **only** to the relation on the ownership path to the `rootModel`. Optional relations to other models that are not part of the ownership path are completely unaffected — they can be `null` without issue.
+</Callout>
+
+For example, given this schema:
+
+```prisma
+model User {
+  id    String  @id @default(cuid())
+  meals Meal[]
+}
+
+model Meal {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id])
+  foodEntries FoodEntry[]
+}
+
+model FoodEntry {
+  id     String  @id @default(cuid())
+  mealId String?
+  meal   Meal?   @relation(fields: [mealId], references: [id])
+}
+```
+
+The ownership path for `FoodEntry` is `FoodEntry → Meal → User`. Since the `mealId` foreign key is nullable, attempting to sync a `FoodEntry` with `mealId: null` will be rejected with a `SCOPE_VIOLATION` error, because there is no way to verify that the record belongs to the authenticated user.
+
+If `FoodEntry` had an additional optional relation to some other model (not on the ownership path), that relation could freely be `null`.
