@@ -137,3 +137,267 @@ test("@@id_CreateDeeplyNestedRecords_SuccessfullyCreatesRecords", async ({ page 
     query: { include: { Mother: true, Father: true, Child: true } },
   });
 });
+
+// ── CompositeIdIntString (@@id([orgId, code])) ───────────────────────
+
+test("CompositeIdIntString_Create_SuccessfullyCreatesRecord", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "create",
+    query: { data: { orgId: 1, code: "ABC", details: "first" } },
+  });
+});
+
+test("CompositeIdIntString_FindUnique_ReturnsRecord", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "create",
+    query: { data: { orgId: 1, code: "ABC", details: "first" } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "findUnique",
+    query: { where: { orgId_code: { orgId: 1, code: "ABC" } } },
+  });
+});
+
+test("CompositeIdIntString_Update_SuccessfullyUpdatesRecord", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "create",
+    query: { data: { orgId: 1, code: "ABC", details: "first" } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "update",
+    query: { where: { orgId_code: { orgId: 1, code: "ABC" } }, data: { details: "updated" } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "findUnique",
+    query: { where: { orgId_code: { orgId: 1, code: "ABC" } } },
+  });
+});
+
+test("CompositeIdIntString_Delete_SuccessfullyDeletesRecord", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "create",
+    query: { data: { orgId: 1, code: "ABC", details: "first" } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "delete",
+    query: { where: { orgId_code: { orgId: 1, code: "ABC" } } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "findMany",
+  });
+});
+
+test("CompositeIdIntString_FindMany_ReturnsMultipleRecords", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "create",
+    query: { data: { orgId: 1, code: "ABC" } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "create",
+    query: { data: { orgId: 1, code: "DEF" } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "create",
+    query: { data: { orgId: 2, code: "ABC" } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "findMany",
+  });
+});
+
+// ── CompositeIdWithDateTime (@@id([tenantId, createdAt])) ────────────
+
+test("CompositeIdWithDateTime_Create_SuccessfullyCreatesRecord", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdWithDateTime",
+    operation: "create",
+    query: { data: { tenantId: "t1", createdAt: new Date("2024-01-15T10:00:00Z"), label: "first" } },
+  });
+});
+
+test("CompositeIdWithDateTime_FindUnique_ReturnsRecord", async ({ page }) => {
+  const date = new Date("2024-01-15T10:00:00Z");
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdWithDateTime",
+    operation: "create",
+    query: { data: { tenantId: "t1", createdAt: date, label: "first" } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdWithDateTime",
+    operation: "findUnique",
+    query: { where: { tenantId_createdAt: { tenantId: "t1", createdAt: date } } },
+  });
+});
+
+test("CompositeIdWithDateTime_Update_SuccessfullyUpdatesRecord", async ({ page }) => {
+  const date = new Date("2024-01-15T10:00:00Z");
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdWithDateTime",
+    operation: "create",
+    query: { data: { tenantId: "t1", createdAt: date, label: "first" } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdWithDateTime",
+    operation: "update",
+    query: { where: { tenantId_createdAt: { tenantId: "t1", createdAt: date } }, data: { label: "updated" } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdWithDateTime",
+    operation: "findUnique",
+    query: { where: { tenantId_createdAt: { tenantId: "t1", createdAt: date } } },
+  });
+});
+
+test("CompositeIdWithDateTime_Delete_SuccessfullyDeletesRecord", async ({ page }) => {
+  const date = new Date("2024-01-15T10:00:00Z");
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdWithDateTime",
+    operation: "create",
+    query: { data: { tenantId: "t1", createdAt: date, label: "first" } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdWithDateTime",
+    operation: "delete",
+    query: { where: { tenantId_createdAt: { tenantId: "t1", createdAt: date } } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdWithDateTime",
+    operation: "findMany",
+  });
+});
+
+test("CompositeIdWithDateTime_FindMany_ReturnsMultipleRecords", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdWithDateTime",
+    operation: "create",
+    query: { data: { tenantId: "t1", createdAt: new Date("2024-01-15T10:00:00Z"), label: "a" } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdWithDateTime",
+    operation: "create",
+    query: { data: { tenantId: "t1", createdAt: new Date("2024-06-20T15:30:00Z"), label: "b" } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdWithDateTime",
+    operation: "create",
+    query: { data: { tenantId: "t2", createdAt: new Date("2024-01-15T10:00:00Z"), label: "c" } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdWithDateTime",
+    operation: "findMany",
+  });
+});
+
+// ── TripleCompositeIdWithDate (@@id([region, year, eventDate])) ──────
+
+test("TripleCompositeIdWithDate_Create_SuccessfullyCreatesRecord", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "tripleCompositeIdWithDate",
+    operation: "create",
+    query: {
+      data: { region: "US", year: 2024, eventDate: new Date("2024-07-04T00:00:00Z"), payload: "fireworks" },
+    },
+  });
+});
+
+test("TripleCompositeIdWithDate_FindUnique_ReturnsRecord", async ({ page }) => {
+  const eventDate = new Date("2024-07-04T00:00:00Z");
+  await expectQueryToSucceed({
+    page,
+    model: "tripleCompositeIdWithDate",
+    operation: "create",
+    query: { data: { region: "US", year: 2024, eventDate, payload: "fireworks" } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "tripleCompositeIdWithDate",
+    operation: "findUnique",
+    query: { where: { region_year_eventDate: { region: "US", year: 2024, eventDate } } },
+  });
+});
+
+test("TripleCompositeIdWithDate_Update_SuccessfullyUpdatesRecord", async ({ page }) => {
+  const eventDate = new Date("2024-07-04T00:00:00Z");
+  await expectQueryToSucceed({
+    page,
+    model: "tripleCompositeIdWithDate",
+    operation: "create",
+    query: { data: { region: "US", year: 2024, eventDate, payload: "fireworks" } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "tripleCompositeIdWithDate",
+    operation: "update",
+    query: {
+      where: { region_year_eventDate: { region: "US", year: 2024, eventDate } },
+      data: { payload: "sparklers" },
+    },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "tripleCompositeIdWithDate",
+    operation: "findUnique",
+    query: { where: { region_year_eventDate: { region: "US", year: 2024, eventDate } } },
+  });
+});
+
+test("TripleCompositeIdWithDate_FindMany_ReturnsMultipleRecords", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "tripleCompositeIdWithDate",
+    operation: "create",
+    query: { data: { region: "US", year: 2024, eventDate: new Date("2024-07-04T00:00:00Z") } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "tripleCompositeIdWithDate",
+    operation: "create",
+    query: { data: { region: "EU", year: 2024, eventDate: new Date("2024-12-25T00:00:00Z") } },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "tripleCompositeIdWithDate",
+    operation: "findMany",
+    query: { orderBy: { region: "asc" } },
+  });
+});
