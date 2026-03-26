@@ -17,7 +17,8 @@
     "generate": "turbo run generate",
     "clean": "turbo clean && rm -rf node_modules",
     "preview": "turbo run preview",
-    "run:ci": "pnpm format && pnpm generate && pnpm lint && pnpm check"
+    "run:ci": "pnpm format && pnpm generate && pnpm lint && pnpm check",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@eslint/compat": "^2.0.3",
@@ -27,12 +28,18 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-svelte": "^3.16.0",
     "globals": "^17.4.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.8.1",
     "prettier-plugin-svelte": "^3.5.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "turbo": "^2.8.20",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.57.2"
+  },
+  "lint-staged": {
+    "*.{js,ts,svelte,tsx,jsx,mjs}": ["prettier --write", "eslint --fix"],
+    "*.{json,md,mdx,css,html,yaml,yml}": ["prettier --write"]
   },
   "repository": {
     "type": "git",
