@@ -27,6 +27,52 @@ const prismaToPrimitiveTypesMap = {
   Bytes: "Uint8Array",
 };
 
+// IDBValidKey = number | string | Date | BufferSource | IDBValidKey[]
+// These Prisma types map to valid IDB key types
+const validIDBKeyPrismaTypes = new Set(["Int", "Float", "String", "DateTime", "Bytes"]);
+
+/**
+ * Returns the field names and their Prisma types that are used as IDB key fields
+ * but have types not supported by IndexedDB's IDBValidKey constraint.
+ */
+export function getUnsupportedKeyFields(model: Model): { fieldName: string; fieldType: string; context: string }[] {
+  const unsupported: { fieldName: string; fieldType: string; context: string }[] = [];
+
+  const checkFields = (fieldNames: readonly string[], context: string) => {
+    for (const fieldName of fieldNames) {
+      const field = model.fields.find(({ name }) => name === fieldName);
+      if (field && !validIDBKeyPrismaTypes.has(field.type)) {
+        unsupported.push({ fieldName, fieldType: field.type, context });
+      }
+    }
+  };
+
+  // Check composite @@id
+  if (model.primaryKey) {
+    checkFields(model.primaryKey.fields, `@@id([${model.primaryKey.fields.join(", ")}])`);
+  }
+
+  // Check single @id
+  const idField = model.fields.find(({ isId }) => isId);
+  if (idField && !validIDBKeyPrismaTypes.has(idField.type)) {
+    unsupported.push({ fieldName: idField.name, fieldType: idField.type, context: `@id` });
+  }
+
+  // Check single @unique fields
+  for (const field of model.fields.filter(({ isUnique }) => isUnique)) {
+    if (!validIDBKeyPrismaTypes.has(field.type)) {
+      unsupported.push({ fieldName: field.name, fieldType: field.type, context: `@unique` });
+    }
+  }
+
+  // Check composite @@unique
+  for (const { fields } of model.uniqueIndexes) {
+    checkFields(fields, `@@unique([${fields.join(", ")}])`);
+  }
+
+  return unsupported;
+}
+
 export function getUniqueIdentifiers(model: Model) {
   const uniqueIdentifiers: { name: string; keyPath: string; keyPathType: string; keyPathTypes: string[] }[] = [];
 
