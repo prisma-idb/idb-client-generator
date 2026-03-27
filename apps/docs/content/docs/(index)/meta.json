@@ -12,6 +12,7 @@
     "crud",
     "events",
     "transactions",
+    "indexes",
     "---Reference---",
     "generated-output",
     "about"

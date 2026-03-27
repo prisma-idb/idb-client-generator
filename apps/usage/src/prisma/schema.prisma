@@ -253,8 +253,8 @@ model MultipleCompositeUniques {
 }
 
 // ── @@index models ───────────────────────────────────────────────────
-// Non-unique indexes (@@index). IDB doesn't directly support these,
-// so the generator should handle/ignore them gracefully.
+// Non-unique indexes (@@index). The generator creates IDB indexes
+// for these with { unique: false }.
 
 /// Model with @@index (non-unique composite and single-field)
 model ModelWithIndex {

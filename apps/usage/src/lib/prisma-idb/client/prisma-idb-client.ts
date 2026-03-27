@@ -122,7 +122,9 @@ export class PrismaIDBClient {
         MultipleCompositeUniquesStore.createIndex("a_bIndex", ["a", "b"], { unique: true });
         MultipleCompositeUniquesStore.createIndex("c_dIndex", ["c", "d"], { unique: true });
         MultipleCompositeUniquesStore.createIndex("a_cIndex", ["a", "c"], { unique: true });
-        db.createObjectStore("ModelWithIndex", { keyPath: ["id"] });
+        const ModelWithIndexStore = db.createObjectStore("ModelWithIndex", { keyPath: ["id"] });
+        ModelWithIndexStore.createIndex("category_priorityIndex", ["category", "priority"], { unique: false });
+        ModelWithIndexStore.createIndex("dateIndex", ["date"], { unique: false });
       },
     });
     this.user = new UserIDBClass(this, ["id"]);
@@ -1439,6 +1441,12 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.UserDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.UserDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("User").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -1448,7 +1456,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("User").getAll(), query?.where, tx);
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.UserDelegate,
@@ -3427,6 +3435,12 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.GroupDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.GroupDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.GroupDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.GroupDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("Group").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.GroupDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -3436,7 +3450,7 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("Group").getAll(), query?.where, tx);
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.GroupDelegate,
@@ -4261,6 +4275,12 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.ProfileDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.ProfileDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("Profile").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.ProfileDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -4270,7 +4290,7 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("Profile").getAll(), query?.where, tx);
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.ProfileDelegate,
@@ -5204,6 +5224,12 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
       record.numberArr = record.numberArr ?? [];
     }
   }
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.PostDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("Post").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.PostDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -5213,7 +5239,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("Post").getAll(), query?.where, tx);
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.PostDelegate,
@@ -6242,6 +6268,12 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.CommentDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.CommentDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("Comment").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.CommentDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -6251,7 +6283,7 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("Comment").getAll(), query?.where, tx);
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.CommentDelegate,
@@ -7080,6 +7112,12 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.TodoDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.TodoDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("Todo").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.TodoDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -7089,7 +7127,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("Todo").getAll(), query?.where, tx);
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.TodoDelegate,
@@ -7880,6 +7918,12 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
       record.manyBytes = record.manyBytes ?? [];
     }
   }
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("AllFieldScalarTypes").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -7889,11 +7933,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(
-      await tx.objectStore("AllFieldScalarTypes").getAll(),
-      query?.where,
-      tx
-    );
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.AllFieldScalarTypesDelegate,
@@ -8504,6 +8544,12 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
       record.enumArray = record.enumArray ?? [];
     }
   }
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.ModelWithEnumDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("ModelWithEnum").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -8513,7 +8559,7 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("ModelWithEnum").getAll(), query?.where, tx);
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.ModelWithEnumDelegate,
@@ -9050,6 +9096,12 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.TestUuidDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.TestUuidDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("TestUuid").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -9059,7 +9111,7 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("TestUuid").getAll(), query?.where, tx);
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.TestUuidDelegate,
@@ -9747,6 +9799,12 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
   private _preprocessListFields(
     records: Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findMany">
   ): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -9756,11 +9814,7 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(
-      await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").getAll(),
-      query?.where,
-      tx
-    );
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
@@ -10649,6 +10703,12 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
   private _preprocessListFields(
     records: Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findMany">
   ): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("ModelWithUniqueAttributes").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -10658,11 +10718,7 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(
-      await tx.objectStore("ModelWithUniqueAttributes").getAll(),
-      query?.where,
-      tx
-    );
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.ModelWithUniqueAttributesDelegate,
@@ -11625,6 +11681,12 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.UserGroupDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.UserGroupDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("UserGroup").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -11634,7 +11696,7 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("UserGroup").getAll(), query?.where, tx);
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.UserGroupDelegate,
@@ -12764,6 +12826,12 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.FatherDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.FatherDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.FatherDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.FatherDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("Father").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.FatherDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -12773,7 +12841,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("Father").getAll(), query?.where, tx);
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.FatherDelegate,
@@ -14155,6 +14223,12 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.MotherDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.MotherDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.MotherDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.MotherDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("Mother").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.MotherDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -14164,7 +14238,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("Mother").getAll(), query?.where, tx);
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.MotherDelegate,
@@ -15529,6 +15603,12 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.ChildDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.ChildDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.ChildDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.ChildDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("Child").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.ChildDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -15538,7 +15618,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("Child").getAll(), query?.where, tx);
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.ChildDelegate,
@@ -16454,6 +16534,12 @@ class CompositeIdIntStringIDBClass extends BaseIDBModelClass<"CompositeIdIntStri
   private _preprocessListFields(
     records: Prisma.Result<Prisma.CompositeIdIntStringDelegate, object, "findMany">
   ): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.CompositeIdIntStringDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("CompositeIdIntString").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -16463,11 +16549,7 @@ class CompositeIdIntStringIDBClass extends BaseIDBModelClass<"CompositeIdIntStri
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(
-      await tx.objectStore("CompositeIdIntString").getAll(),
-      query?.where,
-      tx
-    );
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.CompositeIdIntStringDelegate,
@@ -17039,6 +17121,12 @@ class CompositeIdWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeIdWith
   private _preprocessListFields(
     records: Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, object, "findMany">
   ): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("CompositeIdWithDateTime").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -17048,11 +17136,7 @@ class CompositeIdWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeIdWith
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(
-      await tx.objectStore("CompositeIdWithDateTime").getAll(),
-      query?.where,
-      tx
-    );
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.CompositeIdWithDateTimeDelegate,
@@ -17622,6 +17706,12 @@ class TripleCompositeIdWithDateIDBClass extends BaseIDBModelClass<"TripleComposi
   private _preprocessListFields(
     records: Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, object, "findMany">
   ): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("TripleCompositeIdWithDate").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -17631,11 +17721,7 @@ class TripleCompositeIdWithDateIDBClass extends BaseIDBModelClass<"TripleComposi
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(
-      await tx.objectStore("TripleCompositeIdWithDate").getAll(),
-      query?.where,
-      tx
-    );
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.TripleCompositeIdWithDateDelegate,
@@ -18258,6 +18344,12 @@ class CompositeUniqueWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeUn
   private _preprocessListFields(
     records: Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, object, "findMany">
   ): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("CompositeUniqueWithDateTime").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -18267,11 +18359,7 @@ class CompositeUniqueWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeUn
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(
-      await tx.objectStore("CompositeUniqueWithDateTime").getAll(),
-      query?.where,
-      tx
-    );
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.CompositeUniqueWithDateTimeDelegate,
@@ -18855,6 +18943,12 @@ class CompositeUniqueFloatIntIDBClass extends BaseIDBModelClass<"CompositeUnique
   private _preprocessListFields(
     records: Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, object, "findMany">
   ): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("CompositeUniqueFloatInt").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -18864,11 +18958,7 @@ class CompositeUniqueFloatIntIDBClass extends BaseIDBModelClass<"CompositeUnique
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(
-      await tx.objectStore("CompositeUniqueFloatInt").getAll(),
-      query?.where,
-      tx
-    );
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.CompositeUniqueFloatIntDelegate,
@@ -19440,6 +19530,12 @@ class MultipleCompositeUniquesIDBClass extends BaseIDBModelClass<"MultipleCompos
   private _preprocessListFields(
     records: Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, object, "findMany">
   ): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("MultipleCompositeUniques").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -19449,11 +19545,7 @@ class MultipleCompositeUniquesIDBClass extends BaseIDBModelClass<"MultipleCompos
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(
-      await tx.objectStore("MultipleCompositeUniques").getAll(),
-      query?.where,
-      tx
-    );
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.MultipleCompositeUniquesDelegate,
@@ -20054,6 +20146,37 @@ class ModelWithIndexIDBClass extends BaseIDBModelClass<"ModelWithIndex"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.ModelWithIndexDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.ModelWithIndexDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.ModelWithIndexDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.ModelWithIndexDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("ModelWithIndex").getAll();
+    const categoryEq = IDBUtils.extractEqualityValue(where.category);
+    const priorityEq = IDBUtils.extractEqualityValue(where.priority);
+    let dateEq = IDBUtils.extractEqualityValue(where.date);
+    if (typeof dateEq === "string") dateEq = new Date(dateEq);
+
+    if (categoryEq !== undefined && priorityEq !== undefined) {
+      return tx
+        .objectStore("ModelWithIndex")
+        .index("category_priorityIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([categoryEq, priorityEq]));
+    }
+    if (dateEq !== undefined) {
+      return tx
+        .objectStore("ModelWithIndex")
+        .index("dateIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([dateEq]));
+    }
+
+    if (categoryEq !== undefined) {
+      return tx
+        .objectStore("ModelWithIndex")
+        .index("category_priorityIndex")
+        .getAll(IDBUtils.IDBKeyRange.bound([categoryEq], [categoryEq, []], false, true));
+    }
+    return tx.objectStore("ModelWithIndex").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.ModelWithIndexDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -20063,7 +20186,7 @@ class ModelWithIndexIDBClass extends BaseIDBModelClass<"ModelWithIndex"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("ModelWithIndex").getAll(), query?.where, tx);
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.ModelWithIndexDelegate,

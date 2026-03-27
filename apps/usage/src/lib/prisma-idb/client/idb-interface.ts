@@ -120,5 +120,12 @@ export interface PrismaIDBSchema extends DBSchema {
   ModelWithIndex: {
     key: [id: Prisma.ModelWithIndex["id"]];
     value: Prisma.ModelWithIndex;
+    indexes: {
+      category_priorityIndex: [
+        category: Prisma.ModelWithIndex["category"],
+        priority: Prisma.ModelWithIndex["priority"],
+      ];
+      dateIndex: [date: Prisma.ModelWithIndex["date"]];
+    };
   };
 }

@@ -939,6 +939,12 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.BoardDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.BoardDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.BoardDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.BoardDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("Board").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.BoardDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -948,7 +954,7 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("Board").getAll(), query?.where, tx);
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.BoardDelegate,
@@ -1866,6 +1872,12 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.TodoDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.TodoDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("Todo").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.TodoDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -1875,7 +1887,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("Todo").getAll(), query?.where, tx);
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.TodoDelegate,
@@ -2709,6 +2721,12 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.UserDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.UserDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("User").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -2718,7 +2736,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("User").getAll(), query?.where, tx);
+    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.UserDelegate,

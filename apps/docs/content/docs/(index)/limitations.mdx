@@ -100,52 +100,9 @@ These are architectural constraints, not bugs, and enable offline-first synchron
 
 **Status:** By Design
 
-IndexedDB only supports certain types as key values ([`IDBValidKey`](https://developer.mozilla.org/en-US/docs/Web/API/IDBValidKey)). This means fields used in `@id`, `@@id`, `@unique`, or `@@unique` must map to valid IDB key types.
+IndexedDB only supports certain types as key values. Fields used in `@id`, `@@id`, `@unique`, `@@unique`, or `@@index` must map to valid IDB key types. Models with unsupported types in identity or unique constraints are excluded from the generated client.
 
-**Supported Prisma types in keys:**
-
-| Prisma Type | IDB Key Type   |
-| ----------- | -------------- |
-| `Int`       | `number`       |
-| `Float`     | `number`       |
-| `String`    | `string`       |
-| `DateTime`  | `Date`         |
-| `Bytes`     | `BufferSource` |
-
-**Unsupported Prisma types in keys:**
-
-| Prisma Type | Why                                                                    |
-| ----------- | ---------------------------------------------------------------------- |
-| `Boolean`   | Not in `IDBValidKey`                                                   |
-| `BigInt`    | Not in `IDBValidKey`                                                   |
-| `Decimal`   | Precision loss when stored as JS `number`; unreliable IDB key matching |
-| `Json`      | Objects are not valid IDB keys                                         |
-
-If the generator detects a model using an unsupported type in a key or unique constraint, it will:
-
-1. Print a warning during generation
-2. Exclude the model from the generated client
-3. **Cascade**: Any model with a required relation to an excluded model will also be excluded, since it cannot maintain data integrity without its parent. The generator warns about each cascaded exclusion.
-
-```prisma
-// ❌ This model will be excluded — Boolean is not a valid IDB key type
-model Setting {
-  active Boolean
-  name   String
-
-  @@id([active, name])
-}
-
-// ✅ This works — Int and String are valid IDB key types
-model UserGroup {
-  groupId Int
-  userId  Int
-
-  @@id([groupId, userId])
-}
-```
-
-**Note:** These types are fine as regular (non-key) fields. The restriction only applies to fields participating in `@id`, `@@id`, `@unique`, or `@@unique`.
+See the [Indexes](/docs/indexes#idb-key-type-restrictions) page for full details on supported types, what happens with unsupported types, and how `@@index` fields are handled differently.
 
 ## API Coverage
 
