@@ -9,6 +9,7 @@ export interface ParsedGeneratorConfig {
   include: string[];
   exclude: string[];
   filteredModels: DMMF.Model[];
+  indexes: DMMF.Index[];
   outboxSync: boolean;
   outboxModelName: string;
   versionMetaModelName: string;
@@ -146,6 +147,9 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
 
   const filteredModels = getProjectedFilteredModels(models.filter((model) => isIncluded(model.name)));
 
+  // === Extract datamodel indexes ===
+  const datamodelIndexes = options.dmmf.datamodel.indexes ?? [];
+
   // === Warn and exclude models with unsupported IDB key types (cascading) ===
   const excludedByKeyType = new Set<string>();
 
@@ -203,6 +207,10 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
     }
   }
 
+  // Filter indexes to only include those for valid models
+  const validModelNames = new Set(validModels.map((m) => m.name));
+  const validIndexes = datamodelIndexes.filter((idx) => validModelNames.has(idx.model));
+
   return {
     prismaClientImport,
     outboxSync,
@@ -212,6 +220,7 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
     include,
     exclude,
     filteredModels: validModels,
+    indexes: validIndexes,
     rootModel,
   };
 }

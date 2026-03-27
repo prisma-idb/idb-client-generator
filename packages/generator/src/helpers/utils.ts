@@ -1,4 +1,7 @@
+import { DMMF } from "@prisma/generator-helper";
 import { Model } from "../fileCreators/types";
+
+export type IndexIdentifier = { name: string; keyPath: string; keyPathType: string };
 
 export function toCamelCase(str: string): string {
   return str
@@ -71,6 +74,41 @@ export function getUnsupportedKeyFields(model: Model): { fieldName: string; fiel
   }
 
   return unsupported;
+}
+
+/**
+ * Returns non-unique indexes (@@index) for a model, skipping any that use
+ * unsupported IDB key types (with a warning).
+ */
+export function getNonUniqueIndexes(model: Model, datamodelIndexes: readonly DMMF.Index[]): IndexIdentifier[] {
+  const modelIndexes = datamodelIndexes.filter((i) => i.model === model.name && i.type === "normal");
+  const result: IndexIdentifier[] = [];
+
+  for (const idx of modelIndexes) {
+    const fieldNames = idx.fields.map((f) => f.name);
+    const unsupportedField = fieldNames.find((fieldName) => {
+      const field = model.fields.find(({ name }) => name === fieldName);
+      return field && !validIDBKeyPrismaTypes.has(field.type);
+    });
+    if (unsupportedField) {
+      const field = model.fields.find(({ name }) => name === unsupportedField)!;
+      console.warn(
+        `@prisma-idb/idb-client-generator: Model "${model.name}" has @@index([${fieldNames.join(", ")}]) ` +
+          `with field "${unsupportedField}" (${field.type}) which is not a valid IndexedDB key type. ` +
+          `This index will be skipped.`
+      );
+      continue;
+    }
+
+    const name = idx.name ?? fieldNames.join("_");
+    result.push({
+      name,
+      keyPath: JSON.stringify(fieldNames),
+      keyPathType: createIdentifierTuple(fieldNames, model),
+    });
+  }
+
+  return result;
 }
 
 export function getUniqueIdentifiers(model: Model) {

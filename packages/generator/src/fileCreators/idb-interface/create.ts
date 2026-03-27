@@ -1,5 +1,5 @@
 import { DMMF } from "@prisma/generator-helper";
-import { getUniqueIdentifiers } from "../../helpers/utils";
+import { getUniqueIdentifiers, getNonUniqueIndexes } from "../../helpers/utils";
 import { Model } from "../types";
 import CodeBlockWriter from "code-block-writer";
 
@@ -11,9 +11,10 @@ export function createIDBInterfaceFile(
     outboxSync: boolean;
     outboxModelName: string;
     versionMetaModelName: string;
+    indexes?: DMMF.Index[];
   }
 ) {
-  const { models, prismaClientImport, outboxSync, outboxModelName, versionMetaModelName } = options;
+  const { models, prismaClientImport, outboxSync, outboxModelName, versionMetaModelName, indexes = [] } = options;
   writer.writeLine(`import type { DBSchema } from "idb";`);
   writer.writeLine(`import type * as Prisma from "${prismaClientImport}";`);
   if (outboxSync) {
@@ -35,7 +36,7 @@ export function createIDBInterfaceFile(
         writer.writeLine(`key: ${primaryIdentifier.keyPathType};`);
         writer.writeLine(`value: Prisma.${model.name};`);
 
-        createUniqueFieldIndexes(writer, model);
+        createFieldIndexes(writer, model, indexes);
       });
     });
 
@@ -58,12 +59,16 @@ export function createIDBInterfaceFile(
   }
 }
 
-function createUniqueFieldIndexes(writer: CodeBlockWriter, model: Model) {
+function createFieldIndexes(writer: CodeBlockWriter, model: Model, datamodelIndexes: readonly DMMF.Index[]) {
   const nonKeyUniqueIdentifiers = getUniqueIdentifiers(model).slice(1);
-  if (nonKeyUniqueIdentifiers.length === 0) return;
+  const nonUniqueIndexes = getNonUniqueIndexes(model, datamodelIndexes);
+  if (nonKeyUniqueIdentifiers.length === 0 && nonUniqueIndexes.length === 0) return;
 
   writer.writeLine("indexes: ").block(() => {
     nonKeyUniqueIdentifiers.forEach(({ name, keyPathType }) => {
+      writer.writeLine(`${name}Index: ${keyPathType}`);
+    });
+    nonUniqueIndexes.forEach(({ name, keyPathType }) => {
       writer.writeLine(`${name}Index: ${keyPathType}`);
     });
   });

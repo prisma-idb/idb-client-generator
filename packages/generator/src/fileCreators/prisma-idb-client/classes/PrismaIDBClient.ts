@@ -1,5 +1,6 @@
 import CodeBlockWriter from "code-block-writer";
-import { getUniqueIdentifiers, toCamelCase as toCamelCaseUtil } from "../../../helpers/utils";
+import { getUniqueIdentifiers, getNonUniqueIndexes, toCamelCase as toCamelCaseUtil } from "../../../helpers/utils";
+import type { DMMF } from "@prisma/generator-helper";
 import { shouldTrackModel } from "../../outbox/utils";
 import { Model } from "../../types";
 
@@ -10,7 +11,8 @@ export function addClientClass(
   outboxModelName: string,
   versionMetaModelName: string,
   include: string[] = ["*"],
-  exclude: string[] = []
+  exclude: string[] = [],
+  indexes: readonly DMMF.Index[] = []
 ) {
   // Write type definition for CreateSyncWorkerOptions if sync is enabled
   if (outboxSync) {
@@ -66,7 +68,7 @@ export function addClientClass(
     if (outboxSync) {
       addCreateSyncWorkerMethod(writer);
     }
-    addInitializeMethod(writer, models, outboxSync, outboxModelName, versionMetaModelName);
+    addInitializeMethod(writer, models, outboxSync, outboxModelName, versionMetaModelName, indexes);
   });
 }
 
@@ -105,14 +107,15 @@ function addInitializeMethod(
   models: readonly Model[],
   outboxSync: boolean,
   outboxModelName: string,
-  versionMetaModelName: string
+  versionMetaModelName: string,
+  indexes: readonly DMMF.Index[] = []
 ) {
   writer.writeLine(`private async initialize()`).block(() => {
     writer
       .writeLine(`this._db = await openDB<PrismaIDBSchema>("prisma-idb", IDB_VERSION, `)
       .block(() => {
         writer.writeLine(`upgrade(db) `).block(() => {
-          models.forEach((model) => addObjectStoreInitialization(model, writer));
+          models.forEach((model) => addObjectStoreInitialization(model, writer, indexes));
           if (outboxSync) {
             addOutboxObjectStoreInitialization(writer, outboxModelName);
             addVersionMetaInitialization(writer, versionMetaModelName);
@@ -533,16 +536,21 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
     });
 }
 
-function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter) {
+function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter, indexes: readonly DMMF.Index[] = []) {
   const nonKeyUniqueIdentifiers = getUniqueIdentifiers(model).slice(1);
+  const nonUniqueIndexes = getNonUniqueIndexes(model, indexes);
   const keyPath = getUniqueIdentifiers(model)[0].keyPath;
+  const hasAnyIndexes = nonKeyUniqueIdentifiers.length > 0 || nonUniqueIndexes.length > 0;
 
-  let declarationLine = nonKeyUniqueIdentifiers.length ? `const ${model.name}Store = ` : ``;
+  let declarationLine = hasAnyIndexes ? `const ${model.name}Store = ` : ``;
   declarationLine += `db.createObjectStore('${model.name}', { keyPath: ${keyPath} });`;
 
   writer.writeLine(declarationLine);
   nonKeyUniqueIdentifiers.forEach(({ name, keyPath }) =>
     writer.writeLine(`${model.name}Store.createIndex("${name}Index", ${keyPath}, { unique: true });`)
+  );
+  nonUniqueIndexes.forEach(({ name, keyPath }) =>
+    writer.writeLine(`${model.name}Store.createIndex("${name}Index", ${keyPath}, { unique: false });`)
   );
 }
 
@@ -558,15 +566,17 @@ function addResetDatabaseMethod(writer: CodeBlockWriter) {
   writer.writeLine(`public async resetDatabase()`).block(() => {
     writer
       .writeLine(`this._db.close();`)
-      .writeLine(`if (!globalThis.indexedDB) throw new Error("IndexedDB is not available in this environment");`)
-      .writeLine(`await new Promise<void>((resolve, reject) => {`);
-    writer.indent(() => {
-      writer
-        .writeLine(`const req = globalThis.indexedDB.deleteDatabase("prisma-idb");`)
-        .writeLine(`req.onsuccess = () => resolve();`)
-        .writeLine(`req.onerror = () => reject(req.error);`)
-        .writeLine(`req.onblocked = () => reject(new Error("Database deletion blocked"));`);
-    });
-    writer.writeLine(`});`).writeLine(`await PrismaIDBClient.instance.initialize();`);
+      .writeLine(`if (!globalThis.indexedDB) throw new Error("IndexedDB is not available in this environment");`);
+    writer
+      .write(`await new Promise<void>((resolve, reject) => `)
+      .block(() => {
+        writer
+          .writeLine(`const req = globalThis.indexedDB.deleteDatabase("prisma-idb");`)
+          .writeLine(`req.onsuccess = () => resolve();`)
+          .writeLine(`req.onerror = () => reject(req.error);`)
+          .writeLine(`req.onblocked = () => reject(new Error("Database deletion blocked"));`);
+      })
+      .writeLine(");");
+    writer.writeLine(`await PrismaIDBClient.instance.initialize();`);
   });
 }

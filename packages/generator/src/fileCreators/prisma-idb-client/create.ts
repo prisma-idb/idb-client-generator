@@ -58,6 +58,7 @@ export function createPrismaIDBClientFile(
     outboxSync: boolean;
     outboxModelName: string;
     versionMetaModelName: string;
+    indexes?: DMMF.Index[];
     include?: string[];
     exclude?: string[];
   }
@@ -68,12 +69,13 @@ export function createPrismaIDBClientFile(
     outboxSync,
     outboxModelName,
     versionMetaModelName,
+    indexes = [],
     include = ["*"],
     exclude = [],
   } = options;
   addImports(writer, models, prismaClientImport, outboxSync);
   addVersionDeclaration(writer);
-  addClientClass(writer, models, outboxSync, outboxModelName, versionMetaModelName, include, exclude);
+  addClientClass(writer, models, outboxSync, outboxModelName, versionMetaModelName, include, exclude, indexes);
   addBaseModelClass(writer, outboxSync);
   models.forEach((model) => {
     addIDBModelClass(writer, model, models, outboxSync, outboxModelName, versionMetaModelName);

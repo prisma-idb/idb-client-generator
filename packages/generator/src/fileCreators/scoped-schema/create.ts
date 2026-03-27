@@ -7,11 +7,12 @@ export function createScopedSchemaFile(
   options: {
     filteredModels: readonly Model[];
     enums: readonly DMMF.DatamodelEnum[];
+    indexes?: readonly DMMF.Index[];
   }
 ) {
-  const { filteredModels, enums } = options;
+  const { filteredModels, enums, indexes = [] } = options;
   writerDatasourceAndClientGenerator(writer);
-  writeModels(writer, filteredModels);
+  writeModels(writer, filteredModels, indexes);
   writeEnums(writer, enums);
 }
 
@@ -34,14 +35,14 @@ function writerDatasourceAndClientGenerator(writer: CodeBlockWriter) {
     .blankLine();
 }
 
-function writeModels(writer: CodeBlockWriter, filteredModels: readonly Model[]) {
+function writeModels(writer: CodeBlockWriter, filteredModels: readonly Model[], indexes: readonly DMMF.Index[]) {
   for (const model of filteredModels) {
     writer
       .writeLine(`model ${model.name} {`)
       .indent(() => {
         const filteredFields = getFilteredFields(model, filteredModels);
         writeFields(writer, filteredFields);
-        writeUniqueFieldsAndIndexes(writer, model);
+        writeUniqueFieldsAndIndexes(writer, model, indexes);
       })
       .writeLine(`}`)
       .blankLine();
@@ -118,7 +119,7 @@ function computeRelationAttribute(field: Field): string {
   return relationAttribute;
 }
 
-function writeUniqueFieldsAndIndexes(writer: CodeBlockWriter, model: Model) {
+function writeUniqueFieldsAndIndexes(writer: CodeBlockWriter, model: Model, indexes: readonly DMMF.Index[]) {
   if (model.primaryKey) {
     const pkFields = model.primaryKey.fields;
     writer.writeLine(`@@id([${pkFields.join(", ")}])`);
@@ -128,5 +129,11 @@ function writeUniqueFieldsAndIndexes(writer: CodeBlockWriter, model: Model) {
     if (uniqueFieldSet.length > 1) {
       writer.writeLine(`@@unique([${uniqueFieldSet.join(", ")}])`);
     }
+  }
+
+  const modelIndexes = indexes.filter((idx) => idx.model === model.name && idx.type === "normal");
+  for (const idx of modelIndexes) {
+    const fieldNames = idx.fields.map((f) => f.name);
+    writer.writeLine(`@@index([${fieldNames.join(", ")}])`);
   }
 }
