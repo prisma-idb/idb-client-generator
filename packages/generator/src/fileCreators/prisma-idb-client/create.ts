@@ -78,7 +78,7 @@ export function createPrismaIDBClientFile(
   addClientClass(writer, models, outboxSync, outboxModelName, versionMetaModelName, include, exclude, indexes);
   addBaseModelClass(writer, outboxSync);
   models.forEach((model) => {
-    addIDBModelClass(writer, model, models, outboxSync, outboxModelName, versionMetaModelName);
+    addIDBModelClass(writer, model, models, outboxSync, outboxModelName, versionMetaModelName, indexes);
   });
   if (outboxSync) {
     addOutboxEventIDBClass(writer, outboxModelName);

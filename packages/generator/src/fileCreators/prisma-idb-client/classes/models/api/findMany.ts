@@ -10,7 +10,7 @@ export function addFindManyMethod(writer: CodeBlockWriter, model: Model) {
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "findMany">>`)
     .block(() => {
       writer.write(getOptionsSetupRead());
-      getRecords(writer, model);
+      getRecords(writer);
       applyRelationsToRecords(writer, model);
       applySelectClauseToRecords(writer);
       applyDistinctClauseToRecords(writer);
@@ -18,11 +18,11 @@ export function addFindManyMethod(writer: CodeBlockWriter, model: Model) {
     });
 }
 
-function getRecords(writer: CodeBlockWriter, model: Model) {
+function getRecords(writer: CodeBlockWriter) {
   writer
     .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`)
     .writeLine(
-      `const records = await this._applyWhereClause(await tx.objectStore("${model.name}").getAll(), query?.where, tx);`
+      `const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);`
     )
     .writeLine(`await this._applyOrderByClause(records, query?.orderBy, tx);`);
 }

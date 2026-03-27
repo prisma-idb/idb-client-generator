@@ -1,3 +1,4 @@
+import { DMMF } from "@prisma/generator-helper";
 import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../types";
 import { addAggregateMethod } from "./api/aggregate";
@@ -29,6 +30,7 @@ import { addPreprocessListFields } from "./utils/_preprocessListFields";
 import { addRemoveNestedCreateDataMethod } from "./utils/_removeNestedCreateData";
 import { addResolveOrderByKey } from "./utils/_resolveOrderByKey";
 import { addResolveSortOrder } from "./utils/_resolveSortOrder";
+import { addGetRecords } from "./utils/_getRecords";
 
 export function addIDBModelClass(
   writer: CodeBlockWriter,
@@ -36,7 +38,8 @@ export function addIDBModelClass(
   models: readonly Model[],
   outboxSync: boolean,
   outboxModelName: string,
-  versionMetaModelName: string
+  versionMetaModelName: string,
+  datamodelIndexes: readonly DMMF.Index[] = []
 ) {
   writer.writeLine(`class ${model.name}IDBClass extends BaseIDBModelClass<"${model.name}">`).block(() => {
     addConstructor(writer, model);
@@ -54,6 +57,7 @@ export function addIDBModelClass(
     addGetNeededStoresForNestedDelete(writer, model, models, outboxSync, outboxModelName, versionMetaModelName);
     addRemoveNestedCreateDataMethod(writer, model);
     addPreprocessListFields(writer, model);
+    addGetRecords(writer, model, datamodelIndexes);
 
     addFindManyMethod(writer, model);
     addFindFirstMethod(writer, model);
