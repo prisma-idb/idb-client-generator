@@ -1475,6 +1475,25 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         return true;
       });
     }
+    if (query?.cursor) {
+      const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.UserDelegate, Q, "findMany">;
   }
@@ -3469,6 +3488,25 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
         return true;
       });
     }
+    if (query?.cursor) {
+      const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.GroupDelegate, Q, "findMany">;
   }
@@ -4308,6 +4346,25 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
         seen.add(key);
         return true;
       });
+    }
+    if (query?.cursor) {
+      const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
     }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.ProfileDelegate, Q, "findMany">;
@@ -5257,6 +5314,25 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
         seen.add(key);
         return true;
       });
+    }
+    if (query?.cursor) {
+      const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
     }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.PostDelegate, Q, "findMany">;
@@ -6302,6 +6378,25 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
         return true;
       });
     }
+    if (query?.cursor) {
+      const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.CommentDelegate, Q, "findMany">;
   }
@@ -7146,6 +7241,25 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
         return true;
       });
     }
+    if (query?.cursor) {
+      const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.TodoDelegate, Q, "findMany">;
   }
@@ -7952,6 +8066,25 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
         return true;
       });
     }
+    if (query?.cursor) {
+      const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findMany">;
   }
@@ -8578,6 +8711,25 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
         return true;
       });
     }
+    if (query?.cursor) {
+      const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findMany">;
   }
@@ -9129,6 +9281,25 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
         seen.add(key);
         return true;
       });
+    }
+    if (query?.cursor) {
+      const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
     }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.TestUuidDelegate, Q, "findMany">;
@@ -9832,6 +10003,25 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
         seen.add(key);
         return true;
       });
+    }
+    if (query?.cursor) {
+      const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
     }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<
@@ -10736,6 +10926,25 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
         seen.add(key);
         return true;
       });
+    }
+    if (query?.cursor) {
+      const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
     }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findMany">;
@@ -11714,6 +11923,27 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
         seen.add(key);
         return true;
       });
+    }
+    if (query?.cursor) {
+      const cursorValues = ["groupId", "userId"].map((field) => (query.cursor as Record<string, unknown>)[field]);
+      const cursorIndex = selectAppliedRecords.findIndex(
+        (record) => record.groupId === cursorValues[0] && record.userId === cursorValues[1]
+      );
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
     }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.UserGroupDelegate, Q, "findMany">;
@@ -12859,6 +13089,27 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
         seen.add(key);
         return true;
       });
+    }
+    if (query?.cursor) {
+      const cursorValues = ["firstName", "lastName"].map((field) => (query.cursor as Record<string, unknown>)[field]);
+      const cursorIndex = selectAppliedRecords.findIndex(
+        (record) => record.firstName === cursorValues[0] && record.lastName === cursorValues[1]
+      );
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
     }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.FatherDelegate, Q, "findMany">;
@@ -14257,6 +14508,27 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
         return true;
       });
     }
+    if (query?.cursor) {
+      const cursorValues = ["firstName", "lastName"].map((field) => (query.cursor as Record<string, unknown>)[field]);
+      const cursorIndex = selectAppliedRecords.findIndex(
+        (record) => record.firstName === cursorValues[0] && record.lastName === cursorValues[1]
+      );
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.MotherDelegate, Q, "findMany">;
   }
@@ -15637,6 +15909,29 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
         return true;
       });
     }
+    if (query?.cursor) {
+      const cursorValues = ["childFirstName", "childLastName"].map(
+        (field) => (query.cursor as Record<string, unknown>)[field]
+      );
+      const cursorIndex = selectAppliedRecords.findIndex(
+        (record) => record.childFirstName === cursorValues[0] && record.childLastName === cursorValues[1]
+      );
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.ChildDelegate, Q, "findMany">;
   }
@@ -16568,6 +16863,27 @@ class CompositeIdIntStringIDBClass extends BaseIDBModelClass<"CompositeIdIntStri
         return true;
       });
     }
+    if (query?.cursor) {
+      const cursorValues = ["orgId", "code"].map((field) => (query.cursor as Record<string, unknown>)[field]);
+      const cursorIndex = selectAppliedRecords.findIndex(
+        (record) => record.orgId === cursorValues[0] && record.code === cursorValues[1]
+      );
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "findMany">;
   }
@@ -17155,6 +17471,27 @@ class CompositeIdWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeIdWith
         return true;
       });
     }
+    if (query?.cursor) {
+      const cursorValues = ["tenantId", "createdAt"].map((field) => (query.cursor as Record<string, unknown>)[field]);
+      const cursorIndex = selectAppliedRecords.findIndex(
+        (record) => record.tenantId === cursorValues[0] && record.createdAt === cursorValues[1]
+      );
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "findMany">;
   }
@@ -17739,6 +18076,30 @@ class TripleCompositeIdWithDateIDBClass extends BaseIDBModelClass<"TripleComposi
         seen.add(key);
         return true;
       });
+    }
+    if (query?.cursor) {
+      const cursorValues = ["region", "year", "eventDate"].map(
+        (field) => (query.cursor as Record<string, unknown>)[field]
+      );
+      const cursorIndex = selectAppliedRecords.findIndex(
+        (record) =>
+          record.region === cursorValues[0] && record.year === cursorValues[1] && record.eventDate === cursorValues[2]
+      );
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
     }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "findMany">;
@@ -18378,6 +18739,25 @@ class CompositeUniqueWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeUn
         return true;
       });
     }
+    if (query?.cursor) {
+      const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "findMany">;
   }
@@ -18977,6 +19357,25 @@ class CompositeUniqueFloatIntIDBClass extends BaseIDBModelClass<"CompositeUnique
         return true;
       });
     }
+    if (query?.cursor) {
+      const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
+    }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "findMany">;
   }
@@ -19563,6 +19962,25 @@ class MultipleCompositeUniquesIDBClass extends BaseIDBModelClass<"MultipleCompos
         seen.add(key);
         return true;
       });
+    }
+    if (query?.cursor) {
+      const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
     }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "findMany">;
@@ -20204,6 +20622,25 @@ class ModelWithIndexIDBClass extends BaseIDBModelClass<"ModelWithIndex"> {
         seen.add(key);
         return true;
       });
+    }
+    if (query?.cursor) {
+      const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      if (cursorIndex === -1) {
+        selectAppliedRecords = [];
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+      }
+    }
+    if (query?.skip) {
+      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+    }
+    if (query?.take !== undefined) {
+      if (query.take < 0) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.take);
+      } else {
+        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      }
     }
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "findMany">;
