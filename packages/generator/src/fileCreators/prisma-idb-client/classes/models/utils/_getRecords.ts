@@ -30,17 +30,19 @@ export function addGetRecords(writer: CodeBlockWriter, model: Model, datamodelIn
 
       writer.writeLine(`if (!where) return tx.objectStore("${model.name}").getAll();`);
 
+      // Parse keyPaths once upfront
+      const indexesWithFields = nonUniqueIndexes.map((idx) => ({
+        ...idx,
+        fieldNames: JSON.parse(idx.keyPath) as string[],
+      }));
+
       // Sort indexes by field count descending (most selective first)
-      const sortedIndexes = [...nonUniqueIndexes].sort((a, b) => {
-        const aLen = (JSON.parse(a.keyPath) as string[]).length;
-        const bLen = (JSON.parse(b.keyPath) as string[]).length;
-        return bLen - aLen;
-      });
+      const sortedIndexes = [...indexesWithFields].sort((a, b) => b.fieldNames.length - a.fieldNames.length);
 
       // Collect all unique field names used across all indexes
       const allFieldNames = new Set<string>();
       for (const idx of sortedIndexes) {
-        for (const f of JSON.parse(idx.keyPath) as string[]) allFieldNames.add(f);
+        for (const f of idx.fieldNames) allFieldNames.add(f);
       }
 
       // Generate equality extraction for each indexed field
@@ -57,7 +59,7 @@ export function addGetRecords(writer: CodeBlockWriter, model: Model, datamodelIn
 
       // Phase 1: Full matches (all fields of an index have equality values)
       for (const idx of sortedIndexes) {
-        const fields = JSON.parse(idx.keyPath) as string[];
+        const fields = idx.fieldNames;
         const condition = fields.map((f) => `${f}Eq !== undefined`).join(" && ");
         const keyArray = fields.map((f) => `${f}Eq`).join(", ");
 
@@ -71,7 +73,7 @@ export function addGetRecords(writer: CodeBlockWriter, model: Model, datamodelIn
 
       // Phase 2: Prefix matches for composite indexes (try longer prefixes first)
       for (const idx of sortedIndexes) {
-        const fields = JSON.parse(idx.keyPath) as string[];
+        const fields = idx.fieldNames;
         if (fields.length < 2) continue;
 
         for (let prefixLen = fields.length - 1; prefixLen >= 1; prefixLen--) {
