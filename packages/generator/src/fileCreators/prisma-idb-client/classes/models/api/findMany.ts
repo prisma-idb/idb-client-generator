@@ -77,7 +77,7 @@ function applyPaginationClause(writer: CodeBlockWriter, model: Model) {
         `const cursorValues = ${JSON.stringify(pkFields)}.map((field) => (query.cursor as Record<string, unknown>)[field]);`
       );
       writer.writeLine(
-        `const cursorIndex = selectAppliedRecords.findIndex((record) => ${pkFields
+        `const cursorIndex = relationAppliedRecords.findIndex((record) => ${pkFields
           .map((f, i) => `record.${f} === cursorValues[${i}]`)
           .join(" && ")});`
       );
