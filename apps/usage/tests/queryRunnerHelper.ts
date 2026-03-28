@@ -25,7 +25,9 @@ export async function runQuery<M extends Model, F extends Op>(params: QueryParam
 
   await submitQuery(page, model, operation, query);
   await expect(page.getByRole("button", { name: "Run query" })).not.toBeDisabled();
-  const idbClientResult = JSON.parse((await page.getByRole("code").last().textContent()) ?? "");
+  const textContent = await page.getByRole("code").last().textContent();
+  expect(textContent, "Expected query result element to have text content").not.toBeNull();
+  const idbClientResult = JSON.parse(textContent!);
 
   return { idbClientResult, prismaClientResult };
 }
@@ -37,12 +39,14 @@ export async function expectQueryToSucceed<M extends Model, F extends Op>(params
 }
 
 export async function expectQueryToFail<M extends Model, F extends Op>(
-  params: QueryParams<M, F> & { errorMessage: string }
+  params: QueryParams<M, F> & { errorMessage: string; expectPrismaToAlsoFail?: boolean }
 ) {
-  const { page, model, operation, query, errorMessage } = params;
+  const { page, model, operation, query, errorMessage, expectPrismaToAlsoFail = true } = params;
 
   const operationFunction = prisma[model][operation] as (...args: unknown[]) => unknown;
-  await expect(operationFunction).rejects.toThrowError();
+  if (expectPrismaToAlsoFail) {
+    await expect(operationFunction(query)).rejects.toThrowError();
+  }
 
   await submitQuery(page, model, operation, query);
   await expect(page.getByRole("listitem").first()).toContainText(errorMessage);

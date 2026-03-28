@@ -75,5 +75,6 @@ test("set_InvalidSetQuery_ThrowsError", async ({ page }) => {
     operation: "update",
     query: { where: { id: 1 }, data: { posts: { set: [{ id: 999 }] } } },
     errorMessage: "Record not found",
+    expectPrismaToAlsoFail: false,
   });
 });

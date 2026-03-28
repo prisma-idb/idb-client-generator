@@ -45,6 +45,7 @@ test("disconnect_DisconnectNonExistentRelation_ThrowsError", async ({ page }) =>
     operation: "update",
     query: { where: { id: 1 }, data: { posts: { disconnect: [{ id: 999 }] } } },
     errorMessage: "Record not found",
+    expectPrismaToAlsoFail: false,
   });
 });
 
