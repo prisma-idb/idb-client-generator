@@ -92,7 +92,7 @@ export function getNonUniqueIndexes(model: Model, datamodelIndexes: readonly DMM
     });
     if (unsupportedField) {
       const field = model.fields.find(({ name }) => name === unsupportedField)!;
-      console.warn(
+      console.log(
         `@prisma-idb/idb-client-generator: Model "${model.name}" has @@index([${fieldNames.join(", ")}]) ` +
           `with field "${unsupportedField}" (${field.type}) which is not a valid IndexedDB key type. ` +
           `This index will be skipped.`
