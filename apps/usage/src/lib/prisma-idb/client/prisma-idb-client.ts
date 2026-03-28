@@ -1477,7 +1477,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     }
     if (query?.cursor) {
       const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
@@ -3490,7 +3490,7 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     }
     if (query?.cursor) {
       const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
@@ -4349,7 +4349,7 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     }
     if (query?.cursor) {
       const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
@@ -5317,7 +5317,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     }
     if (query?.cursor) {
       const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
@@ -6380,7 +6380,7 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     }
     if (query?.cursor) {
       const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
@@ -7243,7 +7243,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     }
     if (query?.cursor) {
       const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
@@ -8068,7 +8068,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     }
     if (query?.cursor) {
       const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
@@ -8713,7 +8713,7 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     }
     if (query?.cursor) {
       const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
@@ -9284,7 +9284,7 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     }
     if (query?.cursor) {
       const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
@@ -10006,7 +10006,7 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     }
     if (query?.cursor) {
       const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
@@ -10929,7 +10929,7 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     }
     if (query?.cursor) {
       const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
@@ -11926,7 +11926,7 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     }
     if (query?.cursor) {
       const cursorValues = ["groupId", "userId"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex(
+      const cursorIndex = relationAppliedRecords.findIndex(
         (record) => record.groupId === cursorValues[0] && record.userId === cursorValues[1]
       );
       if (cursorIndex === -1) {
@@ -13092,7 +13092,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     }
     if (query?.cursor) {
       const cursorValues = ["firstName", "lastName"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex(
+      const cursorIndex = relationAppliedRecords.findIndex(
         (record) => record.firstName === cursorValues[0] && record.lastName === cursorValues[1]
       );
       if (cursorIndex === -1) {
@@ -14510,7 +14510,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     }
     if (query?.cursor) {
       const cursorValues = ["firstName", "lastName"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex(
+      const cursorIndex = relationAppliedRecords.findIndex(
         (record) => record.firstName === cursorValues[0] && record.lastName === cursorValues[1]
       );
       if (cursorIndex === -1) {
@@ -15913,7 +15913,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
       const cursorValues = ["childFirstName", "childLastName"].map(
         (field) => (query.cursor as Record<string, unknown>)[field]
       );
-      const cursorIndex = selectAppliedRecords.findIndex(
+      const cursorIndex = relationAppliedRecords.findIndex(
         (record) => record.childFirstName === cursorValues[0] && record.childLastName === cursorValues[1]
       );
       if (cursorIndex === -1) {
@@ -16865,7 +16865,7 @@ class CompositeIdIntStringIDBClass extends BaseIDBModelClass<"CompositeIdIntStri
     }
     if (query?.cursor) {
       const cursorValues = ["orgId", "code"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex(
+      const cursorIndex = relationAppliedRecords.findIndex(
         (record) => record.orgId === cursorValues[0] && record.code === cursorValues[1]
       );
       if (cursorIndex === -1) {
@@ -17473,7 +17473,7 @@ class CompositeIdWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeIdWith
     }
     if (query?.cursor) {
       const cursorValues = ["tenantId", "createdAt"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex(
+      const cursorIndex = relationAppliedRecords.findIndex(
         (record) => record.tenantId === cursorValues[0] && record.createdAt === cursorValues[1]
       );
       if (cursorIndex === -1) {
@@ -18081,7 +18081,7 @@ class TripleCompositeIdWithDateIDBClass extends BaseIDBModelClass<"TripleComposi
       const cursorValues = ["region", "year", "eventDate"].map(
         (field) => (query.cursor as Record<string, unknown>)[field]
       );
-      const cursorIndex = selectAppliedRecords.findIndex(
+      const cursorIndex = relationAppliedRecords.findIndex(
         (record) =>
           record.region === cursorValues[0] && record.year === cursorValues[1] && record.eventDate === cursorValues[2]
       );
@@ -18741,7 +18741,7 @@ class CompositeUniqueWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeUn
     }
     if (query?.cursor) {
       const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
@@ -19359,7 +19359,7 @@ class CompositeUniqueFloatIntIDBClass extends BaseIDBModelClass<"CompositeUnique
     }
     if (query?.cursor) {
       const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
@@ -19965,7 +19965,7 @@ class MultipleCompositeUniquesIDBClass extends BaseIDBModelClass<"MultipleCompos
     }
     if (query?.cursor) {
       const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
@@ -20625,7 +20625,7 @@ class ModelWithIndexIDBClass extends BaseIDBModelClass<"ModelWithIndex"> {
     }
     if (query?.cursor) {
       const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
