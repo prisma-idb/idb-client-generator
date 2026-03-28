@@ -1,0 +1,89 @@
+---
+title: "Prisma Client vs IDB Client"
+description: "Behavioral differences between Prisma Client and Prisma IDB Client"
+icon: GitCompare
+---
+
+Prisma IDB aims to replicate the Prisma Client API as faithfully as possible — same query syntax, same return shapes, same type signatures. However, because it runs entirely in the browser on IndexedDB, there are inherent differences in how it works under the hood, and a few cases where it intentionally diverges for better developer experience.
+
+## Architecture
+
+| Aspect            | Prisma Client                   | Prisma IDB Client                                |
+| ----------------- | ------------------------------- | ------------------------------------------------ |
+| **Runtime**       | Node.js / server                | Browser / client                                 |
+| **Storage**       | PostgreSQL, MySQL, SQLite, etc. | IndexedDB                                        |
+| **Query Engine**  | Rust-based query engine         | In-memory JavaScript filters and comparators     |
+| **Connection**    | Database connection pool        | IDB transactions via `idb` library               |
+| **Schema Source** | `schema.prisma`                 | Same `schema.prisma`, processed by the generator |
+
+## API Compatibility
+
+The IDB client supports the core Prisma Client API surface:
+
+- **CRUD operations:** `findUnique`, `findFirst`, `findMany`, `create`, `createMany`, `update`, `updateMany`, `upsert`, `delete`, `deleteMany`
+- **Nested queries:** `create`, `connect`, `connectOrCreate`, `disconnect`, `set`, `delete`, `update`
+- **Filtering:** `where` clauses with `equals`, `not`, `in`, `notIn`, `lt`, `lte`, `gt`, `gte`, `contains`, `startsWith`, `endsWith`, and logical operators (`AND`, `OR`, `NOT`)
+- **Ordering:** `orderBy` with `asc` / `desc`
+- **Pagination:** `skip`, `take`, `cursor`
+- **Relations:** `include` and `select` for eager loading
+- **Aggregations:** `count`, `aggregate`, `groupBy`
+- **Transactions:** Interactive transactions via `$transaction`
+
+## Intentional Behavior Differences
+
+In some cases, Prisma Client silently accepts operations that are almost certainly bugs in user code. The IDB client chooses to throw clear errors instead, improving developer experience and making issues easier to diagnose.
+
+### Disconnecting a Non-Existent Relation
+
+When you try to disconnect a relation that doesn't exist, Prisma silently succeeds — the operation is a no-op:
+
+```typescript
+// User has no posts connected
+await prisma.user.update({
+  where: { id: 1 },
+  data: { posts: { disconnect: [{ id: 999 }] } },
+});
+// Prisma: silently succeeds, returns the user
+// IDB:   throws "Record not found"
+```
+
+**Why IDB throws:** If you're trying to disconnect a record that isn't connected, it's almost certainly a bug. The IDB client surfaces this immediately rather than letting it pass silently.
+
+### Setting a Relation to a Non-Existent Record
+
+When you use `set` to replace a relation list with IDs that don't exist, Prisma silently succeeds:
+
+```typescript
+await prisma.user.update({
+  where: { id: 1 },
+  data: { posts: { set: [{ id: 999 }] } },
+});
+// Prisma: silently succeeds
+// IDB:   throws "Record not found"
+```
+
+**Why IDB throws:** Setting a relation to records that don't exist is a data integrity issue. The IDB client catches this early.
+
+## How Querying Works
+
+### Prisma Client
+
+Prisma uses a Rust-based query engine that translates your queries into optimized SQL. The database handles filtering, sorting, joins, and aggregation natively — Prisma acts as an ORM layer on top.
+
+### IDB Client
+
+IndexedDB has no query language. The IDB client uses a different strategy:
+
+1. **Index selection:** For queries with equality filters on indexed fields, the client selects the most selective matching index to narrow the initial record set using `IDBKeyRange`.
+2. **In-memory filtering:** Remaining `where` conditions (comparisons, string operations, logical combinators) are evaluated in JavaScript using generated filter functions.
+3. **In-memory sorting:** `orderBy` is applied via generated comparator functions after filtering.
+4. **Pagination:** `cursor`, `skip`, and `take` are applied after sorting — cursor locates the starting record, skip offsets from there, and take limits the result count.
+5. **Relation loading:** `include` and `select` trigger separate lookups into related object stores, joined in memory.
+
+This means performance characteristics differ from SQL databases. Large datasets with complex filters may be slower than their SQL equivalents. Proper use of [indexes](/docs/indexes) helps significantly.
+
+## Type System
+
+Both clients derive their types from the same `schema.prisma` file, so the query API and result types are identical. The IDB client uses the same `Prisma` namespace types, meaning you get the same autocompletion and compile-time checks.
+
+One difference: the IDB client avoids DOM-specific types internally (like `IDBKeyRange`) in its type definitions, ensuring compatibility in non-browser environments such as test runners and SSR.
