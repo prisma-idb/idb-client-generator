@@ -36,7 +36,12 @@ function getFromKeyIdentifier(writer: CodeBlockWriter, model: Model) {
 
   let fields: string;
   if (fieldNames.length === 1) {
-    fields = JSON.stringify(fieldNames.map((fieldName: string) => `query.where.${fieldName}`));
+    fields = JSON.stringify(
+      fieldNames.map((fieldName: string, i: number) => {
+        const access = `query.where.${fieldName}`;
+        return keyUniqueIdentifier.keyPathTypes[i] === "Date" ? `new Date(${access})` : access;
+      })
+    );
   } else {
     fields = JSON.stringify(
       fieldNames.map((fieldName: string, i: number) => {
