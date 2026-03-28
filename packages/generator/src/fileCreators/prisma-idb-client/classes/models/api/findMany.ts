@@ -2,6 +2,17 @@ import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
 import { getOptionsParameterRead, getOptionsSetupRead } from "../helpers/methodOptions";
 
+function getPrimaryKeyFields(model: Model): readonly string[] {
+  if (model.primaryKey) {
+    return model.primaryKey.fields;
+  }
+  const idField = model.fields.find(({ isId }) => isId);
+  if (idField) {
+    return [idField.name];
+  }
+  return [];
+}
+
 export function addFindManyMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async findMany<Q extends Prisma.Args<Prisma.${model.name}Delegate, "findMany">>(`)
@@ -14,6 +25,7 @@ export function addFindManyMethod(writer: CodeBlockWriter, model: Model) {
       applyRelationsToRecords(writer, model);
       applySelectClauseToRecords(writer);
       applyDistinctClauseToRecords(writer);
+      applyPaginationClause(writer, model);
       returnRecords(writer, model);
     });
 }
@@ -53,6 +65,42 @@ function applyDistinctClauseToRecords(writer: CodeBlockWriter) {
           .writeLine(`return true;`);
       })
       .writeLine(");");
+  });
+}
+
+function applyPaginationClause(writer: CodeBlockWriter, model: Model) {
+  const pkFields = getPrimaryKeyFields(model);
+
+  if (pkFields.length > 0) {
+    writer.write("if (query?.cursor)").block(() => {
+      writer.writeLine(
+        `const cursorValues = ${JSON.stringify(pkFields)}.map((field) => (query.cursor as Record<string, unknown>)[field]);`
+      );
+      writer.writeLine(
+        `const cursorIndex = selectAppliedRecords.findIndex((record) => ${pkFields
+          .map((f, i) => `record.${f} === cursorValues[${i}]`)
+          .join(" && ")});`
+      );
+      writer.write("if (cursorIndex === -1)").block(() => {
+        writer.writeLine("selectAppliedRecords = [];");
+      });
+      writer.write("else").block(() => {
+        writer.writeLine("selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);");
+      });
+    });
+  }
+
+  writer.write("if (query?.skip)").block(() => {
+    writer.writeLine("selectAppliedRecords = selectAppliedRecords.slice(query.skip);");
+  });
+
+  writer.write("if (query?.take !== undefined)").block(() => {
+    writer.write("if (query.take < 0)").block(() => {
+      writer.writeLine("selectAppliedRecords = selectAppliedRecords.slice(query.take);");
+    });
+    writer.write("else").block(() => {
+      writer.writeLine("selectAppliedRecords = selectAppliedRecords.slice(0, query.take);");
+    });
   });
 }
 
