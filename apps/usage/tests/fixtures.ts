@@ -18,6 +18,8 @@ async function resetDatabase() {
       "CompositeUniqueFloatInt",
       "MultipleCompositeUniques",
       "ModelWithIndex",
+      "ModelWithUniqueAttributes",
+      "ModelWithOptionalRelationToUniqueAttributes",
       "Profile",
       "TestUuid",
       "ModelWithEnum"
