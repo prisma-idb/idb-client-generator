@@ -98,3 +98,25 @@ test("distinct_WithOrderByAndMultipleUsers_ReturnsOrderedDistinctData", async ({
     },
   });
 });
+
+test("distinct_EmptyArray_CollapsesAllRows", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "createMany",
+    query: {
+      data: [{ name: "Alice" }, { name: "Alice" }, { name: "Bob" }],
+    },
+  });
+
+  // Prisma treats distinct: [] as collapsing all rows to a single result
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "findMany",
+    query: {
+      distinct: [],
+      orderBy: { id: "asc" },
+    },
+  });
+});

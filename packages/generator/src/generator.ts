@@ -31,6 +31,7 @@ generatorHandler({
       outboxModelName,
       versionMetaModelName,
       filteredModels,
+      indexes,
       exportEnums,
       rootModel,
     } = parseGeneratorConfig(options);
@@ -55,7 +56,7 @@ generatorHandler({
       });
 
       await writePrismaSchemaFile("client/scoped-schema.prisma", outputPath, (writer) => {
-        createScopedSchemaFile(writer, { filteredModels, enums: options.dmmf.datamodel.enums });
+        createScopedSchemaFile(writer, { filteredModels, enums: options.dmmf.datamodel.enums, indexes });
       });
 
       await writeCodeFile("server/index.ts", outputPath, (writer) => {
@@ -84,6 +85,7 @@ generatorHandler({
         outboxSync,
         outboxModelName,
         versionMetaModelName,
+        indexes,
       });
     });
 
@@ -94,6 +96,7 @@ generatorHandler({
         outboxSync,
         outboxModelName,
         versionMetaModelName,
+        indexes,
       });
     });
 

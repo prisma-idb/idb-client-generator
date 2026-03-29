@@ -10,7 +10,19 @@ async function resetDatabase() {
       "Post", 
       "UserGroup", 
       "Group", 
-      "User" 
+      "User",
+      "CompositeIdIntString",
+      "CompositeIdWithDateTime",
+      "TripleCompositeIdWithDate",
+      "CompositeUniqueWithDateTime",
+      "CompositeUniqueFloatInt",
+      "MultipleCompositeUniques",
+      "ModelWithIndex",
+      "ModelWithUniqueAttributes",
+      "ModelWithOptionalRelationToUniqueAttributes",
+      "Profile",
+      "TestUuid",
+      "ModelWithEnum"
       RESTART IDENTITY CASCADE;`);
 }
 

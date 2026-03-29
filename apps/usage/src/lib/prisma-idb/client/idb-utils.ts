@@ -10,6 +10,7 @@ export type ReadonlyTransactionType = IDBPTransaction<PrismaIDBSchema, StoreName
 export type TransactionType = ReadonlyTransactionType | ReadwriteTransactionType;
 
 export const LogicalParams = ["AND", "OR", "NOT"] as const;
+export const IDBKeyRange = globalThis.IDBKeyRange;
 
 export function intersectArraysByNestedKey<T>(arrays: T[][], keyPath: string[]): T[] {
   const safeArrays = arrays ?? [];
@@ -804,4 +805,17 @@ export function genericComparator(
     throw new Error(`Comparison of type: ${typeof a} not yet supported`);
   }
   return returnValue * multiplier;
+}
+
+export function extractEqualityValue(whereFieldValue: unknown): string | number | Date | Uint8Array | undefined {
+  if (whereFieldValue === undefined || whereFieldValue === null) return undefined;
+  if (whereFieldValue instanceof Date) return whereFieldValue;
+  if (typeof whereFieldValue === "string" || typeof whereFieldValue === "number") return whereFieldValue;
+  if (whereFieldValue instanceof Uint8Array) return whereFieldValue;
+  if (typeof whereFieldValue === "object" && !Array.isArray(whereFieldValue)) {
+    if ("equals" in (whereFieldValue as object)) {
+      return extractEqualityValue((whereFieldValue as Record<string, unknown>).equals);
+    }
+  }
+  return undefined;
 }

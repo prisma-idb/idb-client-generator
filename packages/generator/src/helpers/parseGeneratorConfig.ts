@@ -1,6 +1,7 @@
 import path from "path";
 import type { GeneratorOptions, DMMF } from "@prisma/generator-helper";
 import { getProjectedFilteredModels } from "./getFilteredModels";
+import { getUnsupportedKeyFields, getNonUniqueIndexes } from "./utils";
 
 export interface ParsedGeneratorConfig {
   prismaClientImport: string;
@@ -8,6 +9,7 @@ export interface ParsedGeneratorConfig {
   include: string[];
   exclude: string[];
   filteredModels: DMMF.Model[];
+  indexes: DMMF.Index[];
   outboxSync: boolean;
   outboxModelName: string;
   versionMetaModelName: string;
@@ -145,6 +147,75 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
 
   const filteredModels = getProjectedFilteredModels(models.filter((model) => isIncluded(model.name)));
 
+  // === Extract datamodel indexes ===
+  const datamodelIndexes = options.dmmf.datamodel.indexes ?? [];
+
+  // === Warn and exclude models with unsupported IDB key types (cascading) ===
+  const excludedByKeyType = new Set<string>();
+
+  // Phase 1: Identify directly unsupported models
+  for (const model of filteredModels) {
+    const unsupported = getUnsupportedKeyFields(model);
+    if (unsupported.length > 0) {
+      excludedByKeyType.add(model.name);
+      for (const { fieldName, fieldType, context } of unsupported) {
+        console.warn(
+          `@prisma-idb/idb-client-generator: Model "${model.name}" has field "${fieldName}" (${fieldType}) in ${context} ` +
+            `which is not a valid IndexedDB key type. Valid IDB key types are: number (Int/Float), string (String), Date (DateTime), BufferSource (Bytes). ` +
+            `This model will be excluded from the generated client.`
+        );
+      }
+    }
+  }
+
+  // Phase 2: Cascade — exclude models with required relations to excluded models
+  if (excludedByKeyType.size > 0) {
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const model of filteredModels) {
+        if (excludedByKeyType.has(model.name)) continue;
+        const requiredRelationsToExcluded = model.fields.filter(
+          (f) => f.kind === "object" && !f.isList && f.isRequired && excludedByKeyType.has(f.type)
+        );
+        if (requiredRelationsToExcluded.length > 0) {
+          excludedByKeyType.add(model.name);
+          changed = true;
+          const parentNames = requiredRelationsToExcluded.map((f) => `"${f.type}"`).join(", ");
+          console.warn(
+            `@prisma-idb/idb-client-generator: Model "${model.name}" has a required relation to excluded model(s) ${parentNames}. ` +
+              `It will also be excluded from the generated client.`
+          );
+        }
+      }
+    }
+  }
+
+  const validModels =
+    excludedByKeyType.size > 0
+      ? getProjectedFilteredModels(filteredModels.filter((model) => !excludedByKeyType.has(model.name)))
+      : filteredModels;
+
+  // === Guard: root model must survive the full pipeline ===
+  if (outboxSync && rootModel) {
+    if (!validModels.some((m) => m.name === rootModel.name)) {
+      throw new Error(
+        `@prisma-idb/idb-client-generator: Root model "${rootModel.name}" is not present in the final set of valid models. ` +
+          `It may have been excluded by include/exclude patterns or due to unsupported IDB key types. ` +
+          `The ownership DAG cannot be constructed without it.`
+      );
+    }
+  }
+
+  // Filter indexes to only include those for valid models
+  const validModelNames = new Set(validModels.map((m) => m.name));
+  const validIndexes = datamodelIndexes.filter((idx) => validModelNames.has(idx.model));
+
+  // Warn about skipped indexes (unsupported key types) once during config parsing
+  for (const model of validModels) {
+    getNonUniqueIndexes(model, validIndexes, true);
+  }
+
   return {
     prismaClientImport,
     outboxSync,
@@ -153,7 +224,8 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
     exportEnums,
     include,
     exclude,
-    filteredModels,
+    filteredModels: validModels,
+    indexes: validIndexes,
     rootModel,
   };
 }

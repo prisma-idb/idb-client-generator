@@ -13,6 +13,9 @@ generator prismaIDB {
   exportEnums = true
 }
 
+// ── Core models ──────────────────────────────────────────────────────
+// Primary models used for relation, CRUD, and event testing.
+
 model User {
   id       Int         @id @default(autoincrement())
   name     String
@@ -30,16 +33,6 @@ model Group {
   id         Int         @id @default(autoincrement())
   name       String
   userGroups UserGroup[]
-}
-
-model UserGroup {
-  group    Group    @relation(fields: [groupId], references: [id])
-  groupId  Int
-  user     User     @relation(fields: [userId], references: [id])
-  userId   Int
-  joinedOn DateTime @default(now())
-
-  @@id([groupId, userId])
 }
 
 model Profile {
@@ -69,6 +62,18 @@ model Comment {
   text   String
 }
 
+model Todo {
+  id        String  @id @default(uuid())
+  title     String
+  completed Boolean @default(false)
+
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+}
+
+// ── Scalar type coverage ─────────────────────────────────────────────
+// Ensures all Prisma scalar types are exercised during generation.
+
 model AllFieldScalarTypes {
   id          Int        @id @default(autoincrement())
   string      String
@@ -88,6 +93,58 @@ model AllFieldScalarTypes {
   manyBytes   Bytes[]
 }
 
+// ── Enum support ─────────────────────────────────────────────────────
+
+model ModelWithEnum {
+  id           Int      @id @default(autoincrement())
+  enum         MyEnum
+  nullableEnum MyEnum?
+  enumArray    MyEnum[]
+}
+
+enum MyEnum {
+  A
+  B
+  C
+}
+
+// ── ID strategy variants ─────────────────────────────────────────────
+// Models testing different @id strategies (uuid, cuid, autoincrement).
+
+model TestUuid {
+  id   String @id @default(uuid())
+  name String
+}
+
+// ── Unique attributes & optional relations ───────────────────────────
+
+model ModelWithOptionalRelationToUniqueAttributes {
+  id     String                     @id @default(uuid())
+  link   ModelWithUniqueAttributes? @relation(fields: [linkId], references: [id])
+  linkId Int?
+}
+
+model ModelWithUniqueAttributes {
+  id    Int                                           @id @default(autoincrement())
+  code  String                                        @unique
+  links ModelWithOptionalRelationToUniqueAttributes[]
+}
+
+// ── Composite @@id models ────────────────────────────────────────────
+// Models with multi-field primary keys (@@id).
+
+/// Composite @@id with Int + Int — baseline for composite keys
+model UserGroup {
+  group    Group    @relation(fields: [groupId], references: [id])
+  groupId  Int
+  user     User     @relation(fields: [userId], references: [id])
+  userId   Int
+  joinedOn DateTime @default(now())
+
+  @@id([groupId, userId])
+}
+
+/// Composite @@id with String + String — tests string-based composite keys
 model Father {
   firstName       String
   lastName        String
@@ -102,6 +159,7 @@ model Father {
   @@unique([motherFirstName, motherLastName])
 }
 
+/// Composite @@id with String + String (second instance for relation coverage)
 model Mother {
   firstName String
   lastName  String
@@ -113,6 +171,7 @@ model Mother {
   @@id([firstName, lastName])
 }
 
+/// Composite @@id with String + String (child relations to two composite-keyed parents)
 model Child {
   childFirstName  String
   childLastName   String
@@ -129,41 +188,81 @@ model Child {
   @@id([childFirstName, childLastName])
 }
 
-model ModelWithEnum {
-  id           Int      @id @default(autoincrement())
-  enum         MyEnum
-  nullableEnum MyEnum?
-  enumArray    MyEnum[]
+/// Composite @@id with Int + String
+model CompositeIdIntString {
+  orgId   Int
+  code    String
+  details String?
+
+  @@id([orgId, code])
 }
 
-enum MyEnum {
-  A
-  B
-  C
+/// Composite @@id containing a DateTime field
+model CompositeIdWithDateTime {
+  tenantId  String
+  createdAt DateTime
+  label     String
+
+  @@id([tenantId, createdAt])
 }
 
-model TestUuid {
-  id   String @id @default(uuid())
-  name String
+/// Triple-field composite @@id including a DateTime
+model TripleCompositeIdWithDate {
+  region    String
+  year      Int
+  eventDate DateTime
+  payload   String?
+
+  @@id([region, year, eventDate])
 }
 
-model ModelWithOptionalRelationToUniqueAttributes {
-  id     String                     @id @default(uuid())
-  link   ModelWithUniqueAttributes? @relation(fields: [linkId], references: [id])
-  linkId Int?
+// ── Composite @@unique models ────────────────────────────────────────
+// Models with multi-field unique constraints (@@unique).
+
+/// Composite @@unique with String + DateTime
+model CompositeUniqueWithDateTime {
+  id        Int      @id @default(autoincrement())
+  category  String
+  timestamp DateTime
+
+  @@unique([category, timestamp])
 }
 
-model ModelWithUniqueAttributes {
-  id    Int                                           @id @default(autoincrement())
-  code  String                                        @unique
-  links ModelWithOptionalRelationToUniqueAttributes[]
+/// Multiple composite @@unique with Float + Int combinations
+model CompositeUniqueFloatInt {
+  id     Int   @id @default(autoincrement())
+  lat    Float
+  lng    Float
+  zoneId Int
+
+  @@unique([lat, lng])
+  @@unique([zoneId, lat])
 }
 
-model Todo {
-  id        String  @id @default(uuid())
-  title     String
-  completed Boolean @default(false)
+/// Multiple composite @@unique constraints mixing String, Int, DateTime, Float
+model MultipleCompositeUniques {
+  id    Int    @id @default(autoincrement())
+  a     String
+  b     Int
+  c     DateTime
+  d     Float
 
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId Int
+  @@unique([a, b])
+  @@unique([c, d])
+  @@unique([a, c])
+}
+
+// ── @@index models ───────────────────────────────────────────────────
+// Non-unique indexes (@@index). The generator creates IDB indexes
+// for these with { unique: false }.
+
+/// Model with @@index (non-unique composite and single-field)
+model ModelWithIndex {
+  id       Int      @id @default(autoincrement())
+  category String
+  priority Int
+  date     DateTime
+
+  @@index([category, priority])
+  @@index([date])
 }

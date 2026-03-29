@@ -23,7 +23,7 @@ function addImports(
   if (outboxSync) {
     writer
       .writeLine(
-        `import type { OutboxEventRecord, ChangeMetaRecord, PrismaIDBSchema, SyncWorkerOptions, SyncWorker } from "./idb-interface";`
+        `import type { OutboxEventRecord, ChangeMetaRecord, PrismaIDBSchema, SyncWorkerOptions, SyncWorker, IDBValidKey } from "./idb-interface";`
       )
       .writeLine(`import type { PushResult } from "../server/batch-processor";`)
       .writeLine(`import { validators, keyPathValidators, modelRecordToKeyPath } from "../validators";`)
@@ -58,6 +58,7 @@ export function createPrismaIDBClientFile(
     outboxSync: boolean;
     outboxModelName: string;
     versionMetaModelName: string;
+    indexes?: DMMF.Index[];
     include?: string[];
     exclude?: string[];
   }
@@ -68,15 +69,16 @@ export function createPrismaIDBClientFile(
     outboxSync,
     outboxModelName,
     versionMetaModelName,
+    indexes = [],
     include = ["*"],
     exclude = [],
   } = options;
   addImports(writer, models, prismaClientImport, outboxSync);
   addVersionDeclaration(writer);
-  addClientClass(writer, models, outboxSync, outboxModelName, versionMetaModelName, include, exclude);
+  addClientClass(writer, models, outboxSync, outboxModelName, versionMetaModelName, include, exclude, indexes);
   addBaseModelClass(writer, outboxSync);
   models.forEach((model) => {
-    addIDBModelClass(writer, model, models, outboxSync, outboxModelName, versionMetaModelName);
+    addIDBModelClass(writer, model, models, outboxSync, outboxModelName, versionMetaModelName, indexes);
   });
   if (outboxSync) {
     addOutboxEventIDBClass(writer, outboxModelName);

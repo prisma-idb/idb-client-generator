@@ -1,4 +1,7 @@
+import { DMMF } from "@prisma/generator-helper";
 import { Model } from "../fileCreators/types";
+
+export type IndexIdentifier = { name: string; keyPath: string; keyPathType: string };
 
 export function toCamelCase(str: string): string {
   return str
@@ -26,6 +29,94 @@ const prismaToPrimitiveTypesMap = {
   Decimal: "Prisma.Decimal",
   Bytes: "Uint8Array",
 };
+
+// IDBValidKey = number | string | Date | BufferSource | IDBValidKey[]
+// These Prisma types map to valid IDB key types
+const validIDBKeyPrismaTypes = new Set(["Int", "Float", "String", "DateTime", "Bytes"]);
+
+/**
+ * Returns the field names and their Prisma types that are used as IDB key fields
+ * but have types not supported by IndexedDB's IDBValidKey constraint.
+ */
+export function getUnsupportedKeyFields(model: Model): { fieldName: string; fieldType: string; context: string }[] {
+  const unsupported: { fieldName: string; fieldType: string; context: string }[] = [];
+
+  const checkFields = (fieldNames: readonly string[], context: string) => {
+    for (const fieldName of fieldNames) {
+      const field = model.fields.find(({ name }) => name === fieldName);
+      if (field && !validIDBKeyPrismaTypes.has(field.type)) {
+        unsupported.push({ fieldName, fieldType: field.type, context });
+      }
+    }
+  };
+
+  // Check composite @@id
+  if (model.primaryKey) {
+    checkFields(model.primaryKey.fields, `@@id([${model.primaryKey.fields.join(", ")}])`);
+  }
+
+  // Check single @id
+  const idField = model.fields.find(({ isId }) => isId);
+  if (idField && !validIDBKeyPrismaTypes.has(idField.type)) {
+    unsupported.push({ fieldName: idField.name, fieldType: idField.type, context: `@id` });
+  }
+
+  // Check single @unique fields
+  for (const field of model.fields.filter(({ isUnique }) => isUnique)) {
+    if (!validIDBKeyPrismaTypes.has(field.type)) {
+      unsupported.push({ fieldName: field.name, fieldType: field.type, context: `@unique` });
+    }
+  }
+
+  // Check composite @@unique
+  for (const { fields } of model.uniqueIndexes) {
+    checkFields(fields, `@@unique([${fields.join(", ")}])`);
+  }
+
+  return unsupported;
+}
+
+/**
+ * Returns non-unique indexes (@@index) for a model, skipping any that use
+ * unsupported IDB key types. When `printLogs` is true, warnings are logged
+ * for skipped indexes.
+ */
+export function getNonUniqueIndexes(
+  model: Model,
+  datamodelIndexes: readonly DMMF.Index[],
+  printLogs = false
+): IndexIdentifier[] {
+  const modelIndexes = datamodelIndexes.filter((i) => i.model === model.name && i.type === "normal");
+  const result: IndexIdentifier[] = [];
+
+  for (const idx of modelIndexes) {
+    const fieldNames = idx.fields.map((f) => f.name);
+    const unsupportedField = fieldNames.find((fieldName) => {
+      const field = model.fields.find(({ name }) => name === fieldName);
+      return field && !validIDBKeyPrismaTypes.has(field.type);
+    });
+    if (unsupportedField) {
+      if (printLogs) {
+        const field = model.fields.find(({ name }) => name === unsupportedField)!;
+        console.log(
+          `@prisma-idb/idb-client-generator: Model "${model.name}" has @@index([${fieldNames.join(", ")}]) ` +
+            `with field "${unsupportedField}" (${field.type}) which is not a valid IndexedDB key type. ` +
+            `This index will be skipped.`
+        );
+      }
+      continue;
+    }
+
+    const name = idx.name ?? fieldNames.join("_");
+    result.push({
+      name,
+      keyPath: JSON.stringify(fieldNames),
+      keyPathType: createIdentifierTuple(fieldNames, model),
+    });
+  }
+
+  return result;
+}
 
 export function getUniqueIdentifiers(model: Model) {
   const uniqueIdentifiers: { name: string; keyPath: string; keyPathType: string; keyPathTypes: string[] }[] = [];

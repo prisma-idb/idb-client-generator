@@ -39,12 +39,14 @@ test("disconnect_DisconnectNonExistentRelation_ThrowsError", async ({ page }) =>
     query: { data: { name: "John" } },
   });
 
+  // IDB client intentionally throws here; Prisma silently no-ops
   await expectQueryToFail({
     page,
     model: "user",
     operation: "update",
     query: { where: { id: 1 }, data: { posts: { disconnect: [{ id: 999 }] } } },
     errorMessage: "Record not found",
+    expectPrismaToAlsoFail: false,
   });
 });
 

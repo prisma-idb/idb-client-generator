@@ -27,6 +27,7 @@ import { addIntUpdateHandler } from "./updateHandlers/IntHandler";
 import { addScalarListUpdateHandler } from "./updateHandlers/ScalarListHandler";
 import { addStringUpdateHandler } from "./updateHandlers/StringHandler";
 import { addAreUint8ArraysEqualHelper } from "./helpers/areUint8ArraysEqual";
+import { addExtractEqualityValue } from "./helpers/extractEqualityValue";
 
 export function createUtilsFile(
   writer: CodeBlockWriter,
@@ -56,6 +57,7 @@ export function createUtilsFile(
   writer.blankLine();
 
   writer.writeLine(`export const LogicalParams = ["AND", "OR", "NOT"] as const;`);
+  writer.writeLine(`export const IDBKeyRange = globalThis.IDBKeyRange;`);
   writer.blankLine();
 
   addIntersectArraysByNestedKeyFunction(writer);
@@ -95,6 +97,7 @@ export function createUtilsFile(
   addScalarListUpdateHandler(writer, models);
 
   addGenericComparator(writer);
+  addExtractEqualityValue(writer);
 
   if (outboxSync) {
     addSyncWorkerCode(writer);

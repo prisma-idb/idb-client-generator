@@ -1,0 +1,241 @@
+---
+title: "Indexes"
+description: "How Prisma IDB handles @unique, @@unique, and @@index attributes"
+icon: ListOrdered
+---
+
+Prisma IDB translates Prisma's index-related schema attributes into IndexedDB indexes. This page covers what's supported, how each attribute maps, and the key-type restrictions that apply.
+
+## Quick Reference
+
+| Prisma Attribute | IDB Index   | Unique | Notes                            |
+| ---------------- | ----------- | ------ | -------------------------------- |
+| `@unique`        | ✅ Created  | Yes    | Single-field unique constraint   |
+| `@@unique`       | ✅ Created  | Yes    | Composite unique constraint      |
+| `@@index`        | ✅ Created  | No     | Non-unique index for performance |
+| `@id` / `@@id`   | Primary key | —      | Used as the IDB object store key |
+
+## `@unique` and `@@unique`
+
+Single-field `@unique` and composite `@@unique` constraints are translated into IndexedDB indexes with `{ unique: true }`. The generated client enforces uniqueness during writes and uses these indexes for efficient lookups.
+
+### Single-field `@unique`
+
+```prisma
+model User {
+  id    Int    @id @default(autoincrement())
+  email String @unique
+}
+```
+
+The `email` field becomes a unique IDB index. This lets `findUnique` look up records by `email` efficiently:
+
+```typescript
+const user = await idb.user.findUnique({
+  where: { email: "alice@example.com" },
+});
+```
+
+### Composite `@@unique`
+
+```prisma
+model CompositeUniqueWithDateTime {
+  id        Int      @id @default(autoincrement())
+  category  String
+  timestamp DateTime
+
+  @@unique([category, timestamp])
+}
+```
+
+Creates a compound IDB index on `[category, timestamp]` with `{ unique: true }`. You can query by the full composite key:
+
+```typescript
+const record = await idb.compositeUniqueWithDateTime.findUnique({
+  where: {
+    category_timestamp: {
+      category: "events",
+      timestamp: new Date("2024-01-01"),
+    },
+  },
+});
+```
+
+Multiple `@@unique` constraints on a single model are fully supported:
+
+```prisma
+model CompositeUniqueFloatInt {
+  id     Int   @id @default(autoincrement())
+  lat    Float
+  lng    Float
+  zoneId Int
+
+  @@unique([lat, lng])
+  @@unique([zoneId, lat])
+}
+```
+
+## `@@index`
+
+Prisma `@@index` attributes are translated into non-unique IndexedDB indexes (`{ unique: false }`). These can improve read performance for queries that filter or sort on the indexed fields.
+
+```prisma
+model Product {
+  id       Int      @id @default(autoincrement())
+  category String
+  priority Int
+  date     DateTime
+
+  @@index([category, priority])
+  @@index([date])
+}
+```
+
+This generates two IDB indexes:
+
+- `category_priorityIndex` — compound index on `[category, priority]`
+- `dateIndex` — single-field index on `[date]`
+
+Unlike `@@unique`, non-unique indexes do **not** enforce constraints. They exist purely as a performance hint for the IndexedDB engine.
+
+<Callout type="info">
+  The generated client actively uses `@@index` indexes when your `where` clause contains equality filters on the indexed
+  fields. See [Query Optimization](#query-optimization) below for details.
+</Callout>
+
+## Query Optimization
+
+The generated client uses `@@index` indexes to narrow reads from IndexedDB rather than scanning every record with `getAll()`. When you pass a `where` clause, the client picks the best matching index automatically:
+
+### Full Match
+
+If your `where` provides equality values for **all** fields in an index, the client uses `IDBKeyRange.only()` for an exact key lookup:
+
+```typescript
+// Uses category_priorityIndex with IDBKeyRange.only(["Books", 5])
+await idb.product.findMany({
+  where: { category: "Books", priority: 5 },
+});
+```
+
+### Prefix Match
+
+For composite indexes, if your `where` provides equality values for **leading** fields (left-to-right prefix), the client uses `IDBKeyRange.bound()` to scan just that prefix range:
+
+```typescript
+// Uses category_priorityIndex — "category" is the first field
+await idb.product.findMany({
+  where: { category: "Books" },
+});
+```
+
+A composite index `[A, B, C]` supports prefix queries on `[A]`, `[A, B]`, or `[A, B, C]` — but **not** `[B]`, `[C]`, or `[B, C]` alone.
+
+### Fallback
+
+If no index matches the `where` clause, the client falls back to `getAll()` and filters in memory — the same behavior as before indexes were supported.
+
+### Index Selection Priority
+
+When multiple indexes could match, the client prefers:
+
+1. Indexes with **more fields fully matched** (most selective first)
+2. Full matches over prefix matches
+3. Longer prefixes over shorter ones
+
+## IDB Key Type Restrictions
+
+IndexedDB only supports certain types as key values ([`IDBValidKey`](https://developer.mozilla.org/en-US/docs/Web/API/IDBValidKey)). This restriction applies to fields used in `@id`, `@@id`, `@unique`, `@@unique`, and `@@index`.
+
+### Supported Types
+
+| Prisma Type | IDB Key Type   |
+| ----------- | -------------- |
+| `Int`       | `number`       |
+| `Float`     | `number`       |
+| `String`    | `string`       |
+| `DateTime`  | `Date`         |
+| `Bytes`     | `BufferSource` |
+
+### Unsupported Types
+
+| Prisma Type | Reason                                                             |
+| ----------- | ------------------------------------------------------------------ |
+| `Boolean`   | Not in `IDBValidKey`                                               |
+| `BigInt`    | Not in `IDBValidKey`                                               |
+| `Decimal`   | Precision loss when stored as JS `number`; unreliable key matching |
+| `Json`      | Objects are not valid IDB keys                                     |
+
+<Callout type="warn">
+  These types are perfectly fine as regular (non-key) fields. The restriction only applies to fields participating in an
+  index or key constraint.
+</Callout>
+
+### What Happens With Unsupported Types
+
+The behavior depends on the attribute:
+
+**`@id`, `@@id`, `@unique`, `@@unique`** — If any field uses an unsupported type, the **entire model** is excluded from the generated client. Any model with a required relation to an excluded model is also excluded (cascade). The generator prints a warning for each exclusion.
+
+```prisma
+// ❌ Excluded — Boolean is not a valid IDB key type
+model Setting {
+  active Boolean
+  name   String
+
+  @@id([active, name])
+}
+```
+
+**`@@index`** — If any field in the index uses an unsupported type, that **individual index is skipped** with a warning. The model itself is still included. Since `@@index` only affects performance (not identity or integrity), skipping it is safe.
+
+```prisma
+// ✅ Model included, but the @@index on `isActive` is skipped
+model Task {
+  id       Int     @id @default(autoincrement())
+  isActive Boolean
+  label    String
+
+  @@index([isActive])
+}
+```
+
+## Generated Output
+
+For a model like:
+
+```prisma
+model Product {
+  id       Int      @id @default(autoincrement())
+  category String
+  priority Int
+
+  @@index([category, priority])
+}
+```
+
+The generator produces:
+
+**IDB schema** (in `idb-interface.ts`):
+
+```typescript
+Product: {
+  key: [id: Prisma.Product["id"]];
+  value: Prisma.Product;
+  indexes: {
+    category_priorityIndex: [
+      category: Prisma.Product["category"],
+      priority: Prisma.Product["priority"],
+    ];
+  };
+};
+```
+
+**Object store initialization** (in `prisma-idb-client.ts`):
+
+```typescript
+const ProductStore = db.createObjectStore("Product", { keyPath: ["id"] });
+ProductStore.createIndex("category_priorityIndex", ["category", "priority"], { unique: false });
+```
+
+Unique indexes (`@unique`, `@@unique`) use `{ unique: true }` instead.

@@ -67,7 +67,7 @@ const users = await client.user.findMany({
 
 ## Pagination
 
-Use `skip` and `take` for pagination:
+Use `skip` and `take` for offset-based pagination:
 
 ```typescript
 const pageSize = 10;
@@ -76,6 +76,34 @@ const page = 1;
 const users = await client.user.findMany({
   skip: (page - 1) * pageSize,
   take: pageSize,
+});
+```
+
+Use `cursor` for cursor-based pagination — efficient for large datasets:
+
+```typescript
+// First page
+const firstPage = await client.user.findMany({
+  take: 10,
+  orderBy: { id: "asc" },
+});
+
+// Next page: start after the last item
+const nextPage = await client.user.findMany({
+  cursor: { id: firstPage[firstPage.length - 1].id },
+  skip: 1, // Skip the cursor record itself
+  take: 10,
+  orderBy: { id: "asc" },
+});
+```
+
+Negative `take` returns records from the end of the result set:
+
+```typescript
+// Last 5 users
+const lastFive = await client.user.findMany({
+  take: -5,
+  orderBy: { id: "asc" },
 });
 ```
 

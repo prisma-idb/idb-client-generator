@@ -17,36 +17,50 @@ export class PrismaIDBClient {
     this.includedModels = new Set([
       "User",
       "Group",
-      "UserGroup",
       "Profile",
       "Post",
       "Comment",
+      "Todo",
       "AllFieldScalarTypes",
-      "Father",
-      "Mother",
-      "Child",
       "ModelWithEnum",
       "TestUuid",
       "ModelWithOptionalRelationToUniqueAttributes",
       "ModelWithUniqueAttributes",
-      "Todo",
+      "UserGroup",
+      "Father",
+      "Mother",
+      "Child",
+      "CompositeIdIntString",
+      "CompositeIdWithDateTime",
+      "TripleCompositeIdWithDate",
+      "CompositeUniqueWithDateTime",
+      "CompositeUniqueFloatInt",
+      "MultipleCompositeUniques",
+      "ModelWithIndex",
     ]);
   }
   user!: UserIDBClass;
   group!: GroupIDBClass;
-  userGroup!: UserGroupIDBClass;
   profile!: ProfileIDBClass;
   post!: PostIDBClass;
   comment!: CommentIDBClass;
+  todo!: TodoIDBClass;
   allFieldScalarTypes!: AllFieldScalarTypesIDBClass;
-  father!: FatherIDBClass;
-  mother!: MotherIDBClass;
-  child!: ChildIDBClass;
   modelWithEnum!: ModelWithEnumIDBClass;
   testUuid!: TestUuidIDBClass;
   modelWithOptionalRelationToUniqueAttributes!: ModelWithOptionalRelationToUniqueAttributesIDBClass;
   modelWithUniqueAttributes!: ModelWithUniqueAttributesIDBClass;
-  todo!: TodoIDBClass;
+  userGroup!: UserGroupIDBClass;
+  father!: FatherIDBClass;
+  mother!: MotherIDBClass;
+  child!: ChildIDBClass;
+  compositeIdIntString!: CompositeIdIntStringIDBClass;
+  compositeIdWithDateTime!: CompositeIdWithDateTimeIDBClass;
+  tripleCompositeIdWithDate!: TripleCompositeIdWithDateIDBClass;
+  compositeUniqueWithDateTime!: CompositeUniqueWithDateTimeIDBClass;
+  compositeUniqueFloatInt!: CompositeUniqueFloatIntIDBClass;
+  multipleCompositeUniques!: MultipleCompositeUniquesIDBClass;
+  modelWithIndex!: ModelWithIndexIDBClass;
   public static async createClient(): Promise<PrismaIDBClient> {
     if (!PrismaIDBClient.instance) {
       const client = new PrismaIDBClient();
@@ -56,8 +70,19 @@ export class PrismaIDBClient {
     return PrismaIDBClient.instance;
   }
   public async resetDatabase() {
+    if (!globalThis.indexedDB) throw new Error("IndexedDB is not available in this environment");
     this._db.close();
-    window.indexedDB.deleteDatabase("prisma-idb");
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const req = globalThis.indexedDB.deleteDatabase("prisma-idb");
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+        req.onblocked = () => {};
+      });
+    } catch (e) {
+      await PrismaIDBClient.instance.initialize();
+      throw e;
+    }
     await PrismaIDBClient.instance.initialize();
   }
   shouldTrackModel(modelName: string): boolean {
@@ -68,43 +93,69 @@ export class PrismaIDBClient {
       upgrade(db) {
         db.createObjectStore("User", { keyPath: ["id"] });
         db.createObjectStore("Group", { keyPath: ["id"] });
-        db.createObjectStore("UserGroup", { keyPath: ["groupId", "userId"] });
         const ProfileStore = db.createObjectStore("Profile", { keyPath: ["id"] });
         ProfileStore.createIndex("userIdIndex", ["userId"], { unique: true });
         db.createObjectStore("Post", { keyPath: ["id"] });
         db.createObjectStore("Comment", { keyPath: ["id"] });
+        db.createObjectStore("Todo", { keyPath: ["id"] });
         db.createObjectStore("AllFieldScalarTypes", { keyPath: ["id"] });
+        db.createObjectStore("ModelWithEnum", { keyPath: ["id"] });
+        db.createObjectStore("TestUuid", { keyPath: ["id"] });
+        db.createObjectStore("ModelWithOptionalRelationToUniqueAttributes", { keyPath: ["id"] });
+        const ModelWithUniqueAttributesStore = db.createObjectStore("ModelWithUniqueAttributes", { keyPath: ["id"] });
+        ModelWithUniqueAttributesStore.createIndex("codeIndex", ["code"], { unique: true });
+        db.createObjectStore("UserGroup", { keyPath: ["groupId", "userId"] });
         const FatherStore = db.createObjectStore("Father", { keyPath: ["firstName", "lastName"] });
         FatherStore.createIndex("motherFirstName_motherLastNameIndex", ["motherFirstName", "motherLastName"], {
           unique: true,
         });
         db.createObjectStore("Mother", { keyPath: ["firstName", "lastName"] });
         db.createObjectStore("Child", { keyPath: ["childFirstName", "childLastName"] });
-        db.createObjectStore("ModelWithEnum", { keyPath: ["id"] });
-        db.createObjectStore("TestUuid", { keyPath: ["id"] });
-        db.createObjectStore("ModelWithOptionalRelationToUniqueAttributes", { keyPath: ["id"] });
-        const ModelWithUniqueAttributesStore = db.createObjectStore("ModelWithUniqueAttributes", { keyPath: ["id"] });
-        ModelWithUniqueAttributesStore.createIndex("codeIndex", ["code"], { unique: true });
-        db.createObjectStore("Todo", { keyPath: ["id"] });
+        db.createObjectStore("CompositeIdIntString", { keyPath: ["orgId", "code"] });
+        db.createObjectStore("CompositeIdWithDateTime", { keyPath: ["tenantId", "createdAt"] });
+        db.createObjectStore("TripleCompositeIdWithDate", { keyPath: ["region", "year", "eventDate"] });
+        const CompositeUniqueWithDateTimeStore = db.createObjectStore("CompositeUniqueWithDateTime", {
+          keyPath: ["id"],
+        });
+        CompositeUniqueWithDateTimeStore.createIndex("category_timestampIndex", ["category", "timestamp"], {
+          unique: true,
+        });
+        const CompositeUniqueFloatIntStore = db.createObjectStore("CompositeUniqueFloatInt", { keyPath: ["id"] });
+        CompositeUniqueFloatIntStore.createIndex("lat_lngIndex", ["lat", "lng"], { unique: true });
+        CompositeUniqueFloatIntStore.createIndex("zoneId_latIndex", ["zoneId", "lat"], { unique: true });
+        const MultipleCompositeUniquesStore = db.createObjectStore("MultipleCompositeUniques", { keyPath: ["id"] });
+        MultipleCompositeUniquesStore.createIndex("a_bIndex", ["a", "b"], { unique: true });
+        MultipleCompositeUniquesStore.createIndex("c_dIndex", ["c", "d"], { unique: true });
+        MultipleCompositeUniquesStore.createIndex("a_cIndex", ["a", "c"], { unique: true });
+        const ModelWithIndexStore = db.createObjectStore("ModelWithIndex", { keyPath: ["id"] });
+        ModelWithIndexStore.createIndex("category_priorityIndex", ["category", "priority"], { unique: false });
+        ModelWithIndexStore.createIndex("dateIndex", ["date"], { unique: false });
       },
     });
     this.user = new UserIDBClass(this, ["id"]);
     this.group = new GroupIDBClass(this, ["id"]);
-    this.userGroup = new UserGroupIDBClass(this, ["groupId", "userId"]);
     this.profile = new ProfileIDBClass(this, ["id"]);
     this.post = new PostIDBClass(this, ["id"]);
     this.comment = new CommentIDBClass(this, ["id"]);
+    this.todo = new TodoIDBClass(this, ["id"]);
     this.allFieldScalarTypes = new AllFieldScalarTypesIDBClass(this, ["id"]);
-    this.father = new FatherIDBClass(this, ["firstName", "lastName"]);
-    this.mother = new MotherIDBClass(this, ["firstName", "lastName"]);
-    this.child = new ChildIDBClass(this, ["childFirstName", "childLastName"]);
     this.modelWithEnum = new ModelWithEnumIDBClass(this, ["id"]);
     this.testUuid = new TestUuidIDBClass(this, ["id"]);
     this.modelWithOptionalRelationToUniqueAttributes = new ModelWithOptionalRelationToUniqueAttributesIDBClass(this, [
       "id",
     ]);
     this.modelWithUniqueAttributes = new ModelWithUniqueAttributesIDBClass(this, ["id"]);
-    this.todo = new TodoIDBClass(this, ["id"]);
+    this.userGroup = new UserGroupIDBClass(this, ["groupId", "userId"]);
+    this.father = new FatherIDBClass(this, ["firstName", "lastName"]);
+    this.mother = new MotherIDBClass(this, ["firstName", "lastName"]);
+    this.child = new ChildIDBClass(this, ["childFirstName", "childLastName"]);
+    this.compositeIdIntString = new CompositeIdIntStringIDBClass(this, ["orgId", "code"]);
+    this.compositeIdWithDateTime = new CompositeIdWithDateTimeIDBClass(this, ["tenantId", "createdAt"]);
+    this.tripleCompositeIdWithDate = new TripleCompositeIdWithDateIDBClass(this, ["region", "year", "eventDate"]);
+    this.compositeUniqueWithDateTime = new CompositeUniqueWithDateTimeIDBClass(this, ["id"]);
+    this.compositeUniqueFloatInt = new CompositeUniqueFloatIntIDBClass(this, ["id"]);
+    this.multipleCompositeUniques = new MultipleCompositeUniquesIDBClass(this, ["id"]);
+    this.modelWithIndex = new ModelWithIndexIDBClass(this, ["id"]);
   }
 }
 class BaseIDBModelClass<T extends keyof PrismaIDBSchema> {
@@ -1358,14 +1409,14 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       this.client.todo._getNeededStoresForNestedDelete(neededStores);
     }
     if (query.data?.id !== undefined) {
-      neededStores.add("UserGroup");
       neededStores.add("Profile");
       neededStores.add("Post");
       neededStores.add("Comment");
+      neededStores.add("Todo");
+      neededStores.add("UserGroup");
       neededStores.add("Father");
       neededStores.add("Mother");
       neededStores.add("Child");
-      neededStores.add("Todo");
     }
     return neededStores;
   }
@@ -1395,6 +1446,12 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.UserDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.UserDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("User").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -1404,25 +1461,65 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("User").getAll(), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.UserDelegate,
       object,
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
-    if (query?.distinct) {
-      const distinctFields = IDBUtils.convertToArray(query.distinct);
-      const seen = new Set<string>();
-      selectAppliedRecords = selectAppliedRecords.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    }
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.UserDelegate, Q, "findMany">;
   }
@@ -1989,8 +2086,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    const relatedUserGroup = await this.client.userGroup.findMany({ where: { userId: record.id } }, { tx });
-    if (relatedUserGroup.length) throw new Error("Cannot delete record, other records depend on it");
     await this.client.profile.deleteMany(
       {
         where: { userId: record.id },
@@ -2011,6 +2106,14 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       },
       { tx, silent, addToOutbox }
     );
+    await this.client.todo.deleteMany(
+      {
+        where: { userId: record.id },
+      },
+      { tx, silent, addToOutbox }
+    );
+    const relatedUserGroup = await this.client.userGroup.findMany({ where: { userId: record.id } }, { tx });
+    if (relatedUserGroup.length) throw new Error("Cannot delete record, other records depend on it");
     await this.client.father.updateMany(
       {
         where: { userId: record.id },
@@ -2029,12 +2132,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       {
         where: { userId: record.id },
         data: { userId: null },
-      },
-      { tx, silent, addToOutbox }
-    );
-    await this.client.todo.deleteMany(
-      {
-        where: { userId: record.id },
       },
       { tx, silent, addToOutbox }
     );
@@ -2894,13 +2991,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     await this.emit("update", keyPath, startKeyPath, record, { silent, addToOutbox, tx });
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
-        await this.client.userGroup.updateMany(
-          {
-            where: { userId: startKeyPath[0] },
-            data: { userId: endKeyPath[0] },
-          },
-          { tx, silent, addToOutbox }
-        );
         await this.client.profile.updateMany(
           {
             where: { userId: startKeyPath[0] },
@@ -2922,6 +3012,20 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           },
           { tx, silent, addToOutbox }
         );
+        await this.client.todo.updateMany(
+          {
+            where: { userId: startKeyPath[0] },
+            data: { userId: endKeyPath[0] },
+          },
+          { tx, silent, addToOutbox }
+        );
+        await this.client.userGroup.updateMany(
+          {
+            where: { userId: startKeyPath[0] },
+            data: { userId: endKeyPath[0] },
+          },
+          { tx, silent, addToOutbox }
+        );
         await this.client.father.updateMany(
           {
             where: { userId: startKeyPath[0] },
@@ -2937,13 +3041,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           { tx, silent, addToOutbox }
         );
         await this.client.child.updateMany(
-          {
-            where: { userId: startKeyPath[0] },
-            data: { userId: endKeyPath[0] },
-          },
-          { tx, silent, addToOutbox }
-        );
-        await this.client.todo.updateMany(
           {
             where: { userId: startKeyPath[0] },
             data: { userId: endKeyPath[0] },
@@ -3383,6 +3480,12 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.GroupDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.GroupDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.GroupDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.GroupDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("Group").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.GroupDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -3392,25 +3495,65 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("Group").getAll(), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.GroupDelegate,
       object,
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
-    if (query?.distinct) {
-      const distinctFields = IDBUtils.convertToArray(query.distinct);
-      const seen = new Set<string>();
-      selectAppliedRecords = selectAppliedRecords.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    }
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.GroupDelegate, Q, "findMany">;
   }
@@ -3946,962 +4089,6 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     return result as unknown as Prisma.Result<Prisma.GroupDelegate, Q, "aggregate">;
   }
 }
-class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
-  constructor(client: PrismaIDBClient, keyPath: string[]) {
-    super(client, keyPath, "UserGroup");
-  }
-
-  private async _applyWhereClause<
-    W extends Prisma.Args<Prisma.UserGroupDelegate, "findFirstOrThrow">["where"],
-    R extends Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">,
-  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
-    if (!whereClause) return records;
-    records = await IDBUtils.applyLogicalFilters<Prisma.UserGroupDelegate, R, W>(
-      records,
-      whereClause,
-      tx,
-      this.keyPath,
-      this._applyWhereClause.bind(this)
-    );
-    return (
-      await Promise.all(
-        records.map(async (record) => {
-          const numberFields = ["groupId", "userId"] as const;
-          for (const field of numberFields) {
-            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
-          }
-          const dateTimeFields = ["joinedOn"] as const;
-          for (const field of dateTimeFields) {
-            if (!IDBUtils.whereDateTimeFilter(record, field, whereClause[field])) return null;
-          }
-          if (whereClause.group) {
-            const { is, isNot, ...rest } = whereClause.group;
-            if (is !== null && is !== undefined) {
-              const relatedRecord = await this.client.group.findFirst({ where: { ...is, id: record.groupId } }, { tx });
-              if (!relatedRecord) return null;
-            }
-            if (isNot !== null && isNot !== undefined) {
-              const relatedRecord = await this.client.group.findFirst(
-                { where: { ...isNot, id: record.groupId } },
-                { tx }
-              );
-              if (relatedRecord) return null;
-            }
-            if (Object.keys(rest).length) {
-              const relatedRecord = await this.client.group.findFirst(
-                { where: { ...whereClause.group, id: record.groupId } },
-                { tx }
-              );
-              if (!relatedRecord) return null;
-            }
-          }
-          if (whereClause.user) {
-            const { is, isNot, ...rest } = whereClause.user;
-            if (is !== null && is !== undefined) {
-              const relatedRecord = await this.client.user.findFirst({ where: { ...is, id: record.userId } }, { tx });
-              if (!relatedRecord) return null;
-            }
-            if (isNot !== null && isNot !== undefined) {
-              const relatedRecord = await this.client.user.findFirst(
-                { where: { ...isNot, id: record.userId } },
-                { tx }
-              );
-              if (relatedRecord) return null;
-            }
-            if (Object.keys(rest).length) {
-              const relatedRecord = await this.client.user.findFirst(
-                { where: { ...whereClause.user, id: record.userId } },
-                { tx }
-              );
-              if (!relatedRecord) return null;
-            }
-          }
-          return record;
-        })
-      )
-    ).filter((result) => result !== null);
-  }
-  private _applySelectClause<S extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">["select"]>(
-    records: Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">[],
-    selectClause: S
-  ): Prisma.Result<Prisma.UserGroupDelegate, { select: S }, "findFirstOrThrow">[] {
-    if (!selectClause) {
-      return records as Prisma.Result<Prisma.UserGroupDelegate, { select: S }, "findFirstOrThrow">[];
-    }
-    return records.map((record) => {
-      const partialRecord: Partial<typeof record> = record;
-      for (const untypedKey of ["group", "groupId", "user", "userId", "joinedOn"]) {
-        const key = untypedKey as keyof typeof record & keyof S;
-        if (!selectClause[key]) delete partialRecord[key];
-      }
-      return partialRecord;
-    }) as Prisma.Result<Prisma.UserGroupDelegate, { select: S }, "findFirstOrThrow">[];
-  }
-  private async _applyRelations<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">>(
-    records: Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">[],
-    tx: IDBUtils.TransactionType,
-    query?: Q
-  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirstOrThrow">[]> {
-    if (!query) return records as Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
-      const unsafeRecord = record as Record<string, unknown>;
-      const attach_group = query.select?.group || query.include?.group;
-      if (attach_group) {
-        unsafeRecord["group"] = await this.client.group.findUnique(
-          {
-            ...(attach_group === true ? {} : attach_group),
-            where: { id: record.groupId! },
-          },
-          { tx }
-        );
-      }
-      const attach_user = query.select?.user || query.include?.user;
-      if (attach_user) {
-        unsafeRecord["user"] = await this.client.user.findUnique(
-          {
-            ...(attach_user === true ? {} : attach_user),
-            where: { id: record.userId! },
-          },
-          { tx }
-        );
-      }
-      return unsafeRecord;
-    });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
-      Prisma.UserGroupDelegate,
-      Q,
-      "findFirstOrThrow"
-    >[];
-  }
-  async _applyOrderByClause<
-    O extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">["orderBy"],
-    R extends Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">,
-  >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
-    if (orderByClause === undefined) return;
-    const orderByClauses = IDBUtils.convertToArray(orderByClause);
-    const indexedKeys = await Promise.all(
-      records.map(async (record) => {
-        const keys = await Promise.all(
-          orderByClauses.map(async (clause) => await this._resolveOrderByKey(record, clause, tx))
-        );
-        return { keys, record };
-      })
-    );
-    indexedKeys.sort((a, b) => {
-      for (let i = 0; i < orderByClauses.length; i++) {
-        const clause = orderByClauses[i];
-        const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));
-        if (comparison !== 0) return comparison;
-      }
-      return 0;
-    });
-    for (let i = 0; i < records.length; i++) {
-      records[i] = indexedKeys[i].record;
-    }
-  }
-  async _resolveOrderByKey(
-    record: Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">,
-    orderByInput: Prisma.UserGroupOrderByWithRelationInput,
-    tx: IDBUtils.TransactionType
-  ): Promise<unknown> {
-    const scalarFields = ["groupId", "userId", "joinedOn"] as const;
-    for (const field of scalarFields) if (orderByInput[field]) return record[field];
-    if (orderByInput.group) {
-      return await this.client.group._resolveOrderByKey(
-        await this.client.group.findFirstOrThrow({ where: { id: record.groupId } }),
-        orderByInput.group,
-        tx
-      );
-    }
-    if (orderByInput.user) {
-      return await this.client.user._resolveOrderByKey(
-        await this.client.user.findFirstOrThrow({ where: { id: record.userId } }),
-        orderByInput.user,
-        tx
-      );
-    }
-  }
-  _resolveSortOrder(
-    orderByInput: Prisma.UserGroupOrderByWithRelationInput
-  ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
-    const scalarFields = ["groupId", "userId", "joinedOn"] as const;
-    for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
-    if (orderByInput.group) {
-      return this.client.group._resolveSortOrder(orderByInput.group);
-    }
-    if (orderByInput.user) {
-      return this.client.user._resolveSortOrder(orderByInput.user);
-    }
-    throw new Error("No field in orderBy clause");
-  }
-  private async _fillDefaults<D extends Prisma.Args<Prisma.UserGroupDelegate, "create">["data"]>(
-    data: D,
-    tx?: IDBUtils.ReadwriteTransactionType
-  ): Promise<D> {
-    if (data === undefined) data = {} as NonNullable<D>;
-    if (data.joinedOn === undefined) {
-      data.joinedOn = new Date();
-    }
-    if (typeof data.joinedOn === "string") {
-      data.joinedOn = new Date(data.joinedOn);
-    }
-    return data;
-  }
-  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">["where"]>(
-    whereClause: W,
-    neededStores: Set<StoreNames<PrismaIDBSchema>>
-  ) {
-    if (whereClause === undefined) return;
-    for (const param of IDBUtils.LogicalParams) {
-      if (whereClause[param]) {
-        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
-          this._getNeededStoresForWhere(clause, neededStores);
-        }
-      }
-    }
-    if (whereClause.group) {
-      neededStores.add("Group");
-      this.client.group._getNeededStoresForWhere(whereClause.group, neededStores);
-    }
-    if (whereClause.user) {
-      neededStores.add("User");
-      this.client.user._getNeededStoresForWhere(whereClause.user, neededStores);
-    }
-  }
-  _getNeededStoresForFind<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">>(
-    query?: Q
-  ): Set<StoreNames<PrismaIDBSchema>> {
-    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
-    neededStores.add("UserGroup");
-    this._getNeededStoresForWhere(query?.where, neededStores);
-    if (query?.orderBy) {
-      const orderBy = IDBUtils.convertToArray(query.orderBy);
-      const orderBy_group = orderBy.find((clause) => clause.group);
-      if (orderBy_group) {
-        this.client.group
-          ._getNeededStoresForFind({ orderBy: orderBy_group.group })
-          .forEach((storeName) => neededStores.add(storeName));
-      }
-      const orderBy_user = orderBy.find((clause) => clause.user);
-      if (orderBy_user) {
-        this.client.user
-          ._getNeededStoresForFind({ orderBy: orderBy_user.user })
-          .forEach((storeName) => neededStores.add(storeName));
-      }
-    }
-    if (query?.select?.group || query?.include?.group) {
-      neededStores.add("Group");
-      if (typeof query.select?.group === "object") {
-        this.client.group
-          ._getNeededStoresForFind(query.select.group)
-          .forEach((storeName) => neededStores.add(storeName));
-      }
-      if (typeof query.include?.group === "object") {
-        this.client.group
-          ._getNeededStoresForFind(query.include.group)
-          .forEach((storeName) => neededStores.add(storeName));
-      }
-    }
-    if (query?.select?.user || query?.include?.user) {
-      neededStores.add("User");
-      if (typeof query.select?.user === "object") {
-        this.client.user._getNeededStoresForFind(query.select.user).forEach((storeName) => neededStores.add(storeName));
-      }
-      if (typeof query.include?.user === "object") {
-        this.client.user
-          ._getNeededStoresForFind(query.include.user)
-          .forEach((storeName) => neededStores.add(storeName));
-      }
-    }
-    return neededStores;
-  }
-  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.UserGroupDelegate, "create">["data"]>>(
-    data: D
-  ): Set<StoreNames<PrismaIDBSchema>> {
-    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
-    neededStores.add("UserGroup");
-    if (data?.group) {
-      neededStores.add("Group");
-      if (data.group.create) {
-        const createData = Array.isArray(data.group.create) ? data.group.create : [data.group.create];
-        createData.forEach((record) =>
-          this.client.group._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName))
-        );
-      }
-      if (data.group.connectOrCreate) {
-        IDBUtils.convertToArray(data.group.connectOrCreate).forEach((record) =>
-          this.client.group._getNeededStoresForCreate(record.create).forEach((storeName) => neededStores.add(storeName))
-        );
-      }
-    }
-    if (data?.groupId !== undefined) {
-      neededStores.add("Group");
-    }
-    if (data?.user) {
-      neededStores.add("User");
-      if (data.user.create) {
-        const createData = Array.isArray(data.user.create) ? data.user.create : [data.user.create];
-        createData.forEach((record) =>
-          this.client.user._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName))
-        );
-      }
-      if (data.user.connectOrCreate) {
-        IDBUtils.convertToArray(data.user.connectOrCreate).forEach((record) =>
-          this.client.user._getNeededStoresForCreate(record.create).forEach((storeName) => neededStores.add(storeName))
-        );
-      }
-    }
-    if (data?.userId !== undefined) {
-      neededStores.add("User");
-    }
-    return neededStores;
-  }
-  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.UserGroupDelegate, "update">>(
-    query: Partial<Q>
-  ): Set<StoreNames<PrismaIDBSchema>> {
-    const neededStores = this._getNeededStoresForFind(query).union(
-      this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.UserGroupDelegate, "create">["data"])
-    );
-    if (query.data?.group?.connect) {
-      neededStores.add("Group");
-      IDBUtils.convertToArray(query.data.group.connect).forEach((connect) => {
-        this.client.group._getNeededStoresForWhere(connect, neededStores);
-      });
-    }
-    if (query.data?.group?.update) {
-      neededStores.add("Group");
-      IDBUtils.convertToArray(query.data.group.update).forEach((update) => {
-        this.client.group
-          ._getNeededStoresForUpdate(update as Prisma.Args<Prisma.GroupDelegate, "update">)
-          .forEach((store) => neededStores.add(store));
-      });
-    }
-    if (query.data?.group?.upsert) {
-      neededStores.add("Group");
-      IDBUtils.convertToArray(query.data.group.upsert).forEach((upsert) => {
-        const update = { where: upsert.where, data: { ...upsert.update, ...upsert.create } } as Prisma.Args<
-          Prisma.GroupDelegate,
-          "update"
-        >;
-        this.client.group._getNeededStoresForUpdate(update).forEach((store) => neededStores.add(store));
-      });
-    }
-    if (query.data?.user?.connect) {
-      neededStores.add("User");
-      IDBUtils.convertToArray(query.data.user.connect).forEach((connect) => {
-        this.client.user._getNeededStoresForWhere(connect, neededStores);
-      });
-    }
-    if (query.data?.user?.update) {
-      neededStores.add("User");
-      IDBUtils.convertToArray(query.data.user.update).forEach((update) => {
-        this.client.user
-          ._getNeededStoresForUpdate(update as Prisma.Args<Prisma.UserDelegate, "update">)
-          .forEach((store) => neededStores.add(store));
-      });
-    }
-    if (query.data?.user?.upsert) {
-      neededStores.add("User");
-      IDBUtils.convertToArray(query.data.user.upsert).forEach((upsert) => {
-        const update = { where: upsert.where, data: { ...upsert.update, ...upsert.create } } as Prisma.Args<
-          Prisma.UserDelegate,
-          "update"
-        >;
-        this.client.user._getNeededStoresForUpdate(update).forEach((store) => neededStores.add(store));
-      });
-    }
-    return neededStores;
-  }
-  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
-    neededStores.add("UserGroup");
-  }
-  private _removeNestedCreateData<D extends Prisma.Args<Prisma.UserGroupDelegate, "create">["data"]>(
-    data: D
-  ): Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow"> {
-    const recordWithoutNestedCreate = structuredClone(data);
-    delete recordWithoutNestedCreate?.group;
-    delete recordWithoutNestedCreate?.user;
-    return recordWithoutNestedCreate as Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">;
-  }
-  private _preprocessListFields(records: Prisma.Result<Prisma.UserGroupDelegate, object, "findMany">): void {}
-  async findMany<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">>(
-    query?: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findMany">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("UserGroup").getAll(), query?.where, tx);
-    await this._applyOrderByClause(records, query?.orderBy, tx);
-    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.UserGroupDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
-    const selectClause = query?.select;
-    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
-    if (query?.distinct) {
-      const distinctFields = IDBUtils.convertToArray(query.distinct);
-      const seen = new Set<string>();
-      selectAppliedRecords = selectAppliedRecords.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    }
-    this._preprocessListFields(selectAppliedRecords);
-    return selectAppliedRecords as Prisma.Result<Prisma.UserGroupDelegate, Q, "findMany">;
-  }
-  async findFirst<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findFirst">>(
-    query?: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirst">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    return (await this.findMany(query, { tx }))[0] ?? null;
-  }
-  async findFirstOrThrow<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findFirstOrThrow">>(
-    query?: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirstOrThrow">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findFirst(query, { tx });
-    if (!record) {
-      throw new Error("Record not found");
-    }
-    return record;
-  }
-  async findUnique<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findUnique">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findUnique">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    let record;
-    if (query.where.groupId_userId !== undefined) {
-      record = await tx
-        .objectStore("UserGroup")
-        .get([query.where.groupId_userId.groupId, query.where.groupId_userId.userId]);
-    }
-    if (!record) return null;
-
-    const recordWithRelations = this._applySelectClause(
-      await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query),
-      query.select
-    )[0];
-    this._preprocessListFields([recordWithRelations]);
-    return recordWithRelations as Prisma.Result<Prisma.UserGroupDelegate, Q, "findUnique">;
-  }
-  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findUniqueOrThrow">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findUniqueOrThrow">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findUnique(query, { tx });
-    if (!record) {
-      throw new Error("Record not found");
-    }
-    return record;
-  }
-  async count<Q extends Prisma.Args<Prisma.UserGroupDelegate, "count">>(
-    query?: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "count">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-
-    tx = tx ?? this.client._db.transaction(["UserGroup"], "readonly");
-    if (!query?.select || query.select === true) {
-      const records = await this.findMany({ where: query?.where }, { tx });
-      return records.length as Prisma.Result<Prisma.UserGroupDelegate, Q, "count">;
-    }
-    const result: Partial<Record<keyof Prisma.UserGroupCountAggregateInputType, number>> = {};
-    for (const key of Object.keys(query.select)) {
-      const typedKey = key as keyof typeof query.select;
-      if (typedKey === "_all") {
-        result[typedKey] = (await this.findMany({ where: query.where }, { tx })).length;
-        continue;
-      }
-      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })).length;
-    }
-    return result as Prisma.Result<Prisma.UserGroupDelegate, Q, "count">;
-  }
-  async create<Q extends Prisma.Args<Prisma.UserGroupDelegate, "create">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "create">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    const storesNeeded = this._getNeededStoresForCreate(query.data);
-    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    if (query.data.group) {
-      const fk: Partial<PrismaIDBSchema["Group"]["key"]> = [];
-      if (query.data.group?.create) {
-        const record = await this.client.group.create({ data: query.data.group.create }, { tx, silent, addToOutbox });
-        fk[0] = record.id;
-      }
-      if (query.data.group?.connect) {
-        const record = await this.client.group.findUniqueOrThrow({ where: query.data.group.connect }, { tx });
-        delete query.data.group.connect;
-        fk[0] = record.id;
-      }
-      if (query.data.group?.connectOrCreate) {
-        const record = await this.client.group.upsert(
-          {
-            where: query.data.group.connectOrCreate.where,
-            create: query.data.group.connectOrCreate.create,
-            update: {},
-          },
-          { tx, silent, addToOutbox }
-        );
-        fk[0] = record.id;
-      }
-      const unsafeData = query.data as Record<string, unknown>;
-      unsafeData.groupId = fk[0];
-      delete unsafeData.group;
-    } else if (query.data?.groupId !== undefined && query.data.groupId !== null) {
-      await this.client.group.findUniqueOrThrow(
-        {
-          where: { id: query.data.groupId },
-        },
-        { tx }
-      );
-    }
-    if (query.data.user) {
-      const fk: Partial<PrismaIDBSchema["User"]["key"]> = [];
-      if (query.data.user?.create) {
-        const record = await this.client.user.create({ data: query.data.user.create }, { tx, silent, addToOutbox });
-        fk[0] = record.id;
-      }
-      if (query.data.user?.connect) {
-        const record = await this.client.user.findUniqueOrThrow({ where: query.data.user.connect }, { tx });
-        delete query.data.user.connect;
-        fk[0] = record.id;
-      }
-      if (query.data.user?.connectOrCreate) {
-        const record = await this.client.user.upsert(
-          {
-            where: query.data.user.connectOrCreate.where,
-            create: query.data.user.connectOrCreate.create,
-            update: {},
-          },
-          { tx, silent, addToOutbox }
-        );
-        fk[0] = record.id;
-      }
-      const unsafeData = query.data as Record<string, unknown>;
-      unsafeData.userId = fk[0];
-      delete unsafeData.user;
-    } else if (query.data?.userId !== undefined && query.data.userId !== null) {
-      await this.client.user.findUniqueOrThrow(
-        {
-          where: { id: query.data.userId },
-        },
-        { tx }
-      );
-    }
-    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
-    const keyPath = await tx.objectStore("UserGroup").add(record);
-    const data = (await tx.objectStore("UserGroup").get(keyPath))!;
-    const recordsWithRelations = this._applySelectClause(
-      await this._applyRelations<object>([data], tx, query),
-      query.select
-    )[0];
-    this._preprocessListFields([recordsWithRelations]);
-    await this.emit("create", keyPath, undefined, data, { silent, addToOutbox, tx });
-    return recordsWithRelations as Prisma.Result<Prisma.UserGroupDelegate, Q, "create">;
-  }
-  async createMany<Q extends Prisma.Args<Prisma.UserGroupDelegate, "createMany">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "createMany">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    const createManyData = IDBUtils.convertToArray(query.data);
-    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["UserGroup"]);
-    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    for (const createData of createManyData) {
-      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      const keyPath = await tx.objectStore("UserGroup").add(record);
-      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
-    }
-    return { count: createManyData.length };
-  }
-  async createManyAndReturn<Q extends Prisma.Args<Prisma.UserGroupDelegate, "createManyAndReturn">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "createManyAndReturn">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    const createManyData = IDBUtils.convertToArray(query.data);
-    const records: Prisma.Result<Prisma.UserGroupDelegate, object, "findMany"> = [];
-    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["UserGroup"]);
-    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    for (const createData of createManyData) {
-      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      const keyPath = await tx.objectStore("UserGroup").add(record);
-      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
-      records.push(this._applySelectClause([record], query.select)[0]);
-    }
-    this._preprocessListFields(records);
-    return records as Prisma.Result<Prisma.UserGroupDelegate, Q, "createManyAndReturn">;
-  }
-  async delete<Q extends Prisma.Args<Prisma.UserGroupDelegate, "delete">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "delete">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    const storesNeeded = this._getNeededStoresForFind(query);
-    this._getNeededStoresForNestedDelete(storesNeeded);
-    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    const record = await this.findUnique(query, { tx });
-    if (!record) throw new Error("Record not found");
-    await tx.objectStore("UserGroup").delete([record.groupId, record.userId]);
-    await this.emit("delete", [record.groupId, record.userId], undefined, record, { silent, addToOutbox, tx });
-    return record;
-  }
-  async deleteMany<Q extends Prisma.Args<Prisma.UserGroupDelegate, "deleteMany">>(
-    query?: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "deleteMany">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    const storesNeeded = this._getNeededStoresForFind(query);
-    this._getNeededStoresForNestedDelete(storesNeeded);
-    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    const records = await this.findMany(query, { tx });
-    for (const record of records) {
-      await this.delete(
-        { where: { groupId_userId: { groupId: record.groupId, userId: record.userId } } },
-        { tx, silent, addToOutbox }
-      );
-    }
-    return { count: records.length };
-  }
-  async update<Q extends Prisma.Args<Prisma.UserGroupDelegate, "update">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "update">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
-    const record = await this.findUnique({ where: query.where }, { tx });
-    if (record === null) {
-      tx.abort();
-      throw new Error("Record not found");
-    }
-    const startKeyPath: PrismaIDBSchema["UserGroup"]["key"] = [record.groupId, record.userId];
-    const dateTimeFields = ["joinedOn"] as const;
-    for (const field of dateTimeFields) {
-      IDBUtils.handleDateTimeUpdateField(record, field, query.data[field]);
-    }
-    const intFields = ["groupId", "userId"] as const;
-    for (const field of intFields) {
-      IDBUtils.handleIntUpdateField(record, field, query.data[field]);
-    }
-    if (query.data.group) {
-      if (query.data.group.connect) {
-        const other = await this.client.group.findUniqueOrThrow({ where: query.data.group.connect }, { tx });
-        record.groupId = other.id;
-      }
-      if (query.data.group.create) {
-        const other = await this.client.group.create({ data: query.data.group.create }, { tx, silent, addToOutbox });
-        record.groupId = other.id;
-      }
-      if (query.data.group.update) {
-        const updateData = query.data.group.update.data ?? query.data.group.update;
-        await this.client.group.update(
-          {
-            where: { ...query.data.group.update.where, id: record.groupId! } as Prisma.GroupWhereUniqueInput,
-            data: updateData,
-          },
-          { tx, silent, addToOutbox }
-        );
-      }
-      if (query.data.group.upsert) {
-        await this.client.group.upsert(
-          {
-            where: { ...query.data.group.upsert.where, id: record.groupId! } as Prisma.GroupWhereUniqueInput,
-            create: { ...query.data.group.upsert.create, id: record.groupId! } as Prisma.Args<
-              Prisma.GroupDelegate,
-              "upsert"
-            >["create"],
-            update: query.data.group.upsert.update,
-          },
-          { tx, silent, addToOutbox }
-        );
-      }
-      if (query.data.group.connectOrCreate) {
-        await this.client.group.upsert(
-          {
-            where: { ...query.data.group.connectOrCreate.where, id: record.groupId! },
-            create: { ...query.data.group.connectOrCreate.create, id: record.groupId! } as Prisma.Args<
-              Prisma.GroupDelegate,
-              "upsert"
-            >["create"],
-            update: { id: record.groupId! },
-          },
-          { tx, silent, addToOutbox }
-        );
-      }
-    }
-    if (query.data.user) {
-      if (query.data.user.connect) {
-        const other = await this.client.user.findUniqueOrThrow({ where: query.data.user.connect }, { tx });
-        record.userId = other.id;
-      }
-      if (query.data.user.create) {
-        const other = await this.client.user.create({ data: query.data.user.create }, { tx, silent, addToOutbox });
-        record.userId = other.id;
-      }
-      if (query.data.user.update) {
-        const updateData = query.data.user.update.data ?? query.data.user.update;
-        await this.client.user.update(
-          {
-            where: { ...query.data.user.update.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
-            data: updateData,
-          },
-          { tx, silent, addToOutbox }
-        );
-      }
-      if (query.data.user.upsert) {
-        await this.client.user.upsert(
-          {
-            where: { ...query.data.user.upsert.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
-            create: { ...query.data.user.upsert.create, id: record.userId! } as Prisma.Args<
-              Prisma.UserDelegate,
-              "upsert"
-            >["create"],
-            update: query.data.user.upsert.update,
-          },
-          { tx, silent, addToOutbox }
-        );
-      }
-      if (query.data.user.connectOrCreate) {
-        await this.client.user.upsert(
-          {
-            where: { ...query.data.user.connectOrCreate.where, id: record.userId! },
-            create: { ...query.data.user.connectOrCreate.create, id: record.userId! } as Prisma.Args<
-              Prisma.UserDelegate,
-              "upsert"
-            >["create"],
-            update: { id: record.userId! },
-          },
-          { tx, silent, addToOutbox }
-        );
-      }
-    }
-    if (query.data.groupId !== undefined) {
-      const related = await this.client.group.findUnique({ where: { id: record.groupId } }, { tx });
-      if (!related) throw new Error("Related record not found");
-    }
-    if (query.data.userId !== undefined) {
-      const related = await this.client.user.findUnique({ where: { id: record.userId } }, { tx });
-      if (!related) throw new Error("Related record not found");
-    }
-    const endKeyPath: PrismaIDBSchema["UserGroup"]["key"] = [record.groupId, record.userId];
-    for (let i = 0; i < startKeyPath.length; i++) {
-      if (startKeyPath[i] !== endKeyPath[i]) {
-        if ((await tx.objectStore("UserGroup").get(endKeyPath)) !== undefined) {
-          throw new Error("Record with the same keyPath already exists");
-        }
-        await tx.objectStore("UserGroup").delete(startKeyPath);
-        break;
-      }
-    }
-    const keyPath = await tx.objectStore("UserGroup").put(record);
-    await this.emit("update", keyPath, startKeyPath, record, { silent, addToOutbox, tx });
-    for (let i = 0; i < startKeyPath.length; i++) {
-      if (startKeyPath[i] !== endKeyPath[i]) {
-        break;
-      }
-    }
-    const recordWithRelations = (await this.findUnique(
-      {
-        where: { groupId_userId: { groupId: keyPath[0], userId: keyPath[1] } },
-      },
-      { tx }
-    ))!;
-    return recordWithRelations as Prisma.Result<Prisma.UserGroupDelegate, Q, "update">;
-  }
-  async updateMany<Q extends Prisma.Args<Prisma.UserGroupDelegate, "updateMany">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "updateMany">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
-    const records = await this.findMany({ where: query.where }, { tx });
-    await Promise.all(
-      records.map(async (record) => {
-        await this.update(
-          { where: { groupId_userId: { groupId: record.groupId, userId: record.userId } }, data: query.data },
-          { tx, silent, addToOutbox }
-        );
-      })
-    );
-    return { count: records.length };
-  }
-  async upsert<Q extends Prisma.Args<Prisma.UserGroupDelegate, "upsert">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "upsert">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    const neededStores = this._getNeededStoresForUpdate({
-      ...query,
-      data: { ...query.update, ...query.create } as Prisma.Args<Prisma.UserGroupDelegate, "update">["data"],
-    });
-    tx = tx ?? this.client._db.transaction(Array.from(neededStores), "readwrite");
-    let record = await this.findUnique({ where: query.where }, { tx });
-    if (!record) record = await this.create({ data: query.create }, { tx, silent, addToOutbox });
-    else record = await this.update({ where: query.where, data: query.update }, { tx, silent, addToOutbox });
-    record = await this.findUniqueOrThrow(
-      {
-        where: { groupId_userId: { groupId: record.groupId, userId: record.userId } },
-        select: query.select,
-        include: query.include,
-      },
-      { tx }
-    );
-    return record as Prisma.Result<Prisma.UserGroupDelegate, Q, "upsert">;
-  }
-  async aggregate<Q extends Prisma.Args<Prisma.UserGroupDelegate, "aggregate">>(
-    query?: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-    tx = tx ?? this.client._db.transaction(["UserGroup"], "readonly");
-    const records = await this.findMany({ where: query?.where }, { tx });
-    const result: Partial<Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">> = {};
-    if (query?._count) {
-      if (query._count === true) {
-        (result._count as number) = records.length;
-      } else {
-        for (const key of Object.keys(query._count)) {
-          const typedKey = key as keyof typeof query._count;
-          if (typedKey === "_all") {
-            (result._count as Record<string, number>)[typedKey] = records.length;
-            continue;
-          }
-          (result._count as Record<string, number>)[typedKey] = (
-            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })
-          ).length;
-        }
-      }
-    }
-    if (query?._min) {
-      const minResult = {} as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">["_min"];
-      const numericFields = ["groupId", "userId"] as const;
-      for (const field of numericFields) {
-        if (!query._min[field]) continue;
-        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
-        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
-      }
-      const dateTimeFields = ["joinedOn"] as const;
-      for (const field of dateTimeFields) {
-        if (!query._min[field]) continue;
-        const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);
-        (minResult[field as keyof typeof minResult] as Date) = new Date(Math.min(...values));
-      }
-      result._min = minResult;
-    }
-    if (query?._max) {
-      const maxResult = {} as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">["_max"];
-      const numericFields = ["groupId", "userId"] as const;
-      for (const field of numericFields) {
-        if (!query._max[field]) continue;
-        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
-        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
-      }
-      const dateTimeFields = ["joinedOn"] as const;
-      for (const field of dateTimeFields) {
-        if (!query._max[field]) continue;
-        const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);
-        (maxResult[field as keyof typeof maxResult] as Date) = new Date(Math.max(...values));
-      }
-      result._max = maxResult;
-    }
-    if (query?._avg) {
-      const avgResult = {} as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">["_avg"];
-      for (const untypedField of Object.keys(query._avg)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
-      }
-      result._avg = avgResult;
-    }
-    if (query?._sum) {
-      const sumResult = {} as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">["_sum"];
-      for (const untypedField of Object.keys(query._sum)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
-      }
-      result._sum = sumResult;
-    }
-    return result as unknown as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">;
-  }
-}
 class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
   constructor(client: PrismaIDBClient, keyPath: string[]) {
     super(client, keyPath, "Profile");
@@ -5173,6 +4360,12 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.ProfileDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.ProfileDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("Profile").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.ProfileDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -5182,25 +4375,68 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("Profile").getAll(), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      } else if ((query.cursor as Record<string, unknown>)["userId"] !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.userId === normalizedCursor.userId);
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.ProfileDelegate,
       object,
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
-    if (query?.distinct) {
-      const distinctFields = IDBUtils.convertToArray(query.distinct);
-      const seen = new Set<string>();
-      selectAppliedRecords = selectAppliedRecords.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    }
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.ProfileDelegate, Q, "findMany">;
   }
@@ -6116,6 +5352,12 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
       record.numberArr = record.numberArr ?? [];
     }
   }
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.PostDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("Post").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.PostDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -6125,25 +5367,65 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("Post").getAll(), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.PostDelegate,
       object,
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
-    if (query?.distinct) {
-      const distinctFields = IDBUtils.convertToArray(query.distinct);
-      const seen = new Set<string>();
-      selectAppliedRecords = selectAppliedRecords.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    }
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.PostDelegate, Q, "findMany">;
   }
@@ -7154,6 +6436,12 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.CommentDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.CommentDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("Comment").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.CommentDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -7163,25 +6451,65 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("Comment").getAll(), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.CommentDelegate,
       object,
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
-    if (query?.distinct) {
-      const distinctFields = IDBUtils.convertToArray(query.distinct);
-      const seen = new Set<string>();
-      selectAppliedRecords = selectAppliedRecords.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    }
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.CommentDelegate, Q, "findMany">;
   }
@@ -7720,6 +7048,824 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     return result as unknown as Prisma.Result<Prisma.CommentDelegate, Q, "aggregate">;
   }
 }
+class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
+  constructor(client: PrismaIDBClient, keyPath: string[]) {
+    super(client, keyPath, "Todo");
+  }
+
+  private async _applyWhereClause<
+    W extends Prisma.Args<Prisma.TodoDelegate, "findFirstOrThrow">["where"],
+    R extends Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">,
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
+    if (!whereClause) return records;
+    records = await IDBUtils.applyLogicalFilters<Prisma.TodoDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this)
+    );
+    return (
+      await Promise.all(
+        records.map(async (record) => {
+          const stringFields = ["id", "title"] as const;
+          for (const field of stringFields) {
+            if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
+          }
+          const numberFields = ["userId"] as const;
+          for (const field of numberFields) {
+            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
+          }
+          const booleanFields = ["completed"] as const;
+          for (const field of booleanFields) {
+            if (!IDBUtils.whereBoolFilter(record, field, whereClause[field])) return null;
+          }
+          if (whereClause.user) {
+            const { is, isNot, ...rest } = whereClause.user;
+            if (is !== null && is !== undefined) {
+              const relatedRecord = await this.client.user.findFirst({ where: { ...is, id: record.userId } }, { tx });
+              if (!relatedRecord) return null;
+            }
+            if (isNot !== null && isNot !== undefined) {
+              const relatedRecord = await this.client.user.findFirst(
+                { where: { ...isNot, id: record.userId } },
+                { tx }
+              );
+              if (relatedRecord) return null;
+            }
+            if (Object.keys(rest).length) {
+              const relatedRecord = await this.client.user.findFirst(
+                { where: { ...whereClause.user, id: record.userId } },
+                { tx }
+              );
+              if (!relatedRecord) return null;
+            }
+          }
+          return record;
+        })
+      )
+    ).filter((result) => result !== null);
+  }
+  private _applySelectClause<S extends Prisma.Args<Prisma.TodoDelegate, "findMany">["select"]>(
+    records: Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">[],
+    selectClause: S
+  ): Prisma.Result<Prisma.TodoDelegate, { select: S }, "findFirstOrThrow">[] {
+    if (!selectClause) {
+      return records as Prisma.Result<Prisma.TodoDelegate, { select: S }, "findFirstOrThrow">[];
+    }
+    return records.map((record) => {
+      const partialRecord: Partial<typeof record> = record;
+      for (const untypedKey of ["id", "title", "completed", "user", "userId"]) {
+        const key = untypedKey as keyof typeof record & keyof S;
+        if (!selectClause[key]) delete partialRecord[key];
+      }
+      return partialRecord;
+    }) as Prisma.Result<Prisma.TodoDelegate, { select: S }, "findFirstOrThrow">[];
+  }
+  private async _applyRelations<Q extends Prisma.Args<Prisma.TodoDelegate, "findMany">>(
+    records: Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">[],
+    tx: IDBUtils.TransactionType,
+    query?: Q
+  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[]> {
+    if (!query) return records as Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[];
+    const recordsWithRelations = records.map(async (record) => {
+      const unsafeRecord = record as Record<string, unknown>;
+      const attach_user = query.select?.user || query.include?.user;
+      if (attach_user) {
+        unsafeRecord["user"] = await this.client.user.findUnique(
+          {
+            ...(attach_user === true ? {} : attach_user),
+            where: { id: record.userId! },
+          },
+          { tx }
+        );
+      }
+      return unsafeRecord;
+    });
+    return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[];
+  }
+  async _applyOrderByClause<
+    O extends Prisma.Args<Prisma.TodoDelegate, "findMany">["orderBy"],
+    R extends Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">,
+  >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
+    if (orderByClause === undefined) return;
+    const orderByClauses = IDBUtils.convertToArray(orderByClause);
+    const indexedKeys = await Promise.all(
+      records.map(async (record) => {
+        const keys = await Promise.all(
+          orderByClauses.map(async (clause) => await this._resolveOrderByKey(record, clause, tx))
+        );
+        return { keys, record };
+      })
+    );
+    indexedKeys.sort((a, b) => {
+      for (let i = 0; i < orderByClauses.length; i++) {
+        const clause = orderByClauses[i];
+        const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));
+        if (comparison !== 0) return comparison;
+      }
+      return 0;
+    });
+    for (let i = 0; i < records.length; i++) {
+      records[i] = indexedKeys[i].record;
+    }
+  }
+  async _resolveOrderByKey(
+    record: Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">,
+    orderByInput: Prisma.TodoOrderByWithRelationInput,
+    tx: IDBUtils.TransactionType
+  ): Promise<unknown> {
+    const scalarFields = ["id", "title", "completed", "userId"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return record[field];
+    if (orderByInput.user) {
+      return await this.client.user._resolveOrderByKey(
+        await this.client.user.findFirstOrThrow({ where: { id: record.userId } }),
+        orderByInput.user,
+        tx
+      );
+    }
+  }
+  _resolveSortOrder(
+    orderByInput: Prisma.TodoOrderByWithRelationInput
+  ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
+    const scalarFields = ["id", "title", "completed", "userId"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
+    if (orderByInput.user) {
+      return this.client.user._resolveSortOrder(orderByInput.user);
+    }
+    throw new Error("No field in orderBy clause");
+  }
+  private async _fillDefaults<D extends Prisma.Args<Prisma.TodoDelegate, "create">["data"]>(
+    data: D,
+    tx?: IDBUtils.ReadwriteTransactionType
+  ): Promise<D> {
+    if (data === undefined) data = {} as NonNullable<D>;
+    if (data.id === undefined) {
+      data.id = uuidv4();
+    }
+    if (data.completed === undefined) {
+      data.completed = false;
+    }
+    return data;
+  }
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.TodoDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+    if (whereClause.user) {
+      neededStores.add("User");
+      this.client.user._getNeededStoresForWhere(whereClause.user, neededStores);
+    }
+  }
+  _getNeededStoresForFind<Q extends Prisma.Args<Prisma.TodoDelegate, "findMany">>(
+    query?: Q
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("Todo");
+    this._getNeededStoresForWhere(query?.where, neededStores);
+    if (query?.orderBy) {
+      const orderBy = IDBUtils.convertToArray(query.orderBy);
+      const orderBy_user = orderBy.find((clause) => clause.user);
+      if (orderBy_user) {
+        this.client.user
+          ._getNeededStoresForFind({ orderBy: orderBy_user.user })
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
+    if (query?.select?.user || query?.include?.user) {
+      neededStores.add("User");
+      if (typeof query.select?.user === "object") {
+        this.client.user._getNeededStoresForFind(query.select.user).forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.user === "object") {
+        this.client.user
+          ._getNeededStoresForFind(query.include.user)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
+    return neededStores;
+  }
+  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.TodoDelegate, "create">["data"]>>(
+    data: D
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("Todo");
+    if (data?.user) {
+      neededStores.add("User");
+      if (data.user.create) {
+        const createData = Array.isArray(data.user.create) ? data.user.create : [data.user.create];
+        createData.forEach((record) =>
+          this.client.user._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName))
+        );
+      }
+      if (data.user.connectOrCreate) {
+        IDBUtils.convertToArray(data.user.connectOrCreate).forEach((record) =>
+          this.client.user._getNeededStoresForCreate(record.create).forEach((storeName) => neededStores.add(storeName))
+        );
+      }
+    }
+    if (data?.userId !== undefined) {
+      neededStores.add("User");
+    }
+    return neededStores;
+  }
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.TodoDelegate, "update">>(
+    query: Partial<Q>
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores = this._getNeededStoresForFind(query).union(
+      this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.TodoDelegate, "create">["data"])
+    );
+    if (query.data?.user?.connect) {
+      neededStores.add("User");
+      IDBUtils.convertToArray(query.data.user.connect).forEach((connect) => {
+        this.client.user._getNeededStoresForWhere(connect, neededStores);
+      });
+    }
+    if (query.data?.user?.update) {
+      neededStores.add("User");
+      IDBUtils.convertToArray(query.data.user.update).forEach((update) => {
+        this.client.user
+          ._getNeededStoresForUpdate(update as Prisma.Args<Prisma.UserDelegate, "update">)
+          .forEach((store) => neededStores.add(store));
+      });
+    }
+    if (query.data?.user?.upsert) {
+      neededStores.add("User");
+      IDBUtils.convertToArray(query.data.user.upsert).forEach((upsert) => {
+        const update = { where: upsert.where, data: { ...upsert.update, ...upsert.create } } as Prisma.Args<
+          Prisma.UserDelegate,
+          "update"
+        >;
+        this.client.user._getNeededStoresForUpdate(update).forEach((store) => neededStores.add(store));
+      });
+    }
+    return neededStores;
+  }
+  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
+    neededStores.add("Todo");
+  }
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.TodoDelegate, "create">["data"]>(
+    data: D
+  ): Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow"> {
+    const recordWithoutNestedCreate = structuredClone(data);
+    delete recordWithoutNestedCreate?.user;
+    return recordWithoutNestedCreate as Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">;
+  }
+  private _preprocessListFields(records: Prisma.Result<Prisma.TodoDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.TodoDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("Todo").getAll();
+  }
+  async findMany<Q extends Prisma.Args<Prisma.TodoDelegate, "findMany">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findMany">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    await this._applyOrderByClause(records, query?.orderBy, tx);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.TodoDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
+    const selectClause = query?.select;
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    this._preprocessListFields(selectAppliedRecords);
+    return selectAppliedRecords as Prisma.Result<Prisma.TodoDelegate, Q, "findMany">;
+  }
+  async findFirst<Q extends Prisma.Args<Prisma.TodoDelegate, "findFirst">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findFirst">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    return (await this.findMany(query, { tx }))[0] ?? null;
+  }
+  async findFirstOrThrow<Q extends Prisma.Args<Prisma.TodoDelegate, "findFirstOrThrow">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findFirst(query, { tx });
+    if (!record) {
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+  async findUnique<Q extends Prisma.Args<Prisma.TodoDelegate, "findUnique">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findUnique">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let record;
+    if (query.where.id !== undefined) {
+      record = await tx.objectStore("Todo").get([query.where.id]);
+    }
+    if (!record) return null;
+
+    const recordWithRelations = this._applySelectClause(
+      await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query),
+      query.select
+    )[0];
+    this._preprocessListFields([recordWithRelations]);
+    return recordWithRelations as Prisma.Result<Prisma.TodoDelegate, Q, "findUnique">;
+  }
+  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.TodoDelegate, "findUniqueOrThrow">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findUniqueOrThrow">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findUnique(query, { tx });
+    if (!record) {
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+  async count<Q extends Prisma.Args<Prisma.TodoDelegate, "count">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "count">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(["Todo"], "readonly");
+    if (!query?.select || query.select === true) {
+      const records = await this.findMany({ where: query?.where }, { tx });
+      return records.length as Prisma.Result<Prisma.TodoDelegate, Q, "count">;
+    }
+    const result: Partial<Record<keyof Prisma.TodoCountAggregateInputType, number>> = {};
+    for (const key of Object.keys(query.select)) {
+      const typedKey = key as keyof typeof query.select;
+      if (typedKey === "_all") {
+        result[typedKey] = (await this.findMany({ where: query.where }, { tx })).length;
+        continue;
+      }
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })).length;
+    }
+    return result as Prisma.Result<Prisma.TodoDelegate, Q, "count">;
+  }
+  async create<Q extends Prisma.Args<Prisma.TodoDelegate, "create">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "create">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForCreate(query.data);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    if (query.data.user) {
+      const fk: Partial<PrismaIDBSchema["User"]["key"]> = [];
+      if (query.data.user?.create) {
+        const record = await this.client.user.create({ data: query.data.user.create }, { tx, silent, addToOutbox });
+        fk[0] = record.id;
+      }
+      if (query.data.user?.connect) {
+        const record = await this.client.user.findUniqueOrThrow({ where: query.data.user.connect }, { tx });
+        delete query.data.user.connect;
+        fk[0] = record.id;
+      }
+      if (query.data.user?.connectOrCreate) {
+        const record = await this.client.user.upsert(
+          {
+            where: query.data.user.connectOrCreate.where,
+            create: query.data.user.connectOrCreate.create,
+            update: {},
+          },
+          { tx, silent, addToOutbox }
+        );
+        fk[0] = record.id;
+      }
+      const unsafeData = query.data as Record<string, unknown>;
+      unsafeData.userId = fk[0];
+      delete unsafeData.user;
+    } else if (query.data?.userId !== undefined && query.data.userId !== null) {
+      await this.client.user.findUniqueOrThrow(
+        {
+          where: { id: query.data.userId },
+        },
+        { tx }
+      );
+    }
+    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
+    const keyPath = await tx.objectStore("Todo").add(record);
+    const data = (await tx.objectStore("Todo").get(keyPath))!;
+    const recordsWithRelations = this._applySelectClause(
+      await this._applyRelations<object>([data], tx, query),
+      query.select
+    )[0];
+    this._preprocessListFields([recordsWithRelations]);
+    await this.emit("create", keyPath, undefined, data, { silent, addToOutbox, tx });
+    return recordsWithRelations as Prisma.Result<Prisma.TodoDelegate, Q, "create">;
+  }
+  async createMany<Q extends Prisma.Args<Prisma.TodoDelegate, "createMany">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "createMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["Todo"]);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("Todo").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+    }
+    return { count: createManyData.length };
+  }
+  async createManyAndReturn<Q extends Prisma.Args<Prisma.TodoDelegate, "createManyAndReturn">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "createManyAndReturn">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const records: Prisma.Result<Prisma.TodoDelegate, object, "findMany"> = [];
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["Todo"]);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("Todo").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+      records.push(this._applySelectClause([record], query.select)[0]);
+    }
+    this._preprocessListFields(records);
+    return records as Prisma.Result<Prisma.TodoDelegate, Q, "createManyAndReturn">;
+  }
+  async delete<Q extends Prisma.Args<Prisma.TodoDelegate, "delete">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "delete">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = await this.findUnique(query, { tx });
+    if (!record) throw new Error("Record not found");
+    await tx.objectStore("Todo").delete([record.id]);
+    await this.emit("delete", [record.id], undefined, record, { silent, addToOutbox, tx });
+    return record;
+  }
+  async deleteMany<Q extends Prisma.Args<Prisma.TodoDelegate, "deleteMany">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "deleteMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const records = await this.findMany(query, { tx });
+    for (const record of records) {
+      await this.delete({ where: { id: record.id } }, { tx, silent, addToOutbox });
+    }
+    return { count: records.length };
+  }
+  async update<Q extends Prisma.Args<Prisma.TodoDelegate, "update">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "update">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
+    const record = await this.findUnique({ where: query.where }, { tx });
+    if (record === null) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
+    const startKeyPath: PrismaIDBSchema["Todo"]["key"] = [record.id];
+    const stringFields = ["id", "title"] as const;
+    for (const field of stringFields) {
+      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const booleanFields = ["completed"] as const;
+    for (const field of booleanFields) {
+      IDBUtils.handleBooleanUpdateField(record, field, query.data[field]);
+    }
+    const intFields = ["userId"] as const;
+    for (const field of intFields) {
+      IDBUtils.handleIntUpdateField(record, field, query.data[field]);
+    }
+    if (query.data.user) {
+      if (query.data.user.connect) {
+        const other = await this.client.user.findUniqueOrThrow({ where: query.data.user.connect }, { tx });
+        record.userId = other.id;
+      }
+      if (query.data.user.create) {
+        const other = await this.client.user.create({ data: query.data.user.create }, { tx, silent, addToOutbox });
+        record.userId = other.id;
+      }
+      if (query.data.user.update) {
+        const updateData = query.data.user.update.data ?? query.data.user.update;
+        await this.client.user.update(
+          {
+            where: { ...query.data.user.update.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
+            data: updateData,
+          },
+          { tx, silent, addToOutbox }
+        );
+      }
+      if (query.data.user.upsert) {
+        await this.client.user.upsert(
+          {
+            where: { ...query.data.user.upsert.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
+            create: { ...query.data.user.upsert.create, id: record.userId! } as Prisma.Args<
+              Prisma.UserDelegate,
+              "upsert"
+            >["create"],
+            update: query.data.user.upsert.update,
+          },
+          { tx, silent, addToOutbox }
+        );
+      }
+      if (query.data.user.connectOrCreate) {
+        await this.client.user.upsert(
+          {
+            where: { ...query.data.user.connectOrCreate.where, id: record.userId! },
+            create: { ...query.data.user.connectOrCreate.create, id: record.userId! } as Prisma.Args<
+              Prisma.UserDelegate,
+              "upsert"
+            >["create"],
+            update: { id: record.userId! },
+          },
+          { tx, silent, addToOutbox }
+        );
+      }
+    }
+    if (query.data.userId !== undefined) {
+      const related = await this.client.user.findUnique({ where: { id: record.userId } }, { tx });
+      if (!related) throw new Error("Related record not found");
+    }
+    const endKeyPath: PrismaIDBSchema["Todo"]["key"] = [record.id];
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        if ((await tx.objectStore("Todo").get(endKeyPath)) !== undefined) {
+          throw new Error("Record with the same keyPath already exists");
+        }
+        await tx.objectStore("Todo").delete(startKeyPath);
+        break;
+      }
+    }
+    const keyPath = await tx.objectStore("Todo").put(record);
+    await this.emit("update", keyPath, startKeyPath, record, { silent, addToOutbox, tx });
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        break;
+      }
+    }
+    const recordWithRelations = (await this.findUnique(
+      {
+        where: { id: keyPath[0] },
+      },
+      { tx }
+    ))!;
+    return recordWithRelations as Prisma.Result<Prisma.TodoDelegate, Q, "update">;
+  }
+  async updateMany<Q extends Prisma.Args<Prisma.TodoDelegate, "updateMany">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "updateMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const records = await this.findMany({ where: query.where }, { tx });
+    await Promise.all(
+      records.map(async (record) => {
+        await this.update({ where: { id: record.id }, data: query.data }, { tx, silent, addToOutbox });
+      })
+    );
+    return { count: records.length };
+  }
+  async upsert<Q extends Prisma.Args<Prisma.TodoDelegate, "upsert">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "upsert">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const neededStores = this._getNeededStoresForUpdate({
+      ...query,
+      data: { ...query.update, ...query.create } as Prisma.Args<Prisma.TodoDelegate, "update">["data"],
+    });
+    tx = tx ?? this.client._db.transaction(Array.from(neededStores), "readwrite");
+    let record = await this.findUnique({ where: query.where }, { tx });
+    if (!record) record = await this.create({ data: query.create }, { tx, silent, addToOutbox });
+    else record = await this.update({ where: query.where, data: query.update }, { tx, silent, addToOutbox });
+    record = await this.findUniqueOrThrow(
+      { where: { id: record.id }, select: query.select, include: query.include },
+      { tx }
+    );
+    return record as Prisma.Result<Prisma.TodoDelegate, Q, "upsert">;
+  }
+  async aggregate<Q extends Prisma.Args<Prisma.TodoDelegate, "aggregate">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "aggregate">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(["Todo"], "readonly");
+    const records = await this.findMany({ where: query?.where }, { tx });
+    const result: Partial<Prisma.Result<Prisma.TodoDelegate, Q, "aggregate">> = {};
+    if (query?._count) {
+      if (query._count === true) {
+        (result._count as number) = records.length;
+      } else {
+        for (const key of Object.keys(query._count)) {
+          const typedKey = key as keyof typeof query._count;
+          if (typedKey === "_all") {
+            (result._count as Record<string, number>)[typedKey] = records.length;
+            continue;
+          }
+          (result._count as Record<string, number>)[typedKey] = (
+            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })
+          ).length;
+        }
+      }
+    }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.TodoDelegate, Q, "aggregate">["_min"];
+      const numericFields = ["userId"] as const;
+      for (const field of numericFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      const stringFields = ["id", "title"] as const;
+      for (const field of stringFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as string) = values.sort()[0];
+      }
+      const booleanFields = ["completed"] as const;
+      for (const field of booleanFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as boolean) =
+          values.length === 0 ? false : values.includes(false) ? false : true;
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.TodoDelegate, Q, "aggregate">["_max"];
+      const numericFields = ["userId"] as const;
+      for (const field of numericFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      const stringFields = ["id", "title"] as const;
+      for (const field of stringFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];
+      }
+      const booleanFields = ["completed"] as const;
+      for (const field of booleanFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as boolean) = values.length === 0 ? false : values.includes(true);
+      }
+      result._max = maxResult;
+    }
+    if (query?._avg) {
+      const avgResult = {} as Prisma.Result<Prisma.TodoDelegate, Q, "aggregate">["_avg"];
+      for (const untypedField of Object.keys(query._avg)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+      result._avg = avgResult;
+    }
+    if (query?._sum) {
+      const sumResult = {} as Prisma.Result<Prisma.TodoDelegate, Q, "aggregate">["_sum"];
+      for (const untypedField of Object.keys(query._sum)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
+      }
+      result._sum = sumResult;
+    }
+    return result as unknown as Prisma.Result<Prisma.TodoDelegate, Q, "aggregate">;
+  }
+}
 class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes"> {
   constructor(client: PrismaIDBClient, keyPath: string[]) {
     super(client, keyPath, "AllFieldScalarTypes");
@@ -8020,6 +8166,12 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
       record.manyBytes = record.manyBytes ?? [];
     }
   }
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("AllFieldScalarTypes").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -8029,29 +8181,68 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(
-      await tx.objectStore("AllFieldScalarTypes").getAll(),
-      query?.where,
-      tx
-    );
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => {
+          const v = record[field];
+          return typeof v === "bigint" ? v.toString() : v;
+        });
+        const key = JSON.stringify(values);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.AllFieldScalarTypesDelegate,
       object,
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
-    if (query?.distinct) {
-      const distinctFields = IDBUtils.convertToArray(query.distinct);
-      const seen = new Set<string>();
-      selectAppliedRecords = selectAppliedRecords.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    }
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findMany">;
   }
@@ -8468,6 +8659,4106 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
       result._sum = sumResult;
     }
     return result as unknown as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "aggregate">;
+  }
+}
+class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
+  constructor(client: PrismaIDBClient, keyPath: string[]) {
+    super(client, keyPath, "ModelWithEnum");
+  }
+
+  private async _applyWhereClause<
+    W extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findFirstOrThrow">["where"],
+    R extends Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow">,
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
+    if (!whereClause) return records;
+    records = await IDBUtils.applyLogicalFilters<Prisma.ModelWithEnumDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this)
+    );
+    return (
+      await Promise.all(
+        records.map(async (record) => {
+          const numberFields = ["id"] as const;
+          for (const field of numberFields) {
+            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
+          }
+          return record;
+        })
+      )
+    ).filter((result) => result !== null);
+  }
+  private _applySelectClause<S extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">["select"]>(
+    records: Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow">[],
+    selectClause: S
+  ): Prisma.Result<Prisma.ModelWithEnumDelegate, { select: S }, "findFirstOrThrow">[] {
+    if (!selectClause) {
+      return records as Prisma.Result<Prisma.ModelWithEnumDelegate, { select: S }, "findFirstOrThrow">[];
+    }
+    return records.map((record) => {
+      const partialRecord: Partial<typeof record> = record;
+      for (const untypedKey of ["id", "enum", "nullableEnum", "enumArray"]) {
+        const key = untypedKey as keyof typeof record & keyof S;
+        if (!selectClause[key]) delete partialRecord[key];
+      }
+      return partialRecord;
+    }) as Prisma.Result<Prisma.ModelWithEnumDelegate, { select: S }, "findFirstOrThrow">[];
+  }
+  private async _applyRelations<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">>(
+    records: Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow">[],
+    tx: IDBUtils.TransactionType,
+    query?: Q
+  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findFirstOrThrow">[]> {
+    if (!query) return records as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findFirstOrThrow">[];
+    const recordsWithRelations = records.map(async (record) => {
+      const unsafeRecord = record as Record<string, unknown>;
+      return unsafeRecord;
+    });
+    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
+      Prisma.ModelWithEnumDelegate,
+      Q,
+      "findFirstOrThrow"
+    >[];
+  }
+  async _applyOrderByClause<
+    O extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">["orderBy"],
+    R extends Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow">,
+  >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
+    if (orderByClause === undefined) return;
+    const orderByClauses = IDBUtils.convertToArray(orderByClause);
+    const indexedKeys = await Promise.all(
+      records.map(async (record) => {
+        const keys = await Promise.all(
+          orderByClauses.map(async (clause) => await this._resolveOrderByKey(record, clause, tx))
+        );
+        return { keys, record };
+      })
+    );
+    indexedKeys.sort((a, b) => {
+      for (let i = 0; i < orderByClauses.length; i++) {
+        const clause = orderByClauses[i];
+        const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));
+        if (comparison !== 0) return comparison;
+      }
+      return 0;
+    });
+    for (let i = 0; i < records.length; i++) {
+      records[i] = indexedKeys[i].record;
+    }
+  }
+  async _resolveOrderByKey(
+    record: Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow">,
+    orderByInput: Prisma.ModelWithEnumOrderByWithRelationInput,
+    tx: IDBUtils.TransactionType
+  ): Promise<unknown> {
+    const scalarFields = ["id", "enum", "nullableEnum", "enumArray"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return record[field];
+  }
+  _resolveSortOrder(
+    orderByInput: Prisma.ModelWithEnumOrderByWithRelationInput
+  ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
+    const scalarFields = ["id", "enum", "nullableEnum", "enumArray"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
+    throw new Error("No field in orderBy clause");
+  }
+  private async _fillDefaults<D extends Prisma.Args<Prisma.ModelWithEnumDelegate, "create">["data"]>(
+    data: D,
+    tx?: IDBUtils.ReadwriteTransactionType
+  ): Promise<D> {
+    if (data === undefined) data = {} as NonNullable<D>;
+    if (data.id === undefined) {
+      const transaction = tx ?? this.client._db.transaction(["ModelWithEnum"], "readwrite");
+      const store = transaction.objectStore("ModelWithEnum");
+      const cursor = await store.openCursor(null, "prev");
+      data.id = cursor ? Number(cursor.key) + 1 : 1;
+    }
+    if (data.nullableEnum === undefined) {
+      data.nullableEnum = null;
+    }
+    if (!Array.isArray(data.enumArray)) {
+      data.enumArray = data.enumArray?.set;
+    }
+    return data;
+  }
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+  }
+  _getNeededStoresForFind<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">>(
+    query?: Q
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("ModelWithEnum");
+    this._getNeededStoresForWhere(query?.where, neededStores);
+    if (query?.orderBy) {
+      const orderBy = IDBUtils.convertToArray(query.orderBy);
+    }
+    return neededStores;
+  }
+  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.ModelWithEnumDelegate, "create">["data"]>>(
+    data: D
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("ModelWithEnum");
+    return neededStores;
+  }
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "update">>(
+    query: Partial<Q>
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores = this._getNeededStoresForFind(query).union(
+      this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.ModelWithEnumDelegate, "create">["data"])
+    );
+    return neededStores;
+  }
+  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
+    neededStores.add("ModelWithEnum");
+  }
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.ModelWithEnumDelegate, "create">["data"]>(
+    data: D
+  ): Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow"> {
+    const recordWithoutNestedCreate = structuredClone(data);
+    return recordWithoutNestedCreate as Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow">;
+  }
+  private _preprocessListFields(records: Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findMany">): void {
+    for (const record of records) {
+      record.enumArray = record.enumArray ?? [];
+    }
+  }
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.ModelWithEnumDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("ModelWithEnum").getAll();
+  }
+  async findMany<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findMany">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    await this._applyOrderByClause(records, query?.orderBy, tx);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.ModelWithEnumDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
+    const selectClause = query?.select;
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    this._preprocessListFields(selectAppliedRecords);
+    return selectAppliedRecords as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findMany">;
+  }
+  async findFirst<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findFirst">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findFirst">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    return (await this.findMany(query, { tx }))[0] ?? null;
+  }
+  async findFirstOrThrow<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findFirstOrThrow">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findFirstOrThrow">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findFirst(query, { tx });
+    if (!record) {
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+  async findUnique<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findUnique">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findUnique">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let record;
+    if (query.where.id !== undefined) {
+      record = await tx.objectStore("ModelWithEnum").get([query.where.id]);
+    }
+    if (!record) return null;
+
+    const recordWithRelations = this._applySelectClause(
+      await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query),
+      query.select
+    )[0];
+    this._preprocessListFields([recordWithRelations]);
+    return recordWithRelations as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findUnique">;
+  }
+  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findUniqueOrThrow">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findUniqueOrThrow">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findUnique(query, { tx });
+    if (!record) {
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+  async count<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "count">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "count">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(["ModelWithEnum"], "readonly");
+    if (!query?.select || query.select === true) {
+      const records = await this.findMany({ where: query?.where }, { tx });
+      return records.length as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "count">;
+    }
+    const result: Partial<Record<keyof Prisma.ModelWithEnumCountAggregateInputType, number>> = {};
+    for (const key of Object.keys(query.select)) {
+      const typedKey = key as keyof typeof query.select;
+      if (typedKey === "_all") {
+        result[typedKey] = (await this.findMany({ where: query.where }, { tx })).length;
+        continue;
+      }
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })).length;
+    }
+    return result as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "count">;
+  }
+  async create<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "create">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "create">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForCreate(query.data);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
+    const keyPath = await tx.objectStore("ModelWithEnum").add(record);
+    const data = (await tx.objectStore("ModelWithEnum").get(keyPath))!;
+    const recordsWithRelations = this._applySelectClause(
+      await this._applyRelations<object>([data], tx, query),
+      query.select
+    )[0];
+    this._preprocessListFields([recordsWithRelations]);
+    await this.emit("create", keyPath, undefined, data, { silent, addToOutbox, tx });
+    return recordsWithRelations as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "create">;
+  }
+  async createMany<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "createMany">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "createMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["ModelWithEnum"]);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("ModelWithEnum").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+    }
+    return { count: createManyData.length };
+  }
+  async createManyAndReturn<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "createManyAndReturn">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "createManyAndReturn">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const records: Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findMany"> = [];
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["ModelWithEnum"]);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("ModelWithEnum").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+      records.push(this._applySelectClause([record], query.select)[0]);
+    }
+    this._preprocessListFields(records);
+    return records as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "createManyAndReturn">;
+  }
+  async delete<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "delete">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "delete">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = await this.findUnique(query, { tx });
+    if (!record) throw new Error("Record not found");
+    await tx.objectStore("ModelWithEnum").delete([record.id]);
+    await this.emit("delete", [record.id], undefined, record, { silent, addToOutbox, tx });
+    return record;
+  }
+  async deleteMany<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "deleteMany">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "deleteMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const records = await this.findMany(query, { tx });
+    for (const record of records) {
+      await this.delete({ where: { id: record.id } }, { tx, silent, addToOutbox });
+    }
+    return { count: records.length };
+  }
+  async update<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "update">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "update">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
+    const record = await this.findUnique({ where: query.where }, { tx });
+    if (record === null) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
+    const startKeyPath: PrismaIDBSchema["ModelWithEnum"]["key"] = [record.id];
+    const intFields = ["id"] as const;
+    for (const field of intFields) {
+      IDBUtils.handleIntUpdateField(record, field, query.data[field]);
+    }
+    const enumFields = ["enum", "nullableEnum"] as const;
+    for (const field of enumFields) {
+      IDBUtils.handleEnumUpdateField(record, field, query.data[field]);
+    }
+    const listFields = ["enumArray"] as const;
+    for (const field of listFields) {
+      IDBUtils.handleScalarListUpdateField(record, field, query.data[field]);
+    }
+    const endKeyPath: PrismaIDBSchema["ModelWithEnum"]["key"] = [record.id];
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        if ((await tx.objectStore("ModelWithEnum").get(endKeyPath)) !== undefined) {
+          throw new Error("Record with the same keyPath already exists");
+        }
+        await tx.objectStore("ModelWithEnum").delete(startKeyPath);
+        break;
+      }
+    }
+    const keyPath = await tx.objectStore("ModelWithEnum").put(record);
+    await this.emit("update", keyPath, startKeyPath, record, { silent, addToOutbox, tx });
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        break;
+      }
+    }
+    const recordWithRelations = (await this.findUnique(
+      {
+        where: { id: keyPath[0] },
+      },
+      { tx }
+    ))!;
+    return recordWithRelations as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "update">;
+  }
+  async updateMany<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "updateMany">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "updateMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const records = await this.findMany({ where: query.where }, { tx });
+    await Promise.all(
+      records.map(async (record) => {
+        await this.update({ where: { id: record.id }, data: query.data }, { tx, silent, addToOutbox });
+      })
+    );
+    return { count: records.length };
+  }
+  async upsert<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "upsert">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "upsert">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const neededStores = this._getNeededStoresForUpdate({
+      ...query,
+      data: { ...query.update, ...query.create } as Prisma.Args<Prisma.ModelWithEnumDelegate, "update">["data"],
+    });
+    tx = tx ?? this.client._db.transaction(Array.from(neededStores), "readwrite");
+    let record = await this.findUnique({ where: query.where }, { tx });
+    if (!record) record = await this.create({ data: query.create }, { tx, silent, addToOutbox });
+    else record = await this.update({ where: query.where, data: query.update }, { tx, silent, addToOutbox });
+    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select }, { tx });
+    return record as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "upsert">;
+  }
+  async aggregate<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "aggregate">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "aggregate">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(["ModelWithEnum"], "readonly");
+    const records = await this.findMany({ where: query?.where }, { tx });
+    const result: Partial<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "aggregate">> = {};
+    if (query?._count) {
+      if (query._count === true) {
+        (result._count as number) = records.length;
+      } else {
+        for (const key of Object.keys(query._count)) {
+          const typedKey = key as keyof typeof query._count;
+          if (typedKey === "_all") {
+            (result._count as Record<string, number>)[typedKey] = records.length;
+            continue;
+          }
+          (result._count as Record<string, number>)[typedKey] = (
+            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })
+          ).length;
+        }
+      }
+    }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "aggregate">["_min"];
+      const numericFields = ["id"] as const;
+      for (const field of numericFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "aggregate">["_max"];
+      const numericFields = ["id"] as const;
+      for (const field of numericFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      result._max = maxResult;
+    }
+    if (query?._avg) {
+      const avgResult = {} as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "aggregate">["_avg"];
+      for (const untypedField of Object.keys(query._avg)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+      result._avg = avgResult;
+    }
+    if (query?._sum) {
+      const sumResult = {} as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "aggregate">["_sum"];
+      for (const untypedField of Object.keys(query._sum)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
+      }
+      result._sum = sumResult;
+    }
+    return result as unknown as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "aggregate">;
+  }
+}
+class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
+  constructor(client: PrismaIDBClient, keyPath: string[]) {
+    super(client, keyPath, "TestUuid");
+  }
+
+  private async _applyWhereClause<
+    W extends Prisma.Args<Prisma.TestUuidDelegate, "findFirstOrThrow">["where"],
+    R extends Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow">,
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
+    if (!whereClause) return records;
+    records = await IDBUtils.applyLogicalFilters<Prisma.TestUuidDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this)
+    );
+    return (
+      await Promise.all(
+        records.map(async (record) => {
+          const stringFields = ["id", "name"] as const;
+          for (const field of stringFields) {
+            if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
+          }
+          return record;
+        })
+      )
+    ).filter((result) => result !== null);
+  }
+  private _applySelectClause<S extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">["select"]>(
+    records: Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow">[],
+    selectClause: S
+  ): Prisma.Result<Prisma.TestUuidDelegate, { select: S }, "findFirstOrThrow">[] {
+    if (!selectClause) {
+      return records as Prisma.Result<Prisma.TestUuidDelegate, { select: S }, "findFirstOrThrow">[];
+    }
+    return records.map((record) => {
+      const partialRecord: Partial<typeof record> = record;
+      for (const untypedKey of ["id", "name"]) {
+        const key = untypedKey as keyof typeof record & keyof S;
+        if (!selectClause[key]) delete partialRecord[key];
+      }
+      return partialRecord;
+    }) as Prisma.Result<Prisma.TestUuidDelegate, { select: S }, "findFirstOrThrow">[];
+  }
+  private async _applyRelations<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">>(
+    records: Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow">[],
+    tx: IDBUtils.TransactionType,
+    query?: Q
+  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirstOrThrow">[]> {
+    if (!query) return records as Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirstOrThrow">[];
+    const recordsWithRelations = records.map(async (record) => {
+      const unsafeRecord = record as Record<string, unknown>;
+      return unsafeRecord;
+    });
+    return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirstOrThrow">[];
+  }
+  async _applyOrderByClause<
+    O extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">["orderBy"],
+    R extends Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow">,
+  >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
+    if (orderByClause === undefined) return;
+    const orderByClauses = IDBUtils.convertToArray(orderByClause);
+    const indexedKeys = await Promise.all(
+      records.map(async (record) => {
+        const keys = await Promise.all(
+          orderByClauses.map(async (clause) => await this._resolveOrderByKey(record, clause, tx))
+        );
+        return { keys, record };
+      })
+    );
+    indexedKeys.sort((a, b) => {
+      for (let i = 0; i < orderByClauses.length; i++) {
+        const clause = orderByClauses[i];
+        const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));
+        if (comparison !== 0) return comparison;
+      }
+      return 0;
+    });
+    for (let i = 0; i < records.length; i++) {
+      records[i] = indexedKeys[i].record;
+    }
+  }
+  async _resolveOrderByKey(
+    record: Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow">,
+    orderByInput: Prisma.TestUuidOrderByWithRelationInput,
+    tx: IDBUtils.TransactionType
+  ): Promise<unknown> {
+    const scalarFields = ["id", "name"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return record[field];
+  }
+  _resolveSortOrder(
+    orderByInput: Prisma.TestUuidOrderByWithRelationInput
+  ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
+    const scalarFields = ["id", "name"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
+    throw new Error("No field in orderBy clause");
+  }
+  private async _fillDefaults<D extends Prisma.Args<Prisma.TestUuidDelegate, "create">["data"]>(
+    data: D,
+    tx?: IDBUtils.ReadwriteTransactionType
+  ): Promise<D> {
+    if (data === undefined) data = {} as NonNullable<D>;
+    if (data.id === undefined) {
+      data.id = uuidv4();
+    }
+    return data;
+  }
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+  }
+  _getNeededStoresForFind<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">>(
+    query?: Q
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("TestUuid");
+    this._getNeededStoresForWhere(query?.where, neededStores);
+    if (query?.orderBy) {
+      const orderBy = IDBUtils.convertToArray(query.orderBy);
+    }
+    return neededStores;
+  }
+  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.TestUuidDelegate, "create">["data"]>>(
+    data: D
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("TestUuid");
+    return neededStores;
+  }
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.TestUuidDelegate, "update">>(
+    query: Partial<Q>
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores = this._getNeededStoresForFind(query).union(
+      this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.TestUuidDelegate, "create">["data"])
+    );
+    return neededStores;
+  }
+  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
+    neededStores.add("TestUuid");
+  }
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.TestUuidDelegate, "create">["data"]>(
+    data: D
+  ): Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow"> {
+    const recordWithoutNestedCreate = structuredClone(data);
+    return recordWithoutNestedCreate as Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow">;
+  }
+  private _preprocessListFields(records: Prisma.Result<Prisma.TestUuidDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.TestUuidDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("TestUuid").getAll();
+  }
+  async findMany<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findMany">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    await this._applyOrderByClause(records, query?.orderBy, tx);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.TestUuidDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
+    const selectClause = query?.select;
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    this._preprocessListFields(selectAppliedRecords);
+    return selectAppliedRecords as Prisma.Result<Prisma.TestUuidDelegate, Q, "findMany">;
+  }
+  async findFirst<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findFirst">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirst">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    return (await this.findMany(query, { tx }))[0] ?? null;
+  }
+  async findFirstOrThrow<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findFirstOrThrow">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirstOrThrow">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findFirst(query, { tx });
+    if (!record) {
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+  async findUnique<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findUnique">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findUnique">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let record;
+    if (query.where.id !== undefined) {
+      record = await tx.objectStore("TestUuid").get([query.where.id]);
+    }
+    if (!record) return null;
+
+    const recordWithRelations = this._applySelectClause(
+      await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query),
+      query.select
+    )[0];
+    this._preprocessListFields([recordWithRelations]);
+    return recordWithRelations as Prisma.Result<Prisma.TestUuidDelegate, Q, "findUnique">;
+  }
+  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findUniqueOrThrow">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findUniqueOrThrow">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findUnique(query, { tx });
+    if (!record) {
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+  async count<Q extends Prisma.Args<Prisma.TestUuidDelegate, "count">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "count">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(["TestUuid"], "readonly");
+    if (!query?.select || query.select === true) {
+      const records = await this.findMany({ where: query?.where }, { tx });
+      return records.length as Prisma.Result<Prisma.TestUuidDelegate, Q, "count">;
+    }
+    const result: Partial<Record<keyof Prisma.TestUuidCountAggregateInputType, number>> = {};
+    for (const key of Object.keys(query.select)) {
+      const typedKey = key as keyof typeof query.select;
+      if (typedKey === "_all") {
+        result[typedKey] = (await this.findMany({ where: query.where }, { tx })).length;
+        continue;
+      }
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })).length;
+    }
+    return result as Prisma.Result<Prisma.TestUuidDelegate, Q, "count">;
+  }
+  async create<Q extends Prisma.Args<Prisma.TestUuidDelegate, "create">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "create">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForCreate(query.data);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
+    const keyPath = await tx.objectStore("TestUuid").add(record);
+    const data = (await tx.objectStore("TestUuid").get(keyPath))!;
+    const recordsWithRelations = this._applySelectClause(
+      await this._applyRelations<object>([data], tx, query),
+      query.select
+    )[0];
+    this._preprocessListFields([recordsWithRelations]);
+    await this.emit("create", keyPath, undefined, data, { silent, addToOutbox, tx });
+    return recordsWithRelations as Prisma.Result<Prisma.TestUuidDelegate, Q, "create">;
+  }
+  async createMany<Q extends Prisma.Args<Prisma.TestUuidDelegate, "createMany">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "createMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["TestUuid"]);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("TestUuid").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+    }
+    return { count: createManyData.length };
+  }
+  async createManyAndReturn<Q extends Prisma.Args<Prisma.TestUuidDelegate, "createManyAndReturn">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "createManyAndReturn">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const records: Prisma.Result<Prisma.TestUuidDelegate, object, "findMany"> = [];
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["TestUuid"]);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("TestUuid").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+      records.push(this._applySelectClause([record], query.select)[0]);
+    }
+    this._preprocessListFields(records);
+    return records as Prisma.Result<Prisma.TestUuidDelegate, Q, "createManyAndReturn">;
+  }
+  async delete<Q extends Prisma.Args<Prisma.TestUuidDelegate, "delete">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "delete">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = await this.findUnique(query, { tx });
+    if (!record) throw new Error("Record not found");
+    await tx.objectStore("TestUuid").delete([record.id]);
+    await this.emit("delete", [record.id], undefined, record, { silent, addToOutbox, tx });
+    return record;
+  }
+  async deleteMany<Q extends Prisma.Args<Prisma.TestUuidDelegate, "deleteMany">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "deleteMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const records = await this.findMany(query, { tx });
+    for (const record of records) {
+      await this.delete({ where: { id: record.id } }, { tx, silent, addToOutbox });
+    }
+    return { count: records.length };
+  }
+  async update<Q extends Prisma.Args<Prisma.TestUuidDelegate, "update">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "update">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
+    const record = await this.findUnique({ where: query.where }, { tx });
+    if (record === null) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
+    const startKeyPath: PrismaIDBSchema["TestUuid"]["key"] = [record.id];
+    const stringFields = ["id", "name"] as const;
+    for (const field of stringFields) {
+      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const endKeyPath: PrismaIDBSchema["TestUuid"]["key"] = [record.id];
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        if ((await tx.objectStore("TestUuid").get(endKeyPath)) !== undefined) {
+          throw new Error("Record with the same keyPath already exists");
+        }
+        await tx.objectStore("TestUuid").delete(startKeyPath);
+        break;
+      }
+    }
+    const keyPath = await tx.objectStore("TestUuid").put(record);
+    await this.emit("update", keyPath, startKeyPath, record, { silent, addToOutbox, tx });
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        break;
+      }
+    }
+    const recordWithRelations = (await this.findUnique(
+      {
+        where: { id: keyPath[0] },
+      },
+      { tx }
+    ))!;
+    return recordWithRelations as Prisma.Result<Prisma.TestUuidDelegate, Q, "update">;
+  }
+  async updateMany<Q extends Prisma.Args<Prisma.TestUuidDelegate, "updateMany">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "updateMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const records = await this.findMany({ where: query.where }, { tx });
+    await Promise.all(
+      records.map(async (record) => {
+        await this.update({ where: { id: record.id }, data: query.data }, { tx, silent, addToOutbox });
+      })
+    );
+    return { count: records.length };
+  }
+  async upsert<Q extends Prisma.Args<Prisma.TestUuidDelegate, "upsert">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "upsert">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const neededStores = this._getNeededStoresForUpdate({
+      ...query,
+      data: { ...query.update, ...query.create } as Prisma.Args<Prisma.TestUuidDelegate, "update">["data"],
+    });
+    tx = tx ?? this.client._db.transaction(Array.from(neededStores), "readwrite");
+    let record = await this.findUnique({ where: query.where }, { tx });
+    if (!record) record = await this.create({ data: query.create }, { tx, silent, addToOutbox });
+    else record = await this.update({ where: query.where, data: query.update }, { tx, silent, addToOutbox });
+    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select }, { tx });
+    return record as Prisma.Result<Prisma.TestUuidDelegate, Q, "upsert">;
+  }
+  async aggregate<Q extends Prisma.Args<Prisma.TestUuidDelegate, "aggregate">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "aggregate">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(["TestUuid"], "readonly");
+    const records = await this.findMany({ where: query?.where }, { tx });
+    const result: Partial<Prisma.Result<Prisma.TestUuidDelegate, Q, "aggregate">> = {};
+    if (query?._count) {
+      if (query._count === true) {
+        (result._count as number) = records.length;
+      } else {
+        for (const key of Object.keys(query._count)) {
+          const typedKey = key as keyof typeof query._count;
+          if (typedKey === "_all") {
+            (result._count as Record<string, number>)[typedKey] = records.length;
+            continue;
+          }
+          (result._count as Record<string, number>)[typedKey] = (
+            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })
+          ).length;
+        }
+      }
+    }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.TestUuidDelegate, Q, "aggregate">["_min"];
+      const stringFields = ["id", "name"] as const;
+      for (const field of stringFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as string) = values.sort()[0];
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.TestUuidDelegate, Q, "aggregate">["_max"];
+      const stringFields = ["id", "name"] as const;
+      for (const field of stringFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];
+      }
+      result._max = maxResult;
+    }
+    return result as unknown as Prisma.Result<Prisma.TestUuidDelegate, Q, "aggregate">;
+  }
+}
+class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithOptionalRelationToUniqueAttributes"> {
+  constructor(client: PrismaIDBClient, keyPath: string[]) {
+    super(client, keyPath, "ModelWithOptionalRelationToUniqueAttributes");
+  }
+
+  private async _applyWhereClause<
+    W extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findFirstOrThrow">["where"],
+    R extends Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findFirstOrThrow">,
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
+    if (!whereClause) return records;
+    records = await IDBUtils.applyLogicalFilters<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this)
+    );
+    return (
+      await Promise.all(
+        records.map(async (record) => {
+          const stringFields = ["id"] as const;
+          for (const field of stringFields) {
+            if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
+          }
+          const numberFields = ["linkId"] as const;
+          for (const field of numberFields) {
+            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
+          }
+          if (whereClause.link === null) {
+            if (record.linkId !== null) return null;
+          }
+          if (whereClause.link) {
+            const { is, isNot, ...rest } = whereClause.link;
+            if (is === null) {
+              if (record.linkId !== null) return null;
+            }
+            if (is !== null && is !== undefined) {
+              if (record.linkId === null) return null;
+              const relatedRecord = await this.client.modelWithUniqueAttributes.findFirst(
+                { where: { ...is, id: record.linkId } },
+                { tx }
+              );
+              if (!relatedRecord) return null;
+            }
+            if (isNot === null) {
+              if (record.linkId === null) return null;
+            }
+            if (isNot !== null && isNot !== undefined) {
+              if (record.linkId === null) return null;
+              const relatedRecord = await this.client.modelWithUniqueAttributes.findFirst(
+                { where: { ...isNot, id: record.linkId } },
+                { tx }
+              );
+              if (relatedRecord) return null;
+            }
+            if (Object.keys(rest).length) {
+              if (record.linkId === null) return null;
+              const relatedRecord = await this.client.modelWithUniqueAttributes.findFirst(
+                { where: { ...whereClause.link, id: record.linkId } },
+                { tx }
+              );
+              if (!relatedRecord) return null;
+            }
+          }
+          return record;
+        })
+      )
+    ).filter((result) => result !== null);
+  }
+  private _applySelectClause<
+    S extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findMany">["select"],
+  >(
+    records: Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findFirstOrThrow">[],
+    selectClause: S
+  ): Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, { select: S }, "findFirstOrThrow">[] {
+    if (!selectClause) {
+      return records as Prisma.Result<
+        Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+        { select: S },
+        "findFirstOrThrow"
+      >[];
+    }
+    return records.map((record) => {
+      const partialRecord: Partial<typeof record> = record;
+      for (const untypedKey of ["id", "link", "linkId"]) {
+        const key = untypedKey as keyof typeof record & keyof S;
+        if (!selectClause[key]) delete partialRecord[key];
+      }
+      return partialRecord;
+    }) as Prisma.Result<
+      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+      { select: S },
+      "findFirstOrThrow"
+    >[];
+  }
+  private async _applyRelations<
+    Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findMany">,
+  >(
+    records: Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findFirstOrThrow">[],
+    tx: IDBUtils.TransactionType,
+    query?: Q
+  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "findFirstOrThrow">[]> {
+    if (!query)
+      return records as Prisma.Result<
+        Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+        Q,
+        "findFirstOrThrow"
+      >[];
+    const recordsWithRelations = records.map(async (record) => {
+      const unsafeRecord = record as Record<string, unknown>;
+      const attach_link = query.select?.link || query.include?.link;
+      if (attach_link) {
+        unsafeRecord["link"] =
+          record.linkId === null
+            ? null
+            : await this.client.modelWithUniqueAttributes.findUnique(
+                {
+                  ...(attach_link === true ? {} : attach_link),
+                  where: { id: record.linkId! },
+                },
+                { tx }
+              );
+      }
+      return unsafeRecord;
+    });
+    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
+      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+      Q,
+      "findFirstOrThrow"
+    >[];
+  }
+  async _applyOrderByClause<
+    O extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findMany">["orderBy"],
+    R extends Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findFirstOrThrow">,
+  >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
+    if (orderByClause === undefined) return;
+    const orderByClauses = IDBUtils.convertToArray(orderByClause);
+    const indexedKeys = await Promise.all(
+      records.map(async (record) => {
+        const keys = await Promise.all(
+          orderByClauses.map(async (clause) => await this._resolveOrderByKey(record, clause, tx))
+        );
+        return { keys, record };
+      })
+    );
+    indexedKeys.sort((a, b) => {
+      for (let i = 0; i < orderByClauses.length; i++) {
+        const clause = orderByClauses[i];
+        const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));
+        if (comparison !== 0) return comparison;
+      }
+      return 0;
+    });
+    for (let i = 0; i < records.length; i++) {
+      records[i] = indexedKeys[i].record;
+    }
+  }
+  async _resolveOrderByKey(
+    record: Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findFirstOrThrow">,
+    orderByInput: Prisma.ModelWithOptionalRelationToUniqueAttributesOrderByWithRelationInput,
+    tx: IDBUtils.TransactionType
+  ): Promise<unknown> {
+    const scalarFields = ["id", "linkId"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return record[field];
+    if (orderByInput.link) {
+      return record.linkId === null
+        ? null
+        : await this.client.modelWithUniqueAttributes._resolveOrderByKey(
+            await this.client.modelWithUniqueAttributes.findFirstOrThrow({ where: { id: record.linkId } }),
+            orderByInput.link,
+            tx
+          );
+    }
+  }
+  _resolveSortOrder(
+    orderByInput: Prisma.ModelWithOptionalRelationToUniqueAttributesOrderByWithRelationInput
+  ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
+    const scalarFields = ["id", "linkId"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
+    if (orderByInput.link) {
+      return this.client.modelWithUniqueAttributes._resolveSortOrder(orderByInput.link);
+    }
+    throw new Error("No field in orderBy clause");
+  }
+  private async _fillDefaults<
+    D extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "create">["data"],
+  >(data: D, tx?: IDBUtils.ReadwriteTransactionType): Promise<D> {
+    if (data === undefined) data = {} as NonNullable<D>;
+    if (data.id === undefined) {
+      data.id = uuidv4();
+    }
+    if (data.linkId === undefined) {
+      data.linkId = null;
+    }
+    return data;
+  }
+  _getNeededStoresForWhere<
+    W extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findMany">["where"],
+  >(whereClause: W, neededStores: Set<StoreNames<PrismaIDBSchema>>) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+    if (whereClause.link) {
+      neededStores.add("ModelWithUniqueAttributes");
+      this.client.modelWithUniqueAttributes._getNeededStoresForWhere(whereClause.link, neededStores);
+    }
+  }
+  _getNeededStoresForFind<
+    Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findMany">,
+  >(query?: Q): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
+    this._getNeededStoresForWhere(query?.where, neededStores);
+    if (query?.orderBy) {
+      const orderBy = IDBUtils.convertToArray(query.orderBy);
+      const orderBy_link = orderBy.find((clause) => clause.link);
+      if (orderBy_link) {
+        this.client.modelWithUniqueAttributes
+          ._getNeededStoresForFind({ orderBy: orderBy_link.link })
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
+    if (query?.select?.link || query?.include?.link) {
+      neededStores.add("ModelWithUniqueAttributes");
+      if (typeof query.select?.link === "object") {
+        this.client.modelWithUniqueAttributes
+          ._getNeededStoresForFind(query.select.link)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.link === "object") {
+        this.client.modelWithUniqueAttributes
+          ._getNeededStoresForFind(query.include.link)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
+    return neededStores;
+  }
+  _getNeededStoresForCreate<
+    D extends Partial<Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "create">["data"]>,
+  >(data: D): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
+    if (data?.link) {
+      neededStores.add("ModelWithUniqueAttributes");
+      if (data.link.create) {
+        const createData = Array.isArray(data.link.create) ? data.link.create : [data.link.create];
+        createData.forEach((record) =>
+          this.client.modelWithUniqueAttributes
+            ._getNeededStoresForCreate(record)
+            .forEach((storeName) => neededStores.add(storeName))
+        );
+      }
+      if (data.link.connectOrCreate) {
+        IDBUtils.convertToArray(data.link.connectOrCreate).forEach((record) =>
+          this.client.modelWithUniqueAttributes
+            ._getNeededStoresForCreate(record.create)
+            .forEach((storeName) => neededStores.add(storeName))
+        );
+      }
+    }
+    if (data?.linkId !== undefined) {
+      neededStores.add("ModelWithUniqueAttributes");
+    }
+    return neededStores;
+  }
+  _getNeededStoresForUpdate<
+    Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "update">,
+  >(query: Partial<Q>): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores = this._getNeededStoresForFind(query).union(
+      this._getNeededStoresForCreate(
+        query.data as Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "create">["data"]
+      )
+    );
+    if (query.data?.link?.connect) {
+      neededStores.add("ModelWithUniqueAttributes");
+      IDBUtils.convertToArray(query.data.link.connect).forEach((connect) => {
+        this.client.modelWithUniqueAttributes._getNeededStoresForWhere(connect, neededStores);
+      });
+    }
+    if (query.data?.link?.disconnect) {
+      neededStores.add("ModelWithUniqueAttributes");
+      if (query.data?.link?.disconnect !== true) {
+        IDBUtils.convertToArray(query.data.link.disconnect).forEach((disconnect) => {
+          this.client.modelWithUniqueAttributes._getNeededStoresForWhere(disconnect, neededStores);
+        });
+      }
+    }
+    if (query.data?.link?.update) {
+      neededStores.add("ModelWithUniqueAttributes");
+      IDBUtils.convertToArray(query.data.link.update).forEach((update) => {
+        this.client.modelWithUniqueAttributes
+          ._getNeededStoresForUpdate(update as Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "update">)
+          .forEach((store) => neededStores.add(store));
+      });
+    }
+    if (query.data?.link?.upsert) {
+      neededStores.add("ModelWithUniqueAttributes");
+      IDBUtils.convertToArray(query.data.link.upsert).forEach((upsert) => {
+        const update = { where: upsert.where, data: { ...upsert.update, ...upsert.create } } as Prisma.Args<
+          Prisma.ModelWithUniqueAttributesDelegate,
+          "update"
+        >;
+        this.client.modelWithUniqueAttributes
+          ._getNeededStoresForUpdate(update)
+          .forEach((store) => neededStores.add(store));
+      });
+    }
+    if (query.data?.link?.delete) {
+      this.client.modelWithUniqueAttributes._getNeededStoresForNestedDelete(neededStores);
+    }
+    return neededStores;
+  }
+  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
+    neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
+  }
+  private _removeNestedCreateData<
+    D extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "create">["data"],
+  >(data: D): Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findFirstOrThrow"> {
+    const recordWithoutNestedCreate = structuredClone(data);
+    delete recordWithoutNestedCreate?.link;
+    return recordWithoutNestedCreate as Prisma.Result<
+      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+      object,
+      "findFirstOrThrow"
+    >;
+  }
+  private _preprocessListFields(
+    records: Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findMany">
+  ): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").getAll();
+  }
+  async findMany<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findMany">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "findMany">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    await this._applyOrderByClause(records, query?.orderBy, tx);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
+    const selectClause = query?.select;
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    this._preprocessListFields(selectAppliedRecords);
+    return selectAppliedRecords as Prisma.Result<
+      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+      Q,
+      "findMany"
+    >;
+  }
+  async findFirst<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findFirst">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "findFirst">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    return (await this.findMany(query, { tx }))[0] ?? null;
+  }
+  async findFirstOrThrow<
+    Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findFirstOrThrow">,
+  >(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "findFirstOrThrow">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findFirst(query, { tx });
+    if (!record) {
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+  async findUnique<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findUnique">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "findUnique">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let record;
+    if (query.where.id !== undefined) {
+      record = await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").get([query.where.id]);
+    }
+    if (!record) return null;
+
+    const recordWithRelations = this._applySelectClause(
+      await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query),
+      query.select
+    )[0];
+    this._preprocessListFields([recordWithRelations]);
+    return recordWithRelations as Prisma.Result<
+      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+      Q,
+      "findUnique"
+    >;
+  }
+  async findUniqueOrThrow<
+    Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findUniqueOrThrow">,
+  >(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "findUniqueOrThrow">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findUnique(query, { tx });
+    if (!record) {
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+  async count<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "count">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "count">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(["ModelWithOptionalRelationToUniqueAttributes"], "readonly");
+    if (!query?.select || query.select === true) {
+      const records = await this.findMany({ where: query?.where }, { tx });
+      return records.length as Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "count">;
+    }
+    const result: Partial<
+      Record<keyof Prisma.ModelWithOptionalRelationToUniqueAttributesCountAggregateInputType, number>
+    > = {};
+    for (const key of Object.keys(query.select)) {
+      const typedKey = key as keyof typeof query.select;
+      if (typedKey === "_all") {
+        result[typedKey] = (await this.findMany({ where: query.where }, { tx })).length;
+        continue;
+      }
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })).length;
+    }
+    return result as Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "count">;
+  }
+  async create<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "create">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "create">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForCreate(query.data);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    query.data = query.data === undefined ? {} : query.data;
+    if (query.data.link) {
+      const fk: Partial<PrismaIDBSchema["ModelWithUniqueAttributes"]["key"]> = [];
+      if (query.data.link?.create) {
+        const record = await this.client.modelWithUniqueAttributes.create(
+          { data: query.data.link.create },
+          { tx, silent, addToOutbox }
+        );
+        fk[0] = record.id;
+      }
+      if (query.data.link?.connect) {
+        const record = await this.client.modelWithUniqueAttributes.findUniqueOrThrow(
+          { where: query.data.link.connect },
+          { tx }
+        );
+        delete query.data.link.connect;
+        fk[0] = record.id;
+      }
+      if (query.data.link?.connectOrCreate) {
+        const record = await this.client.modelWithUniqueAttributes.upsert(
+          {
+            where: query.data.link.connectOrCreate.where,
+            create: query.data.link.connectOrCreate.create,
+            update: {},
+          },
+          { tx, silent, addToOutbox }
+        );
+        fk[0] = record.id;
+      }
+      const unsafeData = query.data as Record<string, unknown>;
+      unsafeData.linkId = fk[0];
+      delete unsafeData.link;
+    } else if (query.data?.linkId !== undefined && query.data.linkId !== null) {
+      await this.client.modelWithUniqueAttributes.findUniqueOrThrow(
+        {
+          where: { id: query.data.linkId },
+        },
+        { tx }
+      );
+    }
+    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
+    const keyPath = await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").add(record);
+    const data = (await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").get(keyPath))!;
+    const recordsWithRelations = this._applySelectClause(
+      await this._applyRelations<object>([data], tx, query),
+      query.select
+    )[0];
+    this._preprocessListFields([recordsWithRelations]);
+    await this.emit("create", keyPath, undefined, data, { silent, addToOutbox, tx });
+    return recordsWithRelations as Prisma.Result<
+      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+      Q,
+      "create"
+    >;
+  }
+  async createMany<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "createMany">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "createMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["ModelWithOptionalRelationToUniqueAttributes"]);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+    }
+    return { count: createManyData.length };
+  }
+  async createManyAndReturn<
+    Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "createManyAndReturn">,
+  >(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "createManyAndReturn">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const records: Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findMany"> = [];
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["ModelWithOptionalRelationToUniqueAttributes"]);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+      records.push(this._applySelectClause([record], query.select)[0]);
+    }
+    this._preprocessListFields(records);
+    return records as Prisma.Result<
+      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+      Q,
+      "createManyAndReturn"
+    >;
+  }
+  async delete<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "delete">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "delete">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = await this.findUnique(query, { tx });
+    if (!record) throw new Error("Record not found");
+    await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").delete([record.id]);
+    await this.emit("delete", [record.id], undefined, record, { silent, addToOutbox, tx });
+    return record;
+  }
+  async deleteMany<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "deleteMany">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "deleteMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const records = await this.findMany(query, { tx });
+    for (const record of records) {
+      await this.delete({ where: { id: record.id } }, { tx, silent, addToOutbox });
+    }
+    return { count: records.length };
+  }
+  async update<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "update">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "update">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
+    const record = await this.findUnique({ where: query.where }, { tx });
+    if (record === null) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
+    const startKeyPath: PrismaIDBSchema["ModelWithOptionalRelationToUniqueAttributes"]["key"] = [record.id];
+    const stringFields = ["id"] as const;
+    for (const field of stringFields) {
+      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const intFields = ["linkId"] as const;
+    for (const field of intFields) {
+      IDBUtils.handleIntUpdateField(record, field, query.data[field]);
+    }
+    if (query.data.link) {
+      if (query.data.link.connect) {
+        const other = await this.client.modelWithUniqueAttributes.findUniqueOrThrow(
+          { where: query.data.link.connect },
+          { tx }
+        );
+        record.linkId = other.id;
+      }
+      if (query.data.link.create) {
+        const other = await this.client.modelWithUniqueAttributes.create(
+          { data: query.data.link.create },
+          { tx, silent, addToOutbox }
+        );
+        record.linkId = other.id;
+      }
+      if (query.data.link.update) {
+        const updateData = query.data.link.update.data ?? query.data.link.update;
+        await this.client.modelWithUniqueAttributes.update(
+          {
+            where: {
+              ...query.data.link.update.where,
+              id: record.linkId!,
+            } as Prisma.ModelWithUniqueAttributesWhereUniqueInput,
+            data: updateData,
+          },
+          { tx, silent, addToOutbox }
+        );
+      }
+      if (query.data.link.upsert) {
+        await this.client.modelWithUniqueAttributes.upsert(
+          {
+            where: {
+              ...query.data.link.upsert.where,
+              id: record.linkId!,
+            } as Prisma.ModelWithUniqueAttributesWhereUniqueInput,
+            create: { ...query.data.link.upsert.create, id: record.linkId! } as Prisma.Args<
+              Prisma.ModelWithUniqueAttributesDelegate,
+              "upsert"
+            >["create"],
+            update: query.data.link.upsert.update,
+          },
+          { tx, silent, addToOutbox }
+        );
+      }
+      if (query.data.link.connectOrCreate) {
+        await this.client.modelWithUniqueAttributes.upsert(
+          {
+            where: { ...query.data.link.connectOrCreate.where, id: record.linkId! },
+            create: { ...query.data.link.connectOrCreate.create, id: record.linkId! } as Prisma.Args<
+              Prisma.ModelWithUniqueAttributesDelegate,
+              "upsert"
+            >["create"],
+            update: { id: record.linkId! },
+          },
+          { tx, silent, addToOutbox }
+        );
+      }
+      if (query.data.link.disconnect) {
+        record.linkId = null;
+      }
+      if (query.data.link.delete) {
+        const deleteWhere = query.data.link.delete === true ? {} : query.data.link.delete;
+        await this.client.modelWithUniqueAttributes.delete(
+          { where: { ...deleteWhere, id: record.linkId! } } as Prisma.ModelWithUniqueAttributesDeleteArgs,
+          { tx, silent, addToOutbox }
+        );
+        record.linkId = null;
+      }
+    }
+    if (query.data.linkId !== undefined && record.linkId !== null) {
+      const related = await this.client.modelWithUniqueAttributes.findUnique({ where: { id: record.linkId } }, { tx });
+      if (!related) throw new Error("Related record not found");
+    }
+    const endKeyPath: PrismaIDBSchema["ModelWithOptionalRelationToUniqueAttributes"]["key"] = [record.id];
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        if ((await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").get(endKeyPath)) !== undefined) {
+          throw new Error("Record with the same keyPath already exists");
+        }
+        await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").delete(startKeyPath);
+        break;
+      }
+    }
+    const keyPath = await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").put(record);
+    await this.emit("update", keyPath, startKeyPath, record, { silent, addToOutbox, tx });
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        break;
+      }
+    }
+    const recordWithRelations = (await this.findUnique(
+      {
+        where: { id: keyPath[0] },
+      },
+      { tx }
+    ))!;
+    return recordWithRelations as Prisma.Result<
+      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+      Q,
+      "update"
+    >;
+  }
+  async updateMany<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "updateMany">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "updateMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const records = await this.findMany({ where: query.where }, { tx });
+    await Promise.all(
+      records.map(async (record) => {
+        await this.update({ where: { id: record.id }, data: query.data }, { tx, silent, addToOutbox });
+      })
+    );
+    return { count: records.length };
+  }
+  async upsert<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "upsert">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "upsert">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const neededStores = this._getNeededStoresForUpdate({
+      ...query,
+      data: { ...query.update, ...query.create } as Prisma.Args<
+        Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+        "update"
+      >["data"],
+    });
+    tx = tx ?? this.client._db.transaction(Array.from(neededStores), "readwrite");
+    let record = await this.findUnique({ where: query.where }, { tx });
+    if (!record) record = await this.create({ data: query.create }, { tx, silent, addToOutbox });
+    else record = await this.update({ where: query.where, data: query.update }, { tx, silent, addToOutbox });
+    record = await this.findUniqueOrThrow(
+      { where: { id: record.id }, select: query.select, include: query.include },
+      { tx }
+    );
+    return record as Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "upsert">;
+  }
+  async aggregate<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "aggregate">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "aggregate">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(["ModelWithOptionalRelationToUniqueAttributes"], "readonly");
+    const records = await this.findMany({ where: query?.where }, { tx });
+    const result: Partial<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "aggregate">> =
+      {};
+    if (query?._count) {
+      if (query._count === true) {
+        (result._count as number) = records.length;
+      } else {
+        for (const key of Object.keys(query._count)) {
+          const typedKey = key as keyof typeof query._count;
+          if (typedKey === "_all") {
+            (result._count as Record<string, number>)[typedKey] = records.length;
+            continue;
+          }
+          (result._count as Record<string, number>)[typedKey] = (
+            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })
+          ).length;
+        }
+      }
+    }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<
+        Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+        Q,
+        "aggregate"
+      >["_min"];
+      const numericFields = ["linkId"] as const;
+      for (const field of numericFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      const stringFields = ["id"] as const;
+      for (const field of stringFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as string) = values.sort()[0];
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<
+        Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+        Q,
+        "aggregate"
+      >["_max"];
+      const numericFields = ["linkId"] as const;
+      for (const field of numericFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      const stringFields = ["id"] as const;
+      for (const field of stringFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];
+      }
+      result._max = maxResult;
+    }
+    if (query?._avg) {
+      const avgResult = {} as Prisma.Result<
+        Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+        Q,
+        "aggregate"
+      >["_avg"];
+      for (const untypedField of Object.keys(query._avg)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+      result._avg = avgResult;
+    }
+    if (query?._sum) {
+      const sumResult = {} as Prisma.Result<
+        Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+        Q,
+        "aggregate"
+      >["_sum"];
+      for (const untypedField of Object.keys(query._sum)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
+      }
+      result._sum = sumResult;
+    }
+    return result as unknown as Prisma.Result<
+      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+      Q,
+      "aggregate"
+    >;
+  }
+}
+class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniqueAttributes"> {
+  constructor(client: PrismaIDBClient, keyPath: string[]) {
+    super(client, keyPath, "ModelWithUniqueAttributes");
+  }
+
+  private async _applyWhereClause<
+    W extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findFirstOrThrow">["where"],
+    R extends Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findFirstOrThrow">,
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
+    if (!whereClause) return records;
+    records = await IDBUtils.applyLogicalFilters<Prisma.ModelWithUniqueAttributesDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this)
+    );
+    return (
+      await Promise.all(
+        records.map(async (record) => {
+          const stringFields = ["code"] as const;
+          for (const field of stringFields) {
+            if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
+          }
+          const numberFields = ["id"] as const;
+          for (const field of numberFields) {
+            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
+          }
+          if (whereClause.links) {
+            if (whereClause.links.every) {
+              const violatingRecord = await this.client.modelWithOptionalRelationToUniqueAttributes.findFirst(
+                {
+                  where: { NOT: { ...whereClause.links.every }, linkId: record.id },
+                },
+                { tx }
+              );
+              if (violatingRecord !== null) return null;
+            }
+            if (whereClause.links.some) {
+              const relatedRecords = await this.client.modelWithOptionalRelationToUniqueAttributes.findMany(
+                {
+                  where: { ...whereClause.links.some, linkId: record.id },
+                },
+                { tx }
+              );
+              if (relatedRecords.length === 0) return null;
+            }
+            if (whereClause.links.none) {
+              const violatingRecord = await this.client.modelWithOptionalRelationToUniqueAttributes.findFirst(
+                {
+                  where: { ...whereClause.links.none, linkId: record.id },
+                },
+                { tx }
+              );
+              if (violatingRecord !== null) return null;
+            }
+          }
+          return record;
+        })
+      )
+    ).filter((result) => result !== null);
+  }
+  private _applySelectClause<S extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findMany">["select"]>(
+    records: Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findFirstOrThrow">[],
+    selectClause: S
+  ): Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, { select: S }, "findFirstOrThrow">[] {
+    if (!selectClause) {
+      return records as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, { select: S }, "findFirstOrThrow">[];
+    }
+    return records.map((record) => {
+      const partialRecord: Partial<typeof record> = record;
+      for (const untypedKey of ["id", "code", "links"]) {
+        const key = untypedKey as keyof typeof record & keyof S;
+        if (!selectClause[key]) delete partialRecord[key];
+      }
+      return partialRecord;
+    }) as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, { select: S }, "findFirstOrThrow">[];
+  }
+  private async _applyRelations<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findMany">>(
+    records: Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findFirstOrThrow">[],
+    tx: IDBUtils.TransactionType,
+    query?: Q
+  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findFirstOrThrow">[]> {
+    if (!query) return records as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findFirstOrThrow">[];
+    const recordsWithRelations = records.map(async (record) => {
+      const unsafeRecord = record as Record<string, unknown>;
+      const attach_links = query.select?.links || query.include?.links;
+      if (attach_links) {
+        unsafeRecord["links"] = await this.client.modelWithOptionalRelationToUniqueAttributes.findMany(
+          {
+            ...(attach_links === true ? {} : attach_links),
+            where: { linkId: record.id! },
+          },
+          { tx }
+        );
+      }
+      return unsafeRecord;
+    });
+    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
+      Prisma.ModelWithUniqueAttributesDelegate,
+      Q,
+      "findFirstOrThrow"
+    >[];
+  }
+  async _applyOrderByClause<
+    O extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findMany">["orderBy"],
+    R extends Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findFirstOrThrow">,
+  >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
+    if (orderByClause === undefined) return;
+    const orderByClauses = IDBUtils.convertToArray(orderByClause);
+    const indexedKeys = await Promise.all(
+      records.map(async (record) => {
+        const keys = await Promise.all(
+          orderByClauses.map(async (clause) => await this._resolveOrderByKey(record, clause, tx))
+        );
+        return { keys, record };
+      })
+    );
+    indexedKeys.sort((a, b) => {
+      for (let i = 0; i < orderByClauses.length; i++) {
+        const clause = orderByClauses[i];
+        const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));
+        if (comparison !== 0) return comparison;
+      }
+      return 0;
+    });
+    for (let i = 0; i < records.length; i++) {
+      records[i] = indexedKeys[i].record;
+    }
+  }
+  async _resolveOrderByKey(
+    record: Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findFirstOrThrow">,
+    orderByInput: Prisma.ModelWithUniqueAttributesOrderByWithRelationInput,
+    tx: IDBUtils.TransactionType
+  ): Promise<unknown> {
+    const scalarFields = ["id", "code"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return record[field];
+    if (orderByInput.links) {
+      return await this.client.modelWithOptionalRelationToUniqueAttributes.count(
+        { where: { linkId: record.id } },
+        { tx }
+      );
+    }
+  }
+  _resolveSortOrder(
+    orderByInput: Prisma.ModelWithUniqueAttributesOrderByWithRelationInput
+  ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
+    const scalarFields = ["id", "code"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
+    if (orderByInput.links?._count) {
+      return orderByInput.links._count;
+    }
+    throw new Error("No field in orderBy clause");
+  }
+  private async _fillDefaults<D extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "create">["data"]>(
+    data: D,
+    tx?: IDBUtils.ReadwriteTransactionType
+  ): Promise<D> {
+    if (data === undefined) data = {} as NonNullable<D>;
+    if (data.id === undefined) {
+      const transaction = tx ?? this.client._db.transaction(["ModelWithUniqueAttributes"], "readwrite");
+      const store = transaction.objectStore("ModelWithUniqueAttributes");
+      const cursor = await store.openCursor(null, "prev");
+      data.id = cursor ? Number(cursor.key) + 1 : 1;
+    }
+    return data;
+  }
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+    if (whereClause.links) {
+      neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
+      this.client.modelWithOptionalRelationToUniqueAttributes._getNeededStoresForWhere(
+        whereClause.links.every,
+        neededStores
+      );
+      this.client.modelWithOptionalRelationToUniqueAttributes._getNeededStoresForWhere(
+        whereClause.links.some,
+        neededStores
+      );
+      this.client.modelWithOptionalRelationToUniqueAttributes._getNeededStoresForWhere(
+        whereClause.links.none,
+        neededStores
+      );
+    }
+  }
+  _getNeededStoresForFind<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findMany">>(
+    query?: Q
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("ModelWithUniqueAttributes");
+    this._getNeededStoresForWhere(query?.where, neededStores);
+    if (query?.orderBy) {
+      const orderBy = IDBUtils.convertToArray(query.orderBy);
+      const orderBy_links = orderBy.find((clause) => clause.links);
+      if (orderBy_links) {
+        neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
+      }
+    }
+    if (query?.select?.links || query?.include?.links) {
+      neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
+      if (typeof query.select?.links === "object") {
+        this.client.modelWithOptionalRelationToUniqueAttributes
+          ._getNeededStoresForFind(query.select.links)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.links === "object") {
+        this.client.modelWithOptionalRelationToUniqueAttributes
+          ._getNeededStoresForFind(query.include.links)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
+    return neededStores;
+  }
+  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "create">["data"]>>(
+    data: D
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("ModelWithUniqueAttributes");
+    if (data?.links) {
+      neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
+      if (data.links.create) {
+        const createData = Array.isArray(data.links.create) ? data.links.create : [data.links.create];
+        createData.forEach((record) =>
+          this.client.modelWithOptionalRelationToUniqueAttributes
+            ._getNeededStoresForCreate(record)
+            .forEach((storeName) => neededStores.add(storeName))
+        );
+      }
+      if (data.links.connectOrCreate) {
+        IDBUtils.convertToArray(data.links.connectOrCreate).forEach((record) =>
+          this.client.modelWithOptionalRelationToUniqueAttributes
+            ._getNeededStoresForCreate(record.create)
+            .forEach((storeName) => neededStores.add(storeName))
+        );
+      }
+      if (data.links.createMany) {
+        IDBUtils.convertToArray(data.links.createMany.data).forEach((record) =>
+          this.client.modelWithOptionalRelationToUniqueAttributes
+            ._getNeededStoresForCreate(record)
+            .forEach((storeName) => neededStores.add(storeName))
+        );
+      }
+    }
+    return neededStores;
+  }
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "update">>(
+    query: Partial<Q>
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores = this._getNeededStoresForFind(query).union(
+      this._getNeededStoresForCreate(
+        query.data as Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "create">["data"]
+      )
+    );
+    if (query.data?.links?.connect) {
+      neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
+      IDBUtils.convertToArray(query.data.links.connect).forEach((connect) => {
+        this.client.modelWithOptionalRelationToUniqueAttributes._getNeededStoresForWhere(connect, neededStores);
+      });
+    }
+    if (query.data?.links?.set) {
+      neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
+      IDBUtils.convertToArray(query.data.links.set).forEach((setWhere) => {
+        this.client.modelWithOptionalRelationToUniqueAttributes._getNeededStoresForWhere(setWhere, neededStores);
+      });
+    }
+    if (query.data?.links?.updateMany) {
+      neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
+      IDBUtils.convertToArray(query.data.links.updateMany).forEach((update) => {
+        this.client.modelWithOptionalRelationToUniqueAttributes
+          ._getNeededStoresForUpdate(
+            update as Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "update">
+          )
+          .forEach((store) => neededStores.add(store));
+      });
+    }
+    if (query.data?.links?.update) {
+      neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
+      IDBUtils.convertToArray(query.data.links.update).forEach((update) => {
+        this.client.modelWithOptionalRelationToUniqueAttributes
+          ._getNeededStoresForUpdate(
+            update as Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "update">
+          )
+          .forEach((store) => neededStores.add(store));
+      });
+    }
+    if (query.data?.links?.upsert) {
+      neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
+      IDBUtils.convertToArray(query.data.links.upsert).forEach((upsert) => {
+        const update = { where: upsert.where, data: { ...upsert.update, ...upsert.create } } as Prisma.Args<
+          Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+          "update"
+        >;
+        this.client.modelWithOptionalRelationToUniqueAttributes
+          ._getNeededStoresForUpdate(update)
+          .forEach((store) => neededStores.add(store));
+      });
+    }
+    if (query.data?.links?.delete || query.data?.links?.deleteMany) {
+      this.client.modelWithOptionalRelationToUniqueAttributes._getNeededStoresForNestedDelete(neededStores);
+    }
+    if (query.data?.id !== undefined) {
+      neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
+    }
+    return neededStores;
+  }
+  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
+    neededStores.add("ModelWithUniqueAttributes");
+    this.client.modelWithOptionalRelationToUniqueAttributes._getNeededStoresForNestedDelete(neededStores);
+  }
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "create">["data"]>(
+    data: D
+  ): Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findFirstOrThrow"> {
+    const recordWithoutNestedCreate = structuredClone(data);
+    delete recordWithoutNestedCreate?.links;
+    return recordWithoutNestedCreate as Prisma.Result<
+      Prisma.ModelWithUniqueAttributesDelegate,
+      object,
+      "findFirstOrThrow"
+    >;
+  }
+  private _preprocessListFields(
+    records: Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findMany">
+  ): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("ModelWithUniqueAttributes").getAll();
+  }
+  async findMany<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findMany">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findMany">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    await this._applyOrderByClause(records, query?.orderBy, tx);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      } else if ((query.cursor as Record<string, unknown>)["code"] !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.code === normalizedCursor.code);
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.ModelWithUniqueAttributesDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
+    const selectClause = query?.select;
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    this._preprocessListFields(selectAppliedRecords);
+    return selectAppliedRecords as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findMany">;
+  }
+  async findFirst<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findFirst">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findFirst">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    return (await this.findMany(query, { tx }))[0] ?? null;
+  }
+  async findFirstOrThrow<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findFirstOrThrow">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findFirstOrThrow">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findFirst(query, { tx });
+    if (!record) {
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+  async findUnique<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findUnique">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findUnique">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let record;
+    if (query.where.id !== undefined) {
+      record = await tx.objectStore("ModelWithUniqueAttributes").get([query.where.id]);
+    } else if (query.where.code !== undefined) {
+      record = await tx.objectStore("ModelWithUniqueAttributes").index("codeIndex").get([query.where.code]);
+    }
+    if (!record) return null;
+
+    const recordWithRelations = this._applySelectClause(
+      await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query),
+      query.select
+    )[0];
+    this._preprocessListFields([recordWithRelations]);
+    return recordWithRelations as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findUnique">;
+  }
+  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findUniqueOrThrow">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findUniqueOrThrow">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findUnique(query, { tx });
+    if (!record) {
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+  async count<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "count">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "count">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(["ModelWithUniqueAttributes"], "readonly");
+    if (!query?.select || query.select === true) {
+      const records = await this.findMany({ where: query?.where }, { tx });
+      return records.length as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "count">;
+    }
+    const result: Partial<Record<keyof Prisma.ModelWithUniqueAttributesCountAggregateInputType, number>> = {};
+    for (const key of Object.keys(query.select)) {
+      const typedKey = key as keyof typeof query.select;
+      if (typedKey === "_all") {
+        result[typedKey] = (await this.findMany({ where: query.where }, { tx })).length;
+        continue;
+      }
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })).length;
+    }
+    return result as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "count">;
+  }
+  async create<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "create">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "create">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForCreate(query.data);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
+    const keyPath = await tx.objectStore("ModelWithUniqueAttributes").add(record);
+    if (query.data?.links?.create) {
+      for (const elem of IDBUtils.convertToArray(query.data.links.create)) {
+        await this.client.modelWithOptionalRelationToUniqueAttributes.create(
+          {
+            data: { ...elem, link: { connect: { id: keyPath[0] } } } as Prisma.Args<
+              Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+              "create"
+            >["data"],
+          },
+          { tx, silent, addToOutbox }
+        );
+      }
+    }
+    if (query.data?.links?.connect) {
+      await Promise.all(
+        IDBUtils.convertToArray(query.data.links.connect).map(async (connectWhere) => {
+          await this.client.modelWithOptionalRelationToUniqueAttributes.update(
+            { where: connectWhere, data: { linkId: keyPath[0] } },
+            { tx, silent, addToOutbox }
+          );
+        })
+      );
+    }
+    if (query.data?.links?.connectOrCreate) {
+      await Promise.all(
+        IDBUtils.convertToArray(query.data.links.connectOrCreate).map(async (connectOrCreate) => {
+          await this.client.modelWithOptionalRelationToUniqueAttributes.upsert(
+            {
+              where: connectOrCreate.where,
+              create: { ...connectOrCreate.create, linkId: keyPath[0] } as NonNullable<
+                Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "create">["data"]
+              >,
+              update: { linkId: keyPath[0] },
+            },
+            { tx, silent, addToOutbox }
+          );
+        })
+      );
+    }
+    if (query.data?.links?.createMany) {
+      await this.client.modelWithOptionalRelationToUniqueAttributes.createMany(
+        {
+          data: IDBUtils.convertToArray(query.data.links.createMany.data).map((createData) => ({
+            ...createData,
+            linkId: keyPath[0],
+          })),
+        },
+        { tx, silent, addToOutbox }
+      );
+    }
+    const data = (await tx.objectStore("ModelWithUniqueAttributes").get(keyPath))!;
+    const recordsWithRelations = this._applySelectClause(
+      await this._applyRelations<object>([data], tx, query),
+      query.select
+    )[0];
+    this._preprocessListFields([recordsWithRelations]);
+    await this.emit("create", keyPath, undefined, data, { silent, addToOutbox, tx });
+    return recordsWithRelations as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "create">;
+  }
+  async createMany<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "createMany">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "createMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["ModelWithUniqueAttributes"]);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("ModelWithUniqueAttributes").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+    }
+    return { count: createManyData.length };
+  }
+  async createManyAndReturn<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "createManyAndReturn">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "createManyAndReturn">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const records: Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findMany"> = [];
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["ModelWithUniqueAttributes"]);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("ModelWithUniqueAttributes").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+      records.push(this._applySelectClause([record], query.select)[0]);
+    }
+    this._preprocessListFields(records);
+    return records as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "createManyAndReturn">;
+  }
+  async delete<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "delete">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "delete">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = await this.findUnique(query, { tx });
+    if (!record) throw new Error("Record not found");
+    await this.client.modelWithOptionalRelationToUniqueAttributes.updateMany(
+      {
+        where: { linkId: record.id },
+        data: { linkId: null },
+      },
+      { tx, silent, addToOutbox }
+    );
+    await tx.objectStore("ModelWithUniqueAttributes").delete([record.id]);
+    await this.emit("delete", [record.id], undefined, record, { silent, addToOutbox, tx });
+    return record;
+  }
+  async deleteMany<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "deleteMany">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "deleteMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const records = await this.findMany(query, { tx });
+    for (const record of records) {
+      await this.delete({ where: { id: record.id } }, { tx, silent, addToOutbox });
+    }
+    return { count: records.length };
+  }
+  async update<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "update">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "update">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
+    const record = await this.findUnique({ where: query.where }, { tx });
+    if (record === null) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
+    const startKeyPath: PrismaIDBSchema["ModelWithUniqueAttributes"]["key"] = [record.id];
+    const stringFields = ["code"] as const;
+    for (const field of stringFields) {
+      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const intFields = ["id"] as const;
+    for (const field of intFields) {
+      IDBUtils.handleIntUpdateField(record, field, query.data[field]);
+    }
+    if (query.data.links) {
+      if (query.data.links.connect) {
+        await Promise.all(
+          IDBUtils.convertToArray(query.data.links.connect).map(async (connectWhere) => {
+            await this.client.modelWithOptionalRelationToUniqueAttributes.update(
+              { where: connectWhere, data: { linkId: record.id } },
+              { tx, silent, addToOutbox }
+            );
+          })
+        );
+      }
+      if (query.data.links.disconnect) {
+        await Promise.all(
+          IDBUtils.convertToArray(query.data.links.disconnect).map(async (connectWhere) => {
+            await this.client.modelWithOptionalRelationToUniqueAttributes.update(
+              { where: connectWhere, data: { linkId: null } },
+              { tx, silent, addToOutbox }
+            );
+          })
+        );
+      }
+      if (query.data.links.create) {
+        const createData = Array.isArray(query.data.links.create) ? query.data.links.create : [query.data.links.create];
+        for (const elem of createData) {
+          await this.client.modelWithOptionalRelationToUniqueAttributes.create(
+            {
+              data: { ...elem, linkId: record.id } as Prisma.Args<
+                Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+                "create"
+              >["data"],
+            },
+            { tx, silent, addToOutbox }
+          );
+        }
+      }
+      if (query.data.links.createMany) {
+        await Promise.all(
+          IDBUtils.convertToArray(query.data.links.createMany.data).map(async (createData) => {
+            await this.client.modelWithOptionalRelationToUniqueAttributes.create(
+              { data: { ...createData, linkId: record.id } },
+              { tx, silent, addToOutbox }
+            );
+          })
+        );
+      }
+      if (query.data.links.update) {
+        await Promise.all(
+          IDBUtils.convertToArray(query.data.links.update).map(async (updateData) => {
+            await this.client.modelWithOptionalRelationToUniqueAttributes.update(updateData, {
+              tx,
+              silent,
+              addToOutbox,
+            });
+          })
+        );
+      }
+      if (query.data.links.updateMany) {
+        await Promise.all(
+          IDBUtils.convertToArray(query.data.links.updateMany).map(async (updateData) => {
+            await this.client.modelWithOptionalRelationToUniqueAttributes.updateMany(updateData, {
+              tx,
+              silent,
+              addToOutbox,
+            });
+          })
+        );
+      }
+      if (query.data.links.upsert) {
+        await Promise.all(
+          IDBUtils.convertToArray(query.data.links.upsert).map(async (upsertData) => {
+            await this.client.modelWithOptionalRelationToUniqueAttributes.upsert(
+              {
+                ...upsertData,
+                where: { ...upsertData.where, linkId: record.id },
+                create: { ...upsertData.create, linkId: record.id } as Prisma.Args<
+                  Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+                  "upsert"
+                >["create"],
+              },
+              { tx, silent, addToOutbox }
+            );
+          })
+        );
+      }
+      if (query.data.links.delete) {
+        await Promise.all(
+          IDBUtils.convertToArray(query.data.links.delete).map(async (deleteData) => {
+            await this.client.modelWithOptionalRelationToUniqueAttributes.delete(
+              { where: { ...deleteData, linkId: record.id } },
+              { tx, silent, addToOutbox }
+            );
+          })
+        );
+      }
+      if (query.data.links.deleteMany) {
+        await Promise.all(
+          IDBUtils.convertToArray(query.data.links.deleteMany).map(async (deleteData) => {
+            await this.client.modelWithOptionalRelationToUniqueAttributes.deleteMany(
+              { where: { ...deleteData, linkId: record.id } },
+              { tx, silent, addToOutbox }
+            );
+          })
+        );
+      }
+      if (query.data.links.set) {
+        const existing = await this.client.modelWithOptionalRelationToUniqueAttributes.findMany(
+          { where: { linkId: record.id } },
+          { tx }
+        );
+        if (existing.length > 0) {
+          await this.client.modelWithOptionalRelationToUniqueAttributes.updateMany(
+            { where: { linkId: record.id }, data: { linkId: null } },
+            { tx, silent, addToOutbox }
+          );
+        }
+        await Promise.all(
+          IDBUtils.convertToArray(query.data.links.set).map(async (setData) => {
+            await this.client.modelWithOptionalRelationToUniqueAttributes.update(
+              { where: setData, data: { linkId: record.id } },
+              { tx, silent, addToOutbox }
+            );
+          })
+        );
+      }
+    }
+    const endKeyPath: PrismaIDBSchema["ModelWithUniqueAttributes"]["key"] = [record.id];
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        if ((await tx.objectStore("ModelWithUniqueAttributes").get(endKeyPath)) !== undefined) {
+          throw new Error("Record with the same keyPath already exists");
+        }
+        await tx.objectStore("ModelWithUniqueAttributes").delete(startKeyPath);
+        break;
+      }
+    }
+    const keyPath = await tx.objectStore("ModelWithUniqueAttributes").put(record);
+    await this.emit("update", keyPath, startKeyPath, record, { silent, addToOutbox, tx });
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        await this.client.modelWithOptionalRelationToUniqueAttributes.updateMany(
+          {
+            where: { linkId: startKeyPath[0] },
+            data: { linkId: endKeyPath[0] },
+          },
+          { tx, silent, addToOutbox }
+        );
+        break;
+      }
+    }
+    const recordWithRelations = (await this.findUnique(
+      {
+        where: { id: keyPath[0] },
+      },
+      { tx }
+    ))!;
+    return recordWithRelations as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "update">;
+  }
+  async updateMany<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "updateMany">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "updateMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const records = await this.findMany({ where: query.where }, { tx });
+    await Promise.all(
+      records.map(async (record) => {
+        await this.update({ where: { id: record.id }, data: query.data }, { tx, silent, addToOutbox });
+      })
+    );
+    return { count: records.length };
+  }
+  async upsert<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "upsert">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "upsert">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const neededStores = this._getNeededStoresForUpdate({
+      ...query,
+      data: { ...query.update, ...query.create } as Prisma.Args<
+        Prisma.ModelWithUniqueAttributesDelegate,
+        "update"
+      >["data"],
+    });
+    tx = tx ?? this.client._db.transaction(Array.from(neededStores), "readwrite");
+    let record = await this.findUnique({ where: query.where }, { tx });
+    if (!record) record = await this.create({ data: query.create }, { tx, silent, addToOutbox });
+    else record = await this.update({ where: query.where, data: query.update }, { tx, silent, addToOutbox });
+    record = await this.findUniqueOrThrow(
+      { where: { id: record.id }, select: query.select, include: query.include },
+      { tx }
+    );
+    return record as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "upsert">;
+  }
+  async aggregate<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "aggregate">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "aggregate">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(["ModelWithUniqueAttributes"], "readonly");
+    const records = await this.findMany({ where: query?.where }, { tx });
+    const result: Partial<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "aggregate">> = {};
+    if (query?._count) {
+      if (query._count === true) {
+        (result._count as number) = records.length;
+      } else {
+        for (const key of Object.keys(query._count)) {
+          const typedKey = key as keyof typeof query._count;
+          if (typedKey === "_all") {
+            (result._count as Record<string, number>)[typedKey] = records.length;
+            continue;
+          }
+          (result._count as Record<string, number>)[typedKey] = (
+            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })
+          ).length;
+        }
+      }
+    }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "aggregate">["_min"];
+      const numericFields = ["id"] as const;
+      for (const field of numericFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      const stringFields = ["code"] as const;
+      for (const field of stringFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as string) = values.sort()[0];
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "aggregate">["_max"];
+      const numericFields = ["id"] as const;
+      for (const field of numericFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      const stringFields = ["code"] as const;
+      for (const field of stringFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];
+      }
+      result._max = maxResult;
+    }
+    if (query?._avg) {
+      const avgResult = {} as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "aggregate">["_avg"];
+      for (const untypedField of Object.keys(query._avg)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+      result._avg = avgResult;
+    }
+    if (query?._sum) {
+      const sumResult = {} as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "aggregate">["_sum"];
+      for (const untypedField of Object.keys(query._sum)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
+      }
+      result._sum = sumResult;
+    }
+    return result as unknown as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "aggregate">;
+  }
+}
+class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
+  constructor(client: PrismaIDBClient, keyPath: string[]) {
+    super(client, keyPath, "UserGroup");
+  }
+
+  private async _applyWhereClause<
+    W extends Prisma.Args<Prisma.UserGroupDelegate, "findFirstOrThrow">["where"],
+    R extends Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">,
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
+    if (!whereClause) return records;
+    records = await IDBUtils.applyLogicalFilters<Prisma.UserGroupDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this)
+    );
+    return (
+      await Promise.all(
+        records.map(async (record) => {
+          const numberFields = ["groupId", "userId"] as const;
+          for (const field of numberFields) {
+            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
+          }
+          const dateTimeFields = ["joinedOn"] as const;
+          for (const field of dateTimeFields) {
+            if (!IDBUtils.whereDateTimeFilter(record, field, whereClause[field])) return null;
+          }
+          if (whereClause.group) {
+            const { is, isNot, ...rest } = whereClause.group;
+            if (is !== null && is !== undefined) {
+              const relatedRecord = await this.client.group.findFirst({ where: { ...is, id: record.groupId } }, { tx });
+              if (!relatedRecord) return null;
+            }
+            if (isNot !== null && isNot !== undefined) {
+              const relatedRecord = await this.client.group.findFirst(
+                { where: { ...isNot, id: record.groupId } },
+                { tx }
+              );
+              if (relatedRecord) return null;
+            }
+            if (Object.keys(rest).length) {
+              const relatedRecord = await this.client.group.findFirst(
+                { where: { ...whereClause.group, id: record.groupId } },
+                { tx }
+              );
+              if (!relatedRecord) return null;
+            }
+          }
+          if (whereClause.user) {
+            const { is, isNot, ...rest } = whereClause.user;
+            if (is !== null && is !== undefined) {
+              const relatedRecord = await this.client.user.findFirst({ where: { ...is, id: record.userId } }, { tx });
+              if (!relatedRecord) return null;
+            }
+            if (isNot !== null && isNot !== undefined) {
+              const relatedRecord = await this.client.user.findFirst(
+                { where: { ...isNot, id: record.userId } },
+                { tx }
+              );
+              if (relatedRecord) return null;
+            }
+            if (Object.keys(rest).length) {
+              const relatedRecord = await this.client.user.findFirst(
+                { where: { ...whereClause.user, id: record.userId } },
+                { tx }
+              );
+              if (!relatedRecord) return null;
+            }
+          }
+          return record;
+        })
+      )
+    ).filter((result) => result !== null);
+  }
+  private _applySelectClause<S extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">["select"]>(
+    records: Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">[],
+    selectClause: S
+  ): Prisma.Result<Prisma.UserGroupDelegate, { select: S }, "findFirstOrThrow">[] {
+    if (!selectClause) {
+      return records as Prisma.Result<Prisma.UserGroupDelegate, { select: S }, "findFirstOrThrow">[];
+    }
+    return records.map((record) => {
+      const partialRecord: Partial<typeof record> = record;
+      for (const untypedKey of ["group", "groupId", "user", "userId", "joinedOn"]) {
+        const key = untypedKey as keyof typeof record & keyof S;
+        if (!selectClause[key]) delete partialRecord[key];
+      }
+      return partialRecord;
+    }) as Prisma.Result<Prisma.UserGroupDelegate, { select: S }, "findFirstOrThrow">[];
+  }
+  private async _applyRelations<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">>(
+    records: Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">[],
+    tx: IDBUtils.TransactionType,
+    query?: Q
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirstOrThrow">[]> {
+    if (!query) return records as Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirstOrThrow">[];
+    const recordsWithRelations = records.map(async (record) => {
+      const unsafeRecord = record as Record<string, unknown>;
+      const attach_group = query.select?.group || query.include?.group;
+      if (attach_group) {
+        unsafeRecord["group"] = await this.client.group.findUnique(
+          {
+            ...(attach_group === true ? {} : attach_group),
+            where: { id: record.groupId! },
+          },
+          { tx }
+        );
+      }
+      const attach_user = query.select?.user || query.include?.user;
+      if (attach_user) {
+        unsafeRecord["user"] = await this.client.user.findUnique(
+          {
+            ...(attach_user === true ? {} : attach_user),
+            where: { id: record.userId! },
+          },
+          { tx }
+        );
+      }
+      return unsafeRecord;
+    });
+    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
+      Prisma.UserGroupDelegate,
+      Q,
+      "findFirstOrThrow"
+    >[];
+  }
+  async _applyOrderByClause<
+    O extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">["orderBy"],
+    R extends Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">,
+  >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
+    if (orderByClause === undefined) return;
+    const orderByClauses = IDBUtils.convertToArray(orderByClause);
+    const indexedKeys = await Promise.all(
+      records.map(async (record) => {
+        const keys = await Promise.all(
+          orderByClauses.map(async (clause) => await this._resolveOrderByKey(record, clause, tx))
+        );
+        return { keys, record };
+      })
+    );
+    indexedKeys.sort((a, b) => {
+      for (let i = 0; i < orderByClauses.length; i++) {
+        const clause = orderByClauses[i];
+        const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));
+        if (comparison !== 0) return comparison;
+      }
+      return 0;
+    });
+    for (let i = 0; i < records.length; i++) {
+      records[i] = indexedKeys[i].record;
+    }
+  }
+  async _resolveOrderByKey(
+    record: Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">,
+    orderByInput: Prisma.UserGroupOrderByWithRelationInput,
+    tx: IDBUtils.TransactionType
+  ): Promise<unknown> {
+    const scalarFields = ["groupId", "userId", "joinedOn"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return record[field];
+    if (orderByInput.group) {
+      return await this.client.group._resolveOrderByKey(
+        await this.client.group.findFirstOrThrow({ where: { id: record.groupId } }),
+        orderByInput.group,
+        tx
+      );
+    }
+    if (orderByInput.user) {
+      return await this.client.user._resolveOrderByKey(
+        await this.client.user.findFirstOrThrow({ where: { id: record.userId } }),
+        orderByInput.user,
+        tx
+      );
+    }
+  }
+  _resolveSortOrder(
+    orderByInput: Prisma.UserGroupOrderByWithRelationInput
+  ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
+    const scalarFields = ["groupId", "userId", "joinedOn"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
+    if (orderByInput.group) {
+      return this.client.group._resolveSortOrder(orderByInput.group);
+    }
+    if (orderByInput.user) {
+      return this.client.user._resolveSortOrder(orderByInput.user);
+    }
+    throw new Error("No field in orderBy clause");
+  }
+  private async _fillDefaults<D extends Prisma.Args<Prisma.UserGroupDelegate, "create">["data"]>(
+    data: D,
+    tx?: IDBUtils.ReadwriteTransactionType
+  ): Promise<D> {
+    if (data === undefined) data = {} as NonNullable<D>;
+    if (data.joinedOn === undefined) {
+      data.joinedOn = new Date();
+    }
+    if (typeof data.joinedOn === "string") {
+      data.joinedOn = new Date(data.joinedOn);
+    }
+    return data;
+  }
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+    if (whereClause.group) {
+      neededStores.add("Group");
+      this.client.group._getNeededStoresForWhere(whereClause.group, neededStores);
+    }
+    if (whereClause.user) {
+      neededStores.add("User");
+      this.client.user._getNeededStoresForWhere(whereClause.user, neededStores);
+    }
+  }
+  _getNeededStoresForFind<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">>(
+    query?: Q
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("UserGroup");
+    this._getNeededStoresForWhere(query?.where, neededStores);
+    if (query?.orderBy) {
+      const orderBy = IDBUtils.convertToArray(query.orderBy);
+      const orderBy_group = orderBy.find((clause) => clause.group);
+      if (orderBy_group) {
+        this.client.group
+          ._getNeededStoresForFind({ orderBy: orderBy_group.group })
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      const orderBy_user = orderBy.find((clause) => clause.user);
+      if (orderBy_user) {
+        this.client.user
+          ._getNeededStoresForFind({ orderBy: orderBy_user.user })
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
+    if (query?.select?.group || query?.include?.group) {
+      neededStores.add("Group");
+      if (typeof query.select?.group === "object") {
+        this.client.group
+          ._getNeededStoresForFind(query.select.group)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.group === "object") {
+        this.client.group
+          ._getNeededStoresForFind(query.include.group)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
+    if (query?.select?.user || query?.include?.user) {
+      neededStores.add("User");
+      if (typeof query.select?.user === "object") {
+        this.client.user._getNeededStoresForFind(query.select.user).forEach((storeName) => neededStores.add(storeName));
+      }
+      if (typeof query.include?.user === "object") {
+        this.client.user
+          ._getNeededStoresForFind(query.include.user)
+          .forEach((storeName) => neededStores.add(storeName));
+      }
+    }
+    return neededStores;
+  }
+  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.UserGroupDelegate, "create">["data"]>>(
+    data: D
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("UserGroup");
+    if (data?.group) {
+      neededStores.add("Group");
+      if (data.group.create) {
+        const createData = Array.isArray(data.group.create) ? data.group.create : [data.group.create];
+        createData.forEach((record) =>
+          this.client.group._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName))
+        );
+      }
+      if (data.group.connectOrCreate) {
+        IDBUtils.convertToArray(data.group.connectOrCreate).forEach((record) =>
+          this.client.group._getNeededStoresForCreate(record.create).forEach((storeName) => neededStores.add(storeName))
+        );
+      }
+    }
+    if (data?.groupId !== undefined) {
+      neededStores.add("Group");
+    }
+    if (data?.user) {
+      neededStores.add("User");
+      if (data.user.create) {
+        const createData = Array.isArray(data.user.create) ? data.user.create : [data.user.create];
+        createData.forEach((record) =>
+          this.client.user._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName))
+        );
+      }
+      if (data.user.connectOrCreate) {
+        IDBUtils.convertToArray(data.user.connectOrCreate).forEach((record) =>
+          this.client.user._getNeededStoresForCreate(record.create).forEach((storeName) => neededStores.add(storeName))
+        );
+      }
+    }
+    if (data?.userId !== undefined) {
+      neededStores.add("User");
+    }
+    return neededStores;
+  }
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.UserGroupDelegate, "update">>(
+    query: Partial<Q>
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores = this._getNeededStoresForFind(query).union(
+      this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.UserGroupDelegate, "create">["data"])
+    );
+    if (query.data?.group?.connect) {
+      neededStores.add("Group");
+      IDBUtils.convertToArray(query.data.group.connect).forEach((connect) => {
+        this.client.group._getNeededStoresForWhere(connect, neededStores);
+      });
+    }
+    if (query.data?.group?.update) {
+      neededStores.add("Group");
+      IDBUtils.convertToArray(query.data.group.update).forEach((update) => {
+        this.client.group
+          ._getNeededStoresForUpdate(update as Prisma.Args<Prisma.GroupDelegate, "update">)
+          .forEach((store) => neededStores.add(store));
+      });
+    }
+    if (query.data?.group?.upsert) {
+      neededStores.add("Group");
+      IDBUtils.convertToArray(query.data.group.upsert).forEach((upsert) => {
+        const update = { where: upsert.where, data: { ...upsert.update, ...upsert.create } } as Prisma.Args<
+          Prisma.GroupDelegate,
+          "update"
+        >;
+        this.client.group._getNeededStoresForUpdate(update).forEach((store) => neededStores.add(store));
+      });
+    }
+    if (query.data?.user?.connect) {
+      neededStores.add("User");
+      IDBUtils.convertToArray(query.data.user.connect).forEach((connect) => {
+        this.client.user._getNeededStoresForWhere(connect, neededStores);
+      });
+    }
+    if (query.data?.user?.update) {
+      neededStores.add("User");
+      IDBUtils.convertToArray(query.data.user.update).forEach((update) => {
+        this.client.user
+          ._getNeededStoresForUpdate(update as Prisma.Args<Prisma.UserDelegate, "update">)
+          .forEach((store) => neededStores.add(store));
+      });
+    }
+    if (query.data?.user?.upsert) {
+      neededStores.add("User");
+      IDBUtils.convertToArray(query.data.user.upsert).forEach((upsert) => {
+        const update = { where: upsert.where, data: { ...upsert.update, ...upsert.create } } as Prisma.Args<
+          Prisma.UserDelegate,
+          "update"
+        >;
+        this.client.user._getNeededStoresForUpdate(update).forEach((store) => neededStores.add(store));
+      });
+    }
+    return neededStores;
+  }
+  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
+    neededStores.add("UserGroup");
+  }
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.UserGroupDelegate, "create">["data"]>(
+    data: D
+  ): Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow"> {
+    const recordWithoutNestedCreate = structuredClone(data);
+    delete recordWithoutNestedCreate?.group;
+    delete recordWithoutNestedCreate?.user;
+    return recordWithoutNestedCreate as Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">;
+  }
+  private _preprocessListFields(records: Prisma.Result<Prisma.UserGroupDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.UserGroupDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("UserGroup").getAll();
+  }
+  async findMany<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findMany">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    await this._applyOrderByClause(records, query?.orderBy, tx);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["groupId_userId"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["groupId_userId"] as Record<string, unknown>;
+        cursorIndex = records.findIndex(
+          (record) => record.groupId === normalizedCursor.groupId && record.userId === normalizedCursor.userId
+        );
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.UserGroupDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
+    const selectClause = query?.select;
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    this._preprocessListFields(selectAppliedRecords);
+    return selectAppliedRecords as Prisma.Result<Prisma.UserGroupDelegate, Q, "findMany">;
+  }
+  async findFirst<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findFirst">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirst">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    return (await this.findMany(query, { tx }))[0] ?? null;
+  }
+  async findFirstOrThrow<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findFirstOrThrow">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirstOrThrow">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findFirst(query, { tx });
+    if (!record) {
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+  async findUnique<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findUnique">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findUnique">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let record;
+    if (query.where.groupId_userId !== undefined) {
+      record = await tx
+        .objectStore("UserGroup")
+        .get([query.where.groupId_userId.groupId, query.where.groupId_userId.userId]);
+    }
+    if (!record) return null;
+
+    const recordWithRelations = this._applySelectClause(
+      await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query),
+      query.select
+    )[0];
+    this._preprocessListFields([recordWithRelations]);
+    return recordWithRelations as Prisma.Result<Prisma.UserGroupDelegate, Q, "findUnique">;
+  }
+  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findUniqueOrThrow">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findUniqueOrThrow">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findUnique(query, { tx });
+    if (!record) {
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+  async count<Q extends Prisma.Args<Prisma.UserGroupDelegate, "count">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "count">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(["UserGroup"], "readonly");
+    if (!query?.select || query.select === true) {
+      const records = await this.findMany({ where: query?.where }, { tx });
+      return records.length as Prisma.Result<Prisma.UserGroupDelegate, Q, "count">;
+    }
+    const result: Partial<Record<keyof Prisma.UserGroupCountAggregateInputType, number>> = {};
+    for (const key of Object.keys(query.select)) {
+      const typedKey = key as keyof typeof query.select;
+      if (typedKey === "_all") {
+        result[typedKey] = (await this.findMany({ where: query.where }, { tx })).length;
+        continue;
+      }
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })).length;
+    }
+    return result as Prisma.Result<Prisma.UserGroupDelegate, Q, "count">;
+  }
+  async create<Q extends Prisma.Args<Prisma.UserGroupDelegate, "create">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "create">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForCreate(query.data);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    if (query.data.group) {
+      const fk: Partial<PrismaIDBSchema["Group"]["key"]> = [];
+      if (query.data.group?.create) {
+        const record = await this.client.group.create({ data: query.data.group.create }, { tx, silent, addToOutbox });
+        fk[0] = record.id;
+      }
+      if (query.data.group?.connect) {
+        const record = await this.client.group.findUniqueOrThrow({ where: query.data.group.connect }, { tx });
+        delete query.data.group.connect;
+        fk[0] = record.id;
+      }
+      if (query.data.group?.connectOrCreate) {
+        const record = await this.client.group.upsert(
+          {
+            where: query.data.group.connectOrCreate.where,
+            create: query.data.group.connectOrCreate.create,
+            update: {},
+          },
+          { tx, silent, addToOutbox }
+        );
+        fk[0] = record.id;
+      }
+      const unsafeData = query.data as Record<string, unknown>;
+      unsafeData.groupId = fk[0];
+      delete unsafeData.group;
+    } else if (query.data?.groupId !== undefined && query.data.groupId !== null) {
+      await this.client.group.findUniqueOrThrow(
+        {
+          where: { id: query.data.groupId },
+        },
+        { tx }
+      );
+    }
+    if (query.data.user) {
+      const fk: Partial<PrismaIDBSchema["User"]["key"]> = [];
+      if (query.data.user?.create) {
+        const record = await this.client.user.create({ data: query.data.user.create }, { tx, silent, addToOutbox });
+        fk[0] = record.id;
+      }
+      if (query.data.user?.connect) {
+        const record = await this.client.user.findUniqueOrThrow({ where: query.data.user.connect }, { tx });
+        delete query.data.user.connect;
+        fk[0] = record.id;
+      }
+      if (query.data.user?.connectOrCreate) {
+        const record = await this.client.user.upsert(
+          {
+            where: query.data.user.connectOrCreate.where,
+            create: query.data.user.connectOrCreate.create,
+            update: {},
+          },
+          { tx, silent, addToOutbox }
+        );
+        fk[0] = record.id;
+      }
+      const unsafeData = query.data as Record<string, unknown>;
+      unsafeData.userId = fk[0];
+      delete unsafeData.user;
+    } else if (query.data?.userId !== undefined && query.data.userId !== null) {
+      await this.client.user.findUniqueOrThrow(
+        {
+          where: { id: query.data.userId },
+        },
+        { tx }
+      );
+    }
+    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
+    const keyPath = await tx.objectStore("UserGroup").add(record);
+    const data = (await tx.objectStore("UserGroup").get(keyPath))!;
+    const recordsWithRelations = this._applySelectClause(
+      await this._applyRelations<object>([data], tx, query),
+      query.select
+    )[0];
+    this._preprocessListFields([recordsWithRelations]);
+    await this.emit("create", keyPath, undefined, data, { silent, addToOutbox, tx });
+    return recordsWithRelations as Prisma.Result<Prisma.UserGroupDelegate, Q, "create">;
+  }
+  async createMany<Q extends Prisma.Args<Prisma.UserGroupDelegate, "createMany">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "createMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["UserGroup"]);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("UserGroup").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+    }
+    return { count: createManyData.length };
+  }
+  async createManyAndReturn<Q extends Prisma.Args<Prisma.UserGroupDelegate, "createManyAndReturn">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "createManyAndReturn">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const records: Prisma.Result<Prisma.UserGroupDelegate, object, "findMany"> = [];
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["UserGroup"]);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("UserGroup").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+      records.push(this._applySelectClause([record], query.select)[0]);
+    }
+    this._preprocessListFields(records);
+    return records as Prisma.Result<Prisma.UserGroupDelegate, Q, "createManyAndReturn">;
+  }
+  async delete<Q extends Prisma.Args<Prisma.UserGroupDelegate, "delete">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "delete">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = await this.findUnique(query, { tx });
+    if (!record) throw new Error("Record not found");
+    await tx.objectStore("UserGroup").delete([record.groupId, record.userId]);
+    await this.emit("delete", [record.groupId, record.userId], undefined, record, { silent, addToOutbox, tx });
+    return record;
+  }
+  async deleteMany<Q extends Prisma.Args<Prisma.UserGroupDelegate, "deleteMany">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "deleteMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const records = await this.findMany(query, { tx });
+    for (const record of records) {
+      await this.delete(
+        { where: { groupId_userId: { groupId: record.groupId, userId: record.userId } } },
+        { tx, silent, addToOutbox }
+      );
+    }
+    return { count: records.length };
+  }
+  async update<Q extends Prisma.Args<Prisma.UserGroupDelegate, "update">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "update">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
+    const record = await this.findUnique({ where: query.where }, { tx });
+    if (record === null) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
+    const startKeyPath: PrismaIDBSchema["UserGroup"]["key"] = [record.groupId, record.userId];
+    const dateTimeFields = ["joinedOn"] as const;
+    for (const field of dateTimeFields) {
+      IDBUtils.handleDateTimeUpdateField(record, field, query.data[field]);
+    }
+    const intFields = ["groupId", "userId"] as const;
+    for (const field of intFields) {
+      IDBUtils.handleIntUpdateField(record, field, query.data[field]);
+    }
+    if (query.data.group) {
+      if (query.data.group.connect) {
+        const other = await this.client.group.findUniqueOrThrow({ where: query.data.group.connect }, { tx });
+        record.groupId = other.id;
+      }
+      if (query.data.group.create) {
+        const other = await this.client.group.create({ data: query.data.group.create }, { tx, silent, addToOutbox });
+        record.groupId = other.id;
+      }
+      if (query.data.group.update) {
+        const updateData = query.data.group.update.data ?? query.data.group.update;
+        await this.client.group.update(
+          {
+            where: { ...query.data.group.update.where, id: record.groupId! } as Prisma.GroupWhereUniqueInput,
+            data: updateData,
+          },
+          { tx, silent, addToOutbox }
+        );
+      }
+      if (query.data.group.upsert) {
+        await this.client.group.upsert(
+          {
+            where: { ...query.data.group.upsert.where, id: record.groupId! } as Prisma.GroupWhereUniqueInput,
+            create: { ...query.data.group.upsert.create, id: record.groupId! } as Prisma.Args<
+              Prisma.GroupDelegate,
+              "upsert"
+            >["create"],
+            update: query.data.group.upsert.update,
+          },
+          { tx, silent, addToOutbox }
+        );
+      }
+      if (query.data.group.connectOrCreate) {
+        await this.client.group.upsert(
+          {
+            where: { ...query.data.group.connectOrCreate.where, id: record.groupId! },
+            create: { ...query.data.group.connectOrCreate.create, id: record.groupId! } as Prisma.Args<
+              Prisma.GroupDelegate,
+              "upsert"
+            >["create"],
+            update: { id: record.groupId! },
+          },
+          { tx, silent, addToOutbox }
+        );
+      }
+    }
+    if (query.data.user) {
+      if (query.data.user.connect) {
+        const other = await this.client.user.findUniqueOrThrow({ where: query.data.user.connect }, { tx });
+        record.userId = other.id;
+      }
+      if (query.data.user.create) {
+        const other = await this.client.user.create({ data: query.data.user.create }, { tx, silent, addToOutbox });
+        record.userId = other.id;
+      }
+      if (query.data.user.update) {
+        const updateData = query.data.user.update.data ?? query.data.user.update;
+        await this.client.user.update(
+          {
+            where: { ...query.data.user.update.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
+            data: updateData,
+          },
+          { tx, silent, addToOutbox }
+        );
+      }
+      if (query.data.user.upsert) {
+        await this.client.user.upsert(
+          {
+            where: { ...query.data.user.upsert.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
+            create: { ...query.data.user.upsert.create, id: record.userId! } as Prisma.Args<
+              Prisma.UserDelegate,
+              "upsert"
+            >["create"],
+            update: query.data.user.upsert.update,
+          },
+          { tx, silent, addToOutbox }
+        );
+      }
+      if (query.data.user.connectOrCreate) {
+        await this.client.user.upsert(
+          {
+            where: { ...query.data.user.connectOrCreate.where, id: record.userId! },
+            create: { ...query.data.user.connectOrCreate.create, id: record.userId! } as Prisma.Args<
+              Prisma.UserDelegate,
+              "upsert"
+            >["create"],
+            update: { id: record.userId! },
+          },
+          { tx, silent, addToOutbox }
+        );
+      }
+    }
+    if (query.data.groupId !== undefined) {
+      const related = await this.client.group.findUnique({ where: { id: record.groupId } }, { tx });
+      if (!related) throw new Error("Related record not found");
+    }
+    if (query.data.userId !== undefined) {
+      const related = await this.client.user.findUnique({ where: { id: record.userId } }, { tx });
+      if (!related) throw new Error("Related record not found");
+    }
+    const endKeyPath: PrismaIDBSchema["UserGroup"]["key"] = [record.groupId, record.userId];
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        if ((await tx.objectStore("UserGroup").get(endKeyPath)) !== undefined) {
+          throw new Error("Record with the same keyPath already exists");
+        }
+        await tx.objectStore("UserGroup").delete(startKeyPath);
+        break;
+      }
+    }
+    const keyPath = await tx.objectStore("UserGroup").put(record);
+    await this.emit("update", keyPath, startKeyPath, record, { silent, addToOutbox, tx });
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        break;
+      }
+    }
+    const recordWithRelations = (await this.findUnique(
+      {
+        where: { groupId_userId: { groupId: keyPath[0], userId: keyPath[1] } },
+      },
+      { tx }
+    ))!;
+    return recordWithRelations as Prisma.Result<Prisma.UserGroupDelegate, Q, "update">;
+  }
+  async updateMany<Q extends Prisma.Args<Prisma.UserGroupDelegate, "updateMany">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "updateMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const records = await this.findMany({ where: query.where }, { tx });
+    await Promise.all(
+      records.map(async (record) => {
+        await this.update(
+          { where: { groupId_userId: { groupId: record.groupId, userId: record.userId } }, data: query.data },
+          { tx, silent, addToOutbox }
+        );
+      })
+    );
+    return { count: records.length };
+  }
+  async upsert<Q extends Prisma.Args<Prisma.UserGroupDelegate, "upsert">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "upsert">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const neededStores = this._getNeededStoresForUpdate({
+      ...query,
+      data: { ...query.update, ...query.create } as Prisma.Args<Prisma.UserGroupDelegate, "update">["data"],
+    });
+    tx = tx ?? this.client._db.transaction(Array.from(neededStores), "readwrite");
+    let record = await this.findUnique({ where: query.where }, { tx });
+    if (!record) record = await this.create({ data: query.create }, { tx, silent, addToOutbox });
+    else record = await this.update({ where: query.where, data: query.update }, { tx, silent, addToOutbox });
+    record = await this.findUniqueOrThrow(
+      {
+        where: { groupId_userId: { groupId: record.groupId, userId: record.userId } },
+        select: query.select,
+        include: query.include,
+      },
+      { tx }
+    );
+    return record as Prisma.Result<Prisma.UserGroupDelegate, Q, "upsert">;
+  }
+  async aggregate<Q extends Prisma.Args<Prisma.UserGroupDelegate, "aggregate">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(["UserGroup"], "readonly");
+    const records = await this.findMany({ where: query?.where }, { tx });
+    const result: Partial<Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">> = {};
+    if (query?._count) {
+      if (query._count === true) {
+        (result._count as number) = records.length;
+      } else {
+        for (const key of Object.keys(query._count)) {
+          const typedKey = key as keyof typeof query._count;
+          if (typedKey === "_all") {
+            (result._count as Record<string, number>)[typedKey] = records.length;
+            continue;
+          }
+          (result._count as Record<string, number>)[typedKey] = (
+            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })
+          ).length;
+        }
+      }
+    }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">["_min"];
+      const numericFields = ["groupId", "userId"] as const;
+      for (const field of numericFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      const dateTimeFields = ["joinedOn"] as const;
+      for (const field of dateTimeFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as Date) = new Date(Math.min(...values));
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">["_max"];
+      const numericFields = ["groupId", "userId"] as const;
+      for (const field of numericFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      const dateTimeFields = ["joinedOn"] as const;
+      for (const field of dateTimeFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as Date) = new Date(Math.max(...values));
+      }
+      result._max = maxResult;
+    }
+    if (query?._avg) {
+      const avgResult = {} as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">["_avg"];
+      for (const untypedField of Object.keys(query._avg)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+      result._avg = avgResult;
+    }
+    if (query?._sum) {
+      const sumResult = {} as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">["_sum"];
+      for (const untypedField of Object.keys(query._sum)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
+      }
+      result._sum = sumResult;
+    }
+    return result as unknown as Prisma.Result<Prisma.UserGroupDelegate, Q, "aggregate">;
   }
 }
 class FatherIDBClass extends BaseIDBModelClass<"Father"> {
@@ -9031,6 +13322,12 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.FatherDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.FatherDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.FatherDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.FatherDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("Father").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.FatherDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -9040,25 +13337,80 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("Father").getAll(), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["firstName_lastName"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["firstName_lastName"] as Record<
+          string,
+          unknown
+        >;
+        cursorIndex = records.findIndex(
+          (record) => record.firstName === normalizedCursor.firstName && record.lastName === normalizedCursor.lastName
+        );
+      } else if ((query.cursor as Record<string, unknown>)["motherFirstName_motherLastName"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["motherFirstName_motherLastName"] as Record<
+          string,
+          unknown
+        >;
+        cursorIndex = records.findIndex(
+          (record) =>
+            record.motherFirstName === normalizedCursor.motherFirstName &&
+            record.motherLastName === normalizedCursor.motherLastName
+        );
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.FatherDelegate,
       object,
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
-    if (query?.distinct) {
-      const distinctFields = IDBUtils.convertToArray(query.distinct);
-      const seen = new Set<string>();
-      selectAppliedRecords = selectAppliedRecords.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    }
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.FatherDelegate, Q, "findMany">;
   }
@@ -10422,6 +14774,12 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.MotherDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.MotherDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.MotherDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.MotherDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("Mother").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.MotherDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -10431,25 +14789,70 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("Mother").getAll(), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["firstName_lastName"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["firstName_lastName"] as Record<
+          string,
+          unknown
+        >;
+        cursorIndex = records.findIndex(
+          (record) => record.firstName === normalizedCursor.firstName && record.lastName === normalizedCursor.lastName
+        );
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.MotherDelegate,
       object,
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
-    if (query?.distinct) {
-      const distinctFields = IDBUtils.convertToArray(query.distinct);
-      const seen = new Set<string>();
-      selectAppliedRecords = selectAppliedRecords.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    }
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.MotherDelegate, Q, "findMany">;
   }
@@ -11796,6 +16199,12 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     return recordWithoutNestedCreate as Prisma.Result<Prisma.ChildDelegate, object, "findFirstOrThrow">;
   }
   private _preprocessListFields(records: Prisma.Result<Prisma.ChildDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.ChildDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.ChildDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("Child").getAll();
+  }
   async findMany<Q extends Prisma.Args<Prisma.ChildDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -11805,25 +16214,72 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("Child").getAll(), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["childFirstName_childLastName"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["childFirstName_childLastName"] as Record<
+          string,
+          unknown
+        >;
+        cursorIndex = records.findIndex(
+          (record) =>
+            record.childFirstName === normalizedCursor.childFirstName &&
+            record.childLastName === normalizedCursor.childLastName
+        );
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
     const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.ChildDelegate,
       object,
       "findFirstOrThrow"
     >[];
     const selectClause = query?.select;
-    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
-    if (query?.distinct) {
-      const distinctFields = IDBUtils.convertToArray(query.distinct);
-      const seen = new Set<string>();
-      selectAppliedRecords = selectAppliedRecords.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    }
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.ChildDelegate, Q, "findMany">;
   }
@@ -12554,17 +17010,17 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     return result as unknown as Prisma.Result<Prisma.ChildDelegate, Q, "aggregate">;
   }
 }
-class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
+class CompositeIdIntStringIDBClass extends BaseIDBModelClass<"CompositeIdIntString"> {
   constructor(client: PrismaIDBClient, keyPath: string[]) {
-    super(client, keyPath, "ModelWithEnum");
+    super(client, keyPath, "CompositeIdIntString");
   }
 
   private async _applyWhereClause<
-    W extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findFirstOrThrow">["where"],
-    R extends Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow">,
+    W extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "findFirstOrThrow">["where"],
+    R extends Prisma.Result<Prisma.CompositeIdIntStringDelegate, object, "findFirstOrThrow">,
   >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
     if (!whereClause) return records;
-    records = await IDBUtils.applyLogicalFilters<Prisma.ModelWithEnumDelegate, R, W>(
+    records = await IDBUtils.applyLogicalFilters<Prisma.CompositeIdIntStringDelegate, R, W>(
       records,
       whereClause,
       tx,
@@ -12574,7 +17030,11 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     return (
       await Promise.all(
         records.map(async (record) => {
-          const numberFields = ["id"] as const;
+          const stringFields = ["code", "details"] as const;
+          for (const field of stringFields) {
+            if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
+          }
+          const numberFields = ["orgId"] as const;
           for (const field of numberFields) {
             if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
           }
@@ -12583,41 +17043,41 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
       )
     ).filter((result) => result !== null);
   }
-  private _applySelectClause<S extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">["select"]>(
-    records: Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow">[],
+  private _applySelectClause<S extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "findMany">["select"]>(
+    records: Prisma.Result<Prisma.CompositeIdIntStringDelegate, object, "findFirstOrThrow">[],
     selectClause: S
-  ): Prisma.Result<Prisma.ModelWithEnumDelegate, { select: S }, "findFirstOrThrow">[] {
+  ): Prisma.Result<Prisma.CompositeIdIntStringDelegate, { select: S }, "findFirstOrThrow">[] {
     if (!selectClause) {
-      return records as Prisma.Result<Prisma.ModelWithEnumDelegate, { select: S }, "findFirstOrThrow">[];
+      return records as Prisma.Result<Prisma.CompositeIdIntStringDelegate, { select: S }, "findFirstOrThrow">[];
     }
     return records.map((record) => {
       const partialRecord: Partial<typeof record> = record;
-      for (const untypedKey of ["id", "enum", "nullableEnum", "enumArray"]) {
+      for (const untypedKey of ["orgId", "code", "details"]) {
         const key = untypedKey as keyof typeof record & keyof S;
         if (!selectClause[key]) delete partialRecord[key];
       }
       return partialRecord;
-    }) as Prisma.Result<Prisma.ModelWithEnumDelegate, { select: S }, "findFirstOrThrow">[];
+    }) as Prisma.Result<Prisma.CompositeIdIntStringDelegate, { select: S }, "findFirstOrThrow">[];
   }
-  private async _applyRelations<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">>(
-    records: Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow">[],
+  private async _applyRelations<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "findMany">>(
+    records: Prisma.Result<Prisma.CompositeIdIntStringDelegate, object, "findFirstOrThrow">[],
     tx: IDBUtils.TransactionType,
     query?: Q
-  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findFirstOrThrow">[]> {
-    if (!query) return records as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findFirstOrThrow">[];
+  ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "findFirstOrThrow">[]> {
+    if (!query) return records as Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "findFirstOrThrow">[];
     const recordsWithRelations = records.map(async (record) => {
       const unsafeRecord = record as Record<string, unknown>;
       return unsafeRecord;
     });
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<
-      Prisma.ModelWithEnumDelegate,
+      Prisma.CompositeIdIntStringDelegate,
       Q,
       "findFirstOrThrow"
     >[];
   }
   async _applyOrderByClause<
-    O extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">["orderBy"],
-    R extends Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow">,
+    O extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "findMany">["orderBy"],
+    R extends Prisma.Result<Prisma.CompositeIdIntStringDelegate, object, "findFirstOrThrow">,
   >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
     if (orderByClause === undefined) return;
     const orderByClauses = IDBUtils.convertToArray(orderByClause);
@@ -12642,40 +17102,31 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     }
   }
   async _resolveOrderByKey(
-    record: Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow">,
-    orderByInput: Prisma.ModelWithEnumOrderByWithRelationInput,
+    record: Prisma.Result<Prisma.CompositeIdIntStringDelegate, object, "findFirstOrThrow">,
+    orderByInput: Prisma.CompositeIdIntStringOrderByWithRelationInput,
     tx: IDBUtils.TransactionType
   ): Promise<unknown> {
-    const scalarFields = ["id", "enum", "nullableEnum", "enumArray"] as const;
+    const scalarFields = ["orgId", "code", "details"] as const;
     for (const field of scalarFields) if (orderByInput[field]) return record[field];
   }
   _resolveSortOrder(
-    orderByInput: Prisma.ModelWithEnumOrderByWithRelationInput
+    orderByInput: Prisma.CompositeIdIntStringOrderByWithRelationInput
   ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
-    const scalarFields = ["id", "enum", "nullableEnum", "enumArray"] as const;
+    const scalarFields = ["orgId", "code", "details"] as const;
     for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
     throw new Error("No field in orderBy clause");
   }
-  private async _fillDefaults<D extends Prisma.Args<Prisma.ModelWithEnumDelegate, "create">["data"]>(
+  private async _fillDefaults<D extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "create">["data"]>(
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType
   ): Promise<D> {
     if (data === undefined) data = {} as NonNullable<D>;
-    if (data.id === undefined) {
-      const transaction = tx ?? this.client._db.transaction(["ModelWithEnum"], "readwrite");
-      const store = transaction.objectStore("ModelWithEnum");
-      const cursor = await store.openCursor(null, "prev");
-      data.id = cursor ? Number(cursor.key) + 1 : 1;
-    }
-    if (data.nullableEnum === undefined) {
-      data.nullableEnum = null;
-    }
-    if (!Array.isArray(data.enumArray)) {
-      data.enumArray = data.enumArray?.set;
+    if (data.details === undefined) {
+      data.details = null;
     }
     return data;
   }
-  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">["where"]>(
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "findMany">["where"]>(
     whereClause: W,
     neededStores: Set<StoreNames<PrismaIDBSchema>>
   ) {
@@ -12688,95 +17139,141 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
       }
     }
   }
-  _getNeededStoresForFind<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">>(
+  _getNeededStoresForFind<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "findMany">>(
     query?: Q
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
-    neededStores.add("ModelWithEnum");
+    neededStores.add("CompositeIdIntString");
     this._getNeededStoresForWhere(query?.where, neededStores);
     if (query?.orderBy) {
       const orderBy = IDBUtils.convertToArray(query.orderBy);
     }
     return neededStores;
   }
-  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.ModelWithEnumDelegate, "create">["data"]>>(
+  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.CompositeIdIntStringDelegate, "create">["data"]>>(
     data: D
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
-    neededStores.add("ModelWithEnum");
+    neededStores.add("CompositeIdIntString");
     return neededStores;
   }
-  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "update">>(
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "update">>(
     query: Partial<Q>
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores = this._getNeededStoresForFind(query).union(
-      this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.ModelWithEnumDelegate, "create">["data"])
+      this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.CompositeIdIntStringDelegate, "create">["data"])
     );
     return neededStores;
   }
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
-    neededStores.add("ModelWithEnum");
+    neededStores.add("CompositeIdIntString");
   }
-  private _removeNestedCreateData<D extends Prisma.Args<Prisma.ModelWithEnumDelegate, "create">["data"]>(
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "create">["data"]>(
     data: D
-  ): Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow"> {
+  ): Prisma.Result<Prisma.CompositeIdIntStringDelegate, object, "findFirstOrThrow"> {
     const recordWithoutNestedCreate = structuredClone(data);
-    return recordWithoutNestedCreate as Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findFirstOrThrow">;
+    return recordWithoutNestedCreate as Prisma.Result<Prisma.CompositeIdIntStringDelegate, object, "findFirstOrThrow">;
   }
-  private _preprocessListFields(records: Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findMany">): void {
-    for (const record of records) {
-      record.enumArray = record.enumArray ?? [];
-    }
+  private _preprocessListFields(
+    records: Prisma.Result<Prisma.CompositeIdIntStringDelegate, object, "findMany">
+  ): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.CompositeIdIntStringDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("CompositeIdIntString").getAll();
   }
-  async findMany<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">>(
+  async findMany<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "findMany">>(
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findMany">> {
+  ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "findMany">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("ModelWithEnum").getAll(), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.ModelWithEnumDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
-    const selectClause = query?.select;
-    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      selectAppliedRecords = selectAppliedRecords.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
       });
     }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["orgId_code"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["orgId_code"] as Record<string, unknown>;
+        cursorIndex = records.findIndex(
+          (record) => record.orgId === normalizedCursor.orgId && record.code === normalizedCursor.code
+        );
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.CompositeIdIntStringDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
+    const selectClause = query?.select;
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
-    return selectAppliedRecords as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findMany">;
+    return selectAppliedRecords as Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "findMany">;
   }
-  async findFirst<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findFirst">>(
+  async findFirst<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "findFirst">>(
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findFirst">> {
+  ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
 
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, { tx }))[0] ?? null;
   }
-  async findFirstOrThrow<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findFirstOrThrow">>(
+  async findFirstOrThrow<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "findFirstOrThrow">>(
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findFirstOrThrow">> {
+  ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "findFirstOrThrow">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
 
@@ -12787,19 +17284,21 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     }
     return record;
   }
-  async findUnique<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findUnique">>(
+  async findUnique<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "findUnique">>(
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findUnique">> {
+  ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
 
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
-    if (query.where.id !== undefined) {
-      record = await tx.objectStore("ModelWithEnum").get([query.where.id]);
+    if (query.where.orgId_code !== undefined) {
+      record = await tx
+        .objectStore("CompositeIdIntString")
+        .get([query.where.orgId_code.orgId, query.where.orgId_code.code]);
     }
     if (!record) return null;
 
@@ -12808,14 +17307,14 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
       query.select
     )[0];
     this._preprocessListFields([recordWithRelations]);
-    return recordWithRelations as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findUnique">;
+    return recordWithRelations as Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "findUnique">;
   }
-  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findUniqueOrThrow">>(
+  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "findUniqueOrThrow">>(
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findUniqueOrThrow">> {
+  ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "findUniqueOrThrow">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
 
@@ -12826,21 +17325,21 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     }
     return record;
   }
-  async count<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "count">>(
+  async count<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "count">>(
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "count">> {
+  ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
 
-    tx = tx ?? this.client._db.transaction(["ModelWithEnum"], "readonly");
+    tx = tx ?? this.client._db.transaction(["CompositeIdIntString"], "readonly");
     if (!query?.select || query.select === true) {
       const records = await this.findMany({ where: query?.where }, { tx });
-      return records.length as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "count">;
+      return records.length as Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "count">;
     }
-    const result: Partial<Record<keyof Prisma.ModelWithEnumCountAggregateInputType, number>> = {};
+    const result: Partial<Record<keyof Prisma.CompositeIdIntStringCountAggregateInputType, number>> = {};
     for (const key of Object.keys(query.select)) {
       const typedKey = key as keyof typeof query.select;
       if (typedKey === "_all") {
@@ -12849,82 +17348,82 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
       }
       result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })).length;
     }
-    return result as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "count">;
+    return result as Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "count">;
   }
-  async create<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "create">>(
+  async create<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "create">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "create">> {
+  ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "create">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     const storesNeeded = this._getNeededStoresForCreate(query.data);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
-    const keyPath = await tx.objectStore("ModelWithEnum").add(record);
-    const data = (await tx.objectStore("ModelWithEnum").get(keyPath))!;
+    const keyPath = await tx.objectStore("CompositeIdIntString").add(record);
+    const data = (await tx.objectStore("CompositeIdIntString").get(keyPath))!;
     const recordsWithRelations = this._applySelectClause(
       await this._applyRelations<object>([data], tx, query),
       query.select
     )[0];
     this._preprocessListFields([recordsWithRelations]);
     await this.emit("create", keyPath, undefined, data, { silent, addToOutbox, tx });
-    return recordsWithRelations as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "create">;
+    return recordsWithRelations as Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "create">;
   }
-  async createMany<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "createMany">>(
+  async createMany<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "createMany">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "createMany">> {
+  ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "createMany">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
-    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["ModelWithEnum"]);
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["CompositeIdIntString"]);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      const keyPath = await tx.objectStore("ModelWithEnum").add(record);
+      const keyPath = await tx.objectStore("CompositeIdIntString").add(record);
       await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
     }
     return { count: createManyData.length };
   }
-  async createManyAndReturn<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "createManyAndReturn">>(
+  async createManyAndReturn<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "createManyAndReturn">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "createManyAndReturn">> {
+  ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "createManyAndReturn">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
-    const records: Prisma.Result<Prisma.ModelWithEnumDelegate, object, "findMany"> = [];
-    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["ModelWithEnum"]);
+    const records: Prisma.Result<Prisma.CompositeIdIntStringDelegate, object, "findMany"> = [];
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["CompositeIdIntString"]);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      const keyPath = await tx.objectStore("ModelWithEnum").add(record);
+      const keyPath = await tx.objectStore("CompositeIdIntString").add(record);
       await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
       records.push(this._applySelectClause([record], query.select)[0]);
     }
     this._preprocessListFields(records);
-    return records as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "createManyAndReturn">;
+    return records as Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "createManyAndReturn">;
   }
-  async delete<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "delete">>(
+  async delete<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "delete">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "delete">> {
+  ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "delete">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     const storesNeeded = this._getNeededStoresForFind(query);
@@ -12932,18 +17431,18 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await tx.objectStore("ModelWithEnum").delete([record.id]);
-    await this.emit("delete", [record.id], undefined, record, { silent, addToOutbox, tx });
+    await tx.objectStore("CompositeIdIntString").delete([record.orgId, record.code]);
+    await this.emit("delete", [record.orgId, record.code], undefined, record, { silent, addToOutbox, tx });
     return record;
   }
-  async deleteMany<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "deleteMany">>(
+  async deleteMany<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "deleteMany">>(
     query?: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "deleteMany">> {
+  ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "deleteMany">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     const storesNeeded = this._getNeededStoresForFind(query);
@@ -12951,18 +17450,21 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const records = await this.findMany(query, { tx });
     for (const record of records) {
-      await this.delete({ where: { id: record.id } }, { tx, silent, addToOutbox });
+      await this.delete(
+        { where: { orgId_code: { orgId: record.orgId, code: record.code } } },
+        { tx, silent, addToOutbox }
+      );
     }
     return { count: records.length };
   }
-  async update<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "update">>(
+  async update<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "update">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "update">> {
+  ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "update">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
@@ -12971,30 +17473,26 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
       tx.abort();
       throw new Error("Record not found");
     }
-    const startKeyPath: PrismaIDBSchema["ModelWithEnum"]["key"] = [record.id];
-    const intFields = ["id"] as const;
+    const startKeyPath: PrismaIDBSchema["CompositeIdIntString"]["key"] = [record.orgId, record.code];
+    const stringFields = ["code", "details"] as const;
+    for (const field of stringFields) {
+      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const intFields = ["orgId"] as const;
     for (const field of intFields) {
       IDBUtils.handleIntUpdateField(record, field, query.data[field]);
     }
-    const enumFields = ["enum", "nullableEnum"] as const;
-    for (const field of enumFields) {
-      IDBUtils.handleEnumUpdateField(record, field, query.data[field]);
-    }
-    const listFields = ["enumArray"] as const;
-    for (const field of listFields) {
-      IDBUtils.handleScalarListUpdateField(record, field, query.data[field]);
-    }
-    const endKeyPath: PrismaIDBSchema["ModelWithEnum"]["key"] = [record.id];
+    const endKeyPath: PrismaIDBSchema["CompositeIdIntString"]["key"] = [record.orgId, record.code];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
-        if ((await tx.objectStore("ModelWithEnum").get(endKeyPath)) !== undefined) {
+        if ((await tx.objectStore("CompositeIdIntString").get(endKeyPath)) !== undefined) {
           throw new Error("Record with the same keyPath already exists");
         }
-        await tx.objectStore("ModelWithEnum").delete(startKeyPath);
+        await tx.objectStore("CompositeIdIntString").delete(startKeyPath);
         break;
       }
     }
-    const keyPath = await tx.objectStore("ModelWithEnum").put(record);
+    const keyPath = await tx.objectStore("CompositeIdIntString").put(record);
     await this.emit("update", keyPath, startKeyPath, record, { silent, addToOutbox, tx });
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
@@ -13003,63 +17501,69 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     }
     const recordWithRelations = (await this.findUnique(
       {
-        where: { id: keyPath[0] },
+        where: { orgId_code: { orgId: keyPath[0], code: keyPath[1] } },
       },
       { tx }
     ))!;
-    return recordWithRelations as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "update">;
+    return recordWithRelations as Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "update">;
   }
-  async updateMany<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "updateMany">>(
+  async updateMany<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "updateMany">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "updateMany">> {
+  ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "updateMany">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
     const records = await this.findMany({ where: query.where }, { tx });
     await Promise.all(
       records.map(async (record) => {
-        await this.update({ where: { id: record.id }, data: query.data }, { tx, silent, addToOutbox });
+        await this.update(
+          { where: { orgId_code: { orgId: record.orgId, code: record.code } }, data: query.data },
+          { tx, silent, addToOutbox }
+        );
       })
     );
     return { count: records.length };
   }
-  async upsert<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "upsert">>(
+  async upsert<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "upsert">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "upsert">> {
+  ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "upsert">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     const neededStores = this._getNeededStoresForUpdate({
       ...query,
-      data: { ...query.update, ...query.create } as Prisma.Args<Prisma.ModelWithEnumDelegate, "update">["data"],
+      data: { ...query.update, ...query.create } as Prisma.Args<Prisma.CompositeIdIntStringDelegate, "update">["data"],
     });
     tx = tx ?? this.client._db.transaction(Array.from(neededStores), "readwrite");
     let record = await this.findUnique({ where: query.where }, { tx });
     if (!record) record = await this.create({ data: query.create }, { tx, silent, addToOutbox });
     else record = await this.update({ where: query.where, data: query.update }, { tx, silent, addToOutbox });
-    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select }, { tx });
-    return record as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "upsert">;
+    record = await this.findUniqueOrThrow(
+      { where: { orgId_code: { orgId: record.orgId, code: record.code } }, select: query.select },
+      { tx }
+    );
+    return record as Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "upsert">;
   }
-  async aggregate<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "aggregate">>(
+  async aggregate<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "aggregate">>(
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "aggregate">> {
+  ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "aggregate">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
-    tx = tx ?? this.client._db.transaction(["ModelWithEnum"], "readonly");
+    tx = tx ?? this.client._db.transaction(["CompositeIdIntString"], "readonly");
     const records = await this.findMany({ where: query?.where }, { tx });
-    const result: Partial<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "aggregate">> = {};
+    const result: Partial<Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "aggregate">> = {};
     if (query?._count) {
       if (query._count === true) {
         (result._count as number) = records.length;
@@ -13077,546 +17581,14 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
       }
     }
     if (query?._min) {
-      const minResult = {} as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "aggregate">["_min"];
-      const numericFields = ["id"] as const;
+      const minResult = {} as Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "aggregate">["_min"];
+      const numericFields = ["orgId"] as const;
       for (const field of numericFields) {
         if (!query._min[field]) continue;
         const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
         (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
       }
-      result._min = minResult;
-    }
-    if (query?._max) {
-      const maxResult = {} as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "aggregate">["_max"];
-      const numericFields = ["id"] as const;
-      for (const field of numericFields) {
-        if (!query._max[field]) continue;
-        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
-        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
-      }
-      result._max = maxResult;
-    }
-    if (query?._avg) {
-      const avgResult = {} as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "aggregate">["_avg"];
-      for (const untypedField of Object.keys(query._avg)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
-      }
-      result._avg = avgResult;
-    }
-    if (query?._sum) {
-      const sumResult = {} as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "aggregate">["_sum"];
-      for (const untypedField of Object.keys(query._sum)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
-      }
-      result._sum = sumResult;
-    }
-    return result as unknown as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "aggregate">;
-  }
-}
-class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
-  constructor(client: PrismaIDBClient, keyPath: string[]) {
-    super(client, keyPath, "TestUuid");
-  }
-
-  private async _applyWhereClause<
-    W extends Prisma.Args<Prisma.TestUuidDelegate, "findFirstOrThrow">["where"],
-    R extends Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow">,
-  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
-    if (!whereClause) return records;
-    records = await IDBUtils.applyLogicalFilters<Prisma.TestUuidDelegate, R, W>(
-      records,
-      whereClause,
-      tx,
-      this.keyPath,
-      this._applyWhereClause.bind(this)
-    );
-    return (
-      await Promise.all(
-        records.map(async (record) => {
-          const stringFields = ["id", "name"] as const;
-          for (const field of stringFields) {
-            if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
-          }
-          return record;
-        })
-      )
-    ).filter((result) => result !== null);
-  }
-  private _applySelectClause<S extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">["select"]>(
-    records: Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow">[],
-    selectClause: S
-  ): Prisma.Result<Prisma.TestUuidDelegate, { select: S }, "findFirstOrThrow">[] {
-    if (!selectClause) {
-      return records as Prisma.Result<Prisma.TestUuidDelegate, { select: S }, "findFirstOrThrow">[];
-    }
-    return records.map((record) => {
-      const partialRecord: Partial<typeof record> = record;
-      for (const untypedKey of ["id", "name"]) {
-        const key = untypedKey as keyof typeof record & keyof S;
-        if (!selectClause[key]) delete partialRecord[key];
-      }
-      return partialRecord;
-    }) as Prisma.Result<Prisma.TestUuidDelegate, { select: S }, "findFirstOrThrow">[];
-  }
-  private async _applyRelations<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">>(
-    records: Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow">[],
-    tx: IDBUtils.TransactionType,
-    query?: Q
-  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirstOrThrow">[]> {
-    if (!query) return records as Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
-      const unsafeRecord = record as Record<string, unknown>;
-      return unsafeRecord;
-    });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirstOrThrow">[];
-  }
-  async _applyOrderByClause<
-    O extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">["orderBy"],
-    R extends Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow">,
-  >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
-    if (orderByClause === undefined) return;
-    const orderByClauses = IDBUtils.convertToArray(orderByClause);
-    const indexedKeys = await Promise.all(
-      records.map(async (record) => {
-        const keys = await Promise.all(
-          orderByClauses.map(async (clause) => await this._resolveOrderByKey(record, clause, tx))
-        );
-        return { keys, record };
-      })
-    );
-    indexedKeys.sort((a, b) => {
-      for (let i = 0; i < orderByClauses.length; i++) {
-        const clause = orderByClauses[i];
-        const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));
-        if (comparison !== 0) return comparison;
-      }
-      return 0;
-    });
-    for (let i = 0; i < records.length; i++) {
-      records[i] = indexedKeys[i].record;
-    }
-  }
-  async _resolveOrderByKey(
-    record: Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow">,
-    orderByInput: Prisma.TestUuidOrderByWithRelationInput,
-    tx: IDBUtils.TransactionType
-  ): Promise<unknown> {
-    const scalarFields = ["id", "name"] as const;
-    for (const field of scalarFields) if (orderByInput[field]) return record[field];
-  }
-  _resolveSortOrder(
-    orderByInput: Prisma.TestUuidOrderByWithRelationInput
-  ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
-    const scalarFields = ["id", "name"] as const;
-    for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
-    throw new Error("No field in orderBy clause");
-  }
-  private async _fillDefaults<D extends Prisma.Args<Prisma.TestUuidDelegate, "create">["data"]>(
-    data: D,
-    tx?: IDBUtils.ReadwriteTransactionType
-  ): Promise<D> {
-    if (data === undefined) data = {} as NonNullable<D>;
-    if (data.id === undefined) {
-      data.id = uuidv4();
-    }
-    return data;
-  }
-  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">["where"]>(
-    whereClause: W,
-    neededStores: Set<StoreNames<PrismaIDBSchema>>
-  ) {
-    if (whereClause === undefined) return;
-    for (const param of IDBUtils.LogicalParams) {
-      if (whereClause[param]) {
-        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
-          this._getNeededStoresForWhere(clause, neededStores);
-        }
-      }
-    }
-  }
-  _getNeededStoresForFind<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">>(
-    query?: Q
-  ): Set<StoreNames<PrismaIDBSchema>> {
-    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
-    neededStores.add("TestUuid");
-    this._getNeededStoresForWhere(query?.where, neededStores);
-    if (query?.orderBy) {
-      const orderBy = IDBUtils.convertToArray(query.orderBy);
-    }
-    return neededStores;
-  }
-  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.TestUuidDelegate, "create">["data"]>>(
-    data: D
-  ): Set<StoreNames<PrismaIDBSchema>> {
-    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
-    neededStores.add("TestUuid");
-    return neededStores;
-  }
-  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.TestUuidDelegate, "update">>(
-    query: Partial<Q>
-  ): Set<StoreNames<PrismaIDBSchema>> {
-    const neededStores = this._getNeededStoresForFind(query).union(
-      this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.TestUuidDelegate, "create">["data"])
-    );
-    return neededStores;
-  }
-  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
-    neededStores.add("TestUuid");
-  }
-  private _removeNestedCreateData<D extends Prisma.Args<Prisma.TestUuidDelegate, "create">["data"]>(
-    data: D
-  ): Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow"> {
-    const recordWithoutNestedCreate = structuredClone(data);
-    return recordWithoutNestedCreate as Prisma.Result<Prisma.TestUuidDelegate, object, "findFirstOrThrow">;
-  }
-  private _preprocessListFields(records: Prisma.Result<Prisma.TestUuidDelegate, object, "findMany">): void {}
-  async findMany<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">>(
-    query?: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findMany">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("TestUuid").getAll(), query?.where, tx);
-    await this._applyOrderByClause(records, query?.orderBy, tx);
-    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.TestUuidDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
-    const selectClause = query?.select;
-    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
-    if (query?.distinct) {
-      const distinctFields = IDBUtils.convertToArray(query.distinct);
-      const seen = new Set<string>();
-      selectAppliedRecords = selectAppliedRecords.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    }
-    this._preprocessListFields(selectAppliedRecords);
-    return selectAppliedRecords as Prisma.Result<Prisma.TestUuidDelegate, Q, "findMany">;
-  }
-  async findFirst<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findFirst">>(
-    query?: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirst">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    return (await this.findMany(query, { tx }))[0] ?? null;
-  }
-  async findFirstOrThrow<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findFirstOrThrow">>(
-    query?: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirstOrThrow">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findFirst(query, { tx });
-    if (!record) {
-      throw new Error("Record not found");
-    }
-    return record;
-  }
-  async findUnique<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findUnique">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findUnique">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    let record;
-    if (query.where.id !== undefined) {
-      record = await tx.objectStore("TestUuid").get([query.where.id]);
-    }
-    if (!record) return null;
-
-    const recordWithRelations = this._applySelectClause(
-      await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query),
-      query.select
-    )[0];
-    this._preprocessListFields([recordWithRelations]);
-    return recordWithRelations as Prisma.Result<Prisma.TestUuidDelegate, Q, "findUnique">;
-  }
-  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.TestUuidDelegate, "findUniqueOrThrow">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findUniqueOrThrow">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findUnique(query, { tx });
-    if (!record) {
-      throw new Error("Record not found");
-    }
-    return record;
-  }
-  async count<Q extends Prisma.Args<Prisma.TestUuidDelegate, "count">>(
-    query?: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "count">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-
-    tx = tx ?? this.client._db.transaction(["TestUuid"], "readonly");
-    if (!query?.select || query.select === true) {
-      const records = await this.findMany({ where: query?.where }, { tx });
-      return records.length as Prisma.Result<Prisma.TestUuidDelegate, Q, "count">;
-    }
-    const result: Partial<Record<keyof Prisma.TestUuidCountAggregateInputType, number>> = {};
-    for (const key of Object.keys(query.select)) {
-      const typedKey = key as keyof typeof query.select;
-      if (typedKey === "_all") {
-        result[typedKey] = (await this.findMany({ where: query.where }, { tx })).length;
-        continue;
-      }
-      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })).length;
-    }
-    return result as Prisma.Result<Prisma.TestUuidDelegate, Q, "count">;
-  }
-  async create<Q extends Prisma.Args<Prisma.TestUuidDelegate, "create">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "create">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    const storesNeeded = this._getNeededStoresForCreate(query.data);
-    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
-    const keyPath = await tx.objectStore("TestUuid").add(record);
-    const data = (await tx.objectStore("TestUuid").get(keyPath))!;
-    const recordsWithRelations = this._applySelectClause(
-      await this._applyRelations<object>([data], tx, query),
-      query.select
-    )[0];
-    this._preprocessListFields([recordsWithRelations]);
-    await this.emit("create", keyPath, undefined, data, { silent, addToOutbox, tx });
-    return recordsWithRelations as Prisma.Result<Prisma.TestUuidDelegate, Q, "create">;
-  }
-  async createMany<Q extends Prisma.Args<Prisma.TestUuidDelegate, "createMany">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "createMany">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    const createManyData = IDBUtils.convertToArray(query.data);
-    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["TestUuid"]);
-    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    for (const createData of createManyData) {
-      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      const keyPath = await tx.objectStore("TestUuid").add(record);
-      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
-    }
-    return { count: createManyData.length };
-  }
-  async createManyAndReturn<Q extends Prisma.Args<Prisma.TestUuidDelegate, "createManyAndReturn">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "createManyAndReturn">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    const createManyData = IDBUtils.convertToArray(query.data);
-    const records: Prisma.Result<Prisma.TestUuidDelegate, object, "findMany"> = [];
-    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["TestUuid"]);
-    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    for (const createData of createManyData) {
-      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      const keyPath = await tx.objectStore("TestUuid").add(record);
-      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
-      records.push(this._applySelectClause([record], query.select)[0]);
-    }
-    this._preprocessListFields(records);
-    return records as Prisma.Result<Prisma.TestUuidDelegate, Q, "createManyAndReturn">;
-  }
-  async delete<Q extends Prisma.Args<Prisma.TestUuidDelegate, "delete">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "delete">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    const storesNeeded = this._getNeededStoresForFind(query);
-    this._getNeededStoresForNestedDelete(storesNeeded);
-    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    const record = await this.findUnique(query, { tx });
-    if (!record) throw new Error("Record not found");
-    await tx.objectStore("TestUuid").delete([record.id]);
-    await this.emit("delete", [record.id], undefined, record, { silent, addToOutbox, tx });
-    return record;
-  }
-  async deleteMany<Q extends Prisma.Args<Prisma.TestUuidDelegate, "deleteMany">>(
-    query?: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "deleteMany">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    const storesNeeded = this._getNeededStoresForFind(query);
-    this._getNeededStoresForNestedDelete(storesNeeded);
-    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    const records = await this.findMany(query, { tx });
-    for (const record of records) {
-      await this.delete({ where: { id: record.id } }, { tx, silent, addToOutbox });
-    }
-    return { count: records.length };
-  }
-  async update<Q extends Prisma.Args<Prisma.TestUuidDelegate, "update">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "update">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
-    const record = await this.findUnique({ where: query.where }, { tx });
-    if (record === null) {
-      tx.abort();
-      throw new Error("Record not found");
-    }
-    const startKeyPath: PrismaIDBSchema["TestUuid"]["key"] = [record.id];
-    const stringFields = ["id", "name"] as const;
-    for (const field of stringFields) {
-      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
-    }
-    const endKeyPath: PrismaIDBSchema["TestUuid"]["key"] = [record.id];
-    for (let i = 0; i < startKeyPath.length; i++) {
-      if (startKeyPath[i] !== endKeyPath[i]) {
-        if ((await tx.objectStore("TestUuid").get(endKeyPath)) !== undefined) {
-          throw new Error("Record with the same keyPath already exists");
-        }
-        await tx.objectStore("TestUuid").delete(startKeyPath);
-        break;
-      }
-    }
-    const keyPath = await tx.objectStore("TestUuid").put(record);
-    await this.emit("update", keyPath, startKeyPath, record, { silent, addToOutbox, tx });
-    for (let i = 0; i < startKeyPath.length; i++) {
-      if (startKeyPath[i] !== endKeyPath[i]) {
-        break;
-      }
-    }
-    const recordWithRelations = (await this.findUnique(
-      {
-        where: { id: keyPath[0] },
-      },
-      { tx }
-    ))!;
-    return recordWithRelations as Prisma.Result<Prisma.TestUuidDelegate, Q, "update">;
-  }
-  async updateMany<Q extends Prisma.Args<Prisma.TestUuidDelegate, "updateMany">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "updateMany">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
-    const records = await this.findMany({ where: query.where }, { tx });
-    await Promise.all(
-      records.map(async (record) => {
-        await this.update({ where: { id: record.id }, data: query.data }, { tx, silent, addToOutbox });
-      })
-    );
-    return { count: records.length };
-  }
-  async upsert<Q extends Prisma.Args<Prisma.TestUuidDelegate, "upsert">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "upsert">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    const neededStores = this._getNeededStoresForUpdate({
-      ...query,
-      data: { ...query.update, ...query.create } as Prisma.Args<Prisma.TestUuidDelegate, "update">["data"],
-    });
-    tx = tx ?? this.client._db.transaction(Array.from(neededStores), "readwrite");
-    let record = await this.findUnique({ where: query.where }, { tx });
-    if (!record) record = await this.create({ data: query.create }, { tx, silent, addToOutbox });
-    else record = await this.update({ where: query.where, data: query.update }, { tx, silent, addToOutbox });
-    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select }, { tx });
-    return record as Prisma.Result<Prisma.TestUuidDelegate, Q, "upsert">;
-  }
-  async aggregate<Q extends Prisma.Args<Prisma.TestUuidDelegate, "aggregate">>(
-    query?: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "aggregate">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-    tx = tx ?? this.client._db.transaction(["TestUuid"], "readonly");
-    const records = await this.findMany({ where: query?.where }, { tx });
-    const result: Partial<Prisma.Result<Prisma.TestUuidDelegate, Q, "aggregate">> = {};
-    if (query?._count) {
-      if (query._count === true) {
-        (result._count as number) = records.length;
-      } else {
-        for (const key of Object.keys(query._count)) {
-          const typedKey = key as keyof typeof query._count;
-          if (typedKey === "_all") {
-            (result._count as Record<string, number>)[typedKey] = records.length;
-            continue;
-          }
-          (result._count as Record<string, number>)[typedKey] = (
-            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })
-          ).length;
-        }
-      }
-    }
-    if (query?._min) {
-      const minResult = {} as Prisma.Result<Prisma.TestUuidDelegate, Q, "aggregate">["_min"];
-      const stringFields = ["id", "name"] as const;
+      const stringFields = ["code", "details"] as const;
       for (const field of stringFields) {
         if (!query._min[field]) continue;
         const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
@@ -13625,8 +17597,14 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
       result._min = minResult;
     }
     if (query?._max) {
-      const maxResult = {} as Prisma.Result<Prisma.TestUuidDelegate, Q, "aggregate">["_max"];
-      const stringFields = ["id", "name"] as const;
+      const maxResult = {} as Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "aggregate">["_max"];
+      const numericFields = ["orgId"] as const;
+      for (const field of numericFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      const stringFields = ["code", "details"] as const;
       for (const field of stringFields) {
         if (!query._max[field]) continue;
         const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
@@ -13634,20 +17612,38 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
       }
       result._max = maxResult;
     }
-    return result as unknown as Prisma.Result<Prisma.TestUuidDelegate, Q, "aggregate">;
+    if (query?._avg) {
+      const avgResult = {} as Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "aggregate">["_avg"];
+      for (const untypedField of Object.keys(query._avg)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+      result._avg = avgResult;
+    }
+    if (query?._sum) {
+      const sumResult = {} as Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "aggregate">["_sum"];
+      for (const untypedField of Object.keys(query._sum)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
+      }
+      result._sum = sumResult;
+    }
+    return result as unknown as Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "aggregate">;
   }
 }
-class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithOptionalRelationToUniqueAttributes"> {
+class CompositeIdWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeIdWithDateTime"> {
   constructor(client: PrismaIDBClient, keyPath: string[]) {
-    super(client, keyPath, "ModelWithOptionalRelationToUniqueAttributes");
+    super(client, keyPath, "CompositeIdWithDateTime");
   }
 
   private async _applyWhereClause<
-    W extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findFirstOrThrow">["where"],
-    R extends Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findFirstOrThrow">,
+    W extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "findFirstOrThrow">["where"],
+    R extends Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, object, "findFirstOrThrow">,
   >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
     if (!whereClause) return records;
-    records = await IDBUtils.applyLogicalFilters<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, R, W>(
+    records = await IDBUtils.applyLogicalFilters<Prisma.CompositeIdWithDateTimeDelegate, R, W>(
       records,
       whereClause,
       tx,
@@ -13657,120 +17653,54 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     return (
       await Promise.all(
         records.map(async (record) => {
-          const stringFields = ["id"] as const;
+          const stringFields = ["tenantId", "label"] as const;
           for (const field of stringFields) {
             if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
           }
-          const numberFields = ["linkId"] as const;
-          for (const field of numberFields) {
-            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
-          }
-          if (whereClause.link === null) {
-            if (record.linkId !== null) return null;
-          }
-          if (whereClause.link) {
-            const { is, isNot, ...rest } = whereClause.link;
-            if (is === null) {
-              if (record.linkId !== null) return null;
-            }
-            if (is !== null && is !== undefined) {
-              if (record.linkId === null) return null;
-              const relatedRecord = await this.client.modelWithUniqueAttributes.findFirst(
-                { where: { ...is, id: record.linkId } },
-                { tx }
-              );
-              if (!relatedRecord) return null;
-            }
-            if (isNot === null) {
-              if (record.linkId === null) return null;
-            }
-            if (isNot !== null && isNot !== undefined) {
-              if (record.linkId === null) return null;
-              const relatedRecord = await this.client.modelWithUniqueAttributes.findFirst(
-                { where: { ...isNot, id: record.linkId } },
-                { tx }
-              );
-              if (relatedRecord) return null;
-            }
-            if (Object.keys(rest).length) {
-              if (record.linkId === null) return null;
-              const relatedRecord = await this.client.modelWithUniqueAttributes.findFirst(
-                { where: { ...whereClause.link, id: record.linkId } },
-                { tx }
-              );
-              if (!relatedRecord) return null;
-            }
+          const dateTimeFields = ["createdAt"] as const;
+          for (const field of dateTimeFields) {
+            if (!IDBUtils.whereDateTimeFilter(record, field, whereClause[field])) return null;
           }
           return record;
         })
       )
     ).filter((result) => result !== null);
   }
-  private _applySelectClause<
-    S extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findMany">["select"],
-  >(
-    records: Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findFirstOrThrow">[],
+  private _applySelectClause<S extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "findMany">["select"]>(
+    records: Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, object, "findFirstOrThrow">[],
     selectClause: S
-  ): Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, { select: S }, "findFirstOrThrow">[] {
+  ): Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, { select: S }, "findFirstOrThrow">[] {
     if (!selectClause) {
-      return records as Prisma.Result<
-        Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-        { select: S },
-        "findFirstOrThrow"
-      >[];
+      return records as Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, { select: S }, "findFirstOrThrow">[];
     }
     return records.map((record) => {
       const partialRecord: Partial<typeof record> = record;
-      for (const untypedKey of ["id", "link", "linkId"]) {
+      for (const untypedKey of ["tenantId", "createdAt", "label"]) {
         const key = untypedKey as keyof typeof record & keyof S;
         if (!selectClause[key]) delete partialRecord[key];
       }
       return partialRecord;
-    }) as Prisma.Result<
-      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-      { select: S },
-      "findFirstOrThrow"
-    >[];
+    }) as Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, { select: S }, "findFirstOrThrow">[];
   }
-  private async _applyRelations<
-    Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findMany">,
-  >(
-    records: Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findFirstOrThrow">[],
+  private async _applyRelations<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "findMany">>(
+    records: Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, object, "findFirstOrThrow">[],
     tx: IDBUtils.TransactionType,
     query?: Q
-  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "findFirstOrThrow">[]> {
-    if (!query)
-      return records as Prisma.Result<
-        Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-        Q,
-        "findFirstOrThrow"
-      >[];
+  ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "findFirstOrThrow">[]> {
+    if (!query) return records as Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "findFirstOrThrow">[];
     const recordsWithRelations = records.map(async (record) => {
       const unsafeRecord = record as Record<string, unknown>;
-      const attach_link = query.select?.link || query.include?.link;
-      if (attach_link) {
-        unsafeRecord["link"] =
-          record.linkId === null
-            ? null
-            : await this.client.modelWithUniqueAttributes.findUnique(
-                {
-                  ...(attach_link === true ? {} : attach_link),
-                  where: { id: record.linkId! },
-                },
-                { tx }
-              );
-      }
       return unsafeRecord;
     });
     return (await Promise.all(recordsWithRelations)) as Prisma.Result<
-      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+      Prisma.CompositeIdWithDateTimeDelegate,
       Q,
       "findFirstOrThrow"
     >[];
   }
   async _applyOrderByClause<
-    O extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findMany">["orderBy"],
-    R extends Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findFirstOrThrow">,
+    O extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "findMany">["orderBy"],
+    R extends Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, object, "findFirstOrThrow">,
   >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
     if (orderByClause === undefined) return;
     const orderByClauses = IDBUtils.convertToArray(orderByClause);
@@ -13795,47 +17725,34 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     }
   }
   async _resolveOrderByKey(
-    record: Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findFirstOrThrow">,
-    orderByInput: Prisma.ModelWithOptionalRelationToUniqueAttributesOrderByWithRelationInput,
+    record: Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, object, "findFirstOrThrow">,
+    orderByInput: Prisma.CompositeIdWithDateTimeOrderByWithRelationInput,
     tx: IDBUtils.TransactionType
   ): Promise<unknown> {
-    const scalarFields = ["id", "linkId"] as const;
+    const scalarFields = ["tenantId", "createdAt", "label"] as const;
     for (const field of scalarFields) if (orderByInput[field]) return record[field];
-    if (orderByInput.link) {
-      return record.linkId === null
-        ? null
-        : await this.client.modelWithUniqueAttributes._resolveOrderByKey(
-            await this.client.modelWithUniqueAttributes.findFirstOrThrow({ where: { id: record.linkId } }),
-            orderByInput.link,
-            tx
-          );
-    }
   }
   _resolveSortOrder(
-    orderByInput: Prisma.ModelWithOptionalRelationToUniqueAttributesOrderByWithRelationInput
+    orderByInput: Prisma.CompositeIdWithDateTimeOrderByWithRelationInput
   ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
-    const scalarFields = ["id", "linkId"] as const;
+    const scalarFields = ["tenantId", "createdAt", "label"] as const;
     for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
-    if (orderByInput.link) {
-      return this.client.modelWithUniqueAttributes._resolveSortOrder(orderByInput.link);
-    }
     throw new Error("No field in orderBy clause");
   }
-  private async _fillDefaults<
-    D extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "create">["data"],
-  >(data: D, tx?: IDBUtils.ReadwriteTransactionType): Promise<D> {
+  private async _fillDefaults<D extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "create">["data"]>(
+    data: D,
+    tx?: IDBUtils.ReadwriteTransactionType
+  ): Promise<D> {
     if (data === undefined) data = {} as NonNullable<D>;
-    if (data.id === undefined) {
-      data.id = uuidv4();
-    }
-    if (data.linkId === undefined) {
-      data.linkId = null;
+    if (typeof data.createdAt === "string") {
+      data.createdAt = new Date(data.createdAt);
     }
     return data;
   }
-  _getNeededStoresForWhere<
-    W extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findMany">["where"],
-  >(whereClause: W, neededStores: Set<StoreNames<PrismaIDBSchema>>) {
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>
+  ) {
     if (whereClause === undefined) return;
     for (const param of IDBUtils.LogicalParams) {
       if (whereClause[param]) {
@@ -13844,1088 +17761,1477 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
         }
       }
     }
-    if (whereClause.link) {
-      neededStores.add("ModelWithUniqueAttributes");
-      this.client.modelWithUniqueAttributes._getNeededStoresForWhere(whereClause.link, neededStores);
-    }
   }
-  _getNeededStoresForFind<
-    Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findMany">,
-  >(query?: Q): Set<StoreNames<PrismaIDBSchema>> {
+  _getNeededStoresForFind<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "findMany">>(
+    query?: Q
+  ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
-    neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
+    neededStores.add("CompositeIdWithDateTime");
     this._getNeededStoresForWhere(query?.where, neededStores);
     if (query?.orderBy) {
       const orderBy = IDBUtils.convertToArray(query.orderBy);
-      const orderBy_link = orderBy.find((clause) => clause.link);
-      if (orderBy_link) {
-        this.client.modelWithUniqueAttributes
-          ._getNeededStoresForFind({ orderBy: orderBy_link.link })
-          .forEach((storeName) => neededStores.add(storeName));
+    }
+    return neededStores;
+  }
+  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "create">["data"]>>(
+    data: D
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("CompositeIdWithDateTime");
+    return neededStores;
+  }
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "update">>(
+    query: Partial<Q>
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores = this._getNeededStoresForFind(query).union(
+      this._getNeededStoresForCreate(
+        query.data as Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "create">["data"]
+      )
+    );
+    return neededStores;
+  }
+  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
+    neededStores.add("CompositeIdWithDateTime");
+  }
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "create">["data"]>(
+    data: D
+  ): Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, object, "findFirstOrThrow"> {
+    const recordWithoutNestedCreate = structuredClone(data);
+    return recordWithoutNestedCreate as Prisma.Result<
+      Prisma.CompositeIdWithDateTimeDelegate,
+      object,
+      "findFirstOrThrow"
+    >;
+  }
+  private _preprocessListFields(
+    records: Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, object, "findMany">
+  ): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("CompositeIdWithDateTime").getAll();
+  }
+  async findMany<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "findMany">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "findMany">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    await this._applyOrderByClause(records, query?.orderBy, tx);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
       }
     }
-    if (query?.select?.link || query?.include?.link) {
-      neededStores.add("ModelWithUniqueAttributes");
-      if (typeof query.select?.link === "object") {
-        this.client.modelWithUniqueAttributes
-          ._getNeededStoresForFind(query.select.link)
-          .forEach((storeName) => neededStores.add(storeName));
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
       }
-      if (typeof query.include?.link === "object") {
-        this.client.modelWithUniqueAttributes
-          ._getNeededStoresForFind(query.include.link)
-          .forEach((storeName) => neededStores.add(storeName));
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["tenantId_createdAt"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["tenantId_createdAt"] as Record<
+          string,
+          unknown
+        >;
+        cursorIndex = records.findIndex(
+          (record) =>
+            record.tenantId === normalizedCursor.tenantId &&
+            new Date(record.createdAt as string | number | Date).getTime() ===
+              new Date(normalizedCursor.createdAt as string | number | Date).getTime()
+        );
       }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.CompositeIdWithDateTimeDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
+    const selectClause = query?.select;
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    this._preprocessListFields(selectAppliedRecords);
+    return selectAppliedRecords as Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "findMany">;
+  }
+  async findFirst<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "findFirst">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "findFirst">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    return (await this.findMany(query, { tx }))[0] ?? null;
+  }
+  async findFirstOrThrow<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "findFirstOrThrow">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "findFirstOrThrow">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findFirst(query, { tx });
+    if (!record) {
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+  async findUnique<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "findUnique">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "findUnique">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let record;
+    if (query.where.tenantId_createdAt !== undefined) {
+      record = await tx
+        .objectStore("CompositeIdWithDateTime")
+        .get([query.where.tenantId_createdAt.tenantId, new Date(query.where.tenantId_createdAt.createdAt)]);
+    }
+    if (!record) return null;
+
+    const recordWithRelations = this._applySelectClause(
+      await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query),
+      query.select
+    )[0];
+    this._preprocessListFields([recordWithRelations]);
+    return recordWithRelations as Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "findUnique">;
+  }
+  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "findUniqueOrThrow">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "findUniqueOrThrow">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findUnique(query, { tx });
+    if (!record) {
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+  async count<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "count">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "count">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(["CompositeIdWithDateTime"], "readonly");
+    if (!query?.select || query.select === true) {
+      const records = await this.findMany({ where: query?.where }, { tx });
+      return records.length as Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "count">;
+    }
+    const result: Partial<Record<keyof Prisma.CompositeIdWithDateTimeCountAggregateInputType, number>> = {};
+    for (const key of Object.keys(query.select)) {
+      const typedKey = key as keyof typeof query.select;
+      if (typedKey === "_all") {
+        result[typedKey] = (await this.findMany({ where: query.where }, { tx })).length;
+        continue;
+      }
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })).length;
+    }
+    return result as Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "count">;
+  }
+  async create<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "create">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "create">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForCreate(query.data);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
+    const keyPath = await tx.objectStore("CompositeIdWithDateTime").add(record);
+    const data = (await tx.objectStore("CompositeIdWithDateTime").get(keyPath))!;
+    const recordsWithRelations = this._applySelectClause(
+      await this._applyRelations<object>([data], tx, query),
+      query.select
+    )[0];
+    this._preprocessListFields([recordsWithRelations]);
+    await this.emit("create", keyPath, undefined, data, { silent, addToOutbox, tx });
+    return recordsWithRelations as Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "create">;
+  }
+  async createMany<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "createMany">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "createMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["CompositeIdWithDateTime"]);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("CompositeIdWithDateTime").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+    }
+    return { count: createManyData.length };
+  }
+  async createManyAndReturn<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "createManyAndReturn">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "createManyAndReturn">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const records: Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, object, "findMany"> = [];
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["CompositeIdWithDateTime"]);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("CompositeIdWithDateTime").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+      records.push(this._applySelectClause([record], query.select)[0]);
+    }
+    this._preprocessListFields(records);
+    return records as Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "createManyAndReturn">;
+  }
+  async delete<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "delete">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "delete">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = await this.findUnique(query, { tx });
+    if (!record) throw new Error("Record not found");
+    await tx.objectStore("CompositeIdWithDateTime").delete([record.tenantId, record.createdAt]);
+    await this.emit("delete", [record.tenantId, record.createdAt], undefined, record, { silent, addToOutbox, tx });
+    return record;
+  }
+  async deleteMany<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "deleteMany">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "deleteMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const records = await this.findMany(query, { tx });
+    for (const record of records) {
+      await this.delete(
+        { where: { tenantId_createdAt: { tenantId: record.tenantId, createdAt: record.createdAt } } },
+        { tx, silent, addToOutbox }
+      );
+    }
+    return { count: records.length };
+  }
+  async update<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "update">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "update">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
+    const record = await this.findUnique({ where: query.where }, { tx });
+    if (record === null) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
+    const startKeyPath: PrismaIDBSchema["CompositeIdWithDateTime"]["key"] = [record.tenantId, record.createdAt];
+    const stringFields = ["tenantId", "label"] as const;
+    for (const field of stringFields) {
+      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const dateTimeFields = ["createdAt"] as const;
+    for (const field of dateTimeFields) {
+      IDBUtils.handleDateTimeUpdateField(record, field, query.data[field]);
+    }
+    const endKeyPath: PrismaIDBSchema["CompositeIdWithDateTime"]["key"] = [record.tenantId, record.createdAt];
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        if ((await tx.objectStore("CompositeIdWithDateTime").get(endKeyPath)) !== undefined) {
+          throw new Error("Record with the same keyPath already exists");
+        }
+        await tx.objectStore("CompositeIdWithDateTime").delete(startKeyPath);
+        break;
+      }
+    }
+    const keyPath = await tx.objectStore("CompositeIdWithDateTime").put(record);
+    await this.emit("update", keyPath, startKeyPath, record, { silent, addToOutbox, tx });
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        break;
+      }
+    }
+    const recordWithRelations = (await this.findUnique(
+      {
+        where: { tenantId_createdAt: { tenantId: keyPath[0], createdAt: keyPath[1] } },
+      },
+      { tx }
+    ))!;
+    return recordWithRelations as Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "update">;
+  }
+  async updateMany<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "updateMany">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "updateMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const records = await this.findMany({ where: query.where }, { tx });
+    await Promise.all(
+      records.map(async (record) => {
+        await this.update(
+          {
+            where: { tenantId_createdAt: { tenantId: record.tenantId, createdAt: record.createdAt } },
+            data: query.data,
+          },
+          { tx, silent, addToOutbox }
+        );
+      })
+    );
+    return { count: records.length };
+  }
+  async upsert<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "upsert">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "upsert">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const neededStores = this._getNeededStoresForUpdate({
+      ...query,
+      data: { ...query.update, ...query.create } as Prisma.Args<
+        Prisma.CompositeIdWithDateTimeDelegate,
+        "update"
+      >["data"],
+    });
+    tx = tx ?? this.client._db.transaction(Array.from(neededStores), "readwrite");
+    let record = await this.findUnique({ where: query.where }, { tx });
+    if (!record) record = await this.create({ data: query.create }, { tx, silent, addToOutbox });
+    else record = await this.update({ where: query.where, data: query.update }, { tx, silent, addToOutbox });
+    record = await this.findUniqueOrThrow(
+      {
+        where: { tenantId_createdAt: { tenantId: record.tenantId, createdAt: record.createdAt } },
+        select: query.select,
+      },
+      { tx }
+    );
+    return record as Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "upsert">;
+  }
+  async aggregate<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "aggregate">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "aggregate">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(["CompositeIdWithDateTime"], "readonly");
+    const records = await this.findMany({ where: query?.where }, { tx });
+    const result: Partial<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "aggregate">> = {};
+    if (query?._count) {
+      if (query._count === true) {
+        (result._count as number) = records.length;
+      } else {
+        for (const key of Object.keys(query._count)) {
+          const typedKey = key as keyof typeof query._count;
+          if (typedKey === "_all") {
+            (result._count as Record<string, number>)[typedKey] = records.length;
+            continue;
+          }
+          (result._count as Record<string, number>)[typedKey] = (
+            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })
+          ).length;
+        }
+      }
+    }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "aggregate">["_min"];
+      const dateTimeFields = ["createdAt"] as const;
+      for (const field of dateTimeFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as Date) = new Date(Math.min(...values));
+      }
+      const stringFields = ["tenantId", "label"] as const;
+      for (const field of stringFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as string) = values.sort()[0];
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "aggregate">["_max"];
+      const dateTimeFields = ["createdAt"] as const;
+      for (const field of dateTimeFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as Date) = new Date(Math.max(...values));
+      }
+      const stringFields = ["tenantId", "label"] as const;
+      for (const field of stringFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];
+      }
+      result._max = maxResult;
+    }
+    return result as unknown as Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "aggregate">;
+  }
+}
+class TripleCompositeIdWithDateIDBClass extends BaseIDBModelClass<"TripleCompositeIdWithDate"> {
+  constructor(client: PrismaIDBClient, keyPath: string[]) {
+    super(client, keyPath, "TripleCompositeIdWithDate");
+  }
+
+  private async _applyWhereClause<
+    W extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "findFirstOrThrow">["where"],
+    R extends Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, object, "findFirstOrThrow">,
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
+    if (!whereClause) return records;
+    records = await IDBUtils.applyLogicalFilters<Prisma.TripleCompositeIdWithDateDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this)
+    );
+    return (
+      await Promise.all(
+        records.map(async (record) => {
+          const stringFields = ["region", "payload"] as const;
+          for (const field of stringFields) {
+            if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
+          }
+          const numberFields = ["year"] as const;
+          for (const field of numberFields) {
+            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
+          }
+          const dateTimeFields = ["eventDate"] as const;
+          for (const field of dateTimeFields) {
+            if (!IDBUtils.whereDateTimeFilter(record, field, whereClause[field])) return null;
+          }
+          return record;
+        })
+      )
+    ).filter((result) => result !== null);
+  }
+  private _applySelectClause<S extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "findMany">["select"]>(
+    records: Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, object, "findFirstOrThrow">[],
+    selectClause: S
+  ): Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, { select: S }, "findFirstOrThrow">[] {
+    if (!selectClause) {
+      return records as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, { select: S }, "findFirstOrThrow">[];
+    }
+    return records.map((record) => {
+      const partialRecord: Partial<typeof record> = record;
+      for (const untypedKey of ["region", "year", "eventDate", "payload"]) {
+        const key = untypedKey as keyof typeof record & keyof S;
+        if (!selectClause[key]) delete partialRecord[key];
+      }
+      return partialRecord;
+    }) as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, { select: S }, "findFirstOrThrow">[];
+  }
+  private async _applyRelations<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "findMany">>(
+    records: Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, object, "findFirstOrThrow">[],
+    tx: IDBUtils.TransactionType,
+    query?: Q
+  ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "findFirstOrThrow">[]> {
+    if (!query) return records as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "findFirstOrThrow">[];
+    const recordsWithRelations = records.map(async (record) => {
+      const unsafeRecord = record as Record<string, unknown>;
+      return unsafeRecord;
+    });
+    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
+      Prisma.TripleCompositeIdWithDateDelegate,
+      Q,
+      "findFirstOrThrow"
+    >[];
+  }
+  async _applyOrderByClause<
+    O extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "findMany">["orderBy"],
+    R extends Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, object, "findFirstOrThrow">,
+  >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
+    if (orderByClause === undefined) return;
+    const orderByClauses = IDBUtils.convertToArray(orderByClause);
+    const indexedKeys = await Promise.all(
+      records.map(async (record) => {
+        const keys = await Promise.all(
+          orderByClauses.map(async (clause) => await this._resolveOrderByKey(record, clause, tx))
+        );
+        return { keys, record };
+      })
+    );
+    indexedKeys.sort((a, b) => {
+      for (let i = 0; i < orderByClauses.length; i++) {
+        const clause = orderByClauses[i];
+        const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));
+        if (comparison !== 0) return comparison;
+      }
+      return 0;
+    });
+    for (let i = 0; i < records.length; i++) {
+      records[i] = indexedKeys[i].record;
+    }
+  }
+  async _resolveOrderByKey(
+    record: Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, object, "findFirstOrThrow">,
+    orderByInput: Prisma.TripleCompositeIdWithDateOrderByWithRelationInput,
+    tx: IDBUtils.TransactionType
+  ): Promise<unknown> {
+    const scalarFields = ["region", "year", "eventDate", "payload"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return record[field];
+  }
+  _resolveSortOrder(
+    orderByInput: Prisma.TripleCompositeIdWithDateOrderByWithRelationInput
+  ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
+    const scalarFields = ["region", "year", "eventDate", "payload"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
+    throw new Error("No field in orderBy clause");
+  }
+  private async _fillDefaults<D extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "create">["data"]>(
+    data: D,
+    tx?: IDBUtils.ReadwriteTransactionType
+  ): Promise<D> {
+    if (data === undefined) data = {} as NonNullable<D>;
+    if (data.payload === undefined) {
+      data.payload = null;
+    }
+    if (typeof data.eventDate === "string") {
+      data.eventDate = new Date(data.eventDate);
+    }
+    return data;
+  }
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+  }
+  _getNeededStoresForFind<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "findMany">>(
+    query?: Q
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("TripleCompositeIdWithDate");
+    this._getNeededStoresForWhere(query?.where, neededStores);
+    if (query?.orderBy) {
+      const orderBy = IDBUtils.convertToArray(query.orderBy);
+    }
+    return neededStores;
+  }
+  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "create">["data"]>>(
+    data: D
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("TripleCompositeIdWithDate");
+    return neededStores;
+  }
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "update">>(
+    query: Partial<Q>
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores = this._getNeededStoresForFind(query).union(
+      this._getNeededStoresForCreate(
+        query.data as Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "create">["data"]
+      )
+    );
+    return neededStores;
+  }
+  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
+    neededStores.add("TripleCompositeIdWithDate");
+  }
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "create">["data"]>(
+    data: D
+  ): Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, object, "findFirstOrThrow"> {
+    const recordWithoutNestedCreate = structuredClone(data);
+    return recordWithoutNestedCreate as Prisma.Result<
+      Prisma.TripleCompositeIdWithDateDelegate,
+      object,
+      "findFirstOrThrow"
+    >;
+  }
+  private _preprocessListFields(
+    records: Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, object, "findMany">
+  ): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("TripleCompositeIdWithDate").getAll();
+  }
+  async findMany<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "findMany">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "findMany">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    await this._applyOrderByClause(records, query?.orderBy, tx);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["region_year_eventDate"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["region_year_eventDate"] as Record<
+          string,
+          unknown
+        >;
+        cursorIndex = records.findIndex(
+          (record) =>
+            record.region === normalizedCursor.region &&
+            record.year === normalizedCursor.year &&
+            new Date(record.eventDate as string | number | Date).getTime() ===
+              new Date(normalizedCursor.eventDate as string | number | Date).getTime()
+        );
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.TripleCompositeIdWithDateDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
+    const selectClause = query?.select;
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    this._preprocessListFields(selectAppliedRecords);
+    return selectAppliedRecords as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "findMany">;
+  }
+  async findFirst<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "findFirst">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "findFirst">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    return (await this.findMany(query, { tx }))[0] ?? null;
+  }
+  async findFirstOrThrow<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "findFirstOrThrow">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "findFirstOrThrow">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findFirst(query, { tx });
+    if (!record) {
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+  async findUnique<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "findUnique">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "findUnique">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let record;
+    if (query.where.region_year_eventDate !== undefined) {
+      record = await tx
+        .objectStore("TripleCompositeIdWithDate")
+        .get([
+          query.where.region_year_eventDate.region,
+          query.where.region_year_eventDate.year,
+          new Date(query.where.region_year_eventDate.eventDate),
+        ]);
+    }
+    if (!record) return null;
+
+    const recordWithRelations = this._applySelectClause(
+      await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query),
+      query.select
+    )[0];
+    this._preprocessListFields([recordWithRelations]);
+    return recordWithRelations as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "findUnique">;
+  }
+  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "findUniqueOrThrow">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "findUniqueOrThrow">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findUnique(query, { tx });
+    if (!record) {
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+  async count<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "count">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "count">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(["TripleCompositeIdWithDate"], "readonly");
+    if (!query?.select || query.select === true) {
+      const records = await this.findMany({ where: query?.where }, { tx });
+      return records.length as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "count">;
+    }
+    const result: Partial<Record<keyof Prisma.TripleCompositeIdWithDateCountAggregateInputType, number>> = {};
+    for (const key of Object.keys(query.select)) {
+      const typedKey = key as keyof typeof query.select;
+      if (typedKey === "_all") {
+        result[typedKey] = (await this.findMany({ where: query.where }, { tx })).length;
+        continue;
+      }
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })).length;
+    }
+    return result as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "count">;
+  }
+  async create<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "create">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "create">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForCreate(query.data);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
+    const keyPath = await tx.objectStore("TripleCompositeIdWithDate").add(record);
+    const data = (await tx.objectStore("TripleCompositeIdWithDate").get(keyPath))!;
+    const recordsWithRelations = this._applySelectClause(
+      await this._applyRelations<object>([data], tx, query),
+      query.select
+    )[0];
+    this._preprocessListFields([recordsWithRelations]);
+    await this.emit("create", keyPath, undefined, data, { silent, addToOutbox, tx });
+    return recordsWithRelations as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "create">;
+  }
+  async createMany<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "createMany">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "createMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["TripleCompositeIdWithDate"]);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("TripleCompositeIdWithDate").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+    }
+    return { count: createManyData.length };
+  }
+  async createManyAndReturn<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "createManyAndReturn">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "createManyAndReturn">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const records: Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, object, "findMany"> = [];
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["TripleCompositeIdWithDate"]);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("TripleCompositeIdWithDate").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+      records.push(this._applySelectClause([record], query.select)[0]);
+    }
+    this._preprocessListFields(records);
+    return records as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "createManyAndReturn">;
+  }
+  async delete<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "delete">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "delete">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = await this.findUnique(query, { tx });
+    if (!record) throw new Error("Record not found");
+    await tx.objectStore("TripleCompositeIdWithDate").delete([record.region, record.year, record.eventDate]);
+    await this.emit("delete", [record.region, record.year, record.eventDate], undefined, record, {
+      silent,
+      addToOutbox,
+      tx,
+    });
+    return record;
+  }
+  async deleteMany<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "deleteMany">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "deleteMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const records = await this.findMany(query, { tx });
+    for (const record of records) {
+      await this.delete(
+        { where: { region_year_eventDate: { region: record.region, year: record.year, eventDate: record.eventDate } } },
+        { tx, silent, addToOutbox }
+      );
+    }
+    return { count: records.length };
+  }
+  async update<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "update">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "update">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
+    const record = await this.findUnique({ where: query.where }, { tx });
+    if (record === null) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
+    const startKeyPath: PrismaIDBSchema["TripleCompositeIdWithDate"]["key"] = [
+      record.region,
+      record.year,
+      record.eventDate,
+    ];
+    const stringFields = ["region", "payload"] as const;
+    for (const field of stringFields) {
+      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const dateTimeFields = ["eventDate"] as const;
+    for (const field of dateTimeFields) {
+      IDBUtils.handleDateTimeUpdateField(record, field, query.data[field]);
+    }
+    const intFields = ["year"] as const;
+    for (const field of intFields) {
+      IDBUtils.handleIntUpdateField(record, field, query.data[field]);
+    }
+    const endKeyPath: PrismaIDBSchema["TripleCompositeIdWithDate"]["key"] = [
+      record.region,
+      record.year,
+      record.eventDate,
+    ];
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        if ((await tx.objectStore("TripleCompositeIdWithDate").get(endKeyPath)) !== undefined) {
+          throw new Error("Record with the same keyPath already exists");
+        }
+        await tx.objectStore("TripleCompositeIdWithDate").delete(startKeyPath);
+        break;
+      }
+    }
+    const keyPath = await tx.objectStore("TripleCompositeIdWithDate").put(record);
+    await this.emit("update", keyPath, startKeyPath, record, { silent, addToOutbox, tx });
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        break;
+      }
+    }
+    const recordWithRelations = (await this.findUnique(
+      {
+        where: { region_year_eventDate: { region: keyPath[0], year: keyPath[1], eventDate: keyPath[2] } },
+      },
+      { tx }
+    ))!;
+    return recordWithRelations as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "update">;
+  }
+  async updateMany<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "updateMany">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "updateMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const records = await this.findMany({ where: query.where }, { tx });
+    await Promise.all(
+      records.map(async (record) => {
+        await this.update(
+          {
+            where: { region_year_eventDate: { region: record.region, year: record.year, eventDate: record.eventDate } },
+            data: query.data,
+          },
+          { tx, silent, addToOutbox }
+        );
+      })
+    );
+    return { count: records.length };
+  }
+  async upsert<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "upsert">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "upsert">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const neededStores = this._getNeededStoresForUpdate({
+      ...query,
+      data: { ...query.update, ...query.create } as Prisma.Args<
+        Prisma.TripleCompositeIdWithDateDelegate,
+        "update"
+      >["data"],
+    });
+    tx = tx ?? this.client._db.transaction(Array.from(neededStores), "readwrite");
+    let record = await this.findUnique({ where: query.where }, { tx });
+    if (!record) record = await this.create({ data: query.create }, { tx, silent, addToOutbox });
+    else record = await this.update({ where: query.where, data: query.update }, { tx, silent, addToOutbox });
+    record = await this.findUniqueOrThrow(
+      {
+        where: { region_year_eventDate: { region: record.region, year: record.year, eventDate: record.eventDate } },
+        select: query.select,
+      },
+      { tx }
+    );
+    return record as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "upsert">;
+  }
+  async aggregate<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "aggregate">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "aggregate">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(["TripleCompositeIdWithDate"], "readonly");
+    const records = await this.findMany({ where: query?.where }, { tx });
+    const result: Partial<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "aggregate">> = {};
+    if (query?._count) {
+      if (query._count === true) {
+        (result._count as number) = records.length;
+      } else {
+        for (const key of Object.keys(query._count)) {
+          const typedKey = key as keyof typeof query._count;
+          if (typedKey === "_all") {
+            (result._count as Record<string, number>)[typedKey] = records.length;
+            continue;
+          }
+          (result._count as Record<string, number>)[typedKey] = (
+            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })
+          ).length;
+        }
+      }
+    }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "aggregate">["_min"];
+      const numericFields = ["year"] as const;
+      for (const field of numericFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      const dateTimeFields = ["eventDate"] as const;
+      for (const field of dateTimeFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as Date) = new Date(Math.min(...values));
+      }
+      const stringFields = ["region", "payload"] as const;
+      for (const field of stringFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as string) = values.sort()[0];
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "aggregate">["_max"];
+      const numericFields = ["year"] as const;
+      for (const field of numericFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      const dateTimeFields = ["eventDate"] as const;
+      for (const field of dateTimeFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as Date) = new Date(Math.max(...values));
+      }
+      const stringFields = ["region", "payload"] as const;
+      for (const field of stringFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];
+      }
+      result._max = maxResult;
+    }
+    if (query?._avg) {
+      const avgResult = {} as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "aggregate">["_avg"];
+      for (const untypedField of Object.keys(query._avg)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+      result._avg = avgResult;
+    }
+    if (query?._sum) {
+      const sumResult = {} as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "aggregate">["_sum"];
+      for (const untypedField of Object.keys(query._sum)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
+      }
+      result._sum = sumResult;
+    }
+    return result as unknown as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "aggregate">;
+  }
+}
+class CompositeUniqueWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeUniqueWithDateTime"> {
+  constructor(client: PrismaIDBClient, keyPath: string[]) {
+    super(client, keyPath, "CompositeUniqueWithDateTime");
+  }
+
+  private async _applyWhereClause<
+    W extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "findFirstOrThrow">["where"],
+    R extends Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, object, "findFirstOrThrow">,
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
+    if (!whereClause) return records;
+    records = await IDBUtils.applyLogicalFilters<Prisma.CompositeUniqueWithDateTimeDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this)
+    );
+    return (
+      await Promise.all(
+        records.map(async (record) => {
+          const stringFields = ["category"] as const;
+          for (const field of stringFields) {
+            if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
+          }
+          const numberFields = ["id"] as const;
+          for (const field of numberFields) {
+            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
+          }
+          const dateTimeFields = ["timestamp"] as const;
+          for (const field of dateTimeFields) {
+            if (!IDBUtils.whereDateTimeFilter(record, field, whereClause[field])) return null;
+          }
+          return record;
+        })
+      )
+    ).filter((result) => result !== null);
+  }
+  private _applySelectClause<S extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "findMany">["select"]>(
+    records: Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, object, "findFirstOrThrow">[],
+    selectClause: S
+  ): Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, { select: S }, "findFirstOrThrow">[] {
+    if (!selectClause) {
+      return records as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, { select: S }, "findFirstOrThrow">[];
+    }
+    return records.map((record) => {
+      const partialRecord: Partial<typeof record> = record;
+      for (const untypedKey of ["id", "category", "timestamp"]) {
+        const key = untypedKey as keyof typeof record & keyof S;
+        if (!selectClause[key]) delete partialRecord[key];
+      }
+      return partialRecord;
+    }) as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, { select: S }, "findFirstOrThrow">[];
+  }
+  private async _applyRelations<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "findMany">>(
+    records: Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, object, "findFirstOrThrow">[],
+    tx: IDBUtils.TransactionType,
+    query?: Q
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "findFirstOrThrow">[]> {
+    if (!query) return records as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "findFirstOrThrow">[];
+    const recordsWithRelations = records.map(async (record) => {
+      const unsafeRecord = record as Record<string, unknown>;
+      return unsafeRecord;
+    });
+    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
+      Prisma.CompositeUniqueWithDateTimeDelegate,
+      Q,
+      "findFirstOrThrow"
+    >[];
+  }
+  async _applyOrderByClause<
+    O extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "findMany">["orderBy"],
+    R extends Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, object, "findFirstOrThrow">,
+  >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
+    if (orderByClause === undefined) return;
+    const orderByClauses = IDBUtils.convertToArray(orderByClause);
+    const indexedKeys = await Promise.all(
+      records.map(async (record) => {
+        const keys = await Promise.all(
+          orderByClauses.map(async (clause) => await this._resolveOrderByKey(record, clause, tx))
+        );
+        return { keys, record };
+      })
+    );
+    indexedKeys.sort((a, b) => {
+      for (let i = 0; i < orderByClauses.length; i++) {
+        const clause = orderByClauses[i];
+        const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));
+        if (comparison !== 0) return comparison;
+      }
+      return 0;
+    });
+    for (let i = 0; i < records.length; i++) {
+      records[i] = indexedKeys[i].record;
+    }
+  }
+  async _resolveOrderByKey(
+    record: Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, object, "findFirstOrThrow">,
+    orderByInput: Prisma.CompositeUniqueWithDateTimeOrderByWithRelationInput,
+    tx: IDBUtils.TransactionType
+  ): Promise<unknown> {
+    const scalarFields = ["id", "category", "timestamp"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return record[field];
+  }
+  _resolveSortOrder(
+    orderByInput: Prisma.CompositeUniqueWithDateTimeOrderByWithRelationInput
+  ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
+    const scalarFields = ["id", "category", "timestamp"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
+    throw new Error("No field in orderBy clause");
+  }
+  private async _fillDefaults<D extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "create">["data"]>(
+    data: D,
+    tx?: IDBUtils.ReadwriteTransactionType
+  ): Promise<D> {
+    if (data === undefined) data = {} as NonNullable<D>;
+    if (data.id === undefined) {
+      const transaction = tx ?? this.client._db.transaction(["CompositeUniqueWithDateTime"], "readwrite");
+      const store = transaction.objectStore("CompositeUniqueWithDateTime");
+      const cursor = await store.openCursor(null, "prev");
+      data.id = cursor ? Number(cursor.key) + 1 : 1;
+    }
+    if (typeof data.timestamp === "string") {
+      data.timestamp = new Date(data.timestamp);
+    }
+    return data;
+  }
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+  }
+  _getNeededStoresForFind<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "findMany">>(
+    query?: Q
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("CompositeUniqueWithDateTime");
+    this._getNeededStoresForWhere(query?.where, neededStores);
+    if (query?.orderBy) {
+      const orderBy = IDBUtils.convertToArray(query.orderBy);
     }
     return neededStores;
   }
   _getNeededStoresForCreate<
-    D extends Partial<Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "create">["data"]>,
+    D extends Partial<Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "create">["data"]>,
   >(data: D): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
-    neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
-    if (data?.link) {
-      neededStores.add("ModelWithUniqueAttributes");
-      if (data.link.create) {
-        const createData = Array.isArray(data.link.create) ? data.link.create : [data.link.create];
-        createData.forEach((record) =>
-          this.client.modelWithUniqueAttributes
-            ._getNeededStoresForCreate(record)
-            .forEach((storeName) => neededStores.add(storeName))
-        );
-      }
-      if (data.link.connectOrCreate) {
-        IDBUtils.convertToArray(data.link.connectOrCreate).forEach((record) =>
-          this.client.modelWithUniqueAttributes
-            ._getNeededStoresForCreate(record.create)
-            .forEach((storeName) => neededStores.add(storeName))
-        );
-      }
-    }
-    if (data?.linkId !== undefined) {
-      neededStores.add("ModelWithUniqueAttributes");
-    }
+    neededStores.add("CompositeUniqueWithDateTime");
     return neededStores;
   }
-  _getNeededStoresForUpdate<
-    Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "update">,
-  >(query: Partial<Q>): Set<StoreNames<PrismaIDBSchema>> {
-    const neededStores = this._getNeededStoresForFind(query).union(
-      this._getNeededStoresForCreate(
-        query.data as Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "create">["data"]
-      )
-    );
-    if (query.data?.link?.connect) {
-      neededStores.add("ModelWithUniqueAttributes");
-      IDBUtils.convertToArray(query.data.link.connect).forEach((connect) => {
-        this.client.modelWithUniqueAttributes._getNeededStoresForWhere(connect, neededStores);
-      });
-    }
-    if (query.data?.link?.disconnect) {
-      neededStores.add("ModelWithUniqueAttributes");
-      if (query.data?.link?.disconnect !== true) {
-        IDBUtils.convertToArray(query.data.link.disconnect).forEach((disconnect) => {
-          this.client.modelWithUniqueAttributes._getNeededStoresForWhere(disconnect, neededStores);
-        });
-      }
-    }
-    if (query.data?.link?.update) {
-      neededStores.add("ModelWithUniqueAttributes");
-      IDBUtils.convertToArray(query.data.link.update).forEach((update) => {
-        this.client.modelWithUniqueAttributes
-          ._getNeededStoresForUpdate(update as Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "update">)
-          .forEach((store) => neededStores.add(store));
-      });
-    }
-    if (query.data?.link?.upsert) {
-      neededStores.add("ModelWithUniqueAttributes");
-      IDBUtils.convertToArray(query.data.link.upsert).forEach((upsert) => {
-        const update = { where: upsert.where, data: { ...upsert.update, ...upsert.create } } as Prisma.Args<
-          Prisma.ModelWithUniqueAttributesDelegate,
-          "update"
-        >;
-        this.client.modelWithUniqueAttributes
-          ._getNeededStoresForUpdate(update)
-          .forEach((store) => neededStores.add(store));
-      });
-    }
-    if (query.data?.link?.delete) {
-      this.client.modelWithUniqueAttributes._getNeededStoresForNestedDelete(neededStores);
-    }
-    return neededStores;
-  }
-  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
-    neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
-  }
-  private _removeNestedCreateData<
-    D extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "create">["data"],
-  >(data: D): Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findFirstOrThrow"> {
-    const recordWithoutNestedCreate = structuredClone(data);
-    delete recordWithoutNestedCreate?.link;
-    return recordWithoutNestedCreate as Prisma.Result<
-      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-      object,
-      "findFirstOrThrow"
-    >;
-  }
-  private _preprocessListFields(
-    records: Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findMany">
-  ): void {}
-  async findMany<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findMany">>(
-    query?: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "findMany">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(
-      await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").getAll(),
-      query?.where,
-      tx
-    );
-    await this._applyOrderByClause(records, query?.orderBy, tx);
-    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
-    const selectClause = query?.select;
-    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
-    if (query?.distinct) {
-      const distinctFields = IDBUtils.convertToArray(query.distinct);
-      const seen = new Set<string>();
-      selectAppliedRecords = selectAppliedRecords.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    }
-    this._preprocessListFields(selectAppliedRecords);
-    return selectAppliedRecords as Prisma.Result<
-      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-      Q,
-      "findMany"
-    >;
-  }
-  async findFirst<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findFirst">>(
-    query?: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "findFirst">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    return (await this.findMany(query, { tx }))[0] ?? null;
-  }
-  async findFirstOrThrow<
-    Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findFirstOrThrow">,
-  >(
-    query?: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "findFirstOrThrow">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findFirst(query, { tx });
-    if (!record) {
-      throw new Error("Record not found");
-    }
-    return record;
-  }
-  async findUnique<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findUnique">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "findUnique">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    let record;
-    if (query.where.id !== undefined) {
-      record = await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").get([query.where.id]);
-    }
-    if (!record) return null;
-
-    const recordWithRelations = this._applySelectClause(
-      await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query),
-      query.select
-    )[0];
-    this._preprocessListFields([recordWithRelations]);
-    return recordWithRelations as Prisma.Result<
-      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-      Q,
-      "findUnique"
-    >;
-  }
-  async findUniqueOrThrow<
-    Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findUniqueOrThrow">,
-  >(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "findUniqueOrThrow">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const record = await this.findUnique(query, { tx });
-    if (!record) {
-      throw new Error("Record not found");
-    }
-    return record;
-  }
-  async count<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "count">>(
-    query?: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "count">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-
-    tx = tx ?? this.client._db.transaction(["ModelWithOptionalRelationToUniqueAttributes"], "readonly");
-    if (!query?.select || query.select === true) {
-      const records = await this.findMany({ where: query?.where }, { tx });
-      return records.length as Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "count">;
-    }
-    const result: Partial<
-      Record<keyof Prisma.ModelWithOptionalRelationToUniqueAttributesCountAggregateInputType, number>
-    > = {};
-    for (const key of Object.keys(query.select)) {
-      const typedKey = key as keyof typeof query.select;
-      if (typedKey === "_all") {
-        result[typedKey] = (await this.findMany({ where: query.where }, { tx })).length;
-        continue;
-      }
-      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })).length;
-    }
-    return result as Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "count">;
-  }
-  async create<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "create">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "create">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    const storesNeeded = this._getNeededStoresForCreate(query.data);
-    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    query.data = query.data === undefined ? {} : query.data;
-    if (query.data.link) {
-      const fk: Partial<PrismaIDBSchema["ModelWithUniqueAttributes"]["key"]> = [];
-      if (query.data.link?.create) {
-        const record = await this.client.modelWithUniqueAttributes.create(
-          { data: query.data.link.create },
-          { tx, silent, addToOutbox }
-        );
-        fk[0] = record.id;
-      }
-      if (query.data.link?.connect) {
-        const record = await this.client.modelWithUniqueAttributes.findUniqueOrThrow(
-          { where: query.data.link.connect },
-          { tx }
-        );
-        delete query.data.link.connect;
-        fk[0] = record.id;
-      }
-      if (query.data.link?.connectOrCreate) {
-        const record = await this.client.modelWithUniqueAttributes.upsert(
-          {
-            where: query.data.link.connectOrCreate.where,
-            create: query.data.link.connectOrCreate.create,
-            update: {},
-          },
-          { tx, silent, addToOutbox }
-        );
-        fk[0] = record.id;
-      }
-      const unsafeData = query.data as Record<string, unknown>;
-      unsafeData.linkId = fk[0];
-      delete unsafeData.link;
-    } else if (query.data?.linkId !== undefined && query.data.linkId !== null) {
-      await this.client.modelWithUniqueAttributes.findUniqueOrThrow(
-        {
-          where: { id: query.data.linkId },
-        },
-        { tx }
-      );
-    }
-    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
-    const keyPath = await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").add(record);
-    const data = (await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").get(keyPath))!;
-    const recordsWithRelations = this._applySelectClause(
-      await this._applyRelations<object>([data], tx, query),
-      query.select
-    )[0];
-    this._preprocessListFields([recordsWithRelations]);
-    await this.emit("create", keyPath, undefined, data, { silent, addToOutbox, tx });
-    return recordsWithRelations as Prisma.Result<
-      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-      Q,
-      "create"
-    >;
-  }
-  async createMany<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "createMany">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "createMany">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    const createManyData = IDBUtils.convertToArray(query.data);
-    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["ModelWithOptionalRelationToUniqueAttributes"]);
-    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    for (const createData of createManyData) {
-      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      const keyPath = await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").add(record);
-      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
-    }
-    return { count: createManyData.length };
-  }
-  async createManyAndReturn<
-    Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "createManyAndReturn">,
-  >(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "createManyAndReturn">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    const createManyData = IDBUtils.convertToArray(query.data);
-    const records: Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findMany"> = [];
-    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["ModelWithOptionalRelationToUniqueAttributes"]);
-    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    for (const createData of createManyData) {
-      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      const keyPath = await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").add(record);
-      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
-      records.push(this._applySelectClause([record], query.select)[0]);
-    }
-    this._preprocessListFields(records);
-    return records as Prisma.Result<
-      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-      Q,
-      "createManyAndReturn"
-    >;
-  }
-  async delete<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "delete">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "delete">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    const storesNeeded = this._getNeededStoresForFind(query);
-    this._getNeededStoresForNestedDelete(storesNeeded);
-    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    const record = await this.findUnique(query, { tx });
-    if (!record) throw new Error("Record not found");
-    await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").delete([record.id]);
-    await this.emit("delete", [record.id], undefined, record, { silent, addToOutbox, tx });
-    return record;
-  }
-  async deleteMany<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "deleteMany">>(
-    query?: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "deleteMany">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    const storesNeeded = this._getNeededStoresForFind(query);
-    this._getNeededStoresForNestedDelete(storesNeeded);
-    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    const records = await this.findMany(query, { tx });
-    for (const record of records) {
-      await this.delete({ where: { id: record.id } }, { tx, silent, addToOutbox });
-    }
-    return { count: records.length };
-  }
-  async update<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "update">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "update">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
-    const record = await this.findUnique({ where: query.where }, { tx });
-    if (record === null) {
-      tx.abort();
-      throw new Error("Record not found");
-    }
-    const startKeyPath: PrismaIDBSchema["ModelWithOptionalRelationToUniqueAttributes"]["key"] = [record.id];
-    const stringFields = ["id"] as const;
-    for (const field of stringFields) {
-      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
-    }
-    const intFields = ["linkId"] as const;
-    for (const field of intFields) {
-      IDBUtils.handleIntUpdateField(record, field, query.data[field]);
-    }
-    if (query.data.link) {
-      if (query.data.link.connect) {
-        const other = await this.client.modelWithUniqueAttributes.findUniqueOrThrow(
-          { where: query.data.link.connect },
-          { tx }
-        );
-        record.linkId = other.id;
-      }
-      if (query.data.link.create) {
-        const other = await this.client.modelWithUniqueAttributes.create(
-          { data: query.data.link.create },
-          { tx, silent, addToOutbox }
-        );
-        record.linkId = other.id;
-      }
-      if (query.data.link.update) {
-        const updateData = query.data.link.update.data ?? query.data.link.update;
-        await this.client.modelWithUniqueAttributes.update(
-          {
-            where: {
-              ...query.data.link.update.where,
-              id: record.linkId!,
-            } as Prisma.ModelWithUniqueAttributesWhereUniqueInput,
-            data: updateData,
-          },
-          { tx, silent, addToOutbox }
-        );
-      }
-      if (query.data.link.upsert) {
-        await this.client.modelWithUniqueAttributes.upsert(
-          {
-            where: {
-              ...query.data.link.upsert.where,
-              id: record.linkId!,
-            } as Prisma.ModelWithUniqueAttributesWhereUniqueInput,
-            create: { ...query.data.link.upsert.create, id: record.linkId! } as Prisma.Args<
-              Prisma.ModelWithUniqueAttributesDelegate,
-              "upsert"
-            >["create"],
-            update: query.data.link.upsert.update,
-          },
-          { tx, silent, addToOutbox }
-        );
-      }
-      if (query.data.link.connectOrCreate) {
-        await this.client.modelWithUniqueAttributes.upsert(
-          {
-            where: { ...query.data.link.connectOrCreate.where, id: record.linkId! },
-            create: { ...query.data.link.connectOrCreate.create, id: record.linkId! } as Prisma.Args<
-              Prisma.ModelWithUniqueAttributesDelegate,
-              "upsert"
-            >["create"],
-            update: { id: record.linkId! },
-          },
-          { tx, silent, addToOutbox }
-        );
-      }
-      if (query.data.link.disconnect) {
-        record.linkId = null;
-      }
-      if (query.data.link.delete) {
-        const deleteWhere = query.data.link.delete === true ? {} : query.data.link.delete;
-        await this.client.modelWithUniqueAttributes.delete(
-          { where: { ...deleteWhere, id: record.linkId! } } as Prisma.ModelWithUniqueAttributesDeleteArgs,
-          { tx, silent, addToOutbox }
-        );
-        record.linkId = null;
-      }
-    }
-    if (query.data.linkId !== undefined && record.linkId !== null) {
-      const related = await this.client.modelWithUniqueAttributes.findUnique({ where: { id: record.linkId } }, { tx });
-      if (!related) throw new Error("Related record not found");
-    }
-    const endKeyPath: PrismaIDBSchema["ModelWithOptionalRelationToUniqueAttributes"]["key"] = [record.id];
-    for (let i = 0; i < startKeyPath.length; i++) {
-      if (startKeyPath[i] !== endKeyPath[i]) {
-        if ((await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").get(endKeyPath)) !== undefined) {
-          throw new Error("Record with the same keyPath already exists");
-        }
-        await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").delete(startKeyPath);
-        break;
-      }
-    }
-    const keyPath = await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").put(record);
-    await this.emit("update", keyPath, startKeyPath, record, { silent, addToOutbox, tx });
-    for (let i = 0; i < startKeyPath.length; i++) {
-      if (startKeyPath[i] !== endKeyPath[i]) {
-        break;
-      }
-    }
-    const recordWithRelations = (await this.findUnique(
-      {
-        where: { id: keyPath[0] },
-      },
-      { tx }
-    ))!;
-    return recordWithRelations as Prisma.Result<
-      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-      Q,
-      "update"
-    >;
-  }
-  async updateMany<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "updateMany">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "updateMany">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
-    const records = await this.findMany({ where: query.where }, { tx });
-    await Promise.all(
-      records.map(async (record) => {
-        await this.update({ where: { id: record.id }, data: query.data }, { tx, silent, addToOutbox });
-      })
-    );
-    return { count: records.length };
-  }
-  async upsert<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "upsert">>(
-    query: Q,
-    options?: {
-      tx?: IDBUtils.ReadwriteTransactionType;
-      silent?: boolean;
-      addToOutbox?: boolean;
-    }
-  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "upsert">> {
-    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
-    let tx = txOption;
-    const neededStores = this._getNeededStoresForUpdate({
-      ...query,
-      data: { ...query.update, ...query.create } as Prisma.Args<
-        Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-        "update"
-      >["data"],
-    });
-    tx = tx ?? this.client._db.transaction(Array.from(neededStores), "readwrite");
-    let record = await this.findUnique({ where: query.where }, { tx });
-    if (!record) record = await this.create({ data: query.create }, { tx, silent, addToOutbox });
-    else record = await this.update({ where: query.where, data: query.update }, { tx, silent, addToOutbox });
-    record = await this.findUniqueOrThrow(
-      { where: { id: record.id }, select: query.select, include: query.include },
-      { tx }
-    );
-    return record as Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "upsert">;
-  }
-  async aggregate<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "aggregate">>(
-    query?: Q,
-    options?: {
-      tx?: IDBUtils.TransactionType;
-    }
-  ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "aggregate">> {
-    const { tx: txOption } = options ?? {};
-    let tx = txOption;
-    tx = tx ?? this.client._db.transaction(["ModelWithOptionalRelationToUniqueAttributes"], "readonly");
-    const records = await this.findMany({ where: query?.where }, { tx });
-    const result: Partial<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, Q, "aggregate">> =
-      {};
-    if (query?._count) {
-      if (query._count === true) {
-        (result._count as number) = records.length;
-      } else {
-        for (const key of Object.keys(query._count)) {
-          const typedKey = key as keyof typeof query._count;
-          if (typedKey === "_all") {
-            (result._count as Record<string, number>)[typedKey] = records.length;
-            continue;
-          }
-          (result._count as Record<string, number>)[typedKey] = (
-            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })
-          ).length;
-        }
-      }
-    }
-    if (query?._min) {
-      const minResult = {} as Prisma.Result<
-        Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-        Q,
-        "aggregate"
-      >["_min"];
-      const numericFields = ["linkId"] as const;
-      for (const field of numericFields) {
-        if (!query._min[field]) continue;
-        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
-        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
-      }
-      const stringFields = ["id"] as const;
-      for (const field of stringFields) {
-        if (!query._min[field]) continue;
-        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
-        (minResult[field as keyof typeof minResult] as string) = values.sort()[0];
-      }
-      result._min = minResult;
-    }
-    if (query?._max) {
-      const maxResult = {} as Prisma.Result<
-        Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-        Q,
-        "aggregate"
-      >["_max"];
-      const numericFields = ["linkId"] as const;
-      for (const field of numericFields) {
-        if (!query._max[field]) continue;
-        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
-        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
-      }
-      const stringFields = ["id"] as const;
-      for (const field of stringFields) {
-        if (!query._max[field]) continue;
-        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
-        (maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];
-      }
-      result._max = maxResult;
-    }
-    if (query?._avg) {
-      const avgResult = {} as Prisma.Result<
-        Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-        Q,
-        "aggregate"
-      >["_avg"];
-      for (const untypedField of Object.keys(query._avg)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
-      }
-      result._avg = avgResult;
-    }
-    if (query?._sum) {
-      const sumResult = {} as Prisma.Result<
-        Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-        Q,
-        "aggregate"
-      >["_sum"];
-      for (const untypedField of Object.keys(query._sum)) {
-        const field = untypedField as keyof (typeof records)[number];
-        const values = records.map((record) => record[field] as number);
-        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
-      }
-      result._sum = sumResult;
-    }
-    return result as unknown as Prisma.Result<
-      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-      Q,
-      "aggregate"
-    >;
-  }
-}
-class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniqueAttributes"> {
-  constructor(client: PrismaIDBClient, keyPath: string[]) {
-    super(client, keyPath, "ModelWithUniqueAttributes");
-  }
-
-  private async _applyWhereClause<
-    W extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findFirstOrThrow">["where"],
-    R extends Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findFirstOrThrow">,
-  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
-    if (!whereClause) return records;
-    records = await IDBUtils.applyLogicalFilters<Prisma.ModelWithUniqueAttributesDelegate, R, W>(
-      records,
-      whereClause,
-      tx,
-      this.keyPath,
-      this._applyWhereClause.bind(this)
-    );
-    return (
-      await Promise.all(
-        records.map(async (record) => {
-          const stringFields = ["code"] as const;
-          for (const field of stringFields) {
-            if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
-          }
-          const numberFields = ["id"] as const;
-          for (const field of numberFields) {
-            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
-          }
-          if (whereClause.links) {
-            if (whereClause.links.every) {
-              const violatingRecord = await this.client.modelWithOptionalRelationToUniqueAttributes.findFirst(
-                {
-                  where: { NOT: { ...whereClause.links.every }, linkId: record.id },
-                },
-                { tx }
-              );
-              if (violatingRecord !== null) return null;
-            }
-            if (whereClause.links.some) {
-              const relatedRecords = await this.client.modelWithOptionalRelationToUniqueAttributes.findMany(
-                {
-                  where: { ...whereClause.links.some, linkId: record.id },
-                },
-                { tx }
-              );
-              if (relatedRecords.length === 0) return null;
-            }
-            if (whereClause.links.none) {
-              const violatingRecord = await this.client.modelWithOptionalRelationToUniqueAttributes.findFirst(
-                {
-                  where: { ...whereClause.links.none, linkId: record.id },
-                },
-                { tx }
-              );
-              if (violatingRecord !== null) return null;
-            }
-          }
-          return record;
-        })
-      )
-    ).filter((result) => result !== null);
-  }
-  private _applySelectClause<S extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findMany">["select"]>(
-    records: Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findFirstOrThrow">[],
-    selectClause: S
-  ): Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, { select: S }, "findFirstOrThrow">[] {
-    if (!selectClause) {
-      return records as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, { select: S }, "findFirstOrThrow">[];
-    }
-    return records.map((record) => {
-      const partialRecord: Partial<typeof record> = record;
-      for (const untypedKey of ["id", "code", "links"]) {
-        const key = untypedKey as keyof typeof record & keyof S;
-        if (!selectClause[key]) delete partialRecord[key];
-      }
-      return partialRecord;
-    }) as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, { select: S }, "findFirstOrThrow">[];
-  }
-  private async _applyRelations<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findMany">>(
-    records: Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findFirstOrThrow">[],
-    tx: IDBUtils.TransactionType,
-    query?: Q
-  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findFirstOrThrow">[]> {
-    if (!query) return records as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
-      const unsafeRecord = record as Record<string, unknown>;
-      const attach_links = query.select?.links || query.include?.links;
-      if (attach_links) {
-        unsafeRecord["links"] = await this.client.modelWithOptionalRelationToUniqueAttributes.findMany(
-          {
-            ...(attach_links === true ? {} : attach_links),
-            where: { linkId: record.id! },
-          },
-          { tx }
-        );
-      }
-      return unsafeRecord;
-    });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
-      Prisma.ModelWithUniqueAttributesDelegate,
-      Q,
-      "findFirstOrThrow"
-    >[];
-  }
-  async _applyOrderByClause<
-    O extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findMany">["orderBy"],
-    R extends Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findFirstOrThrow">,
-  >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
-    if (orderByClause === undefined) return;
-    const orderByClauses = IDBUtils.convertToArray(orderByClause);
-    const indexedKeys = await Promise.all(
-      records.map(async (record) => {
-        const keys = await Promise.all(
-          orderByClauses.map(async (clause) => await this._resolveOrderByKey(record, clause, tx))
-        );
-        return { keys, record };
-      })
-    );
-    indexedKeys.sort((a, b) => {
-      for (let i = 0; i < orderByClauses.length; i++) {
-        const clause = orderByClauses[i];
-        const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));
-        if (comparison !== 0) return comparison;
-      }
-      return 0;
-    });
-    for (let i = 0; i < records.length; i++) {
-      records[i] = indexedKeys[i].record;
-    }
-  }
-  async _resolveOrderByKey(
-    record: Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findFirstOrThrow">,
-    orderByInput: Prisma.ModelWithUniqueAttributesOrderByWithRelationInput,
-    tx: IDBUtils.TransactionType
-  ): Promise<unknown> {
-    const scalarFields = ["id", "code"] as const;
-    for (const field of scalarFields) if (orderByInput[field]) return record[field];
-    if (orderByInput.links) {
-      return await this.client.modelWithOptionalRelationToUniqueAttributes.count(
-        { where: { linkId: record.id } },
-        { tx }
-      );
-    }
-  }
-  _resolveSortOrder(
-    orderByInput: Prisma.ModelWithUniqueAttributesOrderByWithRelationInput
-  ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
-    const scalarFields = ["id", "code"] as const;
-    for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
-    if (orderByInput.links?._count) {
-      return orderByInput.links._count;
-    }
-    throw new Error("No field in orderBy clause");
-  }
-  private async _fillDefaults<D extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "create">["data"]>(
-    data: D,
-    tx?: IDBUtils.ReadwriteTransactionType
-  ): Promise<D> {
-    if (data === undefined) data = {} as NonNullable<D>;
-    if (data.id === undefined) {
-      const transaction = tx ?? this.client._db.transaction(["ModelWithUniqueAttributes"], "readwrite");
-      const store = transaction.objectStore("ModelWithUniqueAttributes");
-      const cursor = await store.openCursor(null, "prev");
-      data.id = cursor ? Number(cursor.key) + 1 : 1;
-    }
-    return data;
-  }
-  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findMany">["where"]>(
-    whereClause: W,
-    neededStores: Set<StoreNames<PrismaIDBSchema>>
-  ) {
-    if (whereClause === undefined) return;
-    for (const param of IDBUtils.LogicalParams) {
-      if (whereClause[param]) {
-        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
-          this._getNeededStoresForWhere(clause, neededStores);
-        }
-      }
-    }
-    if (whereClause.links) {
-      neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
-      this.client.modelWithOptionalRelationToUniqueAttributes._getNeededStoresForWhere(
-        whereClause.links.every,
-        neededStores
-      );
-      this.client.modelWithOptionalRelationToUniqueAttributes._getNeededStoresForWhere(
-        whereClause.links.some,
-        neededStores
-      );
-      this.client.modelWithOptionalRelationToUniqueAttributes._getNeededStoresForWhere(
-        whereClause.links.none,
-        neededStores
-      );
-    }
-  }
-  _getNeededStoresForFind<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findMany">>(
-    query?: Q
-  ): Set<StoreNames<PrismaIDBSchema>> {
-    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
-    neededStores.add("ModelWithUniqueAttributes");
-    this._getNeededStoresForWhere(query?.where, neededStores);
-    if (query?.orderBy) {
-      const orderBy = IDBUtils.convertToArray(query.orderBy);
-      const orderBy_links = orderBy.find((clause) => clause.links);
-      if (orderBy_links) {
-        neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
-      }
-    }
-    if (query?.select?.links || query?.include?.links) {
-      neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
-      if (typeof query.select?.links === "object") {
-        this.client.modelWithOptionalRelationToUniqueAttributes
-          ._getNeededStoresForFind(query.select.links)
-          .forEach((storeName) => neededStores.add(storeName));
-      }
-      if (typeof query.include?.links === "object") {
-        this.client.modelWithOptionalRelationToUniqueAttributes
-          ._getNeededStoresForFind(query.include.links)
-          .forEach((storeName) => neededStores.add(storeName));
-      }
-    }
-    return neededStores;
-  }
-  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "create">["data"]>>(
-    data: D
-  ): Set<StoreNames<PrismaIDBSchema>> {
-    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
-    neededStores.add("ModelWithUniqueAttributes");
-    if (data?.links) {
-      neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
-      if (data.links.create) {
-        const createData = Array.isArray(data.links.create) ? data.links.create : [data.links.create];
-        createData.forEach((record) =>
-          this.client.modelWithOptionalRelationToUniqueAttributes
-            ._getNeededStoresForCreate(record)
-            .forEach((storeName) => neededStores.add(storeName))
-        );
-      }
-      if (data.links.connectOrCreate) {
-        IDBUtils.convertToArray(data.links.connectOrCreate).forEach((record) =>
-          this.client.modelWithOptionalRelationToUniqueAttributes
-            ._getNeededStoresForCreate(record.create)
-            .forEach((storeName) => neededStores.add(storeName))
-        );
-      }
-      if (data.links.createMany) {
-        IDBUtils.convertToArray(data.links.createMany.data).forEach((record) =>
-          this.client.modelWithOptionalRelationToUniqueAttributes
-            ._getNeededStoresForCreate(record)
-            .forEach((storeName) => neededStores.add(storeName))
-        );
-      }
-    }
-    return neededStores;
-  }
-  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "update">>(
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "update">>(
     query: Partial<Q>
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores = this._getNeededStoresForFind(query).union(
       this._getNeededStoresForCreate(
-        query.data as Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "create">["data"]
+        query.data as Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "create">["data"]
       )
     );
-    if (query.data?.links?.connect) {
-      neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
-      IDBUtils.convertToArray(query.data.links.connect).forEach((connect) => {
-        this.client.modelWithOptionalRelationToUniqueAttributes._getNeededStoresForWhere(connect, neededStores);
-      });
-    }
-    if (query.data?.links?.set) {
-      neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
-      IDBUtils.convertToArray(query.data.links.set).forEach((setWhere) => {
-        this.client.modelWithOptionalRelationToUniqueAttributes._getNeededStoresForWhere(setWhere, neededStores);
-      });
-    }
-    if (query.data?.links?.updateMany) {
-      neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
-      IDBUtils.convertToArray(query.data.links.updateMany).forEach((update) => {
-        this.client.modelWithOptionalRelationToUniqueAttributes
-          ._getNeededStoresForUpdate(
-            update as Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "update">
-          )
-          .forEach((store) => neededStores.add(store));
-      });
-    }
-    if (query.data?.links?.update) {
-      neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
-      IDBUtils.convertToArray(query.data.links.update).forEach((update) => {
-        this.client.modelWithOptionalRelationToUniqueAttributes
-          ._getNeededStoresForUpdate(
-            update as Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "update">
-          )
-          .forEach((store) => neededStores.add(store));
-      });
-    }
-    if (query.data?.links?.upsert) {
-      neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
-      IDBUtils.convertToArray(query.data.links.upsert).forEach((upsert) => {
-        const update = { where: upsert.where, data: { ...upsert.update, ...upsert.create } } as Prisma.Args<
-          Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-          "update"
-        >;
-        this.client.modelWithOptionalRelationToUniqueAttributes
-          ._getNeededStoresForUpdate(update)
-          .forEach((store) => neededStores.add(store));
-      });
-    }
-    if (query.data?.links?.delete || query.data?.links?.deleteMany) {
-      this.client.modelWithOptionalRelationToUniqueAttributes._getNeededStoresForNestedDelete(neededStores);
-    }
-    if (query.data?.id !== undefined) {
-      neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
-    }
     return neededStores;
   }
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
-    neededStores.add("ModelWithUniqueAttributes");
-    this.client.modelWithOptionalRelationToUniqueAttributes._getNeededStoresForNestedDelete(neededStores);
+    neededStores.add("CompositeUniqueWithDateTime");
   }
-  private _removeNestedCreateData<D extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "create">["data"]>(
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "create">["data"]>(
     data: D
-  ): Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findFirstOrThrow"> {
+  ): Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, object, "findFirstOrThrow"> {
     const recordWithoutNestedCreate = structuredClone(data);
-    delete recordWithoutNestedCreate?.links;
     return recordWithoutNestedCreate as Prisma.Result<
-      Prisma.ModelWithUniqueAttributesDelegate,
+      Prisma.CompositeUniqueWithDateTimeDelegate,
       object,
       "findFirstOrThrow"
     >;
   }
   private _preprocessListFields(
-    records: Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findMany">
+    records: Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, object, "findMany">
   ): void {}
-  async findMany<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findMany">>(
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("CompositeUniqueWithDateTime").getAll();
+  }
+  async findMany<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "findMany">>(
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findMany">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "findMany">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(
-      await tx.objectStore("ModelWithUniqueAttributes").getAll(),
-      query?.where,
-      tx
-    );
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.ModelWithUniqueAttributesDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
-    const selectClause = query?.select;
-    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      selectAppliedRecords = selectAppliedRecords.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
       });
     }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      } else if ((query.cursor as Record<string, unknown>)["category_timestamp"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["category_timestamp"] as Record<
+          string,
+          unknown
+        >;
+        cursorIndex = records.findIndex(
+          (record) =>
+            record.category === normalizedCursor.category &&
+            new Date(record.timestamp as string | number | Date).getTime() ===
+              new Date(normalizedCursor.timestamp as string | number | Date).getTime()
+        );
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.CompositeUniqueWithDateTimeDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
+    const selectClause = query?.select;
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
-    return selectAppliedRecords as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findMany">;
+    return selectAppliedRecords as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "findMany">;
   }
-  async findFirst<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findFirst">>(
+  async findFirst<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "findFirst">>(
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findFirst">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
 
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, { tx }))[0] ?? null;
   }
-  async findFirstOrThrow<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findFirstOrThrow">>(
+  async findFirstOrThrow<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "findFirstOrThrow">>(
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findFirstOrThrow">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "findFirstOrThrow">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
 
@@ -14936,21 +19242,24 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     }
     return record;
   }
-  async findUnique<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findUnique">>(
+  async findUnique<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "findUnique">>(
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findUnique">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
 
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
     if (query.where.id !== undefined) {
-      record = await tx.objectStore("ModelWithUniqueAttributes").get([query.where.id]);
-    } else if (query.where.code !== undefined) {
-      record = await tx.objectStore("ModelWithUniqueAttributes").index("codeIndex").get([query.where.code]);
+      record = await tx.objectStore("CompositeUniqueWithDateTime").get([query.where.id]);
+    } else if (query.where.category_timestamp !== undefined) {
+      record = await tx
+        .objectStore("CompositeUniqueWithDateTime")
+        .index("category_timestampIndex")
+        .get([query.where.category_timestamp.category, new Date(query.where.category_timestamp.timestamp)]);
     }
     if (!record) return null;
 
@@ -14959,14 +19268,14 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
       query.select
     )[0];
     this._preprocessListFields([recordWithRelations]);
-    return recordWithRelations as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findUnique">;
+    return recordWithRelations as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "findUnique">;
   }
-  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findUniqueOrThrow">>(
+  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "findUniqueOrThrow">>(
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findUniqueOrThrow">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "findUniqueOrThrow">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
 
@@ -14977,21 +19286,21 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     }
     return record;
   }
-  async count<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "count">>(
+  async count<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "count">>(
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "count">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
 
-    tx = tx ?? this.client._db.transaction(["ModelWithUniqueAttributes"], "readonly");
+    tx = tx ?? this.client._db.transaction(["CompositeUniqueWithDateTime"], "readonly");
     if (!query?.select || query.select === true) {
       const records = await this.findMany({ where: query?.where }, { tx });
-      return records.length as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "count">;
+      return records.length as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "count">;
     }
-    const result: Partial<Record<keyof Prisma.ModelWithUniqueAttributesCountAggregateInputType, number>> = {};
+    const result: Partial<Record<keyof Prisma.CompositeUniqueWithDateTimeCountAggregateInputType, number>> = {};
     for (const key of Object.keys(query.select)) {
       const typedKey = key as keyof typeof query.select;
       if (typedKey === "_all") {
@@ -15000,132 +19309,82 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
       }
       result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })).length;
     }
-    return result as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "count">;
+    return result as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "count">;
   }
-  async create<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "create">>(
+  async create<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "create">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "create">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "create">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     const storesNeeded = this._getNeededStoresForCreate(query.data);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
-    const keyPath = await tx.objectStore("ModelWithUniqueAttributes").add(record);
-    if (query.data?.links?.create) {
-      for (const elem of IDBUtils.convertToArray(query.data.links.create)) {
-        await this.client.modelWithOptionalRelationToUniqueAttributes.create(
-          {
-            data: { ...elem, link: { connect: { id: keyPath[0] } } } as Prisma.Args<
-              Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-              "create"
-            >["data"],
-          },
-          { tx, silent, addToOutbox }
-        );
-      }
-    }
-    if (query.data?.links?.connect) {
-      await Promise.all(
-        IDBUtils.convertToArray(query.data.links.connect).map(async (connectWhere) => {
-          await this.client.modelWithOptionalRelationToUniqueAttributes.update(
-            { where: connectWhere, data: { linkId: keyPath[0] } },
-            { tx, silent, addToOutbox }
-          );
-        })
-      );
-    }
-    if (query.data?.links?.connectOrCreate) {
-      await Promise.all(
-        IDBUtils.convertToArray(query.data.links.connectOrCreate).map(async (connectOrCreate) => {
-          await this.client.modelWithOptionalRelationToUniqueAttributes.upsert(
-            {
-              where: connectOrCreate.where,
-              create: { ...connectOrCreate.create, linkId: keyPath[0] } as NonNullable<
-                Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "create">["data"]
-              >,
-              update: { linkId: keyPath[0] },
-            },
-            { tx, silent, addToOutbox }
-          );
-        })
-      );
-    }
-    if (query.data?.links?.createMany) {
-      await this.client.modelWithOptionalRelationToUniqueAttributes.createMany(
-        {
-          data: IDBUtils.convertToArray(query.data.links.createMany.data).map((createData) => ({
-            ...createData,
-            linkId: keyPath[0],
-          })),
-        },
-        { tx, silent, addToOutbox }
-      );
-    }
-    const data = (await tx.objectStore("ModelWithUniqueAttributes").get(keyPath))!;
+    const keyPath = await tx.objectStore("CompositeUniqueWithDateTime").add(record);
+    const data = (await tx.objectStore("CompositeUniqueWithDateTime").get(keyPath))!;
     const recordsWithRelations = this._applySelectClause(
       await this._applyRelations<object>([data], tx, query),
       query.select
     )[0];
     this._preprocessListFields([recordsWithRelations]);
     await this.emit("create", keyPath, undefined, data, { silent, addToOutbox, tx });
-    return recordsWithRelations as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "create">;
+    return recordsWithRelations as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "create">;
   }
-  async createMany<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "createMany">>(
+  async createMany<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "createMany">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "createMany">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "createMany">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
-    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["ModelWithUniqueAttributes"]);
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["CompositeUniqueWithDateTime"]);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      const keyPath = await tx.objectStore("ModelWithUniqueAttributes").add(record);
+      const keyPath = await tx.objectStore("CompositeUniqueWithDateTime").add(record);
       await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
     }
     return { count: createManyData.length };
   }
-  async createManyAndReturn<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "createManyAndReturn">>(
+  async createManyAndReturn<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "createManyAndReturn">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "createManyAndReturn">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "createManyAndReturn">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
-    const records: Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findMany"> = [];
-    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["ModelWithUniqueAttributes"]);
+    const records: Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, object, "findMany"> = [];
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["CompositeUniqueWithDateTime"]);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      const keyPath = await tx.objectStore("ModelWithUniqueAttributes").add(record);
+      const keyPath = await tx.objectStore("CompositeUniqueWithDateTime").add(record);
       await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
       records.push(this._applySelectClause([record], query.select)[0]);
     }
     this._preprocessListFields(records);
-    return records as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "createManyAndReturn">;
+    return records as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "createManyAndReturn">;
   }
-  async delete<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "delete">>(
+  async delete<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "delete">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "delete">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "delete">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     const storesNeeded = this._getNeededStoresForFind(query);
@@ -15133,25 +19392,18 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this.client.modelWithOptionalRelationToUniqueAttributes.updateMany(
-      {
-        where: { linkId: record.id },
-        data: { linkId: null },
-      },
-      { tx, silent, addToOutbox }
-    );
-    await tx.objectStore("ModelWithUniqueAttributes").delete([record.id]);
+    await tx.objectStore("CompositeUniqueWithDateTime").delete([record.id]);
     await this.emit("delete", [record.id], undefined, record, { silent, addToOutbox, tx });
     return record;
   }
-  async deleteMany<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "deleteMany">>(
+  async deleteMany<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "deleteMany">>(
     query?: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "deleteMany">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "deleteMany">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     const storesNeeded = this._getNeededStoresForFind(query);
@@ -15163,14 +19415,14 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     }
     return { count: records.length };
   }
-  async update<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "update">>(
+  async update<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "update">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "update">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "update">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
@@ -15179,161 +19431,33 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
       tx.abort();
       throw new Error("Record not found");
     }
-    const startKeyPath: PrismaIDBSchema["ModelWithUniqueAttributes"]["key"] = [record.id];
-    const stringFields = ["code"] as const;
+    const startKeyPath: PrismaIDBSchema["CompositeUniqueWithDateTime"]["key"] = [record.id];
+    const stringFields = ["category"] as const;
     for (const field of stringFields) {
       IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const dateTimeFields = ["timestamp"] as const;
+    for (const field of dateTimeFields) {
+      IDBUtils.handleDateTimeUpdateField(record, field, query.data[field]);
     }
     const intFields = ["id"] as const;
     for (const field of intFields) {
       IDBUtils.handleIntUpdateField(record, field, query.data[field]);
     }
-    if (query.data.links) {
-      if (query.data.links.connect) {
-        await Promise.all(
-          IDBUtils.convertToArray(query.data.links.connect).map(async (connectWhere) => {
-            await this.client.modelWithOptionalRelationToUniqueAttributes.update(
-              { where: connectWhere, data: { linkId: record.id } },
-              { tx, silent, addToOutbox }
-            );
-          })
-        );
-      }
-      if (query.data.links.disconnect) {
-        await Promise.all(
-          IDBUtils.convertToArray(query.data.links.disconnect).map(async (connectWhere) => {
-            await this.client.modelWithOptionalRelationToUniqueAttributes.update(
-              { where: connectWhere, data: { linkId: null } },
-              { tx, silent, addToOutbox }
-            );
-          })
-        );
-      }
-      if (query.data.links.create) {
-        const createData = Array.isArray(query.data.links.create) ? query.data.links.create : [query.data.links.create];
-        for (const elem of createData) {
-          await this.client.modelWithOptionalRelationToUniqueAttributes.create(
-            {
-              data: { ...elem, linkId: record.id } as Prisma.Args<
-                Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-                "create"
-              >["data"],
-            },
-            { tx, silent, addToOutbox }
-          );
-        }
-      }
-      if (query.data.links.createMany) {
-        await Promise.all(
-          IDBUtils.convertToArray(query.data.links.createMany.data).map(async (createData) => {
-            await this.client.modelWithOptionalRelationToUniqueAttributes.create(
-              { data: { ...createData, linkId: record.id } },
-              { tx, silent, addToOutbox }
-            );
-          })
-        );
-      }
-      if (query.data.links.update) {
-        await Promise.all(
-          IDBUtils.convertToArray(query.data.links.update).map(async (updateData) => {
-            await this.client.modelWithOptionalRelationToUniqueAttributes.update(updateData, {
-              tx,
-              silent,
-              addToOutbox,
-            });
-          })
-        );
-      }
-      if (query.data.links.updateMany) {
-        await Promise.all(
-          IDBUtils.convertToArray(query.data.links.updateMany).map(async (updateData) => {
-            await this.client.modelWithOptionalRelationToUniqueAttributes.updateMany(updateData, {
-              tx,
-              silent,
-              addToOutbox,
-            });
-          })
-        );
-      }
-      if (query.data.links.upsert) {
-        await Promise.all(
-          IDBUtils.convertToArray(query.data.links.upsert).map(async (upsertData) => {
-            await this.client.modelWithOptionalRelationToUniqueAttributes.upsert(
-              {
-                ...upsertData,
-                where: { ...upsertData.where, linkId: record.id },
-                create: { ...upsertData.create, linkId: record.id } as Prisma.Args<
-                  Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-                  "upsert"
-                >["create"],
-              },
-              { tx, silent, addToOutbox }
-            );
-          })
-        );
-      }
-      if (query.data.links.delete) {
-        await Promise.all(
-          IDBUtils.convertToArray(query.data.links.delete).map(async (deleteData) => {
-            await this.client.modelWithOptionalRelationToUniqueAttributes.delete(
-              { where: { ...deleteData, linkId: record.id } },
-              { tx, silent, addToOutbox }
-            );
-          })
-        );
-      }
-      if (query.data.links.deleteMany) {
-        await Promise.all(
-          IDBUtils.convertToArray(query.data.links.deleteMany).map(async (deleteData) => {
-            await this.client.modelWithOptionalRelationToUniqueAttributes.deleteMany(
-              { where: { ...deleteData, linkId: record.id } },
-              { tx, silent, addToOutbox }
-            );
-          })
-        );
-      }
-      if (query.data.links.set) {
-        const existing = await this.client.modelWithOptionalRelationToUniqueAttributes.findMany(
-          { where: { linkId: record.id } },
-          { tx }
-        );
-        if (existing.length > 0) {
-          await this.client.modelWithOptionalRelationToUniqueAttributes.updateMany(
-            { where: { linkId: record.id }, data: { linkId: null } },
-            { tx, silent, addToOutbox }
-          );
-        }
-        await Promise.all(
-          IDBUtils.convertToArray(query.data.links.set).map(async (setData) => {
-            await this.client.modelWithOptionalRelationToUniqueAttributes.update(
-              { where: setData, data: { linkId: record.id } },
-              { tx, silent, addToOutbox }
-            );
-          })
-        );
-      }
-    }
-    const endKeyPath: PrismaIDBSchema["ModelWithUniqueAttributes"]["key"] = [record.id];
+    const endKeyPath: PrismaIDBSchema["CompositeUniqueWithDateTime"]["key"] = [record.id];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
-        if ((await tx.objectStore("ModelWithUniqueAttributes").get(endKeyPath)) !== undefined) {
+        if ((await tx.objectStore("CompositeUniqueWithDateTime").get(endKeyPath)) !== undefined) {
           throw new Error("Record with the same keyPath already exists");
         }
-        await tx.objectStore("ModelWithUniqueAttributes").delete(startKeyPath);
+        await tx.objectStore("CompositeUniqueWithDateTime").delete(startKeyPath);
         break;
       }
     }
-    const keyPath = await tx.objectStore("ModelWithUniqueAttributes").put(record);
+    const keyPath = await tx.objectStore("CompositeUniqueWithDateTime").put(record);
     await this.emit("update", keyPath, startKeyPath, record, { silent, addToOutbox, tx });
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
-        await this.client.modelWithOptionalRelationToUniqueAttributes.updateMany(
-          {
-            where: { linkId: startKeyPath[0] },
-            data: { linkId: endKeyPath[0] },
-          },
-          { tx, silent, addToOutbox }
-        );
         break;
       }
     }
@@ -15343,16 +19467,16 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
       },
       { tx }
     ))!;
-    return recordWithRelations as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "update">;
+    return recordWithRelations as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "update">;
   }
-  async updateMany<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "updateMany">>(
+  async updateMany<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "updateMany">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "updateMany">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "updateMany">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
@@ -15364,20 +19488,20 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     );
     return { count: records.length };
   }
-  async upsert<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "upsert">>(
+  async upsert<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "upsert">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "upsert">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "upsert">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     const neededStores = this._getNeededStoresForUpdate({
       ...query,
       data: { ...query.update, ...query.create } as Prisma.Args<
-        Prisma.ModelWithUniqueAttributesDelegate,
+        Prisma.CompositeUniqueWithDateTimeDelegate,
         "update"
       >["data"],
     });
@@ -15385,23 +19509,20 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     let record = await this.findUnique({ where: query.where }, { tx });
     if (!record) record = await this.create({ data: query.create }, { tx, silent, addToOutbox });
     else record = await this.update({ where: query.where, data: query.update }, { tx, silent, addToOutbox });
-    record = await this.findUniqueOrThrow(
-      { where: { id: record.id }, select: query.select, include: query.include },
-      { tx }
-    );
-    return record as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "upsert">;
+    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select }, { tx });
+    return record as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "upsert">;
   }
-  async aggregate<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "aggregate">>(
+  async aggregate<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "aggregate">>(
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "aggregate">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "aggregate">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
-    tx = tx ?? this.client._db.transaction(["ModelWithUniqueAttributes"], "readonly");
+    tx = tx ?? this.client._db.transaction(["CompositeUniqueWithDateTime"], "readonly");
     const records = await this.findMany({ where: query?.where }, { tx });
-    const result: Partial<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "aggregate">> = {};
+    const result: Partial<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "aggregate">> = {};
     if (query?._count) {
       if (query._count === true) {
         (result._count as number) = records.length;
@@ -15419,14 +19540,20 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
       }
     }
     if (query?._min) {
-      const minResult = {} as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "aggregate">["_min"];
+      const minResult = {} as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "aggregate">["_min"];
       const numericFields = ["id"] as const;
       for (const field of numericFields) {
         if (!query._min[field]) continue;
         const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
         (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
       }
-      const stringFields = ["code"] as const;
+      const dateTimeFields = ["timestamp"] as const;
+      for (const field of dateTimeFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as Date) = new Date(Math.min(...values));
+      }
+      const stringFields = ["category"] as const;
       for (const field of stringFields) {
         if (!query._min[field]) continue;
         const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
@@ -15435,14 +19562,20 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
       result._min = minResult;
     }
     if (query?._max) {
-      const maxResult = {} as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "aggregate">["_max"];
+      const maxResult = {} as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "aggregate">["_max"];
       const numericFields = ["id"] as const;
       for (const field of numericFields) {
         if (!query._max[field]) continue;
         const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
         (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
       }
-      const stringFields = ["code"] as const;
+      const dateTimeFields = ["timestamp"] as const;
+      for (const field of dateTimeFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as Date) = new Date(Math.max(...values));
+      }
+      const stringFields = ["category"] as const;
       for (const field of stringFields) {
         if (!query._max[field]) continue;
         const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
@@ -15451,7 +19584,7 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
       result._max = maxResult;
     }
     if (query?._avg) {
-      const avgResult = {} as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "aggregate">["_avg"];
+      const avgResult = {} as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "aggregate">["_avg"];
       for (const untypedField of Object.keys(query._avg)) {
         const field = untypedField as keyof (typeof records)[number];
         const values = records.map((record) => record[field] as number);
@@ -15460,7 +19593,7 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
       result._avg = avgResult;
     }
     if (query?._sum) {
-      const sumResult = {} as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "aggregate">["_sum"];
+      const sumResult = {} as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "aggregate">["_sum"];
       for (const untypedField of Object.keys(query._sum)) {
         const field = untypedField as keyof (typeof records)[number];
         const values = records.map((record) => record[field] as number);
@@ -15468,20 +19601,20 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
       }
       result._sum = sumResult;
     }
-    return result as unknown as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "aggregate">;
+    return result as unknown as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "aggregate">;
   }
 }
-class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
+class CompositeUniqueFloatIntIDBClass extends BaseIDBModelClass<"CompositeUniqueFloatInt"> {
   constructor(client: PrismaIDBClient, keyPath: string[]) {
-    super(client, keyPath, "Todo");
+    super(client, keyPath, "CompositeUniqueFloatInt");
   }
 
   private async _applyWhereClause<
-    W extends Prisma.Args<Prisma.TodoDelegate, "findFirstOrThrow">["where"],
-    R extends Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">,
+    W extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "findFirstOrThrow">["where"],
+    R extends Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, object, "findFirstOrThrow">,
   >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
     if (!whereClause) return records;
-    records = await IDBUtils.applyLogicalFilters<Prisma.TodoDelegate, R, W>(
+    records = await IDBUtils.applyLogicalFilters<Prisma.CompositeUniqueFloatIntDelegate, R, W>(
       records,
       whereClause,
       tx,
@@ -15491,85 +19624,50 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     return (
       await Promise.all(
         records.map(async (record) => {
-          const stringFields = ["id", "title"] as const;
-          for (const field of stringFields) {
-            if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
-          }
-          const numberFields = ["userId"] as const;
+          const numberFields = ["id", "lat", "lng", "zoneId"] as const;
           for (const field of numberFields) {
             if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
-          }
-          const booleanFields = ["completed"] as const;
-          for (const field of booleanFields) {
-            if (!IDBUtils.whereBoolFilter(record, field, whereClause[field])) return null;
-          }
-          if (whereClause.user) {
-            const { is, isNot, ...rest } = whereClause.user;
-            if (is !== null && is !== undefined) {
-              const relatedRecord = await this.client.user.findFirst({ where: { ...is, id: record.userId } }, { tx });
-              if (!relatedRecord) return null;
-            }
-            if (isNot !== null && isNot !== undefined) {
-              const relatedRecord = await this.client.user.findFirst(
-                { where: { ...isNot, id: record.userId } },
-                { tx }
-              );
-              if (relatedRecord) return null;
-            }
-            if (Object.keys(rest).length) {
-              const relatedRecord = await this.client.user.findFirst(
-                { where: { ...whereClause.user, id: record.userId } },
-                { tx }
-              );
-              if (!relatedRecord) return null;
-            }
           }
           return record;
         })
       )
     ).filter((result) => result !== null);
   }
-  private _applySelectClause<S extends Prisma.Args<Prisma.TodoDelegate, "findMany">["select"]>(
-    records: Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">[],
+  private _applySelectClause<S extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "findMany">["select"]>(
+    records: Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, object, "findFirstOrThrow">[],
     selectClause: S
-  ): Prisma.Result<Prisma.TodoDelegate, { select: S }, "findFirstOrThrow">[] {
+  ): Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, { select: S }, "findFirstOrThrow">[] {
     if (!selectClause) {
-      return records as Prisma.Result<Prisma.TodoDelegate, { select: S }, "findFirstOrThrow">[];
+      return records as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, { select: S }, "findFirstOrThrow">[];
     }
     return records.map((record) => {
       const partialRecord: Partial<typeof record> = record;
-      for (const untypedKey of ["id", "title", "completed", "user", "userId"]) {
+      for (const untypedKey of ["id", "lat", "lng", "zoneId"]) {
         const key = untypedKey as keyof typeof record & keyof S;
         if (!selectClause[key]) delete partialRecord[key];
       }
       return partialRecord;
-    }) as Prisma.Result<Prisma.TodoDelegate, { select: S }, "findFirstOrThrow">[];
+    }) as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, { select: S }, "findFirstOrThrow">[];
   }
-  private async _applyRelations<Q extends Prisma.Args<Prisma.TodoDelegate, "findMany">>(
-    records: Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">[],
+  private async _applyRelations<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "findMany">>(
+    records: Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, object, "findFirstOrThrow">[],
     tx: IDBUtils.TransactionType,
     query?: Q
-  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[]> {
-    if (!query) return records as Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[];
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "findFirstOrThrow">[]> {
+    if (!query) return records as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "findFirstOrThrow">[];
     const recordsWithRelations = records.map(async (record) => {
       const unsafeRecord = record as Record<string, unknown>;
-      const attach_user = query.select?.user || query.include?.user;
-      if (attach_user) {
-        unsafeRecord["user"] = await this.client.user.findUnique(
-          {
-            ...(attach_user === true ? {} : attach_user),
-            where: { id: record.userId! },
-          },
-          { tx }
-        );
-      }
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[];
+    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
+      Prisma.CompositeUniqueFloatIntDelegate,
+      Q,
+      "findFirstOrThrow"
+    >[];
   }
   async _applyOrderByClause<
-    O extends Prisma.Args<Prisma.TodoDelegate, "findMany">["orderBy"],
-    R extends Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">,
+    O extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "findMany">["orderBy"],
+    R extends Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, object, "findFirstOrThrow">,
   >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
     if (orderByClause === undefined) return;
     const orderByClauses = IDBUtils.convertToArray(orderByClause);
@@ -15594,44 +19692,34 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     }
   }
   async _resolveOrderByKey(
-    record: Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">,
-    orderByInput: Prisma.TodoOrderByWithRelationInput,
+    record: Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, object, "findFirstOrThrow">,
+    orderByInput: Prisma.CompositeUniqueFloatIntOrderByWithRelationInput,
     tx: IDBUtils.TransactionType
   ): Promise<unknown> {
-    const scalarFields = ["id", "title", "completed", "userId"] as const;
+    const scalarFields = ["id", "lat", "lng", "zoneId"] as const;
     for (const field of scalarFields) if (orderByInput[field]) return record[field];
-    if (orderByInput.user) {
-      return await this.client.user._resolveOrderByKey(
-        await this.client.user.findFirstOrThrow({ where: { id: record.userId } }),
-        orderByInput.user,
-        tx
-      );
-    }
   }
   _resolveSortOrder(
-    orderByInput: Prisma.TodoOrderByWithRelationInput
+    orderByInput: Prisma.CompositeUniqueFloatIntOrderByWithRelationInput
   ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
-    const scalarFields = ["id", "title", "completed", "userId"] as const;
+    const scalarFields = ["id", "lat", "lng", "zoneId"] as const;
     for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
-    if (orderByInput.user) {
-      return this.client.user._resolveSortOrder(orderByInput.user);
-    }
     throw new Error("No field in orderBy clause");
   }
-  private async _fillDefaults<D extends Prisma.Args<Prisma.TodoDelegate, "create">["data"]>(
+  private async _fillDefaults<D extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "create">["data"]>(
     data: D,
     tx?: IDBUtils.ReadwriteTransactionType
   ): Promise<D> {
     if (data === undefined) data = {} as NonNullable<D>;
     if (data.id === undefined) {
-      data.id = uuidv4();
-    }
-    if (data.completed === undefined) {
-      data.completed = false;
+      const transaction = tx ?? this.client._db.transaction(["CompositeUniqueFloatInt"], "readwrite");
+      const store = transaction.objectStore("CompositeUniqueFloatInt");
+      const cursor = await store.openCursor(null, "prev");
+      data.id = cursor ? Number(cursor.key) + 1 : 1;
     }
     return data;
   }
-  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.TodoDelegate, "findMany">["where"]>(
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "findMany">["where"]>(
     whereClause: W,
     neededStores: Set<StoreNames<PrismaIDBSchema>>
   ) {
@@ -15643,155 +19731,156 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
         }
       }
     }
-    if (whereClause.user) {
-      neededStores.add("User");
-      this.client.user._getNeededStoresForWhere(whereClause.user, neededStores);
-    }
   }
-  _getNeededStoresForFind<Q extends Prisma.Args<Prisma.TodoDelegate, "findMany">>(
+  _getNeededStoresForFind<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "findMany">>(
     query?: Q
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
-    neededStores.add("Todo");
+    neededStores.add("CompositeUniqueFloatInt");
     this._getNeededStoresForWhere(query?.where, neededStores);
     if (query?.orderBy) {
       const orderBy = IDBUtils.convertToArray(query.orderBy);
-      const orderBy_user = orderBy.find((clause) => clause.user);
-      if (orderBy_user) {
-        this.client.user
-          ._getNeededStoresForFind({ orderBy: orderBy_user.user })
-          .forEach((storeName) => neededStores.add(storeName));
-      }
-    }
-    if (query?.select?.user || query?.include?.user) {
-      neededStores.add("User");
-      if (typeof query.select?.user === "object") {
-        this.client.user._getNeededStoresForFind(query.select.user).forEach((storeName) => neededStores.add(storeName));
-      }
-      if (typeof query.include?.user === "object") {
-        this.client.user
-          ._getNeededStoresForFind(query.include.user)
-          .forEach((storeName) => neededStores.add(storeName));
-      }
     }
     return neededStores;
   }
-  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.TodoDelegate, "create">["data"]>>(
+  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "create">["data"]>>(
     data: D
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
-    neededStores.add("Todo");
-    if (data?.user) {
-      neededStores.add("User");
-      if (data.user.create) {
-        const createData = Array.isArray(data.user.create) ? data.user.create : [data.user.create];
-        createData.forEach((record) =>
-          this.client.user._getNeededStoresForCreate(record).forEach((storeName) => neededStores.add(storeName))
-        );
-      }
-      if (data.user.connectOrCreate) {
-        IDBUtils.convertToArray(data.user.connectOrCreate).forEach((record) =>
-          this.client.user._getNeededStoresForCreate(record.create).forEach((storeName) => neededStores.add(storeName))
-        );
-      }
-    }
-    if (data?.userId !== undefined) {
-      neededStores.add("User");
-    }
+    neededStores.add("CompositeUniqueFloatInt");
     return neededStores;
   }
-  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.TodoDelegate, "update">>(
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "update">>(
     query: Partial<Q>
   ): Set<StoreNames<PrismaIDBSchema>> {
     const neededStores = this._getNeededStoresForFind(query).union(
-      this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.TodoDelegate, "create">["data"])
+      this._getNeededStoresForCreate(
+        query.data as Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "create">["data"]
+      )
     );
-    if (query.data?.user?.connect) {
-      neededStores.add("User");
-      IDBUtils.convertToArray(query.data.user.connect).forEach((connect) => {
-        this.client.user._getNeededStoresForWhere(connect, neededStores);
-      });
-    }
-    if (query.data?.user?.update) {
-      neededStores.add("User");
-      IDBUtils.convertToArray(query.data.user.update).forEach((update) => {
-        this.client.user
-          ._getNeededStoresForUpdate(update as Prisma.Args<Prisma.UserDelegate, "update">)
-          .forEach((store) => neededStores.add(store));
-      });
-    }
-    if (query.data?.user?.upsert) {
-      neededStores.add("User");
-      IDBUtils.convertToArray(query.data.user.upsert).forEach((upsert) => {
-        const update = { where: upsert.where, data: { ...upsert.update, ...upsert.create } } as Prisma.Args<
-          Prisma.UserDelegate,
-          "update"
-        >;
-        this.client.user._getNeededStoresForUpdate(update).forEach((store) => neededStores.add(store));
-      });
-    }
     return neededStores;
   }
   _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
-    neededStores.add("Todo");
+    neededStores.add("CompositeUniqueFloatInt");
   }
-  private _removeNestedCreateData<D extends Prisma.Args<Prisma.TodoDelegate, "create">["data"]>(
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "create">["data"]>(
     data: D
-  ): Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow"> {
+  ): Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, object, "findFirstOrThrow"> {
     const recordWithoutNestedCreate = structuredClone(data);
-    delete recordWithoutNestedCreate?.user;
-    return recordWithoutNestedCreate as Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">;
+    return recordWithoutNestedCreate as Prisma.Result<
+      Prisma.CompositeUniqueFloatIntDelegate,
+      object,
+      "findFirstOrThrow"
+    >;
   }
-  private _preprocessListFields(records: Prisma.Result<Prisma.TodoDelegate, object, "findMany">): void {}
-  async findMany<Q extends Prisma.Args<Prisma.TodoDelegate, "findMany">>(
+  private _preprocessListFields(
+    records: Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, object, "findMany">
+  ): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("CompositeUniqueFloatInt").getAll();
+  }
+  async findMany<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "findMany">>(
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findMany">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "findMany">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await tx.objectStore("Todo").getAll(), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.TodoDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
-    const selectClause = query?.select;
-    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      selectAppliedRecords = selectAppliedRecords.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
       });
     }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      } else if ((query.cursor as Record<string, unknown>)["lat_lng"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["lat_lng"] as Record<string, unknown>;
+        cursorIndex = records.findIndex(
+          (record) => record.lat === normalizedCursor.lat && record.lng === normalizedCursor.lng
+        );
+      } else if ((query.cursor as Record<string, unknown>)["zoneId_lat"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["zoneId_lat"] as Record<string, unknown>;
+        cursorIndex = records.findIndex(
+          (record) => record.zoneId === normalizedCursor.zoneId && record.lat === normalizedCursor.lat
+        );
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.CompositeUniqueFloatIntDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
+    const selectClause = query?.select;
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
-    return selectAppliedRecords as Prisma.Result<Prisma.TodoDelegate, Q, "findMany">;
+    return selectAppliedRecords as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "findMany">;
   }
-  async findFirst<Q extends Prisma.Args<Prisma.TodoDelegate, "findFirst">>(
+  async findFirst<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "findFirst">>(
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findFirst">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "findFirst">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
 
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     return (await this.findMany(query, { tx }))[0] ?? null;
   }
-  async findFirstOrThrow<Q extends Prisma.Args<Prisma.TodoDelegate, "findFirstOrThrow">>(
+  async findFirstOrThrow<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "findFirstOrThrow">>(
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "findFirstOrThrow">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
 
@@ -15802,19 +19891,29 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     }
     return record;
   }
-  async findUnique<Q extends Prisma.Args<Prisma.TodoDelegate, "findUnique">>(
+  async findUnique<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "findUnique">>(
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findUnique">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "findUnique">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
 
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     let record;
     if (query.where.id !== undefined) {
-      record = await tx.objectStore("Todo").get([query.where.id]);
+      record = await tx.objectStore("CompositeUniqueFloatInt").get([query.where.id]);
+    } else if (query.where.lat_lng !== undefined) {
+      record = await tx
+        .objectStore("CompositeUniqueFloatInt")
+        .index("lat_lngIndex")
+        .get([query.where.lat_lng.lat, query.where.lat_lng.lng]);
+    } else if (query.where.zoneId_lat !== undefined) {
+      record = await tx
+        .objectStore("CompositeUniqueFloatInt")
+        .index("zoneId_latIndex")
+        .get([query.where.zoneId_lat.zoneId, query.where.zoneId_lat.lat]);
     }
     if (!record) return null;
 
@@ -15823,14 +19922,14 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       query.select
     )[0];
     this._preprocessListFields([recordWithRelations]);
-    return recordWithRelations as Prisma.Result<Prisma.TodoDelegate, Q, "findUnique">;
+    return recordWithRelations as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "findUnique">;
   }
-  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.TodoDelegate, "findUniqueOrThrow">>(
+  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "findUniqueOrThrow">>(
     query: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findUniqueOrThrow">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "findUniqueOrThrow">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
 
@@ -15841,21 +19940,21 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     }
     return record;
   }
-  async count<Q extends Prisma.Args<Prisma.TodoDelegate, "count">>(
+  async count<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "count">>(
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "count">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "count">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
 
-    tx = tx ?? this.client._db.transaction(["Todo"], "readonly");
+    tx = tx ?? this.client._db.transaction(["CompositeUniqueFloatInt"], "readonly");
     if (!query?.select || query.select === true) {
       const records = await this.findMany({ where: query?.where }, { tx });
-      return records.length as Prisma.Result<Prisma.TodoDelegate, Q, "count">;
+      return records.length as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "count">;
     }
-    const result: Partial<Record<keyof Prisma.TodoCountAggregateInputType, number>> = {};
+    const result: Partial<Record<keyof Prisma.CompositeUniqueFloatIntCountAggregateInputType, number>> = {};
     for (const key of Object.keys(query.select)) {
       const typedKey = key as keyof typeof query.select;
       if (typedKey === "_all") {
@@ -15864,115 +19963,82 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       }
       result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })).length;
     }
-    return result as Prisma.Result<Prisma.TodoDelegate, Q, "count">;
+    return result as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "count">;
   }
-  async create<Q extends Prisma.Args<Prisma.TodoDelegate, "create">>(
+  async create<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "create">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "create">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "create">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     const storesNeeded = this._getNeededStoresForCreate(query.data);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    if (query.data.user) {
-      const fk: Partial<PrismaIDBSchema["User"]["key"]> = [];
-      if (query.data.user?.create) {
-        const record = await this.client.user.create({ data: query.data.user.create }, { tx, silent, addToOutbox });
-        fk[0] = record.id;
-      }
-      if (query.data.user?.connect) {
-        const record = await this.client.user.findUniqueOrThrow({ where: query.data.user.connect }, { tx });
-        delete query.data.user.connect;
-        fk[0] = record.id;
-      }
-      if (query.data.user?.connectOrCreate) {
-        const record = await this.client.user.upsert(
-          {
-            where: query.data.user.connectOrCreate.where,
-            create: query.data.user.connectOrCreate.create,
-            update: {},
-          },
-          { tx, silent, addToOutbox }
-        );
-        fk[0] = record.id;
-      }
-      const unsafeData = query.data as Record<string, unknown>;
-      unsafeData.userId = fk[0];
-      delete unsafeData.user;
-    } else if (query.data?.userId !== undefined && query.data.userId !== null) {
-      await this.client.user.findUniqueOrThrow(
-        {
-          where: { id: query.data.userId },
-        },
-        { tx }
-      );
-    }
     const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
-    const keyPath = await tx.objectStore("Todo").add(record);
-    const data = (await tx.objectStore("Todo").get(keyPath))!;
+    const keyPath = await tx.objectStore("CompositeUniqueFloatInt").add(record);
+    const data = (await tx.objectStore("CompositeUniqueFloatInt").get(keyPath))!;
     const recordsWithRelations = this._applySelectClause(
       await this._applyRelations<object>([data], tx, query),
       query.select
     )[0];
     this._preprocessListFields([recordsWithRelations]);
     await this.emit("create", keyPath, undefined, data, { silent, addToOutbox, tx });
-    return recordsWithRelations as Prisma.Result<Prisma.TodoDelegate, Q, "create">;
+    return recordsWithRelations as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "create">;
   }
-  async createMany<Q extends Prisma.Args<Prisma.TodoDelegate, "createMany">>(
+  async createMany<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "createMany">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "createMany">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "createMany">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
-    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["Todo"]);
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["CompositeUniqueFloatInt"]);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      const keyPath = await tx.objectStore("Todo").add(record);
+      const keyPath = await tx.objectStore("CompositeUniqueFloatInt").add(record);
       await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
     }
     return { count: createManyData.length };
   }
-  async createManyAndReturn<Q extends Prisma.Args<Prisma.TodoDelegate, "createManyAndReturn">>(
+  async createManyAndReturn<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "createManyAndReturn">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "createManyAndReturn">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "createManyAndReturn">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     const createManyData = IDBUtils.convertToArray(query.data);
-    const records: Prisma.Result<Prisma.TodoDelegate, object, "findMany"> = [];
-    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["Todo"]);
+    const records: Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, object, "findMany"> = [];
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["CompositeUniqueFloatInt"]);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     for (const createData of createManyData) {
       const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-      const keyPath = await tx.objectStore("Todo").add(record);
+      const keyPath = await tx.objectStore("CompositeUniqueFloatInt").add(record);
       await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
       records.push(this._applySelectClause([record], query.select)[0]);
     }
     this._preprocessListFields(records);
-    return records as Prisma.Result<Prisma.TodoDelegate, Q, "createManyAndReturn">;
+    return records as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "createManyAndReturn">;
   }
-  async delete<Q extends Prisma.Args<Prisma.TodoDelegate, "delete">>(
+  async delete<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "delete">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "delete">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "delete">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     const storesNeeded = this._getNeededStoresForFind(query);
@@ -15980,18 +20046,18 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await tx.objectStore("Todo").delete([record.id]);
+    await tx.objectStore("CompositeUniqueFloatInt").delete([record.id]);
     await this.emit("delete", [record.id], undefined, record, { silent, addToOutbox, tx });
     return record;
   }
-  async deleteMany<Q extends Prisma.Args<Prisma.TodoDelegate, "deleteMany">>(
+  async deleteMany<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "deleteMany">>(
     query?: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "deleteMany">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "deleteMany">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     const storesNeeded = this._getNeededStoresForFind(query);
@@ -16003,14 +20069,14 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     }
     return { count: records.length };
   }
-  async update<Q extends Prisma.Args<Prisma.TodoDelegate, "update">>(
+  async update<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "update">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "update">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "update">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
@@ -16019,80 +20085,26 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       tx.abort();
       throw new Error("Record not found");
     }
-    const startKeyPath: PrismaIDBSchema["Todo"]["key"] = [record.id];
-    const stringFields = ["id", "title"] as const;
-    for (const field of stringFields) {
-      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
-    }
-    const booleanFields = ["completed"] as const;
-    for (const field of booleanFields) {
-      IDBUtils.handleBooleanUpdateField(record, field, query.data[field]);
-    }
-    const intFields = ["userId"] as const;
+    const startKeyPath: PrismaIDBSchema["CompositeUniqueFloatInt"]["key"] = [record.id];
+    const intFields = ["id", "zoneId"] as const;
     for (const field of intFields) {
       IDBUtils.handleIntUpdateField(record, field, query.data[field]);
     }
-    if (query.data.user) {
-      if (query.data.user.connect) {
-        const other = await this.client.user.findUniqueOrThrow({ where: query.data.user.connect }, { tx });
-        record.userId = other.id;
-      }
-      if (query.data.user.create) {
-        const other = await this.client.user.create({ data: query.data.user.create }, { tx, silent, addToOutbox });
-        record.userId = other.id;
-      }
-      if (query.data.user.update) {
-        const updateData = query.data.user.update.data ?? query.data.user.update;
-        await this.client.user.update(
-          {
-            where: { ...query.data.user.update.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
-            data: updateData,
-          },
-          { tx, silent, addToOutbox }
-        );
-      }
-      if (query.data.user.upsert) {
-        await this.client.user.upsert(
-          {
-            where: { ...query.data.user.upsert.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
-            create: { ...query.data.user.upsert.create, id: record.userId! } as Prisma.Args<
-              Prisma.UserDelegate,
-              "upsert"
-            >["create"],
-            update: query.data.user.upsert.update,
-          },
-          { tx, silent, addToOutbox }
-        );
-      }
-      if (query.data.user.connectOrCreate) {
-        await this.client.user.upsert(
-          {
-            where: { ...query.data.user.connectOrCreate.where, id: record.userId! },
-            create: { ...query.data.user.connectOrCreate.create, id: record.userId! } as Prisma.Args<
-              Prisma.UserDelegate,
-              "upsert"
-            >["create"],
-            update: { id: record.userId! },
-          },
-          { tx, silent, addToOutbox }
-        );
-      }
+    const floatFields = ["lat", "lng"] as const;
+    for (const field of floatFields) {
+      IDBUtils.handleFloatUpdateField(record, field, query.data[field]);
     }
-    if (query.data.userId !== undefined) {
-      const related = await this.client.user.findUnique({ where: { id: record.userId } }, { tx });
-      if (!related) throw new Error("Related record not found");
-    }
-    const endKeyPath: PrismaIDBSchema["Todo"]["key"] = [record.id];
+    const endKeyPath: PrismaIDBSchema["CompositeUniqueFloatInt"]["key"] = [record.id];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
-        if ((await tx.objectStore("Todo").get(endKeyPath)) !== undefined) {
+        if ((await tx.objectStore("CompositeUniqueFloatInt").get(endKeyPath)) !== undefined) {
           throw new Error("Record with the same keyPath already exists");
         }
-        await tx.objectStore("Todo").delete(startKeyPath);
+        await tx.objectStore("CompositeUniqueFloatInt").delete(startKeyPath);
         break;
       }
     }
-    const keyPath = await tx.objectStore("Todo").put(record);
+    const keyPath = await tx.objectStore("CompositeUniqueFloatInt").put(record);
     await this.emit("update", keyPath, startKeyPath, record, { silent, addToOutbox, tx });
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
@@ -16105,16 +20117,16 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       },
       { tx }
     ))!;
-    return recordWithRelations as Prisma.Result<Prisma.TodoDelegate, Q, "update">;
+    return recordWithRelations as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "update">;
   }
-  async updateMany<Q extends Prisma.Args<Prisma.TodoDelegate, "updateMany">>(
+  async updateMany<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "updateMany">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "updateMany">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "updateMany">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
@@ -16126,41 +20138,41 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     );
     return { count: records.length };
   }
-  async upsert<Q extends Prisma.Args<Prisma.TodoDelegate, "upsert">>(
+  async upsert<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "upsert">>(
     query: Q,
     options?: {
       tx?: IDBUtils.ReadwriteTransactionType;
       silent?: boolean;
       addToOutbox?: boolean;
     }
-  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "upsert">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "upsert">> {
     const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
     let tx = txOption;
     const neededStores = this._getNeededStoresForUpdate({
       ...query,
-      data: { ...query.update, ...query.create } as Prisma.Args<Prisma.TodoDelegate, "update">["data"],
+      data: { ...query.update, ...query.create } as Prisma.Args<
+        Prisma.CompositeUniqueFloatIntDelegate,
+        "update"
+      >["data"],
     });
     tx = tx ?? this.client._db.transaction(Array.from(neededStores), "readwrite");
     let record = await this.findUnique({ where: query.where }, { tx });
     if (!record) record = await this.create({ data: query.create }, { tx, silent, addToOutbox });
     else record = await this.update({ where: query.where, data: query.update }, { tx, silent, addToOutbox });
-    record = await this.findUniqueOrThrow(
-      { where: { id: record.id }, select: query.select, include: query.include },
-      { tx }
-    );
-    return record as Prisma.Result<Prisma.TodoDelegate, Q, "upsert">;
+    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select }, { tx });
+    return record as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "upsert">;
   }
-  async aggregate<Q extends Prisma.Args<Prisma.TodoDelegate, "aggregate">>(
+  async aggregate<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "aggregate">>(
     query?: Q,
     options?: {
       tx?: IDBUtils.TransactionType;
     }
-  ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "aggregate">> {
+  ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "aggregate">> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
-    tx = tx ?? this.client._db.transaction(["Todo"], "readonly");
+    tx = tx ?? this.client._db.transaction(["CompositeUniqueFloatInt"], "readonly");
     const records = await this.findMany({ where: query?.where }, { tx });
-    const result: Partial<Prisma.Result<Prisma.TodoDelegate, Q, "aggregate">> = {};
+    const result: Partial<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "aggregate">> = {};
     if (query?._count) {
       if (query._count === true) {
         (result._count as number) = records.length;
@@ -16178,52 +20190,27 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       }
     }
     if (query?._min) {
-      const minResult = {} as Prisma.Result<Prisma.TodoDelegate, Q, "aggregate">["_min"];
-      const numericFields = ["userId"] as const;
+      const minResult = {} as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "aggregate">["_min"];
+      const numericFields = ["id", "lat", "lng", "zoneId"] as const;
       for (const field of numericFields) {
         if (!query._min[field]) continue;
         const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
         (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
       }
-      const stringFields = ["id", "title"] as const;
-      for (const field of stringFields) {
-        if (!query._min[field]) continue;
-        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
-        (minResult[field as keyof typeof minResult] as string) = values.sort()[0];
-      }
-      const booleanFields = ["completed"] as const;
-      for (const field of booleanFields) {
-        if (!query._min[field]) continue;
-        const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);
-        (minResult[field as keyof typeof minResult] as boolean) =
-          values.length === 0 ? false : values.includes(false) ? false : true;
-      }
       result._min = minResult;
     }
     if (query?._max) {
-      const maxResult = {} as Prisma.Result<Prisma.TodoDelegate, Q, "aggregate">["_max"];
-      const numericFields = ["userId"] as const;
+      const maxResult = {} as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "aggregate">["_max"];
+      const numericFields = ["id", "lat", "lng", "zoneId"] as const;
       for (const field of numericFields) {
         if (!query._max[field]) continue;
         const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
         (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
       }
-      const stringFields = ["id", "title"] as const;
-      for (const field of stringFields) {
-        if (!query._max[field]) continue;
-        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
-        (maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];
-      }
-      const booleanFields = ["completed"] as const;
-      for (const field of booleanFields) {
-        if (!query._max[field]) continue;
-        const values = records.map((record) => record[field] as boolean).filter((value) => value !== undefined);
-        (maxResult[field as keyof typeof maxResult] as boolean) = values.length === 0 ? false : values.includes(true);
-      }
       result._max = maxResult;
     }
     if (query?._avg) {
-      const avgResult = {} as Prisma.Result<Prisma.TodoDelegate, Q, "aggregate">["_avg"];
+      const avgResult = {} as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "aggregate">["_avg"];
       for (const untypedField of Object.keys(query._avg)) {
         const field = untypedField as keyof (typeof records)[number];
         const values = records.map((record) => record[field] as number);
@@ -16232,7 +20219,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       result._avg = avgResult;
     }
     if (query?._sum) {
-      const sumResult = {} as Prisma.Result<Prisma.TodoDelegate, Q, "aggregate">["_sum"];
+      const sumResult = {} as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "aggregate">["_sum"];
       for (const untypedField of Object.keys(query._sum)) {
         const field = untypedField as keyof (typeof records)[number];
         const values = records.map((record) => record[field] as number);
@@ -16240,6 +20227,1347 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       }
       result._sum = sumResult;
     }
-    return result as unknown as Prisma.Result<Prisma.TodoDelegate, Q, "aggregate">;
+    return result as unknown as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "aggregate">;
+  }
+}
+class MultipleCompositeUniquesIDBClass extends BaseIDBModelClass<"MultipleCompositeUniques"> {
+  constructor(client: PrismaIDBClient, keyPath: string[]) {
+    super(client, keyPath, "MultipleCompositeUniques");
+  }
+
+  private async _applyWhereClause<
+    W extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "findFirstOrThrow">["where"],
+    R extends Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, object, "findFirstOrThrow">,
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
+    if (!whereClause) return records;
+    records = await IDBUtils.applyLogicalFilters<Prisma.MultipleCompositeUniquesDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this)
+    );
+    return (
+      await Promise.all(
+        records.map(async (record) => {
+          const stringFields = ["a"] as const;
+          for (const field of stringFields) {
+            if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
+          }
+          const numberFields = ["id", "b", "d"] as const;
+          for (const field of numberFields) {
+            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
+          }
+          const dateTimeFields = ["c"] as const;
+          for (const field of dateTimeFields) {
+            if (!IDBUtils.whereDateTimeFilter(record, field, whereClause[field])) return null;
+          }
+          return record;
+        })
+      )
+    ).filter((result) => result !== null);
+  }
+  private _applySelectClause<S extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "findMany">["select"]>(
+    records: Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, object, "findFirstOrThrow">[],
+    selectClause: S
+  ): Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, { select: S }, "findFirstOrThrow">[] {
+    if (!selectClause) {
+      return records as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, { select: S }, "findFirstOrThrow">[];
+    }
+    return records.map((record) => {
+      const partialRecord: Partial<typeof record> = record;
+      for (const untypedKey of ["id", "a", "b", "c", "d"]) {
+        const key = untypedKey as keyof typeof record & keyof S;
+        if (!selectClause[key]) delete partialRecord[key];
+      }
+      return partialRecord;
+    }) as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, { select: S }, "findFirstOrThrow">[];
+  }
+  private async _applyRelations<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "findMany">>(
+    records: Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, object, "findFirstOrThrow">[],
+    tx: IDBUtils.TransactionType,
+    query?: Q
+  ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "findFirstOrThrow">[]> {
+    if (!query) return records as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "findFirstOrThrow">[];
+    const recordsWithRelations = records.map(async (record) => {
+      const unsafeRecord = record as Record<string, unknown>;
+      return unsafeRecord;
+    });
+    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
+      Prisma.MultipleCompositeUniquesDelegate,
+      Q,
+      "findFirstOrThrow"
+    >[];
+  }
+  async _applyOrderByClause<
+    O extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "findMany">["orderBy"],
+    R extends Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, object, "findFirstOrThrow">,
+  >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
+    if (orderByClause === undefined) return;
+    const orderByClauses = IDBUtils.convertToArray(orderByClause);
+    const indexedKeys = await Promise.all(
+      records.map(async (record) => {
+        const keys = await Promise.all(
+          orderByClauses.map(async (clause) => await this._resolveOrderByKey(record, clause, tx))
+        );
+        return { keys, record };
+      })
+    );
+    indexedKeys.sort((a, b) => {
+      for (let i = 0; i < orderByClauses.length; i++) {
+        const clause = orderByClauses[i];
+        const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));
+        if (comparison !== 0) return comparison;
+      }
+      return 0;
+    });
+    for (let i = 0; i < records.length; i++) {
+      records[i] = indexedKeys[i].record;
+    }
+  }
+  async _resolveOrderByKey(
+    record: Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, object, "findFirstOrThrow">,
+    orderByInput: Prisma.MultipleCompositeUniquesOrderByWithRelationInput,
+    tx: IDBUtils.TransactionType
+  ): Promise<unknown> {
+    const scalarFields = ["id", "a", "b", "c", "d"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return record[field];
+  }
+  _resolveSortOrder(
+    orderByInput: Prisma.MultipleCompositeUniquesOrderByWithRelationInput
+  ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
+    const scalarFields = ["id", "a", "b", "c", "d"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
+    throw new Error("No field in orderBy clause");
+  }
+  private async _fillDefaults<D extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "create">["data"]>(
+    data: D,
+    tx?: IDBUtils.ReadwriteTransactionType
+  ): Promise<D> {
+    if (data === undefined) data = {} as NonNullable<D>;
+    if (data.id === undefined) {
+      const transaction = tx ?? this.client._db.transaction(["MultipleCompositeUniques"], "readwrite");
+      const store = transaction.objectStore("MultipleCompositeUniques");
+      const cursor = await store.openCursor(null, "prev");
+      data.id = cursor ? Number(cursor.key) + 1 : 1;
+    }
+    if (typeof data.c === "string") {
+      data.c = new Date(data.c);
+    }
+    return data;
+  }
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+  }
+  _getNeededStoresForFind<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "findMany">>(
+    query?: Q
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("MultipleCompositeUniques");
+    this._getNeededStoresForWhere(query?.where, neededStores);
+    if (query?.orderBy) {
+      const orderBy = IDBUtils.convertToArray(query.orderBy);
+    }
+    return neededStores;
+  }
+  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "create">["data"]>>(
+    data: D
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("MultipleCompositeUniques");
+    return neededStores;
+  }
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "update">>(
+    query: Partial<Q>
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores = this._getNeededStoresForFind(query).union(
+      this._getNeededStoresForCreate(
+        query.data as Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "create">["data"]
+      )
+    );
+    return neededStores;
+  }
+  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
+    neededStores.add("MultipleCompositeUniques");
+  }
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "create">["data"]>(
+    data: D
+  ): Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, object, "findFirstOrThrow"> {
+    const recordWithoutNestedCreate = structuredClone(data);
+    return recordWithoutNestedCreate as Prisma.Result<
+      Prisma.MultipleCompositeUniquesDelegate,
+      object,
+      "findFirstOrThrow"
+    >;
+  }
+  private _preprocessListFields(
+    records: Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, object, "findMany">
+  ): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, object, "findFirstOrThrow">[]> {
+    return tx.objectStore("MultipleCompositeUniques").getAll();
+  }
+  async findMany<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "findMany">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "findMany">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    await this._applyOrderByClause(records, query?.orderBy, tx);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      } else if ((query.cursor as Record<string, unknown>)["a_b"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["a_b"] as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.a === normalizedCursor.a && record.b === normalizedCursor.b);
+      } else if ((query.cursor as Record<string, unknown>)["c_d"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["c_d"] as Record<string, unknown>;
+        cursorIndex = records.findIndex(
+          (record) =>
+            new Date(record.c as string | number | Date).getTime() ===
+              new Date(normalizedCursor.c as string | number | Date).getTime() && record.d === normalizedCursor.d
+        );
+      } else if ((query.cursor as Record<string, unknown>)["a_c"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["a_c"] as Record<string, unknown>;
+        cursorIndex = records.findIndex(
+          (record) =>
+            record.a === normalizedCursor.a &&
+            new Date(record.c as string | number | Date).getTime() ===
+              new Date(normalizedCursor.c as string | number | Date).getTime()
+        );
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.MultipleCompositeUniquesDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
+    const selectClause = query?.select;
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    this._preprocessListFields(selectAppliedRecords);
+    return selectAppliedRecords as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "findMany">;
+  }
+  async findFirst<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "findFirst">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "findFirst">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    return (await this.findMany(query, { tx }))[0] ?? null;
+  }
+  async findFirstOrThrow<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "findFirstOrThrow">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "findFirstOrThrow">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findFirst(query, { tx });
+    if (!record) {
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+  async findUnique<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "findUnique">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "findUnique">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let record;
+    if (query.where.id !== undefined) {
+      record = await tx.objectStore("MultipleCompositeUniques").get([query.where.id]);
+    } else if (query.where.a_b !== undefined) {
+      record = await tx
+        .objectStore("MultipleCompositeUniques")
+        .index("a_bIndex")
+        .get([query.where.a_b.a, query.where.a_b.b]);
+    } else if (query.where.c_d !== undefined) {
+      record = await tx
+        .objectStore("MultipleCompositeUniques")
+        .index("c_dIndex")
+        .get([new Date(query.where.c_d.c), query.where.c_d.d]);
+    } else if (query.where.a_c !== undefined) {
+      record = await tx
+        .objectStore("MultipleCompositeUniques")
+        .index("a_cIndex")
+        .get([query.where.a_c.a, new Date(query.where.a_c.c)]);
+    }
+    if (!record) return null;
+
+    const recordWithRelations = this._applySelectClause(
+      await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query),
+      query.select
+    )[0];
+    this._preprocessListFields([recordWithRelations]);
+    return recordWithRelations as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "findUnique">;
+  }
+  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "findUniqueOrThrow">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "findUniqueOrThrow">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findUnique(query, { tx });
+    if (!record) {
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+  async count<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "count">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "count">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(["MultipleCompositeUniques"], "readonly");
+    if (!query?.select || query.select === true) {
+      const records = await this.findMany({ where: query?.where }, { tx });
+      return records.length as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "count">;
+    }
+    const result: Partial<Record<keyof Prisma.MultipleCompositeUniquesCountAggregateInputType, number>> = {};
+    for (const key of Object.keys(query.select)) {
+      const typedKey = key as keyof typeof query.select;
+      if (typedKey === "_all") {
+        result[typedKey] = (await this.findMany({ where: query.where }, { tx })).length;
+        continue;
+      }
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })).length;
+    }
+    return result as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "count">;
+  }
+  async create<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "create">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "create">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForCreate(query.data);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
+    const keyPath = await tx.objectStore("MultipleCompositeUniques").add(record);
+    const data = (await tx.objectStore("MultipleCompositeUniques").get(keyPath))!;
+    const recordsWithRelations = this._applySelectClause(
+      await this._applyRelations<object>([data], tx, query),
+      query.select
+    )[0];
+    this._preprocessListFields([recordsWithRelations]);
+    await this.emit("create", keyPath, undefined, data, { silent, addToOutbox, tx });
+    return recordsWithRelations as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "create">;
+  }
+  async createMany<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "createMany">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "createMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["MultipleCompositeUniques"]);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("MultipleCompositeUniques").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+    }
+    return { count: createManyData.length };
+  }
+  async createManyAndReturn<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "createManyAndReturn">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "createManyAndReturn">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const records: Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, object, "findMany"> = [];
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["MultipleCompositeUniques"]);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("MultipleCompositeUniques").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+      records.push(this._applySelectClause([record], query.select)[0]);
+    }
+    this._preprocessListFields(records);
+    return records as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "createManyAndReturn">;
+  }
+  async delete<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "delete">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "delete">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = await this.findUnique(query, { tx });
+    if (!record) throw new Error("Record not found");
+    await tx.objectStore("MultipleCompositeUniques").delete([record.id]);
+    await this.emit("delete", [record.id], undefined, record, { silent, addToOutbox, tx });
+    return record;
+  }
+  async deleteMany<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "deleteMany">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "deleteMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const records = await this.findMany(query, { tx });
+    for (const record of records) {
+      await this.delete({ where: { id: record.id } }, { tx, silent, addToOutbox });
+    }
+    return { count: records.length };
+  }
+  async update<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "update">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "update">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
+    const record = await this.findUnique({ where: query.where }, { tx });
+    if (record === null) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
+    const startKeyPath: PrismaIDBSchema["MultipleCompositeUniques"]["key"] = [record.id];
+    const stringFields = ["a"] as const;
+    for (const field of stringFields) {
+      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const dateTimeFields = ["c"] as const;
+    for (const field of dateTimeFields) {
+      IDBUtils.handleDateTimeUpdateField(record, field, query.data[field]);
+    }
+    const intFields = ["id", "b"] as const;
+    for (const field of intFields) {
+      IDBUtils.handleIntUpdateField(record, field, query.data[field]);
+    }
+    const floatFields = ["d"] as const;
+    for (const field of floatFields) {
+      IDBUtils.handleFloatUpdateField(record, field, query.data[field]);
+    }
+    const endKeyPath: PrismaIDBSchema["MultipleCompositeUniques"]["key"] = [record.id];
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        if ((await tx.objectStore("MultipleCompositeUniques").get(endKeyPath)) !== undefined) {
+          throw new Error("Record with the same keyPath already exists");
+        }
+        await tx.objectStore("MultipleCompositeUniques").delete(startKeyPath);
+        break;
+      }
+    }
+    const keyPath = await tx.objectStore("MultipleCompositeUniques").put(record);
+    await this.emit("update", keyPath, startKeyPath, record, { silent, addToOutbox, tx });
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        break;
+      }
+    }
+    const recordWithRelations = (await this.findUnique(
+      {
+        where: { id: keyPath[0] },
+      },
+      { tx }
+    ))!;
+    return recordWithRelations as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "update">;
+  }
+  async updateMany<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "updateMany">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "updateMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const records = await this.findMany({ where: query.where }, { tx });
+    await Promise.all(
+      records.map(async (record) => {
+        await this.update({ where: { id: record.id }, data: query.data }, { tx, silent, addToOutbox });
+      })
+    );
+    return { count: records.length };
+  }
+  async upsert<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "upsert">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "upsert">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const neededStores = this._getNeededStoresForUpdate({
+      ...query,
+      data: { ...query.update, ...query.create } as Prisma.Args<
+        Prisma.MultipleCompositeUniquesDelegate,
+        "update"
+      >["data"],
+    });
+    tx = tx ?? this.client._db.transaction(Array.from(neededStores), "readwrite");
+    let record = await this.findUnique({ where: query.where }, { tx });
+    if (!record) record = await this.create({ data: query.create }, { tx, silent, addToOutbox });
+    else record = await this.update({ where: query.where, data: query.update }, { tx, silent, addToOutbox });
+    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select }, { tx });
+    return record as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "upsert">;
+  }
+  async aggregate<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "aggregate">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "aggregate">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(["MultipleCompositeUniques"], "readonly");
+    const records = await this.findMany({ where: query?.where }, { tx });
+    const result: Partial<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "aggregate">> = {};
+    if (query?._count) {
+      if (query._count === true) {
+        (result._count as number) = records.length;
+      } else {
+        for (const key of Object.keys(query._count)) {
+          const typedKey = key as keyof typeof query._count;
+          if (typedKey === "_all") {
+            (result._count as Record<string, number>)[typedKey] = records.length;
+            continue;
+          }
+          (result._count as Record<string, number>)[typedKey] = (
+            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })
+          ).length;
+        }
+      }
+    }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "aggregate">["_min"];
+      const numericFields = ["id", "b", "d"] as const;
+      for (const field of numericFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      const dateTimeFields = ["c"] as const;
+      for (const field of dateTimeFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as Date) = new Date(Math.min(...values));
+      }
+      const stringFields = ["a"] as const;
+      for (const field of stringFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as string) = values.sort()[0];
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "aggregate">["_max"];
+      const numericFields = ["id", "b", "d"] as const;
+      for (const field of numericFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      const dateTimeFields = ["c"] as const;
+      for (const field of dateTimeFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as Date) = new Date(Math.max(...values));
+      }
+      const stringFields = ["a"] as const;
+      for (const field of stringFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];
+      }
+      result._max = maxResult;
+    }
+    if (query?._avg) {
+      const avgResult = {} as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "aggregate">["_avg"];
+      for (const untypedField of Object.keys(query._avg)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+      result._avg = avgResult;
+    }
+    if (query?._sum) {
+      const sumResult = {} as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "aggregate">["_sum"];
+      for (const untypedField of Object.keys(query._sum)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
+      }
+      result._sum = sumResult;
+    }
+    return result as unknown as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "aggregate">;
+  }
+}
+class ModelWithIndexIDBClass extends BaseIDBModelClass<"ModelWithIndex"> {
+  constructor(client: PrismaIDBClient, keyPath: string[]) {
+    super(client, keyPath, "ModelWithIndex");
+  }
+
+  private async _applyWhereClause<
+    W extends Prisma.Args<Prisma.ModelWithIndexDelegate, "findFirstOrThrow">["where"],
+    R extends Prisma.Result<Prisma.ModelWithIndexDelegate, object, "findFirstOrThrow">,
+  >(records: R[], whereClause: W, tx: IDBUtils.TransactionType): Promise<R[]> {
+    if (!whereClause) return records;
+    records = await IDBUtils.applyLogicalFilters<Prisma.ModelWithIndexDelegate, R, W>(
+      records,
+      whereClause,
+      tx,
+      this.keyPath,
+      this._applyWhereClause.bind(this)
+    );
+    return (
+      await Promise.all(
+        records.map(async (record) => {
+          const stringFields = ["category"] as const;
+          for (const field of stringFields) {
+            if (!IDBUtils.whereStringFilter(record, field, whereClause[field])) return null;
+          }
+          const numberFields = ["id", "priority"] as const;
+          for (const field of numberFields) {
+            if (!IDBUtils.whereNumberFilter(record, field, whereClause[field])) return null;
+          }
+          const dateTimeFields = ["date"] as const;
+          for (const field of dateTimeFields) {
+            if (!IDBUtils.whereDateTimeFilter(record, field, whereClause[field])) return null;
+          }
+          return record;
+        })
+      )
+    ).filter((result) => result !== null);
+  }
+  private _applySelectClause<S extends Prisma.Args<Prisma.ModelWithIndexDelegate, "findMany">["select"]>(
+    records: Prisma.Result<Prisma.ModelWithIndexDelegate, object, "findFirstOrThrow">[],
+    selectClause: S
+  ): Prisma.Result<Prisma.ModelWithIndexDelegate, { select: S }, "findFirstOrThrow">[] {
+    if (!selectClause) {
+      return records as Prisma.Result<Prisma.ModelWithIndexDelegate, { select: S }, "findFirstOrThrow">[];
+    }
+    return records.map((record) => {
+      const partialRecord: Partial<typeof record> = record;
+      for (const untypedKey of ["id", "category", "priority", "date"]) {
+        const key = untypedKey as keyof typeof record & keyof S;
+        if (!selectClause[key]) delete partialRecord[key];
+      }
+      return partialRecord;
+    }) as Prisma.Result<Prisma.ModelWithIndexDelegate, { select: S }, "findFirstOrThrow">[];
+  }
+  private async _applyRelations<Q extends Prisma.Args<Prisma.ModelWithIndexDelegate, "findMany">>(
+    records: Prisma.Result<Prisma.ModelWithIndexDelegate, object, "findFirstOrThrow">[],
+    tx: IDBUtils.TransactionType,
+    query?: Q
+  ): Promise<Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "findFirstOrThrow">[]> {
+    if (!query) return records as Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "findFirstOrThrow">[];
+    const recordsWithRelations = records.map(async (record) => {
+      const unsafeRecord = record as Record<string, unknown>;
+      return unsafeRecord;
+    });
+    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
+      Prisma.ModelWithIndexDelegate,
+      Q,
+      "findFirstOrThrow"
+    >[];
+  }
+  async _applyOrderByClause<
+    O extends Prisma.Args<Prisma.ModelWithIndexDelegate, "findMany">["orderBy"],
+    R extends Prisma.Result<Prisma.ModelWithIndexDelegate, object, "findFirstOrThrow">,
+  >(records: R[], orderByClause: O, tx: IDBUtils.TransactionType): Promise<void> {
+    if (orderByClause === undefined) return;
+    const orderByClauses = IDBUtils.convertToArray(orderByClause);
+    const indexedKeys = await Promise.all(
+      records.map(async (record) => {
+        const keys = await Promise.all(
+          orderByClauses.map(async (clause) => await this._resolveOrderByKey(record, clause, tx))
+        );
+        return { keys, record };
+      })
+    );
+    indexedKeys.sort((a, b) => {
+      for (let i = 0; i < orderByClauses.length; i++) {
+        const clause = orderByClauses[i];
+        const comparison = IDBUtils.genericComparator(a.keys[i], b.keys[i], this._resolveSortOrder(clause));
+        if (comparison !== 0) return comparison;
+      }
+      return 0;
+    });
+    for (let i = 0; i < records.length; i++) {
+      records[i] = indexedKeys[i].record;
+    }
+  }
+  async _resolveOrderByKey(
+    record: Prisma.Result<Prisma.ModelWithIndexDelegate, object, "findFirstOrThrow">,
+    orderByInput: Prisma.ModelWithIndexOrderByWithRelationInput,
+    tx: IDBUtils.TransactionType
+  ): Promise<unknown> {
+    const scalarFields = ["id", "category", "priority", "date"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return record[field];
+  }
+  _resolveSortOrder(
+    orderByInput: Prisma.ModelWithIndexOrderByWithRelationInput
+  ): Prisma.SortOrder | { sort: Prisma.SortOrder; nulls?: "first" | "last" } {
+    const scalarFields = ["id", "category", "priority", "date"] as const;
+    for (const field of scalarFields) if (orderByInput[field]) return orderByInput[field];
+    throw new Error("No field in orderBy clause");
+  }
+  private async _fillDefaults<D extends Prisma.Args<Prisma.ModelWithIndexDelegate, "create">["data"]>(
+    data: D,
+    tx?: IDBUtils.ReadwriteTransactionType
+  ): Promise<D> {
+    if (data === undefined) data = {} as NonNullable<D>;
+    if (data.id === undefined) {
+      const transaction = tx ?? this.client._db.transaction(["ModelWithIndex"], "readwrite");
+      const store = transaction.objectStore("ModelWithIndex");
+      const cursor = await store.openCursor(null, "prev");
+      data.id = cursor ? Number(cursor.key) + 1 : 1;
+    }
+    if (typeof data.date === "string") {
+      data.date = new Date(data.date);
+    }
+    return data;
+  }
+  _getNeededStoresForWhere<W extends Prisma.Args<Prisma.ModelWithIndexDelegate, "findMany">["where"]>(
+    whereClause: W,
+    neededStores: Set<StoreNames<PrismaIDBSchema>>
+  ) {
+    if (whereClause === undefined) return;
+    for (const param of IDBUtils.LogicalParams) {
+      if (whereClause[param]) {
+        for (const clause of IDBUtils.convertToArray(whereClause[param])) {
+          this._getNeededStoresForWhere(clause, neededStores);
+        }
+      }
+    }
+  }
+  _getNeededStoresForFind<Q extends Prisma.Args<Prisma.ModelWithIndexDelegate, "findMany">>(
+    query?: Q
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("ModelWithIndex");
+    this._getNeededStoresForWhere(query?.where, neededStores);
+    if (query?.orderBy) {
+      const orderBy = IDBUtils.convertToArray(query.orderBy);
+    }
+    return neededStores;
+  }
+  _getNeededStoresForCreate<D extends Partial<Prisma.Args<Prisma.ModelWithIndexDelegate, "create">["data"]>>(
+    data: D
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores: Set<StoreNames<PrismaIDBSchema>> = new Set();
+    neededStores.add("ModelWithIndex");
+    return neededStores;
+  }
+  _getNeededStoresForUpdate<Q extends Prisma.Args<Prisma.ModelWithIndexDelegate, "update">>(
+    query: Partial<Q>
+  ): Set<StoreNames<PrismaIDBSchema>> {
+    const neededStores = this._getNeededStoresForFind(query).union(
+      this._getNeededStoresForCreate(query.data as Prisma.Args<Prisma.ModelWithIndexDelegate, "create">["data"])
+    );
+    return neededStores;
+  }
+  _getNeededStoresForNestedDelete(neededStores: Set<StoreNames<PrismaIDBSchema>>): void {
+    neededStores.add("ModelWithIndex");
+  }
+  private _removeNestedCreateData<D extends Prisma.Args<Prisma.ModelWithIndexDelegate, "create">["data"]>(
+    data: D
+  ): Prisma.Result<Prisma.ModelWithIndexDelegate, object, "findFirstOrThrow"> {
+    const recordWithoutNestedCreate = structuredClone(data);
+    return recordWithoutNestedCreate as Prisma.Result<Prisma.ModelWithIndexDelegate, object, "findFirstOrThrow">;
+  }
+  private _preprocessListFields(records: Prisma.Result<Prisma.ModelWithIndexDelegate, object, "findMany">): void {}
+  private async _getRecords(
+    tx: IDBUtils.TransactionType,
+    where?: Prisma.Args<Prisma.ModelWithIndexDelegate, "findFirstOrThrow">["where"]
+  ): Promise<Prisma.Result<Prisma.ModelWithIndexDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("ModelWithIndex").getAll();
+    const categoryEq = IDBUtils.extractEqualityValue(where.category);
+    const priorityEq = IDBUtils.extractEqualityValue(where.priority);
+    let dateEq = IDBUtils.extractEqualityValue(where.date);
+    if (typeof dateEq === "string") dateEq = new Date(dateEq);
+
+    if (categoryEq !== undefined && priorityEq !== undefined) {
+      return tx
+        .objectStore("ModelWithIndex")
+        .index("category_priorityIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([categoryEq, priorityEq]));
+    }
+    if (dateEq !== undefined) {
+      return tx
+        .objectStore("ModelWithIndex")
+        .index("dateIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([dateEq]));
+    }
+
+    if (categoryEq !== undefined) {
+      return tx
+        .objectStore("ModelWithIndex")
+        .index("category_priorityIndex")
+        .getAll(IDBUtils.IDBKeyRange.bound([categoryEq], [categoryEq, []], false, true));
+    }
+    return tx.objectStore("ModelWithIndex").getAll();
+  }
+  async findMany<Q extends Prisma.Args<Prisma.ModelWithIndexDelegate, "findMany">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "findMany">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    await this._applyOrderByClause(records, query?.orderBy, tx);
+    if (query?.distinct) {
+      const distinctFields = IDBUtils.convertToArray(query.distinct);
+      const seen = new Set<string>();
+      records = records.filter((record) => {
+        const values = distinctFields.map((field) => record[field]);
+        const key = JSON.stringify(values);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
+    }
+    if (query?.cursor) {
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      }
+      if (cursorIndex === -1) {
+        records = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        records = records.slice(Math.max(0, start), Math.max(0, end));
+      } else {
+        records = records.slice(cursorIndex);
+      }
+    }
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        records = records.slice(query.skip);
+      }
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          records = records.slice(query.take);
+        } else {
+          records = records.slice(0, query.take);
+        }
+      }
+    }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.ModelWithIndexDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
+    const selectClause = query?.select;
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
+    this._preprocessListFields(selectAppliedRecords);
+    return selectAppliedRecords as Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "findMany">;
+  }
+  async findFirst<Q extends Prisma.Args<Prisma.ModelWithIndexDelegate, "findFirst">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "findFirst">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    return (await this.findMany(query, { tx }))[0] ?? null;
+  }
+  async findFirstOrThrow<Q extends Prisma.Args<Prisma.ModelWithIndexDelegate, "findFirstOrThrow">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "findFirstOrThrow">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findFirst(query, { tx });
+    if (!record) {
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+  async findUnique<Q extends Prisma.Args<Prisma.ModelWithIndexDelegate, "findUnique">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "findUnique">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    let record;
+    if (query.where.id !== undefined) {
+      record = await tx.objectStore("ModelWithIndex").get([query.where.id]);
+    }
+    if (!record) return null;
+
+    const recordWithRelations = this._applySelectClause(
+      await this._applyRelations(await this._applyWhereClause([record], query.where, tx), tx, query),
+      query.select
+    )[0];
+    this._preprocessListFields([recordWithRelations]);
+    return recordWithRelations as Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "findUnique">;
+  }
+  async findUniqueOrThrow<Q extends Prisma.Args<Prisma.ModelWithIndexDelegate, "findUniqueOrThrow">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "findUniqueOrThrow">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
+    const record = await this.findUnique(query, { tx });
+    if (!record) {
+      throw new Error("Record not found");
+    }
+    return record;
+  }
+  async count<Q extends Prisma.Args<Prisma.ModelWithIndexDelegate, "count">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "count">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+
+    tx = tx ?? this.client._db.transaction(["ModelWithIndex"], "readonly");
+    if (!query?.select || query.select === true) {
+      const records = await this.findMany({ where: query?.where }, { tx });
+      return records.length as Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "count">;
+    }
+    const result: Partial<Record<keyof Prisma.ModelWithIndexCountAggregateInputType, number>> = {};
+    for (const key of Object.keys(query.select)) {
+      const typedKey = key as keyof typeof query.select;
+      if (typedKey === "_all") {
+        result[typedKey] = (await this.findMany({ where: query.where }, { tx })).length;
+        continue;
+      }
+      result[typedKey] = (await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })).length;
+    }
+    return result as Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "count">;
+  }
+  async create<Q extends Prisma.Args<Prisma.ModelWithIndexDelegate, "create">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "create">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForCreate(query.data);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = this._removeNestedCreateData(await this._fillDefaults(query.data, tx));
+    const keyPath = await tx.objectStore("ModelWithIndex").add(record);
+    const data = (await tx.objectStore("ModelWithIndex").get(keyPath))!;
+    const recordsWithRelations = this._applySelectClause(
+      await this._applyRelations<object>([data], tx, query),
+      query.select
+    )[0];
+    this._preprocessListFields([recordsWithRelations]);
+    await this.emit("create", keyPath, undefined, data, { silent, addToOutbox, tx });
+    return recordsWithRelations as Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "create">;
+  }
+  async createMany<Q extends Prisma.Args<Prisma.ModelWithIndexDelegate, "createMany">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "createMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["ModelWithIndex"]);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("ModelWithIndex").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+    }
+    return { count: createManyData.length };
+  }
+  async createManyAndReturn<Q extends Prisma.Args<Prisma.ModelWithIndexDelegate, "createManyAndReturn">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "createManyAndReturn">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const createManyData = IDBUtils.convertToArray(query.data);
+    const records: Prisma.Result<Prisma.ModelWithIndexDelegate, object, "findMany"> = [];
+    const storesNeeded: Set<StoreNames<PrismaIDBSchema>> = new Set(["ModelWithIndex"]);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("ModelWithIndex").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+      records.push(this._applySelectClause([record], query.select)[0]);
+    }
+    this._preprocessListFields(records);
+    return records as Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "createManyAndReturn">;
+  }
+  async delete<Q extends Prisma.Args<Prisma.ModelWithIndexDelegate, "delete">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "delete">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const record = await this.findUnique(query, { tx });
+    if (!record) throw new Error("Record not found");
+    await tx.objectStore("ModelWithIndex").delete([record.id]);
+    await this.emit("delete", [record.id], undefined, record, { silent, addToOutbox, tx });
+    return record;
+  }
+  async deleteMany<Q extends Prisma.Args<Prisma.ModelWithIndexDelegate, "deleteMany">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "deleteMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const storesNeeded = this._getNeededStoresForFind(query);
+    this._getNeededStoresForNestedDelete(storesNeeded);
+    tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
+    const records = await this.findMany(query, { tx });
+    for (const record of records) {
+      await this.delete({ where: { id: record.id } }, { tx, silent, addToOutbox });
+    }
+    return { count: records.length };
+  }
+  async update<Q extends Prisma.Args<Prisma.ModelWithIndexDelegate, "update">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "update">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForUpdate(query)), "readwrite");
+    const record = await this.findUnique({ where: query.where }, { tx });
+    if (record === null) {
+      tx.abort();
+      throw new Error("Record not found");
+    }
+    const startKeyPath: PrismaIDBSchema["ModelWithIndex"]["key"] = [record.id];
+    const stringFields = ["category"] as const;
+    for (const field of stringFields) {
+      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const dateTimeFields = ["date"] as const;
+    for (const field of dateTimeFields) {
+      IDBUtils.handleDateTimeUpdateField(record, field, query.data[field]);
+    }
+    const intFields = ["id", "priority"] as const;
+    for (const field of intFields) {
+      IDBUtils.handleIntUpdateField(record, field, query.data[field]);
+    }
+    const endKeyPath: PrismaIDBSchema["ModelWithIndex"]["key"] = [record.id];
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        if ((await tx.objectStore("ModelWithIndex").get(endKeyPath)) !== undefined) {
+          throw new Error("Record with the same keyPath already exists");
+        }
+        await tx.objectStore("ModelWithIndex").delete(startKeyPath);
+        break;
+      }
+    }
+    const keyPath = await tx.objectStore("ModelWithIndex").put(record);
+    await this.emit("update", keyPath, startKeyPath, record, { silent, addToOutbox, tx });
+    for (let i = 0; i < startKeyPath.length; i++) {
+      if (startKeyPath[i] !== endKeyPath[i]) {
+        break;
+      }
+    }
+    const recordWithRelations = (await this.findUnique(
+      {
+        where: { id: keyPath[0] },
+      },
+      { tx }
+    ))!;
+    return recordWithRelations as Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "update">;
+  }
+  async updateMany<Q extends Prisma.Args<Prisma.ModelWithIndexDelegate, "updateMany">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "updateMany">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readwrite");
+    const records = await this.findMany({ where: query.where }, { tx });
+    await Promise.all(
+      records.map(async (record) => {
+        await this.update({ where: { id: record.id }, data: query.data }, { tx, silent, addToOutbox });
+      })
+    );
+    return { count: records.length };
+  }
+  async upsert<Q extends Prisma.Args<Prisma.ModelWithIndexDelegate, "upsert">>(
+    query: Q,
+    options?: {
+      tx?: IDBUtils.ReadwriteTransactionType;
+      silent?: boolean;
+      addToOutbox?: boolean;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "upsert">> {
+    const { tx: txOption, silent = false, addToOutbox = true } = options ?? {};
+    let tx = txOption;
+    const neededStores = this._getNeededStoresForUpdate({
+      ...query,
+      data: { ...query.update, ...query.create } as Prisma.Args<Prisma.ModelWithIndexDelegate, "update">["data"],
+    });
+    tx = tx ?? this.client._db.transaction(Array.from(neededStores), "readwrite");
+    let record = await this.findUnique({ where: query.where }, { tx });
+    if (!record) record = await this.create({ data: query.create }, { tx, silent, addToOutbox });
+    else record = await this.update({ where: query.where, data: query.update }, { tx, silent, addToOutbox });
+    record = await this.findUniqueOrThrow({ where: { id: record.id }, select: query.select }, { tx });
+    return record as Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "upsert">;
+  }
+  async aggregate<Q extends Prisma.Args<Prisma.ModelWithIndexDelegate, "aggregate">>(
+    query?: Q,
+    options?: {
+      tx?: IDBUtils.TransactionType;
+    }
+  ): Promise<Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "aggregate">> {
+    const { tx: txOption } = options ?? {};
+    let tx = txOption;
+    tx = tx ?? this.client._db.transaction(["ModelWithIndex"], "readonly");
+    const records = await this.findMany({ where: query?.where }, { tx });
+    const result: Partial<Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "aggregate">> = {};
+    if (query?._count) {
+      if (query._count === true) {
+        (result._count as number) = records.length;
+      } else {
+        for (const key of Object.keys(query._count)) {
+          const typedKey = key as keyof typeof query._count;
+          if (typedKey === "_all") {
+            (result._count as Record<string, number>)[typedKey] = records.length;
+            continue;
+          }
+          (result._count as Record<string, number>)[typedKey] = (
+            await this.findMany({ where: { [`${typedKey}`]: { not: null } } }, { tx })
+          ).length;
+        }
+      }
+    }
+    if (query?._min) {
+      const minResult = {} as Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "aggregate">["_min"];
+      const numericFields = ["id", "priority"] as const;
+      for (const field of numericFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as number) = Math.min(...values);
+      }
+      const dateTimeFields = ["date"] as const;
+      for (const field of dateTimeFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as Date) = new Date(Math.min(...values));
+      }
+      const stringFields = ["category"] as const;
+      for (const field of stringFields) {
+        if (!query._min[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (minResult[field as keyof typeof minResult] as string) = values.sort()[0];
+      }
+      result._min = minResult;
+    }
+    if (query?._max) {
+      const maxResult = {} as Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "aggregate">["_max"];
+      const numericFields = ["id", "priority"] as const;
+      for (const field of numericFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as number).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as number) = Math.max(...values);
+      }
+      const dateTimeFields = ["date"] as const;
+      for (const field of dateTimeFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field]?.getTime()).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as Date) = new Date(Math.max(...values));
+      }
+      const stringFields = ["category"] as const;
+      for (const field of stringFields) {
+        if (!query._max[field]) continue;
+        const values = records.map((record) => record[field] as string).filter((value) => value !== undefined);
+        (maxResult[field as keyof typeof maxResult] as string) = values.sort().reverse()[0];
+      }
+      result._max = maxResult;
+    }
+    if (query?._avg) {
+      const avgResult = {} as Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "aggregate">["_avg"];
+      for (const untypedField of Object.keys(query._avg)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (avgResult[field as keyof typeof avgResult] as number) = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+      result._avg = avgResult;
+    }
+    if (query?._sum) {
+      const sumResult = {} as Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "aggregate">["_sum"];
+      for (const untypedField of Object.keys(query._sum)) {
+        const field = untypedField as keyof (typeof records)[number];
+        const values = records.map((record) => record[field] as number);
+        (sumResult[field as keyof typeof sumResult] as number) = values.reduce((a, b) => a + b, 0);
+      }
+      result._sum = sumResult;
+    }
+    return result as unknown as Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "aggregate">;
   }
 }

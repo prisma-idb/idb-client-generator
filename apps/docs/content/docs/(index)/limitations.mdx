@@ -96,6 +96,14 @@ Full bidirectional sync has the following limitations:
 
 These are architectural constraints, not bugs, and enable offline-first synchronization.
 
+## IndexedDB Key Type Restrictions
+
+**Status:** By Design
+
+IndexedDB only supports certain types as key values. Fields used in `@id`, `@@id`, `@unique`, `@@unique`, or `@@index` must map to valid IDB key types. Models with unsupported types in identity or unique constraints are excluded from the generated client.
+
+See the [Indexes](/docs/indexes#idb-key-type-restrictions) page for full details on supported types, what happens with unsupported types, and how `@@index` fields are handled differently.
+
 ## API Coverage
 
 All CRUD operations are fully supported:
