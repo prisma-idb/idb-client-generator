@@ -38,7 +38,7 @@ function applyRelationsToRecords(writer: CodeBlockWriter, model: Model) {
 function applySelectClauseToRecords(writer: CodeBlockWriter) {
   writer
     .writeLine("const selectClause = query?.select;")
-    .writeLine("let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);");
+    .writeLine("const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);");
   writer.writeLine(`this._preprocessListFields(selectAppliedRecords);`);
 }
 
