@@ -1,17 +1,7 @@
 import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../../fileCreators/types";
+import { getUniqueIdentifiers } from "../../../../../helpers/utils";
 import { getOptionsParameterRead, getOptionsSetupRead } from "../helpers/methodOptions";
-
-function getPrimaryKeyFields(model: Model): readonly string[] {
-  if (model.primaryKey) {
-    return model.primaryKey.fields;
-  }
-  const idField = model.fields.find(({ isId }) => isId);
-  if (idField) {
-    return [idField.name];
-  }
-  return [];
-}
 
 export function addFindManyMethod(writer: CodeBlockWriter, model: Model) {
   writer
@@ -69,12 +59,13 @@ function applyDistinctClauseToRecords(writer: CodeBlockWriter) {
 }
 
 function applyPaginationClause(writer: CodeBlockWriter, model: Model) {
-  const pkFields = getPrimaryKeyFields(model);
+  const pk = getUniqueIdentifiers(model)[0];
 
-  if (pkFields.length > 0) {
+  if (pk) {
+    const pkFields: string[] = JSON.parse(pk.keyPath);
     writer.write("if (query?.cursor)").block(() => {
       writer.writeLine(
-        `const cursorValues = ${JSON.stringify(pkFields)}.map((field) => (query.cursor as Record<string, unknown>)[field]);`
+        `const cursorValues = ${pk.keyPath}.map((field) => (query.cursor as Record<string, unknown>)[field]);`
       );
       writer.writeLine(
         `const cursorIndex = relationAppliedRecords.findIndex((record) => ${pkFields
