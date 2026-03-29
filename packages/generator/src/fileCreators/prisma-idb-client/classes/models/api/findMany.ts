@@ -13,9 +13,9 @@ export function addFindManyMethod(writer: CodeBlockWriter, model: Model) {
       writer.write(getOptionsSetupRead());
       getRecords(writer);
       applyRelationsToRecords(writer, model);
-      applySelectClauseToRecords(writer);
       applyDistinctClauseToRecords(writer);
       applyPaginationClause(writer, model);
+      applySelectClauseToRecords(writer);
       returnRecords(writer, model);
     });
 }
@@ -31,7 +31,7 @@ function getRecords(writer: CodeBlockWriter) {
 
 function applyRelationsToRecords(writer: CodeBlockWriter, model: Model) {
   writer
-    .write(`const relationAppliedRecords = (await this._applyRelations(records, tx, query)) `)
+    .write(`let relationAppliedRecords = (await this._applyRelations(records, tx, query)) `)
     .write(`as Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>[];`);
 }
 
@@ -39,6 +39,7 @@ function applySelectClauseToRecords(writer: CodeBlockWriter) {
   writer
     .writeLine("const selectClause = query?.select;")
     .writeLine("let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);");
+  writer.writeLine(`this._preprocessListFields(selectAppliedRecords);`);
 }
 
 function applyDistinctClauseToRecords(writer: CodeBlockWriter) {
@@ -46,7 +47,7 @@ function applyDistinctClauseToRecords(writer: CodeBlockWriter) {
     writer
       .writeLine(`const distinctFields = IDBUtils.convertToArray(query.distinct);`)
       .writeLine(`const seen = new Set<string>();`)
-      .writeLine(`selectAppliedRecords = selectAppliedRecords.filter((record) => `)
+      .writeLine(`relationAppliedRecords = relationAppliedRecords.filter((record) => `)
       .block(() => {
         writer
           .writeLine(`const key = distinctFields.map((field) => record[field]).join("|");`)
@@ -84,39 +85,39 @@ function applyPaginationClause(writer: CodeBlockWriter, model: Model) {
           return `record.${f} === normalizedCursor.${f}`;
         })
         .join(" && ");
-      writer.writeLine(`const cursorIndex = selectAppliedRecords.findIndex((record) => ${comparisonExpr});`);
+      writer.writeLine(`const cursorIndex = relationAppliedRecords.findIndex((record) => ${comparisonExpr});`);
       writer.write("if (cursorIndex === -1)").block(() => {
-        writer.writeLine("selectAppliedRecords = [];");
+        writer.writeLine("relationAppliedRecords = [];");
       });
       writer.write("else if (query.take !== undefined && query.take < 0)").block(() => {
         writer.writeLine("const skip = query.skip ?? 0;");
         writer.writeLine("const end = cursorIndex + 1 - skip;");
         writer.writeLine("const start = end + query.take;");
-        writer.writeLine("selectAppliedRecords = selectAppliedRecords.slice(Math.max(0, start), Math.max(0, end));");
+        writer.writeLine(
+          "relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));"
+        );
       });
       writer.write("else").block(() => {
-        writer.writeLine("selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);");
+        writer.writeLine("relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);");
       });
     });
   }
 
   writer.write("if (!(query?.cursor && query?.take !== undefined && query.take < 0))").block(() => {
     writer.write("if (query?.skip !== undefined)").block(() => {
-      writer.writeLine("selectAppliedRecords = selectAppliedRecords.slice(query.skip);");
+      writer.writeLine("relationAppliedRecords = relationAppliedRecords.slice(query.skip);");
     });
     writer.write("if (query?.take !== undefined)").block(() => {
       writer.write("if (query.take < 0)").block(() => {
-        writer.writeLine("selectAppliedRecords = selectAppliedRecords.slice(query.take);");
+        writer.writeLine("relationAppliedRecords = relationAppliedRecords.slice(query.take);");
       });
       writer.write("else").block(() => {
-        writer.writeLine("selectAppliedRecords = selectAppliedRecords.slice(0, query.take);");
+        writer.writeLine("relationAppliedRecords = relationAppliedRecords.slice(0, query.take);");
       });
     });
   });
 }
 
 function returnRecords(writer: CodeBlockWriter, model: Model) {
-  writer
-    .writeLine(`this._preprocessListFields(selectAppliedRecords);`)
-    .writeLine(`return selectAppliedRecords as Prisma.Result<Prisma.${model.name}Delegate, Q, 'findMany'>;`);
+  writer.writeLine(`return selectAppliedRecords as Prisma.Result<Prisma.${model.name}Delegate, Q, 'findMany'>;`);
 }

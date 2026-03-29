@@ -191,6 +191,49 @@ test("cursor_WithDistinct_PaginatesCorrectlyAfterDistinctFiltering", async ({ pa
   });
 });
 
+test("cursor_WithSelectExcludingCursorField_PaginatesCorrectly", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "findMany",
+    query: {
+      cursor: { id: 3 },
+      take: 2,
+      select: { name: true },
+      orderBy: { id: "asc" },
+    },
+  });
+});
+
+test("cursor_WithNegativeTakeAndSelectExcludingCursorField_PaginatesCorrectly", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "findMany",
+    query: {
+      cursor: { id: 4 },
+      take: -2,
+      select: { name: true },
+      orderBy: { id: "asc" },
+    },
+  });
+});
+
+test("cursor_WithSkipTakeAndSelectExcludingCursorField_PaginatesCorrectly", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "findMany",
+    query: {
+      cursor: { id: 2 },
+      skip: 1,
+      take: 2,
+      select: { name: true },
+      orderBy: { id: "asc" },
+    },
+  });
+});
+
 test("findFirst_WithSkip_SkipsBeforePickingFirst", async ({ page }) => {
   await expectQueryToSucceed({
     page,

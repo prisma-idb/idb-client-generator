@@ -564,19 +564,23 @@ function addVersionMetaInitialization(writer: CodeBlockWriter, versionMetaModelN
 
 function addResetDatabaseMethod(writer: CodeBlockWriter) {
   writer.writeLine(`public async resetDatabase()`).block(() => {
-    writer
-      .writeLine(`this._db.close();`)
-      .writeLine(`if (!globalThis.indexedDB) throw new Error("IndexedDB is not available in this environment");`);
-    writer
-      .write(`await new Promise<void>((resolve, reject) => `)
-      .block(() => {
-        writer
-          .writeLine(`const req = globalThis.indexedDB.deleteDatabase("prisma-idb");`)
-          .writeLine(`req.onsuccess = () => resolve();`)
-          .writeLine(`req.onerror = () => reject(req.error);`)
-          .writeLine(`req.onblocked = () => reject(new Error("Database deletion blocked"));`);
-      })
-      .writeLine(");");
+    writer.writeLine(`if (!globalThis.indexedDB) throw new Error("IndexedDB is not available in this environment");`);
+    writer.writeLine(`this._db.close();`);
+    writer.write(`try `).block(() => {
+      writer
+        .write(`await new Promise<void>((resolve, reject) => `)
+        .block(() => {
+          writer
+            .writeLine(`const req = globalThis.indexedDB.deleteDatabase("prisma-idb");`)
+            .writeLine(`req.onsuccess = () => resolve();`)
+            .writeLine(`req.onerror = () => reject(req.error);`)
+            .writeLine(`req.onblocked = () => reject(new Error("Database deletion blocked"));`);
+        })
+        .writeLine(");");
+    });
+    writer.write(`catch (e) `).block(() => {
+      writer.writeLine(`await PrismaIDBClient.instance.initialize();`).writeLine(`throw e;`);
+    });
     writer.writeLine(`await PrismaIDBClient.instance.initialize();`);
   });
 }

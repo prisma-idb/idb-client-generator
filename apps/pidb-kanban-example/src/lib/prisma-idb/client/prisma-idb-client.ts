@@ -58,14 +58,19 @@ export class PrismaIDBClient {
     return PrismaIDBClient.instance;
   }
   public async resetDatabase() {
-    this._db.close();
     if (!globalThis.indexedDB) throw new Error("IndexedDB is not available in this environment");
-    await new Promise<void>((resolve, reject) => {
-      const req = globalThis.indexedDB.deleteDatabase("prisma-idb");
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-      req.onblocked = () => reject(new Error("Database deletion blocked"));
-    });
+    this._db.close();
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const req = globalThis.indexedDB.deleteDatabase("prisma-idb");
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+        req.onblocked = () => reject(new Error("Database deletion blocked"));
+      });
+    } catch (e) {
+      await PrismaIDBClient.instance.initialize();
+      throw e;
+    }
     await PrismaIDBClient.instance.initialize();
   }
   shouldTrackModel(modelName: string): boolean {
@@ -956,17 +961,15 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.BoardDelegate,
       object,
       "findFirstOrThrow"
     >[];
-    const selectClause = query?.select;
-    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      selectAppliedRecords = selectAppliedRecords.filter((record) => {
+      relationAppliedRecords = relationAppliedRecords.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -978,30 +981,32 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
     }
     if (query?.cursor) {
       const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
       if (cursorIndex === -1) {
-        selectAppliedRecords = [];
+        relationAppliedRecords = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        selectAppliedRecords = selectAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          selectAppliedRecords = selectAppliedRecords.slice(query.take);
+          relationAppliedRecords = relationAppliedRecords.slice(query.take);
         } else {
-          selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
         }
       }
     }
+    const selectClause = query?.select;
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.BoardDelegate, Q, "findMany">;
   }
@@ -1918,17 +1923,15 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.TodoDelegate,
       object,
       "findFirstOrThrow"
     >[];
-    const selectClause = query?.select;
-    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      selectAppliedRecords = selectAppliedRecords.filter((record) => {
+      relationAppliedRecords = relationAppliedRecords.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -1940,30 +1943,32 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     }
     if (query?.cursor) {
       const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
       if (cursorIndex === -1) {
-        selectAppliedRecords = [];
+        relationAppliedRecords = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        selectAppliedRecords = selectAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          selectAppliedRecords = selectAppliedRecords.slice(query.take);
+          relationAppliedRecords = relationAppliedRecords.slice(query.take);
         } else {
-          selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
         }
       }
     }
+    const selectClause = query?.select;
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.TodoDelegate, Q, "findMany">;
   }
@@ -2796,17 +2801,15 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
     const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
       Prisma.UserDelegate,
       object,
       "findFirstOrThrow"
     >[];
-    const selectClause = query?.select;
-    let selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      selectAppliedRecords = selectAppliedRecords.filter((record) => {
+      relationAppliedRecords = relationAppliedRecords.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -2818,30 +2821,32 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     }
     if (query?.cursor) {
       const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
       if (cursorIndex === -1) {
-        selectAppliedRecords = [];
+        relationAppliedRecords = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        selectAppliedRecords = selectAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
+        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        selectAppliedRecords = selectAppliedRecords.slice(query.skip);
+        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          selectAppliedRecords = selectAppliedRecords.slice(query.take);
+          relationAppliedRecords = relationAppliedRecords.slice(query.take);
         } else {
-          selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
         }
       }
     }
+    const selectClause = query?.select;
+    const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
     return selectAppliedRecords as Prisma.Result<Prisma.UserDelegate, Q, "findMany">;
   }
