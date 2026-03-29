@@ -68,7 +68,7 @@ function applyPaginationClause(writer: CodeBlockWriter, model: Model) {
         `const cursorValues = ${pk.keyPath}.map((field) => (query.cursor as Record<string, unknown>)[field]);`
       );
       writer.writeLine(
-        `const cursorIndex = relationAppliedRecords.findIndex((record) => ${pkFields
+        `const cursorIndex = selectAppliedRecords.findIndex((record) => ${pkFields
           .map((f, i) => `record.${f} === cursorValues[${i}]`)
           .join(" && ")});`
       );
@@ -81,7 +81,8 @@ function applyPaginationClause(writer: CodeBlockWriter, model: Model) {
     });
   }
 
-  writer.write("if (query?.skip)").block(() => {
+  writer.write("if (query?.skip !== undefined)").block(() => {
+    writer.writeLine("if (query.skip < 0) { throw new Error('skip must be a non-negative integer'); }");
     writer.writeLine("selectAppliedRecords = selectAppliedRecords.slice(query.skip);");
   });
 

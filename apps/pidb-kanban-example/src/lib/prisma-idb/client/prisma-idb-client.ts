@@ -975,14 +975,17 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
     }
     if (query?.cursor) {
       const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
         selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
       }
     }
-    if (query?.skip) {
+    if (query?.skip !== undefined) {
+      if (query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
       selectAppliedRecords = selectAppliedRecords.slice(query.skip);
     }
     if (query?.take !== undefined) {
@@ -1927,14 +1930,17 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     }
     if (query?.cursor) {
       const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
         selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
       }
     }
-    if (query?.skip) {
+    if (query?.skip !== undefined) {
+      if (query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
       selectAppliedRecords = selectAppliedRecords.slice(query.skip);
     }
     if (query?.take !== undefined) {
@@ -2795,14 +2801,17 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     }
     if (query?.cursor) {
       const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
         selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
       }
     }
-    if (query?.skip) {
+    if (query?.skip !== undefined) {
+      if (query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
       selectAppliedRecords = selectAppliedRecords.slice(query.skip);
     }
     if (query?.take !== undefined) {
