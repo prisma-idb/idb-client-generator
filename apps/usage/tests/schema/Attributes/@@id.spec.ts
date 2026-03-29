@@ -402,22 +402,76 @@ test("TripleCompositeIdWithDate_FindMany_ReturnsMultipleRecords", async ({ page 
   });
 });
 
+// ── DateTime Composite Key Cursor Pagination ────────────────────────
+
+test("CompositeIdWithDateTime_Cursor_FindsRecordByDateTimeCursor", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdWithDateTime",
+    operation: "createMany",
+    query: {
+      data: [
+        { tenantId: "t1", createdAt: new Date("2024-01-01T00:00:00Z"), label: "a" },
+        { tenantId: "t1", createdAt: new Date("2024-02-01T00:00:00Z"), label: "b" },
+        { tenantId: "t1", createdAt: new Date("2024-03-01T00:00:00Z"), label: "c" },
+        { tenantId: "t1", createdAt: new Date("2024-04-01T00:00:00Z"), label: "d" },
+      ],
+    },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdWithDateTime",
+    operation: "findMany",
+    query: {
+      cursor: { tenantId_createdAt: { tenantId: "t1", createdAt: new Date("2024-02-01T00:00:00Z") } },
+      take: 2,
+      orderBy: { createdAt: "asc" },
+    },
+  });
+});
+
+test("CompositeIdWithDateTime_CursorWithNegativeTake_BackwardFromDateTimeCursor", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdWithDateTime",
+    operation: "createMany",
+    query: {
+      data: [
+        { tenantId: "t1", createdAt: new Date("2024-01-01T00:00:00Z"), label: "a" },
+        { tenantId: "t1", createdAt: new Date("2024-02-01T00:00:00Z"), label: "b" },
+        { tenantId: "t1", createdAt: new Date("2024-03-01T00:00:00Z"), label: "c" },
+        { tenantId: "t1", createdAt: new Date("2024-04-01T00:00:00Z"), label: "d" },
+      ],
+    },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdWithDateTime",
+    operation: "findMany",
+    query: {
+      cursor: { tenantId_createdAt: { tenantId: "t1", createdAt: new Date("2024-03-01T00:00:00Z") } },
+      take: -2,
+      orderBy: { createdAt: "asc" },
+    },
+  });
+});
+
 // ── Composite Key Cursor Pagination ─────────────────────────────────
+
+const compositeIdIntStringSeed = [
+  { orgId: 1, code: "AAA" },
+  { orgId: 1, code: "BBB" },
+  { orgId: 1, code: "CCC" },
+  { orgId: 2, code: "AAA" },
+  { orgId: 2, code: "BBB" },
+];
 
 test("CompositeIdIntString_Cursor_StartFromCompositeCursor", async ({ page }) => {
   await expectQueryToSucceed({
     page,
     model: "compositeIdIntString",
     operation: "createMany",
-    query: {
-      data: [
-        { orgId: 1, code: "AAA" },
-        { orgId: 1, code: "BBB" },
-        { orgId: 1, code: "CCC" },
-        { orgId: 2, code: "AAA" },
-        { orgId: 2, code: "BBB" },
-      ],
-    },
+    query: { data: compositeIdIntStringSeed },
   });
   await expectQueryToSucceed({
     page,
@@ -435,15 +489,7 @@ test("CompositeIdIntString_CursorWithTake_LimitsAfterCompositeCursor", async ({ 
     page,
     model: "compositeIdIntString",
     operation: "createMany",
-    query: {
-      data: [
-        { orgId: 1, code: "AAA" },
-        { orgId: 1, code: "BBB" },
-        { orgId: 1, code: "CCC" },
-        { orgId: 2, code: "AAA" },
-        { orgId: 2, code: "BBB" },
-      ],
-    },
+    query: { data: compositeIdIntStringSeed },
   });
   await expectQueryToSucceed({
     page,
@@ -462,15 +508,7 @@ test("CompositeIdIntString_CursorWithNegativeTake_ReturnsBeforeCursor", async ({
     page,
     model: "compositeIdIntString",
     operation: "createMany",
-    query: {
-      data: [
-        { orgId: 1, code: "AAA" },
-        { orgId: 1, code: "BBB" },
-        { orgId: 1, code: "CCC" },
-        { orgId: 2, code: "AAA" },
-        { orgId: 2, code: "BBB" },
-      ],
-    },
+    query: { data: compositeIdIntStringSeed },
   });
   await expectQueryToSucceed({
     page,
@@ -489,15 +527,7 @@ test("CompositeIdIntString_CursorWithSkipAndTake_PaginatesCorrectly", async ({ p
     page,
     model: "compositeIdIntString",
     operation: "createMany",
-    query: {
-      data: [
-        { orgId: 1, code: "AAA" },
-        { orgId: 1, code: "BBB" },
-        { orgId: 1, code: "CCC" },
-        { orgId: 2, code: "AAA" },
-        { orgId: 2, code: "BBB" },
-      ],
-    },
+    query: { data: compositeIdIntStringSeed },
   });
   await expectQueryToSucceed({
     page,

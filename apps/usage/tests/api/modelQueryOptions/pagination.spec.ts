@@ -164,6 +164,33 @@ test("cursor_WithNegativeTakeOne_ReturnsSingleRecordBeforeCursor", async ({ page
   });
 });
 
+test("cursor_WithDistinct_PaginatesCorrectlyAfterDistinctFiltering", async ({ page }) => {
+  // beforeEach creates: Alice(1), Bob(2), Charlie(3), Diana(4), Eve(5)
+  // Add duplicates so distinct removes records BEFORE the cursor in name order
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "createMany",
+    query: {
+      data: [{ name: "Alice" }, { name: "Alice" }, { name: "Bob" }, { name: "Charlie" }, { name: "Charlie" }],
+    },
+  });
+  // Order by name so duplicates are adjacent; cursor at id=3 (Charlie) is
+  // after removed duplicates, causing index desync between
+  // relationAppliedRecords and selectAppliedRecords
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "findMany",
+    query: {
+      cursor: { id: 3 },
+      distinct: ["name"],
+      take: 2,
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+    },
+  });
+});
+
 test("findFirst_WithSkip_SkipsBeforePickingFirst", async ({ page }) => {
   await expectQueryToSucceed({
     page,

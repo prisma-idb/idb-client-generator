@@ -67,6 +67,7 @@ function applyPaginationClause(writer: CodeBlockWriter, model: Model) {
 
   if (pk) {
     const pkFields: string[] = JSON.parse(pk.keyPath);
+    const pkFieldTypes: string[] = pk.keyPathTypes;
     writer.write("if (query?.cursor)").block(() => {
       if (pkFields.length > 1) {
         writer.writeLine(
@@ -75,11 +76,15 @@ function applyPaginationClause(writer: CodeBlockWriter, model: Model) {
       } else {
         writer.writeLine(`const normalizedCursor = query.cursor as Record<string, unknown>;`);
       }
-      writer.writeLine(
-        `const cursorIndex = relationAppliedRecords.findIndex((record) => ${pkFields
-          .map((f) => `record.${f} === normalizedCursor.${f}`)
-          .join(" && ")});`
-      );
+      const comparisonExpr = pkFields
+        .map((f, i) => {
+          if (pkFieldTypes[i] === "Date") {
+            return `new Date(record.${f} as string | number | Date).getTime() === new Date(normalizedCursor.${f} as string | number | Date).getTime()`;
+          }
+          return `record.${f} === normalizedCursor.${f}`;
+        })
+        .join(" && ");
+      writer.writeLine(`const cursorIndex = selectAppliedRecords.findIndex((record) => ${comparisonExpr});`);
       writer.write("if (cursorIndex === -1)").block(() => {
         writer.writeLine("selectAppliedRecords = [];");
       });

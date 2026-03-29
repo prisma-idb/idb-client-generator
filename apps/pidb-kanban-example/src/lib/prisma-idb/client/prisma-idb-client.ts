@@ -978,7 +978,7 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
     }
     if (query?.cursor) {
       const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else if (query.take !== undefined && query.take < 0) {
@@ -1940,7 +1940,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     }
     if (query?.cursor) {
       const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else if (query.take !== undefined && query.take < 0) {
@@ -2818,7 +2818,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     }
     if (query?.cursor) {
       const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else if (query.take !== undefined && query.take < 0) {
