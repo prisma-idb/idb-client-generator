@@ -573,8 +573,8 @@ function addResetDatabaseMethod(writer: CodeBlockWriter) {
           writer
             .writeLine(`const req = globalThis.indexedDB.deleteDatabase("prisma-idb");`)
             .writeLine(`req.onsuccess = () => resolve();`)
-            .writeLine(`req.onerror = () => reject(req.error);`)
-            .writeLine(`req.onblocked = () => reject(new Error("Database deletion blocked"));`);
+            .writeLine(`req.onerror = () => reject(req.error);`);
+          writer.writeLine(`req.onblocked = () => {};`);
         })
         .writeLine(");");
     });
