@@ -254,3 +254,108 @@ test("MultipleCompositeUniques_FindMany_ReturnsMultipleRecords", async ({ page }
     operation: "findMany",
   });
 });
+
+// ── Composite Unique Cursor Pagination ──────────────────────────────
+
+const compositeUniqueFloatIntSeed = [
+  { lat: 10.0, lng: 20.0, zoneId: 1 },
+  { lat: 30.0, lng: 40.0, zoneId: 2 },
+  { lat: 50.0, lng: 60.0, zoneId: 3 },
+  { lat: 70.0, lng: 80.0, zoneId: 4 },
+  { lat: 90.0, lng: 100.0, zoneId: 5 },
+];
+
+test("CompositeUniqueFloatInt_CursorByLatLng_StartFromCompositeCursor", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "compositeUniqueFloatInt",
+    operation: "createMany",
+    query: { data: compositeUniqueFloatIntSeed },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeUniqueFloatInt",
+    operation: "findMany",
+    query: {
+      cursor: { lat_lng: { lat: 30.0, lng: 40.0 } },
+      orderBy: { id: "asc" },
+    },
+  });
+});
+
+test("CompositeUniqueFloatInt_CursorByLatLngWithTake_LimitsAfterCursor", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "compositeUniqueFloatInt",
+    operation: "createMany",
+    query: { data: compositeUniqueFloatIntSeed },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeUniqueFloatInt",
+    operation: "findMany",
+    query: {
+      cursor: { lat_lng: { lat: 30.0, lng: 40.0 } },
+      take: 2,
+      orderBy: { id: "asc" },
+    },
+  });
+});
+
+test("CompositeUniqueFloatInt_CursorByZoneIdLat_StartFromCompositeCursor", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "compositeUniqueFloatInt",
+    operation: "createMany",
+    query: { data: compositeUniqueFloatIntSeed },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeUniqueFloatInt",
+    operation: "findMany",
+    query: {
+      cursor: { zoneId_lat: { zoneId: 3, lat: 50.0 } },
+      take: 2,
+      orderBy: { id: "asc" },
+    },
+  });
+});
+
+test("CompositeUniqueFloatInt_CursorByLatLngWithNegativeTake_ReturnsBeforeCursor", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "compositeUniqueFloatInt",
+    operation: "createMany",
+    query: { data: compositeUniqueFloatIntSeed },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeUniqueFloatInt",
+    operation: "findMany",
+    query: {
+      cursor: { lat_lng: { lat: 70.0, lng: 80.0 } },
+      take: -2,
+      orderBy: { id: "asc" },
+    },
+  });
+});
+
+test("CompositeUniqueFloatInt_CursorByLatLngWithSkipAndTake_PaginatesCorrectly", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "compositeUniqueFloatInt",
+    operation: "createMany",
+    query: { data: compositeUniqueFloatIntSeed },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeUniqueFloatInt",
+    operation: "findMany",
+    query: {
+      cursor: { lat_lng: { lat: 30.0, lng: 40.0 } },
+      skip: 1,
+      take: 2,
+      orderBy: { id: "asc" },
+    },
+  });
+});

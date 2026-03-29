@@ -12,9 +12,9 @@ export function addFindManyMethod(writer: CodeBlockWriter, model: Model) {
     .block(() => {
       writer.write(getOptionsSetupRead());
       getRecords(writer);
-      applyRelationsToRecords(writer, model);
       applyDistinctClauseToRecords(writer);
       applyPaginationClause(writer, model);
+      applyRelationsToRecords(writer, model);
       applySelectClauseToRecords(writer);
       returnRecords(writer, model);
     });
@@ -24,14 +24,14 @@ function getRecords(writer: CodeBlockWriter) {
   writer
     .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");`)
     .writeLine(
-      `const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);`
+      `let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);`
     )
     .writeLine(`await this._applyOrderByClause(records, query?.orderBy, tx);`);
 }
 
 function applyRelationsToRecords(writer: CodeBlockWriter, model: Model) {
   writer
-    .write(`let relationAppliedRecords = (await this._applyRelations(records, tx, query)) `)
+    .write(`const relationAppliedRecords = (await this._applyRelations(records, tx, query)) `)
     .write(`as Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>[];`);
 }
 
@@ -47,7 +47,7 @@ function applyDistinctClauseToRecords(writer: CodeBlockWriter) {
     writer
       .writeLine(`const distinctFields = IDBUtils.convertToArray(query.distinct);`)
       .writeLine(`const seen = new Set<string>();`)
-      .writeLine(`relationAppliedRecords = relationAppliedRecords.filter((record) => `)
+      .writeLine(`records = records.filter((record) => `)
       .block(() => {
         writer
           .writeLine(`const key = distinctFields.map((field) => record[field]).join("|");`)
@@ -60,59 +60,64 @@ function applyDistinctClauseToRecords(writer: CodeBlockWriter) {
 }
 
 function applyPaginationClause(writer: CodeBlockWriter, model: Model) {
-  const pk = getUniqueIdentifiers(model)[0];
+  const uniqueIdentifiers = getUniqueIdentifiers(model);
 
   writer.write("if (query?.skip !== undefined && query.skip < 0)").block(() => {
     writer.writeLine("throw new Error('skip must be a non-negative integer');");
   });
 
-  if (pk) {
-    const pkFields: string[] = JSON.parse(pk.keyPath);
-    const pkFieldTypes: string[] = pk.keyPathTypes;
+  if (uniqueIdentifiers.length > 0) {
     writer.write("if (query?.cursor)").block(() => {
-      if (pkFields.length > 1) {
-        writer.writeLine(
-          `const normalizedCursor = (query.cursor as Record<string, unknown>).${pk.name} as Record<string, unknown>;`
-        );
-      } else {
-        writer.writeLine(`const normalizedCursor = query.cursor as Record<string, unknown>;`);
-      }
-      const comparisonExpr = pkFields
-        .map((f, i) => {
-          if (pkFieldTypes[i] === "Date") {
-            return `new Date(record.${f} as string | number | Date).getTime() === new Date(normalizedCursor.${f} as string | number | Date).getTime()`;
+      writer.writeLine("let cursorIndex = -1;");
+      uniqueIdentifiers.forEach((uid, index) => {
+        const fields: string[] = JSON.parse(uid.keyPath);
+        const fieldTypes: string[] = uid.keyPathTypes;
+        const condition = `(query.cursor as Record<string, unknown>).${uid.name} !== undefined`;
+        const prefix = index === 0 ? "if" : "else if";
+        writer.write(`${prefix} (${condition}) `).block(() => {
+          if (fields.length > 1) {
+            writer.writeLine(
+              `const normalizedCursor = (query.cursor as Record<string, unknown>).${uid.name} as Record<string, unknown>;`
+            );
+          } else {
+            writer.writeLine(`const normalizedCursor = query.cursor as Record<string, unknown>;`);
           }
-          return `record.${f} === normalizedCursor.${f}`;
-        })
-        .join(" && ");
-      writer.writeLine(`const cursorIndex = relationAppliedRecords.findIndex((record) => ${comparisonExpr});`);
+          const comparisonExpr = fields
+            .map((f, i) => {
+              if (fieldTypes[i] === "Date") {
+                return `new Date(record.${f} as string | number | Date).getTime() === new Date(normalizedCursor.${f} as string | number | Date).getTime()`;
+              }
+              return `record.${f} === normalizedCursor.${f}`;
+            })
+            .join(" && ");
+          writer.writeLine(`cursorIndex = records.findIndex((record) => ${comparisonExpr});`);
+        });
+      });
       writer.write("if (cursorIndex === -1)").block(() => {
-        writer.writeLine("relationAppliedRecords = [];");
+        writer.writeLine("records = [];");
       });
       writer.write("else if (query.take !== undefined && query.take < 0)").block(() => {
         writer.writeLine("const skip = query.skip ?? 0;");
         writer.writeLine("const end = cursorIndex + 1 - skip;");
         writer.writeLine("const start = end + query.take;");
-        writer.writeLine(
-          "relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));"
-        );
+        writer.writeLine("records = records.slice(Math.max(0, start), Math.max(0, end));");
       });
       writer.write("else").block(() => {
-        writer.writeLine("relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);");
+        writer.writeLine("records = records.slice(cursorIndex);");
       });
     });
   }
 
   writer.write("if (!(query?.cursor && query?.take !== undefined && query.take < 0))").block(() => {
     writer.write("if (query?.skip !== undefined)").block(() => {
-      writer.writeLine("relationAppliedRecords = relationAppliedRecords.slice(query.skip);");
+      writer.writeLine("records = records.slice(query.skip);");
     });
     writer.write("if (query?.take !== undefined)").block(() => {
       writer.write("if (query.take < 0)").block(() => {
-        writer.writeLine("relationAppliedRecords = relationAppliedRecords.slice(query.take);");
+        writer.writeLine("records = records.slice(query.take);");
       });
       writer.write("else").block(() => {
-        writer.writeLine("relationAppliedRecords = relationAppliedRecords.slice(0, query.take);");
+        writer.writeLine("records = records.slice(0, query.take);");
       });
     });
   });

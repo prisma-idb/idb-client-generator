@@ -77,7 +77,7 @@ export class PrismaIDBClient {
         const req = globalThis.indexedDB.deleteDatabase("prisma-idb");
         req.onsuccess = () => resolve();
         req.onerror = () => reject(req.error);
-        req.onblocked = () => reject(new Error("Database deletion blocked"));
+        req.onblocked = () => {};
       });
     } catch (e) {
       await PrismaIDBClient.instance.initialize();
@@ -1461,17 +1461,12 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.UserDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -1482,31 +1477,39 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.UserDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -3484,17 +3487,12 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.GroupDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -3505,31 +3503,39 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.GroupDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -4353,17 +4359,12 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.ProfileDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -4374,31 +4375,42 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      } else if ((query.cursor as Record<string, unknown>).userId !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.userId === normalizedCursor.userId);
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.ProfileDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -5331,17 +5343,12 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.PostDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -5352,31 +5359,39 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.PostDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -6404,17 +6419,12 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.CommentDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -6425,31 +6435,39 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.CommentDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -7277,17 +7295,12 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.TodoDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -7298,31 +7311,39 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.TodoDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -8112,17 +8133,12 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.AllFieldScalarTypesDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -8133,31 +8149,39 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.AllFieldScalarTypesDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -8767,17 +8791,12 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.ModelWithEnumDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -8788,31 +8807,39 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.ModelWithEnumDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -9348,17 +9375,12 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.TestUuidDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -9369,31 +9391,39 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.TestUuidDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -10080,17 +10110,12 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -10101,31 +10126,39 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -11013,17 +11046,12 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.ModelWithUniqueAttributesDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -11034,31 +11062,42 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      } else if ((query.cursor as Record<string, unknown>).code !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.code === normalizedCursor.code);
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.ModelWithUniqueAttributesDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -12020,17 +12059,12 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.UserGroupDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -12041,33 +12075,41 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = (query.cursor as Record<string, unknown>).groupId_userId as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex(
-        (record) => record.groupId === normalizedCursor.groupId && record.userId === normalizedCursor.userId
-      );
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).groupId_userId !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>).groupId_userId as Record<string, unknown>;
+        cursorIndex = records.findIndex(
+          (record) => record.groupId === normalizedCursor.groupId && record.userId === normalizedCursor.userId
+        );
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.UserGroupDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -13196,17 +13238,12 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.FatherDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -13217,33 +13254,54 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = (query.cursor as Record<string, unknown>).firstName_lastName as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex(
-        (record) => record.firstName === normalizedCursor.firstName && record.lastName === normalizedCursor.lastName
-      );
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).firstName_lastName !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>).firstName_lastName as Record<
+          string,
+          unknown
+        >;
+        cursorIndex = records.findIndex(
+          (record) => record.firstName === normalizedCursor.firstName && record.lastName === normalizedCursor.lastName
+        );
+      } else if ((query.cursor as Record<string, unknown>).motherFirstName_motherLastName !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>).motherFirstName_motherLastName as Record<
+          string,
+          unknown
+        >;
+        cursorIndex = records.findIndex(
+          (record) =>
+            record.motherFirstName === normalizedCursor.motherFirstName &&
+            record.motherLastName === normalizedCursor.motherLastName
+        );
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.FatherDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -14624,17 +14682,12 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.MotherDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -14645,33 +14698,44 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = (query.cursor as Record<string, unknown>).firstName_lastName as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex(
-        (record) => record.firstName === normalizedCursor.firstName && record.lastName === normalizedCursor.lastName
-      );
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).firstName_lastName !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>).firstName_lastName as Record<
+          string,
+          unknown
+        >;
+        cursorIndex = records.findIndex(
+          (record) => record.firstName === normalizedCursor.firstName && record.lastName === normalizedCursor.lastName
+        );
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.MotherDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -16035,17 +16099,12 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.ChildDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -16056,38 +16115,46 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = (query.cursor as Record<string, unknown>).childFirstName_childLastName as Record<
-        string,
-        unknown
-      >;
-      const cursorIndex = relationAppliedRecords.findIndex(
-        (record) =>
-          record.childFirstName === normalizedCursor.childFirstName &&
-          record.childLastName === normalizedCursor.childLastName
-      );
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).childFirstName_childLastName !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>).childFirstName_childLastName as Record<
+          string,
+          unknown
+        >;
+        cursorIndex = records.findIndex(
+          (record) =>
+            record.childFirstName === normalizedCursor.childFirstName &&
+            record.childLastName === normalizedCursor.childLastName
+        );
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.ChildDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -17002,17 +17069,12 @@ class CompositeIdIntStringIDBClass extends BaseIDBModelClass<"CompositeIdIntStri
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.CompositeIdIntStringDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -17023,33 +17085,41 @@ class CompositeIdIntStringIDBClass extends BaseIDBModelClass<"CompositeIdIntStri
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = (query.cursor as Record<string, unknown>).orgId_code as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex(
-        (record) => record.orgId === normalizedCursor.orgId && record.code === normalizedCursor.code
-      );
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).orgId_code !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>).orgId_code as Record<string, unknown>;
+        cursorIndex = records.findIndex(
+          (record) => record.orgId === normalizedCursor.orgId && record.code === normalizedCursor.code
+        );
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.CompositeIdIntStringDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -17620,17 +17690,12 @@ class CompositeIdWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeIdWith
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.CompositeIdWithDateTimeDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -17641,36 +17706,47 @@ class CompositeIdWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeIdWith
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = (query.cursor as Record<string, unknown>).tenantId_createdAt as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex(
-        (record) =>
-          record.tenantId === normalizedCursor.tenantId &&
-          new Date(record.createdAt as string | number | Date).getTime() ===
-            new Date(normalizedCursor.createdAt as string | number | Date).getTime()
-      );
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).tenantId_createdAt !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>).tenantId_createdAt as Record<
+          string,
+          unknown
+        >;
+        cursorIndex = records.findIndex(
+          (record) =>
+            record.tenantId === normalizedCursor.tenantId &&
+            new Date(record.createdAt as string | number | Date).getTime() ===
+              new Date(normalizedCursor.createdAt as string | number | Date).getTime()
+        );
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.CompositeIdWithDateTimeDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -18239,17 +18315,12 @@ class TripleCompositeIdWithDateIDBClass extends BaseIDBModelClass<"TripleComposi
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.TripleCompositeIdWithDateDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -18260,40 +18331,48 @@ class TripleCompositeIdWithDateIDBClass extends BaseIDBModelClass<"TripleComposi
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = (query.cursor as Record<string, unknown>).region_year_eventDate as Record<
-        string,
-        unknown
-      >;
-      const cursorIndex = relationAppliedRecords.findIndex(
-        (record) =>
-          record.region === normalizedCursor.region &&
-          record.year === normalizedCursor.year &&
-          new Date(record.eventDate as string | number | Date).getTime() ===
-            new Date(normalizedCursor.eventDate as string | number | Date).getTime()
-      );
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).region_year_eventDate !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>).region_year_eventDate as Record<
+          string,
+          unknown
+        >;
+        cursorIndex = records.findIndex(
+          (record) =>
+            record.region === normalizedCursor.region &&
+            record.year === normalizedCursor.year &&
+            new Date(record.eventDate as string | number | Date).getTime() ===
+              new Date(normalizedCursor.eventDate as string | number | Date).getTime()
+        );
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.TripleCompositeIdWithDateDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -18915,17 +18994,12 @@ class CompositeUniqueWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeUn
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.CompositeUniqueWithDateTimeDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -18936,31 +19010,50 @@ class CompositeUniqueWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeUn
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      } else if ((query.cursor as Record<string, unknown>).category_timestamp !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>).category_timestamp as Record<
+          string,
+          unknown
+        >;
+        cursorIndex = records.findIndex(
+          (record) =>
+            record.category === normalizedCursor.category &&
+            new Date(record.timestamp as string | number | Date).getTime() ===
+              new Date(normalizedCursor.timestamp as string | number | Date).getTime()
+        );
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.CompositeUniqueWithDateTimeDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -19543,17 +19636,12 @@ class CompositeUniqueFloatIntIDBClass extends BaseIDBModelClass<"CompositeUnique
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.CompositeUniqueFloatIntDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -19564,31 +19652,49 @@ class CompositeUniqueFloatIntIDBClass extends BaseIDBModelClass<"CompositeUnique
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      } else if ((query.cursor as Record<string, unknown>).lat_lng !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>).lat_lng as Record<string, unknown>;
+        cursorIndex = records.findIndex(
+          (record) => record.lat === normalizedCursor.lat && record.lng === normalizedCursor.lng
+        );
+      } else if ((query.cursor as Record<string, unknown>).zoneId_lat !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>).zoneId_lat as Record<string, unknown>;
+        cursorIndex = records.findIndex(
+          (record) => record.zoneId === normalizedCursor.zoneId && record.lat === normalizedCursor.lat
+        );
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.CompositeUniqueFloatIntDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -20159,17 +20265,12 @@ class MultipleCompositeUniquesIDBClass extends BaseIDBModelClass<"MultipleCompos
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.MultipleCompositeUniquesDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -20180,31 +20281,57 @@ class MultipleCompositeUniquesIDBClass extends BaseIDBModelClass<"MultipleCompos
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      } else if ((query.cursor as Record<string, unknown>).a_b !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>).a_b as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.a === normalizedCursor.a && record.b === normalizedCursor.b);
+      } else if ((query.cursor as Record<string, unknown>).c_d !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>).c_d as Record<string, unknown>;
+        cursorIndex = records.findIndex(
+          (record) =>
+            new Date(record.c as string | number | Date).getTime() ===
+              new Date(normalizedCursor.c as string | number | Date).getTime() && record.d === normalizedCursor.d
+        );
+      } else if ((query.cursor as Record<string, unknown>).a_c !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>).a_c as Record<string, unknown>;
+        cursorIndex = records.findIndex(
+          (record) =>
+            record.a === normalizedCursor.a &&
+            new Date(record.c as string | number | Date).getTime() ===
+              new Date(normalizedCursor.c as string | number | Date).getTime()
+        );
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.MultipleCompositeUniquesDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
@@ -20829,17 +20956,12 @@ class ModelWithIndexIDBClass extends BaseIDBModelClass<"ModelWithIndex"> {
     const { tx: txOption } = options ?? {};
     let tx = txOption;
     tx = tx ?? this.client._db.transaction(Array.from(this._getNeededStoresForFind(query)), "readonly");
-    const records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
+    let records = await this._applyWhereClause(await this._getRecords(tx, query?.where), query?.where, tx);
     await this._applyOrderByClause(records, query?.orderBy, tx);
-    let relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
-      Prisma.ModelWithIndexDelegate,
-      object,
-      "findFirstOrThrow"
-    >[];
     if (query?.distinct) {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
-      relationAppliedRecords = relationAppliedRecords.filter((record) => {
+      records = records.filter((record) => {
         const key = distinctFields.map((field) => record[field]).join("|");
         if (seen.has(key)) return false;
         seen.add(key);
@@ -20850,31 +20972,39 @@ class ModelWithIndexIDBClass extends BaseIDBModelClass<"ModelWithIndex"> {
       throw new Error("skip must be a non-negative integer");
     }
     if (query?.cursor) {
-      const normalizedCursor = query.cursor as Record<string, unknown>;
-      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
+      let cursorIndex = -1;
+      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+        const normalizedCursor = query.cursor as Record<string, unknown>;
+        cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
+      }
       if (cursorIndex === -1) {
-        relationAppliedRecords = [];
+        records = [];
       } else if (query.take !== undefined && query.take < 0) {
         const skip = query.skip ?? 0;
         const end = cursorIndex + 1 - skip;
         const start = end + query.take;
-        relationAppliedRecords = relationAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
+        records = records.slice(Math.max(0, start), Math.max(0, end));
       } else {
-        relationAppliedRecords = relationAppliedRecords.slice(cursorIndex);
+        records = records.slice(cursorIndex);
       }
     }
     if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
       if (query?.skip !== undefined) {
-        relationAppliedRecords = relationAppliedRecords.slice(query.skip);
+        records = records.slice(query.skip);
       }
       if (query?.take !== undefined) {
         if (query.take < 0) {
-          relationAppliedRecords = relationAppliedRecords.slice(query.take);
+          records = records.slice(query.take);
         } else {
-          relationAppliedRecords = relationAppliedRecords.slice(0, query.take);
+          records = records.slice(0, query.take);
         }
       }
     }
+    const relationAppliedRecords = (await this._applyRelations(records, tx, query)) as Prisma.Result<
+      Prisma.ModelWithIndexDelegate,
+      object,
+      "findFirstOrThrow"
+    >[];
     const selectClause = query?.select;
     const selectAppliedRecords = this._applySelectClause(relationAppliedRecords, selectClause);
     this._preprocessListFields(selectAppliedRecords);
