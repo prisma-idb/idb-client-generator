@@ -64,12 +64,10 @@ function applyPaginationClause(writer: CodeBlockWriter, model: Model) {
   if (pk) {
     const pkFields: string[] = JSON.parse(pk.keyPath);
     writer.write("if (query?.cursor)").block(() => {
-      writer.writeLine(
-        `const cursorValues = ${pk.keyPath}.map((field) => (query.cursor as Record<string, unknown>)[field]);`
-      );
+      const cursorRecord = `(query.cursor as Record<string, unknown>)`;
       writer.writeLine(
         `const cursorIndex = selectAppliedRecords.findIndex((record) => ${pkFields
-          .map((f, i) => `record.${f} === cursorValues[${i}]`)
+          .map((f) => `record.${f} === ${cursorRecord}.${f}`)
           .join(" && ")});`
       );
       writer.write("if (cursorIndex === -1)").block(() => {

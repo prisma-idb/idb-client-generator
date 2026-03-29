@@ -974,8 +974,9 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
       });
     }
     if (query?.cursor) {
-      const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = selectAppliedRecords.findIndex(
+        (record) => record.id === (query.cursor as Record<string, unknown>).id
+      );
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
@@ -1929,8 +1930,9 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       });
     }
     if (query?.cursor) {
-      const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = selectAppliedRecords.findIndex(
+        (record) => record.id === (query.cursor as Record<string, unknown>).id
+      );
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
@@ -2800,8 +2802,9 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       });
     }
     if (query?.cursor) {
-      const cursorValues = ["id"].map((field) => (query.cursor as Record<string, unknown>)[field]);
-      const cursorIndex = selectAppliedRecords.findIndex((record) => record.id === cursorValues[0]);
+      const cursorIndex = selectAppliedRecords.findIndex(
+        (record) => record.id === (query.cursor as Record<string, unknown>).id
+      );
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
       } else {
