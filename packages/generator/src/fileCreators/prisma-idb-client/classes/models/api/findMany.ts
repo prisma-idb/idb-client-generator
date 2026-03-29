@@ -12,7 +12,7 @@ export function addFindManyMethod(writer: CodeBlockWriter, model: Model) {
     .block(() => {
       writer.write(getOptionsSetupRead());
       getRecords(writer);
-      applyDistinctClauseToRecords(writer);
+      applyDistinctClauseToRecords(writer, model);
       applyPaginationClause(writer, model);
       applyRelationsToRecords(writer, model);
       applySelectClauseToRecords(writer);
@@ -42,17 +42,22 @@ function applySelectClauseToRecords(writer: CodeBlockWriter) {
   writer.writeLine(`this._preprocessListFields(selectAppliedRecords);`);
 }
 
-function applyDistinctClauseToRecords(writer: CodeBlockWriter) {
+function applyDistinctClauseToRecords(writer: CodeBlockWriter, model: Model) {
+  const hasBigIntField = model.fields.some((f) => f.type === "BigInt");
   writer.writeLine("if (query?.distinct)").block(() => {
     writer
       .writeLine(`const distinctFields = IDBUtils.convertToArray(query.distinct);`)
       .writeLine(`const seen = new Set<string>();`)
       .writeLine(`records = records.filter((record) => `)
       .block(() => {
-        writer
-          .writeLine(
+        if (hasBigIntField) {
+          writer.writeLine(
             `const values = distinctFields.map((field) => { const v = record[field]; return typeof v === "bigint" ? v.toString() : v; });`
-          )
+          );
+        } else {
+          writer.writeLine(`const values = distinctFields.map((field) => record[field]);`);
+        }
+        writer
           .writeLine(`const key = JSON.stringify(values);`)
           .writeLine(`if (seen.has(key)) return false;`)
           .writeLine(`seen.add(key);`)

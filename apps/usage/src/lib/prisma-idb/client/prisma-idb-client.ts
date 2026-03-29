@@ -1467,10 +1467,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
@@ -3497,10 +3494,7 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
@@ -4373,10 +4367,7 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
@@ -5361,10 +5352,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
@@ -6441,10 +6429,7 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
@@ -7321,10 +7306,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
@@ -8825,10 +8807,7 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
@@ -9413,10 +9392,7 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
@@ -10152,10 +10128,7 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
@@ -11092,10 +11065,7 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
@@ -12109,10 +12079,7 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
@@ -13292,10 +13259,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
@@ -14740,10 +14704,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
@@ -16161,10 +16122,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
@@ -17135,10 +17093,7 @@ class CompositeIdIntStringIDBClass extends BaseIDBModelClass<"CompositeIdIntStri
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
@@ -17760,10 +17715,7 @@ class CompositeIdWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeIdWith
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
@@ -18389,10 +18341,7 @@ class TripleCompositeIdWithDateIDBClass extends BaseIDBModelClass<"TripleComposi
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
@@ -19072,10 +19021,7 @@ class CompositeUniqueWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeUn
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
@@ -19718,10 +19664,7 @@ class CompositeUniqueFloatIntIDBClass extends BaseIDBModelClass<"CompositeUnique
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
@@ -20351,10 +20294,7 @@ class MultipleCompositeUniquesIDBClass extends BaseIDBModelClass<"MultipleCompos
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
@@ -21046,10 +20986,7 @@ class ModelWithIndexIDBClass extends BaseIDBModelClass<"ModelWithIndex"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const values = distinctFields.map((field) => {
-          const v = record[field];
-          return typeof v === "bigint" ? v.toString() : v;
-        });
+        const values = distinctFields.map((field) => record[field]);
         const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
