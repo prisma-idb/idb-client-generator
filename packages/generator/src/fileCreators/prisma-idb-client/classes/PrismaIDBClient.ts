@@ -574,7 +574,10 @@ function addResetDatabaseMethod(writer: CodeBlockWriter) {
             .writeLine(`const req = globalThis.indexedDB.deleteDatabase("prisma-idb");`)
             .writeLine(`req.onsuccess = () => resolve();`)
             .writeLine(`req.onerror = () => reject(req.error);`);
-          writer.writeLine(`req.onblocked = () => {};`);
+          writer
+            .write(`req.onblocked = () =>`)
+            .block(() => {})
+            .write(";");
         })
         .writeLine(");");
     });

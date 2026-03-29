@@ -1467,7 +1467,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -1478,7 +1478,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
         const normalizedCursor = query.cursor as Record<string, unknown>;
         cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
       }
@@ -3493,7 +3493,7 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -3504,7 +3504,7 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
         const normalizedCursor = query.cursor as Record<string, unknown>;
         cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
       }
@@ -4365,7 +4365,7 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -4376,10 +4376,10 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
         const normalizedCursor = query.cursor as Record<string, unknown>;
         cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
-      } else if ((query.cursor as Record<string, unknown>).userId !== undefined) {
+      } else if ((query.cursor as Record<string, unknown>)["userId"] !== undefined) {
         const normalizedCursor = query.cursor as Record<string, unknown>;
         cursorIndex = records.findIndex((record) => record.userId === normalizedCursor.userId);
       }
@@ -5349,7 +5349,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -5360,7 +5360,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
         const normalizedCursor = query.cursor as Record<string, unknown>;
         cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
       }
@@ -6425,7 +6425,7 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -6436,7 +6436,7 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
         const normalizedCursor = query.cursor as Record<string, unknown>;
         cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
       }
@@ -7301,7 +7301,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -7312,7 +7312,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
         const normalizedCursor = query.cursor as Record<string, unknown>;
         cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
       }
@@ -8139,7 +8139,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -8150,7 +8150,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
         const normalizedCursor = query.cursor as Record<string, unknown>;
         cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
       }
@@ -8797,7 +8797,7 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -8808,7 +8808,7 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
         const normalizedCursor = query.cursor as Record<string, unknown>;
         cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
       }
@@ -9381,7 +9381,7 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -9392,7 +9392,7 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
         const normalizedCursor = query.cursor as Record<string, unknown>;
         cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
       }
@@ -10116,7 +10116,7 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -10127,7 +10127,7 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
         const normalizedCursor = query.cursor as Record<string, unknown>;
         cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
       }
@@ -11052,7 +11052,7 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -11063,10 +11063,10 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
         const normalizedCursor = query.cursor as Record<string, unknown>;
         cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
-      } else if ((query.cursor as Record<string, unknown>).code !== undefined) {
+      } else if ((query.cursor as Record<string, unknown>)["code"] !== undefined) {
         const normalizedCursor = query.cursor as Record<string, unknown>;
         cursorIndex = records.findIndex((record) => record.code === normalizedCursor.code);
       }
@@ -12065,7 +12065,7 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -12076,8 +12076,8 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).groupId_userId !== undefined) {
-        const normalizedCursor = (query.cursor as Record<string, unknown>).groupId_userId as Record<string, unknown>;
+      if ((query.cursor as Record<string, unknown>)["groupId_userId"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["groupId_userId"] as Record<string, unknown>;
         cursorIndex = records.findIndex(
           (record) => record.groupId === normalizedCursor.groupId && record.userId === normalizedCursor.userId
         );
@@ -13244,7 +13244,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -13255,16 +13255,16 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).firstName_lastName !== undefined) {
-        const normalizedCursor = (query.cursor as Record<string, unknown>).firstName_lastName as Record<
+      if ((query.cursor as Record<string, unknown>)["firstName_lastName"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["firstName_lastName"] as Record<
           string,
           unknown
         >;
         cursorIndex = records.findIndex(
           (record) => record.firstName === normalizedCursor.firstName && record.lastName === normalizedCursor.lastName
         );
-      } else if ((query.cursor as Record<string, unknown>).motherFirstName_motherLastName !== undefined) {
-        const normalizedCursor = (query.cursor as Record<string, unknown>).motherFirstName_motherLastName as Record<
+      } else if ((query.cursor as Record<string, unknown>)["motherFirstName_motherLastName"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["motherFirstName_motherLastName"] as Record<
           string,
           unknown
         >;
@@ -14688,7 +14688,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -14699,8 +14699,8 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).firstName_lastName !== undefined) {
-        const normalizedCursor = (query.cursor as Record<string, unknown>).firstName_lastName as Record<
+      if ((query.cursor as Record<string, unknown>)["firstName_lastName"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["firstName_lastName"] as Record<
           string,
           unknown
         >;
@@ -16105,7 +16105,7 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -16116,8 +16116,8 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).childFirstName_childLastName !== undefined) {
-        const normalizedCursor = (query.cursor as Record<string, unknown>).childFirstName_childLastName as Record<
+      if ((query.cursor as Record<string, unknown>)["childFirstName_childLastName"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["childFirstName_childLastName"] as Record<
           string,
           unknown
         >;
@@ -17075,7 +17075,7 @@ class CompositeIdIntStringIDBClass extends BaseIDBModelClass<"CompositeIdIntStri
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -17086,8 +17086,8 @@ class CompositeIdIntStringIDBClass extends BaseIDBModelClass<"CompositeIdIntStri
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).orgId_code !== undefined) {
-        const normalizedCursor = (query.cursor as Record<string, unknown>).orgId_code as Record<string, unknown>;
+      if ((query.cursor as Record<string, unknown>)["orgId_code"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["orgId_code"] as Record<string, unknown>;
         cursorIndex = records.findIndex(
           (record) => record.orgId === normalizedCursor.orgId && record.code === normalizedCursor.code
         );
@@ -17696,7 +17696,7 @@ class CompositeIdWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeIdWith
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -17707,8 +17707,8 @@ class CompositeIdWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeIdWith
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).tenantId_createdAt !== undefined) {
-        const normalizedCursor = (query.cursor as Record<string, unknown>).tenantId_createdAt as Record<
+      if ((query.cursor as Record<string, unknown>)["tenantId_createdAt"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["tenantId_createdAt"] as Record<
           string,
           unknown
         >;
@@ -18321,7 +18321,7 @@ class TripleCompositeIdWithDateIDBClass extends BaseIDBModelClass<"TripleComposi
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -18332,8 +18332,8 @@ class TripleCompositeIdWithDateIDBClass extends BaseIDBModelClass<"TripleComposi
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).region_year_eventDate !== undefined) {
-        const normalizedCursor = (query.cursor as Record<string, unknown>).region_year_eventDate as Record<
+      if ((query.cursor as Record<string, unknown>)["region_year_eventDate"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["region_year_eventDate"] as Record<
           string,
           unknown
         >;
@@ -19000,7 +19000,7 @@ class CompositeUniqueWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeUn
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -19011,11 +19011,11 @@ class CompositeUniqueWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeUn
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
         const normalizedCursor = query.cursor as Record<string, unknown>;
         cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
-      } else if ((query.cursor as Record<string, unknown>).category_timestamp !== undefined) {
-        const normalizedCursor = (query.cursor as Record<string, unknown>).category_timestamp as Record<
+      } else if ((query.cursor as Record<string, unknown>)["category_timestamp"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["category_timestamp"] as Record<
           string,
           unknown
         >;
@@ -19642,7 +19642,7 @@ class CompositeUniqueFloatIntIDBClass extends BaseIDBModelClass<"CompositeUnique
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -19653,16 +19653,16 @@ class CompositeUniqueFloatIntIDBClass extends BaseIDBModelClass<"CompositeUnique
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
         const normalizedCursor = query.cursor as Record<string, unknown>;
         cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
-      } else if ((query.cursor as Record<string, unknown>).lat_lng !== undefined) {
-        const normalizedCursor = (query.cursor as Record<string, unknown>).lat_lng as Record<string, unknown>;
+      } else if ((query.cursor as Record<string, unknown>)["lat_lng"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["lat_lng"] as Record<string, unknown>;
         cursorIndex = records.findIndex(
           (record) => record.lat === normalizedCursor.lat && record.lng === normalizedCursor.lng
         );
-      } else if ((query.cursor as Record<string, unknown>).zoneId_lat !== undefined) {
-        const normalizedCursor = (query.cursor as Record<string, unknown>).zoneId_lat as Record<string, unknown>;
+      } else if ((query.cursor as Record<string, unknown>)["zoneId_lat"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["zoneId_lat"] as Record<string, unknown>;
         cursorIndex = records.findIndex(
           (record) => record.zoneId === normalizedCursor.zoneId && record.lat === normalizedCursor.lat
         );
@@ -20271,7 +20271,7 @@ class MultipleCompositeUniquesIDBClass extends BaseIDBModelClass<"MultipleCompos
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -20282,21 +20282,21 @@ class MultipleCompositeUniquesIDBClass extends BaseIDBModelClass<"MultipleCompos
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
         const normalizedCursor = query.cursor as Record<string, unknown>;
         cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
-      } else if ((query.cursor as Record<string, unknown>).a_b !== undefined) {
-        const normalizedCursor = (query.cursor as Record<string, unknown>).a_b as Record<string, unknown>;
+      } else if ((query.cursor as Record<string, unknown>)["a_b"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["a_b"] as Record<string, unknown>;
         cursorIndex = records.findIndex((record) => record.a === normalizedCursor.a && record.b === normalizedCursor.b);
-      } else if ((query.cursor as Record<string, unknown>).c_d !== undefined) {
-        const normalizedCursor = (query.cursor as Record<string, unknown>).c_d as Record<string, unknown>;
+      } else if ((query.cursor as Record<string, unknown>)["c_d"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["c_d"] as Record<string, unknown>;
         cursorIndex = records.findIndex(
           (record) =>
             new Date(record.c as string | number | Date).getTime() ===
               new Date(normalizedCursor.c as string | number | Date).getTime() && record.d === normalizedCursor.d
         );
-      } else if ((query.cursor as Record<string, unknown>).a_c !== undefined) {
-        const normalizedCursor = (query.cursor as Record<string, unknown>).a_c as Record<string, unknown>;
+      } else if ((query.cursor as Record<string, unknown>)["a_c"] !== undefined) {
+        const normalizedCursor = (query.cursor as Record<string, unknown>)["a_c"] as Record<string, unknown>;
         cursorIndex = records.findIndex(
           (record) =>
             record.a === normalizedCursor.a &&
@@ -20962,7 +20962,7 @@ class ModelWithIndexIDBClass extends BaseIDBModelClass<"ModelWithIndex"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = distinctFields.map((field) => record[field]).join("|");
+        const key = JSON.stringify(distinctFields.map((field) => record[field]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -20973,7 +20973,7 @@ class ModelWithIndexIDBClass extends BaseIDBModelClass<"ModelWithIndex"> {
     }
     if (query?.cursor) {
       let cursorIndex = -1;
-      if ((query.cursor as Record<string, unknown>).id !== undefined) {
+      if ((query.cursor as Record<string, unknown>)["id"] !== undefined) {
         const normalizedCursor = query.cursor as Record<string, unknown>;
         cursorIndex = records.findIndex((record) => record.id === normalizedCursor.id);
       }

@@ -50,7 +50,7 @@ function applyDistinctClauseToRecords(writer: CodeBlockWriter) {
       .writeLine(`records = records.filter((record) => `)
       .block(() => {
         writer
-          .writeLine(`const key = distinctFields.map((field) => record[field]).join("|");`)
+          .writeLine(`const key = JSON.stringify(distinctFields.map((field) => record[field]));`)
           .writeLine(`if (seen.has(key)) return false;`)
           .writeLine(`seen.add(key);`)
           .writeLine(`return true;`);
@@ -72,12 +72,12 @@ function applyPaginationClause(writer: CodeBlockWriter, model: Model) {
       uniqueIdentifiers.forEach((uid, index) => {
         const fields: string[] = JSON.parse(uid.keyPath);
         const fieldTypes: string[] = uid.keyPathTypes;
-        const condition = `(query.cursor as Record<string, unknown>).${uid.name} !== undefined`;
+        const condition = `(query.cursor as Record<string, unknown>)[${JSON.stringify(uid.name)}] !== undefined`;
         const prefix = index === 0 ? "if" : "else if";
         writer.write(`${prefix} (${condition}) `).block(() => {
           if (fields.length > 1) {
             writer.writeLine(
-              `const normalizedCursor = (query.cursor as Record<string, unknown>).${uid.name} as Record<string, unknown>;`
+              `const normalizedCursor = (query.cursor as Record<string, unknown>)[${JSON.stringify(uid.name)}] as Record<string, unknown>;`
             );
           } else {
             writer.writeLine(`const normalizedCursor = query.cursor as Record<string, unknown>;`);
