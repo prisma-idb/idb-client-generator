@@ -70,47 +70,58 @@ function applyPaginationClause(writer: CodeBlockWriter, model: Model) {
   });
 
   if (uniqueIdentifiers.length > 0) {
-    writer.write("if (query?.cursor)").block(() => {
-      writer.writeLine("let cursorIndex = -1;");
-      uniqueIdentifiers.forEach((uid, index) => {
-        const fields: string[] = JSON.parse(uid.keyPath);
-        const fieldTypes: string[] = uid.keyPathTypes;
-        const condition = `(query.cursor as Record<string, unknown>)[${JSON.stringify(uid.name)}] !== undefined`;
-        const prefix = index === 0 ? "if" : "else if";
-        writer.write(`${prefix} (${condition}) `).block(() => {
-          if (fields.length > 1) {
-            writer.writeLine(
-              `const normalizedCursor = (query.cursor as Record<string, unknown>)[${JSON.stringify(uid.name)}] as Record<string, unknown>;`
-            );
-          } else {
-            writer.writeLine(`const normalizedCursor = query.cursor as Record<string, unknown>;`);
-          }
-          const comparisonExpr = fields
-            .map((f, i) => {
-              if (fieldTypes[i] === "Date") {
-                return `new Date(record.${f} as string | number | Date).getTime() === new Date(normalizedCursor.${f} as string | number | Date).getTime()`;
-              }
-              return `record.${f} === normalizedCursor.${f}`;
-            })
-            .join(" && ");
-          writer.writeLine(`cursorIndex = records.findIndex((record) => ${comparisonExpr});`);
-        });
-      });
-      writer.write("if (cursorIndex === -1)").block(() => {
-        writer.writeLine("records = [];");
-      });
-      writer.write("else if (query.take !== undefined && query.take < 0)").block(() => {
-        writer.writeLine("const skip = query.skip ?? 0;");
-        writer.writeLine("const end = cursorIndex + 1 - skip;");
-        writer.writeLine("const start = end + query.take;");
-        writer.writeLine("records = records.slice(Math.max(0, start), Math.max(0, end));");
-      });
-      writer.write("else").block(() => {
-        writer.writeLine("records = records.slice(cursorIndex);");
-      });
-    });
+    emitCursorHandling(writer, uniqueIdentifiers);
   }
 
+  emitSkipTakeSlices(writer);
+}
+
+function buildComparisonExpr(fields: string[], fieldTypes: string[]): string {
+  return fields
+    .map((f, i) => {
+      if (fieldTypes[i] === "Date") {
+        return `new Date(record.${f} as string | number | Date).getTime() === new Date(normalizedCursor.${f} as string | number | Date).getTime()`;
+      }
+      return `record.${f} === normalizedCursor.${f}`;
+    })
+    .join(" && ");
+}
+
+function emitCursorHandling(writer: CodeBlockWriter, uniqueIdentifiers: ReturnType<typeof getUniqueIdentifiers>) {
+  writer.write("if (query?.cursor)").block(() => {
+    writer.writeLine("let cursorIndex = -1;");
+    uniqueIdentifiers.forEach((uid, index) => {
+      const fields: string[] = JSON.parse(uid.keyPath);
+      const fieldTypes: string[] = uid.keyPathTypes;
+      const condition = `(query.cursor as Record<string, unknown>)[${JSON.stringify(uid.name)}] !== undefined`;
+      const prefix = index === 0 ? "if" : "else if";
+      writer.write(`${prefix} (${condition}) `).block(() => {
+        if (fields.length > 1) {
+          writer.writeLine(
+            `const normalizedCursor = (query.cursor as Record<string, unknown>)[${JSON.stringify(uid.name)}] as Record<string, unknown>;`
+          );
+        } else {
+          writer.writeLine(`const normalizedCursor = query.cursor as Record<string, unknown>;`);
+        }
+        writer.writeLine(`cursorIndex = records.findIndex((record) => ${buildComparisonExpr(fields, fieldTypes)});`);
+      });
+    });
+    writer.write("if (cursorIndex === -1)").block(() => {
+      writer.writeLine("records = [];");
+    });
+    writer.write("else if (query.take !== undefined && query.take < 0)").block(() => {
+      writer.writeLine("const skip = query.skip ?? 0;");
+      writer.writeLine("const end = cursorIndex + 1 - skip;");
+      writer.writeLine("const start = end + query.take;");
+      writer.writeLine("records = records.slice(Math.max(0, start), Math.max(0, end));");
+    });
+    writer.write("else").block(() => {
+      writer.writeLine("records = records.slice(cursorIndex);");
+    });
+  });
+}
+
+function emitSkipTakeSlices(writer: CodeBlockWriter) {
   writer.write("if (!(query?.cursor && query?.take !== undefined && query.take < 0))").block(() => {
     writer.write("if (query?.skip !== undefined)").block(() => {
       writer.writeLine("records = records.slice(query.skip);");
