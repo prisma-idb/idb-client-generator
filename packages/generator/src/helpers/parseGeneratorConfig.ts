@@ -1,7 +1,7 @@
 import path from "path";
 import type { GeneratorOptions, DMMF } from "@prisma/generator-helper";
 import { getProjectedFilteredModels } from "./getFilteredModels";
-import { getUnsupportedKeyFields } from "./utils";
+import { getUnsupportedKeyFields, getNonUniqueIndexes } from "./utils";
 
 export interface ParsedGeneratorConfig {
   prismaClientImport: string;
@@ -210,6 +210,11 @@ export function parseGeneratorConfig(options: GeneratorOptions): ParsedGenerator
   // Filter indexes to only include those for valid models
   const validModelNames = new Set(validModels.map((m) => m.name));
   const validIndexes = datamodelIndexes.filter((idx) => validModelNames.has(idx.model));
+
+  // Warn about skipped indexes (unsupported key types) once during config parsing
+  for (const model of validModels) {
+    getNonUniqueIndexes(model, validIndexes, true);
+  }
 
   return {
     prismaClientImport,
