@@ -124,6 +124,46 @@ test("take_Zero_ReturnsEmpty", async ({ page }) => {
   });
 });
 
+test("cursor_WithNegativeTake_ReturnsRecordsBeforeCursor", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "findMany",
+    query: {
+      cursor: { id: 4 },
+      take: -2,
+      orderBy: { id: "asc" },
+    },
+  });
+});
+
+test("cursor_WithNegativeTakeAndSkip_SkipsBackwardFromCursor", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "findMany",
+    query: {
+      cursor: { id: 5 },
+      skip: 1,
+      take: -2,
+      orderBy: { id: "asc" },
+    },
+  });
+});
+
+test("cursor_WithNegativeTakeOne_ReturnsSingleRecordBeforeCursor", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "findMany",
+    query: {
+      cursor: { id: 3 },
+      take: -1,
+      orderBy: { id: "asc" },
+    },
+  });
+});
+
 test("findFirst_WithSkip_SkipsBeforePickingFirst", async ({ page }) => {
   await expectQueryToSucceed({
     page,

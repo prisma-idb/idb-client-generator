@@ -401,3 +401,113 @@ test("TripleCompositeIdWithDate_FindMany_ReturnsMultipleRecords", async ({ page 
     query: { orderBy: { region: "asc" } },
   });
 });
+
+// ── Composite Key Cursor Pagination ─────────────────────────────────
+
+test("CompositeIdIntString_Cursor_StartFromCompositeCursor", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "createMany",
+    query: {
+      data: [
+        { orgId: 1, code: "AAA" },
+        { orgId: 1, code: "BBB" },
+        { orgId: 1, code: "CCC" },
+        { orgId: 2, code: "AAA" },
+        { orgId: 2, code: "BBB" },
+      ],
+    },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "findMany",
+    query: {
+      cursor: { orgId_code: { orgId: 1, code: "BBB" } },
+      orderBy: [{ orgId: "asc" }, { code: "asc" }],
+    },
+  });
+});
+
+test("CompositeIdIntString_CursorWithTake_LimitsAfterCompositeCursor", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "createMany",
+    query: {
+      data: [
+        { orgId: 1, code: "AAA" },
+        { orgId: 1, code: "BBB" },
+        { orgId: 1, code: "CCC" },
+        { orgId: 2, code: "AAA" },
+        { orgId: 2, code: "BBB" },
+      ],
+    },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "findMany",
+    query: {
+      cursor: { orgId_code: { orgId: 1, code: "BBB" } },
+      take: 2,
+      orderBy: [{ orgId: "asc" }, { code: "asc" }],
+    },
+  });
+});
+
+test("CompositeIdIntString_CursorWithNegativeTake_ReturnsBeforeCursor", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "createMany",
+    query: {
+      data: [
+        { orgId: 1, code: "AAA" },
+        { orgId: 1, code: "BBB" },
+        { orgId: 1, code: "CCC" },
+        { orgId: 2, code: "AAA" },
+        { orgId: 2, code: "BBB" },
+      ],
+    },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "findMany",
+    query: {
+      cursor: { orgId_code: { orgId: 2, code: "AAA" } },
+      take: -2,
+      orderBy: [{ orgId: "asc" }, { code: "asc" }],
+    },
+  });
+});
+
+test("CompositeIdIntString_CursorWithSkipAndTake_PaginatesCorrectly", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "createMany",
+    query: {
+      data: [
+        { orgId: 1, code: "AAA" },
+        { orgId: 1, code: "BBB" },
+        { orgId: 1, code: "CCC" },
+        { orgId: 2, code: "AAA" },
+        { orgId: 2, code: "BBB" },
+      ],
+    },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "compositeIdIntString",
+    operation: "findMany",
+    query: {
+      cursor: { orgId_code: { orgId: 1, code: "BBB" } },
+      skip: 1,
+      take: 2,
+      orderBy: [{ orgId: "asc" }, { code: "asc" }],
+    },
+  });
+});

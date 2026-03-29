@@ -973,27 +973,33 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
         return true;
       });
     }
+    if (query?.skip !== undefined && query.skip < 0) {
+      throw new Error("skip must be a non-negative integer");
+    }
     if (query?.cursor) {
-      const cursorIndex = selectAppliedRecords.findIndex(
-        (record) => record.id === (query.cursor as Record<string, unknown>).id
-      );
+      const normalizedCursor = query.cursor as Record<string, unknown>;
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        selectAppliedRecords = selectAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
       } else {
         selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
       }
     }
-    if (query?.skip !== undefined) {
-      if (query.skip < 0) {
-        throw new Error("skip must be a non-negative integer");
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.skip);
       }
-      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
-    }
-    if (query?.take !== undefined) {
-      if (query.take < 0) {
-        selectAppliedRecords = selectAppliedRecords.slice(query.take);
-      } else {
-        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          selectAppliedRecords = selectAppliedRecords.slice(query.take);
+        } else {
+          selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+        }
       }
     }
     this._preprocessListFields(selectAppliedRecords);
@@ -1929,27 +1935,33 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
         return true;
       });
     }
+    if (query?.skip !== undefined && query.skip < 0) {
+      throw new Error("skip must be a non-negative integer");
+    }
     if (query?.cursor) {
-      const cursorIndex = selectAppliedRecords.findIndex(
-        (record) => record.id === (query.cursor as Record<string, unknown>).id
-      );
+      const normalizedCursor = query.cursor as Record<string, unknown>;
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        selectAppliedRecords = selectAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
       } else {
         selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
       }
     }
-    if (query?.skip !== undefined) {
-      if (query.skip < 0) {
-        throw new Error("skip must be a non-negative integer");
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.skip);
       }
-      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
-    }
-    if (query?.take !== undefined) {
-      if (query.take < 0) {
-        selectAppliedRecords = selectAppliedRecords.slice(query.take);
-      } else {
-        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          selectAppliedRecords = selectAppliedRecords.slice(query.take);
+        } else {
+          selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+        }
       }
     }
     this._preprocessListFields(selectAppliedRecords);
@@ -2801,27 +2813,33 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         return true;
       });
     }
+    if (query?.skip !== undefined && query.skip < 0) {
+      throw new Error("skip must be a non-negative integer");
+    }
     if (query?.cursor) {
-      const cursorIndex = selectAppliedRecords.findIndex(
-        (record) => record.id === (query.cursor as Record<string, unknown>).id
-      );
+      const normalizedCursor = query.cursor as Record<string, unknown>;
+      const cursorIndex = relationAppliedRecords.findIndex((record) => record.id === normalizedCursor.id);
       if (cursorIndex === -1) {
         selectAppliedRecords = [];
+      } else if (query.take !== undefined && query.take < 0) {
+        const skip = query.skip ?? 0;
+        const end = cursorIndex + 1 - skip;
+        const start = end + query.take;
+        selectAppliedRecords = selectAppliedRecords.slice(Math.max(0, start), Math.max(0, end));
       } else {
         selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);
       }
     }
-    if (query?.skip !== undefined) {
-      if (query.skip < 0) {
-        throw new Error("skip must be a non-negative integer");
+    if (!(query?.cursor && query?.take !== undefined && query.take < 0)) {
+      if (query?.skip !== undefined) {
+        selectAppliedRecords = selectAppliedRecords.slice(query.skip);
       }
-      selectAppliedRecords = selectAppliedRecords.slice(query.skip);
-    }
-    if (query?.take !== undefined) {
-      if (query.take < 0) {
-        selectAppliedRecords = selectAppliedRecords.slice(query.take);
-      } else {
-        selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+      if (query?.take !== undefined) {
+        if (query.take < 0) {
+          selectAppliedRecords = selectAppliedRecords.slice(query.take);
+        } else {
+          selectAppliedRecords = selectAppliedRecords.slice(0, query.take);
+        }
       }
     }
     this._preprocessListFields(selectAppliedRecords);

@@ -61,17 +61,33 @@ function applyDistinctClauseToRecords(writer: CodeBlockWriter) {
 function applyPaginationClause(writer: CodeBlockWriter, model: Model) {
   const pk = getUniqueIdentifiers(model)[0];
 
+  writer.write("if (query?.skip !== undefined && query.skip < 0)").block(() => {
+    writer.writeLine("throw new Error('skip must be a non-negative integer');");
+  });
+
   if (pk) {
     const pkFields: string[] = JSON.parse(pk.keyPath);
     writer.write("if (query?.cursor)").block(() => {
-      const cursorRecord = `(query.cursor as Record<string, unknown>)`;
+      if (pkFields.length > 1) {
+        writer.writeLine(
+          `const normalizedCursor = (query.cursor as Record<string, unknown>).${pk.name} as Record<string, unknown>;`
+        );
+      } else {
+        writer.writeLine(`const normalizedCursor = query.cursor as Record<string, unknown>;`);
+      }
       writer.writeLine(
-        `const cursorIndex = selectAppliedRecords.findIndex((record) => ${pkFields
-          .map((f) => `record.${f} === ${cursorRecord}.${f}`)
+        `const cursorIndex = relationAppliedRecords.findIndex((record) => ${pkFields
+          .map((f) => `record.${f} === normalizedCursor.${f}`)
           .join(" && ")});`
       );
       writer.write("if (cursorIndex === -1)").block(() => {
         writer.writeLine("selectAppliedRecords = [];");
+      });
+      writer.write("else if (query.take !== undefined && query.take < 0)").block(() => {
+        writer.writeLine("const skip = query.skip ?? 0;");
+        writer.writeLine("const end = cursorIndex + 1 - skip;");
+        writer.writeLine("const start = end + query.take;");
+        writer.writeLine("selectAppliedRecords = selectAppliedRecords.slice(Math.max(0, start), Math.max(0, end));");
       });
       writer.write("else").block(() => {
         writer.writeLine("selectAppliedRecords = selectAppliedRecords.slice(cursorIndex);");
@@ -79,17 +95,17 @@ function applyPaginationClause(writer: CodeBlockWriter, model: Model) {
     });
   }
 
-  writer.write("if (query?.skip !== undefined)").block(() => {
-    writer.writeLine("if (query.skip < 0) { throw new Error('skip must be a non-negative integer'); }");
-    writer.writeLine("selectAppliedRecords = selectAppliedRecords.slice(query.skip);");
-  });
-
-  writer.write("if (query?.take !== undefined)").block(() => {
-    writer.write("if (query.take < 0)").block(() => {
-      writer.writeLine("selectAppliedRecords = selectAppliedRecords.slice(query.take);");
+  writer.write("if (!(query?.cursor && query?.take !== undefined && query.take < 0))").block(() => {
+    writer.write("if (query?.skip !== undefined)").block(() => {
+      writer.writeLine("selectAppliedRecords = selectAppliedRecords.slice(query.skip);");
     });
-    writer.write("else").block(() => {
-      writer.writeLine("selectAppliedRecords = selectAppliedRecords.slice(0, query.take);");
+    writer.write("if (query?.take !== undefined)").block(() => {
+      writer.write("if (query.take < 0)").block(() => {
+        writer.writeLine("selectAppliedRecords = selectAppliedRecords.slice(query.take);");
+      });
+      writer.write("else").block(() => {
+        writer.writeLine("selectAppliedRecords = selectAppliedRecords.slice(0, query.take);");
+      });
     });
   });
 }
