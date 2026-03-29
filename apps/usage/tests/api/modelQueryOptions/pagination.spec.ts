@@ -245,3 +245,15 @@ test("findFirst_WithSkip_SkipsBeforePickingFirst", async ({ page }) => {
     },
   });
 });
+
+test("skip_Zero_ReturnsAllResults", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "findMany",
+    query: {
+      skip: 0,
+      orderBy: { id: "asc" },
+    },
+  });
+});

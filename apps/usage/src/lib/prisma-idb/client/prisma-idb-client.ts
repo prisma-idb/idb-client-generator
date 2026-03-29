@@ -1474,8 +1474,15 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -3501,8 +3508,15 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -4374,8 +4388,15 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -5359,8 +5380,15 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -6436,8 +6464,15 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -7313,8 +7348,15 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -8155,8 +8197,15 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -8814,8 +8863,15 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -9399,8 +9455,15 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -10135,8 +10198,15 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -11072,8 +11142,15 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -12086,8 +12163,15 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -13266,8 +13350,15 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -14711,8 +14802,15 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -16129,8 +16227,15 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -17100,8 +17205,15 @@ class CompositeIdIntStringIDBClass extends BaseIDBModelClass<"CompositeIdIntStri
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -17722,8 +17834,15 @@ class CompositeIdWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeIdWith
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -18348,8 +18467,15 @@ class TripleCompositeIdWithDateIDBClass extends BaseIDBModelClass<"TripleComposi
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -19028,8 +19154,15 @@ class CompositeUniqueWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeUn
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -19671,8 +19804,15 @@ class CompositeUniqueFloatIntIDBClass extends BaseIDBModelClass<"CompositeUnique
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -20301,8 +20441,15 @@ class MultipleCompositeUniquesIDBClass extends BaseIDBModelClass<"MultipleCompos
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;
@@ -20993,8 +21140,15 @@ class ModelWithIndexIDBClass extends BaseIDBModelClass<"ModelWithIndex"> {
         return true;
       });
     }
-    if (query?.skip !== undefined && query.skip < 0) {
-      throw new Error("skip must be a non-negative integer");
+    if (query?.skip !== undefined) {
+      if (!Number.isInteger(query.skip) || query.skip < 0) {
+        throw new Error("skip must be a non-negative integer");
+      }
+    }
+    if (query?.take !== undefined) {
+      if (!Number.isInteger(query.take)) {
+        throw new Error("take must be an integer");
+      }
     }
     if (query?.cursor) {
       let cursorIndex = -1;

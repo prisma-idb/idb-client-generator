@@ -70,8 +70,15 @@ function applyDistinctClauseToRecords(writer: CodeBlockWriter, model: Model) {
 function applyPaginationClause(writer: CodeBlockWriter, model: Model) {
   const uniqueIdentifiers = getUniqueIdentifiers(model);
 
-  writer.write("if (query?.skip !== undefined && query.skip < 0)").block(() => {
-    writer.writeLine("throw new Error('skip must be a non-negative integer');");
+  writer.write("if (query?.skip !== undefined)").block(() => {
+    writer.write("if (!Number.isInteger(query.skip) || query.skip < 0)").block(() => {
+      writer.writeLine("throw new Error('skip must be a non-negative integer');");
+    });
+  });
+  writer.write("if (query?.take !== undefined)").block(() => {
+    writer.write("if (!Number.isInteger(query.take))").block(() => {
+      writer.writeLine("throw new Error('take must be an integer');");
+    });
   });
 
   if (uniqueIdentifiers.length > 0) {
