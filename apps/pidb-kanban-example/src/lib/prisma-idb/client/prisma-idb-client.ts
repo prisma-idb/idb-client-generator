@@ -965,7 +965,11 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = JSON.stringify(distinctFields.map((field) => record[field]));
+        const values = distinctFields.map((field) => {
+          const v = record[field];
+          return typeof v === "bigint" ? v.toString() : v;
+        });
+        const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -1930,7 +1934,11 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = JSON.stringify(distinctFields.map((field) => record[field]));
+        const values = distinctFields.map((field) => {
+          const v = record[field];
+          return typeof v === "bigint" ? v.toString() : v;
+        });
+        const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -2811,7 +2819,11 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       const distinctFields = IDBUtils.convertToArray(query.distinct);
       const seen = new Set<string>();
       records = records.filter((record) => {
-        const key = JSON.stringify(distinctFields.map((field) => record[field]));
+        const values = distinctFields.map((field) => {
+          const v = record[field];
+          return typeof v === "bigint" ? v.toString() : v;
+        });
+        const key = JSON.stringify(values);
         if (seen.has(key)) return false;
         seen.add(key);
         return true;

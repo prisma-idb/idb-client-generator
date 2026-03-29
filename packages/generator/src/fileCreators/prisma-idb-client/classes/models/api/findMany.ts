@@ -50,7 +50,10 @@ function applyDistinctClauseToRecords(writer: CodeBlockWriter) {
       .writeLine(`records = records.filter((record) => `)
       .block(() => {
         writer
-          .writeLine(`const key = JSON.stringify(distinctFields.map((field) => record[field]));`)
+          .writeLine(
+            `const values = distinctFields.map((field) => { const v = record[field]; return typeof v === "bigint" ? v.toString() : v; });`
+          )
+          .writeLine(`const key = JSON.stringify(values);`)
           .writeLine(`if (seen.has(key)) return false;`)
           .writeLine(`seen.add(key);`)
           .writeLine(`return true;`);
