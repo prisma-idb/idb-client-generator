@@ -51,12 +51,16 @@ describe("schema projection", () => {
     // Should use multi-path ownership check (ownershipVerified pattern) instead of single-path
     expect(batchProcessor).toContain("let ownershipVerified = false;");
 
-    // Required direct path (user) should be tried first without null check
-    expect(batchProcessor).toContain("if (p && p.id === scopeKey) ownershipVerified = true;");
+    // Required direct path (user) should fail-fast if not owned by scope
+    expect(batchProcessor).toContain("if (!p0 || p0.id !== scopeKey)");
+    expect(batchProcessor).toContain("ownershipVerified = true;");
+
+    // Should NOT short-circuit — all populated paths must be validated
+    expect(batchProcessor).not.toContain("!ownershipVerified &&");
 
     // Optional paths (meal, recipe) should have null FK guards
-    expect(batchProcessor).toContain("data.mealId != null");
-    expect(batchProcessor).toContain("data.recipeId != null");
+    expect(batchProcessor).toContain("data.mealId !== null");
+    expect(batchProcessor).toContain("data.recipeId !== null");
 
     // Multi-path select should include all paths for DB-based checks
     expect(batchProcessor).toContain("user: { select: { id: true } }");
@@ -70,6 +74,55 @@ describe("schema projection", () => {
 
     // Should NOT have null FK guard throwing (that's the single-path pattern)
     expect(batchProcessor).not.toContain("has null foreign key(s) in ownership path");
+
+    expect(batchProcessor).toMatchSnapshot();
+  }, 20000);
+
+  it("generates correct batch-processor for complex multi-path with varying depths and middle optional", async () => {
+    const schemaPath = path.join(schemasDir, "valid", "complex-multi-path-optional.prisma");
+
+    await execa("pnpm", ["prisma", "generate", "--schema", schemaPath]);
+
+    const batchProcessor = await fs.readFile(
+      "./tests/projection/generated/prisma-idb/server/batch-processor.ts",
+      "utf8"
+    );
+
+    // Ticket has 3 paths to User:
+    //   Path 1 (length 1): assignee? → User (direct optional)
+    //   Path 2 (length 2): project? → user (first relation optional)
+    //   Path 3 (length 3): team → department? → user (middle relation optional, first required)
+    expect(batchProcessor).toContain("let ownershipVerified = false;");
+
+    // Path 1: direct optional assignee — guarded by null check on assigneeId
+    expect(batchProcessor).toContain("data.assigneeId !== null");
+    expect(batchProcessor).toContain("if (!p0 || p0.id !== scopeKey)");
+
+    // Path 2: optional project — guarded by null check on projectId
+    expect(batchProcessor).toContain("data.projectId !== null");
+    // project lookup should select the user chain
+    expect(batchProcessor).toContain("project: { select: { user: { select: { id: true } } } }");
+
+    // Path 3: required team with optional middle (department?) — NO null guard
+    // The team lookup should have a nested department→user select
+    expect(batchProcessor).toContain(
+      "team: { select: { department: { select: { user: { select: { id: true } } } } } }"
+    );
+    // Access chain must use ?. after the optional department relation
+    expect(batchProcessor).toContain("p2.department?.user.id !== scopeKey");
+
+    // DB ownership condition in UPDATE/DELETE should chain all paths with optional chaining
+    expect(batchProcessor).toContain("record.assignee?.id !== scopeKey");
+    expect(batchProcessor).toContain("record.project?.user.id !== scopeKey");
+    expect(batchProcessor).toContain("record.team.department?.user.id !== scopeKey");
+
+    // pullAndMaterializeLogs should use OR clause for scope filtering
+    expect(batchProcessor).toContain("assignee: { id: scopeKey }");
+    expect(batchProcessor).toContain("project: { user: { id: scopeKey } }");
+    expect(batchProcessor).toContain("team: { department: { user: { id: scopeKey } } }");
+
+    // No short-circuit
+    expect(batchProcessor).not.toContain("!ownershipVerified &&");
 
     expect(batchProcessor).toMatchSnapshot();
   }, 20000);
