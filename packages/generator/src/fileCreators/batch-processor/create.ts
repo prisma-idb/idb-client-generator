@@ -1028,9 +1028,10 @@ function buildMultiPathFlatWhereClause(
 }
 
 /**
- * Emit ownership verification code that tries multiple authorization paths.
- * For each path, checks if the FK is non-null (for optional relations) then looks up the parent.
- * Sets ownershipVerified = true if any path succeeds.
+ * Emit ownership verification code that validates ALL populated authorization paths.
+ * For each path where the FK is present in the payload, looks up the parent and throws
+ * immediately if the parent is missing or not owned by the scope. At least one path
+ * must be fully verified for the operation to succeed.
  */
 function emitMultiPathPayloadOwnershipCheck(
   writer: CodeBlockWriter,
@@ -1041,7 +1042,8 @@ function emitMultiPathPayloadOwnershipCheck(
   rootModel: Model,
   errorMessage: string
 ) {
-  writer.writeLine(`${indent}let ownershipVerified = false;`);
+  writer.setIndentationLevel(indent);
+  writer.writeLine("let ownershipVerified = false;");
 
   allPaths.forEach((path, pathIndex) => {
     const firstRelationFieldName = path[0];
@@ -1054,68 +1056,71 @@ function emitMultiPathPayloadOwnershipCheck(
 
     const parentModelLower = parentModel.name.charAt(0).toLowerCase() + parentModel.name.slice(1);
     const remainingPath = path.slice(1);
+    const varName = `p${pathIndex}`;
 
-    const conditions: string[] = [];
-    if (pathIndex > 0) conditions.push(`!ownershipVerified`);
+    const emitLookupAndCheck = () => {
+      if (remainingPath.length > 0) {
+        const parentSelectObj = buildSelectObject(remainingPath, rootModel);
+        const parentPk = getUniqueIdentifiers(parentModel)[0];
+        const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
+        const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
+        const accessChain = buildAccessChain(remainingPath, rootPkFieldName, parentModel, allModels);
+
+        writer.writeLine(`const ${varName} = await tx.${parentModelLower}.findUnique({`);
+        writer.indent(() => {
+          if (parentPkFields.length === 1) {
+            writer.writeLine(`where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+          } else {
+            const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
+            writer.writeLine(`where: { ${parentPk.name}: { ${compositeKey} } },`);
+          }
+          writer.writeLine(`select: ${parentSelectObj},`);
+        });
+        writer.writeLine("});");
+        writer.write(`if (!${varName} || ${varName}${accessChain} !== scopeKey) `).block(() => {
+          writer.writeLine(`throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`${errorMessage}\`);`);
+        });
+        writer.writeLine("ownershipVerified = true;");
+      } else {
+        const parentPk = getUniqueIdentifiers(parentModel)[0];
+        const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
+        const parentPkFieldName = getUniqueIdentifiers(parentModel)[0].name;
+
+        writer.writeLine(`const ${varName} = await tx.${parentModelLower}.findUnique({`);
+        writer.indent(() => {
+          if (parentPkFields.length === 1) {
+            writer.writeLine(`where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+          } else {
+            const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
+            writer.writeLine(`where: { ${parentPk.name}: { ${compositeKey} } },`);
+          }
+          writer.writeLine(`select: { ${parentPkFieldName}: true },`);
+        });
+        writer.writeLine("});");
+        writer.write(`if (!${varName} || ${varName}.${parentPkFieldName} !== scopeKey) `).block(() => {
+          writer.writeLine(`throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`${errorMessage}\`);`);
+        });
+        writer.writeLine("ownershipVerified = true;");
+      }
+    };
+
     if (!relationField.isRequired) {
       const nullCheck =
         foreignKeyFields.length === 1
-          ? `data.${foreignKeyFields[0]} != null`
-          : foreignKeyFields.map((f) => `data.${f} != null`).join(" && ");
-      conditions.push(nullCheck);
-    }
-
-    const hasWrapper = conditions.length > 0;
-    const innerIndent = hasWrapper ? `${indent}  ` : indent;
-
-    if (hasWrapper) {
-      writer.writeLine(`${indent}if (${conditions.join(" && ")}) {`);
-    }
-
-    if (remainingPath.length > 0) {
-      const parentSelectObj = buildSelectObject(remainingPath, rootModel);
-      const parentPk = getUniqueIdentifiers(parentModel)[0];
-      const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
-      const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
-      const accessChain = buildAccessChain(remainingPath, rootPkFieldName, parentModel, allModels);
-
-      writer.writeLine(`${innerIndent}const p = await tx.${parentModelLower}.findUnique({`);
-      if (parentPkFields.length === 1) {
-        writer.writeLine(`${innerIndent}  where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
-      } else {
-        const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
-        writer.writeLine(`${innerIndent}  where: { ${parentPk.name}: { ${compositeKey} } },`);
-      }
-      writer.writeLine(`${innerIndent}  select: ${parentSelectObj},`);
-      writer.writeLine(`${innerIndent}});`);
-      writer.writeLine(`${innerIndent}if (p && p${accessChain} === scopeKey) ownershipVerified = true;`);
+          ? `data.${foreignKeyFields[0]} !== null`
+          : foreignKeyFields.map((f) => `data.${f} !== null`).join(" && ");
+      writer.write(`if (${nullCheck}) `).block(() => {
+        emitLookupAndCheck();
+      });
     } else {
-      const parentPk = getUniqueIdentifiers(parentModel)[0];
-      const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
-      const parentPkFieldName = getUniqueIdentifiers(parentModel)[0].name;
-
-      writer.writeLine(`${innerIndent}const p = await tx.${parentModelLower}.findUnique({`);
-      if (parentPkFields.length === 1) {
-        writer.writeLine(`${innerIndent}  where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
-      } else {
-        const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
-        writer.writeLine(`${innerIndent}  where: { ${parentPk.name}: { ${compositeKey} } },`);
-      }
-      writer.writeLine(`${innerIndent}  select: { ${parentPkFieldName}: true },`);
-      writer.writeLine(`${innerIndent}});`);
-      writer.writeLine(`${innerIndent}if (p && p.${parentPkFieldName} === scopeKey) ownershipVerified = true;`);
-    }
-
-    if (hasWrapper) {
-      writer.writeLine(`${indent}}`);
+      emitLookupAndCheck();
     }
   });
 
-  writer.writeLine(`${indent}if (!ownershipVerified) {`);
-  writer.writeLine(
-    `${indent}  throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`${errorMessage}\`);`
-  );
-  writer.writeLine(`${indent}}`);
+  writer.write("if (!ownershipVerified) ").block(() => {
+    writer.writeLine(`throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`${errorMessage}\`);`);
+  });
+  writer.setIndentationLevel(0);
 }
 
 function generateWhereClause(pkName: string, pkFields: string[]): string {
