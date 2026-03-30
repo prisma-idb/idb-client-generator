@@ -23,13 +23,53 @@ describe("schema projection", () => {
 
     await execa("pnpm", ["prisma", "generate", "--schema", schemaPath]);
 
-    const batchProcessor = await fs.readFile("./tests/projection/generated/prisma-idb/server/batch-processor.ts", "utf8");
+    const batchProcessor = await fs.readFile(
+      "./tests/projection/generated/prisma-idb/server/batch-processor.ts",
+      "utf8"
+    );
 
     // Verify optional chaining is placed after the optional relation field, before the next access
     expect(batchProcessor).toContain("record.meal?.user.id !== scopeKey");
     // Verify null FK guard throws SCOPE_VIOLATION instead of skipping the ownership check
     expect(batchProcessor).toContain("if (data.mealId == null)");
     expect(batchProcessor).not.toContain("?? undefined");
+
+    expect(batchProcessor).toMatchSnapshot();
+  }, 20000);
+
+  it("generates correct batch-processor for multiple optional ownership paths", async () => {
+    const schemaPath = path.join(schemasDir, "valid", "user-meal-recipe-foodentry-multi-path.prisma");
+
+    await execa("pnpm", ["prisma", "generate", "--schema", schemaPath]);
+
+    const batchProcessor = await fs.readFile(
+      "./tests/projection/generated/prisma-idb/server/batch-processor.ts",
+      "utf8"
+    );
+
+    // Multi-path: FoodEntry has 3 paths to User: user (direct, required), meal→user, recipe→user
+    // Should use multi-path ownership check (ownershipVerified pattern) instead of single-path
+    expect(batchProcessor).toContain("let ownershipVerified = false;");
+
+    // Required direct path (user) should be tried first without null check
+    expect(batchProcessor).toContain("if (p && p.id === scopeKey) ownershipVerified = true;");
+
+    // Optional paths (meal, recipe) should have null FK guards
+    expect(batchProcessor).toContain("data.mealId != null");
+    expect(batchProcessor).toContain("data.recipeId != null");
+
+    // Multi-path select should include all paths for DB-based checks
+    expect(batchProcessor).toContain("user: { select: { id: true } }");
+    expect(batchProcessor).toContain("meal: { select: { user: { select: { id: true } } } }");
+    expect(batchProcessor).toContain("recipe: { select: { user: { select: { id: true } } } }");
+
+    // DB-based ownership check should OR all paths (used in UPDATE existing and DELETE)
+    expect(batchProcessor).toContain(
+      "record.user.id !== scopeKey && record.meal?.user.id !== scopeKey && record.recipe?.user.id !== scopeKey"
+    );
+
+    // Should NOT have null FK guard throwing (that's the single-path pattern)
+    expect(batchProcessor).not.toContain("has null foreign key(s) in ownership path");
 
     expect(batchProcessor).toMatchSnapshot();
   }, 20000);

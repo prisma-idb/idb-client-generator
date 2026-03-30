@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../../generated/prisma"
+}
+
+generator prismaIDBrowser {
+  provider   = "idb-client-generator"
+  output     = "../../generated/prisma-idb"
+  outboxSync = true
+  rootModel  = "User"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String      @id
+  name      String
+  createdAt DateTime    @default(now())
+  meals     Meal[]
+  recipes   Recipe[]
+  entries   FoodEntry[]
+}
+
+model Meal {
+  id        String      @id @default(uuid())
+  name      String
+  user      User        @relation(fields: [userId], references: [id])
+  userId    String
+  entries   FoodEntry[]
+}
+
+model Recipe {
+  id        String      @id @default(uuid())
+  name      String
+  user      User        @relation(fields: [userId], references: [id])
+  userId    String
+  entries   FoodEntry[]
+}
+
+model FoodEntry {
+  id        String   @id @default(uuid())
+  eatenAt   DateTime
+  quantity  Float
+
+  meal      Meal?    @relation(fields: [mealId], references: [id])
+  mealId    String?
+
+  recipe    Recipe?  @relation(fields: [recipeId], references: [id])
+  recipeId  String?
+
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+}
+
+model Changelog {
+  id            String          @id @default(uuid(7))
+  model         String
+  keyPath       Json
+  operation     ChangeOperation
+  scopeKey      String
+  outboxEventId String          @unique
+
+  @@index([model, id])
+}
+
+enum ChangeOperation {
+  create
+  update
+  delete
+}
