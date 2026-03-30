@@ -16,45 +16,61 @@ export const pushErrorTypes = {
 } as const;
 
 /**
- * Helper function to build authorization paths from root model to a target model.
- * Returns the chain of relation fields needed to traverse from target to root.
+ * Helper function to build ALL authorization paths from a target model to the root model.
+ * Returns an array of paths (each path is a chain of relation field names), sorted
+ * shortest-first and preferring required relations within the same length.
  */
-function buildAuthorizationPath(
+function buildAllAuthorizationPaths(
   targetModel: string,
   rootModel: string,
   models: readonly Model[],
   dag: Record<string, Set<string>>
-): string[] {
+): string[][] {
   if (targetModel === rootModel) {
     return [];
   }
 
-  const path: string[] = [];
-  const visited = new Set<string>();
   const modelMap = new Map(models.map((m) => [m.name, m]));
+  const allPaths: string[][] = [];
 
-  const dfs = (current: string): boolean => {
-    if (current === rootModel) return true;
+  const dfs = (current: string, path: string[], visited: Set<string>): void => {
+    if (current === rootModel) {
+      allPaths.push([...path]);
+      return;
+    }
     visited.add(current);
 
     const model = modelMap.get(current);
-    if (!model) return false;
+    if (!model) return;
 
-    // Find relation fields that point to a model in the DAG
     const relationFields = model.fields.filter((f) => f.kind === "object" && !f.isList && dag[f.type]);
-
     for (const field of relationFields) {
-      if (!visited.has(field.type) && dfs(field.type)) {
-        path.unshift(field.name);
-        return true;
+      if (!visited.has(field.type)) {
+        path.push(field.name);
+        dfs(field.type, path, new Set(visited));
+        path.pop();
       }
     }
-
-    return false;
   };
 
-  dfs(targetModel);
-  return path;
+  dfs(targetModel, [], new Set());
+
+  // Sort: shortest first, then prefer required relations within same length
+  allPaths.sort((a, b) => {
+    if (a.length !== b.length) return a.length - b.length;
+    const targetModelObj = modelMap.get(targetModel);
+    if (targetModelObj) {
+      const fieldA = targetModelObj.fields.find((f) => f.name === a[0]);
+      const fieldB = targetModelObj.fields.find((f) => f.name === b[0]);
+      if (fieldA && fieldB) {
+        if (fieldA.isRequired && !fieldB.isRequired) return -1;
+        if (!fieldA.isRequired && fieldB.isRequired) return 1;
+      }
+    }
+    return 0;
+  });
+
+  return allPaths;
 }
 
 export function createBatchProcessorFile(
@@ -279,7 +295,7 @@ export function createBatchProcessorFile(
       const pk = getUniqueIdentifiers(model)[0];
       const pkFields = JSON.parse(pk.keyPath) as string[];
       const isRootModel = model.name === rootModel.name;
-      const authPath = buildAuthorizationPath(model.name, rootModel.name, models, dag);
+      const allAuthPaths = buildAllAuthorizationPaths(model.name, rootModel.name, models, dag);
 
       writer.writeLine(`      case "${model.name}": {`);
       writer.writeLine(`        const keyPathValidation = keyPathValidators.${model.name}.safeParse(log.keyPath);`);
@@ -308,7 +324,7 @@ export function createBatchProcessorFile(
         writer.writeLine(`        });`);
       } else {
         // For non-root models, use findFirst with a flat where clause combining pk and scope
-        const flatWhere = buildFlatWhereClause(pk.name, pkFields, authPath, rootModel);
+        const flatWhere = buildMultiPathFlatWhereClause(pk.name, pkFields, allAuthPaths, rootModel);
         writer.writeLine(`        const record = await prisma.${modelNameLower}.findFirst({`);
         writer.writeLine(`          where: ${flatWhere},`);
         writer.writeLine(`          select: { ${selectFields} },`);
@@ -374,8 +390,10 @@ function generateModelSyncHandler(
   const modelNameLower = model.name.charAt(0).toLowerCase() + model.name.slice(1);
   const pk = getUniqueIdentifiers(model)[0];
   const pkFields = JSON.parse(pk.keyPath) as string[];
-  const authPath = buildAuthorizationPath(model.name, rootModel.name, allModels, dag);
+  const allAuthPaths = buildAllAuthorizationPaths(model.name, rootModel.name, allModels, dag);
+  const authPath = allAuthPaths[0] || [];
   const isRootModel = model.name === rootModel.name;
+  const hasMultiplePaths = allAuthPaths.length > 1;
 
   writer.writeLine(
     `async function sync${model.name}(event: OutboxEventRecord, data: z.infer<typeof validators.${model.name}>, scopeKey: string, prisma: PrismaClient): Promise<PushResult>`
@@ -413,80 +431,90 @@ function generateModelSyncHandler(
     writer.blankLine();
 
     // Move parent ownership check INSIDE the transaction
-    if (!isRootModel && authPath.length > 0) {
-      // For CREATE, we verify the parent model exists and is owned by scope
-      const firstRelationFieldName = authPath[0];
-      const relationField = model.fields.find((f) => f.name === firstRelationFieldName);
-
-      if (!relationField) {
-        throw new Error(`Failed to find relation field ${firstRelationFieldName} on model ${model.name}`);
-      }
-
-      if (!relationField.relationFromFields || relationField.relationFromFields.length === 0) {
-        throw new Error(
-          `Relation field ${firstRelationFieldName} on model ${model.name} does not have foreign key fields`
+    if (!isRootModel && allAuthPaths.length > 0) {
+      if (hasMultiplePaths) {
+        // Multiple paths to root - try each and succeed if any works
+        emitMultiPathPayloadOwnershipCheck(
+          writer,
+          "      ",
+          allAuthPaths,
+          model,
+          allModels,
+          rootModel,
+          `Unauthorized: ${model.name} parent is not owned by authenticated scope`
         );
-      }
-
-      const foreignKeyFields = relationField.relationFromFields;
-      const parentModel = allModels.find((m) => m.name === relationField.type);
-
-      if (!parentModel || foreignKeyFields.length === 0) {
-        throw new Error(`Failed to find parent model for ${model.name} via relation field ${firstRelationFieldName}`);
-      }
-
-      // Build the parent lookup with path to root
-      const parentModelLower = parentModel.name.charAt(0).toLowerCase() + parentModel.name.slice(1);
-      const remainingPath = authPath.slice(1);
-
-      if (remainingPath.length > 0) {
-        // Parent is not root, need to trace to root
-        const parentSelectObj = buildSelectObject(remainingPath, rootModel);
-        const parentPk = getUniqueIdentifiers(parentModel)[0];
-        const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
-        const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
-        const accessChain = buildAccessChain(remainingPath, rootPkFieldName, parentModel, allModels);
-        if (!relationField.isRequired) {
-          emitOptionalFkGuard(writer, "      ", foreignKeyFields, model.name);
-        }
-        writer.writeLine(`      const parentRecord = await tx.${parentModelLower}.findUnique({`);
-        if (parentPkFields.length === 1) {
-          writer.writeLine(`        where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
-        } else {
-          const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
-          writer.writeLine(`        where: { ${parentPk.name}: { ${compositeKey} } },`);
-        }
-        writer.writeLine(`        select: ${parentSelectObj},`);
-        writer.writeLine(`      });`);
-        writer.blankLine();
-        writer.writeLine(`      if (!parentRecord || parentRecord${accessChain} !== scopeKey) {`);
-        writer.writeLine(
-          `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`
-        );
-        writer.writeLine(`      }`);
       } else {
-        // Parent is the root model
-        const parentPk = getUniqueIdentifiers(parentModel)[0];
-        const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
-        const parentPkFieldName = getUniqueIdentifiers(parentModel)[0].name;
-        if (!relationField.isRequired) {
-          emitOptionalFkGuard(writer, "      ", foreignKeyFields, model.name);
+        // Single path - use original logic
+        const firstRelationFieldName = authPath[0];
+        const relationField = model.fields.find((f) => f.name === firstRelationFieldName);
+
+        if (!relationField) {
+          throw new Error(`Failed to find relation field ${firstRelationFieldName} on model ${model.name}`);
         }
-        writer.writeLine(`      const parentRecord = await tx.${parentModelLower}.findUnique({`);
-        if (parentPkFields.length === 1) {
-          writer.writeLine(`        where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+
+        if (!relationField.relationFromFields || relationField.relationFromFields.length === 0) {
+          throw new Error(
+            `Relation field ${firstRelationFieldName} on model ${model.name} does not have foreign key fields`
+          );
+        }
+
+        const foreignKeyFields = relationField.relationFromFields;
+        const parentModel = allModels.find((m) => m.name === relationField.type);
+
+        if (!parentModel || foreignKeyFields.length === 0) {
+          throw new Error(`Failed to find parent model for ${model.name} via relation field ${firstRelationFieldName}`);
+        }
+
+        const parentModelLower = parentModel.name.charAt(0).toLowerCase() + parentModel.name.slice(1);
+        const remainingPath = authPath.slice(1);
+
+        if (remainingPath.length > 0) {
+          const parentSelectObj = buildSelectObject(remainingPath, rootModel);
+          const parentPk = getUniqueIdentifiers(parentModel)[0];
+          const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
+          const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
+          const accessChain = buildAccessChain(remainingPath, rootPkFieldName, parentModel, allModels);
+          if (!relationField.isRequired) {
+            emitOptionalFkGuard(writer, "      ", foreignKeyFields, model.name);
+          }
+          writer.writeLine(`      const parentRecord = await tx.${parentModelLower}.findUnique({`);
+          if (parentPkFields.length === 1) {
+            writer.writeLine(`        where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+          } else {
+            const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
+            writer.writeLine(`        where: { ${parentPk.name}: { ${compositeKey} } },`);
+          }
+          writer.writeLine(`        select: ${parentSelectObj},`);
+          writer.writeLine(`      });`);
+          writer.blankLine();
+          writer.writeLine(`      if (!parentRecord || parentRecord${accessChain} !== scopeKey) {`);
+          writer.writeLine(
+            `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`
+          );
+          writer.writeLine(`      }`);
         } else {
-          const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
-          writer.writeLine(`        where: { ${parentPk.name}: { ${compositeKey} } },`);
+          const parentPk = getUniqueIdentifiers(parentModel)[0];
+          const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
+          const parentPkFieldName = getUniqueIdentifiers(parentModel)[0].name;
+          if (!relationField.isRequired) {
+            emitOptionalFkGuard(writer, "      ", foreignKeyFields, model.name);
+          }
+          writer.writeLine(`      const parentRecord = await tx.${parentModelLower}.findUnique({`);
+          if (parentPkFields.length === 1) {
+            writer.writeLine(`        where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+          } else {
+            const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
+            writer.writeLine(`        where: { ${parentPk.name}: { ${compositeKey} } },`);
+          }
+          writer.writeLine(`        select: { ${parentPkFieldName}: true },`);
+          writer.writeLine(`      });`);
+          writer.blankLine();
+          writer.writeLine(`      if (!parentRecord || parentRecord.${parentPkFieldName} !== scopeKey) {`);
+          writer.writeLine(
+            `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`
+          );
+          writer.writeLine(`      }`);
         }
-        writer.writeLine(`        select: { ${parentPkFieldName}: true },`);
-        writer.writeLine(`      });`);
-        writer.blankLine();
-        writer.writeLine(`      if (!parentRecord || parentRecord.${parentPkFieldName} !== scopeKey) {`);
-        writer.writeLine(
-          `        throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} parent is not owned by authenticated scope\`);`
-        );
-        writer.writeLine(`      }`);
       }
       writer.blankLine();
     } else if (isRootModel) {
@@ -537,7 +565,7 @@ function generateModelSyncHandler(
       writer.writeLine(`      }`);
     } else {
       // For non-root models: lookup record, branch on existence
-      const selectObj = buildSelectObject(authPath, rootModel);
+      const selectObj = buildMultiPathSelectObject(allAuthPaths, rootModel);
       if (pkFields.length === 1) {
         writer.writeLine(`      const record = await tx.${modelNameLower}.findUnique({`);
         writer.writeLine(`        where: { ${pkFields[0]}: validKeyPath[0] },`);
@@ -556,15 +584,25 @@ function generateModelSyncHandler(
       writer.writeLine(`      if (record) {`);
       writer.writeLine(`        // Case A: Record exists - verify ownership from DB`);
       const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
-      const accessChain = buildAccessChain(authPath, rootPkFieldName, model, allModels);
-      writer.writeLine(`        if (record${accessChain} !== scopeKey) {`);
+      const ownershipCondition = buildMultiPathOwnershipCondition(allAuthPaths, rootPkFieldName, model, allModels);
+      writer.writeLine(`        if (${ownershipCondition}) {`);
       writer.writeLine(
         `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} is not owned by the authenticated scope\`);`
       );
       writer.writeLine(`        }`);
 
-      // Validate new parent ownership only if record exists
-      if (authPath.length > 0) {
+      // Validate new parent ownership - verify payload still leads to scope
+      if (hasMultiplePaths) {
+        emitMultiPathPayloadOwnershipCheck(
+          writer,
+          "        ",
+          allAuthPaths,
+          model,
+          allModels,
+          rootModel,
+          `Cannot reassign ${model.name} to parent outside scope`
+        );
+      } else if (authPath.length > 0) {
         const firstRelationFieldName = authPath[0];
         const relationField = model.fields.find((f) => f.name === firstRelationFieldName);
 
@@ -619,47 +657,61 @@ function generateModelSyncHandler(
       writer.writeLine(`        // Case B: Record doesn't exist (resurrection) - verify ownership from payload`);
 
       // Case B: Record doesn't exist - validate ownership from payload (resurrection path)
-      const firstRelationFieldName = authPath[0];
-      const relationField = model.fields.find((f) => f.name === firstRelationFieldName);
+      if (hasMultiplePaths) {
+        emitMultiPathPayloadOwnershipCheck(
+          writer,
+          "        ",
+          allAuthPaths,
+          model,
+          allModels,
+          rootModel,
+          `Cannot resurrect ${model.name} into unauthorized scope`
+        );
+      } else {
+        const firstRelationFieldName = authPath[0];
+        const relationField = model.fields.find((f) => f.name === firstRelationFieldName);
 
-      if (relationField && relationField.relationFromFields && relationField.relationFromFields.length > 0) {
-        const foreignKeyFields = relationField.relationFromFields;
-        const parentModel = allModels.find((m) => m.name === relationField.type);
+        if (relationField && relationField.relationFromFields && relationField.relationFromFields.length > 0) {
+          const foreignKeyFields = relationField.relationFromFields;
+          const parentModel = allModels.find((m) => m.name === relationField.type);
 
-        if (parentModel) {
-          const parentModelLower = parentModel.name.charAt(0).toLowerCase() + parentModel.name.slice(1);
-          const remainingPath = authPath.slice(1);
+          if (parentModel) {
+            const parentModelLower = parentModel.name.charAt(0).toLowerCase() + parentModel.name.slice(1);
+            const remainingPath = authPath.slice(1);
 
-          if (remainingPath.length > 0) {
-            const parentSelectObj = buildSelectObject(remainingPath, rootModel);
-            const parentPk = getUniqueIdentifiers(parentModel)[0];
-            const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
-            const rootPkFieldName2 = getUniqueIdentifiers(rootModel)[0].name;
-            const accessChainRemaining = buildAccessChain(remainingPath, rootPkFieldName2, parentModel, allModels);
-            if (!relationField.isRequired) {
-              emitOptionalFkGuard(writer, "        ", foreignKeyFields, model.name);
-            }
-            writer.writeLine(`        const parent = await tx.${parentModelLower}.findUnique({`);
-            if (parentPkFields.length === 1) {
-              writer.writeLine(`          where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+            if (remainingPath.length > 0) {
+              const parentSelectObj = buildSelectObject(remainingPath, rootModel);
+              const parentPk = getUniqueIdentifiers(parentModel)[0];
+              const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
+              const rootPkFieldName2 = getUniqueIdentifiers(rootModel)[0].name;
+              const accessChainRemaining = buildAccessChain(remainingPath, rootPkFieldName2, parentModel, allModels);
+              if (!relationField.isRequired) {
+                emitOptionalFkGuard(writer, "        ", foreignKeyFields, model.name);
+              }
+              writer.writeLine(`        const parent = await tx.${parentModelLower}.findUnique({`);
+              if (parentPkFields.length === 1) {
+                writer.writeLine(`          where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+              } else {
+                const compositeKey = parentPkFields
+                  .map((field, i) => `${field}: data.${foreignKeyFields[i]}`)
+                  .join(", ");
+                writer.writeLine(`          where: { ${parentPk.name}: { ${compositeKey} } },`);
+              }
+              writer.writeLine(`          select: ${parentSelectObj},`);
+              writer.writeLine(`        });`);
+              writer.blankLine();
+              writer.writeLine(`        if (!parent || parent${accessChainRemaining} !== scopeKey) {`);
+              writer.writeLine(
+                `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot resurrect ${model.name} into unauthorized scope\`);`
+              );
+              writer.writeLine(`        }`);
             } else {
-              const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
-              writer.writeLine(`          where: { ${parentPk.name}: { ${compositeKey} } },`);
+              writer.writeLine(`        if (data.${foreignKeyFields[0]} !== scopeKey) {`);
+              writer.writeLine(
+                `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot resurrect ${model.name} into different ${parentModel.name}\`);`
+              );
+              writer.writeLine(`        }`);
             }
-            writer.writeLine(`          select: ${parentSelectObj},`);
-            writer.writeLine(`        });`);
-            writer.blankLine();
-            writer.writeLine(`        if (!parent || parent${accessChainRemaining} !== scopeKey) {`);
-            writer.writeLine(
-              `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot resurrect ${model.name} into unauthorized scope\`);`
-            );
-            writer.writeLine(`        }`);
-          } else {
-            writer.writeLine(`        if (data.${foreignKeyFields[0]} !== scopeKey) {`);
-            writer.writeLine(
-              `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Cannot resurrect ${model.name} into different ${parentModel.name}\`);`
-            );
-            writer.writeLine(`        }`);
           }
         }
       }
@@ -709,7 +761,7 @@ function generateModelSyncHandler(
       );
       writer.writeLine(`      }`);
     } else {
-      const selectObj = buildSelectObject(authPath, rootModel);
+      const selectObj = buildMultiPathSelectObject(allAuthPaths, rootModel);
       if (pkFields.length === 1) {
         writer.writeLine(`      const record = await tx.${modelNameLower}.findUnique({`);
         writer.writeLine(`        where: { ${pkFields[0]}: validKeyPath[0] },`);
@@ -726,8 +778,8 @@ function generateModelSyncHandler(
       // Only check scope if record exists (for non-root models)
       writer.writeLine(`      if (record) {`);
       const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
-      const accessChain = buildAccessChain(authPath, rootPkFieldName, model, allModels);
-      writer.writeLine(`        if (record${accessChain} !== scopeKey) {`);
+      const ownershipCondition = buildMultiPathOwnershipCondition(allAuthPaths, rootPkFieldName, model, allModels);
+      writer.writeLine(`        if (${ownershipCondition}) {`);
       writer.writeLine(
         `          throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${model.name} is not owned by the authenticated scope\`);`
       );
@@ -761,22 +813,6 @@ function generateModelSyncHandler(
     writer.writeLine(`}`);
   });
   writer.blankLine();
-}
-
-/**
- * Build a flat where clause combining primary key fields and scope condition.
- * For a single pk field: { id: validKeyPath[0], board: { user: { id: scopeKey } } }
- * For composite pk: { id1: validKeyPath[0], id2: validKeyPath[1], board: { user: { id: scopeKey } } }
- */
-function buildFlatWhereClause(pkName: string, pkFields: string[], authPath: string[], rootModel: Model): string {
-  const whereWithScope = buildWhereWithScopeCondition(authPath, rootModel);
-
-  if (pkFields.length === 1) {
-    return `{ ${pkFields[0]}: validKeyPath[0], ${whereWithScope} }`;
-  } else {
-    const compositePkFields = pkFields.map((field, i) => `${field}: validKeyPath[${i}]`).join(", ");
-    return `{ ${compositePkFields}, ${whereWithScope} }`;
-  }
 }
 
 /**
@@ -893,6 +929,198 @@ function emitOptionalFkGuard(
     `${indent}  throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`Unauthorized: ${modelName} has null foreign key(s) in ownership path\`);`
   );
   writer.writeLine(`${indent}}`);
+}
+
+/**
+ * Build a merged Prisma select object for multiple authorization paths.
+ * Merges all paths into a single tree so we can fetch ownership data for all paths in one query.
+ */
+function buildMultiPathSelectObject(allPaths: string[][], rootModel: Model): string {
+  if (allPaths.length === 0) return "{}";
+  if (allPaths.length === 1) return buildSelectObject(allPaths[0], rootModel);
+
+  const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
+
+  type SelectTree = { [key: string]: SelectTree | boolean };
+
+  function mergePathIntoTree(tree: SelectTree, path: string[]): void {
+    if (path.length === 0) return;
+    const [first, ...rest] = path;
+    if (rest.length === 0) {
+      if (!tree[first] || typeof tree[first] === "boolean") {
+        tree[first] = { [rootPkFieldName]: true };
+      } else {
+        (tree[first] as SelectTree)[rootPkFieldName] = true;
+      }
+    } else {
+      if (!tree[first] || typeof tree[first] === "boolean") {
+        tree[first] = {};
+      }
+      mergePathIntoTree(tree[first] as SelectTree, rest);
+    }
+  }
+
+  function serializeTree(tree: SelectTree): string {
+    const parts: string[] = [];
+    for (const [key, value] of Object.entries(tree)) {
+      if (typeof value === "boolean") {
+        parts.push(`${key}: true`);
+      } else {
+        parts.push(`${key}: { select: ${serializeTree(value)} }`);
+      }
+    }
+    return `{ ${parts.join(", ")} }`;
+  }
+
+  const tree: SelectTree = {};
+  for (const path of allPaths) {
+    mergePathIntoTree(tree, path);
+  }
+
+  return serializeTree(tree);
+}
+
+/**
+ * Build an ownership condition expression for multiple auth paths.
+ * Returns an expression like: `record.user.id !== scopeKey && record.meal?.user.id !== scopeKey`
+ */
+function buildMultiPathOwnershipCondition(
+  allPaths: string[][],
+  rootPkFieldName: string,
+  model: Model,
+  allModels: readonly Model[],
+  varName: string = "record"
+): string {
+  const chains = allPaths.map((path) => {
+    const accessChain = buildAccessChain(path, rootPkFieldName, model, allModels);
+    return `${varName}${accessChain} !== scopeKey`;
+  });
+  return chains.join(" && ");
+}
+
+/**
+ * Build a flat where clause with OR conditions for multiple auth paths.
+ * Used in pullAndMaterializeLogs to filter records owned by scope via any path.
+ */
+function buildMultiPathFlatWhereClause(
+  pkName: string,
+  pkFields: string[],
+  allPaths: string[][],
+  rootModel: Model
+): string {
+  let pkCondition: string;
+  if (pkFields.length === 1) {
+    pkCondition = `${pkFields[0]}: validKeyPath[0]`;
+  } else {
+    pkCondition = pkFields.map((field, i) => `${field}: validKeyPath[${i}]`).join(", ");
+  }
+
+  if (allPaths.length === 1) {
+    return `{ ${pkCondition}, ${buildWhereWithScopeCondition(allPaths[0], rootModel)} }`;
+  }
+
+  const scopeConditions = allPaths.map((path) => {
+    const whereWithScope = buildWhereWithScopeCondition(path, rootModel);
+    return `{ ${whereWithScope} }`;
+  });
+
+  return `{ ${pkCondition}, OR: [${scopeConditions.join(", ")}] }`;
+}
+
+/**
+ * Emit ownership verification code that validates ALL populated authorization paths.
+ * For each path where the FK is present in the payload, looks up the parent and throws
+ * immediately if the parent is missing or not owned by the scope. At least one path
+ * must be fully verified for the operation to succeed.
+ */
+function emitMultiPathPayloadOwnershipCheck(
+  writer: CodeBlockWriter,
+  indent: string,
+  allPaths: string[][],
+  model: Model,
+  allModels: readonly Model[],
+  rootModel: Model,
+  errorMessage: string
+) {
+  writer.setIndentationLevel(indent);
+  writer.writeLine("let ownershipVerified = false;");
+
+  allPaths.forEach((path, pathIndex) => {
+    const firstRelationFieldName = path[0];
+    const relationField = model.fields.find((f) => f.name === firstRelationFieldName);
+    if (!relationField || !relationField.relationFromFields?.length) return;
+
+    const foreignKeyFields = relationField.relationFromFields;
+    const parentModel = allModels.find((m) => m.name === relationField.type);
+    if (!parentModel) return;
+
+    const parentModelLower = parentModel.name.charAt(0).toLowerCase() + parentModel.name.slice(1);
+    const remainingPath = path.slice(1);
+    const varName = `p${pathIndex}`;
+
+    const emitLookupAndCheck = () => {
+      if (remainingPath.length > 0) {
+        const parentSelectObj = buildSelectObject(remainingPath, rootModel);
+        const parentPk = getUniqueIdentifiers(parentModel)[0];
+        const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
+        const rootPkFieldName = getUniqueIdentifiers(rootModel)[0].name;
+        const accessChain = buildAccessChain(remainingPath, rootPkFieldName, parentModel, allModels);
+
+        writer.writeLine(`const ${varName} = await tx.${parentModelLower}.findUnique({`);
+        writer.indent(() => {
+          if (parentPkFields.length === 1) {
+            writer.writeLine(`where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+          } else {
+            const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
+            writer.writeLine(`where: { ${parentPk.name}: { ${compositeKey} } },`);
+          }
+          writer.writeLine(`select: ${parentSelectObj},`);
+        });
+        writer.writeLine("});");
+        writer.write(`if (!${varName} || ${varName}${accessChain} !== scopeKey) `).block(() => {
+          writer.writeLine(`throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`${errorMessage}\`);`);
+        });
+        writer.writeLine("ownershipVerified = true;");
+      } else {
+        const parentPk = getUniqueIdentifiers(parentModel)[0];
+        const parentPkFields = JSON.parse(parentPk.keyPath) as string[];
+        const parentPkFieldName = getUniqueIdentifiers(parentModel)[0].name;
+
+        writer.writeLine(`const ${varName} = await tx.${parentModelLower}.findUnique({`);
+        writer.indent(() => {
+          if (parentPkFields.length === 1) {
+            writer.writeLine(`where: { ${parentPkFields[0]}: data.${foreignKeyFields[0]} },`);
+          } else {
+            const compositeKey = parentPkFields.map((field, i) => `${field}: data.${foreignKeyFields[i]}`).join(", ");
+            writer.writeLine(`where: { ${parentPk.name}: { ${compositeKey} } },`);
+          }
+          writer.writeLine(`select: { ${parentPkFieldName}: true },`);
+        });
+        writer.writeLine("});");
+        writer.write(`if (!${varName} || ${varName}.${parentPkFieldName} !== scopeKey) `).block(() => {
+          writer.writeLine(`throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`${errorMessage}\`);`);
+        });
+        writer.writeLine("ownershipVerified = true;");
+      }
+    };
+
+    if (!relationField.isRequired) {
+      const nullCheck =
+        foreignKeyFields.length === 1
+          ? `data.${foreignKeyFields[0]} !== null`
+          : foreignKeyFields.map((f) => `data.${f} !== null`).join(" && ");
+      writer.write(`if (${nullCheck}) `).block(() => {
+        emitLookupAndCheck();
+      });
+    } else {
+      emitLookupAndCheck();
+    }
+  });
+
+  writer.write("if (!ownershipVerified) ").block(() => {
+    writer.writeLine(`throw new PermanentSyncError("${pushErrorTypes.SCOPE_VIOLATION}", \`${errorMessage}\`);`);
+  });
+  writer.setIndentationLevel(0);
 }
 
 function generateWhereClause(pkName: string, pkFields: string[]): string {
