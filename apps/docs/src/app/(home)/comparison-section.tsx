@@ -15,10 +15,10 @@ const features: Feature[] = [
   { name: "Prisma-compatible API", prismaIdb: "yes", dexie: "no", rxdb: "no", electricSql: "no" },
   { name: "Type-safe from schema", prismaIdb: "yes", dexie: "partial", rxdb: "partial", electricSql: "yes" },
   { name: "Relations & nested queries", prismaIdb: "yes", dexie: "no", rxdb: "no", electricSql: "partial" },
-  { name: "Bidirectional sync", prismaIdb: "yes", dexie: "no", rxdb: "yes", electricSql: "yes" },
-  { name: "Conflict resolution", prismaIdb: "yes", dexie: "no", rxdb: "yes", electricSql: "yes" },
-  { name: "Offline-first", prismaIdb: "yes", dexie: "yes", rxdb: "yes", electricSql: "yes" },
-  { name: "No vendor lock-in", prismaIdb: "yes", dexie: "yes", rxdb: "partial", electricSql: "no" },
+  { name: "Bidirectional sync", prismaIdb: "yes", dexie: "no", rxdb: "yes", electricSql: "partial" },
+  { name: "Conflict resolution", prismaIdb: "yes", dexie: "no", rxdb: "yes", electricSql: "no" },
+  { name: "Offline-first", prismaIdb: "yes", dexie: "yes", rxdb: "yes", electricSql: "partial" },
+  { name: "No vendor lock-in", prismaIdb: "yes", dexie: "yes", rxdb: "partial", electricSql: "partial" },
   { name: "Zero runtime config", prismaIdb: "yes", dexie: "no", rxdb: "no", electricSql: "no" },
 ];
 
