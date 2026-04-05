@@ -95,6 +95,17 @@ export function DemoPlayer() {
   const syncing = currentTime >= 9.5 && currentTime <= MOBILE_DELAY;
   const transferring = currentTime >= TRANSFER_START && currentTime <= MOBILE_DELAY;
   const hasAutoPlayed = useRef(false);
+  const mobileAutoStartBlocked = useRef(false);
+
+  const startMobile = useCallback(async () => {
+    const mobile = mobileRef.current;
+    if (!mobile) return;
+    try {
+      await mobile.play();
+    } catch {
+      mobileAutoStartBlocked.current = true;
+    }
+  }, []);
 
   // Detect screen size
   useEffect(() => {
@@ -176,14 +187,20 @@ export function DemoPlayer() {
     if (!desktop || !mobile) return;
 
     const onTimeUpdate = () => {
-      if (desktop.currentTime >= MOBILE_DELAY && mobile.paused && !mobile.ended && playing) {
-        mobile.play();
+      if (
+        desktop.currentTime >= MOBILE_DELAY &&
+        mobile.paused &&
+        !mobile.ended &&
+        playing &&
+        !mobileAutoStartBlocked.current
+      ) {
+        startMobile();
       }
     };
 
     desktop.addEventListener("timeupdate", onTimeUpdate);
     return () => desktop.removeEventListener("timeupdate", onTimeUpdate);
-  }, [playing]);
+  }, [playing, startMobile]);
 
   // When desktop ends
   useEffect(() => {
@@ -213,10 +230,11 @@ export function DemoPlayer() {
 
     if (time >= MOBILE_DELAY) {
       mobile.currentTime = time - MOBILE_DELAY;
-      if (playing) mobile.play();
+      if (playing) startMobile();
     } else {
       mobile.currentTime = 0;
       mobile.pause();
+      mobileAutoStartBlocked.current = false;
     }
   };
 
@@ -246,7 +264,8 @@ export function DemoPlayer() {
         .play()
         .then(() => {
           if (desktop.currentTime >= MOBILE_DELAY) {
-            mobile.play();
+            mobileAutoStartBlocked.current = false;
+            startMobile();
           }
           setPlaying(true);
         })
@@ -262,6 +281,7 @@ export function DemoPlayer() {
     desktop.currentTime = 0;
     mobile.currentTime = 0;
     mobile.pause();
+    mobileAutoStartBlocked.current = false;
     setProgress(0);
     setCurrentTime(0);
     setEnded(false);

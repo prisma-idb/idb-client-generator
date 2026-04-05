@@ -10,6 +10,9 @@ const schemaSnippet = `generator prismaIDB {
 }`;
 
 export async function QuickInstall() {
+  const badgeClass =
+    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(32,100%,35%)] text-sm font-bold text-white";
+
   return (
     <section className="border-fd-border/60 border-t px-6 py-16 sm:py-24 lg:px-8">
       <div className="mx-auto max-w-3xl">
@@ -23,9 +26,7 @@ export async function QuickInstall() {
         <div className="space-y-8">
           {/* Step 1 */}
           <div className="flex gap-5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(32,100%,35%)] text-sm font-bold text-white">
-              1
-            </div>
+            <div className={badgeClass}>1</div>
             <div className="min-w-0 flex-1">
               <p className="text-fd-foreground mb-2 font-semibold">Install</p>
               <div className="[&_figure]:m-0!">
@@ -36,9 +37,7 @@ export async function QuickInstall() {
 
           {/* Step 2 */}
           <div className="flex gap-5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(32,100%,35%)] text-sm font-bold text-white">
-              2
-            </div>
+            <div className={badgeClass}>2</div>
             <div className="min-w-0 flex-1">
               <p className="text-fd-foreground mb-2 font-semibold">
                 Add the generator to your <code className={`${GeistMono.className} text-[13px]`}>schema.prisma</code>
@@ -51,9 +50,7 @@ export async function QuickInstall() {
 
           {/* Step 3 */}
           <div className="flex gap-5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(32,100%,35%)] text-sm font-bold text-white">
-              3
-            </div>
+            <div className={badgeClass}>3</div>
             <div className="min-w-0 flex-1">
               <p className="text-fd-foreground mb-2 font-semibold">Generate</p>
               <div className="[&_figure]:m-0!">

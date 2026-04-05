@@ -10,7 +10,7 @@ A Prisma generator that creates a type-safe IndexedDB client with the API you al
 
 ## The difference
 
-Even with the [`idb`](https://github.com/nicholasgasior/idb) library, querying across relations means manual index lookups, joins in application code, and zero type safety:
+Even with the [`idb`](https://github.com/jakearchibald/idb) library, querying across relations means manual index lookups, joins in application code, and zero type safety:
 
 ```typescript
 const db = await openDB("MyDB", 1);

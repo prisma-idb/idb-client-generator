@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Star } from "lucide-react";
 
+const GITHUB_URL = "https://github.com/prisma-idb/idb-client-generator";
+
 interface FooterLink {
   label: string;
   href: string;
@@ -14,7 +16,7 @@ const footerLinks: Record<string, FooterLink[]> = {
     { label: "API Reference", href: "/docs" },
   ],
   Project: [
-    { label: "GitHub", href: "https://github.com/prisma-idb/idb-client-generator", external: true },
+    { label: "GitHub", href: GITHUB_URL, external: true },
     { label: "npm", href: "https://www.npmjs.com/package/@prisma-idb/idb-client-generator", external: true },
     { label: "Live Demo", href: "https://kanban.prisma-idb.dev/", external: true },
   ],
@@ -32,7 +34,7 @@ export function Footer() {
               Prisma IDB is free and open source. Contributions and feedback are welcome.
             </p>
             <a
-              href="https://github.com/prisma-idb/idb-client-generator"
+              href={GITHUB_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-md border border-zinc-200 px-4 py-2 text-sm font-medium transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
