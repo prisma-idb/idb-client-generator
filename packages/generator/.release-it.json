@@ -8,6 +8,9 @@
       "preset": "angular",
       "gitRawCommitsOpts": {
         "path": "./"
+      },
+      "commitsOpts": {
+        "path": "./"
       }
     }
   },
