@@ -13,35 +13,52 @@ const schemaCode = `generator prismaIDB {
 const endpointsCode = `// POST /api/sync/push
 import { applyPush } from "./prisma-idb/server";
 
+const session = await auth.getSession(request);
+if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
 const results = await applyPush({
   events: body.events,
-  scopeKey: user.id,
+  scopeKey: session.userId,
   prisma,
 });
+return Response.json(results);
 
 // POST /api/sync/pull
 import { pullAndMaterializeLogs } from "./prisma-idb/server";
 
-const logs = await pullAndMaterializeLogs({
+const session = await auth.getSession(request);
+if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+const logsWithRecords = await pullAndMaterializeLogs({
   prisma,
-  scopeKey: user.id,
+  scopeKey: session.userId,
   lastChangelogId: body.cursor,
+});
+return Response.json({
+  cursor: logsWithRecords.at(-1)?.id ?? body.cursor ?? null,
+  logsWithRecords,
 });`;
 
 const workerCode = `const worker = client.createSyncWorker({
   push: {
-    handler: (events) =>
-      fetch("/api/sync/push", {
+    handler: async (events) => {
+      const res = await fetch("/api/sync/push", {
         method: "POST",
         body: JSON.stringify({ events }),
-      }).then(r => r.json()),
+      });
+      return res.json();
+    },
   },
   pull: {
-    handler: (cursor) =>
-      fetch("/api/sync/pull", {
+    handler: async (cursor) => {
+      const res = await fetch("/api/sync/pull", {
         method: "POST",
         body: JSON.stringify({ cursor }),
-      }).then(r => r.json()),
+      });
+      return res.json();
+    },
+    getCursor: () => localStorage.getItem("syncCursor") ?? undefined,
+    setCursor: (cursor) => localStorage.setItem("syncCursor", cursor),
   },
 });
 

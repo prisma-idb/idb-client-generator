@@ -2,16 +2,15 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Play, Pause, RotateCcw, RefreshCw } from "lucide-react";
+import { DesktopSyncOverlay, MobileSyncOverlay, CentralServer } from "./sync-flow-overlay";
 
 const MOBILE_DELAY = 12.5;
-const TRANSFER_WINDOW = 1; // seconds the dot animation plays before mobile starts
-const TRANSFER_START = MOBILE_DELAY - TRANSFER_WINDOW;
 const TRIM_END = 4; // stop playback this many seconds before the raw video ends
 
 const CHAPTERS = [
-  { start: 0, label: "Make offline changes" },
-  { start: 5.75, label: "Resilient sync" },
-  { start: MOBILE_DELAY, label: "Cross-device consistency" },
+  { start: 0, label: "Offline edits → Outbox" },
+  { start: 5.75, label: "Resilient sync → Server" },
+  { start: MOBILE_DELAY, label: "Pull changelog → Second device" },
 ] as const;
 
 function getChapter(time: number) {
@@ -48,39 +47,6 @@ function PhoneFrame({ children }: { children: React.ReactNode }) {
   );
 }
 
-const TRANSFER_DOTS = 8;
-const TRANSFER_DURATION = 0.9; // seconds per dot cycle (keep ~= TRANSFER_WINDOW for smooth flow)
-
-function SyncTransfer({ syncing, transferring }: { syncing: boolean; transferring: boolean }) {
-  return (
-    <div className="hidden items-center self-center lg:flex">
-      <div className="relative flex h-8 w-28 items-center justify-center">
-        {/* Flowing dots */}
-        {transferring && (
-          <div className="absolute inset-0 overflow-hidden">
-            {Array.from({ length: TRANSFER_DOTS }).map((_, i) => (
-              <span
-                key={i}
-                className="absolute top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full"
-                style={{
-                  backgroundColor: i % 2 === 0 ? "hsl(32, 100%, 50%)" : "hsl(200, 100%, 60%)",
-                  animation: `dot-flow ${TRANSFER_DURATION}s ease-in-out ${i * (TRANSFER_DURATION / TRANSFER_DOTS)}s infinite`,
-                }}
-              />
-            ))}
-          </div>
-        )}
-        {/* Center icon */}
-        <RefreshCw
-          className={`relative z-10 h-5 w-5 transition-all duration-500 ${
-            syncing ? "animate-spin text-[hsl(32,100%,50%)]" : "text-zinc-500"
-          }`}
-        />
-      </div>
-    </div>
-  );
-}
-
 export function DemoPlayer() {
   const desktopRef = useRef<HTMLVideoElement>(null);
   const mobileRef = useRef<HTMLVideoElement>(null);
@@ -94,7 +60,6 @@ export function DemoPlayer() {
   const [isLg, setIsLg] = useState(true); // default to lg to avoid flash
   const [mobileStarted, setMobileStarted] = useState(false);
   const syncing = currentTime >= 9.5 && currentTime <= MOBILE_DELAY;
-  const transferring = currentTime >= TRANSFER_START && currentTime <= MOBILE_DELAY;
   const hasAutoPlayed = useRef(false);
   const mobileAutoStartBlocked = useRef(false);
   const mobileStartToken = useRef(0);
@@ -331,14 +296,16 @@ export function DemoPlayer() {
                 />
               </div>
             </BrowserFrame>
+            <DesktopSyncOverlay currentTime={currentTime} />
           </div>
 
-          <SyncTransfer syncing={syncing} transferring={transferring} />
+          <CentralServer currentTime={currentTime} />
 
           <div className="shrink-0">
             <PhoneFrame>
               <video ref={mobileRef} src="/demo-mobile.mp4" className="w-full" muted playsInline preload="auto" />
             </PhoneFrame>
+            <MobileSyncOverlay currentTime={currentTime} />
           </div>
         </div>
       ) : (
@@ -365,6 +332,7 @@ export function DemoPlayer() {
                 />
               </div>
             </BrowserFrame>
+            <DesktopSyncOverlay currentTime={currentTime} />
             {/* Spinner — always rendered to avoid layout shift; fades in/out */}
             <div
               className={`flex justify-center py-4 transition-opacity duration-300 ${
@@ -377,13 +345,14 @@ export function DemoPlayer() {
 
           {/* Phone layer — in flow while active, absolutely overlaid while fading in */}
           <div
-            className={`flex justify-center transition-opacity duration-500 ${
+            className={`flex flex-col items-center transition-opacity duration-500 ${
               showPhoneOnMobile ? "opacity-100" : "pointer-events-none absolute inset-x-0 top-0 opacity-0"
             }`}
           >
             <PhoneFrame>
               <video ref={mobileRef} src="/demo-mobile.mp4" className="w-full" muted playsInline preload="auto" />
             </PhoneFrame>
+            <MobileSyncOverlay currentTime={currentTime} />
           </div>
         </div>
       )}
