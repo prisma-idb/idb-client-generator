@@ -92,6 +92,7 @@ export function DemoPlayer() {
   const [currentTime, setCurrentTime] = useState(0);
   const [desktopDuration, setDesktopDuration] = useState(0);
   const [isLg, setIsLg] = useState(true); // default to lg to avoid flash
+  const [mobileStarted, setMobileStarted] = useState(false);
   const syncing = currentTime >= 9.5 && currentTime <= MOBILE_DELAY;
   const transferring = currentTime >= TRANSFER_START && currentTime <= MOBILE_DELAY;
   const hasAutoPlayed = useRef(false);
@@ -102,6 +103,7 @@ export function DemoPlayer() {
     if (!mobile) return;
     try {
       await mobile.play();
+      setMobileStarted(true);
     } catch {
       mobileAutoStartBlocked.current = true;
     }
@@ -154,10 +156,12 @@ export function DemoPlayer() {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting && !hasAutoPlayed.current) {
-          hasAutoPlayed.current = true;
           desktop
             .play()
-            .then(() => setPlaying(true))
+            .then(() => {
+              hasAutoPlayed.current = true;
+              setPlaying(true);
+            })
             .catch(() => {});
         }
       },
@@ -235,6 +239,7 @@ export function DemoPlayer() {
       mobile.currentTime = 0;
       mobile.pause();
       mobileAutoStartBlocked.current = false;
+      setMobileStarted(false);
     }
   };
 
@@ -282,6 +287,7 @@ export function DemoPlayer() {
     mobile.currentTime = 0;
     mobile.pause();
     mobileAutoStartBlocked.current = false;
+    setMobileStarted(false);
     setProgress(0);
     setCurrentTime(0);
     setEnded(false);
@@ -294,7 +300,8 @@ export function DemoPlayer() {
   const chapter = getChapter(currentTime);
 
   // On small screens, show desktop first, then switch to phone at MOBILE_DELAY
-  const showPhoneOnMobile = !isLg && currentTime >= MOBILE_DELAY;
+  // Only switch when mobileStarted is true so the desktop fallback stays visible if handoff failed
+  const showPhoneOnMobile = !isLg && currentTime >= MOBILE_DELAY && mobileStarted;
 
   return (
     <div ref={containerRef}>

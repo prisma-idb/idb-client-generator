@@ -159,8 +159,7 @@
         <p>Built with Prisma • Powered by IndexedDB</p>
         <div class="border-muted-foreground/30 border-t pt-4">
           <p class="text-xs">
-            © {new Date().getFullYear()} Prisma IDB. This project is licensed under the GNU Affero General Public License
-            v3.0.
+            © {new Date().getFullYear()} Prisma IDB. This project is licensed under the MIT License.
           </p>
           <p class="mt-2 text-xs">
             Prisma is a trademark of Prisma. Prisma IDB is an independent open-source project and is not affiliated

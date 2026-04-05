@@ -143,7 +143,7 @@ See [SECURITY.md](./SECURITY.md) for reporting vulnerabilities.
 
 ## License
 
-AGPL-3.0. See [LICENSE](./LICENSE).
+MIT. See [LICENSE](./LICENSE).
 
 ## Disclaimer
 
