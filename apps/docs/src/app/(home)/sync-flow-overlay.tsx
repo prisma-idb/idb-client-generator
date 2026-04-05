@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import {
   Plus,
   Pencil,
@@ -16,22 +16,21 @@ import {
   Database,
 } from "lucide-react";
 
+import {
+  SYNC_FAIL_AT,
+  SYNC_START_AT,
+  SYNC_DONE_AT,
+  PULL_TRIGGER_AT,
+  PULL_EVENTS_AT,
+  PULL_DONE_AT,
+} from "./demo-timings";
+
 // ─── Timeline (desktop video seconds) ───────────────────────────────
 const OUTBOX_EVENTS = [
   { id: "create-pen", at: 3, op: "CREATE" as const, model: "Todo", title: "Pen", icon: Plus },
   { id: "update-bread", at: 4, op: "UPDATE" as const, model: "Todo", title: "Bread → done", icon: Pencil },
   { id: "update-milk", at: 4.5, op: "UPDATE" as const, model: "Todo", title: "Milk → done", icon: Pencil },
 ];
-
-const SYNC_FAIL_AT = 7;
-const SYNC_START_AT = 9.5;
-const SYNC_DONE_AT = 10;
-
-// Mobile video starts at MOBILE_DELAY (12.5s desktop time)
-const MOBILE_DELAY = 12.5;
-const PULL_TRIGGER_AT = MOBILE_DELAY + 3.5;
-const PULL_EVENTS_AT = MOBILE_DELAY + 3.75;
-const PULL_DONE_AT = MOBILE_DELAY + 4;
 
 const CHANGELOG_EVENTS = [
   { id: "cl-1", model: "Todo", op: "CREATE" as const, title: "Pen" },
@@ -173,6 +172,7 @@ export function DesktopSyncOverlay({ currentTime }: { currentTime: number }) {
 type ServerPhase = "idle" | "push-fail" | "pushing" | "stored" | "pulling" | "pull-done";
 
 export function CentralServer({ currentTime }: { currentTime: number }) {
+  const reduceMotion = useReducedMotion();
   const phase = useMemo<ServerPhase>(() => {
     if (currentTime >= PULL_DONE_AT) return "pull-done";
     if (currentTime >= PULL_TRIGGER_AT) return "pulling";
@@ -199,7 +199,10 @@ export function CentralServer({ currentTime }: { currentTime: number }) {
               exit={{ opacity: 0 }}
               className="flex items-center gap-1 text-amber-400"
             >
-              <motion.div animate={{ x: [0, 6, 0] }} transition={{ repeat: Infinity, duration: 0.8 }}>
+              <motion.div
+                animate={{ x: [0, 6, 0] }}
+                transition={{ repeat: reduceMotion ? 0 : Infinity, duration: 0.8 }}
+              >
                 <ArrowRight className="h-3.5 w-3.5" />
               </motion.div>
               <span className="text-[9px] font-medium tracking-wider uppercase">Push</span>
@@ -266,7 +269,10 @@ export function CentralServer({ currentTime }: { currentTime: number }) {
               className="flex items-center gap-1 text-amber-400"
             >
               <span className="text-[9px] font-medium tracking-wider uppercase">Pull</span>
-              <motion.div animate={{ x: [0, 6, 0] }} transition={{ repeat: Infinity, duration: 0.8 }}>
+              <motion.div
+                animate={{ x: [0, 6, 0] }}
+                transition={{ repeat: reduceMotion ? 0 : Infinity, duration: 0.8 }}
+              >
                 <ArrowRight className="h-3.5 w-3.5" />
               </motion.div>
             </motion.div>
@@ -303,7 +309,7 @@ export function MobileSyncOverlay({ currentTime }: { currentTime: number }) {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <ArrowDown className="h-2.5 w-2.5 animate-bounce" />
+              <ArrowDown className="h-2.5 w-2.5 animate-bounce motion-reduce:animate-none" />
             </motion.span>
           )}
           {pullDone && (
@@ -387,7 +393,7 @@ function SyncStatusBadge({ phase }: { phase: "failing" | "syncing" | "done" }) {
   return (
     <div className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs ${cfg.bg}`}>
       <Icon
-        className={`h-3.5 w-3.5 ${cfg.color} ${phase === "syncing" ? "animate-spin" : phase === "failing" ? "animate-pulse" : ""}`}
+        className={`h-3.5 w-3.5 ${cfg.color} ${phase === "syncing" ? "animate-spin motion-reduce:animate-none" : phase === "failing" ? "animate-pulse motion-reduce:animate-none" : ""}`}
       />
       <span className={cfg.color}>{cfg.label}</span>
     </div>

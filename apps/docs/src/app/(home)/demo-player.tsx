@@ -3,8 +3,8 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Play, Pause, RotateCcw, RefreshCw } from "lucide-react";
 import { DesktopSyncOverlay, MobileSyncOverlay, CentralServer } from "./sync-flow-overlay";
+import { MOBILE_DELAY, SYNC_START_AT } from "./demo-timings";
 
-const MOBILE_DELAY = 12.5;
 const TRIM_END = 4; // stop playback this many seconds before the raw video ends
 
 const CHAPTERS = [
@@ -59,7 +59,7 @@ export function DemoPlayer() {
   const [desktopDuration, setDesktopDuration] = useState(0);
   const [isLg, setIsLg] = useState(true); // default to lg to avoid flash
   const [mobileStarted, setMobileStarted] = useState(false);
-  const syncing = currentTime >= 9.5 && currentTime <= MOBILE_DELAY;
+  const syncing = currentTime >= SYNC_START_AT && currentTime <= MOBILE_DELAY;
   const hasAutoPlayed = useRef(false);
   const mobileAutoStartBlocked = useRef(false);
   const mobileStartToken = useRef(0);

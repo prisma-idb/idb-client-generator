@@ -35,7 +35,7 @@ const logsWithRecords = await pullAndMaterializeLogs({
   lastChangelogId: body.cursor,
 });
 return Response.json({
-  cursor: logsWithRecords.at(-1)?.id ?? body.cursor ?? null,
+  cursor: logsWithRecords.at(-1)?.id ?? body.cursor,
   logsWithRecords,
 });`;
 
