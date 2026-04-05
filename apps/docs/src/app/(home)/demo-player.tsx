@@ -111,6 +111,7 @@ export function DemoPlayer() {
     } catch {
       if (mobileStartToken.current !== myToken) return;
       mobileAutoStartBlocked.current = true;
+      setMobileStarted(false);
     }
   }, []);
 
@@ -341,9 +342,16 @@ export function DemoPlayer() {
           </div>
         </div>
       ) : (
-        /* Small screens: desktop in browser frame first, then phone after MOBILE_DELAY */
-        <div>
-          <div className={showPhoneOnMobile ? "hidden" : "block"}>
+        /* Small screens: cross-fade desktop → phone at MOBILE_DELAY.
+           The active layer stays in normal flow (drives container height);
+           the inactive layer is position:absolute so it never reserves space. */
+        <div className="relative">
+          {/* Desktop layer — in flow while active, absolutely overlaid while fading out */}
+          <div
+            className={`transition-opacity duration-500 ${
+              showPhoneOnMobile ? "pointer-events-none absolute inset-x-0 top-0 opacity-0" : "opacity-100"
+            }`}
+          >
             <BrowserFrame>
               <div className="bg-zinc-950">
                 <video
@@ -357,15 +365,22 @@ export function DemoPlayer() {
                 />
               </div>
             </BrowserFrame>
-          </div>
-
-          {syncing && !showPhoneOnMobile && (
-            <div className="flex justify-center py-4">
+            {/* Spinner — always rendered to avoid layout shift; fades in/out */}
+            <div
+              className={`flex justify-center py-4 transition-opacity duration-300 ${
+                syncing ? "opacity-100" : "opacity-0"
+              }`}
+            >
               <RefreshCw className="h-5 w-5 animate-spin text-[hsl(32,100%,50%)]" />
             </div>
-          )}
+          </div>
 
-          <div className={showPhoneOnMobile ? "flex justify-center" : "hidden"}>
+          {/* Phone layer — in flow while active, absolutely overlaid while fading in */}
+          <div
+            className={`flex justify-center transition-opacity duration-500 ${
+              showPhoneOnMobile ? "opacity-100" : "pointer-events-none absolute inset-x-0 top-0 opacity-0"
+            }`}
+          >
             <PhoneFrame>
               <video ref={mobileRef} src="/demo-mobile.mp4" className="w-full" muted playsInline preload="auto" />
             </PhoneFrame>
@@ -379,6 +394,8 @@ export function DemoPlayer() {
           <p
             key={chapter.label}
             className="animate-slide-in text-fd-muted-foreground text-sm font-medium tracking-wide"
+            aria-live="polite"
+            aria-atomic="true"
           >
             {chapter.label}
           </p>
@@ -407,7 +424,7 @@ export function DemoPlayer() {
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(progress * 100)}
-            className="relative h-1.5 flex-1 cursor-pointer rounded-full bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(32,100%,50%)] focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
+            className="relative flex-1 cursor-pointer py-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(32,100%,50%)] focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
             onClick={handleProgressBarClick}
             onKeyDown={(e) => {
               const step = 0.05;
@@ -420,8 +437,9 @@ export function DemoPlayer() {
               }
             }}
           >
+            <div className="pointer-events-none absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-zinc-800" />
             <div
-              className="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-[hsl(32,100%,50%)]"
+              className="pointer-events-none absolute inset-y-0 top-1/2 left-0 h-2 -translate-y-1/2 rounded-full bg-[hsl(32,100%,50%)]"
               style={{ width: `${progress * 100}%` }}
             />
           </div>

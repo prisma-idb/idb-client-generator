@@ -43,7 +43,7 @@ export function Hero() {
           </Link>
           <Link
             href="https://kanban.prisma-idb.dev/"
-            className="text-fd-muted-foreground hover:text-fd-foreground inline-flex items-center gap-2 rounded-md px-6 py-2.5 text-sm font-medium tracking-wide transition-colors"
+            className="text-fd-foreground border-fd-border bg-fd-card hover:bg-fd-accent/10 inline-flex items-center gap-2 rounded-md border px-6 py-2.5 text-sm font-medium tracking-wide transition-colors"
           >
             <Rocket className="h-3.5 w-3.5" />
             Live Demo
