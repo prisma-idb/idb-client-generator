@@ -139,7 +139,7 @@ export function DemoPlayer() {
     if (desktop && desktop.duration > 0 && !Number.isNaN(desktop.duration)) {
       setDesktopDuration(desktop.duration - TRIM_END);
     }
-  }, []);
+  }, [isLg]);
 
   // Autoplay on desktop when scrolled into view
   useEffect(() => {
@@ -166,7 +166,7 @@ export function DemoPlayer() {
 
     observer.observe(container);
     return () => observer.disconnect();
-  }, []);
+  }, [isLg]);
 
   // RAF loop — always running while playing
   useEffect(() => {
@@ -200,7 +200,7 @@ export function DemoPlayer() {
 
     desktop.addEventListener("timeupdate", onTimeUpdate);
     return () => desktop.removeEventListener("timeupdate", onTimeUpdate);
-  }, [playing, startMobile]);
+  }, [playing, startMobile, isLg]);
 
   // When desktop ends
   useEffect(() => {
@@ -215,7 +215,7 @@ export function DemoPlayer() {
 
     desktop.addEventListener("ended", onEnded);
     return () => desktop.removeEventListener("ended", onEnded);
-  }, []);
+  }, [isLg]);
 
   const seek = (fraction: number) => {
     const desktop = desktopRef.current;
