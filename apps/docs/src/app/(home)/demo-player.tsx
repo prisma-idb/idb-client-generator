@@ -407,7 +407,7 @@ export function DemoPlayer() {
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(progress * 100)}
-            className="relative h-1.5 flex-1 cursor-pointer overflow-hidden rounded-full bg-zinc-800"
+            className="relative h-1.5 flex-1 cursor-pointer rounded-full bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(32,100%,50%)] focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
             onClick={handleProgressBarClick}
             onKeyDown={(e) => {
               const step = 0.05;
