@@ -126,7 +126,7 @@ export function DemoPlayer() {
   useEffect(() => {
     const desktop = desktopRef.current;
     if (desktop && desktop.duration > 0 && !Number.isNaN(desktop.duration)) {
-      setDesktopDuration(desktop.duration);
+      setDesktopDuration(desktop.duration - TRIM_END);
     }
   }, []);
 
@@ -242,11 +242,15 @@ export function DemoPlayer() {
         restart();
         return;
       }
-      desktop.play();
-      if (desktop.currentTime >= MOBILE_DELAY) {
-        mobile.play();
-      }
-      setPlaying(true);
+      desktop
+        .play()
+        .then(() => {
+          if (desktop.currentTime >= MOBILE_DELAY) {
+            mobile.play();
+          }
+          setPlaying(true);
+        })
+        .catch(() => setPlaying(false));
     }
   };
 
@@ -261,8 +265,10 @@ export function DemoPlayer() {
     setProgress(0);
     setCurrentTime(0);
     setEnded(false);
-    desktop.play();
-    setPlaying(true);
+    desktop
+      .play()
+      .then(() => setPlaying(true))
+      .catch(() => setPlaying(false));
   };
 
   const chapter = getChapter(currentTime);
@@ -285,7 +291,7 @@ export function DemoPlayer() {
                   muted
                   playsInline
                   preload="auto"
-                  onLoadedMetadata={(e) => setDesktopDuration(e.currentTarget.duration)}
+                  onLoadedMetadata={(e) => setDesktopDuration(e.currentTarget.duration - TRIM_END)}
                 />
               </div>
             </BrowserFrame>
@@ -312,7 +318,7 @@ export function DemoPlayer() {
                   muted
                   playsInline
                   preload="auto"
-                  onLoadedMetadata={(e) => setDesktopDuration(e.currentTarget.duration)}
+                  onLoadedMetadata={(e) => setDesktopDuration(e.currentTarget.duration - TRIM_END)}
                 />
               </div>
             </BrowserFrame>
@@ -360,8 +366,24 @@ export function DemoPlayer() {
           {/* Progress bar */}
           <div
             ref={progressBarRef}
+            role="slider"
+            tabIndex={0}
+            aria-label="Demo progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(progress * 100)}
             className="relative h-1.5 flex-1 cursor-pointer overflow-hidden rounded-full bg-zinc-800"
             onClick={handleProgressBarClick}
+            onKeyDown={(e) => {
+              const step = 0.05;
+              if (e.key === "ArrowRight") {
+                e.preventDefault();
+                seek(Math.min(1, progress + step));
+              } else if (e.key === "ArrowLeft") {
+                e.preventDefault();
+                seek(Math.max(0, progress - step));
+              }
+            }}
           >
             <div
               className="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-[hsl(32,100%,50%)]"

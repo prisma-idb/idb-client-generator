@@ -64,14 +64,14 @@
     updateOutboxStats();
 
     // Subscribe to status changes
-    let prevError: Error | null = null;
+    let prevErrorMessage: string | null = null;
     const unsubscribeStatusChange = todosState.syncWorker.on("statuschange", (e) => {
       if (todosState.syncWorker) {
         ({ status, isLooping, lastError, lastSyncTime } = e.detail);
-        if (lastError && lastError !== prevError) {
+        if (lastError && lastError.message !== prevErrorMessage) {
           toast.error("Sync failed", { description: lastError.message });
         }
-        prevError = lastError;
+        prevErrorMessage = lastError?.message ?? null;
       }
     });
 
@@ -123,9 +123,8 @@
     <Card.Description class="flex flex-col items-start gap-1.5">
       <div class="flex items-center gap-2">
         {#if status in iconMap}
-          {#await Promise.resolve(iconMap[status]) then Icon}
-            <Icon class="h-3 w-3" />
-          {/await}
+          {@const Icon = iconMap[status]}
+          <Icon class="h-3 w-3" />
         {/if}
         <p class="text-sm capitalize" data-testid="sync-status">{status.toLowerCase()}</p>
       </div>

@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { Star } from "lucide-react";
 
-const footerLinks = {
+interface FooterLink {
+  label: string;
+  href: string;
+  external?: boolean;
+}
+
+const footerLinks: Record<string, FooterLink[]> = {
   "Get Started": [
     { label: "Quick Start", href: "/docs/quick-start" },
     { label: "Sync Guide", href: "/docs/sync" },
@@ -43,7 +49,7 @@ export function Footer() {
               <ul className="space-y-2">
                 {links.map((link) => (
                   <li key={link.label}>
-                    {"external" in link ? (
+                    {link.external ? (
                       <a
                         href={link.href}
                         target="_blank"

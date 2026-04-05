@@ -31,12 +31,24 @@ const tools = [
 
 function SupportIcon({ support }: { support: Support }) {
   if (support === "yes") {
-    return <Check className="mx-auto h-4 w-4 text-emerald-500" />;
+    return (
+      <span role="img" aria-label="Supported">
+        <Check className="mx-auto h-4 w-4 text-emerald-500" />
+      </span>
+    );
   }
   if (support === "partial") {
-    return <Minus className="mx-auto h-4 w-4 text-amber-500" />;
+    return (
+      <span role="img" aria-label="Partial support">
+        <Minus className="mx-auto h-4 w-4 text-amber-500" />
+      </span>
+    );
   }
-  return <Minus className="mx-auto h-4 w-4 text-zinc-400 dark:text-zinc-600" />;
+  return (
+    <span role="img" aria-label="Not supported">
+      <Minus className="mx-auto h-4 w-4 text-zinc-400 dark:text-zinc-600" />
+    </span>
+  );
 }
 
 export function ComparisonSection() {

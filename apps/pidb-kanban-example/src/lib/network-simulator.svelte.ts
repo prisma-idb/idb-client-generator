@@ -22,10 +22,12 @@ const originalFetch = globalThis.fetch;
 globalThis.fetch = function patchedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   if (_offline) {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    if (
+    const isBlocked =
       url.startsWith(BLOCKED_PATH_PREFIX) ||
-      new URL(url, globalThis.location?.origin).pathname.startsWith(BLOCKED_PATH_PREFIX)
-    ) {
+      (globalThis.location?.origin
+        ? new URL(url, globalThis.location.origin).pathname.startsWith(BLOCKED_PATH_PREFIX)
+        : false);
+    if (isBlocked) {
       return Promise.reject(new TypeError("Failed to fetch"));
     }
   }

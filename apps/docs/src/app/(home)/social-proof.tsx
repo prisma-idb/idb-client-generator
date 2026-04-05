@@ -27,9 +27,12 @@ export function SocialProof() {
         signal: controller.signal,
       }).then((r) => r.json()),
     ]).then(([ghResult, npmResult]) => {
+      if (controller.signal.aborted) return;
+      const rawStars = ghResult.status === "fulfilled" ? ghResult.value.stargazers_count : undefined;
+      const rawDownloads = npmResult.status === "fulfilled" ? npmResult.value.downloads : undefined;
       setStats({
-        stars: ghResult.status === "fulfilled" ? (ghResult.value.stargazers_count ?? null) : null,
-        downloads: npmResult.status === "fulfilled" ? (npmResult.value.downloads ?? null) : null,
+        stars: typeof rawStars === "number" && Number.isFinite(rawStars) ? rawStars : null,
+        downloads: typeof rawDownloads === "number" && Number.isFinite(rawDownloads) ? rawDownloads : null,
       });
     });
 

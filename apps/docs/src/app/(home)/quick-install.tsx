@@ -23,7 +23,7 @@ export async function QuickInstall() {
         <div className="space-y-8">
           {/* Step 1 */}
           <div className="flex gap-5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(32,100%,50%)] text-sm font-bold text-white">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(32,100%,35%)] text-sm font-bold text-white">
               1
             </div>
             <div className="min-w-0 flex-1">
@@ -36,7 +36,7 @@ export async function QuickInstall() {
 
           {/* Step 2 */}
           <div className="flex gap-5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(32,100%,50%)] text-sm font-bold text-white">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(32,100%,35%)] text-sm font-bold text-white">
               2
             </div>
             <div className="min-w-0 flex-1">
@@ -51,7 +51,7 @@ export async function QuickInstall() {
 
           {/* Step 3 */}
           <div className="flex gap-5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(32,100%,50%)] text-sm font-bold text-white">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(32,100%,35%)] text-sm font-bold text-white">
               3
             </div>
             <div className="min-w-0 flex-1">
