@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { GeistSans } from "geist/font/sans";
 import { ChevronRight, BookOpen, Rocket } from "lucide-react";
+import { SocialProof } from "./social-proof";
 
 export function Hero() {
   return (
@@ -47,6 +48,10 @@ export function Hero() {
             <Rocket className="h-3.5 w-3.5" />
             Live Demo
           </Link>
+        </div>
+
+        <div className="animate-fade-in-up mt-8" style={{ animationDelay: "0.33s" }}>
+          <SocialProof />
         </div>
       </div>
     </section>

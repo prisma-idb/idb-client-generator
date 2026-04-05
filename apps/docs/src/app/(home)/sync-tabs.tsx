@@ -43,7 +43,7 @@ export function SyncTabs({ schemaBlock, endpointsBlock, workerBlock }: SyncTabsP
           </button>
         ))}
       </div>
-      <div className="[&_figure]:!m-0 [&_figure]:!rounded-t-none [&_figure]:!border-t-0">{tabContent[active]}</div>
+      <div className="[&_figure]:m-0! [&_figure]:rounded-t-none! [&_figure]:border-t-0!">{tabContent[active]}</div>
       <p className="text-fd-muted-foreground mt-4 text-center text-sm">
         Three steps to full sync.{" "}
         <Link href="/docs/sync" className="text-fd-accent hover:underline">

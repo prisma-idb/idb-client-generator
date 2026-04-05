@@ -64,27 +64,27 @@ export async function SyncSection() {
             </h2>
 
             <p className="text-fd-muted-foreground mt-6 max-w-md text-lg leading-relaxed">
-              Most IndexedDB wrappers stop at CRUD. Prisma IDB generates a sync engine from your schema — you wire up
-              two endpoints and a sync worker, and it handles conflict resolution, ownership, and retries.
+              Most IndexedDB wrappers stop at CRUD. Prisma IDB generates a full sync engine from your schema — wire up
+              two endpoints and a sync worker, and it handles the rest.
             </p>
 
             <div className="mt-8 space-y-6">
               <div className="flex gap-4">
                 <Send className="text-fd-accent mt-0.5 h-5 w-5 shrink-0" />
                 <div>
-                  <p className="text-fd-foreground font-semibold">Outbox Pattern</p>
+                  <p className="text-fd-foreground font-semibold">Works Offline, Syncs Later</p>
                   <p className="text-fd-muted-foreground mt-1 text-sm">
-                    Mutations queue locally. Push with automatic retry and batching. Works offline.
+                    Mutations queue locally and push automatically with retry and batching when the network is back.
                   </p>
                 </div>
               </div>
               <div className="flex gap-4">
                 <Lock className="text-fd-accent mt-0.5 h-5 w-5 shrink-0" />
                 <div>
-                  <p className="text-fd-foreground font-semibold">Ownership DAG</p>
+                  <p className="text-fd-foreground font-semibold">Built-in Authorization</p>
                   <p className="text-fd-muted-foreground mt-1 text-sm">
-                    Every record traces back to its owner through a directed acyclic graph. Authorization is structural,
-                    not ad-hoc.
+                    Every record knows who owns it — authorization is built into your schema, not bolted on with
+                    middleware.
                   </p>
                 </div>
               </div>
@@ -93,7 +93,7 @@ export async function SyncSection() {
                 <div>
                   <p className="text-fd-foreground font-semibold">Conflict Resolution</p>
                   <p className="text-fd-muted-foreground mt-1 text-sm">
-                    Server-authoritative changelog materialization. Pull operations are efficient and deterministic.
+                    When two devices edit the same record, the server decides. Pull operations are fast and predictable.
                   </p>
                 </div>
               </div>

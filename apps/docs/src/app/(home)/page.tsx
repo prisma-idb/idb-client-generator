@@ -1,7 +1,8 @@
 import { Hero } from "./hero";
 import { CodeComparison } from "./code-comparison";
-import { SyncSection } from "./sync-section";
 import { DemoSection } from "./demo-section";
+import { SyncSection } from "./sync-section";
+import { ComparisonSection } from "./comparison-section";
 import { QuickInstall } from "./quick-install";
 import { Footer } from "./footer";
 
@@ -10,8 +11,9 @@ export default function HomePage() {
     <div className="min-h-screen">
       <Hero />
       <CodeComparison />
-      <SyncSection />
       <DemoSection />
+      <SyncSection />
+      <ComparisonSection />
       <QuickInstall />
       <Footer />
     </div>

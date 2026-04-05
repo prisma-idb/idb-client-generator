@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OG Image</title>
+    <style>
+      @font-face {
+        font-family: "Geist";
+        src: url("./Geist-Variable.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: swap;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        width: 1200px;
+        height: 630px;
+        font-family: "Geist", system-ui, sans-serif;
+        background: hsl(0, 0%, 5%);
+        color: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* Glow */
+      .glow {
+        position: absolute;
+        top: -200px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 900px;
+        height: 600px;
+        border-radius: 50%;
+        background: hsl(32, 100%, 50%);
+        opacity: 0.08;
+        filter: blur(120px);
+        pointer-events: none;
+      }
+
+      .content {
+        position: relative;
+        text-align: center;
+        max-width: 900px;
+        padding: 0 60px;
+      }
+
+      .badge {
+        display: inline-block;
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: hsl(32, 100%, 50%);
+        margin-bottom: 24px;
+      }
+
+      h1 {
+        font-size: 56px;
+        font-weight: 700;
+        line-height: 1.15;
+        letter-spacing: -0.02em;
+        margin-bottom: 20px;
+      }
+
+      h1 span {
+        color: hsl(32, 100%, 50%);
+      }
+
+      .subtitle {
+        font-size: 22px;
+        color: hsl(0, 0%, 60%);
+        line-height: 1.5;
+        max-width: 700px;
+        margin: 0 auto;
+      }
+
+      .footer-bar {
+        position: absolute;
+        bottom: 40px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 16px;
+        color: hsl(0, 0%, 50%);
+        font-weight: 500;
+      }
+
+      .footer-bar .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: hsl(32, 100%, 50%);
+      }
+
+      .footer-bar .name {
+        color: hsl(0, 0%, 80%);
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="glow"></div>
+    <div class="content">
+      <div class="badge">Prisma Generator for IndexedDB</div>
+      <h1>Type-safe IndexedDB with the <span>Prisma API</span></h1>
+      <p class="subtitle">
+        The same queries you write on the server — now in the browser, with optional bidirectional sync.
+      </p>
+    </div>
+    <div class="footer-bar">
+      <div class="dot"></div>
+      <span class="name">prisma-idb.dev</span>
+    </div>
+  </body>
+</html>

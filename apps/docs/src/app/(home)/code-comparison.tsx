@@ -46,10 +46,19 @@ export async function CodeComparison() {
         <h2 className={`${GeistSans.className} text-fd-foreground mb-4 text-center text-3xl font-bold sm:text-4xl`}>
           The same API. Zero learning curve.
         </h2>
-        <p className="text-fd-muted-foreground mx-auto mb-12 max-w-xl text-center text-base">
+        <p className="text-fd-muted-foreground mx-auto mb-4 max-w-xl text-center text-base">
           Even with the <code className={`${GeistMono.className} text-fd-muted-foreground text-[13px]`}>idb</code>{" "}
           library, querying across relations means manual index lookups, joins in application code, and zero type
           safety:
+        </p>
+        <p className="text-fd-muted-foreground mx-auto mb-12 max-w-2xl text-center text-sm">
+          Supports <code className={`${GeistMono.className} text-[12px]`}>findMany</code>,{" "}
+          <code className={`${GeistMono.className} text-[12px]`}>findFirst</code>,{" "}
+          <code className={`${GeistMono.className} text-[12px]`}>findUnique</code>,{" "}
+          <code className={`${GeistMono.className} text-[12px]`}>create</code>,{" "}
+          <code className={`${GeistMono.className} text-[12px]`}>update</code>,{" "}
+          <code className={`${GeistMono.className} text-[12px]`}>delete</code>,{" "}
+          <code className={`${GeistMono.className} text-[12px]`}>upsert</code>, relations, nested writes, and more.
         </p>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
