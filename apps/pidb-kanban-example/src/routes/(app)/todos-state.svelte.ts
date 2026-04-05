@@ -83,7 +83,7 @@ export class TodosState {
 
   async loadBoards() {
     try {
-      this.boards = await getClient().board.findMany({ include: { todos: true } });
+      this.boards = await getClient().board.findMany({ include: { todos: { orderBy: { createdAt: "asc" } } } });
     } catch (error) {
       console.error("Error loading boards:", error);
       toast.error("Failed to load boards");
