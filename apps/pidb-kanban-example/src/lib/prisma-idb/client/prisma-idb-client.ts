@@ -201,7 +201,7 @@ export class PrismaIDBClient {
           const error = err instanceof Error ? err.message : String(err);
           await this.$outbox.markFailed(event.id, { type: "UNKNOWN_ERROR", message: error, retryable: true });
         }
-        return results;
+        throw err;
       }
       const appliedLogs: { id: string; lastAppliedChangeId: string | null }[] = [];
       for (const result of results) {
