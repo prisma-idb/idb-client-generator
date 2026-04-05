@@ -13,7 +13,7 @@
   "packageManager": "pnpm@10.32.1",
   "devDependencies": {
     "@prisma-idb/idb-client-generator": "workspace:*",
-    "@types/node": "^24.12.0",
+    "@types/node": "^24.12.2",
     "execa": "^9.6.1",
     "prisma": "^7.6.0",
     "vitest": "^4.1.2"
