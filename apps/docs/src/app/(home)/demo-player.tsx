@@ -97,14 +97,19 @@ export function DemoPlayer() {
   const transferring = currentTime >= TRANSFER_START && currentTime <= MOBILE_DELAY;
   const hasAutoPlayed = useRef(false);
   const mobileAutoStartBlocked = useRef(false);
+  const mobileStartToken = useRef(0);
 
   const startMobile = useCallback(async () => {
     const mobile = mobileRef.current;
     if (!mobile) return;
+    mobileStartToken.current++;
+    const myToken = mobileStartToken.current;
     try {
       await mobile.play();
+      if (mobileStartToken.current !== myToken) return;
       setMobileStarted(true);
     } catch {
+      if (mobileStartToken.current !== myToken) return;
       mobileAutoStartBlocked.current = true;
     }
   }, []);
@@ -236,6 +241,7 @@ export function DemoPlayer() {
       mobile.currentTime = time - MOBILE_DELAY;
       if (playing) startMobile();
     } else {
+      mobileStartToken.current++;
       mobile.currentTime = 0;
       mobile.pause();
       mobileAutoStartBlocked.current = false;
@@ -257,6 +263,7 @@ export function DemoPlayer() {
     if (!desktop || !mobile) return;
 
     if (playing) {
+      mobileStartToken.current++;
       desktop.pause();
       mobile.pause();
       setPlaying(false);
@@ -283,6 +290,7 @@ export function DemoPlayer() {
     const mobile = mobileRef.current;
     if (!desktop || !mobile) return;
 
+    mobileStartToken.current++;
     desktop.currentTime = 0;
     mobile.currentTime = 0;
     mobile.pause();

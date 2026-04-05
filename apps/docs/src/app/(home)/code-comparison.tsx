@@ -39,6 +39,8 @@ const prismaIdbCode = `const posts = await idb.post.findMany({
 // Filtering, sorting, nesting —
 // all generated from your schema.`;
 
+const methods = ["findMany", "findFirst", "findUnique", "create", "update", "delete", "upsert"];
+
 export async function CodeComparison() {
   return (
     <section className="px-6 py-16 sm:py-24 lg:px-8">
@@ -51,15 +53,19 @@ export async function CodeComparison() {
           library, querying across relations means manual index lookups, joins in application code, and zero type
           safety:
         </p>
-        <p className="text-fd-muted-foreground mx-auto mb-12 max-w-2xl text-center text-sm">
-          Supports <code className={`${GeistMono.className} text-[12px]`}>findMany</code>,{" "}
-          <code className={`${GeistMono.className} text-[12px]`}>findFirst</code>,{" "}
-          <code className={`${GeistMono.className} text-[12px]`}>findUnique</code>,{" "}
-          <code className={`${GeistMono.className} text-[12px]`}>create</code>,{" "}
-          <code className={`${GeistMono.className} text-[12px]`}>update</code>,{" "}
-          <code className={`${GeistMono.className} text-[12px]`}>delete</code>,{" "}
-          <code className={`${GeistMono.className} text-[12px]`}>upsert</code>, relations, nested writes, and more.
-        </p>
+
+        {/* Method pills */}
+        <div className="mx-auto mb-12 flex max-w-2xl flex-wrap items-center justify-center gap-1.5">
+          {methods.map((method) => (
+            <span
+              key={method}
+              className={`${GeistMono.className} border-fd-border/80 bg-fd-card/80 text-fd-muted-foreground rounded-md border px-2.5 py-1 text-[11px]`}
+            >
+              {method}
+            </span>
+          ))}
+          <span className="text-fd-muted-foreground ml-1 text-xs italic">+ relations, nested writes & more</span>
+        </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Before */}
