@@ -183,7 +183,7 @@ export function CentralServer({ currentTime }: { currentTime: number }) {
   }, [currentTime]);
 
   const showPushArrow = phase === "pushing";
-  const showPullArrow = phase === "pulling" || phase === "pull-done";
+  const showPullArrow = phase === "pulling";
   const serverActive = phase !== "idle";
   const hasEvents = phase === "stored" || phase === "pulling" || phase === "pull-done";
 

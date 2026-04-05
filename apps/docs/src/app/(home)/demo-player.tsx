@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Play, Pause, RotateCcw, RefreshCw } from "lucide-react";
 import { DesktopSyncOverlay, MobileSyncOverlay, CentralServer } from "./sync-flow-overlay";
-import { MOBILE_DELAY, SYNC_START_AT } from "./demo-timings";
+import { MOBILE_DELAY, SYNC_START_AT, SYNC_DONE_AT } from "./demo-timings";
 
 const TRIM_END = 4; // stop playback this many seconds before the raw video ends
 
@@ -59,7 +59,7 @@ export function DemoPlayer() {
   const [desktopDuration, setDesktopDuration] = useState(0);
   const [isLg, setIsLg] = useState(true); // default to lg to avoid flash
   const [mobileStarted, setMobileStarted] = useState(false);
-  const syncing = currentTime >= SYNC_START_AT && currentTime <= MOBILE_DELAY;
+  const syncing = currentTime >= SYNC_START_AT && currentTime < SYNC_DONE_AT;
   const hasAutoPlayed = useRef(false);
   const mobileAutoStartBlocked = useRef(false);
   const mobileStartToken = useRef(0);
@@ -120,10 +120,6 @@ export function DemoPlayer() {
     const desktop = desktopRef.current;
     if (!container || !desktop) return;
 
-    // Only autoplay on desktop-width screens (lg breakpoint)
-    const isDesktop = window.matchMedia("(min-width: 1024px)").matches;
-    if (!isDesktop) return;
-
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting && !hasAutoPlayed.current) {
@@ -142,6 +138,31 @@ export function DemoPlayer() {
     observer.observe(container);
     return () => observer.disconnect();
   }, [isLg]);
+
+  // Auto-pause when the player scrolls out of view
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) {
+          const desktop = desktopRef.current;
+          const mobile = mobileRef.current;
+          if (desktop && !desktop.paused) {
+            mobileStartToken.current++;
+            desktop.pause();
+            mobile?.pause();
+            setPlaying(false);
+          }
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
 
   // RAF loop — always running while playing
   useEffect(() => {
@@ -318,6 +339,8 @@ export function DemoPlayer() {
             className={`transition-opacity duration-500 ${
               showPhoneOnMobile ? "pointer-events-none absolute inset-x-0 top-0 opacity-0" : "opacity-100"
             }`}
+            aria-hidden={showPhoneOnMobile || undefined}
+            {...(showPhoneOnMobile ? { inert: true } : {})}
           >
             <BrowserFrame>
               <div className="bg-zinc-950">
@@ -348,6 +371,8 @@ export function DemoPlayer() {
             className={`flex flex-col items-center transition-opacity duration-500 ${
               showPhoneOnMobile ? "opacity-100" : "pointer-events-none absolute inset-x-0 top-0 opacity-0"
             }`}
+            aria-hidden={!showPhoneOnMobile || undefined}
+            {...(!showPhoneOnMobile ? { inert: true } : {})}
           >
             <PhoneFrame>
               <video ref={mobileRef} src="/demo-mobile.mp4" className="w-full" muted playsInline preload="auto" />
