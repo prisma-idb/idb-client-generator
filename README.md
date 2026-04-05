@@ -1,215 +1,150 @@
-# Prisma IndexedDB Client Generator
+# Prisma IDB
 
-A **Prisma generator** that creates a familiar, type-safe client for IndexedDB with optional **bidirectional synchronization** to a remote server. Define your data model once in Prisma schema, and get both a local-first IndexedDB client and a complete sync engine built for conflict resolution and authorization.
+> You already write Prisma on the server. Now write it in the browser.
 
-**[📖 Documentation](https://prisma-idb.dev/) • [🚀 Live Demo](https://kanban.prisma-idb.dev/) • [📦 npm Package](https://www.npmjs.com/package/@prisma-idb/idb-client-generator) • [🏗️ GitHub Repository](https://github.com/prisma-idb/idb-client-generator)**
+A Prisma generator that creates a type-safe IndexedDB client with the API you already know — plus an optional sync engine that handles conflict resolution, ownership, and offline-first data for you.
 
-## Features
+**[Documentation](https://prisma-idb.dev/) · [Live Demo](https://kanban.prisma-idb.dev/) · [npm](https://www.npmjs.com/package/@prisma-idb/idb-client-generator)**
 
-- **Prisma-like API**: Use the syntax you already know. CRUD operations feel exactly like Prisma Client.
-- **Type Safety**: Fully typed operations generated directly from your Prisma schema.
-- **Local-First**: All data lives in IndexedDB. Works offline, syncs when ready.
-- **Optional Sync Engine**: Bidirectional sync with authoritative DAG-based conflict resolution.
-- **Authorization & Ownership**: Built-in ownership invariants ensure users can only modify their data.
-- **Outbox Pattern**: Reliable push operations with automatic retry and batch support.
-- **Changelog Materialization**: Efficient pull operations that materialize server state for clients.
+---
+
+## The difference
+
+Even with the [`idb`](https://github.com/nicholasgasior/idb) library, querying across relations means manual index lookups, joins in application code, and zero type safety:
+
+```typescript
+const db = await openDB("MyDB", 1);
+
+const posts = await db.getAllFromIndex("posts", "byAuthor", userId);
+
+const result = [];
+for (const post of posts) {
+  if (!post.published) continue;
+  const comments = await db.getAllFromIndex("comments", "byPost", post.id);
+  result.push({ ...post, comments });
+}
+result.sort((a, b) => b.createdAt - a.createdAt);
+// manual joins, no types, no filtering
+```
+
+Prisma IDB:
+
+```typescript
+const posts = await idb.post.findMany({
+  where: { authorId: userId, published: true },
+  include: {
+    comments: { orderBy: { createdAt: "desc" } },
+  },
+  orderBy: { createdAt: "desc" },
+});
+```
+
+Same API as Prisma Client. Fully typed. Works offline.
+
+## And when you need sync...
+
+Most IndexedDB libraries stop at CRUD. This one includes a bidirectional sync engine that handles the hard parts:
+
+```prisma
+generator prismaIDB {
+  provider   = "idb-client-generator"
+  output     = "./prisma-idb"
+  outboxSync = true    // ← one flag
+  rootModel  = "User"
+}
+```
+
+- **Outbox pattern** — mutations queue locally, push reliably with retry and batching
+- **Ownership DAG** — authorization is structural, every record traces back to its owner
+- **Conflict resolution** — server-authoritative changelog materialization on pull
 
 ## Quick Start
 
-Get Prisma IDB up and running in just a few steps.
-
-### 1. Install Dependencies
+### Install
 
 ```bash
 pnpm add idb
 pnpm add @prisma-idb/idb-client-generator --save-dev
 ```
 
-Optionally, for auto-generated IDs:
-```bash
-pnpm add @paralleldrive/cuid2 uuid
-```
+### Configure
 
-### 2. Configure Generator
-
-Add the generator to your `prisma/schema.prisma`:
+Add the generator to your `schema.prisma`:
 
 ```prisma
 generator prismaIDB {
   provider = "idb-client-generator"
   output   = "./prisma-idb"
-  
-  // Optional: Enable sync engine
-  outboxSync = true
-  rootModel  = "User"
-  exclude    = ["Changelog", "Session"]
-}
-```
-
-### 3. Define Your Schema
-
-```prisma
-model User {
-  id    String  @id @default(cuid())  // Client-generated IDs required for sync
-  name  String
-  email String  @unique
-  
-  todos Todo[]
 }
 
 model Todo {
   id    String  @id @default(cuid())
   title String
   done  Boolean @default(false)
-  
-  userId String
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 ```
 
-### 4. Generate & Use
-
-Generate the client:
+### Generate & Use
 
 ```bash
 pnpm exec prisma generate
 ```
 
-Use it in your code:
-
 ```typescript
 import { PrismaIDBClient } from "./prisma-idb";
 
-const client = await PrismaIDBClient.createClient();
+const idb = await PrismaIDBClient.createClient();
 
 // Create
-await client.user.create({
-  data: { name: "Alice", email: "alice@example.com" }
+await idb.todo.create({
+  data: { title: "Ship it", done: false },
 });
 
 // Read
-const todos = await client.todo.findMany({
-  where: { userId: userId, done: false }
+const todos = await idb.todo.findMany({
+  where: { done: false },
 });
 
 // Update
-await client.todo.update({
+await idb.todo.update({
   where: { id: todoId },
-  data: { done: true }
+  data: { done: true },
 });
 
 // Delete
-await client.todo.delete({
-  where: { id: todoId }
+await idb.todo.delete({
+  where: { id: todoId },
 });
 ```
 
-## Installation
+## Features
 
-```bash
-pnpm add @prisma-idb/idb-client-generator --save-dev
-```
-
-## Development Setup
-
-This project uses pnpm workspaces and includes a devcontainer configuration for a consistent development environment.
-
-### Using DevContainer (Recommended)
-
-1. Open the project in VS Code
-2. Install the "Dev Containers" extension if you haven't already
-3. Click "Reopen in Container" when prompted, or use the command palette: `Dev Containers: Reopen in Container`
-4. The container will automatically install dependencies using pnpm
-
-### Local Development
-
-If you prefer to develop locally:
-
-1. Install pnpm: `corepack enable` (Node.js 16.13+) or `npm install -g pnpm`
-2. Install dependencies: `pnpm install`
-3. Run development server: `pnpm dev`
-4. Run tests: `pnpm test`
-
-## Usage
-
-The API mimics Prisma Client's API for ease of use:
-
-### `create`
-
-Insert a new record:
-
-```javascript
-idbClient.modelName.create({
-  data: {
-    field: value,
-  },
-});
-```
-
-### `findMany`
-
-Retrieve all records:
-
-```javascript
-idbClient.modelName.findMany();
-```
-
-### `findUnique`
-
-Retrieve a single record by unique key:
-
-```javascript
-idbClient.modelName.findUnique({
-  where: { key: value },
-});
-```
-
-### `update`
-
-Update a record:
-
-```javascript
-idbClient.modelName.update({
-  where: { key: value },
-  data: { key: newValue },
-});
-```
-
-### `delete`
-
-Delete a record:
-
-```javascript
-idbClient.modelName.delete({
-  where: { key: value },
-});
-```
+- **Prisma-compatible API** — `create`, `findMany`, `findUnique`, `update`, `delete`, `upsert`, and more
+- **Full type safety** — generated from your Prisma schema with complete autocomplete
+- **Relations** — `include` and `select` work as expected
+- **Offline-first** — all data in IndexedDB, zero network dependency
+- **Optional sync** — bidirectional server sync with conflict resolution and authorization
+- **Client-generated IDs** — `cuid` or `uuid`, no server round-trip for creates
 
 ## Resources
 
-- **[📖 Full Documentation](https://prisma-idb.dev/)** - Complete API reference and guides
-- **[🚀 Live Kanban Demo](https://kanban.prisma-idb.dev/)** - See the sync engine in action
-- **[📦 npm Package](https://www.npmjs.com/package/@prisma-idb/idb-client-generator)** - Install from npm
-- **[🏗️ GitHub Repository](https://github.com/prisma-idb/idb-client-generator)** - Source code and issue tracking
-- **[Example App Source](./apps/pidb-kanban-example)** - Real-world implementation reference
+- [Documentation](https://prisma-idb.dev/)
+- [Live Kanban Demo](https://kanban.prisma-idb.dev/)
+- [npm Package](https://www.npmjs.com/package/@prisma-idb/idb-client-generator)
+- [Example App Source](./apps/pidb-kanban-example)
 
 ## Contributing
 
-We welcome contributions! Please see our [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on how to contribute to this project.
+Contributions welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Security
 
-If you discover a security vulnerability, please follow our [SECURITY.md](./SECURITY.md) guidelines on reporting issues responsibly.
+See [SECURITY.md](./SECURITY.md) for reporting vulnerabilities.
 
 ## License
 
-This project is licensed under the GNU Affero General Public License v3.0. See the [LICENSE](./LICENSE) file for more details.
+AGPL-3.0. See [LICENSE](./LICENSE).
 
 ## Disclaimer
 
-Prisma is a trademark of Prisma.
-
-Prisma IDB is an independent open-source project and is not affiliated with,
-endorsed by, or sponsored by Prisma. This library is a generator built on top
-of Prisma to extend its functionality.
-
+Prisma is a trademark of Prisma. Prisma IDB is an independent open-source project, not affiliated with or endorsed by Prisma.
