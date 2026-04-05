@@ -42,7 +42,7 @@
   </Card.Header>
   <Card.Content class="flex flex-col gap-2">
     {#each board.todos as todo (todo.id)}
-      <Item.Root class="border-secondary rounded-md border">
+      <Item.Root class="border-secondary bg-muted rounded-md border">
         <Item.Media>
           <Button
             size="icon-sm"

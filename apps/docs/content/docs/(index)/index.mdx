@@ -1,31 +1,38 @@
 ---
 title: Introduction
-description: Type-safe IndexedDB with Prisma-like DX and optional bidirectional sync
+description: A Prisma generator for type-safe IndexedDB with optional bidirectional sync
 icon: House
 ---
 
-## Prisma IndexedDB Client Generator
+## Prisma IDB
 
-A **Prisma generator** that creates a familiar, type-safe client for IndexedDB with optional **bidirectional synchronization** to a remote server. Define your data model once in Prisma schema, and get both a local-first IndexedDB client and a complete sync engine built for conflict resolution and authorization.
+**You already write Prisma on the server. Now write it in the browser.**
+
+Prisma IDB is a Prisma generator that creates a type-safe IndexedDB client with the familiar Prisma Client API. Define your data model once in your Prisma schema, and get a local-first client that works offline — with an optional sync engine that handles conflict resolution and authorization.
+
+```typescript
+const todos = await idb.todo.findMany({
+  where: { userId, done: false },
+});
+```
 
 ### Core Features
 
-- **Prisma-like API**: Use the syntax you already know. CRUD operations feel exactly like Prisma Client.
-- **Type Safety**: Fully typed operations generated directly from your Prisma schema.
-- **Local-First**: All data lives in IndexedDB. Works offline, syncs when ready.
+- **Prisma-compatible API** — `create`, `findMany`, `findUnique`, `update`, `delete`, `upsert`, and more
+- **Full type safety** — generated from your schema with complete autocomplete
+- **Local-first** — all data in IndexedDB, works offline by default
 
-### Sync Features
+### Sync Engine
 
-- **Optional Sync Engine**: Bidirectional sync with authoritative DAG-based conflict resolution.
-- **Authorization & Ownership**: Built-in ownership invariants ensure users can only modify their data.
-- **Outbox Pattern**: Reliable push operations with automatic retry and batch support.
-- **Changelog Materialization**: Efficient pull operations that materialize server state for clients.
+When you're ready for server sync, one flag enables:
 
-Learn more about sync in the [Synchronization section](./docs/sync).
+- **Outbox pattern** — reliable push with retry and batching
+- **Ownership DAG** — structural authorization tracing records to their owner
+- **Conflict resolution** — server-authoritative changelog materialization
 
-### Status
+Learn more in the [Synchronization section](/docs/sync).
 
 <Callout type="info">
-  This project is actively maintained and evolving. See the [GitHub
-  repository](https://github.com/prisma-idb/idb-client-generator) for the latest features and roadmap.
+  See the [live Kanban demo](https://kanban.prisma-idb.dev/) or explore the [source
+  code](https://github.com/prisma-idb/idb-client-generator/tree/main/apps/pidb-kanban-example).
 </Callout>

@@ -284,7 +284,7 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
           `      await this.$outbox.markFailed(event.id, { type: "UNKNOWN_ERROR", message: error, retryable: true });`
         )
         .writeLine(`    }`)
-        .writeLine(`    return results;`)
+        .writeLine(`    throw err;`)
         .writeLine(`  }`)
         .writeLine(`  const appliedLogs: { id: string; lastAppliedChangeId: string | null }[] = [];`)
         .writeLine(`  for (const result of results) {`)

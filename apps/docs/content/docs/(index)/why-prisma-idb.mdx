@@ -1,41 +1,48 @@
 ---
 title: Why Prisma IDB?
-description: Key advantages of Prisma IDB for offline-first apps
+description: What makes Prisma IDB different from other IndexedDB wrappers
 icon: CircleQuestionMark
 ---
 
-## Why Choose Prisma IDB?
+## The Problem
 
-Prisma IDB combines a familiar Prisma-like API with local-first architecture and optional bidirectional sync. Here's what makes it stand out:
+IndexedDB is the only real storage API in the browser. It's also one of the worst developer experiences in web development: callback-based, untyped, no query language, no relations, no migration strategy. Every project that touches it ends up building a wrapper.
 
-### 1. Familiar Prisma-like API
+Most wrappers (Dexie, idb, localForage) give you a friendlier API but stop there. You still have to:
 
-If you're already familiar with Prisma Client, you'll feel right at home with Prisma IDB. The API is designed to be intuitive and easy to use, allowing you to perform CRUD operations with the same syntax you already know.
+- Define your schema separately from your server schema
+- Build your own sync logic when you need online/offline support
+- Handle conflicts, authorization, and data ownership yourself
+- Maintain type definitions manually
 
-### 2. Type Safety
+## The Solution
 
-Prisma IDB generates a fully typed client based on your Prisma schema. This means you get compile-time checks and autocompletion in your IDE, reducing the likelihood of runtime errors and improving developer productivity.
+Prisma IDB generates a fully-typed IndexedDB client directly from your existing Prisma schema. If you already use Prisma on the server, you define your models once and get both a server client and a browser client with the same API.
 
-### 3. Local-First Architecture
+```typescript
+// Server (Prisma Client)
+const todos = await prisma.todo.findMany({ where: { userId } });
 
-All data is stored in IndexedDB, enabling your application to work offline. Users can continue to interact with the app even without an internet connection, and changes will sync automatically when connectivity is restored.
+// Browser (Prisma IDB) — same API
+const todos = await idb.todo.findMany({ where: { userId } });
+```
 
-### 4. Optional Bidirectional Sync
+### What about sync?
 
-Prisma IDB includes an optional sync engine that allows for bidirectional synchronization between the local IndexedDB and a remote server. This ensures that your data remains consistent across different devices and platforms.
+This is where most IndexedDB libraries leave you on your own. Prisma IDB includes a complete bidirectional sync engine:
 
-### 5. Conflict Resolution & Authorization
+- **Outbox pattern** for reliable mutation push with retry
+- **Ownership DAG** for structural authorization
+- **Changelog materialization** for efficient, deterministic pulls
+- **Conflict resolution** that doesn't require manual intervention
 
-The sync engine is built with conflict resolution and authorization in mind. It uses a DAG-based approach to handle conflicts and enforces ownership invariants, ensuring that users can only modify their own data.
+It's optional — you can use Prisma IDB purely as a local database. But when your app needs to go online, you flip one flag instead of building a sync system.
 
-## Suitable app types
+## Good fit for
 
-Prisma IDB is ideal for a variety of application types, including:
+- **Offline-first apps** that need to work without network
+- **Progressive Web Apps** with local data and background sync
+- **Collaborative tools** with multi-device data
+- **Any app already using Prisma** that wants browser-side storage
 
-- **Progressive Web Apps (PWAs)**: Enhance user experience with offline capabilities and seamless data synchronization.
-- **Mobile Applications**: Build mobile apps that require local data storage and sync with a backend.
-- **Collaborative Tools**: Create applications where multiple users can work together and see updates in real-time.
-- **Data-Intensive Applications**: Manage large datasets locally while ensuring data integrity through synchronization.
-- **Offline-First Applications**: Develop apps that prioritize offline functionality without sacrificing data consistency.
-
-Ready to get started? Head to the [Quick Start guide](/docs/quick-start).
+Ready to start? Head to the [Quick Start guide](/docs/quick-start).
