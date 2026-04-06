@@ -85,7 +85,7 @@ export async function CodeComparison() {
               <div className="h-2 w-2 rounded-full bg-[hsl(32,100%,50%)]" />
               <span className="text-sm font-semibold text-[hsl(32,100%,50%)]">Prisma IDB</span>
             </div>
-            <div className="overflow-hidden rounded-xl shadow-xl ring-1 shadow-[hsl(32,100%,50%)]/6 ring-[hsl(32,100%,50%)]/20">
+            <div className="overflow-hidden rounded-xl shadow-xl ring-1 shadow-[hsl(32,100%,50%)]/15 ring-[hsl(32,100%,50%)]/25 dark:shadow-[hsl(32,100%,50%)]/6 dark:ring-[hsl(32,100%,50%)]/20">
               <ServerCodeBlock code={prismaIdbCode} lang="ts" />
             </div>
           </div>

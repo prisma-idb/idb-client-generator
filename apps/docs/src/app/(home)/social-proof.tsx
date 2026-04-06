@@ -45,7 +45,7 @@ export function SocialProof() {
         href="https://github.com/prisma-idb/idb-client-generator"
         target="_blank"
         rel="noopener noreferrer"
-        className="text-fd-muted-foreground hover:text-fd-foreground inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-4 py-1.5 transition-colors dark:border-zinc-800 dark:bg-zinc-900"
+        className="text-fd-muted-foreground hover:text-fd-foreground inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-4 py-1.5 shadow-sm transition-colors dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-none"
       >
         <Star className="h-3.5 w-3.5 text-amber-500" />
         {stats.stars !== null ? (
@@ -58,7 +58,7 @@ export function SocialProof() {
         href="https://www.npmjs.com/package/@prisma-idb/idb-client-generator"
         target="_blank"
         rel="noopener noreferrer"
-        className="text-fd-muted-foreground hover:text-fd-foreground inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-4 py-1.5 transition-colors dark:border-zinc-800 dark:bg-zinc-900"
+        className="text-fd-muted-foreground hover:text-fd-foreground inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-4 py-1.5 shadow-sm transition-colors dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-none"
       >
         <Download className="h-3.5 w-3.5 text-emerald-500" />
         {stats.downloads !== null ? (

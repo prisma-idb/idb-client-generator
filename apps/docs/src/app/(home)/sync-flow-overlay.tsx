@@ -40,8 +40,8 @@ const CHANGELOG_EVENTS = [
 
 // ─── Badge colors ────────────────────────────────────────────────────
 const OP_STYLES = {
-  CREATE: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-  UPDATE: "bg-sky-500/20 text-sky-400 border-sky-500/30",
+  CREATE: "bg-emerald-500/20 text-emerald-600 border-emerald-500/30 dark:text-emerald-400",
+  UPDATE: "bg-sky-500/20 text-sky-600 border-sky-500/30 dark:text-sky-400",
 } as const;
 
 // ─── Shared event card ───────────────────────────────────────────────
@@ -61,11 +61,11 @@ function EventCard({
   const isSmall = size === "small";
   return (
     <div
-      className={`flex items-center gap-2 rounded-lg border border-zinc-700/50 bg-zinc-900/80 backdrop-blur ${
+      className={`flex items-center gap-2 rounded-lg border border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-700/50 dark:bg-zinc-900/80 ${
         isSmall ? "px-2 py-1 text-[10px]" : "px-3 py-1.5 text-xs"
       }`}
     >
-      <Icon className={`shrink-0 text-zinc-400 ${isSmall ? "h-2.5 w-2.5" : "h-3 w-3"}`} />
+      <Icon className={`shrink-0 text-zinc-500 dark:text-zinc-400 ${isSmall ? "h-2.5 w-2.5" : "h-3 w-3"}`} />
       <span
         className={`rounded border leading-none font-semibold ${OP_STYLES[op]} ${
           isSmall ? "px-1 py-0.5 text-[8px]" : "px-1.5 py-0.5 text-[10px]"
@@ -73,8 +73,8 @@ function EventCard({
       >
         {op}
       </span>
-      <span className={isSmall ? "text-zinc-300" : "text-zinc-300"}>
-        <span className="text-zinc-400">{model}</span> {title}
+      <span className={isSmall ? "text-zinc-700 dark:text-zinc-300" : "text-zinc-700 dark:text-zinc-300"}>
+        <span className="text-zinc-500 dark:text-zinc-400">{model}</span> {title}
       </span>
     </div>
   );
@@ -97,7 +97,7 @@ export function DesktopSyncOverlay({ currentTime }: { currentTime: number }) {
       {/* Header — always visible */}
       <div
         className={`flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase transition-colors duration-500 ${
-          outboxCleared ? "text-emerald-400" : "text-zinc-400"
+          outboxCleared ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-500 dark:text-zinc-400"
         }`}
       >
         <Inbox className="h-3 w-3" />
@@ -110,7 +110,7 @@ export function DesktopSyncOverlay({ currentTime }: { currentTime: number }) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 4 }}
               transition={{ duration: 0.2 }}
-              className="ml-1 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-400"
+              className="ml-1 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-600 dark:text-amber-400"
             >
               {OUTBOX_EVENTS.filter((e) => currentTime >= e.at).length}
             </motion.span>
@@ -122,7 +122,7 @@ export function DesktopSyncOverlay({ currentTime }: { currentTime: number }) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <CheckCircle2 className="ml-1 h-3 w-3 text-emerald-400" />
+              <CheckCircle2 className="ml-1 h-3 w-3 text-emerald-600 dark:text-emerald-400" />
             </motion.span>
           )}
         </AnimatePresence>
@@ -197,7 +197,7 @@ export function CentralServer({ currentTime }: { currentTime: number }) {
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0 }}
-              className="flex items-center gap-1 text-amber-400"
+              className="flex items-center gap-1 text-amber-600 dark:text-amber-400"
             >
               <motion.div
                 animate={{ x: [0, 6, 0] }}
@@ -218,7 +218,7 @@ export function CentralServer({ currentTime }: { currentTime: number }) {
             ? "border-red-500/50 bg-red-500/10"
             : serverActive
               ? "border-amber-500/50 bg-amber-500/10"
-              : "border-zinc-700/50 bg-zinc-900/50"
+              : "border-zinc-200 bg-zinc-100/50 dark:border-zinc-700/50 dark:bg-zinc-900/50"
         }`}
         animate={phase === "push-fail" ? { x: [-2, 2, -2, 2, 0] } : {}}
         transition={{ duration: 0.4 }}
@@ -227,7 +227,7 @@ export function CentralServer({ currentTime }: { currentTime: number }) {
           <CloudOff className="h-6 w-6 text-red-400" />
         ) : (
           <Database
-            className="h-6 w-6 text-zinc-400 transition-colors duration-500"
+            className="h-6 w-6 text-zinc-500 transition-colors duration-500 dark:text-zinc-400"
             style={{
               color: serverActive ? "hsl(32, 100%, 50%)" : undefined,
             }}
@@ -252,7 +252,7 @@ export function CentralServer({ currentTime }: { currentTime: number }) {
       {/* Server label */}
       <span
         className={`text-[9px] font-semibold tracking-wider uppercase transition-colors duration-500 ${
-          phase === "push-fail" ? "text-red-400" : "text-zinc-400"
+          phase === "push-fail" ? "text-red-400" : "text-zinc-500 dark:text-zinc-400"
         }`}
       >
         {phase === "push-fail" ? "Offline" : "Server"}
@@ -266,7 +266,7 @@ export function CentralServer({ currentTime }: { currentTime: number }) {
               initial={{ opacity: 0, x: 10 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0 }}
-              className="flex items-center gap-1 text-amber-400"
+              className="flex items-center gap-1 text-amber-600 dark:text-amber-400"
             >
               <span className="text-[9px] font-medium tracking-wider uppercase">Pull</span>
               <motion.div
@@ -295,7 +295,11 @@ export function MobileSyncOverlay({ currentTime }: { currentTime: number }) {
       {/* Header — always visible */}
       <div
         className={`flex items-center gap-1.5 text-[9px] font-semibold tracking-wider uppercase transition-colors duration-500 ${
-          pullDone ? "text-emerald-400" : pulling ? "text-amber-400" : "text-zinc-400"
+          pullDone
+            ? "text-emerald-600 dark:text-emerald-400"
+            : pulling
+              ? "text-amber-600 dark:text-amber-400"
+              : "text-zinc-500 dark:text-zinc-400"
         }`}
       >
         <ScrollText className="h-2.5 w-2.5" />
@@ -319,7 +323,7 @@ export function MobileSyncOverlay({ currentTime }: { currentTime: number }) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <CheckCircle2 className="h-2.5 w-2.5 text-emerald-400" />
+              <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400" />
             </motion.span>
           )}
         </AnimatePresence>
@@ -327,13 +331,13 @@ export function MobileSyncOverlay({ currentTime }: { currentTime: number }) {
 
       {/* lastChangelogId badge — always visible */}
       <div
-        className={`flex items-center gap-1.5 rounded border border-zinc-700/40 bg-zinc-900/70 px-2 py-1 text-[9px] backdrop-blur transition-opacity duration-500 ${
+        className={`flex items-center gap-1.5 rounded border border-zinc-200 bg-white/70 px-2 py-1 text-[9px] backdrop-blur transition-opacity duration-500 dark:border-zinc-700/40 dark:bg-zinc-900/70 ${
           pulling ? "opacity-100" : "opacity-40"
         }`}
       >
-        <ArrowUp className="h-2.5 w-2.5 text-zinc-400" />
-        <span className="font-mono text-zinc-400">lastChangelogId:</span>
-        <span className="font-mono text-amber-400">42</span>
+        <ArrowUp className="h-2.5 w-2.5 text-zinc-500 dark:text-zinc-400" />
+        <span className="font-mono text-zinc-500 dark:text-zinc-400">lastChangelogId:</span>
+        <span className="font-mono text-amber-600 dark:text-amber-400">42</span>
       </div>
 
       {/* Changelog events — slide in */}
@@ -370,19 +374,19 @@ function SyncStatusBadge({ phase }: { phase: "failing" | "syncing" | "done" }) {
     failing: {
       icon: CloudOff,
       label: "Sync failed — offline",
-      color: "text-red-400",
+      color: "text-red-600 dark:text-red-400",
       bg: "bg-red-500/10 border-red-500/20",
     },
     syncing: {
       icon: Cloud,
-      label: "Pushing to server…",
-      color: "text-amber-400",
+      label: "Pushing to server\u2026",
+      color: "text-amber-600 dark:text-amber-400",
       bg: "bg-amber-500/10 border-amber-500/20",
     },
     done: {
       icon: CheckCircle2,
       label: "Sync complete",
-      color: "text-emerald-400",
+      color: "text-emerald-600 dark:text-emerald-400",
       bg: "bg-emerald-500/10 border-emerald-500/20",
     },
   } as const;

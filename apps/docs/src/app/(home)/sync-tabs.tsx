@@ -28,7 +28,7 @@ export function SyncTabs({ schemaBlock, endpointsBlock, workerBlock }: SyncTabsP
 
   return (
     <div>
-      <div className="border-fd-border flex gap-1 overflow-x-auto rounded-t-xl border border-b-0 bg-zinc-100 p-1.5 dark:bg-zinc-900/80">
+      <div className="border-fd-border flex gap-1 overflow-x-auto rounded-t-xl border border-b-0 bg-zinc-100 p-1.5 shadow-sm dark:bg-zinc-900/80 dark:shadow-none">
         {tabs.map((tab) => (
           <button
             key={tab.id}
