@@ -73,7 +73,7 @@ function EventCard({
       >
         {op}
       </span>
-      <span className={isSmall ? "text-zinc-700 dark:text-zinc-300" : "text-zinc-700 dark:text-zinc-300"}>
+      <span className="text-zinc-700 dark:text-zinc-300">
         <span className="text-zinc-500 dark:text-zinc-400">{model}</span> {title}
       </span>
     </div>
@@ -252,7 +252,7 @@ export function CentralServer({ currentTime }: { currentTime: number }) {
       {/* Server label */}
       <span
         className={`text-[9px] font-semibold tracking-wider uppercase transition-colors duration-500 ${
-          phase === "push-fail" ? "text-red-400" : "text-zinc-500 dark:text-zinc-400"
+          phase === "push-fail" ? "text-red-600" : "text-zinc-500 dark:text-zinc-400"
         }`}
       >
         {phase === "push-fail" ? "Offline" : "Server"}

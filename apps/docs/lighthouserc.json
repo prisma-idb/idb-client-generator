@@ -4,7 +4,6 @@
       "staticDistDir": "./out",
       "url": ["http://localhost/"],
       "numberOfRuns": 1,
-      "chromePath": "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
       "settings": {
         "chromeFlags": "--no-sandbox --disable-dev-shm-usage"
       }
