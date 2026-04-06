@@ -324,7 +324,15 @@ export function DemoPlayer() {
 
           <div className="shrink-0">
             <PhoneFrame>
-              <video ref={mobileRef} src="/demo-mobile.mp4" className="w-full" muted playsInline preload="auto" />
+              <video
+                ref={mobileRef}
+                src="/demo-mobile.mp4"
+                className="w-full"
+                style={{ aspectRatio: "520/1080" }}
+                muted
+                playsInline
+                preload="auto"
+              />
             </PhoneFrame>
             <MobileSyncOverlay currentTime={currentTime} />
           </div>
@@ -375,7 +383,15 @@ export function DemoPlayer() {
             {...(!showPhoneOnMobile ? { inert: true } : {})}
           >
             <PhoneFrame>
-              <video ref={mobileRef} src="/demo-mobile.mp4" className="w-full" muted playsInline preload="auto" />
+              <video
+                ref={mobileRef}
+                src="/demo-mobile.mp4"
+                className="w-full"
+                style={{ aspectRatio: "520/1080" }}
+                muted
+                playsInline
+                preload="auto"
+              />
             </PhoneFrame>
             <MobileSyncOverlay currentTime={currentTime} />
           </div>

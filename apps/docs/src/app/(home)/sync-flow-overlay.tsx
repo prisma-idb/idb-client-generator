@@ -74,7 +74,7 @@ function EventCard({
         {op}
       </span>
       <span className={isSmall ? "text-zinc-300" : "text-zinc-300"}>
-        <span className="text-zinc-500">{model}</span> {title}
+        <span className="text-zinc-400">{model}</span> {title}
       </span>
     </div>
   );
@@ -97,7 +97,7 @@ export function DesktopSyncOverlay({ currentTime }: { currentTime: number }) {
       {/* Header — always visible */}
       <div
         className={`flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase transition-colors duration-500 ${
-          outboxCleared ? "text-emerald-400" : "text-zinc-500"
+          outboxCleared ? "text-emerald-400" : "text-zinc-400"
         }`}
       >
         <Inbox className="h-3 w-3" />
@@ -252,7 +252,7 @@ export function CentralServer({ currentTime }: { currentTime: number }) {
       {/* Server label */}
       <span
         className={`text-[9px] font-semibold tracking-wider uppercase transition-colors duration-500 ${
-          phase === "push-fail" ? "text-red-400" : serverActive ? "text-zinc-400" : "text-zinc-600"
+          phase === "push-fail" ? "text-red-400" : "text-zinc-400"
         }`}
       >
         {phase === "push-fail" ? "Offline" : "Server"}
@@ -295,7 +295,7 @@ export function MobileSyncOverlay({ currentTime }: { currentTime: number }) {
       {/* Header — always visible */}
       <div
         className={`flex items-center gap-1.5 text-[9px] font-semibold tracking-wider uppercase transition-colors duration-500 ${
-          pullDone ? "text-emerald-400" : pulling ? "text-amber-400" : "text-zinc-600"
+          pullDone ? "text-emerald-400" : pulling ? "text-amber-400" : "text-zinc-400"
         }`}
       >
         <ScrollText className="h-2.5 w-2.5" />
@@ -331,8 +331,8 @@ export function MobileSyncOverlay({ currentTime }: { currentTime: number }) {
           pulling ? "opacity-100" : "opacity-40"
         }`}
       >
-        <ArrowUp className="h-2.5 w-2.5 text-zinc-500" />
-        <span className="font-mono text-zinc-500">lastChangelogId:</span>
+        <ArrowUp className="h-2.5 w-2.5 text-zinc-400" />
+        <span className="font-mono text-zinc-400">lastChangelogId:</span>
         <span className="font-mono text-amber-400">42</span>
       </div>
 

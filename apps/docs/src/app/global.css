@@ -70,6 +70,17 @@
   animation: slide-in 0.4s ease-out both;
 }
 
+/* Override GitHub Light shiki theme colors that fail WCAG AA on light backgrounds.
+   #D73A49 (keywords) and #6A737D (comments) both fall below 4.5:1 on white.
+   We use attribute selector + !important which beats inline style custom properties. */
+span[style*="--shiki-light:#D73A49"] {
+  --shiki-light: #b62035 !important;
+}
+span[style*="--shiki-light:#6A737D"] {
+  --shiki-light: #505a64 !important;
+  --shiki-dark: #8e9aaa !important;
+}
+
 @keyframes dot-flow {
   0% {
     left: -5%;

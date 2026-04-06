@@ -51,7 +51,7 @@ export function SocialProof() {
         {stats.stars !== null ? (
           <span>{formatNumber(stats.stars)} stars</span>
         ) : (
-          <span className="bg-fd-muted inline-block h-4 w-14 animate-pulse rounded" />
+          <span className="bg-fd-muted inline-block h-5 w-14 animate-pulse rounded" />
         )}
       </a>
       <a
@@ -64,7 +64,7 @@ export function SocialProof() {
         {stats.downloads !== null ? (
           <span>{formatNumber(stats.downloads)}/wk</span>
         ) : (
-          <span className="bg-fd-muted inline-block h-4 w-14 animate-pulse rounded" />
+          <span className="bg-fd-muted inline-block h-5 w-14 animate-pulse rounded" />
         )}
       </a>
     </div>
