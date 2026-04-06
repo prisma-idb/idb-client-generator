@@ -7,6 +7,9 @@ const config = {
   output: "export",
   reactStrictMode: true,
   images: { unoptimized: true },
+  experimental: {
+    optimizePackageImports: ["lucide-react", "motion"],
+  },
 };
 
 export default withMDX(config);

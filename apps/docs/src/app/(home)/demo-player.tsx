@@ -22,15 +22,15 @@ function getChapter(time: number) {
 
 function BrowserFrame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-700/50 bg-zinc-100 shadow-2xl dark:bg-zinc-900">
-      <div className="flex items-center gap-2 border-b border-zinc-700/50 bg-zinc-50 px-4 py-2.5 dark:bg-zinc-900/80">
+    <div className="overflow-hidden rounded-xl border border-zinc-700/50 bg-zinc-900 shadow-2xl">
+      <div className="flex items-center gap-2 border-b border-zinc-700/50 bg-zinc-900/80 px-4 py-2.5">
         <div className="flex gap-1.5">
-          <div className="h-2 w-2 rounded-full bg-zinc-300 dark:bg-zinc-700" />
-          <div className="h-2 w-2 rounded-full bg-zinc-300 dark:bg-zinc-700" />
-          <div className="h-2 w-2 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+          <div className="h-2 w-2 rounded-full bg-zinc-700" />
+          <div className="h-2 w-2 rounded-full bg-zinc-700" />
+          <div className="h-2 w-2 rounded-full bg-zinc-700" />
         </div>
-        <div className="mx-auto flex items-center rounded-md bg-zinc-200 px-3 py-0.5 dark:bg-zinc-800">
-          <span className="text-[11px] text-zinc-500 dark:text-zinc-400">kanban.prisma-idb.dev</span>
+        <div className="mx-auto flex items-center rounded-md bg-zinc-800 px-3 py-0.5">
+          <span className="text-[11px] text-zinc-400">kanban.prisma-idb.dev</span>
         </div>
       </div>
       {children}
@@ -324,7 +324,15 @@ export function DemoPlayer() {
 
           <div className="shrink-0">
             <PhoneFrame>
-              <video ref={mobileRef} src="/demo-mobile.mp4" className="w-full" muted playsInline preload="auto" />
+              <video
+                ref={mobileRef}
+                src="/demo-mobile.mp4"
+                className="w-full"
+                style={{ aspectRatio: "520/1080" }}
+                muted
+                playsInline
+                preload="auto"
+              />
             </PhoneFrame>
             <MobileSyncOverlay currentTime={currentTime} />
           </div>
@@ -375,7 +383,15 @@ export function DemoPlayer() {
             {...(!showPhoneOnMobile ? { inert: true } : {})}
           >
             <PhoneFrame>
-              <video ref={mobileRef} src="/demo-mobile.mp4" className="w-full" muted playsInline preload="auto" />
+              <video
+                ref={mobileRef}
+                src="/demo-mobile.mp4"
+                className="w-full"
+                style={{ aspectRatio: "520/1080" }}
+                muted
+                playsInline
+                preload="auto"
+              />
             </PhoneFrame>
             <MobileSyncOverlay currentTime={currentTime} />
           </div>
@@ -387,7 +403,7 @@ export function DemoPlayer() {
         <div className="mb-2 h-5 text-center">
           <p
             key={chapter.label}
-            className="animate-slide-in text-fd-muted-foreground text-sm font-medium tracking-wide"
+            className="animate-slide-in text-sm font-medium tracking-wide text-zinc-500 dark:text-zinc-400"
             aria-live="polite"
             aria-atomic="true"
           >
@@ -397,7 +413,7 @@ export function DemoPlayer() {
         <div className="flex items-center gap-3">
           <button
             onClick={playPause}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-zinc-200 transition-colors hover:bg-zinc-700"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-zinc-700 transition-colors hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
             aria-label={playing ? "Pause" : ended ? "Replay" : "Play"}
           >
             {playing ? (
@@ -418,7 +434,7 @@ export function DemoPlayer() {
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(progress * 100)}
-            className="relative flex-1 cursor-pointer py-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(32,100%,50%)] focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
+            className="relative flex-1 cursor-pointer py-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(32,100%,50%)] focus-visible:ring-offset-2"
             onClick={handleProgressBarClick}
             onKeyDown={(e) => {
               const step = 0.05;
@@ -431,7 +447,7 @@ export function DemoPlayer() {
               }
             }}
           >
-            <div className="pointer-events-none absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-zinc-800" />
+            <div className="pointer-events-none absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-zinc-200 dark:bg-zinc-800" />
             <div
               className="pointer-events-none absolute inset-y-0 top-1/2 left-0 h-2 -translate-y-1/2 rounded-full bg-[hsl(32,100%,50%)]"
               style={{ width: `${progress * 100}%` }}
@@ -440,7 +456,7 @@ export function DemoPlayer() {
 
           <button
             onClick={restart}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-zinc-200 transition-colors hover:bg-zinc-700"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-zinc-700 transition-colors hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
             aria-label="Restart"
           >
             <RotateCcw className="h-3.5 w-3.5" />

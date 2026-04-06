@@ -18,14 +18,14 @@ export function DemoSection() {
           <div className="mt-6 flex justify-center gap-3">
             <Link
               href="https://kanban.prisma-idb.dev/"
-              className="text-fd-primary-foreground inline-flex items-center gap-2 rounded-md bg-[hsl(32,100%,50%)] px-6 py-2.5 text-sm font-medium tracking-wide transition-all hover:bg-[hsl(32,100%,45%)]"
+              className="text-fd-primary-foreground inline-flex items-center gap-2 rounded-md bg-[hsl(32,100%,50%)] px-6 py-2.5 text-sm font-medium tracking-wide shadow-md shadow-[hsl(32,100%,50%)]/30 transition-all hover:bg-[hsl(32,100%,45%)] hover:shadow-lg hover:shadow-[hsl(32,100%,50%)]/30"
             >
               <Rocket className="h-3.5 w-3.5" />
               Try the Live Demo
             </Link>
             <Link
               href="https://github.com/prisma-idb/idb-client-generator/tree/main/apps/pidb-kanban-example"
-              className="text-fd-foreground border-fd-border bg-fd-card hover:bg-fd-accent/10 inline-flex items-center gap-2 rounded-md border px-6 py-2.5 text-sm font-medium tracking-wide transition-colors"
+              className="text-fd-foreground border-fd-border bg-fd-card hover:bg-fd-accent/10 inline-flex items-center gap-2 rounded-md border px-6 py-2.5 text-sm font-medium tracking-wide shadow-sm transition-colors"
             >
               <GitBranch className="h-3.5 w-3.5" />
               View Source
@@ -35,6 +35,13 @@ export function DemoSection() {
 
         <div className="mt-12">
           <DemoPlayer />
+          <p className="text-fd-muted-foreground mt-5 text-center text-sm">
+            The demo uses manual sync controls.{" "}
+            <span className="text-fd-foreground font-medium">
+              In production, call <code className="text-fd-accent text-[13px]">worker.start()</code> for fully automatic
+              background sync.
+            </span>
+          </p>
         </div>
       </div>
     </section>

@@ -11,7 +11,7 @@
   --color-fd-popover-foreground: hsl(0, 0%, 15.1%);
   --color-fd-card: hsl(0, 0%, 94.7%);
   --color-fd-card-foreground: hsl(0, 0%, 3.9%);
-  --color-fd-border: hsla(0, 0%, 80%, 50%);
+  --color-fd-border: hsla(0, 0%, 75%, 55%);
   --color-fd-primary: hsl(0, 0%, 9%);
   --color-fd-primary-foreground: hsl(0, 0%, 98%);
   --color-fd-secondary: hsl(0, 0%, 93.1%);
@@ -68,6 +68,17 @@
 
 .animate-slide-in {
   animation: slide-in 0.4s ease-out both;
+}
+
+/* Override GitHub Light shiki theme colors that fail WCAG AA on light backgrounds.
+   #D73A49 (keywords) and #6A737D (comments) both fall below 4.5:1 on white.
+   We use attribute selector + !important which beats inline style custom properties. */
+span[style*="--shiki-light:#D73A49"] {
+  --shiki-light: #b62035 !important;
+}
+span[style*="--shiki-light:#6A737D"] {
+  --shiki-light: #505a64 !important;
+  --shiki-dark: #8e9aaa !important;
 }
 
 @keyframes dot-flow {

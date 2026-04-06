@@ -63,16 +63,16 @@ export function ComparisonSection() {
           same API in the browser — with sync included.
         </p>
 
-        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60">
+        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 shadow-md dark:border-zinc-800 dark:bg-zinc-900/60 dark:shadow-none">
           <div className="overflow-x-auto">
             <table className="w-full min-w-135 text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 bg-zinc-100/80 dark:border-zinc-800 dark:bg-zinc-900/80">
-                  <th className="text-fd-muted-foreground py-3.5 pr-4 pl-5 text-left font-medium">Feature</th>
+                  <th className="text-fd-muted-foreground w-2/5 py-3.5 pr-4 pl-5 text-left font-medium">Feature</th>
                   {tools.map((tool) => (
                     <th
                       key={tool.key}
-                      className={`py-3.5 text-center font-medium ${
+                      className={`w-[15%] py-3.5 text-center font-medium ${
                         tool.highlight ? "text-[hsl(32,100%,50%)]" : "text-fd-muted-foreground"
                       }`}
                     >

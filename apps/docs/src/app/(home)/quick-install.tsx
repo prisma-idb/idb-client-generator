@@ -11,7 +11,7 @@ const schemaSnippet = `generator prismaIDB {
 
 export async function QuickInstall() {
   const badgeClass =
-    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(32,100%,35%)] text-sm font-bold text-white";
+    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(32,100%,50%)] text-sm font-bold text-white shadow-md shadow-[hsl(32,100%,50%)]/25";
 
   return (
     <section className="border-fd-border/60 border-t px-6 py-16 sm:py-24 lg:px-8">
