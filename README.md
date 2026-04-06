@@ -135,11 +135,11 @@ await idb.todo.delete({
 
 ## Contributing
 
-Contributions welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md).
+Contributions welcome. See [CONTRIBUTING.md](./.github/CONTRIBUTING.md).
 
 ## Security
 
-See [SECURITY.md](./SECURITY.md) for reporting vulnerabilities.
+See [SECURITY.md](./.github/SECURITY.md) for reporting vulnerabilities.
 
 ## License
 
