@@ -1,5 +1,5 @@
 import { DMMF } from "@prisma/generator-helper";
-import { getUniqueIdentifiers, getNonUniqueIndexes } from "../../helpers/utils";
+import { getUniqueIdentifiers, getNonUniqueIndexes, getForeignKeyIndexes } from "../../helpers/utils";
 import { Model } from "../types";
 import CodeBlockWriter from "code-block-writer";
 
@@ -62,13 +62,17 @@ export function createIDBInterfaceFile(
 function createFieldIndexes(writer: CodeBlockWriter, model: Model, datamodelIndexes: readonly DMMF.Index[]) {
   const nonKeyUniqueIdentifiers = getUniqueIdentifiers(model).slice(1);
   const nonUniqueIndexes = getNonUniqueIndexes(model, datamodelIndexes);
-  if (nonKeyUniqueIdentifiers.length === 0 && nonUniqueIndexes.length === 0) return;
+  const fkIndexes = getForeignKeyIndexes(model, datamodelIndexes);
+  if (nonKeyUniqueIdentifiers.length === 0 && nonUniqueIndexes.length === 0 && fkIndexes.length === 0) return;
 
   writer.writeLine("indexes: ").block(() => {
     nonKeyUniqueIdentifiers.forEach(({ name, keyPathType }) => {
       writer.writeLine(`${name}Index: ${keyPathType}`);
     });
     nonUniqueIndexes.forEach(({ name, keyPathType }) => {
+      writer.writeLine(`${name}Index: ${keyPathType}`);
+    });
+    fkIndexes.forEach(({ name, keyPathType }) => {
       writer.writeLine(`${name}Index: ${keyPathType}`);
     });
   });

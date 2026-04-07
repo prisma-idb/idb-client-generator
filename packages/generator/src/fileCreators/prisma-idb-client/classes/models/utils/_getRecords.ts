@@ -1,7 +1,7 @@
 import { DMMF } from "@prisma/generator-helper";
 import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../types";
-import { getNonUniqueIndexes } from "../../../../../helpers/utils";
+import { getForeignKeyIndexes, getNonUniqueIndexes } from "../../../../../helpers/utils";
 
 /**
  * Generates the private `_getRecords` method on a model class.
@@ -11,11 +11,15 @@ import { getNonUniqueIndexes } from "../../../../../helpers/utils";
  *  2. **Prefix match** — leading fields of a composite index match → `IDBKeyRange.bound()`
  *  3. **Fallback** — no applicable index → plain `getAll()`
  *
- * Indexes are tried most-selective-first (most fields). For models with no non-unique
- * indexes the method simply delegates to `getAll()`.
+ * Indexes tried include both user-defined `@@index` directives and auto-generated
+ * foreign key indexes (used to speed up relation joins / `include` queries).
+ * Indexes are tried most-selective-first (most fields). For models with no
+ * applicable indexes the method simply delegates to `getAll()`.
  */
 export function addGetRecords(writer: CodeBlockWriter, model: Model, datamodelIndexes: readonly DMMF.Index[]) {
   const nonUniqueIndexes = getNonUniqueIndexes(model, datamodelIndexes);
+  const fkIndexes = getForeignKeyIndexes(model, datamodelIndexes);
+  const allIndexes = [...nonUniqueIndexes, ...fkIndexes];
 
   writer
     .writeLine(`private async _getRecords(`)
@@ -23,7 +27,7 @@ export function addGetRecords(writer: CodeBlockWriter, model: Model, datamodelIn
     .writeLine(`where?: Prisma.Args<Prisma.${model.name}Delegate, 'findFirstOrThrow'>['where'],`)
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>[]>`)
     .block(() => {
-      if (nonUniqueIndexes.length === 0) {
+      if (allIndexes.length === 0) {
         writer.writeLine(`return tx.objectStore("${model.name}").getAll();`);
         return;
       }
@@ -31,7 +35,7 @@ export function addGetRecords(writer: CodeBlockWriter, model: Model, datamodelIn
       writer.writeLine(`if (!where) return tx.objectStore("${model.name}").getAll();`);
 
       // Parse keyPaths once upfront
-      const indexesWithFields = nonUniqueIndexes.map((idx) => ({
+      const indexesWithFields = allIndexes.map((idx) => ({
         ...idx,
         fieldNames: JSON.parse(idx.keyPath) as string[],
       }));

@@ -81,6 +81,56 @@ export function getUnsupportedKeyFields(model: Model): { fieldName: string; fiel
  * unsupported IDB key types. When `printLogs` is true, warnings are logged
  * for skipped indexes.
  */
+/**
+ * Returns IndexedDB index identifiers for foreign key fields on a model.
+ *
+ * These indexes are auto-generated to speed up relation joins. Without them,
+ * every `include` / relation traversal falls back to a full `getAll()` scan
+ * followed by in-memory filtering — O(N) per parent record instead of O(log N).
+ *
+ * An FK index is only generated when:
+ *  - The field holds the FK side of a relation (`relationFromFields` is non-empty)
+ *  - All FK field types are valid IDB key types
+ *  - The exact field set is not already covered by the primary key, a
+ *    `@unique` / `@@unique` constraint, or an explicit `@@index`
+ */
+export function getForeignKeyIndexes(model: Model, datamodelIndexes: readonly DMMF.Index[]): IndexIdentifier[] {
+  // Collect key-paths that are already indexed so we don't create duplicates.
+  const alreadyIndexedKeyPaths = new Set<string>([
+    ...getUniqueIdentifiers(model).map(({ keyPath }) => keyPath),
+    ...getNonUniqueIndexes(model, datamodelIndexes).map(({ keyPath }) => keyPath),
+  ]);
+
+  const result: IndexIdentifier[] = [];
+  const seenKeyPaths = new Set<string>();
+
+  for (const field of model.fields) {
+    if (field.kind !== "object" || !field.relationFromFields?.length) continue;
+
+    const fkFieldNames = field.relationFromFields;
+    const keyPath = JSON.stringify(fkFieldNames);
+
+    if (alreadyIndexedKeyPaths.has(keyPath)) continue;
+    if (seenKeyPaths.has(keyPath)) continue;
+
+    // Only index FK fields whose types are valid IDB key types.
+    const hasInvalidType = fkFieldNames.some((fieldName) => {
+      const f = model.fields.find(({ name }) => name === fieldName);
+      return !f || !validIDBKeyPrismaTypes.has(f.type);
+    });
+    if (hasInvalidType) continue;
+
+    seenKeyPaths.add(keyPath);
+    result.push({
+      name: fkFieldNames.join("_"),
+      keyPath,
+      keyPathType: createIdentifierTuple(fkFieldNames, model),
+    });
+  }
+
+  return result;
+}
+
 export function getNonUniqueIndexes(
   model: Model,
   datamodelIndexes: readonly DMMF.Index[],
