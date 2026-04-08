@@ -255,6 +255,27 @@ test("MultipleCompositeUniques_FindMany_ReturnsMultipleRecords", async ({ page }
   });
 });
 
+test("MultipleCompositeUniques_FindMany_BySharedPrefix", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "multipleCompositeUniques",
+    operation: "createMany",
+    query: {
+      data: [
+        { a: "x", b: 1, c: new Date("2024-01-01T00:00:00Z"), d: 1.0 },
+        { a: "x", b: 2, c: new Date("2024-02-01T00:00:00Z"), d: 2.0 },
+        { a: "y", b: 3, c: new Date("2024-03-01T00:00:00Z"), d: 3.0 },
+      ],
+    },
+  });
+  await expectQueryToSucceed({
+    page,
+    model: "multipleCompositeUniques",
+    operation: "findMany",
+    query: { where: { a: "x" } },
+  });
+});
+
 // ── Composite Unique Cursor Pagination ──────────────────────────────
 
 const compositeUniqueFloatIntSeed = [

@@ -13,7 +13,10 @@ function createIdentifierTuple(fieldNames: readonly string[], model: Model) {
   return JSON.stringify(
     fieldNames.map((keyFieldName) => {
       const keyField = model.fields.find(({ name }) => keyFieldName === name)!;
-      return `${keyField.name}: Prisma.${model.name}['${keyField.name}']`;
+      const typeExpr = keyField.isRequired
+        ? `Prisma.${model.name}['${keyField.name}']`
+        : `NonNullable<Prisma.${model.name}['${keyField.name}']>`;
+      return `${keyField.name}: ${typeExpr}`;
     })
   ).replaceAll('"', "");
 }
@@ -74,6 +77,74 @@ export function getUnsupportedKeyFields(model: Model): { fieldName: string; fiel
   }
 
   return unsupported;
+}
+
+/**
+ * Returns IndexedDB index identifiers for foreign key fields on a model.
+ *
+ * These indexes are auto-generated to speed up relation joins. Without them,
+ * every `include` / relation traversal falls back to a full `getAll()` scan
+ * followed by in-memory filtering — O(N) per parent record instead of O(log N).
+ *
+ * An FK index is only generated when:
+ *  - The field holds the FK side of a relation (`relationFromFields` is non-empty)
+ *  - All FK field types are valid IDB key types
+ *  - The exact field set is not already covered by the primary key, a
+ *    `@unique` / `@@unique` constraint, or an explicit `@@index`
+ */
+export function getForeignKeyIndexes(model: Model, datamodelIndexes: readonly DMMF.Index[]): IndexIdentifier[] {
+  // Collect key-paths that are already indexed so we don't create duplicates.
+  const alreadyIndexedKeyPaths = new Set<string>([
+    ...getUniqueIdentifiers(model).map(({ keyPath }) => keyPath),
+    ...getNonUniqueIndexes(model, datamodelIndexes).map(({ keyPath }) => keyPath),
+  ]);
+
+  // Collect existing index names to avoid name collisions.
+  const existingIndexNames = new Set<string>([
+    ...getUniqueIdentifiers(model).map(({ name }) => name),
+    ...getNonUniqueIndexes(model, datamodelIndexes).map(({ name }) => name),
+  ]);
+
+  const result: IndexIdentifier[] = [];
+  const seenKeyPaths = new Set<string>();
+
+  for (const field of model.fields) {
+    if (field.kind !== "object" || !field.relationFromFields?.length) continue;
+
+    const fkFieldNames = field.relationFromFields;
+    const keyPath = JSON.stringify(fkFieldNames);
+
+    if (alreadyIndexedKeyPaths.has(keyPath)) continue;
+    if (seenKeyPaths.has(keyPath)) continue;
+
+    // Only index FK fields whose types are valid IDB key types.
+    const hasInvalidType = fkFieldNames.some((fieldName) => {
+      const f = model.fields.find(({ name }) => name === fieldName);
+      return !f || !validIDBKeyPrismaTypes.has(f.type);
+    });
+    if (hasInvalidType) continue;
+
+    seenKeyPaths.add(keyPath);
+
+    // Derive a non-colliding name: start with the base name and append a numeric
+    // suffix if needed.
+    const baseName = fkFieldNames.join("_");
+    let finalName = baseName;
+    let suffix = 1;
+    while (existingIndexNames.has(finalName)) {
+      finalName = `${baseName}_${suffix}`;
+      suffix++;
+    }
+    existingIndexNames.add(finalName);
+
+    result.push({
+      name: finalName,
+      keyPath,
+      keyPathType: createIdentifierTuple(fkFieldNames, model),
+    });
+  }
+
+  return result;
 }
 
 /**

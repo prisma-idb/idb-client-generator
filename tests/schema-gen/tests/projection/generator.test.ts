@@ -18,6 +18,21 @@ describe("schema projection", () => {
     expect(projected).toMatchSnapshot();
   }, 20000);
 
+  it("deduplicates shared prefix composite index branches", async () => {
+    const schemaPath = path.join(schemasDir, "valid", "shared-prefix-composite-uniques.prisma");
+
+    await execa("pnpm", ["prisma", "generate", "--schema", schemaPath]);
+
+    const client = await fs.readFile("./tests/projection/generated/prisma-idb/client/prisma-idb-client.ts", "utf8");
+    const sharedPrefixBranchCount = client.match(/if \(aEq !== undefined\)/g) ?? [];
+
+    expect(sharedPrefixBranchCount).toHaveLength(1);
+    expect(client).toContain('const objectStore = tx.objectStore("MultipleCompositeUniques");');
+    expect(client).toContain('objectStore.index("a_bIndex").getAll(');
+    expect(client).toContain('objectStore.index("a_cIndex").getAll(');
+    expect(client).toContain("return IDBUtils.removeDuplicatesByKeyPath(");
+  }, 20000);
+
   it("generates correct batch-processor for optional relations in ownership path", async () => {
     const schemaPath = path.join(schemasDir, "valid", "user-meal-foodentry-optional.prisma");
 

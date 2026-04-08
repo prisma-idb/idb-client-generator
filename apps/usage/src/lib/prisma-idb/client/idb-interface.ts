@@ -20,14 +20,24 @@ export interface PrismaIDBSchema extends DBSchema {
   Post: {
     key: [id: Prisma.Post["id"]];
     value: Prisma.Post;
+    indexes: {
+      authorIdIndex: [authorId: NonNullable<Prisma.Post["authorId"]>];
+    };
   };
   Comment: {
     key: [id: Prisma.Comment["id"]];
     value: Prisma.Comment;
+    indexes: {
+      postIdIndex: [postId: Prisma.Comment["postId"]];
+      userIdIndex: [userId: Prisma.Comment["userId"]];
+    };
   };
   Todo: {
     key: [id: Prisma.Todo["id"]];
     value: Prisma.Todo;
+    indexes: {
+      userIdIndex: [userId: Prisma.Todo["userId"]];
+    };
   };
   AllFieldScalarTypes: {
     key: [id: Prisma.AllFieldScalarTypes["id"]];
@@ -44,6 +54,9 @@ export interface PrismaIDBSchema extends DBSchema {
   ModelWithOptionalRelationToUniqueAttributes: {
     key: [id: Prisma.ModelWithOptionalRelationToUniqueAttributes["id"]];
     value: Prisma.ModelWithOptionalRelationToUniqueAttributes;
+    indexes: {
+      linkIdIndex: [linkId: NonNullable<Prisma.ModelWithOptionalRelationToUniqueAttributes["linkId"]>];
+    };
   };
   ModelWithUniqueAttributes: {
     key: [id: Prisma.ModelWithUniqueAttributes["id"]];
@@ -55,6 +68,10 @@ export interface PrismaIDBSchema extends DBSchema {
   UserGroup: {
     key: [groupId: Prisma.UserGroup["groupId"], userId: Prisma.UserGroup["userId"]];
     value: Prisma.UserGroup;
+    indexes: {
+      groupIdIndex: [groupId: Prisma.UserGroup["groupId"]];
+      userIdIndex: [userId: Prisma.UserGroup["userId"]];
+    };
   };
   Father: {
     key: [firstName: Prisma.Father["firstName"], lastName: Prisma.Father["lastName"]];
@@ -64,15 +81,30 @@ export interface PrismaIDBSchema extends DBSchema {
         motherFirstName: Prisma.Father["motherFirstName"],
         motherLastName: Prisma.Father["motherLastName"],
       ];
+      userIdIndex: [userId: NonNullable<Prisma.Father["userId"]>];
     };
   };
   Mother: {
     key: [firstName: Prisma.Mother["firstName"], lastName: Prisma.Mother["lastName"]];
     value: Prisma.Mother;
+    indexes: {
+      userIdIndex: [userId: NonNullable<Prisma.Mother["userId"]>];
+    };
   };
   Child: {
     key: [childFirstName: Prisma.Child["childFirstName"], childLastName: Prisma.Child["childLastName"]];
     value: Prisma.Child;
+    indexes: {
+      userIdIndex: [userId: NonNullable<Prisma.Child["userId"]>];
+      fatherLastName_fatherFirstNameIndex: [
+        fatherLastName: Prisma.Child["fatherLastName"],
+        fatherFirstName: Prisma.Child["fatherFirstName"],
+      ];
+      motherFirstName_motherLastNameIndex: [
+        motherFirstName: Prisma.Child["motherFirstName"],
+        motherLastName: Prisma.Child["motherLastName"],
+      ];
+    };
   };
   CompositeIdIntString: {
     key: [orgId: Prisma.CompositeIdIntString["orgId"], code: Prisma.CompositeIdIntString["code"]];

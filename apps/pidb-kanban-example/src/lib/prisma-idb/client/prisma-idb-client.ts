@@ -453,8 +453,10 @@ export class PrismaIDBClient {
   private async initialize() {
     this._db = await openDB<PrismaIDBSchema>("prisma-idb", IDB_VERSION, {
       upgrade(db) {
-        db.createObjectStore("Board", { keyPath: ["id"] });
-        db.createObjectStore("Todo", { keyPath: ["id"] });
+        const BoardStore = db.createObjectStore("Board", { keyPath: ["id"] });
+        BoardStore.createIndex("userIdIndex", ["userId"], { unique: false });
+        const TodoStore = db.createObjectStore("Todo", { keyPath: ["id"] });
+        TodoStore.createIndex("boardIdIndex", ["boardId"], { unique: false });
         const UserStore = db.createObjectStore("User", { keyPath: ["id"] });
         UserStore.createIndex("emailIndex", ["email"], { unique: true });
         db.createObjectStore("OutboxEvent", { keyPath: ["id"] });
@@ -948,6 +950,16 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
     tx: IDBUtils.TransactionType,
     where?: Prisma.Args<Prisma.BoardDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.BoardDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("Board").getAll();
+    const userIdEq = IDBUtils.extractEqualityValue(where.userId);
+
+    if (userIdEq !== undefined) {
+      return tx
+        .objectStore("Board")
+        .index("userIdIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([userIdEq]));
+    }
+
     return tx.objectStore("Board").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.BoardDelegate, "findMany">>(
@@ -1921,6 +1933,16 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     tx: IDBUtils.TransactionType,
     where?: Prisma.Args<Prisma.TodoDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("Todo").getAll();
+    const boardIdEq = IDBUtils.extractEqualityValue(where.boardId);
+
+    if (boardIdEq !== undefined) {
+      return tx
+        .objectStore("Todo")
+        .index("boardIdIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([boardIdEq]));
+    }
+
     return tx.objectStore("Todo").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.TodoDelegate, "findMany">>(
@@ -2810,6 +2832,16 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     tx: IDBUtils.TransactionType,
     where?: Prisma.Args<Prisma.UserDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("User").getAll();
+    const emailEq = IDBUtils.extractEqualityValue(where.email);
+
+    if (emailEq !== undefined) {
+      return tx
+        .objectStore("User")
+        .index("emailIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([emailEq]));
+    }
+
     return tx.objectStore("User").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(

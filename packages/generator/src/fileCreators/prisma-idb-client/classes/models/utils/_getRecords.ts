@@ -1,7 +1,7 @@
 import { DMMF } from "@prisma/generator-helper";
 import CodeBlockWriter from "code-block-writer";
 import { Model } from "../../../../types";
-import { getNonUniqueIndexes } from "../../../../../helpers/utils";
+import { getForeignKeyIndexes, getNonUniqueIndexes, getUniqueIdentifiers } from "../../../../../helpers/utils";
 
 /**
  * Generates the private `_getRecords` method on a model class.
@@ -11,11 +11,22 @@ import { getNonUniqueIndexes } from "../../../../../helpers/utils";
  *  2. **Prefix match** — leading fields of a composite index match → `IDBKeyRange.bound()`
  *  3. **Fallback** — no applicable index → plain `getAll()`
  *
- * Indexes are tried most-selective-first (most fields). For models with no non-unique
- * indexes the method simply delegates to `getAll()`.
+ * Indexes tried include both user-defined `@@index` directives, non-primary unique
+ * indexes (@unique / @@unique), and auto-generated foreign key indexes (used to
+ * speed up relation joins / `include` queries).
+ * Indexes are tried most-selective-first (most fields). For models with no
+ * applicable indexes the method simply delegates to `getAll()`.
  */
 export function addGetRecords(writer: CodeBlockWriter, model: Model, datamodelIndexes: readonly DMMF.Index[]) {
+  const primaryIdentifier = getUniqueIdentifiers(model)[0];
+  const primaryKeyFields = JSON.parse(primaryIdentifier.keyPath) as string[];
+  const isCompositePrimaryKey = primaryKeyFields.length > 1;
+
   const nonUniqueIndexes = getNonUniqueIndexes(model, datamodelIndexes);
+  // getUniqueIdentifiers[0] is always the primary key; slice(1) gives non-primary unique indexes
+  const nonPrimaryUniqueIndexes = getUniqueIdentifiers(model).slice(1);
+  const fkIndexes = getForeignKeyIndexes(model, datamodelIndexes);
+  const allIndexes = [...nonUniqueIndexes, ...nonPrimaryUniqueIndexes, ...fkIndexes];
 
   writer
     .writeLine(`private async _getRecords(`)
@@ -23,7 +34,7 @@ export function addGetRecords(writer: CodeBlockWriter, model: Model, datamodelIn
     .writeLine(`where?: Prisma.Args<Prisma.${model.name}Delegate, 'findFirstOrThrow'>['where'],`)
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, object, 'findFirstOrThrow'>[]>`)
     .block(() => {
-      if (nonUniqueIndexes.length === 0) {
+      if (allIndexes.length === 0 && !isCompositePrimaryKey) {
         writer.writeLine(`return tx.objectStore("${model.name}").getAll();`);
         return;
       }
@@ -31,16 +42,48 @@ export function addGetRecords(writer: CodeBlockWriter, model: Model, datamodelIn
       writer.writeLine(`if (!where) return tx.objectStore("${model.name}").getAll();`);
 
       // Parse keyPaths once upfront
-      const indexesWithFields = nonUniqueIndexes.map((idx) => ({
+      const indexesWithFields = allIndexes.map((idx) => ({
         ...idx,
         fieldNames: JSON.parse(idx.keyPath) as string[],
       }));
 
       // Sort indexes by field count descending (most selective first)
       const sortedIndexes = [...indexesWithFields].sort((a, b) => b.fieldNames.length - a.fieldNames.length);
+      const modelFieldsByName = new Map(model.fields.map((field) => [field.name, field]));
+      const prefixMatchGroups = new Map<string, { prefixFields: string[]; candidates: typeof sortedIndexes }>();
 
-      // Collect all unique field names used across all indexes
-      const allFieldNames = new Set<string>();
+      for (const idx of sortedIndexes) {
+        const fields = idx.fieldNames;
+        if (fields.length < 2) continue;
+
+        for (let prefixLen = fields.length - 1; prefixLen >= 1; prefixLen--) {
+          const trailingFields = fields.slice(prefixLen);
+          if (trailingFields.some((fieldName) => !modelFieldsByName.get(fieldName)?.isRequired)) continue;
+
+          const prefixFields = fields.slice(0, prefixLen);
+          const prefixKey = JSON.stringify(prefixFields);
+          const existingGroup = prefixMatchGroups.get(prefixKey);
+          if (existingGroup) {
+            existingGroup.candidates.push(idx);
+            continue;
+          }
+
+          prefixMatchGroups.set(prefixKey, {
+            prefixFields,
+            candidates: [idx],
+          });
+        }
+      }
+
+      const sortedPrefixMatchGroups = [...prefixMatchGroups.values()].sort((a, b) => {
+        if (b.prefixFields.length !== a.prefixFields.length) {
+          return b.prefixFields.length - a.prefixFields.length;
+        }
+        return (b.candidates[0]?.fieldNames.length ?? 0) - (a.candidates[0]?.fieldNames.length ?? 0);
+      });
+
+      // Collect all unique field names used across all indexes + primary key fields
+      const allFieldNames = new Set<string>(isCompositePrimaryKey ? primaryKeyFields : []);
       for (const idx of sortedIndexes) {
         for (const f of idx.fieldNames) allFieldNames.add(f);
       }
@@ -57,6 +100,19 @@ export function addGetRecords(writer: CodeBlockWriter, model: Model, datamodelIn
       }
       writer.blankLine();
 
+      // Fast-path: composite primary key — if all PK fields have equality values,
+      // query the object store directly using the composite key (no secondary index).
+      if (isCompositePrimaryKey) {
+        const pkCondition = primaryKeyFields.map((f) => `${f}Eq !== undefined`).join(" && ");
+        const pkKeyArray = primaryKeyFields.map((f) => `${f}Eq`).join(", ");
+        writer.writeLine(`if (${pkCondition})`).block(() => {
+          writer.writeLine(
+            `return tx.objectStore("${model.name}").getAll(IDBUtils.IDBKeyRange.only([${pkKeyArray}]));`
+          );
+        });
+        writer.blankLine();
+      }
+
       // Phase 1: Full matches (all fields of an index have equality values)
       for (const idx of sortedIndexes) {
         const fields = idx.fieldNames;
@@ -71,23 +127,41 @@ export function addGetRecords(writer: CodeBlockWriter, model: Model, datamodelIn
       }
       writer.blankLine();
 
-      // Phase 2: Prefix matches for composite indexes (try longer prefixes first)
-      for (const idx of sortedIndexes) {
-        const fields = idx.fieldNames;
-        if (fields.length < 2) continue;
+      // Phase 2: Prefix matches for composite indexes (try longer prefixes first).
+      // Prefix scans are only safe when trailing indexed fields are required;
+      // otherwise IndexedDB may omit records with null trailing keys.
+      for (const prefixGroup of sortedPrefixMatchGroups) {
+        const condition = prefixGroup.prefixFields.map((f) => `${f}Eq !== undefined`).join(" && ");
+        const lowerArray = prefixGroup.prefixFields.map((f) => `${f}Eq`).join(", ");
 
-        for (let prefixLen = fields.length - 1; prefixLen >= 1; prefixLen--) {
-          const prefixFields = fields.slice(0, prefixLen);
-          const condition = prefixFields.map((f) => `${f}Eq !== undefined`).join(" && ");
-          const lowerArray = prefixFields.map((f) => `${f}Eq`).join(", ");
-
-          writer.writeLine(`if (${condition})`).block(() => {
+        writer.writeLine(`if (${condition})`).block(() => {
+          if (prefixGroup.candidates.length === 1) {
+            const [candidate] = prefixGroup.candidates;
             writer.writeLine(
-              `return tx.objectStore("${model.name}").index("${idx.name}Index")` +
+              `return tx.objectStore("${model.name}").index("${candidate.name}Index")` +
                 `.getAll(IDBUtils.IDBKeyRange.bound([${lowerArray}], [${lowerArray}, []], false, true));`
             );
+            return;
+          }
+
+          writer.writeLine(`const objectStore = tx.objectStore("${model.name}");`);
+          writer.writeLine(`return IDBUtils.removeDuplicatesByKeyPath(`);
+          writer.indent(() => {
+            writer.writeLine(`await Promise.all([`);
+            writer.indent(() => {
+              for (const candidate of prefixGroup.candidates) {
+                writer.writeLine(
+                  `objectStore.index("${candidate.name}Index").getAll(` +
+                    `IDBUtils.IDBKeyRange.bound([${lowerArray}], [${lowerArray}, []], false, true)` +
+                    `),`
+                );
+              }
+            });
+            writer.writeLine(`]),`);
+            writer.writeLine(`${primaryIdentifier.keyPath},`);
           });
-        }
+          writer.writeLine(`);`);
+        });
       }
 
       // Fallback

@@ -1,0 +1,25 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../../generated/prisma"
+}
+
+generator prismaIDBrowser {
+  provider = "idb-client-generator"
+  output   = "../../generated/prisma-idb"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model MultipleCompositeUniques {
+  id Int @id @default(autoincrement())
+  a  String
+  b  Int
+  c  DateTime
+  d  Float
+
+  @@unique([a, b])
+  @@unique([c, d])
+  @@unique([a, c])
+}
