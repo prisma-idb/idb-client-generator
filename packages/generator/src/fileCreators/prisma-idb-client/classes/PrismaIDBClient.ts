@@ -1,5 +1,10 @@
 import CodeBlockWriter from "code-block-writer";
-import { getUniqueIdentifiers, getNonUniqueIndexes, toCamelCase as toCamelCaseUtil } from "../../../helpers/utils";
+import {
+  getUniqueIdentifiers,
+  getNonUniqueIndexes,
+  getForeignKeyIndexes,
+  toCamelCase as toCamelCaseUtil,
+} from "../../../helpers/utils";
 import type { DMMF } from "@prisma/generator-helper";
 import { shouldTrackModel } from "../../outbox/utils";
 import { Model } from "../../types";
@@ -539,8 +544,10 @@ function addCreateSyncWorkerMethod(writer: CodeBlockWriter) {
 function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter, indexes: readonly DMMF.Index[] = []) {
   const nonKeyUniqueIdentifiers = getUniqueIdentifiers(model).slice(1);
   const nonUniqueIndexes = getNonUniqueIndexes(model, indexes);
+  const fkIndexes = getForeignKeyIndexes(model, indexes);
+  const allNonUniqueIndexes = [...nonUniqueIndexes, ...fkIndexes];
   const keyPath = getUniqueIdentifiers(model)[0].keyPath;
-  const hasAnyIndexes = nonKeyUniqueIdentifiers.length > 0 || nonUniqueIndexes.length > 0;
+  const hasAnyIndexes = nonKeyUniqueIdentifiers.length > 0 || allNonUniqueIndexes.length > 0;
 
   let declarationLine = hasAnyIndexes ? `const ${model.name}Store = ` : ``;
   declarationLine += `db.createObjectStore('${model.name}', { keyPath: ${keyPath} });`;
@@ -549,7 +556,7 @@ function addObjectStoreInitialization(model: Model, writer: CodeBlockWriter, ind
   nonKeyUniqueIdentifiers.forEach(({ name, keyPath }) =>
     writer.writeLine(`${model.name}Store.createIndex("${name}Index", ${keyPath}, { unique: true });`)
   );
-  nonUniqueIndexes.forEach(({ name, keyPath }) =>
+  allNonUniqueIndexes.forEach(({ name, keyPath }) =>
     writer.writeLine(`${model.name}Store.createIndex("${name}Index", ${keyPath}, { unique: false });`)
   );
 }
