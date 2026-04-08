@@ -9,10 +9,16 @@ export interface PrismaIDBSchema extends DBSchema {
   Board: {
     key: [id: Prisma.Board["id"]];
     value: Prisma.Board;
+    indexes: {
+      userIdIndex: [userId: Prisma.Board["userId"]];
+    };
   };
   Todo: {
     key: [id: Prisma.Todo["id"]];
     value: Prisma.Todo;
+    indexes: {
+      boardIdIndex: [boardId: Prisma.Todo["boardId"]];
+    };
   };
   User: {
     key: [id: Prisma.User["id"]];

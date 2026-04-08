@@ -95,22 +95,41 @@ export class PrismaIDBClient {
         db.createObjectStore("Group", { keyPath: ["id"] });
         const ProfileStore = db.createObjectStore("Profile", { keyPath: ["id"] });
         ProfileStore.createIndex("userIdIndex", ["userId"], { unique: true });
-        db.createObjectStore("Post", { keyPath: ["id"] });
-        db.createObjectStore("Comment", { keyPath: ["id"] });
-        db.createObjectStore("Todo", { keyPath: ["id"] });
+        const PostStore = db.createObjectStore("Post", { keyPath: ["id"] });
+        PostStore.createIndex("authorIdIndex", ["authorId"], { unique: false });
+        const CommentStore = db.createObjectStore("Comment", { keyPath: ["id"] });
+        CommentStore.createIndex("postIdIndex", ["postId"], { unique: false });
+        CommentStore.createIndex("userIdIndex", ["userId"], { unique: false });
+        const TodoStore = db.createObjectStore("Todo", { keyPath: ["id"] });
+        TodoStore.createIndex("userIdIndex", ["userId"], { unique: false });
         db.createObjectStore("AllFieldScalarTypes", { keyPath: ["id"] });
         db.createObjectStore("ModelWithEnum", { keyPath: ["id"] });
         db.createObjectStore("TestUuid", { keyPath: ["id"] });
-        db.createObjectStore("ModelWithOptionalRelationToUniqueAttributes", { keyPath: ["id"] });
+        const ModelWithOptionalRelationToUniqueAttributesStore = db.createObjectStore(
+          "ModelWithOptionalRelationToUniqueAttributes",
+          { keyPath: ["id"] }
+        );
+        ModelWithOptionalRelationToUniqueAttributesStore.createIndex("linkIdIndex", ["linkId"], { unique: false });
         const ModelWithUniqueAttributesStore = db.createObjectStore("ModelWithUniqueAttributes", { keyPath: ["id"] });
         ModelWithUniqueAttributesStore.createIndex("codeIndex", ["code"], { unique: true });
-        db.createObjectStore("UserGroup", { keyPath: ["groupId", "userId"] });
+        const UserGroupStore = db.createObjectStore("UserGroup", { keyPath: ["groupId", "userId"] });
+        UserGroupStore.createIndex("groupIdIndex", ["groupId"], { unique: false });
+        UserGroupStore.createIndex("userIdIndex", ["userId"], { unique: false });
         const FatherStore = db.createObjectStore("Father", { keyPath: ["firstName", "lastName"] });
         FatherStore.createIndex("motherFirstName_motherLastNameIndex", ["motherFirstName", "motherLastName"], {
           unique: true,
         });
-        db.createObjectStore("Mother", { keyPath: ["firstName", "lastName"] });
-        db.createObjectStore("Child", { keyPath: ["childFirstName", "childLastName"] });
+        FatherStore.createIndex("userIdIndex", ["userId"], { unique: false });
+        const MotherStore = db.createObjectStore("Mother", { keyPath: ["firstName", "lastName"] });
+        MotherStore.createIndex("userIdIndex", ["userId"], { unique: false });
+        const ChildStore = db.createObjectStore("Child", { keyPath: ["childFirstName", "childLastName"] });
+        ChildStore.createIndex("userIdIndex", ["userId"], { unique: false });
+        ChildStore.createIndex("fatherLastName_fatherFirstNameIndex", ["fatherLastName", "fatherFirstName"], {
+          unique: false,
+        });
+        ChildStore.createIndex("motherFirstName_motherLastNameIndex", ["motherFirstName", "motherLastName"], {
+          unique: false,
+        });
         db.createObjectStore("CompositeIdIntString", { keyPath: ["orgId", "code"] });
         db.createObjectStore("CompositeIdWithDateTime", { keyPath: ["tenantId", "createdAt"] });
         db.createObjectStore("TripleCompositeIdWithDate", { keyPath: ["region", "year", "eventDate"] });
@@ -5356,6 +5375,16 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     tx: IDBUtils.TransactionType,
     where?: Prisma.Args<Prisma.PostDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.PostDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("Post").getAll();
+    const authorIdEq = IDBUtils.extractEqualityValue(where.authorId);
+
+    if (authorIdEq !== undefined) {
+      return tx
+        .objectStore("Post")
+        .index("authorIdIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([authorIdEq]));
+    }
+
     return tx.objectStore("Post").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.PostDelegate, "findMany">>(
@@ -6440,6 +6469,23 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     tx: IDBUtils.TransactionType,
     where?: Prisma.Args<Prisma.CommentDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.CommentDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("Comment").getAll();
+    const postIdEq = IDBUtils.extractEqualityValue(where.postId);
+    const userIdEq = IDBUtils.extractEqualityValue(where.userId);
+
+    if (postIdEq !== undefined) {
+      return tx
+        .objectStore("Comment")
+        .index("postIdIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([postIdEq]));
+    }
+    if (userIdEq !== undefined) {
+      return tx
+        .objectStore("Comment")
+        .index("userIdIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([userIdEq]));
+    }
+
     return tx.objectStore("Comment").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.CommentDelegate, "findMany">>(
@@ -7324,6 +7370,16 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     tx: IDBUtils.TransactionType,
     where?: Prisma.Args<Prisma.TodoDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("Todo").getAll();
+    const userIdEq = IDBUtils.extractEqualityValue(where.userId);
+
+    if (userIdEq !== undefined) {
+      return tx
+        .objectStore("Todo")
+        .index("userIdIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([userIdEq]));
+    }
+
     return tx.objectStore("Todo").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.TodoDelegate, "findMany">>(
@@ -10174,6 +10230,16 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     tx: IDBUtils.TransactionType,
     where?: Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").getAll();
+    const linkIdEq = IDBUtils.extractEqualityValue(where.linkId);
+
+    if (linkIdEq !== undefined) {
+      return tx
+        .objectStore("ModelWithOptionalRelationToUniqueAttributes")
+        .index("linkIdIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([linkIdEq]));
+    }
+
     return tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "findMany">>(
@@ -12139,6 +12205,23 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     tx: IDBUtils.TransactionType,
     where?: Prisma.Args<Prisma.UserGroupDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.UserGroupDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("UserGroup").getAll();
+    const groupIdEq = IDBUtils.extractEqualityValue(where.groupId);
+    const userIdEq = IDBUtils.extractEqualityValue(where.userId);
+
+    if (groupIdEq !== undefined) {
+      return tx
+        .objectStore("UserGroup")
+        .index("groupIdIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([groupIdEq]));
+    }
+    if (userIdEq !== undefined) {
+      return tx
+        .objectStore("UserGroup")
+        .index("userIdIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([userIdEq]));
+    }
+
     return tx.objectStore("UserGroup").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">>(
@@ -13326,6 +13409,16 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     tx: IDBUtils.TransactionType,
     where?: Prisma.Args<Prisma.FatherDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.FatherDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("Father").getAll();
+    const userIdEq = IDBUtils.extractEqualityValue(where.userId);
+
+    if (userIdEq !== undefined) {
+      return tx
+        .objectStore("Father")
+        .index("userIdIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([userIdEq]));
+    }
+
     return tx.objectStore("Father").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.FatherDelegate, "findMany">>(
@@ -14778,6 +14871,16 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     tx: IDBUtils.TransactionType,
     where?: Prisma.Args<Prisma.MotherDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.MotherDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("Mother").getAll();
+    const userIdEq = IDBUtils.extractEqualityValue(where.userId);
+
+    if (userIdEq !== undefined) {
+      return tx
+        .objectStore("Mother")
+        .index("userIdIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([userIdEq]));
+    }
+
     return tx.objectStore("Mother").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.MotherDelegate, "findMany">>(
@@ -16203,6 +16306,44 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     tx: IDBUtils.TransactionType,
     where?: Prisma.Args<Prisma.ChildDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.ChildDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("Child").getAll();
+    const fatherLastNameEq = IDBUtils.extractEqualityValue(where.fatherLastName);
+    const fatherFirstNameEq = IDBUtils.extractEqualityValue(where.fatherFirstName);
+    const motherFirstNameEq = IDBUtils.extractEqualityValue(where.motherFirstName);
+    const motherLastNameEq = IDBUtils.extractEqualityValue(where.motherLastName);
+    const userIdEq = IDBUtils.extractEqualityValue(where.userId);
+
+    if (fatherLastNameEq !== undefined && fatherFirstNameEq !== undefined) {
+      return tx
+        .objectStore("Child")
+        .index("fatherLastName_fatherFirstNameIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([fatherLastNameEq, fatherFirstNameEq]));
+    }
+    if (motherFirstNameEq !== undefined && motherLastNameEq !== undefined) {
+      return tx
+        .objectStore("Child")
+        .index("motherFirstName_motherLastNameIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([motherFirstNameEq, motherLastNameEq]));
+    }
+    if (userIdEq !== undefined) {
+      return tx
+        .objectStore("Child")
+        .index("userIdIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([userIdEq]));
+    }
+
+    if (fatherLastNameEq !== undefined) {
+      return tx
+        .objectStore("Child")
+        .index("fatherLastName_fatherFirstNameIndex")
+        .getAll(IDBUtils.IDBKeyRange.bound([fatherLastNameEq], [fatherLastNameEq, []], false, true));
+    }
+    if (motherFirstNameEq !== undefined) {
+      return tx
+        .objectStore("Child")
+        .index("motherFirstName_motherLastNameIndex")
+        .getAll(IDBUtils.IDBKeyRange.bound([motherFirstNameEq], [motherFirstNameEq, []], false, true));
+    }
     return tx.objectStore("Child").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.ChildDelegate, "findMany">>(
