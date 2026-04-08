@@ -99,6 +99,12 @@ export function getForeignKeyIndexes(model: Model, datamodelIndexes: readonly DM
     ...getNonUniqueIndexes(model, datamodelIndexes).map(({ keyPath }) => keyPath),
   ]);
 
+  // Collect existing index names to avoid name collisions.
+  const existingIndexNames = new Set<string>([
+    ...getUniqueIdentifiers(model).map(({ name }) => name),
+    ...getNonUniqueIndexes(model, datamodelIndexes).map(({ name }) => name),
+  ]);
+
   const result: IndexIdentifier[] = [];
   const seenKeyPaths = new Set<string>();
 
@@ -119,8 +125,20 @@ export function getForeignKeyIndexes(model: Model, datamodelIndexes: readonly DM
     if (hasInvalidType) continue;
 
     seenKeyPaths.add(keyPath);
+
+    // Derive a non-colliding name: start with the base name and append a numeric
+    // suffix if needed.
+    const baseName = fkFieldNames.join("_");
+    let finalName = baseName;
+    let suffix = 1;
+    while (existingIndexNames.has(finalName)) {
+      finalName = `${baseName}_${suffix}`;
+      suffix++;
+    }
+    existingIndexNames.add(finalName);
+
     result.push({
-      name: fkFieldNames.join("_"),
+      name: finalName,
       keyPath,
       keyPathType: createIdentifierTuple(fkFieldNames, model),
     });

@@ -4383,6 +4383,16 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     tx: IDBUtils.TransactionType,
     where?: Prisma.Args<Prisma.ProfileDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("Profile").getAll();
+    const userIdEq = IDBUtils.extractEqualityValue(where.userId);
+
+    if (userIdEq !== undefined) {
+      return tx
+        .objectStore("Profile")
+        .index("userIdIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([userIdEq]));
+    }
+
     return tx.objectStore("Profile").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.ProfileDelegate, "findMany">>(
@@ -11184,6 +11194,16 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     tx: IDBUtils.TransactionType,
     where?: Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("ModelWithUniqueAttributes").getAll();
+    const codeEq = IDBUtils.extractEqualityValue(where.code);
+
+    if (codeEq !== undefined) {
+      return tx
+        .objectStore("ModelWithUniqueAttributes")
+        .index("codeIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([codeEq]));
+    }
+
     return tx.objectStore("ModelWithUniqueAttributes").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findMany">>(
@@ -12208,6 +12228,10 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     if (!where) return tx.objectStore("UserGroup").getAll();
     const groupIdEq = IDBUtils.extractEqualityValue(where.groupId);
     const userIdEq = IDBUtils.extractEqualityValue(where.userId);
+
+    if (groupIdEq !== undefined && userIdEq !== undefined) {
+      return tx.objectStore("UserGroup").getAll(IDBUtils.IDBKeyRange.only([groupIdEq, userIdEq]));
+    }
 
     if (groupIdEq !== undefined) {
       return tx
@@ -13410,8 +13434,22 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     where?: Prisma.Args<Prisma.FatherDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.FatherDelegate, object, "findFirstOrThrow">[]> {
     if (!where) return tx.objectStore("Father").getAll();
+    const firstNameEq = IDBUtils.extractEqualityValue(where.firstName);
+    const lastNameEq = IDBUtils.extractEqualityValue(where.lastName);
+    const motherFirstNameEq = IDBUtils.extractEqualityValue(where.motherFirstName);
+    const motherLastNameEq = IDBUtils.extractEqualityValue(where.motherLastName);
     const userIdEq = IDBUtils.extractEqualityValue(where.userId);
 
+    if (firstNameEq !== undefined && lastNameEq !== undefined) {
+      return tx.objectStore("Father").getAll(IDBUtils.IDBKeyRange.only([firstNameEq, lastNameEq]));
+    }
+
+    if (motherFirstNameEq !== undefined && motherLastNameEq !== undefined) {
+      return tx
+        .objectStore("Father")
+        .index("motherFirstName_motherLastNameIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([motherFirstNameEq, motherLastNameEq]));
+    }
     if (userIdEq !== undefined) {
       return tx
         .objectStore("Father")
@@ -13419,6 +13457,12 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
         .getAll(IDBUtils.IDBKeyRange.only([userIdEq]));
     }
 
+    if (motherFirstNameEq !== undefined) {
+      return tx
+        .objectStore("Father")
+        .index("motherFirstName_motherLastNameIndex")
+        .getAll(IDBUtils.IDBKeyRange.bound([motherFirstNameEq], [motherFirstNameEq, []], false, true));
+    }
     return tx.objectStore("Father").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.FatherDelegate, "findMany">>(
@@ -14872,7 +14916,13 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     where?: Prisma.Args<Prisma.MotherDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.MotherDelegate, object, "findFirstOrThrow">[]> {
     if (!where) return tx.objectStore("Mother").getAll();
+    const firstNameEq = IDBUtils.extractEqualityValue(where.firstName);
+    const lastNameEq = IDBUtils.extractEqualityValue(where.lastName);
     const userIdEq = IDBUtils.extractEqualityValue(where.userId);
+
+    if (firstNameEq !== undefined && lastNameEq !== undefined) {
+      return tx.objectStore("Mother").getAll(IDBUtils.IDBKeyRange.only([firstNameEq, lastNameEq]));
+    }
 
     if (userIdEq !== undefined) {
       return tx
@@ -16307,11 +16357,17 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     where?: Prisma.Args<Prisma.ChildDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.ChildDelegate, object, "findFirstOrThrow">[]> {
     if (!where) return tx.objectStore("Child").getAll();
+    const childFirstNameEq = IDBUtils.extractEqualityValue(where.childFirstName);
+    const childLastNameEq = IDBUtils.extractEqualityValue(where.childLastName);
     const fatherLastNameEq = IDBUtils.extractEqualityValue(where.fatherLastName);
     const fatherFirstNameEq = IDBUtils.extractEqualityValue(where.fatherFirstName);
     const motherFirstNameEq = IDBUtils.extractEqualityValue(where.motherFirstName);
     const motherLastNameEq = IDBUtils.extractEqualityValue(where.motherLastName);
     const userIdEq = IDBUtils.extractEqualityValue(where.userId);
+
+    if (childFirstNameEq !== undefined && childLastNameEq !== undefined) {
+      return tx.objectStore("Child").getAll(IDBUtils.IDBKeyRange.only([childFirstNameEq, childLastNameEq]));
+    }
 
     if (fatherLastNameEq !== undefined && fatherFirstNameEq !== undefined) {
       return tx
@@ -17322,6 +17378,14 @@ class CompositeIdIntStringIDBClass extends BaseIDBModelClass<"CompositeIdIntStri
     tx: IDBUtils.TransactionType,
     where?: Prisma.Args<Prisma.CompositeIdIntStringDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("CompositeIdIntString").getAll();
+    const orgIdEq = IDBUtils.extractEqualityValue(where.orgId);
+    const codeEq = IDBUtils.extractEqualityValue(where.code);
+
+    if (orgIdEq !== undefined && codeEq !== undefined) {
+      return tx.objectStore("CompositeIdIntString").getAll(IDBUtils.IDBKeyRange.only([orgIdEq, codeEq]));
+    }
+
     return tx.objectStore("CompositeIdIntString").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "findMany">>(
@@ -17951,6 +18015,15 @@ class CompositeIdWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeIdWith
     tx: IDBUtils.TransactionType,
     where?: Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("CompositeIdWithDateTime").getAll();
+    const tenantIdEq = IDBUtils.extractEqualityValue(where.tenantId);
+    let createdAtEq = IDBUtils.extractEqualityValue(where.createdAt);
+    if (typeof createdAtEq === "string") createdAtEq = new Date(createdAtEq);
+
+    if (tenantIdEq !== undefined && createdAtEq !== undefined) {
+      return tx.objectStore("CompositeIdWithDateTime").getAll(IDBUtils.IDBKeyRange.only([tenantIdEq, createdAtEq]));
+    }
+
     return tx.objectStore("CompositeIdWithDateTime").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "findMany">>(
@@ -18584,6 +18657,18 @@ class TripleCompositeIdWithDateIDBClass extends BaseIDBModelClass<"TripleComposi
     tx: IDBUtils.TransactionType,
     where?: Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("TripleCompositeIdWithDate").getAll();
+    const regionEq = IDBUtils.extractEqualityValue(where.region);
+    const yearEq = IDBUtils.extractEqualityValue(where.year);
+    let eventDateEq = IDBUtils.extractEqualityValue(where.eventDate);
+    if (typeof eventDateEq === "string") eventDateEq = new Date(eventDateEq);
+
+    if (regionEq !== undefined && yearEq !== undefined && eventDateEq !== undefined) {
+      return tx
+        .objectStore("TripleCompositeIdWithDate")
+        .getAll(IDBUtils.IDBKeyRange.only([regionEq, yearEq, eventDateEq]));
+    }
+
     return tx.objectStore("TripleCompositeIdWithDate").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "findMany">>(
@@ -19271,6 +19356,24 @@ class CompositeUniqueWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeUn
     tx: IDBUtils.TransactionType,
     where?: Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("CompositeUniqueWithDateTime").getAll();
+    const categoryEq = IDBUtils.extractEqualityValue(where.category);
+    let timestampEq = IDBUtils.extractEqualityValue(where.timestamp);
+    if (typeof timestampEq === "string") timestampEq = new Date(timestampEq);
+
+    if (categoryEq !== undefined && timestampEq !== undefined) {
+      return tx
+        .objectStore("CompositeUniqueWithDateTime")
+        .index("category_timestampIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([categoryEq, timestampEq]));
+    }
+
+    if (categoryEq !== undefined) {
+      return tx
+        .objectStore("CompositeUniqueWithDateTime")
+        .index("category_timestampIndex")
+        .getAll(IDBUtils.IDBKeyRange.bound([categoryEq], [categoryEq, []], false, true));
+    }
     return tx.objectStore("CompositeUniqueWithDateTime").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "findMany">>(
@@ -19921,6 +20024,36 @@ class CompositeUniqueFloatIntIDBClass extends BaseIDBModelClass<"CompositeUnique
     tx: IDBUtils.TransactionType,
     where?: Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("CompositeUniqueFloatInt").getAll();
+    const latEq = IDBUtils.extractEqualityValue(where.lat);
+    const lngEq = IDBUtils.extractEqualityValue(where.lng);
+    const zoneIdEq = IDBUtils.extractEqualityValue(where.zoneId);
+
+    if (latEq !== undefined && lngEq !== undefined) {
+      return tx
+        .objectStore("CompositeUniqueFloatInt")
+        .index("lat_lngIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([latEq, lngEq]));
+    }
+    if (zoneIdEq !== undefined && latEq !== undefined) {
+      return tx
+        .objectStore("CompositeUniqueFloatInt")
+        .index("zoneId_latIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([zoneIdEq, latEq]));
+    }
+
+    if (latEq !== undefined) {
+      return tx
+        .objectStore("CompositeUniqueFloatInt")
+        .index("lat_lngIndex")
+        .getAll(IDBUtils.IDBKeyRange.bound([latEq], [latEq, []], false, true));
+    }
+    if (zoneIdEq !== undefined) {
+      return tx
+        .objectStore("CompositeUniqueFloatInt")
+        .index("zoneId_latIndex")
+        .getAll(IDBUtils.IDBKeyRange.bound([zoneIdEq], [zoneIdEq, []], false, true));
+    }
     return tx.objectStore("CompositeUniqueFloatInt").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "findMany">>(
@@ -20558,6 +20691,50 @@ class MultipleCompositeUniquesIDBClass extends BaseIDBModelClass<"MultipleCompos
     tx: IDBUtils.TransactionType,
     where?: Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("MultipleCompositeUniques").getAll();
+    const aEq = IDBUtils.extractEqualityValue(where.a);
+    const bEq = IDBUtils.extractEqualityValue(where.b);
+    let cEq = IDBUtils.extractEqualityValue(where.c);
+    if (typeof cEq === "string") cEq = new Date(cEq);
+    const dEq = IDBUtils.extractEqualityValue(where.d);
+
+    if (aEq !== undefined && bEq !== undefined) {
+      return tx
+        .objectStore("MultipleCompositeUniques")
+        .index("a_bIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([aEq, bEq]));
+    }
+    if (cEq !== undefined && dEq !== undefined) {
+      return tx
+        .objectStore("MultipleCompositeUniques")
+        .index("c_dIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([cEq, dEq]));
+    }
+    if (aEq !== undefined && cEq !== undefined) {
+      return tx
+        .objectStore("MultipleCompositeUniques")
+        .index("a_cIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([aEq, cEq]));
+    }
+
+    if (aEq !== undefined) {
+      return tx
+        .objectStore("MultipleCompositeUniques")
+        .index("a_bIndex")
+        .getAll(IDBUtils.IDBKeyRange.bound([aEq], [aEq, []], false, true));
+    }
+    if (cEq !== undefined) {
+      return tx
+        .objectStore("MultipleCompositeUniques")
+        .index("c_dIndex")
+        .getAll(IDBUtils.IDBKeyRange.bound([cEq], [cEq, []], false, true));
+    }
+    if (aEq !== undefined) {
+      return tx
+        .objectStore("MultipleCompositeUniques")
+        .index("a_cIndex")
+        .getAll(IDBUtils.IDBKeyRange.bound([aEq], [aEq, []], false, true));
+    }
     return tx.objectStore("MultipleCompositeUniques").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "findMany">>(

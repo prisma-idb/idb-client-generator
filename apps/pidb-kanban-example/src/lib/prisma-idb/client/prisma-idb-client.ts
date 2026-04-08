@@ -2832,6 +2832,16 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     tx: IDBUtils.TransactionType,
     where?: Prisma.Args<Prisma.UserDelegate, "findFirstOrThrow">["where"]
   ): Promise<Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">[]> {
+    if (!where) return tx.objectStore("User").getAll();
+    const emailEq = IDBUtils.extractEqualityValue(where.email);
+
+    if (emailEq !== undefined) {
+      return tx
+        .objectStore("User")
+        .index("emailIndex")
+        .getAll(IDBUtils.IDBKeyRange.only([emailEq]));
+    }
+
     return tx.objectStore("User").getAll();
   }
   async findMany<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(

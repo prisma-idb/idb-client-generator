@@ -4,7 +4,7 @@ Prisma's **DMMF** (Data Model Meta Format) is the in-memory AST that the generat
 
 ## Top-Level Shape
 
-```
+```text
 options.dmmf.datamodel
   ├── models:  DMMF.Model[]
   ├── enums:   DMMF.DatamodelEnum[]
@@ -37,7 +37,7 @@ Our local alias: `type Model = DMMF.Datamodel["models"][number]`
 
 ### Deriving the IDB key path
 
-```
+```text
 1. model.primaryKey != null  →  composite @@id  →  key = primaryKey.fields
 2. model.fields.find(f => f.isId)  →  single @id  →  key = [idField.name]
 3. (neither)  →  error: no valid IDB key
