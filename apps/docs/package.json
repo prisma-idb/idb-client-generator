@@ -16,9 +16,9 @@
   "dependencies": {
     "@orama/orama": "^3.1.18",
     "@vercel/analytics": "^2.0.1",
-    "fumadocs-core": "^16.7.10",
+    "fumadocs-core": "^16.7.11",
     "fumadocs-mdx": "^14.2.11",
-    "fumadocs-ui": "^16.7.10",
+    "fumadocs-ui": "^16.7.11",
     "geist": "^1.7.0",
     "lucide-react": "^0.563.0",
     "mermaid": "^11.14.0",
@@ -36,7 +36,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "critters": "^0.0.25",
-    "postcss": "^8.5.8",
+    "postcss": "^8.5.9",
     "serve": "^14.2.6",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3"
