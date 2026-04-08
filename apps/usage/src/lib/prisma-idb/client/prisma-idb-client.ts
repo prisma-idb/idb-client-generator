@@ -20718,22 +20718,20 @@ class MultipleCompositeUniquesIDBClass extends BaseIDBModelClass<"MultipleCompos
     }
 
     if (aEq !== undefined) {
-      return tx
-        .objectStore("MultipleCompositeUniques")
-        .index("a_bIndex")
-        .getAll(IDBUtils.IDBKeyRange.bound([aEq], [aEq, []], false, true));
+      const objectStore = tx.objectStore("MultipleCompositeUniques");
+      return IDBUtils.removeDuplicatesByKeyPath(
+        await Promise.all([
+          objectStore.index("a_bIndex").getAll(IDBUtils.IDBKeyRange.bound([aEq], [aEq, []], false, true)),
+          objectStore.index("a_cIndex").getAll(IDBUtils.IDBKeyRange.bound([aEq], [aEq, []], false, true)),
+        ]),
+        ["id"]
+      );
     }
     if (cEq !== undefined) {
       return tx
         .objectStore("MultipleCompositeUniques")
         .index("c_dIndex")
         .getAll(IDBUtils.IDBKeyRange.bound([cEq], [cEq, []], false, true));
-    }
-    if (aEq !== undefined) {
-      return tx
-        .objectStore("MultipleCompositeUniques")
-        .index("a_cIndex")
-        .getAll(IDBUtils.IDBKeyRange.bound([aEq], [aEq, []], false, true));
     }
     return tx.objectStore("MultipleCompositeUniques").getAll();
   }

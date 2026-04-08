@@ -123,7 +123,7 @@ Used in `enums/create.ts` to emit the TypeScript enum and in `validators/model-v
 
 ### Primary key (IDB `keyPath`)
 
-```
+```text
 model.primaryKey != null
   → composite @@id: keyPath = ["fieldA", "fieldB"]
 

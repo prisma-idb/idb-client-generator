@@ -49,6 +49,38 @@ export function addGetRecords(writer: CodeBlockWriter, model: Model, datamodelIn
 
       // Sort indexes by field count descending (most selective first)
       const sortedIndexes = [...indexesWithFields].sort((a, b) => b.fieldNames.length - a.fieldNames.length);
+      const modelFieldsByName = new Map(model.fields.map((field) => [field.name, field]));
+      const prefixMatchGroups = new Map<string, { prefixFields: string[]; candidates: typeof sortedIndexes }>();
+
+      for (const idx of sortedIndexes) {
+        const fields = idx.fieldNames;
+        if (fields.length < 2) continue;
+
+        for (let prefixLen = fields.length - 1; prefixLen >= 1; prefixLen--) {
+          const trailingFields = fields.slice(prefixLen);
+          if (trailingFields.some((fieldName) => !modelFieldsByName.get(fieldName)?.isRequired)) continue;
+
+          const prefixFields = fields.slice(0, prefixLen);
+          const prefixKey = JSON.stringify(prefixFields);
+          const existingGroup = prefixMatchGroups.get(prefixKey);
+          if (existingGroup) {
+            existingGroup.candidates.push(idx);
+            continue;
+          }
+
+          prefixMatchGroups.set(prefixKey, {
+            prefixFields,
+            candidates: [idx],
+          });
+        }
+      }
+
+      const sortedPrefixMatchGroups = [...prefixMatchGroups.values()].sort((a, b) => {
+        if (b.prefixFields.length !== a.prefixFields.length) {
+          return b.prefixFields.length - a.prefixFields.length;
+        }
+        return (b.candidates[0]?.fieldNames.length ?? 0) - (a.candidates[0]?.fieldNames.length ?? 0);
+      });
 
       // Collect all unique field names used across all indexes + primary key fields
       const allFieldNames = new Set<string>(isCompositePrimaryKey ? primaryKeyFields : []);
@@ -95,23 +127,41 @@ export function addGetRecords(writer: CodeBlockWriter, model: Model, datamodelIn
       }
       writer.blankLine();
 
-      // Phase 2: Prefix matches for composite indexes (try longer prefixes first)
-      for (const idx of sortedIndexes) {
-        const fields = idx.fieldNames;
-        if (fields.length < 2) continue;
+      // Phase 2: Prefix matches for composite indexes (try longer prefixes first).
+      // Prefix scans are only safe when trailing indexed fields are required;
+      // otherwise IndexedDB may omit records with null trailing keys.
+      for (const prefixGroup of sortedPrefixMatchGroups) {
+        const condition = prefixGroup.prefixFields.map((f) => `${f}Eq !== undefined`).join(" && ");
+        const lowerArray = prefixGroup.prefixFields.map((f) => `${f}Eq`).join(", ");
 
-        for (let prefixLen = fields.length - 1; prefixLen >= 1; prefixLen--) {
-          const prefixFields = fields.slice(0, prefixLen);
-          const condition = prefixFields.map((f) => `${f}Eq !== undefined`).join(" && ");
-          const lowerArray = prefixFields.map((f) => `${f}Eq`).join(", ");
-
-          writer.writeLine(`if (${condition})`).block(() => {
+        writer.writeLine(`if (${condition})`).block(() => {
+          if (prefixGroup.candidates.length === 1) {
+            const [candidate] = prefixGroup.candidates;
             writer.writeLine(
-              `return tx.objectStore("${model.name}").index("${idx.name}Index")` +
+              `return tx.objectStore("${model.name}").index("${candidate.name}Index")` +
                 `.getAll(IDBUtils.IDBKeyRange.bound([${lowerArray}], [${lowerArray}, []], false, true));`
             );
+            return;
+          }
+
+          writer.writeLine(`const objectStore = tx.objectStore("${model.name}");`);
+          writer.writeLine(`return IDBUtils.removeDuplicatesByKeyPath(`);
+          writer.indent(() => {
+            writer.writeLine(`await Promise.all([`);
+            writer.indent(() => {
+              for (const candidate of prefixGroup.candidates) {
+                writer.writeLine(
+                  `objectStore.index("${candidate.name}Index").getAll(` +
+                    `IDBUtils.IDBKeyRange.bound([${lowerArray}], [${lowerArray}, []], false, true)` +
+                    `),`
+                );
+              }
+            });
+            writer.writeLine(`]),`);
+            writer.writeLine(`${primaryIdentifier.keyPath},`);
           });
-        }
+          writer.writeLine(`);`);
+        });
       }
 
       // Fallback
