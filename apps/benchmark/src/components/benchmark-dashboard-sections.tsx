@@ -149,7 +149,7 @@ export function BenchmarkDashboardGuidanceCards() {
         </CardHeader>
         <CardContent>
           <ul className="text-muted-foreground list-disc space-y-2 pl-5 text-sm">
-            <li>Dataset size: {BENCHMARK_DEFAULT_CONFIG.datasetSize.toLocaleString()} rows</li>
+            <li>Dataset size: {BENCHMARK_DEFAULT_CONFIG.datasetSize.toLocaleString("en-US")} rows</li>
             <li>Warmup: {BENCHMARK_DEFAULT_CONFIG.warmupRuns} runs</li>
             <li>Measured: {BENCHMARK_DEFAULT_CONFIG.measuredRuns} runs</li>
           </ul>
@@ -210,7 +210,7 @@ export function BenchmarkRunSettingsCard({ controller }: SectionProps) {
               <SelectContent>
                 {BENCHMARK_DATASET_SIZE_OPTIONS.map((size) => (
                   <SelectItem key={size} value={String(size)}>
-                    {size.toLocaleString()} rows
+                    {size.toLocaleString("en-US")} rows
                   </SelectItem>
                 ))}
               </SelectContent>
