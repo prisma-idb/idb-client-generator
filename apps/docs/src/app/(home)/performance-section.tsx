@@ -2,16 +2,7 @@ import Link from "next/link";
 import { GeistSans } from "geist/font/sans";
 import { ExternalLink, Gauge, FlaskConical, Zap } from "lucide-react";
 import baselineData from "../../../../../benchmarks/baselines/main.json";
-
-interface OperationResult {
-  operationId: string;
-  label: string;
-  summary: {
-    meanMs: number;
-    p95Ms: number;
-    opsPerSecond: number;
-  };
-}
+import type { BenchmarkOperationId, BenchmarkOperationResult } from "../../../../benchmark/src/lib/benchmark/types";
 
 // Categorise operations for colour coding
 const FAST_THRESHOLD_MS = 10; // p95 < 10 ms → "instant"
@@ -19,24 +10,83 @@ const MEDIUM_THRESHOLD_MS = 50; // p95 < 50 ms → "quick"
 const CHART_PADDING_FACTOR = 1.2; // Keep visual headroom: max + 20%
 const MIN_CHART_MAX_MS = 100; // Avoid over-compression when all ops are extremely fast
 
-function getBarColor(p95Ms: number): { bar: string; badge: string; label: string } {
-  if (p95Ms < FAST_THRESHOLD_MS)
-    return {
-      bar: "bg-emerald-500 dark:bg-emerald-400",
-      badge: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-      label: "Instant",
-    };
-  if (p95Ms < MEDIUM_THRESHOLD_MS)
-    return {
-      bar: "bg-[hsl(32,100%,50%)]",
-      badge: "bg-[hsl(32,100%,50%)]/10 text-[hsl(32,100%,40%)] dark:text-[hsl(32,100%,65%)]",
-      label: "Quick",
-    };
-  return {
+const QUICK_COLORS = {
+  bar: "bg-orange-500 dark:bg-orange-400",
+  badge: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
+  icon: "text-orange-500 dark:text-orange-400",
+} as const;
+
+type PerformanceBucket = "instant" | "quick" | "moderate";
+
+const BUCKET_STYLES: Record<PerformanceBucket, { bar: string; badge: string; label: string }> = {
+  instant: {
+    bar: "bg-emerald-500 dark:bg-emerald-400",
+    badge: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    label: "Instant",
+  },
+  quick: {
+    bar: QUICK_COLORS.bar,
+    badge: QUICK_COLORS.badge,
+    label: "Quick",
+  },
+  moderate: {
     bar: "bg-amber-500 dark:bg-amber-400",
     badge: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
     label: "Moderate",
-  };
+  },
+};
+
+const VALID_OPERATION_IDS: ReadonlySet<BenchmarkOperationId> = new Set([
+  "create-user",
+  "create-many-todos",
+  "find-many-completed",
+  "find-many-completed-sorted",
+  "find-many-completed-paginated",
+  "find-many-with-user-include",
+  "update-many-completed",
+  "delete-many-completed",
+  "find-many-title-contains",
+]);
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function isBenchmarkOperationResult(value: unknown): value is BenchmarkOperationResult {
+  if (!isObject(value)) return false;
+  if (typeof value.operationId !== "string" || !VALID_OPERATION_IDS.has(value.operationId as BenchmarkOperationId)) {
+    return false;
+  }
+  if (typeof value.label !== "string") return false;
+  if (!Array.isArray(value.samplesMs) || !value.samplesMs.every((sample) => isFiniteNumber(sample))) return false;
+
+  const summary = value.summary;
+  if (!isObject(summary)) return false;
+
+  return (
+    isFiniteNumber(summary.minMs) &&
+    isFiniteNumber(summary.maxMs) &&
+    isFiniteNumber(summary.meanMs) &&
+    isFiniteNumber(summary.medianMs) &&
+    isFiniteNumber(summary.p95Ms) &&
+    isFiniteNumber(summary.p99Ms) &&
+    isFiniteNumber(summary.stdDevMs) &&
+    isFiniteNumber(summary.opsPerSecond)
+  );
+}
+
+function getPerformanceBucket(p95Ms: number): PerformanceBucket {
+  if (p95Ms < FAST_THRESHOLD_MS) return "instant";
+  if (p95Ms < MEDIUM_THRESHOLD_MS) return "quick";
+  return "moderate";
+}
+
+function getBarColor(p95Ms: number): { bar: string; badge: string; label: string } {
+  return BUCKET_STYLES[getPerformanceBucket(p95Ms)];
 }
 
 function formatMs(ms: number): string {
@@ -47,15 +97,19 @@ function formatMs(ms: number): string {
 }
 
 export function PerformanceSection() {
-  const operations = baselineData.operations as OperationResult[];
-  const maxP95 = Math.max(...operations.map((op) => op.summary.p95Ms));
+  const operations: BenchmarkOperationResult[] = baselineData.operations.filter(isBenchmarkOperationResult);
+  const maxP95 = operations.length > 0 ? Math.max(...operations.map((op) => op.summary.p95Ms)) : MIN_CHART_MAX_MS;
   const chartMaxMs = Math.max(MIN_CHART_MAX_MS, maxP95 * CHART_PADDING_FACTOR);
 
-  const instantCount = operations.filter((op) => op.summary.p95Ms < FAST_THRESHOLD_MS).length;
-  const quickCount = operations.filter(
-    (op) => op.summary.p95Ms >= FAST_THRESHOLD_MS && op.summary.p95Ms < MEDIUM_THRESHOLD_MS
-  ).length;
-  const moderateCount = operations.filter((op) => op.summary.p95Ms >= MEDIUM_THRESHOLD_MS).length;
+  const bucketCounts = operations.reduce(
+    (counts, operation) => {
+      const bucket = getPerformanceBucket(operation.summary.p95Ms);
+      counts[bucket] += 1;
+      return counts;
+    },
+    { instant: 0, quick: 0, moderate: 0 } as Record<PerformanceBucket, number>
+  );
+
   const datasetSize = baselineData.config.datasetSize.toLocaleString();
 
   return (
@@ -87,12 +141,14 @@ export function PerformanceSection() {
               <span className="text-fd-muted-foreground text-sm font-normal"> measured</span>
             </p>
             <p className="text-fd-muted-foreground mt-1 text-xs">
-              {instantCount} instant · {quickCount} quick · {moderateCount} moderate (p95)
+              {bucketCounts.instant} {BUCKET_STYLES.instant.label.toLowerCase()} · {bucketCounts.quick}{" "}
+              {BUCKET_STYLES.quick.label.toLowerCase()} · {bucketCounts.moderate}{" "}
+              {BUCKET_STYLES.moderate.label.toLowerCase()} (p95)
             </p>
           </div>
           <div className="border-fd-border bg-fd-card rounded-xl border p-5">
             <div className="mb-2 flex items-center gap-2">
-              <Gauge className="h-4 w-4 text-[hsl(32,100%,50%)]" />
+              <Gauge className={`h-4 w-4 ${QUICK_COLORS.icon}`} />
               <span className="text-fd-muted-foreground text-xs font-medium tracking-wider uppercase">Dataset</span>
             </div>
             <p className={`${GeistSans.className} text-fd-foreground text-3xl font-bold`}>

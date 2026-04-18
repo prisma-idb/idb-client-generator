@@ -20,11 +20,12 @@ interface BenchmarkRun {
 
 interface ComparisonRow {
   operationId: string;
-  baselineP95Ms: number;
-  currentP95Ms: number;
-  deltaP95Percent: number | "inf";
-  baselineMeanMs: number;
-  currentMeanMs: number;
+  baselineP95Ms: number | "n/a";
+  currentP95Ms: number | "n/a";
+  deltaP95Percent: number | "inf" | "n/a";
+  baselineMeanMs: number | "n/a";
+  currentMeanMs: number | "n/a";
+  deltaMeanPercent: number | "inf" | "n/a";
   status: "PASS" | "WARN" | "FAIL";
 }
 
@@ -70,8 +71,14 @@ function round(value: number): number {
   return Number(value.toFixed(3));
 }
 
-function formatPercent(value: number | "inf"): string {
-  if (value === "inf") return "n/a";
+function formatMetric(value: number | "n/a"): string {
+  if (value === "n/a") return value;
+  return String(value);
+}
+
+function formatPercent(value: number | "inf" | "n/a"): string {
+  if (value === "n/a") return "n/a";
+  if (value === "inf") return "inf";
   if (!Number.isFinite(value)) return "n/a";
   const sign = value > 0 ? "+" : "";
   return `${sign}${value.toFixed(2)}%`;
@@ -91,6 +98,10 @@ function toOperationMap(run: BenchmarkRun): Map<string, BenchmarkOperation> {
   return map;
 }
 
+function escapeMarkdownCell(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
+}
+
 function createMarkdown(summary: ComparisonSummary, threshold: number): string {
   const lines = [
     "## Benchmark Regression Report",
@@ -102,13 +113,14 @@ function createMarkdown(summary: ComparisonSummary, threshold: number): string {
     `- Added operations: ${summary.addedOperations.length}`,
     `- Removed operations: ${summary.removedOperations.length}`,
     "",
-    "| Operation | Baseline p95 (ms) | Current p95 (ms) | Delta p95 | Baseline mean (ms) | Current mean (ms) | Status |",
-    "| --- | ---: | ---: | ---: | ---: | ---: | :---: |",
+    "| Operation | Baseline p95 (ms) | Current p95 (ms) | Delta p95 | Baseline mean (ms) | Current mean (ms) | Delta mean | Status |",
+    "| --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: |",
   ];
 
   for (const row of summary.rows) {
+    const operationId = escapeMarkdownCell(row.operationId);
     lines.push(
-      `| ${row.operationId} | ${row.baselineP95Ms} | ${row.currentP95Ms} | ${formatPercent(row.deltaP95Percent)} | ${row.baselineMeanMs} | ${row.currentMeanMs} | ${row.status} |`
+      `| ${operationId} | ${formatMetric(row.baselineP95Ms)} | ${formatMetric(row.currentP95Ms)} | ${formatPercent(row.deltaP95Percent)} | ${formatMetric(row.baselineMeanMs)} | ${formatMetric(row.currentMeanMs)} | ${formatPercent(row.deltaMeanPercent)} | ${row.status} |`
     );
   }
 
@@ -133,7 +145,12 @@ function createMarkdown(summary: ComparisonSummary, threshold: number): string {
 
 async function loadJson(path: string): Promise<BenchmarkRun> {
   const content = await readFile(path, "utf8");
-  return JSON.parse(content) as BenchmarkRun;
+  try {
+    return JSON.parse(content) as BenchmarkRun;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to parse ${path}: ${message}`);
+  }
 }
 
 async function main() {
@@ -153,8 +170,10 @@ async function main() {
     throw new Error("--threshold must be a positive number");
   }
 
-  const baseline = await loadJson(resolve(process.cwd(), baselinePath));
-  const current = await loadJson(resolve(process.cwd(), currentPath));
+  const [baseline, current] = await Promise.all([
+    loadJson(resolve(process.cwd(), baselinePath)),
+    loadJson(resolve(process.cwd(), currentPath)),
+  ]);
 
   const baselineMap = toOperationMap(baseline);
   const currentMap = toOperationMap(current);
@@ -183,22 +202,33 @@ async function main() {
       continue;
     }
 
-    const baselineP95 = Number(baselineOperation.summary?.p95Ms ?? 0);
-    const currentP95 = Number(currentOperation.summary?.p95Ms ?? 0);
-    const baselineMean = Number(baselineOperation.summary?.meanMs ?? 0);
-    const currentMean = Number(currentOperation.summary?.meanMs ?? 0);
+    const baselineP95 = Number(baselineOperation.summary?.p95Ms);
+    const currentP95 = Number(currentOperation.summary?.p95Ms);
+    const baselineMean = Number(baselineOperation.summary?.meanMs);
+    const currentMean = Number(currentOperation.summary?.meanMs);
 
-    const deltaP95 = deltaPercent(currentP95, baselineP95);
-    const isRegression = deltaP95 > threshold;
-    const isWarn = !isRegression && deltaP95 > threshold / 2;
+    const hasP95Metrics = Number.isFinite(baselineP95) && Number.isFinite(currentP95);
+    const hasMeanMetrics = Number.isFinite(baselineMean) && Number.isFinite(currentMean);
+    const hasRequiredMetrics = hasP95Metrics && hasMeanMetrics;
+
+    const deltaP95Raw = hasP95Metrics ? deltaPercent(currentP95, baselineP95) : Number.NaN;
+    const deltaMeanRaw = hasMeanMetrics ? deltaPercent(currentMean, baselineMean) : Number.NaN;
+
+    const isRegression = hasRequiredMetrics && Number.isFinite(deltaP95Raw) && deltaP95Raw > threshold;
+    const isWarn =
+      !isRegression &&
+      (!hasRequiredMetrics ||
+        !Number.isFinite(deltaP95Raw) ||
+        (Number.isFinite(deltaP95Raw) && deltaP95Raw > threshold / 2));
 
     const row: ComparisonRow = {
       operationId,
-      baselineP95Ms: round(baselineP95),
-      currentP95Ms: round(currentP95),
-      deltaP95Percent: Number.isFinite(deltaP95) ? round(deltaP95) : "inf",
-      baselineMeanMs: round(baselineMean),
-      currentMeanMs: round(currentMean),
+      baselineP95Ms: Number.isFinite(baselineP95) ? round(baselineP95) : "n/a",
+      currentP95Ms: Number.isFinite(currentP95) ? round(currentP95) : "n/a",
+      deltaP95Percent: hasP95Metrics ? (Number.isFinite(deltaP95Raw) ? round(deltaP95Raw) : "inf") : "n/a",
+      baselineMeanMs: Number.isFinite(baselineMean) ? round(baselineMean) : "n/a",
+      currentMeanMs: Number.isFinite(currentMean) ? round(currentMean) : "n/a",
+      deltaMeanPercent: hasMeanMetrics ? (Number.isFinite(deltaMeanRaw) ? round(deltaMeanRaw) : "inf") : "n/a",
       status: isRegression ? "FAIL" : isWarn ? "WARN" : "PASS",
     };
 

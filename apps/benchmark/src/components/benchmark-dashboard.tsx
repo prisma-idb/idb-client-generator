@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Progress, ProgressLabel } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { sanitizeBenchmarkConfigInputs } from "@/lib/benchmark/config-validation";
 import { runBenchmarkSuite } from "@/lib/benchmark/runner";
 import type { BenchmarkConfig, BenchmarkProgress, BenchmarkRunResult } from "@/lib/benchmark/types";
 import { downloadTextFile } from "@/lib/export/download";
@@ -104,15 +105,6 @@ export function BenchmarkDashboard() {
     };
   }, [isRunning]);
 
-  const config: BenchmarkConfig = useMemo(
-    () => ({
-      datasetSize,
-      warmupRuns,
-      measuredRuns,
-    }),
-    [datasetSize, warmupRuns, measuredRuns]
-  );
-
   const selectedRun = activeRun ?? history[0] ?? null;
   const operationCount = selectedRun?.operations.length ?? 0;
 
@@ -169,10 +161,22 @@ export function BenchmarkDashboard() {
 
   async function executeBenchmarks() {
     setError("");
-    if (datasetSize < 100 || measuredRuns < 1) {
-      setError("Please use datasetSize >= 100 and measuredRuns >= 1.");
+
+    const sanitized = sanitizeBenchmarkConfigInputs({
+      datasetSize,
+      warmupRuns,
+      measuredRuns,
+    });
+
+    if (!sanitized.ok) {
+      setError(sanitized.error);
       return;
     }
+
+    const sanitizedConfig: BenchmarkConfig = sanitized.config;
+    setDatasetSize(sanitizedConfig.datasetSize);
+    setWarmupRuns(sanitizedConfig.warmupRuns);
+    setMeasuredRuns(sanitizedConfig.measuredRuns);
 
     const controller = new AbortController();
     runAbortControllerRef.current = controller;
@@ -188,7 +192,7 @@ export function BenchmarkDashboard() {
 
     try {
       const run = await runBenchmarkSuite(
-        config,
+        sanitizedConfig,
         (nextProgress) => {
           setProgress(nextProgress);
         },

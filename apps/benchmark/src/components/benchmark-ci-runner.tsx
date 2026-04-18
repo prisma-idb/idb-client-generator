@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { sanitizeBenchmarkConfigInputs } from "@/lib/benchmark/config-validation";
 import { runBenchmarkSuite } from "@/lib/benchmark/runner";
 import type { BenchmarkConfig, BenchmarkRunResult } from "@/lib/benchmark/types";
 
@@ -16,15 +17,6 @@ const defaultConfig: BenchmarkConfig = {
   measuredRuns: 7,
 };
 
-function parsePositiveInt(value: string | null, fallback: number, min = 1): number {
-  if (!value) return fallback;
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return fallback;
-  const rounded = Math.floor(parsed);
-  if (rounded < min) return fallback;
-  return rounded;
-}
-
 export function BenchmarkCiRunner() {
   const [state, setState] = useState<CiState>({
     status: "idle",
@@ -32,23 +24,36 @@ export function BenchmarkCiRunner() {
     errorMessage: "",
   });
 
-  const config = useMemo<BenchmarkConfig>(() => {
-    if (typeof window === "undefined") return defaultConfig;
+  const configResult = useMemo(() => {
+    if (typeof window === "undefined") {
+      return sanitizeBenchmarkConfigInputs(defaultConfig);
+    }
     const params = new URLSearchParams(window.location.search);
-    return {
-      datasetSize: parsePositiveInt(params.get("datasetSize"), defaultConfig.datasetSize, 100),
-      warmupRuns: parsePositiveInt(params.get("warmupRuns"), defaultConfig.warmupRuns, 0),
-      measuredRuns: parsePositiveInt(params.get("measuredRuns"), defaultConfig.measuredRuns, 1),
-    };
+    return sanitizeBenchmarkConfigInputs({
+      datasetSize: params.get("datasetSize") ?? defaultConfig.datasetSize,
+      warmupRuns: params.get("warmupRuns") ?? defaultConfig.warmupRuns,
+      measuredRuns: params.get("measuredRuns") ?? defaultConfig.measuredRuns,
+    });
   }, []);
 
   useEffect(() => {
     let cancelled = false;
 
+    if (!configResult.ok) {
+      setState({
+        status: "error",
+        result: null,
+        errorMessage: configResult.error,
+      });
+      return;
+    }
+
+    const sanitizedConfig = configResult.config;
+
     async function run() {
       setState({ status: "running", result: null, errorMessage: "" });
       try {
-        const result = await runBenchmarkSuite(config);
+        const result = await runBenchmarkSuite(sanitizedConfig);
         if (cancelled) return;
         setState({ status: "completed", result, errorMessage: "" });
       } catch (error) {
@@ -66,7 +71,7 @@ export function BenchmarkCiRunner() {
     return () => {
       cancelled = true;
     };
-  }, [config]);
+  }, [configResult]);
 
   return (
     <main className="p-6">
@@ -75,7 +80,7 @@ export function BenchmarkCiRunner() {
         {state.status}
       </p>
       <pre data-testid="benchmark-config" className="mt-2 overflow-auto text-xs">
-        {JSON.stringify(config, null, 2)}
+        {JSON.stringify(configResult.ok ? configResult.config : null, null, 2)}
       </pre>
       {state.result && (
         <pre data-testid="benchmark-result" className="mt-2 overflow-auto text-xs">
