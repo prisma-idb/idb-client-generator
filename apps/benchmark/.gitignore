@@ -6,6 +6,7 @@
 
 # test & build
 /coverage
+test-results/
 /.next/
 /out/
 /build

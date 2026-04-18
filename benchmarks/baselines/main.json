@@ -1,0 +1,117 @@
+{
+  "id": "26f78137-b487-48ba-8766-a206379caf08",
+  "startedAt": "2026-04-18T05:24:16.188Z",
+  "completedAt": "2026-04-18T05:24:24.533Z",
+  "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.7727.15 Safari/537.36",
+  "config": {
+    "datasetSize": 1000,
+    "warmupRuns": 2,
+    "measuredRuns": 7
+  },
+  "totalDurationMs": 8344.1,
+  "operations": [
+    {
+      "operationId": "create-user",
+      "label": "Create user",
+      "samplesMs": [
+        0.09999999403953552, 0.09999999403953552, 0.09999999403953552, 0.19999998807907104, 0.09999999403953552,
+        0.09999999403953552, 0.19999998807907104
+      ],
+      "summary": {
+        "minMs": 0.1,
+        "maxMs": 0.2,
+        "meanMs": 0.129,
+        "medianMs": 0.1,
+        "p95Ms": 0.2,
+        "p99Ms": 0.2,
+        "stdDevMs": 0.045,
+        "opsPerSecond": 7777.778
+      }
+    },
+    {
+      "operationId": "create-many-todos",
+      "label": "Create many todos",
+      "samplesMs": [79.40000000596046, 68.5, 62.5, 62.79999998211861, 68.09999999403954, 68.5, 69.19999998807907],
+      "summary": {
+        "minMs": 62.5,
+        "maxMs": 79.4,
+        "meanMs": 68.429,
+        "medianMs": 68.5,
+        "p95Ms": 79.4,
+        "p99Ms": 79.4,
+        "stdDevMs": 5.181,
+        "opsPerSecond": 14.614
+      }
+    },
+    {
+      "operationId": "find-many-completed",
+      "label": "Find many completed",
+      "samplesMs": [
+        5.199999988079071, 5, 5.399999976158142, 5.5999999940395355, 5.4000000059604645, 5.0999999940395355,
+        5.9000000059604645
+      ],
+      "summary": {
+        "minMs": 5,
+        "maxMs": 5.9,
+        "meanMs": 5.371,
+        "medianMs": 5.4,
+        "p95Ms": 5.9,
+        "p99Ms": 5.9,
+        "stdDevMs": 0.286,
+        "opsPerSecond": 186.17
+      }
+    },
+    {
+      "operationId": "update-many-completed",
+      "label": "Update many completed",
+      "samplesMs": [
+        110.5, 125.80000001192093, 134.40000000596046, 103.59999999403954, 109, 89.10000002384186, 95.7999999821186
+      ],
+      "summary": {
+        "minMs": 89.1,
+        "maxMs": 134.4,
+        "meanMs": 109.743,
+        "medianMs": 109,
+        "p95Ms": 134.4,
+        "p99Ms": 134.4,
+        "stdDevMs": 14.761,
+        "opsPerSecond": 9.112
+      }
+    },
+    {
+      "operationId": "delete-many-completed",
+      "label": "Delete many completed",
+      "samplesMs": [
+        127.7999999821186, 109.30000001192093, 106.59999999403954, 110.80000001192093, 123.59999999403954,
+        96.30000001192093, 111.89999997615814
+      ],
+      "summary": {
+        "minMs": 96.3,
+        "maxMs": 127.8,
+        "meanMs": 112.329,
+        "medianMs": 110.8,
+        "p95Ms": 127.8,
+        "p99Ms": 127.8,
+        "stdDevMs": 9.768,
+        "opsPerSecond": 8.902
+      }
+    },
+    {
+      "operationId": "find-many-title-contains",
+      "label": "Find many title contains",
+      "samplesMs": [
+        5.300000011920929, 6, 5.9000000059604645, 4.800000011920929, 5.0999999940395355, 5.600000023841858, 8
+      ],
+      "summary": {
+        "minMs": 4.8,
+        "maxMs": 8,
+        "meanMs": 5.814,
+        "medianMs": 5.6,
+        "p95Ms": 8,
+        "p99Ms": 8,
+        "stdDevMs": 0.976,
+        "opsPerSecond": 171.99
+      }
+    }
+  ]
+}

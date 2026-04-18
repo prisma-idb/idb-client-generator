@@ -1,0 +1,100 @@
+name: Benchmark Regression
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/
+
+      - name: Install Playwright Browser
+        working-directory: apps/benchmark
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run benchmark suite
+        working-directory: apps/benchmark
+        env:
+          BENCHMARK_DATASET_SIZE: "1000"
+          BENCHMARK_WARMUP_RUNS: "2"
+          BENCHMARK_MEASURED_RUNS: "7"
+          BENCHMARK_RESULT_PATH: "../../benchmarks/results/current.json"
+        run: |
+          mkdir -p ../../benchmarks/results
+          pnpm benchmark:ci
+
+      - name: Load trusted baseline from PR base commit
+        if: github.event_name == 'pull_request'
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+
+          if git show "$BASE_SHA:benchmarks/baselines/main.json" > benchmarks/results/baseline-main.json; then
+            echo "Loaded baseline snapshot from base commit: $BASE_SHA"
+          else
+            echo "Baseline snapshot not found at base commit: $BASE_SHA"
+            exit 1
+          fi
+
+      - name: Compare against baseline
+        if: github.event_name == 'pull_request'
+        working-directory: apps/benchmark
+        run: |
+          test -f ../../benchmarks/results/baseline-main.json
+          pnpm benchmark:compare \
+            --baseline ../../benchmarks/results/baseline-main.json \
+            --current ../../benchmarks/results/current.json \
+            --threshold 10 \
+            --json-out ../../benchmarks/results/report.json \
+            --markdown-out ../../benchmarks/results/report.md \
+            --exit-on-fail
+
+      - name: Publish benchmark PR comment
+        if: github.event_name == 'pull_request' && !cancelled()
+        continue-on-error: true
+        working-directory: apps/benchmark
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pnpm benchmark:comment --body-file ../../benchmarks/results/report.md
+
+      - name: Refresh main baseline snapshot
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p benchmarks/baselines
+          cp benchmarks/results/current.json benchmarks/baselines/main.json
+
+      - name: Commit baseline update
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          if git diff --quiet -- benchmarks/baselines/main.json; then
+            echo "No baseline changes to commit"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add benchmarks/baselines/main.json
+          git commit -m "chore(benchmark): refresh baseline snapshot [skip ci]"
+          git push
+
+      - name: Upload benchmark artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmarks/results/
+          retention-days: 30

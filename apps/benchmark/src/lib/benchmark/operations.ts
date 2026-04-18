@@ -59,6 +59,48 @@ export const operationDefinitions: BenchmarkOperationDefinition[] = [
     },
   },
   {
+    operationId: "find-many-completed-sorted",
+    label: "Find many completed (sorted)",
+    prepare: async (client, datasetSize) => {
+      await client.resetDatabase();
+      await seedTodos(client, datasetSize);
+    },
+    run: async (client) => {
+      await client.todo.findMany({ where: { completed: true }, orderBy: { title: "asc" } });
+    },
+  },
+  {
+    operationId: "find-many-completed-paginated",
+    label: "Find many completed (paginated)",
+    prepare: async (client, datasetSize) => {
+      await client.resetDatabase();
+      await seedTodos(client, datasetSize);
+    },
+    run: async (client, datasetSize) => {
+      const skip = Math.max(0, Math.floor(datasetSize * 0.2));
+      const take = Math.max(20, Math.floor(datasetSize * 0.3));
+
+      await client.todo.findMany({
+        where: { completed: true },
+        orderBy: { title: "asc" },
+        skip,
+        take,
+      });
+    },
+  },
+  {
+    operationId: "find-many-with-user-include",
+    label: "Find many with user include",
+    prepare: async (client, datasetSize) => {
+      await client.resetDatabase();
+      await seedTodos(client, datasetSize);
+    },
+    run: async (client, datasetSize) => {
+      const take = Math.max(50, Math.floor(datasetSize * 0.25));
+      await client.todo.findMany({ where: { completed: true }, include: { user: true }, take });
+    },
+  },
+  {
     operationId: "update-many-completed",
     label: "Update many completed",
     prepare: async (client, datasetSize) => {

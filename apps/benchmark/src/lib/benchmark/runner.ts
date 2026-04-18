@@ -7,10 +7,17 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  throw new DOMException("Benchmark run cancelled", "AbortError");
+}
+
 export async function runBenchmarkSuite(
   config: BenchmarkConfig,
-  onProgress?: (progress: BenchmarkProgress) => void
+  onProgress?: (progress: BenchmarkProgress) => void,
+  signal?: AbortSignal
 ): Promise<BenchmarkRunResult> {
+  throwIfAborted(signal);
   const client = await createBenchmarkClient();
   const runStart = performance.now();
   const startedAt = nowIso();
@@ -21,7 +28,9 @@ export async function runBenchmarkSuite(
 
   for (const definition of operationDefinitions) {
     for (let warmup = 0; warmup < config.warmupRuns; warmup += 1) {
+      throwIfAborted(signal);
       await definition.prepare(client, config.datasetSize);
+      throwIfAborted(signal);
       await definition.run(client, config.datasetSize);
       completedSteps += 1;
       onProgress?.({
@@ -35,9 +44,12 @@ export async function runBenchmarkSuite(
     const samplesMs: number[] = [];
 
     for (let measureIndex = 0; measureIndex < config.measuredRuns; measureIndex += 1) {
+      throwIfAborted(signal);
       await definition.prepare(client, config.datasetSize);
+      throwIfAborted(signal);
       const start = performance.now();
       await definition.run(client, config.datasetSize);
+      throwIfAborted(signal);
       const end = performance.now();
       samplesMs.push(end - start);
       completedSteps += 1;

@@ -15,21 +15,21 @@ export function LatencyChart({ operations }: LatencyChartProps) {
   }));
 
   return (
-    <div className="h-72 w-full">
+    <div className="h-115 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ left: 8, right: 8, top: 8, bottom: 8 }}>
-          <CartesianGrid strokeDasharray="2 2" stroke="var(--border)" />
-          <XAxis
+        <BarChart data={data} layout="vertical" margin={{ left: 12, right: 12, top: 8, bottom: 8 }} barCategoryGap={8}>
+          <CartesianGrid strokeDasharray="2 2" stroke="color-mix(in oklab, var(--chart-grid), var(--border) 70%)" />
+          <XAxis type="number" tick={{ fill: "var(--foreground)", fontSize: 11 }} tickLine={false} axisLine={false} />
+          <YAxis
+            type="category"
             dataKey="operation"
-            tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-            interval={0}
-            angle={-18}
-            dy={12}
-            height={50}
+            width={220}
+            tick={{ fill: "var(--foreground)", fontSize: 12 }}
+            tickLine={false}
+            axisLine={false}
           />
-          <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} />
           <Tooltip
-            cursor={{ fill: "color-mix(in oklab, var(--muted), transparent 25%)" }}
+            cursor={{ fill: "color-mix(in oklab, var(--chart-latency-mean), transparent 86%)" }}
             contentStyle={{
               background: "var(--card)",
               border: "1px solid var(--border)",
@@ -37,8 +37,8 @@ export function LatencyChart({ operations }: LatencyChartProps) {
               color: "var(--foreground)",
             }}
           />
-          <Bar dataKey="meanMs" name="mean ms" fill="var(--chart-1)" radius={[6, 6, 0, 0]} />
-          <Bar dataKey="p95Ms" name="p95 ms" fill="var(--chart-2)" radius={[6, 6, 0, 0]} />
+          <Bar dataKey="meanMs" name="mean ms" fill="var(--chart-latency-mean)" radius={[0, 6, 6, 0]} />
+          <Bar dataKey="p95Ms" name="p95 ms" fill="var(--chart-latency-p95)" radius={[0, 6, 6, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

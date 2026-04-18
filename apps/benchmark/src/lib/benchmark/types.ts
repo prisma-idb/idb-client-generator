@@ -2,6 +2,9 @@ export type BenchmarkOperationId =
   | "create-user"
   | "create-many-todos"
   | "find-many-completed"
+  | "find-many-completed-sorted"
+  | "find-many-completed-paginated"
+  | "find-many-with-user-include"
   | "update-many-completed"
   | "delete-many-completed"
   | "find-many-title-contains";

@@ -10,6 +10,10 @@
     "dev": "next dev",
     "start": "serve out",
     "generate": "prisma generate --config prisma.config.ts",
+    "test": "PLAYWRIGHT_HTML_OPEN=never playwright test --reporter=list",
+    "benchmark:ci": "pnpm test",
+    "benchmark:compare": "tsx ./scripts/compare-benchmark-results.ts",
+    "benchmark:comment": "tsx ./scripts/publish-benchmark-pr-comment.ts",
     "check": "next typegen && tsc --noEmit",
     "lint": "prettier --check . && eslint",
     "format": "prettier --write ."
@@ -32,6 +36,7 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@prisma-idb/idb-client-generator": "workspace:*",
     "@prisma/client": "^7.7.0",
     "@tailwindcss/postcss": "^4.2.2",
@@ -42,6 +47,7 @@
     "prisma": "^7.7.0",
     "serve": "^14.2.6",
     "tailwindcss": "^4.2.2",
+    "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   }
 }
