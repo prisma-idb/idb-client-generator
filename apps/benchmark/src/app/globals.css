@@ -14,18 +14,6 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
 
-  --paper: var(--background);
-  --surface: hsl(0 0% 9%);
-  --panel: var(--card);
-  --wash: var(--muted);
-  --wash-strong: hsl(0 0% 20%);
-  --ink: var(--foreground);
-  --ink-soft: var(--muted-foreground);
-  --ink-strong: hsl(0 0% 100%);
-  --line: var(--border);
-  --chart-a: hsl(189 74% 52%);
-  --chart-b: hsl(32 100% 56%);
-  --chart-c: hsl(160 76% 42%);
   --chart-latency-mean: oklch(0.72 0.18 74);
   --chart-latency-p95: oklch(0.56 0.21 36);
   --chart-throughput: oklch(0.66 0.2 64);

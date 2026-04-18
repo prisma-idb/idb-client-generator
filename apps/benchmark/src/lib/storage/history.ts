@@ -7,62 +7,23 @@ function isBrowser(): boolean {
   return typeof window !== "undefined";
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
-
-function isValidBenchmarkRunResult(value: unknown): value is BenchmarkRunResult {
-  if (!isObject(value)) return false;
-
-  const operations = value.operations;
-  const config = value.config;
-
-  if (typeof value.id !== "string") return false;
-  if (typeof value.startedAt !== "string" || Number.isNaN(Date.parse(value.startedAt))) return false;
-  if (typeof value.completedAt !== "string" || Number.isNaN(Date.parse(value.completedAt))) return false;
-  if (typeof value.browser !== "string") return false;
-  if (!isFiniteNumber(value.totalDurationMs)) return false;
-
-  if (!isObject(config)) return false;
-  if (!isFiniteNumber(config.datasetSize)) return false;
-  if (!isFiniteNumber(config.warmupRuns)) return false;
-  if (!isFiniteNumber(config.measuredRuns)) return false;
-
-  if (!Array.isArray(operations)) return false;
-
-  return operations.every((operation) => {
-    if (!isObject(operation)) return false;
-    if (typeof operation.operationId !== "string") return false;
-    if (typeof operation.label !== "string") return false;
-    if (!Array.isArray(operation.samplesMs) || !operation.samplesMs.every((sample) => isFiniteNumber(sample))) {
-      return false;
-    }
-
-    const summary = operation.summary;
-    if (!isObject(summary)) return false;
-
-    return (
-      isFiniteNumber(summary.minMs) &&
-      isFiniteNumber(summary.maxMs) &&
-      isFiniteNumber(summary.meanMs) &&
-      isFiniteNumber(summary.medianMs) &&
-      isFiniteNumber(summary.p95Ms) &&
-      isFiniteNumber(summary.p99Ms) &&
-      isFiniteNumber(summary.stdDevMs) &&
-      isFiniteNumber(summary.opsPerSecond)
-    );
-  });
+function looksLikeRunResult(value: unknown): value is BenchmarkRunResult {
+  if (typeof value !== "object" || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  return (
+    typeof obj.id === "string" &&
+    typeof obj.completedAt === "string" &&
+    Array.isArray(obj.operations) &&
+    typeof obj.config === "object" &&
+    obj.config !== null
+  );
 }
 
 function parseStoredHistory(raw: string): BenchmarkRunResult[] {
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is BenchmarkRunResult => isValidBenchmarkRunResult(item));
+    return parsed.filter(looksLikeRunResult);
   } catch {
     return [];
   }

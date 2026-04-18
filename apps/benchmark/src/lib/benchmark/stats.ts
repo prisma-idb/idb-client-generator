@@ -4,9 +4,22 @@ function round(value: number): number {
   return Number(value.toFixed(3));
 }
 
-function percentile(sortedValues: number[], p: number): number {
-  const index = Math.min(sortedValues.length - 1, Math.max(0, Math.ceil((p / 100) * sortedValues.length) - 1));
-  return sortedValues[index] ?? 0;
+function quantile(sortedValues: number[], percentile: number): number {
+  if (sortedValues.length === 0) return 0;
+  if (sortedValues.length === 1) return sortedValues[0] ?? 0;
+
+  const position = (sortedValues.length - 1) * percentile;
+  const lowerIndex = Math.floor(position);
+  const upperIndex = Math.ceil(position);
+
+  if (lowerIndex === upperIndex) {
+    return sortedValues[lowerIndex] ?? 0;
+  }
+
+  const lowerValue = sortedValues[lowerIndex] ?? 0;
+  const upperValue = sortedValues[upperIndex] ?? lowerValue;
+
+  return lowerValue + (upperValue - lowerValue) * (position - lowerIndex);
 }
 
 export function summarizeSamples(samplesMs: number[]): BenchmarkStatSummary {
@@ -18,15 +31,9 @@ export function summarizeSamples(samplesMs: number[]): BenchmarkStatSummary {
       return sum + delta * delta;
     }, 0) / Math.max(1, sorted.length);
   const stdDevMs = Math.sqrt(variance);
-  const n = sorted.length;
-  const medianMs =
-    n === 0
-      ? 0
-      : n % 2 === 1
-        ? (sorted[Math.floor(n / 2)] ?? 0)
-        : ((sorted[n / 2 - 1] ?? 0) + (sorted[n / 2] ?? 0)) / 2;
-  const p95Ms = percentile(sorted, 95);
-  const p99Ms = percentile(sorted, 99);
+  const medianMs = quantile(sorted, 0.5);
+  const p95Ms = quantile(sorted, 0.95);
+  const p99Ms = quantile(sorted, 0.99);
   const minMs = sorted[0] ?? 0;
   const maxMs = sorted[sorted.length - 1] ?? 0;
 

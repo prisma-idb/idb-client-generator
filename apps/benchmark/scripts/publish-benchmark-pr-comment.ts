@@ -1,9 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { getStringArg, parseArgs } from "./cli-args";
 
 const MARKER = "<!-- benchmark-regression-report -->";
-
-type CliArgValue = string | boolean;
 
 interface PullRequestEventPayload {
   pull_request?: {
@@ -14,28 +13,6 @@ interface PullRequestEventPayload {
 interface IssueComment {
   id: number;
   body: string | null;
-}
-
-function parseArgs(argv: string[]): Record<string, CliArgValue> {
-  const parsed: Record<string, CliArgValue> = {};
-  for (let i = 2; i < argv.length; i += 1) {
-    const token = argv[i];
-    if (!token.startsWith("--")) continue;
-    const key = token.slice(2);
-    const value = argv[i + 1];
-    if (!value || value.startsWith("--")) {
-      parsed[key] = true;
-      continue;
-    }
-    parsed[key] = value;
-    i += 1;
-  }
-  return parsed;
-}
-
-function getStringArg(args: Record<string, CliArgValue>, key: string): string | undefined {
-  const value = args[key];
-  return typeof value === "string" ? value : undefined;
 }
 
 async function githubRequest<T>(path: string, token: string, options: RequestInit = {}): Promise<T | null> {

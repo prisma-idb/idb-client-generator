@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-
-type CliArgValue = string | boolean;
+import { BENCHMARK_REGRESSION_GATE } from "../src/lib/benchmark/types";
+import { getStringArg, hasFlag, parseArgs } from "./cli-args";
 
 interface BenchmarkSummary {
   p95Ms?: number;
@@ -10,6 +10,7 @@ interface BenchmarkSummary {
 
 interface BenchmarkOperation {
   operationId: string;
+  samplesMs?: number[];
   summary?: BenchmarkSummary;
 }
 
@@ -34,37 +35,13 @@ interface ComparisonSummary {
   comparedAt: string;
   baselineRunId: string | null;
   currentRunId: string | null;
+  isAdvisory: boolean;
+  notices: string[];
   rows: ComparisonRow[];
   regressions: ComparisonRow[];
   addedOperations: string[];
   removedOperations: string[];
   shouldFail: boolean;
-}
-
-function parseArgs(argv: string[]): Record<string, CliArgValue> {
-  const parsed: Record<string, CliArgValue> = {};
-  for (let i = 2; i < argv.length; i += 1) {
-    const token = argv[i];
-    if (!token.startsWith("--")) continue;
-    const key = token.slice(2);
-    const next = argv[i + 1];
-    if (!next || next.startsWith("--")) {
-      parsed[key] = true;
-      continue;
-    }
-    parsed[key] = next;
-    i += 1;
-  }
-  return parsed;
-}
-
-function getStringArg(args: Record<string, CliArgValue>, key: string): string | undefined {
-  const value = args[key];
-  return typeof value === "string" ? value : undefined;
-}
-
-function hasFlag(args: Record<string, CliArgValue>, key: string): boolean {
-  return args[key] === true;
 }
 
 function round(value: number): number {
@@ -107,6 +84,7 @@ function createMarkdown(summary: ComparisonSummary, threshold: number): string {
     "## Benchmark Regression Report",
     "",
     "- Gate metric: p95 latency",
+    `- Gate mode: ${summary.isAdvisory ? "advisory" : "enforcing"}`,
     `- Regression threshold: +${threshold}%`,
     `- Compared operations: ${summary.rows.length}`,
     `- Regressions: ${summary.regressions.length}`,
@@ -116,6 +94,10 @@ function createMarkdown(summary: ComparisonSummary, threshold: number): string {
     "| Operation | Baseline p95 (ms) | Current p95 (ms) | Delta p95 | Baseline mean (ms) | Current mean (ms) | Delta mean | Status |",
     "| --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: |",
   ];
+
+  if (summary.notices.length > 0) {
+    lines.splice(8, 0, ...summary.notices.map((notice) => `- Notice: ${notice}`), "");
+  }
 
   for (const row of summary.rows) {
     const operationId = escapeMarkdownCell(row.operationId);
@@ -151,6 +133,46 @@ async function loadJson(path: string): Promise<BenchmarkRun> {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to parse ${path}: ${message}`);
   }
+}
+
+function getMeasuredSampleCount(run: BenchmarkRun): number | null {
+  const counts = (run.operations ?? [])
+    .map((operation) => (Array.isArray(operation.samplesMs) ? operation.samplesMs.length : null))
+    .filter((count): count is number => count !== null);
+
+  if (counts.length === 0) return null;
+  return counts.every((count) => count === counts[0]) ? counts[0] : null;
+}
+
+function getComparisonNotices(baseline: BenchmarkRun, current: BenchmarkRun): string[] {
+  const notices: string[] = [];
+  const baselineSampleCount = getMeasuredSampleCount(baseline);
+  const currentSampleCount = getMeasuredSampleCount(current);
+  const meaningfulSampleFloor = BENCHMARK_REGRESSION_GATE.minMeaningfulP95Samples;
+
+  if (baselineSampleCount === null) {
+    notices.push("Baseline sample counts are missing or inconsistent across operations.");
+  } else if (baselineSampleCount < meaningfulSampleFloor) {
+    notices.push(
+      `Baseline only has ${baselineSampleCount} measured samples per operation; meaningful p95 gating starts at ${meaningfulSampleFloor}.`
+    );
+  }
+
+  if (currentSampleCount === null) {
+    notices.push("Current run sample counts are missing or inconsistent across operations.");
+  } else if (currentSampleCount < meaningfulSampleFloor) {
+    notices.push(
+      `Current run only has ${currentSampleCount} measured samples per operation; meaningful p95 gating starts at ${meaningfulSampleFloor}.`
+    );
+  }
+
+  if (baselineSampleCount !== null && currentSampleCount !== null && baselineSampleCount !== currentSampleCount) {
+    notices.push(
+      `Baseline and current runs use different measured sample counts (${baselineSampleCount} vs ${currentSampleCount}); this comparison is advisory.`
+    );
+  }
+
+  return notices;
 }
 
 async function main() {
@@ -209,25 +231,24 @@ async function main() {
 
     const hasP95Metrics = Number.isFinite(baselineP95) && Number.isFinite(currentP95);
     const hasMeanMetrics = Number.isFinite(baselineMean) && Number.isFinite(currentMean);
-    const hasRequiredMetrics = hasP95Metrics && hasMeanMetrics;
 
     const deltaP95Raw = hasP95Metrics ? deltaPercent(currentP95, baselineP95) : Number.NaN;
     const deltaMeanRaw = hasMeanMetrics ? deltaPercent(currentMean, baselineMean) : Number.NaN;
 
-    const isRegression = hasRequiredMetrics && Number.isFinite(deltaP95Raw) && deltaP95Raw > threshold;
+    const isRegression = hasP95Metrics && Number.isFinite(deltaP95Raw) && deltaP95Raw > threshold;
     const isWarn =
       !isRegression &&
-      (!hasRequiredMetrics ||
+      (!hasP95Metrics ||
         !Number.isFinite(deltaP95Raw) ||
-        (Number.isFinite(deltaP95Raw) && deltaP95Raw > threshold / 2));
+        (Number.isFinite(deltaP95Raw) && deltaP95Raw >= threshold / 2));
 
     const row: ComparisonRow = {
       operationId,
       baselineP95Ms: Number.isFinite(baselineP95) ? round(baselineP95) : "n/a",
       currentP95Ms: Number.isFinite(currentP95) ? round(currentP95) : "n/a",
       deltaP95Percent: hasP95Metrics ? (Number.isFinite(deltaP95Raw) ? round(deltaP95Raw) : "inf") : "n/a",
-      baselineMeanMs: Number.isFinite(baselineMean) ? round(baselineMean) : "n/a",
-      currentMeanMs: Number.isFinite(currentMean) ? round(currentMean) : "n/a",
+      baselineMeanMs: hasMeanMetrics ? round(baselineMean) : "n/a",
+      currentMeanMs: hasMeanMetrics ? round(currentMean) : "n/a",
       deltaMeanPercent: hasMeanMetrics ? (Number.isFinite(deltaMeanRaw) ? round(deltaMeanRaw) : "inf") : "n/a",
       status: isRegression ? "FAIL" : isWarn ? "WARN" : "PASS",
     };
@@ -237,19 +258,24 @@ async function main() {
   }
 
   rows.sort((a, b) => a.operationId.localeCompare(b.operationId));
+  regressions.sort((a, b) => a.operationId.localeCompare(b.operationId));
   addedOperations.sort();
   removedOperations.sort();
+  const notices = getComparisonNotices(baseline, current);
+  const isAdvisory = notices.length > 0;
 
   const summary: ComparisonSummary = {
     thresholdPercent: threshold,
     comparedAt: new Date().toISOString(),
     baselineRunId: baseline.id ?? null,
     currentRunId: current.id ?? null,
+    isAdvisory,
+    notices,
     rows,
     regressions,
     addedOperations,
     removedOperations,
-    shouldFail: regressions.length > 0 || removedOperations.length > 0,
+    shouldFail: !isAdvisory && (regressions.length > 0 || removedOperations.length > 0),
   };
 
   const markdown = createMarkdown(summary, threshold);

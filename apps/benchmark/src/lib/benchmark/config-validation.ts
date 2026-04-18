@@ -1,7 +1,8 @@
-import type { BenchmarkConfig } from "@/lib/benchmark/types";
+import type { BenchmarkConfig } from "./types";
 
 export const BENCHMARK_LIMITS = {
   minDatasetSize: 100,
+  maxDatasetSize: 25000,
   minWarmupRuns: 0,
   maxWarmupRuns: 8,
   minMeasuredRuns: 1,
@@ -47,9 +48,10 @@ export function sanitizeBenchmarkConfigInputs(input: {
   if (datasetSize < BENCHMARK_LIMITS.minDatasetSize) {
     return {
       ok: false,
-      error: `Please use datasetSize >= ${BENCHMARK_LIMITS.minDatasetSize}.`,
+      error: `Please use dataset size >= ${BENCHMARK_LIMITS.minDatasetSize}.`,
     };
   }
+  const datasetSizeClamped = clamp(datasetSize, BENCHMARK_LIMITS.minDatasetSize, BENCHMARK_LIMITS.maxDatasetSize);
 
   const warmupRuns = clamp(Math.trunc(warmupRunsRaw), BENCHMARK_LIMITS.minWarmupRuns, BENCHMARK_LIMITS.maxWarmupRuns);
   const measuredRuns = clamp(
@@ -61,7 +63,7 @@ export function sanitizeBenchmarkConfigInputs(input: {
   return {
     ok: true,
     config: {
-      datasetSize,
+      datasetSize: datasetSizeClamped,
       warmupRuns,
       measuredRuns,
     },

@@ -27,14 +27,33 @@ jobs:
 
       - name: Run benchmark suite
         working-directory: apps/benchmark
-        env:
-          BENCHMARK_DATASET_SIZE: "1000"
-          BENCHMARK_WARMUP_RUNS: "2"
-          BENCHMARK_MEASURED_RUNS: "7"
-          BENCHMARK_RESULT_PATH: "../../benchmarks/results/current.json"
         run: |
           mkdir -p ../../benchmarks/results
           pnpm benchmark:ci
+
+      - name: Capture current benchmark config
+        if: github.event_name == 'pull_request'
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const resultPath = "benchmarks/results/current.json";
+          const result = JSON.parse(fs.readFileSync(resultPath, "utf8"));
+          const config = result.config ?? {};
+
+          for (const key of ["datasetSize", "warmupRuns", "measuredRuns"]) {
+            if (!Number.isInteger(config[key])) {
+              throw new Error(`Missing integer config.${key} in ${resultPath}`);
+            }
+          }
+
+          const lines = [
+            `BENCHMARK_DATASET_SIZE=${config.datasetSize}`,
+            `BENCHMARK_WARMUP_RUNS=${config.warmupRuns}`,
+            `BENCHMARK_MEASURED_RUNS=${config.measuredRuns}`,
+          ];
+
+          fs.appendFileSync(process.env.GITHUB_ENV, `${lines.join("\n")}\n`, "utf8");
+          NODE
 
       - name: Load trusted baseline from PR base commit
         if: github.event_name == 'pull_request'
@@ -48,8 +67,9 @@ jobs:
             exit 1
           fi
 
-      - name: Compare against baseline
+      - name: Compare against trusted baseline
         if: github.event_name == 'pull_request'
+        id: compare_trusted_baseline
         working-directory: apps/benchmark
         run: |
           test -f ../../benchmarks/results/baseline-main.json
@@ -58,8 +78,84 @@ jobs:
             --current ../../benchmarks/results/current.json \
             --threshold 10 \
             --json-out ../../benchmarks/results/report.json \
-            --markdown-out ../../benchmarks/results/report.md \
-            --exit-on-fail
+            --markdown-out ../../benchmarks/results/report.md
+
+          node <<'NODE' >> "$GITHUB_OUTPUT"
+          const fs = require("node:fs");
+          const report = JSON.parse(fs.readFileSync("../../benchmarks/results/report.json", "utf8"));
+          process.stdout.write(`is_advisory=${String(report.isAdvisory)}\n`);
+          NODE
+
+      - name: Check out PR base commit for direct benchmark
+        if: github.event_name == 'pull_request' && steps.compare_trusted_baseline.outputs.is_advisory == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: benchmark-base
+          ref: ${{ github.event.pull_request.base.sha }}
+
+      - name: Install base commit dependencies
+        if: github.event_name == 'pull_request' && steps.compare_trusted_baseline.outputs.is_advisory == 'true'
+        working-directory: benchmark-base
+        run: pnpm install --frozen-lockfile
+
+      - name: Sync base commit SvelteKit
+        if: github.event_name == 'pull_request' && steps.compare_trusted_baseline.outputs.is_advisory == 'true'
+        working-directory: benchmark-base
+        run: pnpm --filter usage exec svelte-kit sync
+
+      - name: Generate base commit clients
+        if: github.event_name == 'pull_request' && steps.compare_trusted_baseline.outputs.is_advisory == 'true'
+        working-directory: benchmark-base
+        run: pnpm generate
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5433/postgres"
+
+      - name: Install base commit Playwright browser
+        if: github.event_name == 'pull_request' && steps.compare_trusted_baseline.outputs.is_advisory == 'true'
+        working-directory: benchmark-base/apps/benchmark
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Benchmark PR base commit directly
+        if: github.event_name == 'pull_request' && steps.compare_trusted_baseline.outputs.is_advisory == 'true'
+        working-directory: benchmark-base/apps/benchmark
+        env:
+          BENCHMARK_DATASET_SIZE: ${{ env.BENCHMARK_DATASET_SIZE }}
+          BENCHMARK_WARMUP_RUNS: ${{ env.BENCHMARK_WARMUP_RUNS }}
+          BENCHMARK_MEASURED_RUNS: ${{ env.BENCHMARK_MEASURED_RUNS }}
+          BENCHMARK_RESULT_PATH: ${{ github.workspace }}/benchmarks/results/base-current.json
+        run: pnpm benchmark:ci
+
+      - name: Compare against directly benchmarked base commit
+        if: github.event_name == 'pull_request' && steps.compare_trusted_baseline.outputs.is_advisory == 'true'
+        working-directory: apps/benchmark
+        run: |
+          test -f ../../benchmarks/results/base-current.json
+          pnpm benchmark:compare \
+            --baseline ../../benchmarks/results/base-current.json \
+            --current ../../benchmarks/results/current.json \
+            --threshold 10 \
+            --json-out ../../benchmarks/results/report.json \
+            --markdown-out ../../benchmarks/results/report.md
+
+      - name: Enforce benchmark regression gate
+        if: github.event_name == 'pull_request'
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const reportPath = "benchmarks/results/report.json";
+          const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+
+          console.log(`Final benchmark gate mode: ${report.isAdvisory ? "advisory" : "enforcing"}`);
+          for (const notice of report.notices ?? []) {
+            console.log(`Notice: ${notice}`);
+          }
+
+          if (report.shouldFail) {
+            console.error("Benchmark regression gate failed.");
+            process.exit(1);
+          }
+          NODE
 
       - name: Publish benchmark PR comment
         if: github.event_name == 'pull_request' && !cancelled() && github.event.pull_request.head.repo.full_name == github.repository

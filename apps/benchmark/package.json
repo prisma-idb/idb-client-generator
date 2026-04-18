@@ -7,7 +7,7 @@
   },
   "scripts": {
     "build": "next build",
-    "dev": "next dev",
+    "dev": "next dev --port 3001",
     "start": "serve out",
     "generate": "prisma generate --config prisma.config.ts",
     "test": "PLAYWRIGHT_HTML_OPEN=never playwright test --reporter=list",

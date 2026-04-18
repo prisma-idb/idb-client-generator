@@ -1,13 +1,14 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { expect, test } from "@playwright/test";
+import { BENCHMARK_DEFAULT_CONFIG } from "../src/lib/benchmark/types";
 
-function parseEnvPositiveInt(name: string, defaultValue: number): number {
+function parseEnvInteger(name: string, defaultValue: number, minValue: number): number {
   const raw = (process.env[name] ?? "").trim();
   if (raw === "") return defaultValue;
   const value = Number(raw);
-  if (!Number.isFinite(value) || !Number.isInteger(value) || value <= 0) {
-    throw new Error(`Environment variable ${name} must be a positive integer, got: ${JSON.stringify(raw)}`);
+  if (!Number.isFinite(value) || !Number.isInteger(value) || value < minValue) {
+    throw new Error(`Environment variable ${name} must be an integer >= ${minValue}, got: ${JSON.stringify(raw)}`);
   }
   return value;
 }
@@ -15,17 +16,17 @@ function parseEnvPositiveInt(name: string, defaultValue: number): number {
 test("runs benchmark suite and exports JSON result", async ({ page }) => {
   test.setTimeout(12 * 60 * 1000);
 
-  const datasetSize = parseEnvPositiveInt("BENCHMARK_DATASET_SIZE", 1000);
-  const warmupRuns = parseEnvPositiveInt("BENCHMARK_WARMUP_RUNS", 2);
-  const measuredRuns = parseEnvPositiveInt("BENCHMARK_MEASURED_RUNS", 7);
+  const datasetSize = parseEnvInteger("BENCHMARK_DATASET_SIZE", BENCHMARK_DEFAULT_CONFIG.datasetSize, 1);
+  const warmupRuns = parseEnvInteger("BENCHMARK_WARMUP_RUNS", BENCHMARK_DEFAULT_CONFIG.warmupRuns, 0);
+  const measuredRuns = parseEnvInteger("BENCHMARK_MEASURED_RUNS", BENCHMARK_DEFAULT_CONFIG.measuredRuns, 1);
 
-  await page.goto(`/ci?datasetSize=${datasetSize}&warmupRuns=${warmupRuns}&measuredRuns=${measuredRuns}`);
+  await page.goto(`/?autoStart&datasetSize=${datasetSize}&warmupRuns=${warmupRuns}&measuredRuns=${measuredRuns}`);
 
   const errorNode = page.getByTestId("benchmark-error");
   await expect(errorNode).toHaveCount(0);
 
   const resultNode = page.getByTestId("benchmark-result");
-  await expect(resultNode).toBeVisible({ timeout: 10 * 60 * 1000 });
+  await expect(resultNode).toBeAttached({ timeout: 10 * 60 * 1000 });
 
   const resultText = await resultNode.textContent();
   if (!resultText) {

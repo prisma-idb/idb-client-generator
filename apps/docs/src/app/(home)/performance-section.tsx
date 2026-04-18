@@ -1,14 +1,22 @@
 import Link from "next/link";
 import { GeistSans } from "geist/font/sans";
 import { ExternalLink, Gauge, FlaskConical, Zap } from "lucide-react";
+import { z } from "zod";
 import baselineData from "../../../../../benchmarks/baselines/main.json";
-import type { BenchmarkOperationId, BenchmarkOperationResult } from "../../../../benchmark/src/lib/benchmark/types";
+import { BENCHMARK_OPERATION_IDS, type BenchmarkOperationResult } from "../../../../benchmark/src/lib/benchmark/types";
 
 // Categorise operations for colour coding
 const FAST_THRESHOLD_MS = 10; // p95 < 10 ms → "instant"
 const MEDIUM_THRESHOLD_MS = 50; // p95 < 50 ms → "quick"
 const CHART_PADDING_FACTOR = 1.2; // Keep visual headroom: max + 20%
 const MIN_CHART_MAX_MS = 100; // Avoid over-compression when all ops are extremely fast
+const NUMBER_FORMATTER = new Intl.NumberFormat("en-US");
+const BASELINE_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: "UTC",
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
 
 const QUICK_COLORS = {
   bar: "bg-orange-500 dark:bg-orange-400",
@@ -36,48 +44,38 @@ const BUCKET_STYLES: Record<PerformanceBucket, { bar: string; badge: string; lab
   },
 };
 
-const VALID_OPERATION_IDS: ReadonlySet<BenchmarkOperationId> = new Set([
-  "create-user",
-  "create-many-todos",
-  "find-many-completed",
-  "find-many-completed-sorted",
-  "find-many-completed-paginated",
-  "find-many-with-user-include",
-  "update-many-completed",
-  "delete-many-completed",
-  "find-many-title-contains",
-]);
+const statSummarySchema = z.object({
+  minMs: z.number().finite(),
+  maxMs: z.number().finite(),
+  meanMs: z.number().finite(),
+  medianMs: z.number().finite(),
+  p95Ms: z.number().finite(),
+  p99Ms: z.number().finite(),
+  stdDevMs: z.number().finite(),
+  opsPerSecond: z.number().finite(),
+});
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
+const operationSchema = z.object({
+  operationId: z.enum(BENCHMARK_OPERATION_IDS),
+  label: z.string(),
+  samplesMs: z.array(z.number().finite()),
+  summary: statSummarySchema,
+});
 
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
-
-function isBenchmarkOperationResult(value: unknown): value is BenchmarkOperationResult {
-  if (!isObject(value)) return false;
-  if (typeof value.operationId !== "string" || !VALID_OPERATION_IDS.has(value.operationId as BenchmarkOperationId)) {
-    return false;
-  }
-  if (typeof value.label !== "string") return false;
-  if (!Array.isArray(value.samplesMs) || !value.samplesMs.every((sample) => isFiniteNumber(sample))) return false;
-
-  const summary = value.summary;
-  if (!isObject(summary)) return false;
-
-  return (
-    isFiniteNumber(summary.minMs) &&
-    isFiniteNumber(summary.maxMs) &&
-    isFiniteNumber(summary.meanMs) &&
-    isFiniteNumber(summary.medianMs) &&
-    isFiniteNumber(summary.p95Ms) &&
-    isFiniteNumber(summary.p99Ms) &&
-    isFiniteNumber(summary.stdDevMs) &&
-    isFiniteNumber(summary.opsPerSecond)
-  );
-}
+const baselineSchema = z.object({
+  config: z.object({
+    datasetSize: z.number().int().positive(),
+    warmupRuns: z.number().int().nonnegative(),
+    measuredRuns: z.number().int().positive(),
+  }),
+  completedAt: z.string(),
+  operations: z
+    .array(operationSchema)
+    .refine(
+      (ops) => BENCHMARK_OPERATION_IDS.every((id) => ops.some((op) => op.operationId === id)),
+      "Baseline is missing one or more expected operation IDs."
+    ),
+});
 
 function getPerformanceBucket(p95Ms: number): PerformanceBucket {
   if (p95Ms < FAST_THRESHOLD_MS) return "instant";
@@ -97,7 +95,10 @@ function formatMs(ms: number): string {
 }
 
 export function PerformanceSection() {
-  const operations: BenchmarkOperationResult[] = baselineData.operations.filter(isBenchmarkOperationResult);
+  const baseline = baselineSchema.parse(baselineData);
+  const operations = baseline.operations as BenchmarkOperationResult[];
+  const baselineConfig = baseline.config;
+
   const maxP95 = operations.length > 0 ? Math.max(...operations.map((op) => op.summary.p95Ms)) : MIN_CHART_MAX_MS;
   const chartMaxMs = Math.max(MIN_CHART_MAX_MS, maxP95 * CHART_PADDING_FACTOR);
 
@@ -110,7 +111,7 @@ export function PerformanceSection() {
     { instant: 0, quick: 0, moderate: 0 } as Record<PerformanceBucket, number>
   );
 
-  const datasetSize = baselineData.config.datasetSize.toLocaleString();
+  const datasetSize = NUMBER_FORMATTER.format(baselineConfig.datasetSize);
 
   return (
     <section className="border-fd-border/60 border-t px-6 py-16 sm:py-24 lg:px-8">
@@ -165,10 +166,10 @@ export function PerformanceSection() {
               </span>
             </div>
             <p className={`${GeistSans.className} text-fd-foreground text-3xl font-bold`}>
-              {baselineData.config.measuredRuns}
+              {baselineConfig.measuredRuns}
             </p>
             <p className="text-fd-muted-foreground mt-1 text-xs">
-              runs per op · {baselineData.config.warmupRuns} warmup · p95 gate
+              runs per op · {baselineConfig.warmupRuns} warmup · p95 gate
             </p>
           </div>
         </div>
@@ -192,7 +193,7 @@ export function PerformanceSection() {
                   <div className="min-w-0 md:w-44 md:shrink-0">
                     <p className="text-fd-foreground truncate text-sm font-medium">{op.label}</p>
                     <p className="text-fd-muted-foreground text-xs">
-                      {Math.round(op.summary.opsPerSecond).toLocaleString()} ops/s
+                      {NUMBER_FORMATTER.format(Math.round(op.summary.opsPerSecond))} ops/s
                     </p>
                   </div>
 
@@ -216,11 +217,7 @@ export function PerformanceSection() {
           </div>
           <div className="border-fd-border/60 text-fd-muted-foreground border-t px-5 py-3 text-xs">
             Baseline from <code className="text-fd-accent">main</code> · dataset size {datasetSize} · Chrome ·{" "}
-            {new Date(baselineData.completedAt).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}
+            {BASELINE_DATE_FORMATTER.format(new Date(baselineData.completedAt))}
             <span className="block pt-1">
               Note: bulk create/update/delete operations include IndexedDB transaction commit overhead; this reflects
               browser storage behavior, not network latency.
