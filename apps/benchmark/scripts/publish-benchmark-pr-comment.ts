@@ -90,7 +90,9 @@ async function main() {
     return;
   }
 
-  const marker = getStringArg(args, "marker") ?? MARKER;
+  // Use `||` (not `??`) so an explicit empty `--marker=""` falls back to MARKER
+  // instead of letting `body.includes("")` match every PR comment.
+  const marker = getStringArg(args, "marker") || MARKER;
   const bodyContent = await readFile(resolve(process.cwd(), bodyFile), "utf8");
   const commentBody = `${marker}\n${bodyContent}`;
 

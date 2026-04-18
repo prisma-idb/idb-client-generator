@@ -330,7 +330,9 @@ export function BenchmarkRunOverview({ controller }: SectionProps) {
 
 export function BenchmarkRunDetails({ controller }: SectionProps) {
   const { selectedRun, runInsights } = controller;
-  if (!selectedRun) return null;
+  if (!selectedRun || !runInsights) return null;
+
+  const { fastestByMean, slowestByMean } = runInsights;
 
   return (
     <>
@@ -341,10 +343,8 @@ export function BenchmarkRunDetails({ controller }: SectionProps) {
             <CardDescription>Lowest average latency in this run.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-foreground font-medium">{runInsights?.fastestByMean.label ?? "-"}</p>
-            <p className="text-muted-foreground text-sm">
-              {runInsights ? formatMs(runInsights.fastestByMean.summary.meanMs) : "-"}
-            </p>
+            <p className="text-foreground font-medium">{fastestByMean.label}</p>
+            <p className="text-muted-foreground text-sm">{formatMs(fastestByMean.summary.meanMs)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -353,10 +353,8 @@ export function BenchmarkRunDetails({ controller }: SectionProps) {
             <CardDescription>Highest average latency in this run.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-foreground font-medium">{runInsights?.slowestByMean.label ?? "-"}</p>
-            <p className="text-muted-foreground text-sm">
-              {runInsights ? formatMs(runInsights.slowestByMean.summary.meanMs) : "-"}
-            </p>
+            <p className="text-foreground font-medium">{slowestByMean.label}</p>
+            <p className="text-muted-foreground text-sm">{formatMs(slowestByMean.summary.meanMs)}</p>
           </CardContent>
         </Card>
       </section>
