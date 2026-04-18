@@ -5,8 +5,8 @@ type PrismaIDBClientInstance = Awaited<ReturnType<typeof PrismaIDBClient.createC
 export type BenchmarkClient = Pick<PrismaIDBClientInstance, "resetDatabase" | "user" | "todo">;
 
 export interface OperationContext {
-  user?: { id: string };
-  rows?: Array<{ title: string; completed: boolean; userId: string }>;
+  user?: { id: number };
+  rows?: Array<{ title: string; completed: boolean; userId: number }>;
 }
 
 export interface BenchmarkOperationDefinition {
