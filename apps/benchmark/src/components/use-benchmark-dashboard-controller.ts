@@ -93,6 +93,7 @@ export function useBenchmarkDashboardController() {
   const autoStartFiredRef = useRef(false);
 
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
       runAbortControllerRef.current?.abort();
@@ -174,6 +175,10 @@ export function useBenchmarkDashboardController() {
   }
 
   async function executeBenchmarks(configOverride?: BenchmarkConfig) {
+    if (isRunning || runAbortControllerRef.current) {
+      return;
+    }
+
     setError("");
 
     const sanitized = configOverride
@@ -210,18 +215,18 @@ export function useBenchmarkDashboardController() {
       const run = await runBenchmarkSuite(
         sanitizedConfig,
         (nextProgress) => {
-          if (!isMountedRef.current) return;
+          if (!isMountedRef.current || controller !== runAbortControllerRef.current) return;
           setProgress(nextProgress);
         },
         controller.signal
       );
 
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current || controller !== runAbortControllerRef.current) return;
 
       setActiveRun(run);
       setHistory(saveBenchmarkRun(run));
     } catch (runError) {
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current || controller !== runAbortControllerRef.current) return;
 
       if (runError instanceof DOMException && runError.name === "AbortError") {
         setError("Benchmark run was cancelled.");
@@ -229,9 +234,12 @@ export function useBenchmarkDashboardController() {
         setError(runError instanceof Error ? runError.message : "Failed to execute benchmark run");
       }
     } finally {
-      runAbortControllerRef.current = null;
+      const isCurrentRun = controller === runAbortControllerRef.current;
+      if (isCurrentRun) {
+        runAbortControllerRef.current = null;
+      }
 
-      if (isMountedRef.current) {
+      if (isMountedRef.current && isCurrentRun) {
         setIsRunning(false);
         setProgress(null);
         setRunStartedAtMs(null);
@@ -279,6 +287,7 @@ export function useBenchmarkDashboardController() {
     themeMode,
     operationCount,
     runInsights,
+    activeRun,
     progressPercent,
     etaLabel,
     setDatasetSize,

@@ -3,7 +3,7 @@ import { GeistSans } from "geist/font/sans";
 import { ExternalLink, Gauge, FlaskConical, Zap } from "lucide-react";
 import { z } from "zod";
 import baselineData from "../../../../../benchmarks/baselines/main.json";
-import { BENCHMARK_OPERATION_IDS, type BenchmarkOperationResult } from "../../../../benchmark/src/lib/benchmark/types";
+import { BENCHMARK_OPERATION_IDS, type BenchmarkOperationResult } from "@/lib/benchmark-types";
 
 // Categorise operations for colour coding
 const FAST_THRESHOLD_MS = 10; // p95 < 10 ms → "instant"
@@ -217,7 +217,7 @@ export function PerformanceSection() {
           </div>
           <div className="border-fd-border/60 text-fd-muted-foreground border-t px-5 py-3 text-xs">
             Baseline from <code className="text-fd-accent">main</code> · dataset size {datasetSize} · Chrome ·{" "}
-            {BASELINE_DATE_FORMATTER.format(new Date(baselineData.completedAt))}
+            {BASELINE_DATE_FORMATTER.format(new Date(baseline.completedAt))}
             <span className="block pt-1">
               Note: bulk create/update/delete operations include IndexedDB transaction commit overhead; this reflects
               browser storage behavior, not network latency.

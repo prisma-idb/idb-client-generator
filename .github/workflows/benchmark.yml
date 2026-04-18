@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: benchmark-baseline
+  cancel-in-progress: false
+
 permissions:
   contents: write
   pull-requests: write
@@ -59,10 +63,14 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          TARGET_PATH="benchmarks/results/baseline-main.json"
+          TEMP_PATH="$(mktemp)"
 
-          if git show "$BASE_SHA:benchmarks/baselines/main.json" > benchmarks/results/baseline-main.json; then
+          if git show "$BASE_SHA:benchmarks/baselines/main.json" > "$TEMP_PATH"; then
+            mv "$TEMP_PATH" "$TARGET_PATH"
             echo "Loaded baseline snapshot from base commit: $BASE_SHA"
           else
+            rm -f "$TEMP_PATH"
             echo "Baseline snapshot not found at base commit: $BASE_SHA"
             exit 1
           fi
@@ -109,7 +117,7 @@ jobs:
         working-directory: benchmark-base
         run: pnpm generate
         env:
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:5433/postgres"
+          DATABASE_URL: "postgresql://placeholder@localhost:5432/placeholder"
 
       - name: Install base commit Playwright browser
         if: github.event_name == 'pull_request' && steps.compare_trusted_baseline.outputs.is_advisory == 'true'

@@ -19,6 +19,11 @@ interface BenchmarkRun {
   operations?: BenchmarkOperation[];
 }
 
+interface MeasuredSampleCount {
+  count: number | null;
+  hasPartialData: boolean;
+}
+
 interface ComparisonRow {
   operationId: string;
   baselineP95Ms: number | "n/a";
@@ -135,20 +140,41 @@ async function loadJson(path: string): Promise<BenchmarkRun> {
   }
 }
 
-function getMeasuredSampleCount(run: BenchmarkRun): number | null {
-  const counts = (run.operations ?? [])
+function getMeasuredSampleCount(run: BenchmarkRun): MeasuredSampleCount {
+  const operations = run.operations ?? [];
+  const counts = operations
     .map((operation) => (Array.isArray(operation.samplesMs) ? operation.samplesMs.length : null))
     .filter((count): count is number => count !== null);
+  const hasPartialData = counts.length < operations.length;
 
-  if (counts.length === 0) return null;
-  return counts.every((count) => count === counts[0]) ? counts[0] : null;
+  if (counts.length === 0) {
+    return {
+      count: null,
+      hasPartialData,
+    };
+  }
+
+  return {
+    count: counts.every((count) => count === counts[0]) ? counts[0] : null,
+    hasPartialData,
+  };
 }
 
 function getComparisonNotices(baseline: BenchmarkRun, current: BenchmarkRun): string[] {
   const notices: string[] = [];
-  const baselineSampleCount = getMeasuredSampleCount(baseline);
-  const currentSampleCount = getMeasuredSampleCount(current);
+  const baselineSample = getMeasuredSampleCount(baseline);
+  const currentSample = getMeasuredSampleCount(current);
+  const baselineSampleCount = baselineSample.count;
+  const currentSampleCount = currentSample.count;
   const meaningfulSampleFloor = BENCHMARK_REGRESSION_GATE.minMeaningfulP95Samples;
+
+  if (baselineSample.hasPartialData) {
+    notices.push("Baseline run is missing samplesMs for one or more operations; this comparison is advisory.");
+  }
+
+  if (currentSample.hasPartialData) {
+    notices.push("Current run is missing samplesMs for one or more operations; this comparison is advisory.");
+  }
 
   if (baselineSampleCount === null) {
     notices.push("Baseline sample counts are missing or inconsistent across operations.");
@@ -235,7 +261,11 @@ async function main() {
     const deltaP95Raw = hasP95Metrics ? deltaPercent(currentP95, baselineP95) : Number.NaN;
     const deltaMeanRaw = hasMeanMetrics ? deltaPercent(currentMean, baselineMean) : Number.NaN;
 
-    const isRegression = hasP95Metrics && Number.isFinite(deltaP95Raw) && deltaP95Raw > threshold;
+    // Treat baseline=0 -> current>0 as a hard regression even though delta becomes +Infinity.
+    const isInfiniteP95Regression = hasP95Metrics && baselineP95 === 0 && currentP95 > 0;
+    const isRegression =
+      isInfiniteP95Regression || (hasP95Metrics && Number.isFinite(deltaP95Raw) && deltaP95Raw > threshold);
+    // Warn for missing/unreliable p95 metrics only when it is not already a FAIL case.
     const isWarn =
       !isRegression &&
       (!hasP95Metrics ||

@@ -50,9 +50,9 @@ export function BenchmarkDashboard() {
       </div>
 
       {/* Hidden elements for Playwright CI extraction */}
-      {controller.selectedRun && !controller.isRunning && (
+      {controller.activeRun && !controller.isRunning && (
         <pre data-testid="benchmark-result" className="sr-only">
-          {JSON.stringify(controller.selectedRun, null, 2)}
+          {JSON.stringify(controller.activeRun, null, 2)}
         </pre>
       )}
       {controller.error && (

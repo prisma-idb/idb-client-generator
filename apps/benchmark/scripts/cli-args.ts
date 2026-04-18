@@ -5,7 +5,16 @@ export function parseArgs(argv: string[]): Record<string, CliArgValue> {
   for (let i = 2; i < argv.length; i += 1) {
     const token = argv[i];
     if (!token.startsWith("--")) continue;
-    const key = token.slice(2);
+    const raw = token.slice(2);
+    const equalsIndex = raw.indexOf("=");
+    if (equalsIndex >= 0) {
+      const key = raw.slice(0, equalsIndex);
+      const value = raw.slice(equalsIndex + 1);
+      parsed[key] = value;
+      continue;
+    }
+
+    const key = raw;
     const next = argv[i + 1];
     if (!next || next.startsWith("--")) {
       parsed[key] = true;
