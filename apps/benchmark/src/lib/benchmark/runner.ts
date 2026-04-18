@@ -29,9 +29,9 @@ export async function runBenchmarkSuite(
   for (const definition of operationDefinitions) {
     for (let warmup = 0; warmup < config.warmupRuns; warmup += 1) {
       throwIfAborted(signal);
-      await definition.prepare(client, config.datasetSize);
+      const context = await definition.prepare(client, config.datasetSize);
       throwIfAborted(signal);
-      await definition.run(client, config.datasetSize);
+      await definition.run(client, config.datasetSize, context);
       completedSteps += 1;
       onProgress?.({
         completedSteps,
@@ -45,10 +45,10 @@ export async function runBenchmarkSuite(
 
     for (let measureIndex = 0; measureIndex < config.measuredRuns; measureIndex += 1) {
       throwIfAborted(signal);
-      await definition.prepare(client, config.datasetSize);
+      const context = await definition.prepare(client, config.datasetSize);
       throwIfAborted(signal);
       const start = performance.now();
-      await definition.run(client, config.datasetSize);
+      await definition.run(client, config.datasetSize, context);
       const end = performance.now();
       samplesMs.push(end - start);
       throwIfAborted(signal);
@@ -80,5 +80,5 @@ export async function runBenchmarkSuite(
     config,
     totalDurationMs: Number((runEnd - runStart).toFixed(3)),
     operations,
-  } as BenchmarkRunResult;
+  };
 }

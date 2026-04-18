@@ -148,11 +148,16 @@ function getComparisonNotices(baseline: BenchmarkRun, current: BenchmarkRun): st
   const notices: string[] = [];
   const minSamples = BENCHMARK_REGRESSION_GATE.minMeaningfulP95Samples;
 
+  let baselineCount: number | null = null;
+  let currentCount: number | null = null;
+
   for (const [label, run] of [
     ["Baseline", baseline],
     ["Current", current],
   ] as const) {
     const { count, hasPartialData } = getMeasuredSampleCount(run);
+    if (label === "Baseline") baselineCount = count;
+    if (label === "Current") currentCount = count;
     if (hasPartialData) {
       notices.push(`${label} run is missing samplesMs for one or more operations; this comparison is advisory.`);
     }
@@ -165,8 +170,6 @@ function getComparisonNotices(baseline: BenchmarkRun, current: BenchmarkRun): st
     }
   }
 
-  const baselineCount = getMeasuredSampleCount(baseline).count;
-  const currentCount = getMeasuredSampleCount(current).count;
   if (baselineCount !== null && currentCount !== null && baselineCount !== currentCount) {
     notices.push(
       `Baseline and current runs use different measured sample counts (${baselineCount} vs ${currentCount}); this comparison is advisory.`

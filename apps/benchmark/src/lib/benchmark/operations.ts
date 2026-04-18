@@ -4,14 +4,19 @@ import type { BenchmarkOperationId } from "./types";
 type PrismaIDBClientInstance = Awaited<ReturnType<typeof PrismaIDBClient.createClient>>;
 export type BenchmarkClient = Pick<PrismaIDBClientInstance, "resetDatabase" | "user" | "todo">;
 
+export interface OperationContext {
+  user?: { id: string };
+  rows?: Array<{ title: string; completed: boolean; userId: string }>;
+}
+
 export interface BenchmarkOperationDefinition {
   operationId: BenchmarkOperationId;
   label: string;
-  prepare: (client: BenchmarkClient, datasetSize: number) => Promise<void>;
-  run: (client: BenchmarkClient, datasetSize: number) => Promise<void>;
+  prepare: (client: BenchmarkClient, datasetSize: number) => Promise<OperationContext>;
+  run: (client: BenchmarkClient, datasetSize: number, context?: OperationContext) => Promise<void>;
 }
 
-async function seedTodos(client: BenchmarkClient, datasetSize: number) {
+async function seedTodos(client: BenchmarkClient, datasetSize: number): Promise<OperationContext> {
   const user = await client.user.create({ data: { name: "Seed User" } });
   const rows = Array.from({ length: datasetSize }, (_, index) => ({
     title: `Task ${index}`,
@@ -20,6 +25,7 @@ async function seedTodos(client: BenchmarkClient, datasetSize: number) {
   }));
 
   await client.todo.createMany({ data: rows });
+  return { user, rows };
 }
 
 export const operationDefinitions: BenchmarkOperationDefinition[] = [
@@ -28,26 +34,29 @@ export const operationDefinitions: BenchmarkOperationDefinition[] = [
     label: "Create user",
     prepare: async (client) => {
       await client.resetDatabase();
+      return {};
     },
-    run: async (client) => {
+    run: async (client, _datasetSize, _context) => {
       await client.user.create({ data: { name: `Bench User ${crypto.randomUUID()}` } });
     },
   },
   {
     operationId: "create-many-todos",
     label: "Create many todos",
-    prepare: async (client) => {
+    prepare: async (client, datasetSize) => {
       await client.resetDatabase();
       await seedTodos(client, 5);
-    },
-    run: async (client, datasetSize) => {
       const user = await client.user.create({ data: { name: "Batch Target" } });
       const rows = Array.from({ length: datasetSize }, (_, index) => ({
         title: `Batch Task ${index}`,
         completed: false,
         userId: user.id,
       }));
-      await client.todo.createMany({ data: rows });
+      return { user, rows };
+    },
+    run: async (client, _datasetSize, context) => {
+      if (!context?.rows) throw new Error("prepare must set rows for create-many-todos");
+      await client.todo.createMany({ data: context.rows });
     },
   },
   {
@@ -55,9 +64,9 @@ export const operationDefinitions: BenchmarkOperationDefinition[] = [
     label: "Find many completed",
     prepare: async (client, datasetSize) => {
       await client.resetDatabase();
-      await seedTodos(client, datasetSize);
+      return seedTodos(client, datasetSize);
     },
-    run: async (client) => {
+    run: async (client, _datasetSize, _context) => {
       await client.todo.findMany({ where: { completed: true } });
     },
   },
@@ -66,9 +75,9 @@ export const operationDefinitions: BenchmarkOperationDefinition[] = [
     label: "Find many completed (sorted)",
     prepare: async (client, datasetSize) => {
       await client.resetDatabase();
-      await seedTodos(client, datasetSize);
+      return seedTodos(client, datasetSize);
     },
-    run: async (client) => {
+    run: async (client, _datasetSize, _context) => {
       await client.todo.findMany({ where: { completed: true }, orderBy: { title: "asc" } });
     },
   },
@@ -77,9 +86,9 @@ export const operationDefinitions: BenchmarkOperationDefinition[] = [
     label: "Find many completed (paginated)",
     prepare: async (client, datasetSize) => {
       await client.resetDatabase();
-      await seedTodos(client, datasetSize);
+      return seedTodos(client, datasetSize);
     },
-    run: async (client, datasetSize) => {
+    run: async (client, datasetSize, _context) => {
       const skip = Math.max(0, Math.floor(datasetSize * 0.2));
       const take = Math.max(20, Math.floor(datasetSize * 0.3));
 
@@ -96,9 +105,9 @@ export const operationDefinitions: BenchmarkOperationDefinition[] = [
     label: "Find many with user include",
     prepare: async (client, datasetSize) => {
       await client.resetDatabase();
-      await seedTodos(client, datasetSize);
+      return seedTodos(client, datasetSize);
     },
-    run: async (client, datasetSize) => {
+    run: async (client, datasetSize, _context) => {
       const take = Math.max(50, Math.floor(datasetSize * 0.25));
       await client.todo.findMany({ where: { completed: true }, include: { user: true }, take });
     },
@@ -108,9 +117,9 @@ export const operationDefinitions: BenchmarkOperationDefinition[] = [
     label: "Update many completed",
     prepare: async (client, datasetSize) => {
       await client.resetDatabase();
-      await seedTodos(client, datasetSize);
+      return seedTodos(client, datasetSize);
     },
-    run: async (client) => {
+    run: async (client, _datasetSize, _context) => {
       await client.todo.updateMany({ where: { completed: false }, data: { completed: true } });
     },
   },
@@ -119,9 +128,9 @@ export const operationDefinitions: BenchmarkOperationDefinition[] = [
     label: "Delete many completed",
     prepare: async (client, datasetSize) => {
       await client.resetDatabase();
-      await seedTodos(client, datasetSize);
+      return seedTodos(client, datasetSize);
     },
-    run: async (client) => {
+    run: async (client, _datasetSize, _context) => {
       await client.todo.deleteMany({ where: { completed: true } });
     },
   },
@@ -130,9 +139,9 @@ export const operationDefinitions: BenchmarkOperationDefinition[] = [
     label: "Find many title contains",
     prepare: async (client, datasetSize) => {
       await client.resetDatabase();
-      await seedTodos(client, datasetSize);
+      return seedTodos(client, datasetSize);
     },
-    run: async (client) => {
+    run: async (client, _datasetSize, _context) => {
       await client.todo.findMany({ where: { title: { contains: "Task 1" } } });
     },
   },

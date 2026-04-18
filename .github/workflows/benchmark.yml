@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 concurrency:
-  group: benchmark-baseline
-  cancel-in-progress: false
+  group: benchmark-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -156,7 +156,8 @@ jobs:
       - name: Commit baseline update
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          if git diff --quiet -- benchmarks/baselines/main.json; then
+          # Check for both tracked changes and newly created/untracked baselines
+          if [ ! -f benchmarks/baselines/main.json ] || git diff --quiet -- benchmarks/baselines/main.json; then
             echo "No baseline changes to commit"
             exit 0
           fi
@@ -164,7 +165,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add benchmarks/baselines/main.json
-          git commit -m "chore(benchmark): refresh baseline snapshot [skip ci]"
+          if ! git commit -m "chore(benchmark): refresh baseline snapshot [skip ci]"; then
+            echo "Nothing to commit (race condition)"
+            exit 0
+          fi
+          # Pull with rebase and autostash to handle concurrent updates from other runs
+          git pull --rebase --autostash origin main || true
           git push
 
       - name: Upload benchmark artifacts

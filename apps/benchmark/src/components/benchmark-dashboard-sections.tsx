@@ -12,6 +12,7 @@ import { Progress, ProgressLabel } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BENCHMARK_DATASET_SIZE_OPTIONS, BENCHMARK_DEFAULT_CONFIG } from "@/lib/benchmark/types";
+import { BENCHMARK_LIMITS } from "@/lib/benchmark/config-validation";
 import type { BenchmarkDashboardController } from "./use-benchmark-dashboard-controller";
 import Favicon from "@/assets/favicon.png";
 
@@ -50,7 +51,7 @@ function IconLink({
       className="border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground inline-flex size-8 items-center justify-center rounded-lg border transition-colors"
       href={href}
       target="_blank"
-      rel="noreferrer"
+      rel="noopener noreferrer"
       aria-label={label}
       title={title}
     >
@@ -222,8 +223,8 @@ export function BenchmarkRunSettingsCard({ controller }: SectionProps) {
             <Input
               id="warmup-runs"
               type="number"
-              min={0}
-              max={8}
+              min={BENCHMARK_LIMITS.minWarmupRuns}
+              max={BENCHMARK_LIMITS.maxWarmupRuns}
               value={warmupRunsInput}
               onChange={(event) => setWarmupRunsInput(event.target.value)}
               disabled={isRunning}
@@ -235,8 +236,8 @@ export function BenchmarkRunSettingsCard({ controller }: SectionProps) {
             <Input
               id="measured-runs"
               type="number"
-              min={1}
-              max={30}
+              min={BENCHMARK_LIMITS.minMeasuredRuns}
+              max={BENCHMARK_LIMITS.maxMeasuredRuns}
               value={measuredRunsInput}
               onChange={(event) => setMeasuredRunsInput(event.target.value)}
               disabled={isRunning}
