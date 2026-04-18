@@ -1,0 +1,29 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+generator prismaIDB {
+  provider    = "idb-client-generator"
+  output      = "../lib/prisma-idb"
+  exportEnums = true
+}
+
+model User {
+  id    Int    @id @default(autoincrement())
+  name  String
+  todos Todo[]
+}
+
+model Todo {
+  id        String  @id @default(uuid())
+  title     String
+  completed Boolean @default(false)
+
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+}
