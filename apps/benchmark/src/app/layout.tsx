@@ -7,6 +7,10 @@ import { cn } from "@/lib/utils";
 export const metadata: Metadata = {
   title: "Prisma IDB Benchmark Lab",
   description: "Run local browser benchmarks for Prisma IDB generated clients.",
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
