@@ -2,12 +2,22 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 
+function parseEnvPositiveInt(name: string, defaultValue: number): number {
+  const raw = (process.env[name] ?? "").trim();
+  if (raw === "") return defaultValue;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || !Number.isInteger(value) || value <= 0) {
+    throw new Error(`Environment variable ${name} must be a positive integer, got: ${JSON.stringify(raw)}`);
+  }
+  return value;
+}
+
 test("runs benchmark suite and exports JSON result", async ({ page }) => {
   test.setTimeout(12 * 60 * 1000);
 
-  const datasetSize = Number(process.env.BENCHMARK_DATASET_SIZE ?? "1000");
-  const warmupRuns = Number(process.env.BENCHMARK_WARMUP_RUNS ?? "2");
-  const measuredRuns = Number(process.env.BENCHMARK_MEASURED_RUNS ?? "7");
+  const datasetSize = parseEnvPositiveInt("BENCHMARK_DATASET_SIZE", 1000);
+  const warmupRuns = parseEnvPositiveInt("BENCHMARK_WARMUP_RUNS", 2);
+  const measuredRuns = parseEnvPositiveInt("BENCHMARK_MEASURED_RUNS", 7);
 
   await page.goto(`/ci?datasetSize=${datasetSize}&warmupRuns=${warmupRuns}&measuredRuns=${measuredRuns}`);
 

@@ -26,7 +26,11 @@ export function saveBenchmarkRun(run: BenchmarkRunResult): BenchmarkRunResult[] 
   const next = [run, ...existing].slice(0, MAX_RUNS);
 
   if (isBrowser()) {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch (error) {
+      console.error(`Failed to persist benchmark history (key: ${STORAGE_KEY}, run: ${run.id}):`, error);
+    }
   }
 
   return next;

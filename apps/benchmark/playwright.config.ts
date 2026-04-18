@@ -17,6 +17,6 @@ export default defineConfig({
   webServer: {
     command: "pnpm build && pnpm exec serve out -l 4175",
     port: 4175,
-    reuseExistingServer: false,
+    reuseExistingServer: !process.env.CI,
   },
 });

@@ -22,7 +22,7 @@ interface ComparisonRow {
   operationId: string;
   baselineP95Ms: number;
   currentP95Ms: number;
-  deltaP95Percent: number;
+  deltaP95Percent: number | "inf";
   baselineMeanMs: number;
   currentMeanMs: number;
   status: "PASS" | "WARN" | "FAIL";
@@ -70,7 +70,8 @@ function round(value: number): number {
   return Number(value.toFixed(3));
 }
 
-function formatPercent(value: number): string {
+function formatPercent(value: number | "inf"): string {
+  if (value === "inf") return "n/a";
   if (!Number.isFinite(value)) return "n/a";
   const sign = value > 0 ? "+" : "";
   return `${sign}${value.toFixed(2)}%`;
@@ -195,7 +196,7 @@ async function main() {
       operationId,
       baselineP95Ms: round(baselineP95),
       currentP95Ms: round(currentP95),
-      deltaP95Percent: Number.isFinite(deltaP95) ? round(deltaP95) : Number.POSITIVE_INFINITY,
+      deltaP95Percent: Number.isFinite(deltaP95) ? round(deltaP95) : "inf",
       baselineMeanMs: round(baselineMean),
       currentMeanMs: round(currentMean),
       status: isRegression ? "FAIL" : isWarn ? "WARN" : "PASS",

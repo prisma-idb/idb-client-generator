@@ -1,7 +1,7 @@
 import { summarizeSamples } from "./stats";
 import { operationDefinitions } from "./operations";
 import { createBenchmarkClient } from "./client";
-import type { BenchmarkConfig, BenchmarkProgress, BenchmarkRunResult } from "./types";
+import type { BenchmarkConfig, BenchmarkOperationResult, BenchmarkProgress, BenchmarkRunResult } from "./types";
 
 function nowIso() {
   return new Date().toISOString();
@@ -24,7 +24,7 @@ export async function runBenchmarkSuite(
   const totalSteps = operationDefinitions.length * (config.warmupRuns + config.measuredRuns);
   let completedSteps = 0;
 
-  const operations = [];
+  const operations: BenchmarkOperationResult[] = [];
 
   for (const definition of operationDefinitions) {
     for (let warmup = 0; warmup < config.warmupRuns; warmup += 1) {
@@ -49,9 +49,9 @@ export async function runBenchmarkSuite(
       throwIfAborted(signal);
       const start = performance.now();
       await definition.run(client, config.datasetSize);
-      throwIfAborted(signal);
       const end = performance.now();
       samplesMs.push(end - start);
+      throwIfAborted(signal);
       completedSteps += 1;
       onProgress?.({
         completedSteps,

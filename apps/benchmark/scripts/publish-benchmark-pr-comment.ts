@@ -59,6 +59,50 @@ async function githubRequest<T>(path: string, token: string, options: RequestIni
   return (await response.json()) as T;
 }
 
+async function fetchAllComments(
+  owner: string,
+  repo: string,
+  pullRequestNumber: number,
+  token: string
+): Promise<IssueComment[]> {
+  const all: IssueComment[] = [];
+  let path: string | null = `/repos/${owner}/${repo}/issues/${pullRequestNumber}/comments?per_page=100`;
+
+  while (path !== null) {
+    const response = await fetch(`https://api.github.com${path}`, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "prisma-idb-benchmark-bot",
+      },
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`GitHub API request failed (${response.status}): ${text}`);
+    }
+
+    const page = (await response.json()) as IssueComment[];
+    all.push(...page);
+
+    const linkHeader = response.headers.get("Link") ?? "";
+    const nextMatch = /<([^>]+)>;\s*rel="next"/.exec(linkHeader);
+    if (nextMatch) {
+      try {
+        const parsed = new URL(nextMatch[1]);
+        path = parsed.hostname === "api.github.com" ? `${parsed.pathname}${parsed.search}` : null;
+      } catch {
+        path = null;
+      }
+    } else {
+      path = null;
+    }
+  }
+
+  return all;
+}
+
 async function main() {
   const args = parseArgs(process.argv);
   const bodyFile = getStringArg(args, "body-file");
@@ -92,11 +136,7 @@ async function main() {
   const bodyContent = await readFile(resolve(process.cwd(), bodyFile), "utf8");
   const commentBody = `${marker}\n${bodyContent}`;
 
-  const comments =
-    (await githubRequest<IssueComment[]>(
-      `/repos/${owner}/${repo}/issues/${pullRequestNumber}/comments?per_page=100`,
-      token
-    )) ?? [];
+  const comments = await fetchAllComments(owner, repo, pullRequestNumber, token);
 
   const existing = comments.find((comment) => typeof comment.body === "string" && comment.body.includes(marker));
 

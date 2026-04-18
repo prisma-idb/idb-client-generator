@@ -18,7 +18,13 @@ export function summarizeSamples(samplesMs: number[]): BenchmarkStatSummary {
       return sum + delta * delta;
     }, 0) / Math.max(1, sorted.length);
   const stdDevMs = Math.sqrt(variance);
-  const medianMs = percentile(sorted, 50);
+  const n = sorted.length;
+  const medianMs =
+    n === 0
+      ? 0
+      : n % 2 === 1
+        ? (sorted[Math.floor(n / 2)] ?? 0)
+        : ((sorted[n / 2 - 1] ?? 0) + (sorted[n / 2] ?? 0)) / 2;
   const p95Ms = percentile(sorted, 95);
   const p99Ms = percentile(sorted, 99);
   const minMs = sorted[0] ?? 0;

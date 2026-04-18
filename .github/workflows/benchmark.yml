@@ -40,7 +40,6 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          git fetch --no-tags --depth=1 origin "$BASE_SHA"
 
           if git show "$BASE_SHA:benchmarks/baselines/main.json" > benchmarks/results/baseline-main.json; then
             echo "Loaded baseline snapshot from base commit: $BASE_SHA"
@@ -63,7 +62,7 @@ jobs:
             --exit-on-fail
 
       - name: Publish benchmark PR comment
-        if: github.event_name == 'pull_request' && !cancelled()
+        if: github.event_name == 'pull_request' && !cancelled() && github.event.pull_request.head.repo.full_name == github.repository
         continue-on-error: true
         working-directory: apps/benchmark
         env:

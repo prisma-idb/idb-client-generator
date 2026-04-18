@@ -18,7 +18,7 @@ import type { BenchmarkConfig, BenchmarkProgress, BenchmarkRunResult } from "@/l
 import { downloadTextFile } from "@/lib/export/download";
 import { toRunCsv, toRunJson, toRunMarkdown } from "@/lib/export/serializers";
 import { clearBenchmarkHistory, getBenchmarkHistory, saveBenchmarkRun } from "@/lib/storage/history";
-import Favicon from "../../../docs/src/lib/assets/favicon.png";
+import Favicon from "@/assets/favicon.png";
 
 const datasetSizes = [500, 1000, 5000, 10000, 25000] as const;
 
@@ -152,6 +152,7 @@ export function BenchmarkDashboard() {
   const progressPercent = progress ? (progress.completedSteps / Math.max(1, progress.totalSteps)) * 100 : 0;
 
   const etaMs = useMemo(() => {
+    void tick;
     if (!progress || !runStartedAtMs || progress.completedSteps === 0) return null;
     const elapsed = Date.now() - runStartedAtMs;
     const projectedTotal = (elapsed / progress.completedSteps) * progress.totalSteps;
@@ -444,7 +445,7 @@ export function BenchmarkDashboard() {
                 <p className="text-muted-foreground text-xs">{formatEta(etaMs)}</p>
               </div>
             )}
-            {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+            {error && <p className="text-destructive mt-3 text-sm">{error}</p>}
           </CardContent>
         </Card>
 

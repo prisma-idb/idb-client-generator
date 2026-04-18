@@ -4,6 +4,11 @@ function sanitize(value: string): string {
   return value.replace(/[\r\n]+/g, " ").trim();
 }
 
+function escapeCsv(value: string): string {
+  const sanitized = sanitize(value);
+  return `"${sanitized.replace(/"/g, '""')}"`;
+}
+
 export function toRunJson(run: BenchmarkRunResult): string {
   return JSON.stringify(run, null, 2);
 }
@@ -25,8 +30,8 @@ export function toRunCsv(run: BenchmarkRunResult): string {
   const rows = run.operations.map((operation) => {
     const s = operation.summary;
     return [
-      operation.operationId,
-      sanitize(operation.label),
+      escapeCsv(operation.operationId),
+      escapeCsv(operation.label),
       s.meanMs,
       s.medianMs,
       s.p95Ms,
