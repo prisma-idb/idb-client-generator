@@ -1,6 +1,5 @@
 import { summarizeSamples } from "./stats";
 import { operationDefinitions } from "./operations";
-import { createBenchmarkClient } from "./client";
 import type { BenchmarkConfig, BenchmarkOperationResult, BenchmarkProgress, BenchmarkRunResult } from "./types";
 
 function nowIso() {
@@ -18,7 +17,8 @@ export async function runBenchmarkSuite(
   signal?: AbortSignal
 ): Promise<BenchmarkRunResult> {
   throwIfAborted(signal);
-  const client = await createBenchmarkClient();
+  const { PrismaIDBClient } = await import("../prisma-idb/client/prisma-idb-client");
+  const client = await PrismaIDBClient.createClient();
   const runStart = performance.now();
   const startedAt = nowIso();
   const totalSteps = operationDefinitions.length * (config.warmupRuns + config.measuredRuns);

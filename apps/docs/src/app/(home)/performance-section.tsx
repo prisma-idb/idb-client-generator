@@ -1,15 +1,12 @@
 import Link from "next/link";
 import { GeistSans } from "geist/font/sans";
 import { ExternalLink, Gauge, FlaskConical, Zap } from "lucide-react";
-import { z } from "zod";
-import baselineData from "../../../../../benchmarks/baselines/main.json";
-import { BENCHMARK_OPERATION_IDS, type BenchmarkOperationResult } from "@/lib/benchmark-types";
+import baseline from "../../../../../benchmarks/baselines/main.json";
 
-// Categorise operations for colour coding
 const FAST_THRESHOLD_MS = 10; // p95 < 10 ms → "instant"
 const MEDIUM_THRESHOLD_MS = 50; // p95 < 50 ms → "quick"
-const CHART_PADDING_FACTOR = 1.2; // Keep visual headroom: max + 20%
-const MIN_CHART_MAX_MS = 100; // Avoid over-compression when all ops are extremely fast
+const CHART_PADDING_FACTOR = 1.2;
+const MIN_CHART_MAX_MS = 100;
 const NUMBER_FORMATTER = new Intl.NumberFormat("en-US");
 const BASELINE_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
@@ -18,73 +15,33 @@ const BASELINE_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
 });
 
-const QUICK_COLORS = {
-  bar: "bg-orange-500 dark:bg-orange-400",
-  badge: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
-  icon: "text-orange-500 dark:text-orange-400",
-} as const;
-
 type PerformanceBucket = "instant" | "quick" | "moderate";
 
-const BUCKET_STYLES: Record<PerformanceBucket, { bar: string; badge: string; label: string }> = {
+const BUCKET_STYLES: Record<PerformanceBucket, { bar: string; badge: string; icon: string; label: string }> = {
   instant: {
     bar: "bg-emerald-500 dark:bg-emerald-400",
     badge: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    icon: "text-emerald-500 dark:text-emerald-400",
     label: "Instant",
   },
   quick: {
-    bar: QUICK_COLORS.bar,
-    badge: QUICK_COLORS.badge,
+    bar: "bg-orange-500 dark:bg-orange-400",
+    badge: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
+    icon: "text-orange-500 dark:text-orange-400",
     label: "Quick",
   },
   moderate: {
     bar: "bg-amber-500 dark:bg-amber-400",
     badge: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    icon: "text-amber-500 dark:text-amber-400",
     label: "Moderate",
   },
 };
-
-const statSummarySchema = z.object({
-  minMs: z.number().finite(),
-  maxMs: z.number().finite(),
-  meanMs: z.number().finite(),
-  medianMs: z.number().finite(),
-  p95Ms: z.number().finite(),
-  p99Ms: z.number().finite(),
-  stdDevMs: z.number().finite(),
-  opsPerSecond: z.number().finite(),
-});
-
-const operationSchema = z.object({
-  operationId: z.enum(BENCHMARK_OPERATION_IDS),
-  label: z.string(),
-  samplesMs: z.array(z.number().finite()),
-  summary: statSummarySchema,
-});
-
-const baselineSchema = z.object({
-  config: z.object({
-    datasetSize: z.number().int().positive(),
-    warmupRuns: z.number().int().nonnegative(),
-    measuredRuns: z.number().int().positive(),
-  }),
-  completedAt: z.string(),
-  operations: z
-    .array(operationSchema)
-    .refine(
-      (ops) => BENCHMARK_OPERATION_IDS.every((id) => ops.some((op) => op.operationId === id)),
-      "Baseline is missing one or more expected operation IDs."
-    ),
-});
 
 function getPerformanceBucket(p95Ms: number): PerformanceBucket {
   if (p95Ms < FAST_THRESHOLD_MS) return "instant";
   if (p95Ms < MEDIUM_THRESHOLD_MS) return "quick";
   return "moderate";
-}
-
-function getBarColor(p95Ms: number): { bar: string; badge: string; label: string } {
-  return BUCKET_STYLES[getPerformanceBucket(p95Ms)];
 }
 
 function formatMs(ms: number): string {
@@ -95,28 +52,19 @@ function formatMs(ms: number): string {
 }
 
 export function PerformanceSection() {
-  const baseline = baselineSchema.parse(baselineData);
-  const operations = baseline.operations as BenchmarkOperationResult[];
-  const baselineConfig = baseline.config;
+  const { operations, config } = baseline;
 
   const maxP95 = operations.length > 0 ? Math.max(...operations.map((op) => op.summary.p95Ms)) : MIN_CHART_MAX_MS;
   const chartMaxMs = Math.max(MIN_CHART_MAX_MS, maxP95 * CHART_PADDING_FACTOR);
 
-  const bucketCounts = operations.reduce(
-    (counts, operation) => {
-      const bucket = getPerformanceBucket(operation.summary.p95Ms);
-      counts[bucket] += 1;
-      return counts;
-    },
-    { instant: 0, quick: 0, moderate: 0 } as Record<PerformanceBucket, number>
-  );
+  const bucketCounts: Record<PerformanceBucket, number> = { instant: 0, quick: 0, moderate: 0 };
+  for (const op of operations) bucketCounts[getPerformanceBucket(op.summary.p95Ms)] += 1;
 
-  const datasetSize = NUMBER_FORMATTER.format(baselineConfig.datasetSize);
+  const datasetSize = NUMBER_FORMATTER.format(config.datasetSize);
 
   return (
     <section className="border-fd-border/60 border-t px-6 py-16 sm:py-24 lg:px-8">
       <div className="mx-auto max-w-4xl">
-        {/* Header */}
         <div className="mb-12 text-center">
           <h2 className={`${GeistSans.className} text-fd-foreground mb-4 text-3xl font-bold sm:text-4xl`}>
             Built for speed. Measured honestly.
@@ -128,7 +76,6 @@ export function PerformanceSection() {
           </p>
         </div>
 
-        {/* Callout stats row */}
         <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="border-fd-border bg-fd-card rounded-xl border p-5">
             <div className="mb-2 flex items-center gap-2">
@@ -142,14 +89,12 @@ export function PerformanceSection() {
               <span className="text-fd-muted-foreground text-sm font-normal"> measured</span>
             </p>
             <p className="text-fd-muted-foreground mt-1 text-xs">
-              {bucketCounts.instant} {BUCKET_STYLES.instant.label.toLowerCase()} · {bucketCounts.quick}{" "}
-              {BUCKET_STYLES.quick.label.toLowerCase()} · {bucketCounts.moderate}{" "}
-              {BUCKET_STYLES.moderate.label.toLowerCase()} (p95)
+              {bucketCounts.instant} instant · {bucketCounts.quick} quick · {bucketCounts.moderate} moderate (p95)
             </p>
           </div>
           <div className="border-fd-border bg-fd-card rounded-xl border p-5">
             <div className="mb-2 flex items-center gap-2">
-              <Gauge className={`h-4 w-4 ${QUICK_COLORS.icon}`} />
+              <Gauge className={`h-4 w-4 ${BUCKET_STYLES.quick.icon}`} />
               <span className="text-fd-muted-foreground text-xs font-medium tracking-wider uppercase">Dataset</span>
             </div>
             <p className={`${GeistSans.className} text-fd-foreground text-3xl font-bold`}>
@@ -165,16 +110,11 @@ export function PerformanceSection() {
                 Measured runs
               </span>
             </div>
-            <p className={`${GeistSans.className} text-fd-foreground text-3xl font-bold`}>
-              {baselineConfig.measuredRuns}
-            </p>
-            <p className="text-fd-muted-foreground mt-1 text-xs">
-              runs per op · {baselineConfig.warmupRuns} warmup · p95 gate
-            </p>
+            <p className={`${GeistSans.className} text-fd-foreground text-3xl font-bold`}>{config.measuredRuns}</p>
+            <p className="text-fd-muted-foreground mt-1 text-xs">runs per op · {config.warmupRuns} warmup · p95 gate</p>
           </div>
         </div>
 
-        {/* Bar chart */}
         <div className="border-fd-border bg-fd-card overflow-hidden rounded-xl border shadow-sm">
           <div className="border-fd-border flex items-center justify-between border-b px-5 py-3.5">
             <span className="text-fd-foreground text-sm font-medium">p95 latency per operation</span>
@@ -182,29 +122,24 @@ export function PerformanceSection() {
           </div>
           <div className="divide-fd-border/60 divide-y px-5 py-2">
             {operations.map((op) => {
-              const { bar, badge, label } = getBarColor(op.summary.p95Ms);
+              const { bar, badge, label } = BUCKET_STYLES[getPerformanceBucket(op.summary.p95Ms)];
               const widthPct = Math.max(2, Math.min(100, (op.summary.p95Ms / chartMaxMs) * 100));
               return (
                 <div
                   key={op.operationId}
                   className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 py-3.5 md:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_minmax(0,9rem)] md:gap-4"
                 >
-                  {/* Label */}
                   <div className="min-w-0 md:w-44 md:shrink-0">
                     <p className="text-fd-foreground truncate text-sm font-medium">{op.label}</p>
                     <p className="text-fd-muted-foreground text-xs">
                       {NUMBER_FORMATTER.format(Math.round(op.summary.opsPerSecond))} ops/s
                     </p>
                   </div>
-
-                  {/* Bar track */}
                   <div className="relative col-span-2 md:col-span-1">
                     <div className="bg-fd-muted h-6 w-full overflow-hidden rounded-full">
                       <div className={`${bar} h-full rounded-full transition-all`} style={{ width: `${widthPct}%` }} />
                     </div>
                   </div>
-
-                  {/* Value */}
                   <div className="flex shrink-0 items-center justify-end gap-2 whitespace-nowrap md:w-36">
                     <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${badge}`}>{label}</span>
                     <span className="text-fd-foreground font-mono text-sm font-semibold whitespace-nowrap tabular-nums">
@@ -225,7 +160,6 @@ export function PerformanceSection() {
           </div>
         </div>
 
-        {/* CTA */}
         <div className="mt-8 text-center">
           <Link
             href="https://benchmark.prisma-idb.dev"

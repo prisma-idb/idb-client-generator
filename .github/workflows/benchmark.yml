@@ -38,26 +38,13 @@ jobs:
       - name: Capture current benchmark config
         if: github.event_name == 'pull_request'
         run: |
-          node <<'NODE'
-          const fs = require("node:fs");
-          const resultPath = "benchmarks/results/current.json";
-          const result = JSON.parse(fs.readFileSync(resultPath, "utf8"));
-          const config = result.config ?? {};
-
-          for (const key of ["datasetSize", "warmupRuns", "measuredRuns"]) {
-            if (!Number.isInteger(config[key])) {
-              throw new Error(`Missing integer config.${key} in ${resultPath}`);
-            }
-          }
-
-          const lines = [
-            `BENCHMARK_DATASET_SIZE=${config.datasetSize}`,
-            `BENCHMARK_WARMUP_RUNS=${config.warmupRuns}`,
-            `BENCHMARK_MEASURED_RUNS=${config.measuredRuns}`,
-          ];
-
-          fs.appendFileSync(process.env.GITHUB_ENV, `${lines.join("\n")}\n`, "utf8");
-          NODE
+          jq -er '
+            .config
+            | if (.datasetSize | type) != "number" or (.warmupRuns | type) != "number" or (.measuredRuns | type) != "number"
+              then error("Missing integer config in benchmarks/results/current.json")
+              else "BENCHMARK_DATASET_SIZE=\(.datasetSize)\nBENCHMARK_WARMUP_RUNS=\(.warmupRuns)\nBENCHMARK_MEASURED_RUNS=\(.measuredRuns)"
+              end
+          ' benchmarks/results/current.json >> "$GITHUB_ENV"
 
       - name: Load trusted baseline from PR base commit
         if: github.event_name == 'pull_request'
@@ -88,11 +75,7 @@ jobs:
             --json-out ../../benchmarks/results/report.json \
             --markdown-out ../../benchmarks/results/report.md
 
-          node <<'NODE' >> "$GITHUB_OUTPUT"
-          const fs = require("node:fs");
-          const report = JSON.parse(fs.readFileSync("../../benchmarks/results/report.json", "utf8"));
-          process.stdout.write(`is_advisory=${String(report.isAdvisory)}\n`);
-          NODE
+          jq -r '"is_advisory=\(.isAdvisory)"' ../../benchmarks/results/report.json >> "$GITHUB_OUTPUT"
 
       - name: Check out PR base commit for direct benchmark
         if: github.event_name == 'pull_request' && steps.compare_trusted_baseline.outputs.is_advisory == 'true'
@@ -149,21 +132,11 @@ jobs:
       - name: Enforce benchmark regression gate
         if: github.event_name == 'pull_request'
         run: |
-          node <<'NODE'
-          const fs = require("node:fs");
-          const reportPath = "benchmarks/results/report.json";
-          const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-
-          console.log(`Final benchmark gate mode: ${report.isAdvisory ? "advisory" : "enforcing"}`);
-          for (const notice of report.notices ?? []) {
-            console.log(`Notice: ${notice}`);
-          }
-
-          if (report.shouldFail) {
-            console.error("Benchmark regression gate failed.");
-            process.exit(1);
-          }
-          NODE
+          jq -r '"Final benchmark gate mode: " + (if .isAdvisory then "advisory" else "enforcing" end), (.notices[]? | "Notice: " + .)' benchmarks/results/report.json
+          if [ "$(jq -r '.shouldFail' benchmarks/results/report.json)" = "true" ]; then
+            echo "Benchmark regression gate failed." >&2
+            exit 1
+          fi
 
       - name: Publish benchmark PR comment
         if: github.event_name == 'pull_request' && !cancelled() && github.event.pull_request.head.repo.full_name == github.repository

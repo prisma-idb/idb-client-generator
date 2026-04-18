@@ -8,8 +8,7 @@ import {
   type BenchmarkProgress,
   type BenchmarkRunResult,
 } from "@/lib/benchmark/types";
-import { downloadTextFile } from "@/lib/export/download";
-import { toRunJson } from "@/lib/export/serializers";
+import { downloadTextFile } from "@/lib/download";
 import { clearBenchmarkHistory, getBenchmarkHistory, saveBenchmarkRun } from "@/lib/storage/history";
 
 export type BenchmarkThemeMode = "dark" | "light";
@@ -45,13 +44,13 @@ function formatEta(ms: number | null): string {
   return `About ${min}m ${rem}s left`;
 }
 
+type AutoStartInit = { kind: "none" } | { kind: "error"; message: string } | { kind: "ready"; config: BenchmarkConfig };
+
 function getInitialTheme(): BenchmarkThemeMode {
   if (typeof window === "undefined") return "dark";
   const stored = window.localStorage.getItem("benchmark-theme");
   return stored === "light" || stored === "dark" ? stored : "dark";
 }
-
-type AutoStartInit = { kind: "none" } | { kind: "error"; message: string } | { kind: "ready"; config: BenchmarkConfig };
 
 function getAutoStartInit(): AutoStartInit {
   if (typeof window === "undefined") return { kind: "none" };
@@ -66,6 +65,8 @@ function getAutoStartInit(): AutoStartInit {
 }
 
 export function useBenchmarkDashboardController() {
+  // The dashboard is loaded with ssr:false (dynamic import in page.tsx),
+  // so these initializers safely access window/localStorage/location.
   const [autoStart] = useState<AutoStartInit>(getAutoStartInit);
   const autoStartCfg = autoStart.kind === "ready" ? autoStart.config : null;
 
@@ -266,7 +267,7 @@ export function useBenchmarkDashboardController() {
   function exportRun() {
     if (!selectedRun) return;
     const stamp = selectedRun.completedAt.replace(/[:.]/g, "-");
-    downloadTextFile(`benchmark-${stamp}.json`, toRunJson(selectedRun), "application/json");
+    downloadTextFile(`benchmark-${stamp}.json`, JSON.stringify(selectedRun, null, 2), "application/json");
   }
 
   function clearHistory() {
@@ -300,3 +301,5 @@ export function useBenchmarkDashboardController() {
     toggleTheme,
   };
 }
+
+export type BenchmarkDashboardController = ReturnType<typeof useBenchmarkDashboardController>;

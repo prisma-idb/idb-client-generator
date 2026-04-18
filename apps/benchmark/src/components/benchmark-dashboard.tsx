@@ -15,38 +15,14 @@ export function BenchmarkDashboard() {
 
   return (
     <div className="relative min-h-screen">
-      <BenchmarkDashboardTopBar themeMode={controller.themeMode} onToggleTheme={controller.toggleTheme} />
+      <BenchmarkDashboardTopBar controller={controller} />
 
       <div className="relative z-10 mx-auto w-full max-w-6xl px-5 py-8 md:px-8">
-        <BenchmarkDashboardHero
-          selectedRun={controller.selectedRun}
-          historyCount={controller.historyCount}
-          onExportRun={controller.exportRun}
-          onClearHistory={controller.clearHistory}
-        />
+        <BenchmarkDashboardHero controller={controller} />
         <BenchmarkDashboardGuidanceCards />
-        <BenchmarkRunSettingsCard
-          datasetSize={controller.datasetSize}
-          warmupRunsInput={controller.warmupRunsInput}
-          measuredRunsInput={controller.measuredRunsInput}
-          isRunning={controller.isRunning}
-          progress={controller.progress}
-          progressPercent={controller.progressPercent}
-          etaLabel={controller.etaLabel}
-          error={controller.error}
-          onDatasetSizeChange={controller.setDatasetSize}
-          onWarmupRunsChange={controller.setWarmupRunsInput}
-          onMeasuredRunsChange={controller.setMeasuredRunsInput}
-          onExecuteBenchmarks={() => void controller.executeBenchmarks()}
-          onCancelBenchmarks={controller.cancelBenchmarks}
-        />
-        <BenchmarkRunOverview
-          selectedRun={controller.selectedRun}
-          operationCount={controller.operationCount}
-          runInsights={controller.runInsights}
-          historyCount={controller.historyCount}
-        />
-        <BenchmarkRunDetails selectedRun={controller.selectedRun} runInsights={controller.runInsights} />
+        <BenchmarkRunSettingsCard controller={controller} />
+        <BenchmarkRunOverview controller={controller} />
+        <BenchmarkRunDetails controller={controller} />
       </div>
 
       {/* Hidden elements for Playwright CI extraction */}

@@ -1,5 +1,8 @@
-import type { BenchmarkClient } from "./client";
+import type { PrismaIDBClient } from "../prisma-idb/client/prisma-idb-client";
 import type { BenchmarkOperationId } from "./types";
+
+type PrismaIDBClientInstance = Awaited<ReturnType<typeof PrismaIDBClient.createClient>>;
+export type BenchmarkClient = Pick<PrismaIDBClientInstance, "resetDatabase" | "user" | "todo">;
 
 export interface BenchmarkOperationDefinition {
   operationId: BenchmarkOperationId;

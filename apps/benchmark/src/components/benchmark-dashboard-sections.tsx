@@ -11,14 +11,11 @@ import { Label } from "@/components/ui/label";
 import { Progress, ProgressLabel } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  BENCHMARK_DATASET_SIZE_OPTIONS,
-  BENCHMARK_DEFAULT_CONFIG,
-  type BenchmarkProgress,
-  type BenchmarkRunResult,
-} from "@/lib/benchmark/types";
-import type { BenchmarkRunInsights, BenchmarkThemeMode } from "./use-benchmark-dashboard-controller";
+import { BENCHMARK_DATASET_SIZE_OPTIONS, BENCHMARK_DEFAULT_CONFIG } from "@/lib/benchmark/types";
+import type { BenchmarkDashboardController } from "./use-benchmark-dashboard-controller";
 import Favicon from "@/assets/favicon.png";
+
+type SectionProps = { controller: BenchmarkDashboardController };
 
 function formatMs(value: number): string {
   if (value < 10) return `${value.toFixed(2)} ms`;
@@ -37,14 +34,17 @@ function userImpactLabel(p95Ms: number): string {
   return "Noticeable delay";
 }
 
-interface IconLinkProps {
+function IconLink({
+  href,
+  label,
+  title,
+  children,
+}: {
   href: string;
   label: string;
   title: string;
   children: ReactNode;
-}
-
-function IconLink({ href, label, title, children }: IconLinkProps) {
+}) {
   return (
     <a
       className="border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground inline-flex size-8 items-center justify-center rounded-lg border transition-colors"
@@ -59,12 +59,8 @@ function IconLink({ href, label, title, children }: IconLinkProps) {
   );
 }
 
-interface BenchmarkDashboardTopBarProps {
-  themeMode: BenchmarkThemeMode;
-  onToggleTheme: () => void;
-}
-
-export function BenchmarkDashboardTopBar({ themeMode, onToggleTheme }: BenchmarkDashboardTopBarProps) {
+export function BenchmarkDashboardTopBar({ controller }: SectionProps) {
+  const { themeMode, toggleTheme } = controller;
   return (
     <div className="border-border/80 bg-background/85 sticky top-0 z-50 border-b backdrop-blur">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-3 md:px-8">
@@ -95,7 +91,7 @@ export function BenchmarkDashboardTopBar({ themeMode, onToggleTheme }: Benchmark
             <BookOpenText className="size-4" />
           </IconLink>
 
-          <Button variant="outline" size="icon" onClick={onToggleTheme} aria-label="Toggle theme" title="Toggle theme">
+          <Button variant="outline" size="icon" onClick={toggleTheme} aria-label="Toggle theme" title="Toggle theme">
             {themeMode === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
           </Button>
         </div>
@@ -104,19 +100,8 @@ export function BenchmarkDashboardTopBar({ themeMode, onToggleTheme }: Benchmark
   );
 }
 
-interface BenchmarkDashboardHeroProps {
-  selectedRun: BenchmarkRunResult | null;
-  historyCount: number;
-  onExportRun: () => void;
-  onClearHistory: () => void;
-}
-
-export function BenchmarkDashboardHero({
-  selectedRun,
-  historyCount,
-  onExportRun,
-  onClearHistory,
-}: BenchmarkDashboardHeroProps) {
+export function BenchmarkDashboardHero({ controller }: SectionProps) {
+  const { selectedRun, historyCount, exportRun, clearHistory } = controller;
   return (
     <header className="mb-6 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
       <div className="space-y-3">
@@ -130,10 +115,10 @@ export function BenchmarkDashboardHero({
         </p>
       </div>
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={onExportRun} disabled={!selectedRun}>
+        <Button variant="outline" size="sm" onClick={exportRun} disabled={!selectedRun}>
           <Download className="mr-1.5 size-4" /> Export JSON
         </Button>
-        <Button variant="ghost" size="sm" onClick={onClearHistory} disabled={historyCount === 0}>
+        <Button variant="ghost" size="sm" onClick={clearHistory} disabled={historyCount === 0}>
           <Trash2 className="mr-1.5 size-4" /> Clear
         </Button>
       </div>
@@ -187,37 +172,23 @@ export function BenchmarkDashboardGuidanceCards() {
   );
 }
 
-interface BenchmarkRunSettingsCardProps {
-  datasetSize: number;
-  warmupRunsInput: string;
-  measuredRunsInput: string;
-  isRunning: boolean;
-  progress: BenchmarkProgress | null;
-  progressPercent: number;
-  etaLabel: string;
-  error: string;
-  onDatasetSizeChange: (value: number) => void;
-  onWarmupRunsChange: (value: string) => void;
-  onMeasuredRunsChange: (value: string) => void;
-  onExecuteBenchmarks: () => void | Promise<void>;
-  onCancelBenchmarks: () => void;
-}
+export function BenchmarkRunSettingsCard({ controller }: SectionProps) {
+  const {
+    datasetSize,
+    warmupRunsInput,
+    measuredRunsInput,
+    isRunning,
+    progress,
+    progressPercent,
+    etaLabel,
+    error,
+    setDatasetSize,
+    setWarmupRunsInput,
+    setMeasuredRunsInput,
+    executeBenchmarks,
+    cancelBenchmarks,
+  } = controller;
 
-export function BenchmarkRunSettingsCard({
-  datasetSize,
-  warmupRunsInput,
-  measuredRunsInput,
-  isRunning,
-  progress,
-  progressPercent,
-  etaLabel,
-  error,
-  onDatasetSizeChange,
-  onWarmupRunsChange,
-  onMeasuredRunsChange,
-  onExecuteBenchmarks,
-  onCancelBenchmarks,
-}: BenchmarkRunSettingsCardProps) {
   return (
     <Card className="mb-6">
       <CardHeader>
@@ -230,7 +201,7 @@ export function BenchmarkRunSettingsCard({
             <Label htmlFor="dataset-size">Dataset size</Label>
             <Select
               value={String(datasetSize)}
-              onValueChange={(value) => onDatasetSizeChange(Number(value))}
+              onValueChange={(value) => setDatasetSize(Number(value))}
               disabled={isRunning}
             >
               <SelectTrigger id="dataset-size" className="w-full" size="default">
@@ -254,7 +225,7 @@ export function BenchmarkRunSettingsCard({
               min={0}
               max={8}
               value={warmupRunsInput}
-              onChange={(event) => onWarmupRunsChange(event.target.value)}
+              onChange={(event) => setWarmupRunsInput(event.target.value)}
               disabled={isRunning}
             />
           </div>
@@ -267,13 +238,13 @@ export function BenchmarkRunSettingsCard({
               min={1}
               max={30}
               value={measuredRunsInput}
-              onChange={(event) => onMeasuredRunsChange(event.target.value)}
+              onChange={(event) => setMeasuredRunsInput(event.target.value)}
               disabled={isRunning}
             />
           </div>
 
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 md:col-span-3">
-            <Button className="w-full min-w-0" onClick={onExecuteBenchmarks} disabled={isRunning}>
+            <Button className="w-full min-w-0" onClick={() => void executeBenchmarks()} disabled={isRunning}>
               {isRunning ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : null}
               {isRunning ? "Running benchmarks..." : "Run benchmarks"}
             </Button>
@@ -281,7 +252,7 @@ export function BenchmarkRunSettingsCard({
               variant="outline"
               size="icon"
               className="shrink-0"
-              onClick={onCancelBenchmarks}
+              onClick={cancelBenchmarks}
               disabled={!isRunning}
               aria-label="Cancel benchmark run"
               title="Cancel benchmark run"
@@ -308,19 +279,8 @@ export function BenchmarkRunSettingsCard({
   );
 }
 
-interface BenchmarkRunOverviewProps {
-  selectedRun: BenchmarkRunResult | null;
-  operationCount: number;
-  runInsights: BenchmarkRunInsights | null;
-  historyCount: number;
-}
-
-export function BenchmarkRunOverview({
-  selectedRun,
-  operationCount,
-  runInsights,
-  historyCount,
-}: BenchmarkRunOverviewProps) {
+export function BenchmarkRunOverview({ controller }: SectionProps) {
+  const { selectedRun, operationCount, runInsights, historyCount } = controller;
   return (
     <section className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <Card>
@@ -368,12 +328,8 @@ export function BenchmarkRunOverview({
   );
 }
 
-interface BenchmarkRunDetailsProps {
-  selectedRun: BenchmarkRunResult | null;
-  runInsights: BenchmarkRunInsights | null;
-}
-
-export function BenchmarkRunDetails({ selectedRun, runInsights }: BenchmarkRunDetailsProps) {
+export function BenchmarkRunDetails({ controller }: SectionProps) {
+  const { selectedRun, runInsights } = controller;
   if (!selectedRun) return null;
 
   return (
