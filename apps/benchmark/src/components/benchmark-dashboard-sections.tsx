@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 import { BookOpenText, Download, Github, LoaderCircle, Moon, Sun, Trash2, X } from "lucide-react";
-import { LatencyChart } from "@/components/charts/latency-chart";
-import { ThroughputChart } from "@/components/charts/throughput-chart";
+import { LatencyChart, ThroughputChart } from "@/components/charts/benchmark-bar-chart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

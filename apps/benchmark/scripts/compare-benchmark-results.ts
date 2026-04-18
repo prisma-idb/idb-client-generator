@@ -14,17 +14,17 @@ interface BenchmarkRun {
   operations?: BenchmarkOperation[];
 }
 
-type Metric = number | "n/a";
-type Delta = number | "inf" | "n/a";
+interface MetricPair {
+  baseline: number | null;
+  current: number | null;
+  /** Percent change vs baseline; `Infinity` for baseline=0 → current>0; `null` if either side is missing. */
+  delta: number | null;
+}
 
 interface ComparisonRow {
   operationId: string;
-  baselineP95Ms: Metric;
-  currentP95Ms: Metric;
-  deltaP95Percent: Delta;
-  baselineMeanMs: Metric;
-  currentMeanMs: Metric;
-  deltaMeanPercent: Delta;
+  p95: MetricPair;
+  mean: MetricPair;
   status: "PASS" | "WARN" | "FAIL";
 }
 
@@ -44,42 +44,39 @@ interface ComparisonSummary {
 
 const round = (value: number) => Number(value.toFixed(3));
 
-function formatMetric(value: Metric): string {
-  return value === "n/a" ? "n/a" : String(value);
+function formatMetric(value: number | null): string {
+  return value === null ? "n/a" : String(value);
 }
 
-function formatPercent(value: Delta): string {
-  if (value === "n/a" || !Number.isFinite(value as number)) return value === "inf" ? "inf" : "n/a";
-  const numeric = value as number;
-  const sign = numeric > 0 ? "+" : "";
-  return `${sign}${numeric.toFixed(2)}%`;
+function formatPercent(value: number | null): string {
+  if (value === null) return "n/a";
+  if (!Number.isFinite(value)) return "inf";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(2)}%`;
 }
 
-function deltaPercent(current: number, baseline: number): number {
-  if (baseline === 0 && current === 0) return 0;
-  if (baseline === 0) return Number.POSITIVE_INFINITY;
-  return ((current - baseline) / baseline) * 100;
-}
+function pairMetric(baseline: number, current: number): MetricPair {
+  const baselineOk = Number.isFinite(baseline);
+  const currentOk = Number.isFinite(current);
 
-function pairMetric(baseline: number, current: number): { baseline: Metric; current: Metric; delta: Delta } {
-  const ok = Number.isFinite(baseline) && Number.isFinite(current);
-  if (!ok) {
+  if (!baselineOk || !currentOk) {
     return {
-      baseline: Number.isFinite(baseline) ? round(baseline) : "n/a",
-      current: Number.isFinite(current) ? round(current) : "n/a",
-      delta: "n/a",
+      baseline: baselineOk ? round(baseline) : null,
+      current: currentOk ? round(current) : null,
+      delta: null,
     };
   }
-  const raw = deltaPercent(current, baseline);
+
+  let delta: number;
+  if (baseline === 0 && current === 0) delta = 0;
+  else if (baseline === 0) delta = Number.POSITIVE_INFINITY;
+  else delta = ((current - baseline) / baseline) * 100;
+
   return {
     baseline: round(baseline),
     current: round(current),
-    delta: Number.isFinite(raw) ? round(raw) : "inf",
+    delta: Number.isFinite(delta) ? round(delta) : delta,
   };
-}
-
-function escapeMarkdownCell(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
 }
 
 function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
@@ -108,7 +105,7 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
 
   for (const row of summary.rows) {
     lines.push(
-      `| ${escapeMarkdownCell(row.operationId)} | ${formatMetric(row.baselineP95Ms)} | ${formatMetric(row.currentP95Ms)} | ${formatPercent(row.deltaP95Percent)} | ${formatMetric(row.baselineMeanMs)} | ${formatMetric(row.currentMeanMs)} | ${formatPercent(row.deltaMeanPercent)} | ${row.status} |`
+      `| ${row.operationId} | ${formatMetric(row.p95.baseline)} | ${formatMetric(row.p95.current)} | ${formatPercent(row.p95.delta)} | ${formatMetric(row.mean.baseline)} | ${formatMetric(row.mean.current)} | ${formatPercent(row.mean.delta)} | ${row.status} |`
     );
   }
 
@@ -148,16 +145,16 @@ function getComparisonNotices(baseline: BenchmarkRun, current: BenchmarkRun): st
   const notices: string[] = [];
   const minSamples = BENCHMARK_REGRESSION_GATE.minMeaningfulP95Samples;
 
-  let baselineCount: number | null = null;
-  let currentCount: number | null = null;
-
-  for (const [label, run] of [
+  const runs = [
     ["Baseline", baseline],
     ["Current", current],
-  ] as const) {
+  ] as const;
+
+  const counts: Record<"Baseline" | "Current", number | null> = { Baseline: null, Current: null };
+
+  for (const [label, run] of runs) {
     const { count, hasPartialData } = getMeasuredSampleCount(run);
-    if (label === "Baseline") baselineCount = count;
-    if (label === "Current") currentCount = count;
+    counts[label] = count;
     if (hasPartialData) {
       notices.push(`${label} run is missing samplesMs for one or more operations; this comparison is advisory.`);
     }
@@ -170,9 +167,9 @@ function getComparisonNotices(baseline: BenchmarkRun, current: BenchmarkRun): st
     }
   }
 
-  if (baselineCount !== null && currentCount !== null && baselineCount !== currentCount) {
+  if (counts.Baseline !== null && counts.Current !== null && counts.Baseline !== counts.Current) {
     notices.push(
-      `Baseline and current runs use different measured sample counts (${baselineCount} vs ${currentCount}); this comparison is advisory.`
+      `Baseline and current runs use different measured sample counts (${counts.Baseline} vs ${counts.Current}); this comparison is advisory.`
     );
   }
 
@@ -197,7 +194,7 @@ async function main() {
     );
   }
 
-  const threshold = Number(getStringArg(args, "threshold") ?? "10");
+  const threshold = Number(getStringArg(args, "threshold") ?? String(BENCHMARK_REGRESSION_GATE.thresholdPercent));
   if (!Number.isFinite(threshold) || threshold <= 0) {
     throw new Error("--threshold must be a positive number");
   }
@@ -233,19 +230,14 @@ async function main() {
     const mean = pairMetric(Number(baselineOp.summary?.meanMs), Number(currentOp.summary?.meanMs));
 
     // Treat baseline=0 → current>0 as a hard regression (delta becomes +Infinity).
-    const numericDelta = typeof p95.delta === "number" ? p95.delta : null;
-    const isInfiniteRegression = p95.delta === "inf";
-    const isRegression = isInfiniteRegression || (numericDelta !== null && numericDelta > threshold);
-    const isWarn = !isRegression && (p95.delta === "n/a" || (numericDelta !== null && numericDelta >= threshold / 2));
+    const delta = p95.delta;
+    const isRegression = delta !== null && (!Number.isFinite(delta) || delta > threshold);
+    const isWarn = !isRegression && (delta === null || delta >= threshold / 2);
 
     const row: ComparisonRow = {
       operationId,
-      baselineP95Ms: p95.baseline,
-      currentP95Ms: p95.current,
-      deltaP95Percent: p95.delta,
-      baselineMeanMs: mean.baseline,
-      currentMeanMs: mean.current,
-      deltaMeanPercent: mean.delta,
+      p95,
+      mean,
       status: isRegression ? "FAIL" : isWarn ? "WARN" : "PASS",
     };
     rows.push(row);
@@ -276,6 +268,7 @@ async function main() {
 
   const markdown = renderMarkdown(summary, threshold);
 
+  // JSON.stringify serializes Infinity as `null` — matches our "no comparable delta" convention.
   await writeOutput(getStringArg(args, "json-out"), `${JSON.stringify(summary, null, 2)}\n`);
   await writeOutput(getStringArg(args, "markdown-out"), markdown);
 

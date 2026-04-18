@@ -81,9 +81,6 @@ importers:
       '@base-ui/react':
         specifier: ^1.4.0
         version: 1.4.0(@date-fns/tz@1.4.1)(@types/react@19.2.14)(date-fns@4.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      '@paralleldrive/cuid2':
-        specifier: ^3.3.0
-        version: 3.3.0
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

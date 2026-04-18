@@ -5,9 +5,7 @@ import { getStringArg, parseArgs } from "./cli-args";
 const MARKER = "<!-- benchmark-regression-report -->";
 
 interface PullRequestEventPayload {
-  pull_request?: {
-    number?: number;
-  };
+  pull_request?: { number?: number };
 }
 
 interface IssueComment {
@@ -15,7 +13,7 @@ interface IssueComment {
   body: string | null;
 }
 
-async function githubRequest<T>(path: string, token: string, options: RequestInit = {}): Promise<T | null> {
+async function githubRequest(path: string, token: string, options: RequestInit = {}): Promise<Response> {
   const response = await fetch(`https://api.github.com${path}`, {
     ...options,
     headers: {
@@ -28,12 +26,21 @@ async function githubRequest<T>(path: string, token: string, options: RequestIni
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`GitHub API request failed (${response.status}): ${text}`);
+    throw new Error(`GitHub API request failed (${response.status}): ${await response.text()}`);
   }
 
-  if (response.status === 204) return null;
-  return (await response.json()) as T;
+  return response;
+}
+
+function getNextPagePath(linkHeader: string): string | null {
+  const match = /<([^>]+)>;\s*rel="next"/.exec(linkHeader);
+  if (!match) return null;
+  try {
+    const parsed = new URL(match[1]);
+    return parsed.hostname === "api.github.com" ? `${parsed.pathname}${parsed.search}` : null;
+  } catch {
+    return null;
+  }
 }
 
 async function fetchAllComments(
@@ -46,35 +53,9 @@ async function fetchAllComments(
   let path: string | null = `/repos/${owner}/${repo}/issues/${pullRequestNumber}/comments?per_page=100`;
 
   while (path !== null) {
-    const response = await fetch(`https://api.github.com${path}`, {
-      headers: {
-        Accept: "application/vnd.github+json",
-        Authorization: `Bearer ${token}`,
-        "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "prisma-idb-benchmark-bot",
-      },
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`GitHub API request failed (${response.status}): ${text}`);
-    }
-
-    const page = (await response.json()) as IssueComment[];
-    all.push(...page);
-
-    const linkHeader = response.headers.get("Link") ?? "";
-    const nextMatch = /<([^>]+)>;\s*rel="next"/.exec(linkHeader);
-    if (nextMatch) {
-      try {
-        const parsed = new URL(nextMatch[1]);
-        path = parsed.hostname === "api.github.com" ? `${parsed.pathname}${parsed.search}` : null;
-      } catch {
-        path = null;
-      }
-    } else {
-      path = null;
-    }
+    const response = await githubRequest(path, token);
+    all.push(...((await response.json()) as IssueComment[]));
+    path = getNextPagePath(response.headers.get("Link") ?? "");
   }
 
   return all;
@@ -114,23 +95,25 @@ async function main() {
   const commentBody = `${marker}\n${bodyContent}`;
 
   const comments = await fetchAllComments(owner, repo, pullRequestNumber, token);
-
   const existing = comments.find((comment) => typeof comment.body === "string" && comment.body.includes(marker));
 
+  const jsonHeaders = { "Content-Type": "application/json" };
+  const jsonBody = JSON.stringify({ body: commentBody });
+
   if (existing) {
-    await githubRequest<unknown>(`/repos/${owner}/${repo}/issues/comments/${existing.id}`, token, {
+    await githubRequest(`/repos/${owner}/${repo}/issues/comments/${existing.id}`, token, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body: commentBody }),
+      headers: jsonHeaders,
+      body: jsonBody,
     });
     process.stdout.write(`Updated benchmark PR comment ${existing.id}.\n`);
     return;
   }
 
-  await githubRequest<unknown>(`/repos/${owner}/${repo}/issues/${pullRequestNumber}/comments`, token, {
+  await githubRequest(`/repos/${owner}/${repo}/issues/${pullRequestNumber}/comments`, token, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ body: commentBody }),
+    headers: jsonHeaders,
+    body: jsonBody,
   });
 
   process.stdout.write("Created benchmark PR comment.\n");
