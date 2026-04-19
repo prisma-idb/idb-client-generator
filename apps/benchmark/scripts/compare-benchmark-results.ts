@@ -293,6 +293,12 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
   );
 
   for (const row of summary.rows) {
+    const clearSpeedup = isClearSpeedup(row, threshold);
+    const leaningSpeedup =
+      !clearSpeedup &&
+      row.bootstrap !== null &&
+      exceedsThresholdInDirection(row.bootstrap.medianDeltaPercent, threshold, "negative");
+
     const statusIcon =
       row.status === "FAIL"
         ? row.noisy
@@ -300,7 +306,11 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
           : "\uD83D\uDD34"
         : row.status === "WARN"
           ? "\uD83D\uDFE1"
-          : "\uD83D\uDFE2";
+          : clearSpeedup
+            ? "\uD83D\uDD35"
+            : leaningSpeedup
+              ? "\uD83D\uDFE9"
+              : "\uD83D\uDFE2";
     const noisyTag = row.noisy ? " \uD83C\uDFB2" : "";
     const decision =
       row.status === "FAIL"
@@ -309,7 +319,11 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
           : `CI lower > +${threshold}%`
         : row.status === "WARN"
           ? `Point estimate > +${threshold}% but CI lower <= +${threshold}%`
-          : `CI lower <= +${threshold}%`;
+          : clearSpeedup
+            ? `CI upper < -${threshold}% (confident speedup)`
+            : leaningSpeedup
+              ? `Median indicates speedup, but CI still overlaps the neutral band`
+              : `CI lower <= +${threshold}%`;
     const medianDelta = row.bootstrap ? formatDeltaCompact(row.bootstrap.medianDeltaPercent) : "n/a";
     const ciRange = row.bootstrap
       ? `${formatCIBound(row.bootstrap.ciLowerPercent)} … ${formatCIBound(row.bootstrap.ciUpperPercent)}`
@@ -350,6 +364,8 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
   lines.push("| Symbol | Meaning |");
   lines.push("| :---: | :-- |");
   lines.push(`| 🟢 | Pass — CI lower <= +${threshold}% |`);
+  lines.push(`| 🔵 | Clear speedup — CI upper < -${threshold}% |`);
+  lines.push(`| 🟩 | Leaning faster — median shows speedup, but CI still overlaps neutral |`);
   lines.push("| 🟡 | Warn — point estimate exceeds threshold but CI lower bound does not (likely noise) |");
   lines.push(`| 🔴 | Fail — CI lower > +${threshold}% |`);
   if (hasNoisyFail) {
