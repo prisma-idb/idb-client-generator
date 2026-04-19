@@ -191,37 +191,70 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       const todos_opts = (attach_todos === true ? {} : attach_todos) as Record<string, unknown>;
       const todos_sel = todos_opts.select as Record<string, boolean> | undefined;
       const todos_keysToInject = todos_sel ? (["userId"] as string[]).filter((k) => !todos_sel![k]) : [];
+      const todos_take = todos_opts.take as number | undefined;
+      const todos_skip = todos_opts.skip as number | undefined;
+      const todos_cursor = todos_opts.cursor;
+      const todos_distinct = todos_opts.distinct;
       const todos_parentIds = [...new Set(records.map((r) => r.id))];
-      const todos_allRelated = await this.client.todo.findMany(
-        {
-          ...todos_opts,
-          ...(todos_keysToInject.length > 0
-            ? { select: { ...todos_sel, ...Object.fromEntries(todos_keysToInject.map((k) => [k, true])) } }
-            : {}),
-          take: undefined,
-          skip: undefined,
-          where: { userId: { in: todos_parentIds } },
-        },
-        { tx }
-      );
-      const todos_take = attach_todos !== true ? (attach_todos as Prisma.TodoFindManyArgs).take : undefined;
-      const todos_skip = attach_todos !== true ? (attach_todos as Prisma.TodoFindManyArgs).skip : undefined;
       todos_hashMap = new Map<string, unknown[]>();
-      for (const related of todos_allRelated) {
-        const _r = related as Record<string, unknown>;
-        const key = JSON.stringify(_r["userId"]);
-        if (!todos_hashMap!.has(key)) todos_hashMap!.set(key, []);
-        const value =
-          todos_keysToInject.length > 0
-            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !todos_keysToInject.includes(k)))
-            : _r;
-        todos_hashMap!.get(key)!.push(value as unknown);
-      }
-      if (todos_skip !== undefined || todos_take !== undefined) {
-        for (const [key, group] of todos_hashMap!) {
-          const start = todos_skip ?? 0;
-          const end = todos_take !== undefined ? start + todos_take : undefined;
-          todos_hashMap!.set(key, group.slice(start, end));
+      const todos_userWhere = todos_opts.where as Record<string, unknown> | undefined;
+      if (todos_cursor !== undefined || todos_distinct !== undefined) {
+        for (const parentId of todos_parentIds) {
+          const todos_perParentFkWhere = { userId: parentId };
+          const todos_perParentWhere = todos_userWhere
+            ? { AND: [todos_userWhere, todos_perParentFkWhere] }
+            : todos_perParentFkWhere;
+          const children = await this.client.todo.findMany(
+            {
+              ...todos_opts,
+              ...(todos_keysToInject.length > 0
+                ? { select: { ...todos_sel, ...Object.fromEntries(todos_keysToInject.map((k) => [k, true])) } }
+                : {}),
+              where: todos_perParentWhere,
+            },
+            { tx }
+          );
+          const stripped = children.map((c) => {
+            const _r = c as Record<string, unknown>;
+            return todos_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !todos_keysToInject.includes(k)))
+              : _r;
+          });
+          todos_hashMap!.set(JSON.stringify(parentId), stripped as unknown[]);
+        }
+      } else {
+        const todos_fkWhere = { userId: { in: todos_parentIds } };
+        const todos_where = todos_userWhere ? { AND: [todos_userWhere, todos_fkWhere] } : todos_fkWhere;
+        const todos_allRelated = await this.client.todo.findMany(
+          {
+            ...todos_opts,
+            ...(todos_keysToInject.length > 0
+              ? { select: { ...todos_sel, ...Object.fromEntries(todos_keysToInject.map((k) => [k, true])) } }
+              : {}),
+            take: undefined,
+            skip: undefined,
+            where: todos_where,
+          },
+          { tx }
+        );
+        for (const related of todos_allRelated) {
+          const _r = related as Record<string, unknown>;
+          const key = JSON.stringify(_r["userId"]);
+          if (!todos_hashMap!.has(key)) todos_hashMap!.set(key, []);
+          const value =
+            todos_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !todos_keysToInject.includes(k)))
+              : _r;
+          todos_hashMap!.get(key)!.push(value as unknown);
+        }
+        if (todos_skip !== undefined || todos_take !== undefined) {
+          for (const [key, group] of todos_hashMap!) {
+            let sliced = group;
+            if (todos_skip !== undefined) sliced = sliced.slice(todos_skip);
+            if (todos_take !== undefined)
+              sliced = todos_take < 0 ? sliced.slice(todos_take) : sliced.slice(0, todos_take);
+            todos_hashMap!.set(key, sliced);
+          }
         }
       }
     }
@@ -1117,13 +1150,16 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       const user_sel = user_opts.select as Record<string, boolean> | undefined;
       const user_keysToInject = user_sel ? (["id"] as string[]).filter((k) => !user_sel![k]) : [];
       const user_fkValues = [...new Set(records.map((r) => r.userId).filter((v) => v !== null && v !== undefined))];
+      const user_userWhere = user_opts.where as Record<string, unknown> | undefined;
+      const user_fkWhere = { id: { in: user_fkValues } };
+      const user_where = user_userWhere ? { AND: [user_userWhere, user_fkWhere] } : user_fkWhere;
       const user_related = await this.client.user.findMany(
         {
           ...user_opts,
           ...(user_keysToInject.length > 0
             ? { select: { ...user_sel, ...Object.fromEntries(user_keysToInject.map((k) => [k, true])) } }
             : {}),
-          where: { id: { in: user_fkValues } },
+          where: user_where,
         },
         { tx }
       );

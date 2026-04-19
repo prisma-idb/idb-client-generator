@@ -641,37 +641,70 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
       const todos_opts = (attach_todos === true ? {} : attach_todos) as Record<string, unknown>;
       const todos_sel = todos_opts.select as Record<string, boolean> | undefined;
       const todos_keysToInject = todos_sel ? (["boardId"] as string[]).filter((k) => !todos_sel![k]) : [];
+      const todos_take = todos_opts.take as number | undefined;
+      const todos_skip = todos_opts.skip as number | undefined;
+      const todos_cursor = todos_opts.cursor;
+      const todos_distinct = todos_opts.distinct;
       const todos_parentIds = [...new Set(records.map((r) => r.id))];
-      const todos_allRelated = await this.client.todo.findMany(
-        {
-          ...todos_opts,
-          ...(todos_keysToInject.length > 0
-            ? { select: { ...todos_sel, ...Object.fromEntries(todos_keysToInject.map((k) => [k, true])) } }
-            : {}),
-          take: undefined,
-          skip: undefined,
-          where: { boardId: { in: todos_parentIds } },
-        },
-        { tx }
-      );
-      const todos_take = attach_todos !== true ? (attach_todos as Prisma.TodoFindManyArgs).take : undefined;
-      const todos_skip = attach_todos !== true ? (attach_todos as Prisma.TodoFindManyArgs).skip : undefined;
       todos_hashMap = new Map<string, unknown[]>();
-      for (const related of todos_allRelated) {
-        const _r = related as Record<string, unknown>;
-        const key = JSON.stringify(_r["boardId"]);
-        if (!todos_hashMap!.has(key)) todos_hashMap!.set(key, []);
-        const value =
-          todos_keysToInject.length > 0
-            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !todos_keysToInject.includes(k)))
-            : _r;
-        todos_hashMap!.get(key)!.push(value as unknown);
-      }
-      if (todos_skip !== undefined || todos_take !== undefined) {
-        for (const [key, group] of todos_hashMap!) {
-          const start = todos_skip ?? 0;
-          const end = todos_take !== undefined ? start + todos_take : undefined;
-          todos_hashMap!.set(key, group.slice(start, end));
+      const todos_userWhere = todos_opts.where as Record<string, unknown> | undefined;
+      if (todos_cursor !== undefined || todos_distinct !== undefined) {
+        for (const parentId of todos_parentIds) {
+          const todos_perParentFkWhere = { boardId: parentId };
+          const todos_perParentWhere = todos_userWhere
+            ? { AND: [todos_userWhere, todos_perParentFkWhere] }
+            : todos_perParentFkWhere;
+          const children = await this.client.todo.findMany(
+            {
+              ...todos_opts,
+              ...(todos_keysToInject.length > 0
+                ? { select: { ...todos_sel, ...Object.fromEntries(todos_keysToInject.map((k) => [k, true])) } }
+                : {}),
+              where: todos_perParentWhere,
+            },
+            { tx }
+          );
+          const stripped = children.map((c) => {
+            const _r = c as Record<string, unknown>;
+            return todos_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !todos_keysToInject.includes(k)))
+              : _r;
+          });
+          todos_hashMap!.set(JSON.stringify(parentId), stripped as unknown[]);
+        }
+      } else {
+        const todos_fkWhere = { boardId: { in: todos_parentIds } };
+        const todos_where = todos_userWhere ? { AND: [todos_userWhere, todos_fkWhere] } : todos_fkWhere;
+        const todos_allRelated = await this.client.todo.findMany(
+          {
+            ...todos_opts,
+            ...(todos_keysToInject.length > 0
+              ? { select: { ...todos_sel, ...Object.fromEntries(todos_keysToInject.map((k) => [k, true])) } }
+              : {}),
+            take: undefined,
+            skip: undefined,
+            where: todos_where,
+          },
+          { tx }
+        );
+        for (const related of todos_allRelated) {
+          const _r = related as Record<string, unknown>;
+          const key = JSON.stringify(_r["boardId"]);
+          if (!todos_hashMap!.has(key)) todos_hashMap!.set(key, []);
+          const value =
+            todos_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !todos_keysToInject.includes(k)))
+              : _r;
+          todos_hashMap!.get(key)!.push(value as unknown);
+        }
+        if (todos_skip !== undefined || todos_take !== undefined) {
+          for (const [key, group] of todos_hashMap!) {
+            let sliced = group;
+            if (todos_skip !== undefined) sliced = sliced.slice(todos_skip);
+            if (todos_take !== undefined)
+              sliced = todos_take < 0 ? sliced.slice(todos_take) : sliced.slice(0, todos_take);
+            todos_hashMap!.set(key, sliced);
+          }
         }
       }
     }
@@ -682,13 +715,16 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
       const user_sel = user_opts.select as Record<string, boolean> | undefined;
       const user_keysToInject = user_sel ? (["id"] as string[]).filter((k) => !user_sel![k]) : [];
       const user_fkValues = [...new Set(records.map((r) => r.userId).filter((v) => v !== null && v !== undefined))];
+      const user_userWhere = user_opts.where as Record<string, unknown> | undefined;
+      const user_fkWhere = { id: { in: user_fkValues } };
+      const user_where = user_userWhere ? { AND: [user_userWhere, user_fkWhere] } : user_fkWhere;
       const user_related = await this.client.user.findMany(
         {
           ...user_opts,
           ...(user_keysToInject.length > 0
             ? { select: { ...user_sel, ...Object.fromEntries(user_keysToInject.map((k) => [k, true])) } }
             : {}),
-          where: { id: { in: user_fkValues } },
+          where: user_where,
         },
         { tx }
       );
@@ -1776,13 +1812,16 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       const board_sel = board_opts.select as Record<string, boolean> | undefined;
       const board_keysToInject = board_sel ? (["id"] as string[]).filter((k) => !board_sel![k]) : [];
       const board_fkValues = [...new Set(records.map((r) => r.boardId).filter((v) => v !== null && v !== undefined))];
+      const board_userWhere = board_opts.where as Record<string, unknown> | undefined;
+      const board_fkWhere = { id: { in: board_fkValues } };
+      const board_where = board_userWhere ? { AND: [board_userWhere, board_fkWhere] } : board_fkWhere;
       const board_related = await this.client.board.findMany(
         {
           ...board_opts,
           ...(board_keysToInject.length > 0
             ? { select: { ...board_sel, ...Object.fromEntries(board_keysToInject.map((k) => [k, true])) } }
             : {}),
-          where: { id: { in: board_fkValues } },
+          where: board_where,
         },
         { tx }
       );
@@ -2656,37 +2695,70 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       const boards_opts = (attach_boards === true ? {} : attach_boards) as Record<string, unknown>;
       const boards_sel = boards_opts.select as Record<string, boolean> | undefined;
       const boards_keysToInject = boards_sel ? (["userId"] as string[]).filter((k) => !boards_sel![k]) : [];
+      const boards_take = boards_opts.take as number | undefined;
+      const boards_skip = boards_opts.skip as number | undefined;
+      const boards_cursor = boards_opts.cursor;
+      const boards_distinct = boards_opts.distinct;
       const boards_parentIds = [...new Set(records.map((r) => r.id))];
-      const boards_allRelated = await this.client.board.findMany(
-        {
-          ...boards_opts,
-          ...(boards_keysToInject.length > 0
-            ? { select: { ...boards_sel, ...Object.fromEntries(boards_keysToInject.map((k) => [k, true])) } }
-            : {}),
-          take: undefined,
-          skip: undefined,
-          where: { userId: { in: boards_parentIds } },
-        },
-        { tx }
-      );
-      const boards_take = attach_boards !== true ? (attach_boards as Prisma.BoardFindManyArgs).take : undefined;
-      const boards_skip = attach_boards !== true ? (attach_boards as Prisma.BoardFindManyArgs).skip : undefined;
       boards_hashMap = new Map<string, unknown[]>();
-      for (const related of boards_allRelated) {
-        const _r = related as Record<string, unknown>;
-        const key = JSON.stringify(_r["userId"]);
-        if (!boards_hashMap!.has(key)) boards_hashMap!.set(key, []);
-        const value =
-          boards_keysToInject.length > 0
-            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !boards_keysToInject.includes(k)))
-            : _r;
-        boards_hashMap!.get(key)!.push(value as unknown);
-      }
-      if (boards_skip !== undefined || boards_take !== undefined) {
-        for (const [key, group] of boards_hashMap!) {
-          const start = boards_skip ?? 0;
-          const end = boards_take !== undefined ? start + boards_take : undefined;
-          boards_hashMap!.set(key, group.slice(start, end));
+      const boards_userWhere = boards_opts.where as Record<string, unknown> | undefined;
+      if (boards_cursor !== undefined || boards_distinct !== undefined) {
+        for (const parentId of boards_parentIds) {
+          const boards_perParentFkWhere = { userId: parentId };
+          const boards_perParentWhere = boards_userWhere
+            ? { AND: [boards_userWhere, boards_perParentFkWhere] }
+            : boards_perParentFkWhere;
+          const children = await this.client.board.findMany(
+            {
+              ...boards_opts,
+              ...(boards_keysToInject.length > 0
+                ? { select: { ...boards_sel, ...Object.fromEntries(boards_keysToInject.map((k) => [k, true])) } }
+                : {}),
+              where: boards_perParentWhere,
+            },
+            { tx }
+          );
+          const stripped = children.map((c) => {
+            const _r = c as Record<string, unknown>;
+            return boards_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !boards_keysToInject.includes(k)))
+              : _r;
+          });
+          boards_hashMap!.set(JSON.stringify(parentId), stripped as unknown[]);
+        }
+      } else {
+        const boards_fkWhere = { userId: { in: boards_parentIds } };
+        const boards_where = boards_userWhere ? { AND: [boards_userWhere, boards_fkWhere] } : boards_fkWhere;
+        const boards_allRelated = await this.client.board.findMany(
+          {
+            ...boards_opts,
+            ...(boards_keysToInject.length > 0
+              ? { select: { ...boards_sel, ...Object.fromEntries(boards_keysToInject.map((k) => [k, true])) } }
+              : {}),
+            take: undefined,
+            skip: undefined,
+            where: boards_where,
+          },
+          { tx }
+        );
+        for (const related of boards_allRelated) {
+          const _r = related as Record<string, unknown>;
+          const key = JSON.stringify(_r["userId"]);
+          if (!boards_hashMap!.has(key)) boards_hashMap!.set(key, []);
+          const value =
+            boards_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !boards_keysToInject.includes(k)))
+              : _r;
+          boards_hashMap!.get(key)!.push(value as unknown);
+        }
+        if (boards_skip !== undefined || boards_take !== undefined) {
+          for (const [key, group] of boards_hashMap!) {
+            let sliced = group;
+            if (boards_skip !== undefined) sliced = sliced.slice(boards_skip);
+            if (boards_take !== undefined)
+              sliced = boards_take < 0 ? sliced.slice(boards_take) : sliced.slice(0, boards_take);
+            boards_hashMap!.set(key, sliced);
+          }
         }
       }
     }

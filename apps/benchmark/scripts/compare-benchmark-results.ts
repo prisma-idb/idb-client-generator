@@ -11,6 +11,7 @@ interface BenchmarkOperation {
 
 interface BenchmarkRun {
   id?: string;
+  browser?: string;
   operations?: BenchmarkOperation[];
 }
 
@@ -173,7 +174,31 @@ function getComparisonNotices(baseline: BenchmarkRun, current: BenchmarkRun): st
     );
   }
 
+  const baselinePlatform = getPlatformToken(baseline.browser);
+  const currentPlatform = getPlatformToken(current.browser);
+  if (baselinePlatform && currentPlatform && baselinePlatform !== currentPlatform) {
+    notices.push(
+      `Baseline and current runs were captured on different platforms (\`${baselinePlatform}\` vs \`${currentPlatform}\`); absolute timings are not comparable, so this comparison is advisory.`
+    );
+  }
+
   return notices;
+}
+
+/**
+ * Extracts a coarse platform token ("Macintosh", "Linux", "Windows", "Android", "iOS")
+ * from a browser User-Agent string. Returns null if the UA is missing or unrecognised.
+ * Used to detect when baseline and current runs come from different machines (e.g. a
+ * fast laptop baseline vs a slower CI runner) — a scenario where regression % is meaningless.
+ */
+function getPlatformToken(userAgent: string | undefined): string | null {
+  if (!userAgent) return null;
+  if (/Macintosh|Mac OS X/i.test(userAgent)) return "Macintosh";
+  if (/Windows/i.test(userAgent)) return "Windows";
+  if (/Android/i.test(userAgent)) return "Android";
+  if (/iPhone|iPad|iOS/i.test(userAgent)) return "iOS";
+  if (/Linux|X11/i.test(userAgent)) return "Linux";
+  return null;
 }
 
 async function writeOutput(filePath: string | undefined, content: string): Promise<void> {

@@ -540,13 +540,16 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       const profile_sel = profile_opts.select as Record<string, boolean> | undefined;
       const profile_keysToInject = profile_sel ? (["userId"] as string[]).filter((k) => !profile_sel![k]) : [];
       const profile_parentIds = [...new Set(records.map((r) => r.id))];
+      const profile_userWhere = profile_opts.where as Record<string, unknown> | undefined;
+      const profile_fkWhere = { userId: { in: profile_parentIds } };
+      const profile_where = profile_userWhere ? { AND: [profile_userWhere, profile_fkWhere] } : profile_fkWhere;
       const profile_related = await this.client.profile.findMany(
         {
           ...profile_opts,
           ...(profile_keysToInject.length > 0
             ? { select: { ...profile_sel, ...Object.fromEntries(profile_keysToInject.map((k) => [k, true])) } }
             : {}),
-          where: { userId: { in: profile_parentIds } },
+          where: profile_where,
         },
         { tx }
       );
@@ -568,37 +571,70 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       const posts_opts = (attach_posts === true ? {} : attach_posts) as Record<string, unknown>;
       const posts_sel = posts_opts.select as Record<string, boolean> | undefined;
       const posts_keysToInject = posts_sel ? (["authorId"] as string[]).filter((k) => !posts_sel![k]) : [];
+      const posts_take = posts_opts.take as number | undefined;
+      const posts_skip = posts_opts.skip as number | undefined;
+      const posts_cursor = posts_opts.cursor;
+      const posts_distinct = posts_opts.distinct;
       const posts_parentIds = [...new Set(records.map((r) => r.id))];
-      const posts_allRelated = await this.client.post.findMany(
-        {
-          ...posts_opts,
-          ...(posts_keysToInject.length > 0
-            ? { select: { ...posts_sel, ...Object.fromEntries(posts_keysToInject.map((k) => [k, true])) } }
-            : {}),
-          take: undefined,
-          skip: undefined,
-          where: { authorId: { in: posts_parentIds } },
-        },
-        { tx }
-      );
-      const posts_take = attach_posts !== true ? (attach_posts as Prisma.PostFindManyArgs).take : undefined;
-      const posts_skip = attach_posts !== true ? (attach_posts as Prisma.PostFindManyArgs).skip : undefined;
       posts_hashMap = new Map<string, unknown[]>();
-      for (const related of posts_allRelated) {
-        const _r = related as Record<string, unknown>;
-        const key = JSON.stringify(_r["authorId"]);
-        if (!posts_hashMap!.has(key)) posts_hashMap!.set(key, []);
-        const value =
-          posts_keysToInject.length > 0
-            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !posts_keysToInject.includes(k)))
-            : _r;
-        posts_hashMap!.get(key)!.push(value as unknown);
-      }
-      if (posts_skip !== undefined || posts_take !== undefined) {
-        for (const [key, group] of posts_hashMap!) {
-          const start = posts_skip ?? 0;
-          const end = posts_take !== undefined ? start + posts_take : undefined;
-          posts_hashMap!.set(key, group.slice(start, end));
+      const posts_userWhere = posts_opts.where as Record<string, unknown> | undefined;
+      if (posts_cursor !== undefined || posts_distinct !== undefined) {
+        for (const parentId of posts_parentIds) {
+          const posts_perParentFkWhere = { authorId: parentId };
+          const posts_perParentWhere = posts_userWhere
+            ? { AND: [posts_userWhere, posts_perParentFkWhere] }
+            : posts_perParentFkWhere;
+          const children = await this.client.post.findMany(
+            {
+              ...posts_opts,
+              ...(posts_keysToInject.length > 0
+                ? { select: { ...posts_sel, ...Object.fromEntries(posts_keysToInject.map((k) => [k, true])) } }
+                : {}),
+              where: posts_perParentWhere,
+            },
+            { tx }
+          );
+          const stripped = children.map((c) => {
+            const _r = c as Record<string, unknown>;
+            return posts_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !posts_keysToInject.includes(k)))
+              : _r;
+          });
+          posts_hashMap!.set(JSON.stringify(parentId), stripped as unknown[]);
+        }
+      } else {
+        const posts_fkWhere = { authorId: { in: posts_parentIds } };
+        const posts_where = posts_userWhere ? { AND: [posts_userWhere, posts_fkWhere] } : posts_fkWhere;
+        const posts_allRelated = await this.client.post.findMany(
+          {
+            ...posts_opts,
+            ...(posts_keysToInject.length > 0
+              ? { select: { ...posts_sel, ...Object.fromEntries(posts_keysToInject.map((k) => [k, true])) } }
+              : {}),
+            take: undefined,
+            skip: undefined,
+            where: posts_where,
+          },
+          { tx }
+        );
+        for (const related of posts_allRelated) {
+          const _r = related as Record<string, unknown>;
+          const key = JSON.stringify(_r["authorId"]);
+          if (!posts_hashMap!.has(key)) posts_hashMap!.set(key, []);
+          const value =
+            posts_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !posts_keysToInject.includes(k)))
+              : _r;
+          posts_hashMap!.get(key)!.push(value as unknown);
+        }
+        if (posts_skip !== undefined || posts_take !== undefined) {
+          for (const [key, group] of posts_hashMap!) {
+            let sliced = group;
+            if (posts_skip !== undefined) sliced = sliced.slice(posts_skip);
+            if (posts_take !== undefined)
+              sliced = posts_take < 0 ? sliced.slice(posts_take) : sliced.slice(0, posts_take);
+            posts_hashMap!.set(key, sliced);
+          }
         }
       }
     }
@@ -608,37 +644,70 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       const comments_opts = (attach_comments === true ? {} : attach_comments) as Record<string, unknown>;
       const comments_sel = comments_opts.select as Record<string, boolean> | undefined;
       const comments_keysToInject = comments_sel ? (["userId"] as string[]).filter((k) => !comments_sel![k]) : [];
+      const comments_take = comments_opts.take as number | undefined;
+      const comments_skip = comments_opts.skip as number | undefined;
+      const comments_cursor = comments_opts.cursor;
+      const comments_distinct = comments_opts.distinct;
       const comments_parentIds = [...new Set(records.map((r) => r.id))];
-      const comments_allRelated = await this.client.comment.findMany(
-        {
-          ...comments_opts,
-          ...(comments_keysToInject.length > 0
-            ? { select: { ...comments_sel, ...Object.fromEntries(comments_keysToInject.map((k) => [k, true])) } }
-            : {}),
-          take: undefined,
-          skip: undefined,
-          where: { userId: { in: comments_parentIds } },
-        },
-        { tx }
-      );
-      const comments_take = attach_comments !== true ? (attach_comments as Prisma.CommentFindManyArgs).take : undefined;
-      const comments_skip = attach_comments !== true ? (attach_comments as Prisma.CommentFindManyArgs).skip : undefined;
       comments_hashMap = new Map<string, unknown[]>();
-      for (const related of comments_allRelated) {
-        const _r = related as Record<string, unknown>;
-        const key = JSON.stringify(_r["userId"]);
-        if (!comments_hashMap!.has(key)) comments_hashMap!.set(key, []);
-        const value =
-          comments_keysToInject.length > 0
-            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !comments_keysToInject.includes(k)))
-            : _r;
-        comments_hashMap!.get(key)!.push(value as unknown);
-      }
-      if (comments_skip !== undefined || comments_take !== undefined) {
-        for (const [key, group] of comments_hashMap!) {
-          const start = comments_skip ?? 0;
-          const end = comments_take !== undefined ? start + comments_take : undefined;
-          comments_hashMap!.set(key, group.slice(start, end));
+      const comments_userWhere = comments_opts.where as Record<string, unknown> | undefined;
+      if (comments_cursor !== undefined || comments_distinct !== undefined) {
+        for (const parentId of comments_parentIds) {
+          const comments_perParentFkWhere = { userId: parentId };
+          const comments_perParentWhere = comments_userWhere
+            ? { AND: [comments_userWhere, comments_perParentFkWhere] }
+            : comments_perParentFkWhere;
+          const children = await this.client.comment.findMany(
+            {
+              ...comments_opts,
+              ...(comments_keysToInject.length > 0
+                ? { select: { ...comments_sel, ...Object.fromEntries(comments_keysToInject.map((k) => [k, true])) } }
+                : {}),
+              where: comments_perParentWhere,
+            },
+            { tx }
+          );
+          const stripped = children.map((c) => {
+            const _r = c as Record<string, unknown>;
+            return comments_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !comments_keysToInject.includes(k)))
+              : _r;
+          });
+          comments_hashMap!.set(JSON.stringify(parentId), stripped as unknown[]);
+        }
+      } else {
+        const comments_fkWhere = { userId: { in: comments_parentIds } };
+        const comments_where = comments_userWhere ? { AND: [comments_userWhere, comments_fkWhere] } : comments_fkWhere;
+        const comments_allRelated = await this.client.comment.findMany(
+          {
+            ...comments_opts,
+            ...(comments_keysToInject.length > 0
+              ? { select: { ...comments_sel, ...Object.fromEntries(comments_keysToInject.map((k) => [k, true])) } }
+              : {}),
+            take: undefined,
+            skip: undefined,
+            where: comments_where,
+          },
+          { tx }
+        );
+        for (const related of comments_allRelated) {
+          const _r = related as Record<string, unknown>;
+          const key = JSON.stringify(_r["userId"]);
+          if (!comments_hashMap!.has(key)) comments_hashMap!.set(key, []);
+          const value =
+            comments_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !comments_keysToInject.includes(k)))
+              : _r;
+          comments_hashMap!.get(key)!.push(value as unknown);
+        }
+        if (comments_skip !== undefined || comments_take !== undefined) {
+          for (const [key, group] of comments_hashMap!) {
+            let sliced = group;
+            if (comments_skip !== undefined) sliced = sliced.slice(comments_skip);
+            if (comments_take !== undefined)
+              sliced = comments_take < 0 ? sliced.slice(comments_take) : sliced.slice(0, comments_take);
+            comments_hashMap!.set(key, sliced);
+          }
         }
       }
     }
@@ -648,37 +717,70 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       const Child_opts = (attach_Child === true ? {} : attach_Child) as Record<string, unknown>;
       const Child_sel = Child_opts.select as Record<string, boolean> | undefined;
       const Child_keysToInject = Child_sel ? (["userId"] as string[]).filter((k) => !Child_sel![k]) : [];
+      const Child_take = Child_opts.take as number | undefined;
+      const Child_skip = Child_opts.skip as number | undefined;
+      const Child_cursor = Child_opts.cursor;
+      const Child_distinct = Child_opts.distinct;
       const Child_parentIds = [...new Set(records.map((r) => r.id))];
-      const Child_allRelated = await this.client.child.findMany(
-        {
-          ...Child_opts,
-          ...(Child_keysToInject.length > 0
-            ? { select: { ...Child_sel, ...Object.fromEntries(Child_keysToInject.map((k) => [k, true])) } }
-            : {}),
-          take: undefined,
-          skip: undefined,
-          where: { userId: { in: Child_parentIds } },
-        },
-        { tx }
-      );
-      const Child_take = attach_Child !== true ? (attach_Child as Prisma.ChildFindManyArgs).take : undefined;
-      const Child_skip = attach_Child !== true ? (attach_Child as Prisma.ChildFindManyArgs).skip : undefined;
       Child_hashMap = new Map<string, unknown[]>();
-      for (const related of Child_allRelated) {
-        const _r = related as Record<string, unknown>;
-        const key = JSON.stringify(_r["userId"]);
-        if (!Child_hashMap!.has(key)) Child_hashMap!.set(key, []);
-        const value =
-          Child_keysToInject.length > 0
-            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !Child_keysToInject.includes(k)))
-            : _r;
-        Child_hashMap!.get(key)!.push(value as unknown);
-      }
-      if (Child_skip !== undefined || Child_take !== undefined) {
-        for (const [key, group] of Child_hashMap!) {
-          const start = Child_skip ?? 0;
-          const end = Child_take !== undefined ? start + Child_take : undefined;
-          Child_hashMap!.set(key, group.slice(start, end));
+      const Child_userWhere = Child_opts.where as Record<string, unknown> | undefined;
+      if (Child_cursor !== undefined || Child_distinct !== undefined) {
+        for (const parentId of Child_parentIds) {
+          const Child_perParentFkWhere = { userId: parentId };
+          const Child_perParentWhere = Child_userWhere
+            ? { AND: [Child_userWhere, Child_perParentFkWhere] }
+            : Child_perParentFkWhere;
+          const children = await this.client.child.findMany(
+            {
+              ...Child_opts,
+              ...(Child_keysToInject.length > 0
+                ? { select: { ...Child_sel, ...Object.fromEntries(Child_keysToInject.map((k) => [k, true])) } }
+                : {}),
+              where: Child_perParentWhere,
+            },
+            { tx }
+          );
+          const stripped = children.map((c) => {
+            const _r = c as Record<string, unknown>;
+            return Child_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !Child_keysToInject.includes(k)))
+              : _r;
+          });
+          Child_hashMap!.set(JSON.stringify(parentId), stripped as unknown[]);
+        }
+      } else {
+        const Child_fkWhere = { userId: { in: Child_parentIds } };
+        const Child_where = Child_userWhere ? { AND: [Child_userWhere, Child_fkWhere] } : Child_fkWhere;
+        const Child_allRelated = await this.client.child.findMany(
+          {
+            ...Child_opts,
+            ...(Child_keysToInject.length > 0
+              ? { select: { ...Child_sel, ...Object.fromEntries(Child_keysToInject.map((k) => [k, true])) } }
+              : {}),
+            take: undefined,
+            skip: undefined,
+            where: Child_where,
+          },
+          { tx }
+        );
+        for (const related of Child_allRelated) {
+          const _r = related as Record<string, unknown>;
+          const key = JSON.stringify(_r["userId"]);
+          if (!Child_hashMap!.has(key)) Child_hashMap!.set(key, []);
+          const value =
+            Child_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !Child_keysToInject.includes(k)))
+              : _r;
+          Child_hashMap!.get(key)!.push(value as unknown);
+        }
+        if (Child_skip !== undefined || Child_take !== undefined) {
+          for (const [key, group] of Child_hashMap!) {
+            let sliced = group;
+            if (Child_skip !== undefined) sliced = sliced.slice(Child_skip);
+            if (Child_take !== undefined)
+              sliced = Child_take < 0 ? sliced.slice(Child_take) : sliced.slice(0, Child_take);
+            Child_hashMap!.set(key, sliced);
+          }
         }
       }
     }
@@ -688,37 +790,70 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       const Father_opts = (attach_Father === true ? {} : attach_Father) as Record<string, unknown>;
       const Father_sel = Father_opts.select as Record<string, boolean> | undefined;
       const Father_keysToInject = Father_sel ? (["userId"] as string[]).filter((k) => !Father_sel![k]) : [];
+      const Father_take = Father_opts.take as number | undefined;
+      const Father_skip = Father_opts.skip as number | undefined;
+      const Father_cursor = Father_opts.cursor;
+      const Father_distinct = Father_opts.distinct;
       const Father_parentIds = [...new Set(records.map((r) => r.id))];
-      const Father_allRelated = await this.client.father.findMany(
-        {
-          ...Father_opts,
-          ...(Father_keysToInject.length > 0
-            ? { select: { ...Father_sel, ...Object.fromEntries(Father_keysToInject.map((k) => [k, true])) } }
-            : {}),
-          take: undefined,
-          skip: undefined,
-          where: { userId: { in: Father_parentIds } },
-        },
-        { tx }
-      );
-      const Father_take = attach_Father !== true ? (attach_Father as Prisma.FatherFindManyArgs).take : undefined;
-      const Father_skip = attach_Father !== true ? (attach_Father as Prisma.FatherFindManyArgs).skip : undefined;
       Father_hashMap = new Map<string, unknown[]>();
-      for (const related of Father_allRelated) {
-        const _r = related as Record<string, unknown>;
-        const key = JSON.stringify(_r["userId"]);
-        if (!Father_hashMap!.has(key)) Father_hashMap!.set(key, []);
-        const value =
-          Father_keysToInject.length > 0
-            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !Father_keysToInject.includes(k)))
-            : _r;
-        Father_hashMap!.get(key)!.push(value as unknown);
-      }
-      if (Father_skip !== undefined || Father_take !== undefined) {
-        for (const [key, group] of Father_hashMap!) {
-          const start = Father_skip ?? 0;
-          const end = Father_take !== undefined ? start + Father_take : undefined;
-          Father_hashMap!.set(key, group.slice(start, end));
+      const Father_userWhere = Father_opts.where as Record<string, unknown> | undefined;
+      if (Father_cursor !== undefined || Father_distinct !== undefined) {
+        for (const parentId of Father_parentIds) {
+          const Father_perParentFkWhere = { userId: parentId };
+          const Father_perParentWhere = Father_userWhere
+            ? { AND: [Father_userWhere, Father_perParentFkWhere] }
+            : Father_perParentFkWhere;
+          const children = await this.client.father.findMany(
+            {
+              ...Father_opts,
+              ...(Father_keysToInject.length > 0
+                ? { select: { ...Father_sel, ...Object.fromEntries(Father_keysToInject.map((k) => [k, true])) } }
+                : {}),
+              where: Father_perParentWhere,
+            },
+            { tx }
+          );
+          const stripped = children.map((c) => {
+            const _r = c as Record<string, unknown>;
+            return Father_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !Father_keysToInject.includes(k)))
+              : _r;
+          });
+          Father_hashMap!.set(JSON.stringify(parentId), stripped as unknown[]);
+        }
+      } else {
+        const Father_fkWhere = { userId: { in: Father_parentIds } };
+        const Father_where = Father_userWhere ? { AND: [Father_userWhere, Father_fkWhere] } : Father_fkWhere;
+        const Father_allRelated = await this.client.father.findMany(
+          {
+            ...Father_opts,
+            ...(Father_keysToInject.length > 0
+              ? { select: { ...Father_sel, ...Object.fromEntries(Father_keysToInject.map((k) => [k, true])) } }
+              : {}),
+            take: undefined,
+            skip: undefined,
+            where: Father_where,
+          },
+          { tx }
+        );
+        for (const related of Father_allRelated) {
+          const _r = related as Record<string, unknown>;
+          const key = JSON.stringify(_r["userId"]);
+          if (!Father_hashMap!.has(key)) Father_hashMap!.set(key, []);
+          const value =
+            Father_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !Father_keysToInject.includes(k)))
+              : _r;
+          Father_hashMap!.get(key)!.push(value as unknown);
+        }
+        if (Father_skip !== undefined || Father_take !== undefined) {
+          for (const [key, group] of Father_hashMap!) {
+            let sliced = group;
+            if (Father_skip !== undefined) sliced = sliced.slice(Father_skip);
+            if (Father_take !== undefined)
+              sliced = Father_take < 0 ? sliced.slice(Father_take) : sliced.slice(0, Father_take);
+            Father_hashMap!.set(key, sliced);
+          }
         }
       }
     }
@@ -728,37 +863,70 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       const Mother_opts = (attach_Mother === true ? {} : attach_Mother) as Record<string, unknown>;
       const Mother_sel = Mother_opts.select as Record<string, boolean> | undefined;
       const Mother_keysToInject = Mother_sel ? (["userId"] as string[]).filter((k) => !Mother_sel![k]) : [];
+      const Mother_take = Mother_opts.take as number | undefined;
+      const Mother_skip = Mother_opts.skip as number | undefined;
+      const Mother_cursor = Mother_opts.cursor;
+      const Mother_distinct = Mother_opts.distinct;
       const Mother_parentIds = [...new Set(records.map((r) => r.id))];
-      const Mother_allRelated = await this.client.mother.findMany(
-        {
-          ...Mother_opts,
-          ...(Mother_keysToInject.length > 0
-            ? { select: { ...Mother_sel, ...Object.fromEntries(Mother_keysToInject.map((k) => [k, true])) } }
-            : {}),
-          take: undefined,
-          skip: undefined,
-          where: { userId: { in: Mother_parentIds } },
-        },
-        { tx }
-      );
-      const Mother_take = attach_Mother !== true ? (attach_Mother as Prisma.MotherFindManyArgs).take : undefined;
-      const Mother_skip = attach_Mother !== true ? (attach_Mother as Prisma.MotherFindManyArgs).skip : undefined;
       Mother_hashMap = new Map<string, unknown[]>();
-      for (const related of Mother_allRelated) {
-        const _r = related as Record<string, unknown>;
-        const key = JSON.stringify(_r["userId"]);
-        if (!Mother_hashMap!.has(key)) Mother_hashMap!.set(key, []);
-        const value =
-          Mother_keysToInject.length > 0
-            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !Mother_keysToInject.includes(k)))
-            : _r;
-        Mother_hashMap!.get(key)!.push(value as unknown);
-      }
-      if (Mother_skip !== undefined || Mother_take !== undefined) {
-        for (const [key, group] of Mother_hashMap!) {
-          const start = Mother_skip ?? 0;
-          const end = Mother_take !== undefined ? start + Mother_take : undefined;
-          Mother_hashMap!.set(key, group.slice(start, end));
+      const Mother_userWhere = Mother_opts.where as Record<string, unknown> | undefined;
+      if (Mother_cursor !== undefined || Mother_distinct !== undefined) {
+        for (const parentId of Mother_parentIds) {
+          const Mother_perParentFkWhere = { userId: parentId };
+          const Mother_perParentWhere = Mother_userWhere
+            ? { AND: [Mother_userWhere, Mother_perParentFkWhere] }
+            : Mother_perParentFkWhere;
+          const children = await this.client.mother.findMany(
+            {
+              ...Mother_opts,
+              ...(Mother_keysToInject.length > 0
+                ? { select: { ...Mother_sel, ...Object.fromEntries(Mother_keysToInject.map((k) => [k, true])) } }
+                : {}),
+              where: Mother_perParentWhere,
+            },
+            { tx }
+          );
+          const stripped = children.map((c) => {
+            const _r = c as Record<string, unknown>;
+            return Mother_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !Mother_keysToInject.includes(k)))
+              : _r;
+          });
+          Mother_hashMap!.set(JSON.stringify(parentId), stripped as unknown[]);
+        }
+      } else {
+        const Mother_fkWhere = { userId: { in: Mother_parentIds } };
+        const Mother_where = Mother_userWhere ? { AND: [Mother_userWhere, Mother_fkWhere] } : Mother_fkWhere;
+        const Mother_allRelated = await this.client.mother.findMany(
+          {
+            ...Mother_opts,
+            ...(Mother_keysToInject.length > 0
+              ? { select: { ...Mother_sel, ...Object.fromEntries(Mother_keysToInject.map((k) => [k, true])) } }
+              : {}),
+            take: undefined,
+            skip: undefined,
+            where: Mother_where,
+          },
+          { tx }
+        );
+        for (const related of Mother_allRelated) {
+          const _r = related as Record<string, unknown>;
+          const key = JSON.stringify(_r["userId"]);
+          if (!Mother_hashMap!.has(key)) Mother_hashMap!.set(key, []);
+          const value =
+            Mother_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !Mother_keysToInject.includes(k)))
+              : _r;
+          Mother_hashMap!.get(key)!.push(value as unknown);
+        }
+        if (Mother_skip !== undefined || Mother_take !== undefined) {
+          for (const [key, group] of Mother_hashMap!) {
+            let sliced = group;
+            if (Mother_skip !== undefined) sliced = sliced.slice(Mother_skip);
+            if (Mother_take !== undefined)
+              sliced = Mother_take < 0 ? sliced.slice(Mother_take) : sliced.slice(0, Mother_take);
+            Mother_hashMap!.set(key, sliced);
+          }
         }
       }
     }
@@ -768,37 +936,70 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       const groups_opts = (attach_groups === true ? {} : attach_groups) as Record<string, unknown>;
       const groups_sel = groups_opts.select as Record<string, boolean> | undefined;
       const groups_keysToInject = groups_sel ? (["userId"] as string[]).filter((k) => !groups_sel![k]) : [];
+      const groups_take = groups_opts.take as number | undefined;
+      const groups_skip = groups_opts.skip as number | undefined;
+      const groups_cursor = groups_opts.cursor;
+      const groups_distinct = groups_opts.distinct;
       const groups_parentIds = [...new Set(records.map((r) => r.id))];
-      const groups_allRelated = await this.client.userGroup.findMany(
-        {
-          ...groups_opts,
-          ...(groups_keysToInject.length > 0
-            ? { select: { ...groups_sel, ...Object.fromEntries(groups_keysToInject.map((k) => [k, true])) } }
-            : {}),
-          take: undefined,
-          skip: undefined,
-          where: { userId: { in: groups_parentIds } },
-        },
-        { tx }
-      );
-      const groups_take = attach_groups !== true ? (attach_groups as Prisma.UserGroupFindManyArgs).take : undefined;
-      const groups_skip = attach_groups !== true ? (attach_groups as Prisma.UserGroupFindManyArgs).skip : undefined;
       groups_hashMap = new Map<string, unknown[]>();
-      for (const related of groups_allRelated) {
-        const _r = related as Record<string, unknown>;
-        const key = JSON.stringify(_r["userId"]);
-        if (!groups_hashMap!.has(key)) groups_hashMap!.set(key, []);
-        const value =
-          groups_keysToInject.length > 0
-            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !groups_keysToInject.includes(k)))
-            : _r;
-        groups_hashMap!.get(key)!.push(value as unknown);
-      }
-      if (groups_skip !== undefined || groups_take !== undefined) {
-        for (const [key, group] of groups_hashMap!) {
-          const start = groups_skip ?? 0;
-          const end = groups_take !== undefined ? start + groups_take : undefined;
-          groups_hashMap!.set(key, group.slice(start, end));
+      const groups_userWhere = groups_opts.where as Record<string, unknown> | undefined;
+      if (groups_cursor !== undefined || groups_distinct !== undefined) {
+        for (const parentId of groups_parentIds) {
+          const groups_perParentFkWhere = { userId: parentId };
+          const groups_perParentWhere = groups_userWhere
+            ? { AND: [groups_userWhere, groups_perParentFkWhere] }
+            : groups_perParentFkWhere;
+          const children = await this.client.userGroup.findMany(
+            {
+              ...groups_opts,
+              ...(groups_keysToInject.length > 0
+                ? { select: { ...groups_sel, ...Object.fromEntries(groups_keysToInject.map((k) => [k, true])) } }
+                : {}),
+              where: groups_perParentWhere,
+            },
+            { tx }
+          );
+          const stripped = children.map((c) => {
+            const _r = c as Record<string, unknown>;
+            return groups_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !groups_keysToInject.includes(k)))
+              : _r;
+          });
+          groups_hashMap!.set(JSON.stringify(parentId), stripped as unknown[]);
+        }
+      } else {
+        const groups_fkWhere = { userId: { in: groups_parentIds } };
+        const groups_where = groups_userWhere ? { AND: [groups_userWhere, groups_fkWhere] } : groups_fkWhere;
+        const groups_allRelated = await this.client.userGroup.findMany(
+          {
+            ...groups_opts,
+            ...(groups_keysToInject.length > 0
+              ? { select: { ...groups_sel, ...Object.fromEntries(groups_keysToInject.map((k) => [k, true])) } }
+              : {}),
+            take: undefined,
+            skip: undefined,
+            where: groups_where,
+          },
+          { tx }
+        );
+        for (const related of groups_allRelated) {
+          const _r = related as Record<string, unknown>;
+          const key = JSON.stringify(_r["userId"]);
+          if (!groups_hashMap!.has(key)) groups_hashMap!.set(key, []);
+          const value =
+            groups_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !groups_keysToInject.includes(k)))
+              : _r;
+          groups_hashMap!.get(key)!.push(value as unknown);
+        }
+        if (groups_skip !== undefined || groups_take !== undefined) {
+          for (const [key, group] of groups_hashMap!) {
+            let sliced = group;
+            if (groups_skip !== undefined) sliced = sliced.slice(groups_skip);
+            if (groups_take !== undefined)
+              sliced = groups_take < 0 ? sliced.slice(groups_take) : sliced.slice(0, groups_take);
+            groups_hashMap!.set(key, sliced);
+          }
         }
       }
     }
@@ -808,37 +1009,70 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       const todos_opts = (attach_todos === true ? {} : attach_todos) as Record<string, unknown>;
       const todos_sel = todos_opts.select as Record<string, boolean> | undefined;
       const todos_keysToInject = todos_sel ? (["userId"] as string[]).filter((k) => !todos_sel![k]) : [];
+      const todos_take = todos_opts.take as number | undefined;
+      const todos_skip = todos_opts.skip as number | undefined;
+      const todos_cursor = todos_opts.cursor;
+      const todos_distinct = todos_opts.distinct;
       const todos_parentIds = [...new Set(records.map((r) => r.id))];
-      const todos_allRelated = await this.client.todo.findMany(
-        {
-          ...todos_opts,
-          ...(todos_keysToInject.length > 0
-            ? { select: { ...todos_sel, ...Object.fromEntries(todos_keysToInject.map((k) => [k, true])) } }
-            : {}),
-          take: undefined,
-          skip: undefined,
-          where: { userId: { in: todos_parentIds } },
-        },
-        { tx }
-      );
-      const todos_take = attach_todos !== true ? (attach_todos as Prisma.TodoFindManyArgs).take : undefined;
-      const todos_skip = attach_todos !== true ? (attach_todos as Prisma.TodoFindManyArgs).skip : undefined;
       todos_hashMap = new Map<string, unknown[]>();
-      for (const related of todos_allRelated) {
-        const _r = related as Record<string, unknown>;
-        const key = JSON.stringify(_r["userId"]);
-        if (!todos_hashMap!.has(key)) todos_hashMap!.set(key, []);
-        const value =
-          todos_keysToInject.length > 0
-            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !todos_keysToInject.includes(k)))
-            : _r;
-        todos_hashMap!.get(key)!.push(value as unknown);
-      }
-      if (todos_skip !== undefined || todos_take !== undefined) {
-        for (const [key, group] of todos_hashMap!) {
-          const start = todos_skip ?? 0;
-          const end = todos_take !== undefined ? start + todos_take : undefined;
-          todos_hashMap!.set(key, group.slice(start, end));
+      const todos_userWhere = todos_opts.where as Record<string, unknown> | undefined;
+      if (todos_cursor !== undefined || todos_distinct !== undefined) {
+        for (const parentId of todos_parentIds) {
+          const todos_perParentFkWhere = { userId: parentId };
+          const todos_perParentWhere = todos_userWhere
+            ? { AND: [todos_userWhere, todos_perParentFkWhere] }
+            : todos_perParentFkWhere;
+          const children = await this.client.todo.findMany(
+            {
+              ...todos_opts,
+              ...(todos_keysToInject.length > 0
+                ? { select: { ...todos_sel, ...Object.fromEntries(todos_keysToInject.map((k) => [k, true])) } }
+                : {}),
+              where: todos_perParentWhere,
+            },
+            { tx }
+          );
+          const stripped = children.map((c) => {
+            const _r = c as Record<string, unknown>;
+            return todos_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !todos_keysToInject.includes(k)))
+              : _r;
+          });
+          todos_hashMap!.set(JSON.stringify(parentId), stripped as unknown[]);
+        }
+      } else {
+        const todos_fkWhere = { userId: { in: todos_parentIds } };
+        const todos_where = todos_userWhere ? { AND: [todos_userWhere, todos_fkWhere] } : todos_fkWhere;
+        const todos_allRelated = await this.client.todo.findMany(
+          {
+            ...todos_opts,
+            ...(todos_keysToInject.length > 0
+              ? { select: { ...todos_sel, ...Object.fromEntries(todos_keysToInject.map((k) => [k, true])) } }
+              : {}),
+            take: undefined,
+            skip: undefined,
+            where: todos_where,
+          },
+          { tx }
+        );
+        for (const related of todos_allRelated) {
+          const _r = related as Record<string, unknown>;
+          const key = JSON.stringify(_r["userId"]);
+          if (!todos_hashMap!.has(key)) todos_hashMap!.set(key, []);
+          const value =
+            todos_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !todos_keysToInject.includes(k)))
+              : _r;
+          todos_hashMap!.get(key)!.push(value as unknown);
+        }
+        if (todos_skip !== undefined || todos_take !== undefined) {
+          for (const [key, group] of todos_hashMap!) {
+            let sliced = group;
+            if (todos_skip !== undefined) sliced = sliced.slice(todos_skip);
+            if (todos_take !== undefined)
+              sliced = todos_take < 0 ? sliced.slice(todos_take) : sliced.slice(0, todos_take);
+            todos_hashMap!.set(key, sliced);
+          }
         }
       }
     }
@@ -3545,39 +3779,74 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
       const userGroups_keysToInject = userGroups_sel
         ? (["groupId"] as string[]).filter((k) => !userGroups_sel![k])
         : [];
+      const userGroups_take = userGroups_opts.take as number | undefined;
+      const userGroups_skip = userGroups_opts.skip as number | undefined;
+      const userGroups_cursor = userGroups_opts.cursor;
+      const userGroups_distinct = userGroups_opts.distinct;
       const userGroups_parentIds = [...new Set(records.map((r) => r.id))];
-      const userGroups_allRelated = await this.client.userGroup.findMany(
-        {
-          ...userGroups_opts,
-          ...(userGroups_keysToInject.length > 0
-            ? { select: { ...userGroups_sel, ...Object.fromEntries(userGroups_keysToInject.map((k) => [k, true])) } }
-            : {}),
-          take: undefined,
-          skip: undefined,
-          where: { groupId: { in: userGroups_parentIds } },
-        },
-        { tx }
-      );
-      const userGroups_take =
-        attach_userGroups !== true ? (attach_userGroups as Prisma.UserGroupFindManyArgs).take : undefined;
-      const userGroups_skip =
-        attach_userGroups !== true ? (attach_userGroups as Prisma.UserGroupFindManyArgs).skip : undefined;
       userGroups_hashMap = new Map<string, unknown[]>();
-      for (const related of userGroups_allRelated) {
-        const _r = related as Record<string, unknown>;
-        const key = JSON.stringify(_r["groupId"]);
-        if (!userGroups_hashMap!.has(key)) userGroups_hashMap!.set(key, []);
-        const value =
-          userGroups_keysToInject.length > 0
-            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !userGroups_keysToInject.includes(k)))
-            : _r;
-        userGroups_hashMap!.get(key)!.push(value as unknown);
-      }
-      if (userGroups_skip !== undefined || userGroups_take !== undefined) {
-        for (const [key, group] of userGroups_hashMap!) {
-          const start = userGroups_skip ?? 0;
-          const end = userGroups_take !== undefined ? start + userGroups_take : undefined;
-          userGroups_hashMap!.set(key, group.slice(start, end));
+      const userGroups_userWhere = userGroups_opts.where as Record<string, unknown> | undefined;
+      if (userGroups_cursor !== undefined || userGroups_distinct !== undefined) {
+        for (const parentId of userGroups_parentIds) {
+          const userGroups_perParentFkWhere = { groupId: parentId };
+          const userGroups_perParentWhere = userGroups_userWhere
+            ? { AND: [userGroups_userWhere, userGroups_perParentFkWhere] }
+            : userGroups_perParentFkWhere;
+          const children = await this.client.userGroup.findMany(
+            {
+              ...userGroups_opts,
+              ...(userGroups_keysToInject.length > 0
+                ? {
+                    select: { ...userGroups_sel, ...Object.fromEntries(userGroups_keysToInject.map((k) => [k, true])) },
+                  }
+                : {}),
+              where: userGroups_perParentWhere,
+            },
+            { tx }
+          );
+          const stripped = children.map((c) => {
+            const _r = c as Record<string, unknown>;
+            return userGroups_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !userGroups_keysToInject.includes(k)))
+              : _r;
+          });
+          userGroups_hashMap!.set(JSON.stringify(parentId), stripped as unknown[]);
+        }
+      } else {
+        const userGroups_fkWhere = { groupId: { in: userGroups_parentIds } };
+        const userGroups_where = userGroups_userWhere
+          ? { AND: [userGroups_userWhere, userGroups_fkWhere] }
+          : userGroups_fkWhere;
+        const userGroups_allRelated = await this.client.userGroup.findMany(
+          {
+            ...userGroups_opts,
+            ...(userGroups_keysToInject.length > 0
+              ? { select: { ...userGroups_sel, ...Object.fromEntries(userGroups_keysToInject.map((k) => [k, true])) } }
+              : {}),
+            take: undefined,
+            skip: undefined,
+            where: userGroups_where,
+          },
+          { tx }
+        );
+        for (const related of userGroups_allRelated) {
+          const _r = related as Record<string, unknown>;
+          const key = JSON.stringify(_r["groupId"]);
+          if (!userGroups_hashMap!.has(key)) userGroups_hashMap!.set(key, []);
+          const value =
+            userGroups_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !userGroups_keysToInject.includes(k)))
+              : _r;
+          userGroups_hashMap!.get(key)!.push(value as unknown);
+        }
+        if (userGroups_skip !== undefined || userGroups_take !== undefined) {
+          for (const [key, group] of userGroups_hashMap!) {
+            let sliced = group;
+            if (userGroups_skip !== undefined) sliced = sliced.slice(userGroups_skip);
+            if (userGroups_take !== undefined)
+              sliced = userGroups_take < 0 ? sliced.slice(userGroups_take) : sliced.slice(0, userGroups_take);
+            userGroups_hashMap!.set(key, sliced);
+          }
         }
       }
     }
@@ -4481,13 +4750,16 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
       const user_sel = user_opts.select as Record<string, boolean> | undefined;
       const user_keysToInject = user_sel ? (["id"] as string[]).filter((k) => !user_sel![k]) : [];
       const user_fkValues = [...new Set(records.map((r) => r.userId).filter((v) => v !== null && v !== undefined))];
+      const user_userWhere = user_opts.where as Record<string, unknown> | undefined;
+      const user_fkWhere = { id: { in: user_fkValues } };
+      const user_where = user_userWhere ? { AND: [user_userWhere, user_fkWhere] } : user_fkWhere;
       const user_related = await this.client.user.findMany(
         {
           ...user_opts,
           ...(user_keysToInject.length > 0
             ? { select: { ...user_sel, ...Object.fromEntries(user_keysToInject.map((k) => [k, true])) } }
             : {}),
-          where: { id: { in: user_fkValues } },
+          where: user_where,
         },
         { tx }
       );
@@ -5367,13 +5639,16 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
       const author_sel = author_opts.select as Record<string, boolean> | undefined;
       const author_keysToInject = author_sel ? (["id"] as string[]).filter((k) => !author_sel![k]) : [];
       const author_fkValues = [...new Set(records.map((r) => r.authorId).filter((v) => v !== null && v !== undefined))];
+      const author_userWhere = author_opts.where as Record<string, unknown> | undefined;
+      const author_fkWhere = { id: { in: author_fkValues } };
+      const author_where = author_userWhere ? { AND: [author_userWhere, author_fkWhere] } : author_fkWhere;
       const author_related = await this.client.user.findMany(
         {
           ...author_opts,
           ...(author_keysToInject.length > 0
             ? { select: { ...author_sel, ...Object.fromEntries(author_keysToInject.map((k) => [k, true])) } }
             : {}),
-          where: { id: { in: author_fkValues } },
+          where: author_where,
         },
         { tx }
       );
@@ -5395,37 +5670,70 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
       const comments_opts = (attach_comments === true ? {} : attach_comments) as Record<string, unknown>;
       const comments_sel = comments_opts.select as Record<string, boolean> | undefined;
       const comments_keysToInject = comments_sel ? (["postId"] as string[]).filter((k) => !comments_sel![k]) : [];
+      const comments_take = comments_opts.take as number | undefined;
+      const comments_skip = comments_opts.skip as number | undefined;
+      const comments_cursor = comments_opts.cursor;
+      const comments_distinct = comments_opts.distinct;
       const comments_parentIds = [...new Set(records.map((r) => r.id))];
-      const comments_allRelated = await this.client.comment.findMany(
-        {
-          ...comments_opts,
-          ...(comments_keysToInject.length > 0
-            ? { select: { ...comments_sel, ...Object.fromEntries(comments_keysToInject.map((k) => [k, true])) } }
-            : {}),
-          take: undefined,
-          skip: undefined,
-          where: { postId: { in: comments_parentIds } },
-        },
-        { tx }
-      );
-      const comments_take = attach_comments !== true ? (attach_comments as Prisma.CommentFindManyArgs).take : undefined;
-      const comments_skip = attach_comments !== true ? (attach_comments as Prisma.CommentFindManyArgs).skip : undefined;
       comments_hashMap = new Map<string, unknown[]>();
-      for (const related of comments_allRelated) {
-        const _r = related as Record<string, unknown>;
-        const key = JSON.stringify(_r["postId"]);
-        if (!comments_hashMap!.has(key)) comments_hashMap!.set(key, []);
-        const value =
-          comments_keysToInject.length > 0
-            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !comments_keysToInject.includes(k)))
-            : _r;
-        comments_hashMap!.get(key)!.push(value as unknown);
-      }
-      if (comments_skip !== undefined || comments_take !== undefined) {
-        for (const [key, group] of comments_hashMap!) {
-          const start = comments_skip ?? 0;
-          const end = comments_take !== undefined ? start + comments_take : undefined;
-          comments_hashMap!.set(key, group.slice(start, end));
+      const comments_userWhere = comments_opts.where as Record<string, unknown> | undefined;
+      if (comments_cursor !== undefined || comments_distinct !== undefined) {
+        for (const parentId of comments_parentIds) {
+          const comments_perParentFkWhere = { postId: parentId };
+          const comments_perParentWhere = comments_userWhere
+            ? { AND: [comments_userWhere, comments_perParentFkWhere] }
+            : comments_perParentFkWhere;
+          const children = await this.client.comment.findMany(
+            {
+              ...comments_opts,
+              ...(comments_keysToInject.length > 0
+                ? { select: { ...comments_sel, ...Object.fromEntries(comments_keysToInject.map((k) => [k, true])) } }
+                : {}),
+              where: comments_perParentWhere,
+            },
+            { tx }
+          );
+          const stripped = children.map((c) => {
+            const _r = c as Record<string, unknown>;
+            return comments_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !comments_keysToInject.includes(k)))
+              : _r;
+          });
+          comments_hashMap!.set(JSON.stringify(parentId), stripped as unknown[]);
+        }
+      } else {
+        const comments_fkWhere = { postId: { in: comments_parentIds } };
+        const comments_where = comments_userWhere ? { AND: [comments_userWhere, comments_fkWhere] } : comments_fkWhere;
+        const comments_allRelated = await this.client.comment.findMany(
+          {
+            ...comments_opts,
+            ...(comments_keysToInject.length > 0
+              ? { select: { ...comments_sel, ...Object.fromEntries(comments_keysToInject.map((k) => [k, true])) } }
+              : {}),
+            take: undefined,
+            skip: undefined,
+            where: comments_where,
+          },
+          { tx }
+        );
+        for (const related of comments_allRelated) {
+          const _r = related as Record<string, unknown>;
+          const key = JSON.stringify(_r["postId"]);
+          if (!comments_hashMap!.has(key)) comments_hashMap!.set(key, []);
+          const value =
+            comments_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !comments_keysToInject.includes(k)))
+              : _r;
+          comments_hashMap!.get(key)!.push(value as unknown);
+        }
+        if (comments_skip !== undefined || comments_take !== undefined) {
+          for (const [key, group] of comments_hashMap!) {
+            let sliced = group;
+            if (comments_skip !== undefined) sliced = sliced.slice(comments_skip);
+            if (comments_take !== undefined)
+              sliced = comments_take < 0 ? sliced.slice(comments_take) : sliced.slice(0, comments_take);
+            comments_hashMap!.set(key, sliced);
+          }
         }
       }
     }
@@ -6572,13 +6880,16 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
       const post_sel = post_opts.select as Record<string, boolean> | undefined;
       const post_keysToInject = post_sel ? (["id"] as string[]).filter((k) => !post_sel![k]) : [];
       const post_fkValues = [...new Set(records.map((r) => r.postId).filter((v) => v !== null && v !== undefined))];
+      const post_userWhere = post_opts.where as Record<string, unknown> | undefined;
+      const post_fkWhere = { id: { in: post_fkValues } };
+      const post_where = post_userWhere ? { AND: [post_userWhere, post_fkWhere] } : post_fkWhere;
       const post_related = await this.client.post.findMany(
         {
           ...post_opts,
           ...(post_keysToInject.length > 0
             ? { select: { ...post_sel, ...Object.fromEntries(post_keysToInject.map((k) => [k, true])) } }
             : {}),
-          where: { id: { in: post_fkValues } },
+          where: post_where,
         },
         { tx }
       );
@@ -6601,13 +6912,16 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
       const user_sel = user_opts.select as Record<string, boolean> | undefined;
       const user_keysToInject = user_sel ? (["id"] as string[]).filter((k) => !user_sel![k]) : [];
       const user_fkValues = [...new Set(records.map((r) => r.userId).filter((v) => v !== null && v !== undefined))];
+      const user_userWhere = user_opts.where as Record<string, unknown> | undefined;
+      const user_fkWhere = { id: { in: user_fkValues } };
+      const user_where = user_userWhere ? { AND: [user_userWhere, user_fkWhere] } : user_fkWhere;
       const user_related = await this.client.user.findMany(
         {
           ...user_opts,
           ...(user_keysToInject.length > 0
             ? { select: { ...user_sel, ...Object.fromEntries(user_keysToInject.map((k) => [k, true])) } }
             : {}),
-          where: { id: { in: user_fkValues } },
+          where: user_where,
         },
         { tx }
       );
@@ -7600,13 +7914,16 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       const user_sel = user_opts.select as Record<string, boolean> | undefined;
       const user_keysToInject = user_sel ? (["id"] as string[]).filter((k) => !user_sel![k]) : [];
       const user_fkValues = [...new Set(records.map((r) => r.userId).filter((v) => v !== null && v !== undefined))];
+      const user_userWhere = user_opts.where as Record<string, unknown> | undefined;
+      const user_fkWhere = { id: { in: user_fkValues } };
+      const user_where = user_userWhere ? { AND: [user_userWhere, user_fkWhere] } : user_fkWhere;
       const user_related = await this.client.user.findMany(
         {
           ...user_opts,
           ...(user_keysToInject.length > 0
             ? { select: { ...user_sel, ...Object.fromEntries(user_keysToInject.map((k) => [k, true])) } }
             : {}),
-          where: { id: { in: user_fkValues } },
+          where: user_where,
         },
         { tx }
       );
@@ -10440,13 +10757,16 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
       const link_sel = link_opts.select as Record<string, boolean> | undefined;
       const link_keysToInject = link_sel ? (["id"] as string[]).filter((k) => !link_sel![k]) : [];
       const link_fkValues = [...new Set(records.map((r) => r.linkId).filter((v) => v !== null && v !== undefined))];
+      const link_userWhere = link_opts.where as Record<string, unknown> | undefined;
+      const link_fkWhere = { id: { in: link_fkValues } };
+      const link_where = link_userWhere ? { AND: [link_userWhere, link_fkWhere] } : link_fkWhere;
       const link_related = await this.client.modelWithUniqueAttributes.findMany(
         {
           ...link_opts,
           ...(link_keysToInject.length > 0
             ? { select: { ...link_sel, ...Object.fromEntries(link_keysToInject.map((k) => [k, true])) } }
             : {}),
-          where: { id: { in: link_fkValues } },
+          where: link_where,
         },
         { tx }
       );
@@ -11390,43 +11710,70 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
       const links_opts = (attach_links === true ? {} : attach_links) as Record<string, unknown>;
       const links_sel = links_opts.select as Record<string, boolean> | undefined;
       const links_keysToInject = links_sel ? (["linkId"] as string[]).filter((k) => !links_sel![k]) : [];
+      const links_take = links_opts.take as number | undefined;
+      const links_skip = links_opts.skip as number | undefined;
+      const links_cursor = links_opts.cursor;
+      const links_distinct = links_opts.distinct;
       const links_parentIds = [...new Set(records.map((r) => r.id))];
-      const links_allRelated = await this.client.modelWithOptionalRelationToUniqueAttributes.findMany(
-        {
-          ...links_opts,
-          ...(links_keysToInject.length > 0
-            ? { select: { ...links_sel, ...Object.fromEntries(links_keysToInject.map((k) => [k, true])) } }
-            : {}),
-          take: undefined,
-          skip: undefined,
-          where: { linkId: { in: links_parentIds } },
-        },
-        { tx }
-      );
-      const links_take =
-        attach_links !== true
-          ? (attach_links as Prisma.ModelWithOptionalRelationToUniqueAttributesFindManyArgs).take
-          : undefined;
-      const links_skip =
-        attach_links !== true
-          ? (attach_links as Prisma.ModelWithOptionalRelationToUniqueAttributesFindManyArgs).skip
-          : undefined;
       links_hashMap = new Map<string, unknown[]>();
-      for (const related of links_allRelated) {
-        const _r = related as Record<string, unknown>;
-        const key = JSON.stringify(_r["linkId"]);
-        if (!links_hashMap!.has(key)) links_hashMap!.set(key, []);
-        const value =
-          links_keysToInject.length > 0
-            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !links_keysToInject.includes(k)))
-            : _r;
-        links_hashMap!.get(key)!.push(value as unknown);
-      }
-      if (links_skip !== undefined || links_take !== undefined) {
-        for (const [key, group] of links_hashMap!) {
-          const start = links_skip ?? 0;
-          const end = links_take !== undefined ? start + links_take : undefined;
-          links_hashMap!.set(key, group.slice(start, end));
+      const links_userWhere = links_opts.where as Record<string, unknown> | undefined;
+      if (links_cursor !== undefined || links_distinct !== undefined) {
+        for (const parentId of links_parentIds) {
+          const links_perParentFkWhere = { linkId: parentId };
+          const links_perParentWhere = links_userWhere
+            ? { AND: [links_userWhere, links_perParentFkWhere] }
+            : links_perParentFkWhere;
+          const children = await this.client.modelWithOptionalRelationToUniqueAttributes.findMany(
+            {
+              ...links_opts,
+              ...(links_keysToInject.length > 0
+                ? { select: { ...links_sel, ...Object.fromEntries(links_keysToInject.map((k) => [k, true])) } }
+                : {}),
+              where: links_perParentWhere,
+            },
+            { tx }
+          );
+          const stripped = children.map((c) => {
+            const _r = c as Record<string, unknown>;
+            return links_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !links_keysToInject.includes(k)))
+              : _r;
+          });
+          links_hashMap!.set(JSON.stringify(parentId), stripped as unknown[]);
+        }
+      } else {
+        const links_fkWhere = { linkId: { in: links_parentIds } };
+        const links_where = links_userWhere ? { AND: [links_userWhere, links_fkWhere] } : links_fkWhere;
+        const links_allRelated = await this.client.modelWithOptionalRelationToUniqueAttributes.findMany(
+          {
+            ...links_opts,
+            ...(links_keysToInject.length > 0
+              ? { select: { ...links_sel, ...Object.fromEntries(links_keysToInject.map((k) => [k, true])) } }
+              : {}),
+            take: undefined,
+            skip: undefined,
+            where: links_where,
+          },
+          { tx }
+        );
+        for (const related of links_allRelated) {
+          const _r = related as Record<string, unknown>;
+          const key = JSON.stringify(_r["linkId"]);
+          if (!links_hashMap!.has(key)) links_hashMap!.set(key, []);
+          const value =
+            links_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !links_keysToInject.includes(k)))
+              : _r;
+          links_hashMap!.get(key)!.push(value as unknown);
+        }
+        if (links_skip !== undefined || links_take !== undefined) {
+          for (const [key, group] of links_hashMap!) {
+            let sliced = group;
+            if (links_skip !== undefined) sliced = sliced.slice(links_skip);
+            if (links_take !== undefined)
+              sliced = links_take < 0 ? sliced.slice(links_take) : sliced.slice(0, links_take);
+            links_hashMap!.set(key, sliced);
+          }
         }
       }
     }
@@ -12425,13 +12772,16 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
       const group_sel = group_opts.select as Record<string, boolean> | undefined;
       const group_keysToInject = group_sel ? (["id"] as string[]).filter((k) => !group_sel![k]) : [];
       const group_fkValues = [...new Set(records.map((r) => r.groupId).filter((v) => v !== null && v !== undefined))];
+      const group_userWhere = group_opts.where as Record<string, unknown> | undefined;
+      const group_fkWhere = { id: { in: group_fkValues } };
+      const group_where = group_userWhere ? { AND: [group_userWhere, group_fkWhere] } : group_fkWhere;
       const group_related = await this.client.group.findMany(
         {
           ...group_opts,
           ...(group_keysToInject.length > 0
             ? { select: { ...group_sel, ...Object.fromEntries(group_keysToInject.map((k) => [k, true])) } }
             : {}),
-          where: { id: { in: group_fkValues } },
+          where: group_where,
         },
         { tx }
       );
@@ -12454,13 +12804,16 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
       const user_sel = user_opts.select as Record<string, boolean> | undefined;
       const user_keysToInject = user_sel ? (["id"] as string[]).filter((k) => !user_sel![k]) : [];
       const user_fkValues = [...new Set(records.map((r) => r.userId).filter((v) => v !== null && v !== undefined))];
+      const user_userWhere = user_opts.where as Record<string, unknown> | undefined;
+      const user_fkWhere = { id: { in: user_fkValues } };
+      const user_where = user_userWhere ? { AND: [user_userWhere, user_fkWhere] } : user_fkWhere;
       const user_related = await this.client.user.findMany(
         {
           ...user_opts,
           ...(user_keysToInject.length > 0
             ? { select: { ...user_sel, ...Object.fromEntries(user_keysToInject.map((k) => [k, true])) } }
             : {}),
-          where: { id: { in: user_fkValues } },
+          where: user_where,
         },
         { tx }
       );
@@ -13556,38 +13909,74 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
       const children_keysToInject = children_sel
         ? (["fatherLastName", "fatherFirstName"] as string[]).filter((k) => !children_sel![k])
         : [];
+      const children_take = children_opts.take as number | undefined;
+      const children_skip = children_opts.skip as number | undefined;
+      const children_cursor = children_opts.cursor;
+      const children_distinct = children_opts.distinct;
       const children_pk0_values = [...new Set(records.map((r) => r.lastName))];
       const children_pk1_values = [...new Set(records.map((r) => r.firstName))];
-      const children_allRelated = await this.client.child.findMany(
-        {
-          ...children_opts,
-          ...(children_keysToInject.length > 0
-            ? { select: { ...children_sel, ...Object.fromEntries(children_keysToInject.map((k) => [k, true])) } }
-            : {}),
-          take: undefined,
-          skip: undefined,
-          where: { fatherLastName: { in: children_pk0_values }, fatherFirstName: { in: children_pk1_values } },
-        },
-        { tx }
-      );
-      const children_take = attach_children !== true ? (attach_children as Prisma.ChildFindManyArgs).take : undefined;
-      const children_skip = attach_children !== true ? (attach_children as Prisma.ChildFindManyArgs).skip : undefined;
       children_hashMap = new Map<string, unknown[]>();
-      for (const related of children_allRelated) {
-        const _r = related as Record<string, unknown>;
-        const key = JSON.stringify([_r["fatherLastName"], _r["fatherFirstName"]]);
-        if (!children_hashMap!.has(key)) children_hashMap!.set(key, []);
-        const value =
-          children_keysToInject.length > 0
-            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !children_keysToInject.includes(k)))
-            : _r;
-        children_hashMap!.get(key)!.push(value as unknown);
-      }
-      if (children_skip !== undefined || children_take !== undefined) {
-        for (const [key, group] of children_hashMap!) {
-          const start = children_skip ?? 0;
-          const end = children_take !== undefined ? start + children_take : undefined;
-          children_hashMap!.set(key, group.slice(start, end));
+      const children_userWhere = children_opts.where as Record<string, unknown> | undefined;
+      if (children_cursor !== undefined || children_distinct !== undefined) {
+        for (const parent of records) {
+          const children_perParentFkWhere = { fatherLastName: parent.lastName, fatherFirstName: parent.firstName };
+          const children_perParentWhere = children_userWhere
+            ? { AND: [children_userWhere, children_perParentFkWhere] }
+            : children_perParentFkWhere;
+          const children = await this.client.child.findMany(
+            {
+              ...children_opts,
+              ...(children_keysToInject.length > 0
+                ? { select: { ...children_sel, ...Object.fromEntries(children_keysToInject.map((k) => [k, true])) } }
+                : {}),
+              where: children_perParentWhere,
+            },
+            { tx }
+          );
+          const stripped = children.map((c) => {
+            const _r = c as Record<string, unknown>;
+            return children_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !children_keysToInject.includes(k)))
+              : _r;
+          });
+          children_hashMap!.set(JSON.stringify([parent.lastName, parent.firstName]), stripped as unknown[]);
+        }
+      } else {
+        const children_fkWhere = {
+          fatherLastName: { in: children_pk0_values },
+          fatherFirstName: { in: children_pk1_values },
+        };
+        const children_where = children_userWhere ? { AND: [children_userWhere, children_fkWhere] } : children_fkWhere;
+        const children_allRelated = await this.client.child.findMany(
+          {
+            ...children_opts,
+            ...(children_keysToInject.length > 0
+              ? { select: { ...children_sel, ...Object.fromEntries(children_keysToInject.map((k) => [k, true])) } }
+              : {}),
+            take: undefined,
+            skip: undefined,
+            where: children_where,
+          },
+          { tx }
+        );
+        for (const related of children_allRelated) {
+          const _r = related as Record<string, unknown>;
+          const key = JSON.stringify([_r["fatherLastName"], _r["fatherFirstName"]]);
+          if (!children_hashMap!.has(key)) children_hashMap!.set(key, []);
+          const value =
+            children_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !children_keysToInject.includes(k)))
+              : _r;
+          children_hashMap!.get(key)!.push(value as unknown);
+        }
+        if (children_skip !== undefined || children_take !== undefined) {
+          for (const [key, group] of children_hashMap!) {
+            let sliced = group;
+            if (children_skip !== undefined) sliced = sliced.slice(children_skip);
+            if (children_take !== undefined)
+              sliced = children_take < 0 ? sliced.slice(children_take) : sliced.slice(0, children_take);
+            children_hashMap!.set(key, sliced);
+          }
         }
       }
     }
@@ -13603,13 +13992,16 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
       const wife_pk1_values = [
         ...new Set(records.map((r) => r.motherLastName).filter((v) => v !== null && v !== undefined)),
       ];
+      const wife_userWhere = wife_opts.where as Record<string, unknown> | undefined;
+      const wife_fkWhere = { firstName: { in: wife_pk0_values }, lastName: { in: wife_pk1_values } };
+      const wife_where = wife_userWhere ? { AND: [wife_userWhere, wife_fkWhere] } : wife_fkWhere;
       const wife_related = await this.client.mother.findMany(
         {
           ...wife_opts,
           ...(wife_keysToInject.length > 0
             ? { select: { ...wife_sel, ...Object.fromEntries(wife_keysToInject.map((k) => [k, true])) } }
             : {}),
-          where: { firstName: { in: wife_pk0_values }, lastName: { in: wife_pk1_values } },
+          where: wife_where,
         },
         { tx }
       );
@@ -13632,13 +14024,16 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
       const user_sel = user_opts.select as Record<string, boolean> | undefined;
       const user_keysToInject = user_sel ? (["id"] as string[]).filter((k) => !user_sel![k]) : [];
       const user_fkValues = [...new Set(records.map((r) => r.userId).filter((v) => v !== null && v !== undefined))];
+      const user_userWhere = user_opts.where as Record<string, unknown> | undefined;
+      const user_fkWhere = { id: { in: user_fkValues } };
+      const user_where = user_userWhere ? { AND: [user_userWhere, user_fkWhere] } : user_fkWhere;
       const user_related = await this.client.user.findMany(
         {
           ...user_opts,
           ...(user_keysToInject.length > 0
             ? { select: { ...user_sel, ...Object.fromEntries(user_keysToInject.map((k) => [k, true])) } }
             : {}),
-          where: { id: { in: user_fkValues } },
+          where: user_where,
         },
         { tx }
       );
@@ -15108,38 +15503,74 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
       const children_keysToInject = children_sel
         ? (["motherFirstName", "motherLastName"] as string[]).filter((k) => !children_sel![k])
         : [];
+      const children_take = children_opts.take as number | undefined;
+      const children_skip = children_opts.skip as number | undefined;
+      const children_cursor = children_opts.cursor;
+      const children_distinct = children_opts.distinct;
       const children_pk0_values = [...new Set(records.map((r) => r.firstName))];
       const children_pk1_values = [...new Set(records.map((r) => r.lastName))];
-      const children_allRelated = await this.client.child.findMany(
-        {
-          ...children_opts,
-          ...(children_keysToInject.length > 0
-            ? { select: { ...children_sel, ...Object.fromEntries(children_keysToInject.map((k) => [k, true])) } }
-            : {}),
-          take: undefined,
-          skip: undefined,
-          where: { motherFirstName: { in: children_pk0_values }, motherLastName: { in: children_pk1_values } },
-        },
-        { tx }
-      );
-      const children_take = attach_children !== true ? (attach_children as Prisma.ChildFindManyArgs).take : undefined;
-      const children_skip = attach_children !== true ? (attach_children as Prisma.ChildFindManyArgs).skip : undefined;
       children_hashMap = new Map<string, unknown[]>();
-      for (const related of children_allRelated) {
-        const _r = related as Record<string, unknown>;
-        const key = JSON.stringify([_r["motherFirstName"], _r["motherLastName"]]);
-        if (!children_hashMap!.has(key)) children_hashMap!.set(key, []);
-        const value =
-          children_keysToInject.length > 0
-            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !children_keysToInject.includes(k)))
-            : _r;
-        children_hashMap!.get(key)!.push(value as unknown);
-      }
-      if (children_skip !== undefined || children_take !== undefined) {
-        for (const [key, group] of children_hashMap!) {
-          const start = children_skip ?? 0;
-          const end = children_take !== undefined ? start + children_take : undefined;
-          children_hashMap!.set(key, group.slice(start, end));
+      const children_userWhere = children_opts.where as Record<string, unknown> | undefined;
+      if (children_cursor !== undefined || children_distinct !== undefined) {
+        for (const parent of records) {
+          const children_perParentFkWhere = { motherFirstName: parent.firstName, motherLastName: parent.lastName };
+          const children_perParentWhere = children_userWhere
+            ? { AND: [children_userWhere, children_perParentFkWhere] }
+            : children_perParentFkWhere;
+          const children = await this.client.child.findMany(
+            {
+              ...children_opts,
+              ...(children_keysToInject.length > 0
+                ? { select: { ...children_sel, ...Object.fromEntries(children_keysToInject.map((k) => [k, true])) } }
+                : {}),
+              where: children_perParentWhere,
+            },
+            { tx }
+          );
+          const stripped = children.map((c) => {
+            const _r = c as Record<string, unknown>;
+            return children_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !children_keysToInject.includes(k)))
+              : _r;
+          });
+          children_hashMap!.set(JSON.stringify([parent.firstName, parent.lastName]), stripped as unknown[]);
+        }
+      } else {
+        const children_fkWhere = {
+          motherFirstName: { in: children_pk0_values },
+          motherLastName: { in: children_pk1_values },
+        };
+        const children_where = children_userWhere ? { AND: [children_userWhere, children_fkWhere] } : children_fkWhere;
+        const children_allRelated = await this.client.child.findMany(
+          {
+            ...children_opts,
+            ...(children_keysToInject.length > 0
+              ? { select: { ...children_sel, ...Object.fromEntries(children_keysToInject.map((k) => [k, true])) } }
+              : {}),
+            take: undefined,
+            skip: undefined,
+            where: children_where,
+          },
+          { tx }
+        );
+        for (const related of children_allRelated) {
+          const _r = related as Record<string, unknown>;
+          const key = JSON.stringify([_r["motherFirstName"], _r["motherLastName"]]);
+          if (!children_hashMap!.has(key)) children_hashMap!.set(key, []);
+          const value =
+            children_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !children_keysToInject.includes(k)))
+              : _r;
+          children_hashMap!.get(key)!.push(value as unknown);
+        }
+        if (children_skip !== undefined || children_take !== undefined) {
+          for (const [key, group] of children_hashMap!) {
+            let sliced = group;
+            if (children_skip !== undefined) sliced = sliced.slice(children_skip);
+            if (children_take !== undefined)
+              sliced = children_take < 0 ? sliced.slice(children_take) : sliced.slice(0, children_take);
+            children_hashMap!.set(key, sliced);
+          }
         }
       }
     }
@@ -15153,13 +15584,19 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
         : [];
       const husband_pk0_values = [...new Set(records.map((r) => r.firstName))];
       const husband_pk1_values = [...new Set(records.map((r) => r.lastName))];
+      const husband_userWhere = husband_opts.where as Record<string, unknown> | undefined;
+      const husband_fkWhere = {
+        motherFirstName: { in: husband_pk0_values },
+        motherLastName: { in: husband_pk1_values },
+      };
+      const husband_where = husband_userWhere ? { AND: [husband_userWhere, husband_fkWhere] } : husband_fkWhere;
       const husband_related = await this.client.father.findMany(
         {
           ...husband_opts,
           ...(husband_keysToInject.length > 0
             ? { select: { ...husband_sel, ...Object.fromEntries(husband_keysToInject.map((k) => [k, true])) } }
             : {}),
-          where: { motherFirstName: { in: husband_pk0_values }, motherLastName: { in: husband_pk1_values } },
+          where: husband_where,
         },
         { tx }
       );
@@ -15182,13 +15619,16 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
       const user_sel = user_opts.select as Record<string, boolean> | undefined;
       const user_keysToInject = user_sel ? (["id"] as string[]).filter((k) => !user_sel![k]) : [];
       const user_fkValues = [...new Set(records.map((r) => r.userId).filter((v) => v !== null && v !== undefined))];
+      const user_userWhere = user_opts.where as Record<string, unknown> | undefined;
+      const user_fkWhere = { id: { in: user_fkValues } };
+      const user_where = user_userWhere ? { AND: [user_userWhere, user_fkWhere] } : user_fkWhere;
       const user_related = await this.client.user.findMany(
         {
           ...user_opts,
           ...(user_keysToInject.length > 0
             ? { select: { ...user_sel, ...Object.fromEntries(user_keysToInject.map((k) => [k, true])) } }
             : {}),
-          where: { id: { in: user_fkValues } },
+          where: user_where,
         },
         { tx }
       );
@@ -16645,13 +17085,16 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
       const user_sel = user_opts.select as Record<string, boolean> | undefined;
       const user_keysToInject = user_sel ? (["id"] as string[]).filter((k) => !user_sel![k]) : [];
       const user_fkValues = [...new Set(records.map((r) => r.userId).filter((v) => v !== null && v !== undefined))];
+      const user_userWhere = user_opts.where as Record<string, unknown> | undefined;
+      const user_fkWhere = { id: { in: user_fkValues } };
+      const user_where = user_userWhere ? { AND: [user_userWhere, user_fkWhere] } : user_fkWhere;
       const user_related = await this.client.user.findMany(
         {
           ...user_opts,
           ...(user_keysToInject.length > 0
             ? { select: { ...user_sel, ...Object.fromEntries(user_keysToInject.map((k) => [k, true])) } }
             : {}),
-          where: { id: { in: user_fkValues } },
+          where: user_where,
         },
         { tx }
       );
@@ -16681,13 +17124,16 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
       const father_pk1_values = [
         ...new Set(records.map((r) => r.fatherFirstName).filter((v) => v !== null && v !== undefined)),
       ];
+      const father_userWhere = father_opts.where as Record<string, unknown> | undefined;
+      const father_fkWhere = { lastName: { in: father_pk0_values }, firstName: { in: father_pk1_values } };
+      const father_where = father_userWhere ? { AND: [father_userWhere, father_fkWhere] } : father_fkWhere;
       const father_related = await this.client.father.findMany(
         {
           ...father_opts,
           ...(father_keysToInject.length > 0
             ? { select: { ...father_sel, ...Object.fromEntries(father_keysToInject.map((k) => [k, true])) } }
             : {}),
-          where: { lastName: { in: father_pk0_values }, firstName: { in: father_pk1_values } },
+          where: father_where,
         },
         { tx }
       );
@@ -16717,13 +17163,16 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
       const mother_pk1_values = [
         ...new Set(records.map((r) => r.motherLastName).filter((v) => v !== null && v !== undefined)),
       ];
+      const mother_userWhere = mother_opts.where as Record<string, unknown> | undefined;
+      const mother_fkWhere = { firstName: { in: mother_pk0_values }, lastName: { in: mother_pk1_values } };
+      const mother_where = mother_userWhere ? { AND: [mother_userWhere, mother_fkWhere] } : mother_fkWhere;
       const mother_related = await this.client.mother.findMany(
         {
           ...mother_opts,
           ...(mother_keysToInject.length > 0
             ? { select: { ...mother_sel, ...Object.fromEntries(mother_keysToInject.map((k) => [k, true])) } }
             : {}),
-          where: { firstName: { in: mother_pk0_values }, lastName: { in: mother_pk1_values } },
+          where: mother_where,
         },
         { tx }
       );
