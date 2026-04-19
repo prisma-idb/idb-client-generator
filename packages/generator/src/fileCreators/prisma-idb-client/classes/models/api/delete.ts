@@ -3,7 +3,25 @@ import { Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
 import { getOptionsParameterWrite, getOptionsSetupWrite } from "../helpers/methodOptions";
 
-export function addDeleteMethod(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+export function addDeleteRecordInternalMethod(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+  const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
+  const keyPath = pk.map((field) => `record.${field}`).join(", ");
+  writer
+    .writeLine(`private async _deleteRecord(`)
+    .writeLine(`record: Prisma.Result<Prisma.${model.name}Delegate, object, "findFirstOrThrow">,`)
+    .writeLine(`tx: IDBUtils.ReadwriteTransactionType,`)
+    .writeLine(`options?: { silent?: boolean; addToOutbox?: boolean },`)
+    .writeLine(`): Promise<void>`)
+    .block(() => {
+      writer.writeLine(`const { silent = false, addToOutbox = true } = options ?? {};`);
+      handleCascadeDeletes(writer, model, models);
+      writer
+        .writeLine(`await tx.objectStore("${model.name}").delete([${keyPath}]);`)
+        .writeLine(`await this.emit("delete", [${keyPath}], undefined, record, { silent, addToOutbox, tx });`);
+    });
+}
+
+export function addDeleteMethod(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`async delete<Q extends Prisma.Args<Prisma.${model.name}Delegate, "delete">>(`)
     .writeLine(`query: Q,`)
@@ -12,8 +30,7 @@ export function addDeleteMethod(writer: CodeBlockWriter, model: Model, models: r
     .block(() => {
       writer.write(getOptionsSetupWrite());
       createTxAndGetRecord(writer);
-      handleCascadeDeletes(writer, model, models);
-      deleteAndReturnRecord(writer, model);
+      writer.writeLine(`await this._deleteRecord(record, tx, { silent, addToOutbox });`).writeLine(`return record;`);
     });
 }
 
@@ -80,13 +97,4 @@ function handleCascadeDeletes(writer: CodeBlockWriter, model: Model, models: rea
       }
     }
   }
-}
-
-function deleteAndReturnRecord(writer: CodeBlockWriter, model: Model) {
-  const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
-  const keyPath = pk.map((field) => `record.${field}`).join(", ");
-  writer
-    .writeLine(`await tx.objectStore("${model.name}").delete([${keyPath}]);`)
-    .writeLine(`await this.emit("delete", [${keyPath}], undefined, record, { silent, addToOutbox, tx });`)
-    .writeLine(`return record;`);
 }

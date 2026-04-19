@@ -1063,6 +1063,21 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
 
     return tx.objectStore("Board").getAll();
   }
+  private async _deleteRecord(
+    record: Prisma.Result<Prisma.BoardDelegate, object, "findFirstOrThrow">,
+    tx: IDBUtils.ReadwriteTransactionType,
+    options?: { silent?: boolean; addToOutbox?: boolean }
+  ): Promise<void> {
+    const { silent = false, addToOutbox = true } = options ?? {};
+    await this.client.todo.deleteMany(
+      {
+        where: { boardId: record.id },
+      },
+      { tx, silent, addToOutbox }
+    );
+    await tx.objectStore("Board").delete([record.id]);
+    await this.emit("delete", [record.id], undefined, record, { silent, addToOutbox, tx });
+  }
   async findMany<Q extends Prisma.Args<Prisma.BoardDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -1398,14 +1413,7 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this.client.todo.deleteMany(
-      {
-        where: { boardId: record.id },
-      },
-      { tx, silent, addToOutbox }
-    );
-    await tx.objectStore("Board").delete([record.id]);
-    await this.emit("delete", [record.id], undefined, record, { silent, addToOutbox, tx });
+    await this._deleteRecord(record, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.BoardDelegate, "deleteMany">>(
@@ -1422,9 +1430,7 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
     this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const records = await this.findMany(query, { tx });
-    for (const record of records) {
-      await this.delete({ where: { id: record.id } }, { tx, silent, addToOutbox });
-    }
+    await Promise.all(records.map((record) => this._deleteRecord(record, tx, { silent, addToOutbox })));
     return { count: records.length };
   }
   async update<Q extends Prisma.Args<Prisma.BoardDelegate, "update">>(
@@ -2075,6 +2081,15 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
 
     return tx.objectStore("Todo").getAll();
   }
+  private async _deleteRecord(
+    record: Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">,
+    tx: IDBUtils.ReadwriteTransactionType,
+    options?: { silent?: boolean; addToOutbox?: boolean }
+  ): Promise<void> {
+    const { silent = false, addToOutbox = true } = options ?? {};
+    await tx.objectStore("Todo").delete([record.id]);
+    await this.emit("delete", [record.id], undefined, record, { silent, addToOutbox, tx });
+  }
   async findMany<Q extends Prisma.Args<Prisma.TodoDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -2360,8 +2375,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await tx.objectStore("Todo").delete([record.id]);
-    await this.emit("delete", [record.id], undefined, record, { silent, addToOutbox, tx });
+    await this._deleteRecord(record, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.TodoDelegate, "deleteMany">>(
@@ -2378,9 +2392,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const records = await this.findMany(query, { tx });
-    for (const record of records) {
-      await this.delete({ where: { id: record.id } }, { tx, silent, addToOutbox });
-    }
+    await Promise.all(records.map((record) => this._deleteRecord(record, tx, { silent, addToOutbox })));
     return { count: records.length };
   }
   async update<Q extends Prisma.Args<Prisma.TodoDelegate, "update">>(
@@ -3047,6 +3059,21 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
 
     return tx.objectStore("User").getAll();
   }
+  private async _deleteRecord(
+    record: Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">,
+    tx: IDBUtils.ReadwriteTransactionType,
+    options?: { silent?: boolean; addToOutbox?: boolean }
+  ): Promise<void> {
+    const { silent = false, addToOutbox = true } = options ?? {};
+    await this.client.board.deleteMany(
+      {
+        where: { userId: record.id },
+      },
+      { tx, silent, addToOutbox }
+    );
+    await tx.objectStore("User").delete([record.id]);
+    await this.emit("delete", [record.id], undefined, record, { silent, addToOutbox, tx });
+  }
   async findMany<Q extends Prisma.Args<Prisma.UserDelegate, "findMany">>(
     query?: Q,
     options?: {
@@ -3354,14 +3381,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this.client.board.deleteMany(
-      {
-        where: { userId: record.id },
-      },
-      { tx, silent, addToOutbox }
-    );
-    await tx.objectStore("User").delete([record.id]);
-    await this.emit("delete", [record.id], undefined, record, { silent, addToOutbox, tx });
+    await this._deleteRecord(record, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.UserDelegate, "deleteMany">>(
@@ -3378,9 +3398,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const records = await this.findMany(query, { tx });
-    for (const record of records) {
-      await this.delete({ where: { id: record.id } }, { tx, silent, addToOutbox });
-    }
+    await Promise.all(records.map((record) => this._deleteRecord(record, tx, { silent, addToOutbox })));
     return { count: records.length };
   }
   async update<Q extends Prisma.Args<Prisma.UserDelegate, "update">>(

@@ -6,7 +6,7 @@ import { addCountMethod } from "./api/count";
 import { addCreateMethod } from "./api/create";
 import { addCreateManyMethod } from "./api/createMany";
 import { addCreateManyAndReturn } from "./api/createManyAndReturn";
-import { addDeleteMethod } from "./api/delete";
+import { addDeleteMethod, addDeleteRecordInternalMethod } from "./api/delete";
 import { addDeleteManyMethod } from "./api/deleteMany";
 import { addFindFirstMethod } from "./api/findFirst";
 import { addFindFirstOrThrow } from "./api/findFirstOrThrow";
@@ -59,6 +59,8 @@ export function addIDBModelClass(
     addPreprocessListFields(writer, model);
     addGetRecords(writer, model, datamodelIndexes);
 
+    addDeleteRecordInternalMethod(writer, model, models);
+
     addFindManyMethod(writer, model);
     addFindFirstMethod(writer, model);
     addFindFirstOrThrow(writer, model);
@@ -70,7 +72,7 @@ export function addIDBModelClass(
     addCreateManyMethod(writer, model, outboxSync, outboxModelName, versionMetaModelName);
     addCreateManyAndReturn(writer, model, outboxSync, outboxModelName, versionMetaModelName);
 
-    addDeleteMethod(writer, model, models);
+    addDeleteMethod(writer, model);
     addDeleteManyMethod(writer, model);
 
     addUpdateMethod(writer, model, models);
