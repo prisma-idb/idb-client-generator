@@ -10,6 +10,11 @@ export function addApplyRelations(writer: CodeBlockWriter, model: Model, models:
     .writeLine(`query?: Q): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'findFirstOrThrow'>[]>`)
     .block(() => {
       addEarlyExit(writer, model);
+      const hasRelations = model.fields.some(({ kind }) => kind === "object");
+      if (!hasRelations) {
+        addNoRelationsEarlyExit(writer, model);
+        return;
+      }
       addAttachFlags(writer, model);
       addNoRelationsEarlyExit(writer, model);
       addHashJoinBuildPhase(writer, model, models);
@@ -40,7 +45,10 @@ function addAttachFlags(writer: CodeBlockWriter, model: Model) {
 
 function addNoRelationsEarlyExit(writer: CodeBlockWriter, model: Model) {
   const relationFields = model.fields.filter(({ kind }) => kind === "object");
-  if (relationFields.length === 0) return;
+  if (relationFields.length === 0) {
+    writer.writeLine(`return records as Prisma.Result<Prisma.${model.name}Delegate, Q, 'findFirstOrThrow'>[];`);
+    return;
+  }
   const condition = relationFields.map((f) => `!attach_${f.name}`).join(" && ");
   writer.writeLine(
     `if (${condition}) return records as Prisma.Result<Prisma.${model.name}Delegate, Q, 'findFirstOrThrow'>[];`

@@ -8882,11 +8882,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     query?: Q
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map((record) => {
-      const unsafeRecord = record as Record<string, unknown>;
-      return unsafeRecord;
-    });
-    return recordsWithRelations as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirstOrThrow">[];
+    return records as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">["orderBy"],
@@ -9616,11 +9612,7 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     query?: Q
   ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map((record) => {
-      const unsafeRecord = record as Record<string, unknown>;
-      return unsafeRecord;
-    });
-    return recordsWithRelations as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findFirstOrThrow">[];
+    return records as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">["orderBy"],
@@ -10221,11 +10213,7 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     query?: Q
   ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map((record) => {
-      const unsafeRecord = record as Record<string, unknown>;
-      return unsafeRecord;
-    });
-    return recordsWithRelations as Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirstOrThrow">[];
+    return records as Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">["orderBy"],
@@ -18637,11 +18625,7 @@ class CompositeIdIntStringIDBClass extends BaseIDBModelClass<"CompositeIdIntStri
     query?: Q
   ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map((record) => {
-      const unsafeRecord = record as Record<string, unknown>;
-      return unsafeRecord;
-    });
-    return recordsWithRelations as Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "findFirstOrThrow">[];
+    return records as Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "findMany">["orderBy"],
@@ -19264,11 +19248,7 @@ class CompositeIdWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeIdWith
     query?: Q
   ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map((record) => {
-      const unsafeRecord = record as Record<string, unknown>;
-      return unsafeRecord;
-    });
-    return recordsWithRelations as Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "findFirstOrThrow">[];
+    return records as Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "findMany">["orderBy"],
@@ -19899,11 +19879,7 @@ class TripleCompositeIdWithDateIDBClass extends BaseIDBModelClass<"TripleComposi
     query?: Q
   ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map((record) => {
-      const unsafeRecord = record as Record<string, unknown>;
-      return unsafeRecord;
-    });
-    return recordsWithRelations as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "findFirstOrThrow">[];
+    return records as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "findMany">["orderBy"],
@@ -20591,11 +20567,7 @@ class CompositeUniqueWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeUn
     query?: Q
   ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map((record) => {
-      const unsafeRecord = record as Record<string, unknown>;
-      return unsafeRecord;
-    });
-    return recordsWithRelations as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "findFirstOrThrow">[];
+    return records as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "findMany">["orderBy"],
@@ -21258,11 +21230,7 @@ class CompositeUniqueFloatIntIDBClass extends BaseIDBModelClass<"CompositeUnique
     query?: Q
   ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map((record) => {
-      const unsafeRecord = record as Record<string, unknown>;
-      return unsafeRecord;
-    });
-    return recordsWithRelations as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "findFirstOrThrow">[];
+    return records as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "findMany">["orderBy"],
@@ -21918,11 +21886,7 @@ class MultipleCompositeUniquesIDBClass extends BaseIDBModelClass<"MultipleCompos
     query?: Q
   ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map((record) => {
-      const unsafeRecord = record as Record<string, unknown>;
-      return unsafeRecord;
-    });
-    return recordsWithRelations as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "findFirstOrThrow">[];
+    return records as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "findMany">["orderBy"],
@@ -22638,11 +22602,7 @@ class ModelWithIndexIDBClass extends BaseIDBModelClass<"ModelWithIndex"> {
     query?: Q
   ): Promise<Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map((record) => {
-      const unsafeRecord = record as Record<string, unknown>;
-      return unsafeRecord;
-    });
-    return recordsWithRelations as Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "findFirstOrThrow">[];
+    return records as Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.ModelWithIndexDelegate, "findMany">["orderBy"],

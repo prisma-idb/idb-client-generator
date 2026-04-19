@@ -152,7 +152,8 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
     }
   }
 
-  const hasNoisy = summary.rows.some((r) => r.noisy);
+  const hasNoisyFail = summary.rows.some((r) => r.noisy && r.status === "FAIL");
+  const hasHighCV = summary.rows.some((r) => r.noisy);
 
   lines.push("");
   lines.push("<details><summary>Legend</summary>", "");
@@ -161,8 +162,10 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
   lines.push("| 🟢 | Pass — within threshold |");
   lines.push("| 🟡 | Warn — approaching threshold |");
   lines.push("| 🔴 | Fail — exceeds threshold |");
-  if (hasNoisy) {
+  if (hasNoisyFail) {
     lines.push("| 🟠 | Fail but noisy — high variance makes this unreliable |");
+  }
+  if (hasHighCV) {
     lines.push(
       `| 🎲 | High coefficient of variation (CV > ${(CV_THRESHOLD * 100).toFixed(0)}%) — samples are spread out |`
     );

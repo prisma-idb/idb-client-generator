@@ -186,6 +186,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[];
     const attach_todos = query.select?.todos || query.include?.todos;
+    if (!attach_todos) return records as Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[];
     let todos_hashMap: Map<string, unknown[]> | undefined;
     if (attach_todos) {
       const todos_opts = (attach_todos === true ? {} : attach_todos) as Record<string, unknown>;
@@ -1150,6 +1151,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
   ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[];
     const attach_user = query.select?.user || query.include?.user;
+    if (!attach_user) return records as Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[];
     let user_hashMap: Map<string, unknown> | undefined;
     if (attach_user) {
       const user_opts = (attach_user === true ? {} : attach_user) as Record<string, unknown>;
