@@ -168,21 +168,45 @@ function formatMetric(value: number | null): string {
   return value === null ? "n/a" : String(value);
 }
 
-function formatDelta(value: number | null, threshold: number): string {
-  if (value === null) return "n/a";
-  if (!Number.isFinite(value)) return value > 0 ? "+∞" : "-∞";
-  const sign = value > 0 ? "+" : "";
-  const formatted = `${sign}${value.toFixed(2)}%`;
-  if (value > threshold) return `**${formatted}** 📈`;
-  if (value < -threshold) return `**${formatted}** 📉`;
-  return formatted;
-}
-
 function formatDeltaCompact(value: number | null): string {
   if (value === null) return "n/a";
   if (!Number.isFinite(value)) return value > 0 ? "+∞" : "-∞";
   const sign = value > 0 ? "+" : "";
   return `${sign}${value.toFixed(2)}%`;
+}
+
+function exceedsThresholdInDirection(
+  value: number | null,
+  threshold: number,
+  direction: "positive" | "negative"
+): boolean {
+  if (value === null) return false;
+  if (!Number.isFinite(value))
+    return direction === "positive" ? value === Number.POSITIVE_INFINITY : value === Number.NEGATIVE_INFINITY;
+  return direction === "positive" ? value > threshold : value < -threshold;
+}
+
+function getAbsoluteMedianDeltaMs(row: ComparisonRow): number | null {
+  return row.median.baseline !== null && row.median.current !== null
+    ? Math.abs(row.median.current - row.median.baseline)
+    : null;
+}
+
+function isClearSpeedup(row: ComparisonRow, threshold: number): boolean {
+  if (!row.bootstrap) return false;
+  const absoluteMedianDelta = getAbsoluteMedianDeltaMs(row);
+  const exceedsAbsolute =
+    absoluteMedianDelta === null || absoluteMedianDelta >= BENCHMARK_REGRESSION_GATE.minAbsoluteDeltaMs;
+  return exceedsAbsolute && exceedsThresholdInDirection(row.bootstrap.ciUpperPercent, threshold, "negative");
+}
+
+function describeTrend(row: ComparisonRow, threshold: number): string {
+  if (!row.bootstrap) return "No sample data";
+  if (row.status === "FAIL") return row.noisy ? "Noisy slowdown" : "Slowdown";
+  if (row.status === "WARN") return "Possible slowdown";
+  if (isClearSpeedup(row, threshold)) return "Speedup";
+  if (exceedsThresholdInDirection(row.bootstrap.medianDeltaPercent, threshold, "negative")) return "Leaning faster";
+  return "No clear change";
 }
 
 function formatCIBound(value: number): string {
@@ -218,6 +242,13 @@ function pairMetric(baseline: number, current: number): MetricPair {
 function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
   const noisyRegressions = summary.rows.filter((r) => r.status === "FAIL" && r.noisy).length;
   const potentialRegressions = summary.rows.filter((r) => r.status === "WARN").length;
+  const clearSpeedups = summary.rows.filter((r) => isClearSpeedup(r, threshold)).length;
+  const leaningFaster = summary.rows.filter(
+    (r) =>
+      !isClearSpeedup(r, threshold) &&
+      r.bootstrap &&
+      exceedsThresholdInDirection(r.bootstrap.medianDeltaPercent, threshold, "negative")
+  ).length;
 
   const gateLabel = summary.isAdvisory
     ? "ℹ️ advisory only (non-blocking)"
@@ -237,6 +268,8 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
     `| **Blocking regressions** | ${summary.regressions.length} |`,
     `| **Potential regressions** | ${potentialRegressions} |`,
     `| **Noisy regressions (non-blocking)** | ${noisyRegressions} |`,
+    `| **Clear speedups** | ${clearSpeedups} |`,
+    `| **Leaning faster** | ${leaningFaster} |`,
     `| **Added / Removed** | ${summary.addedOperations.length} / ${summary.removedOperations.length} |`,
     "",
   ];
@@ -255,8 +288,8 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
   lines.push("");
 
   lines.push(
-    "| Status | Operation | Gate decision | Median Δ (95% CI) | Baseline median | Current median |",
-    "| :---: | :-- | :-- | :--- | ---: | ---: |"
+    "| Status | Operation | Trend | Gate decision | Median Δ | 95% CI | Baseline median | Current median |",
+    "| :---: | :-- | :-- | :-- | ---: | :-- | ---: | ---: |"
   );
 
   for (const row of summary.rows) {
@@ -277,11 +310,13 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
         : row.status === "WARN"
           ? `Point estimate > +${threshold}% but CI lower <= +${threshold}%`
           : `CI lower <= +${threshold}%`;
-    const ciCell = row.bootstrap
-      ? `${formatDelta(row.bootstrap.medianDeltaPercent, threshold)} (${formatCIBound(row.bootstrap.ciLowerPercent)} … ${formatCIBound(row.bootstrap.ciUpperPercent)})`
+    const medianDelta = row.bootstrap ? formatDeltaCompact(row.bootstrap.medianDeltaPercent) : "n/a";
+    const ciRange = row.bootstrap
+      ? `${formatCIBound(row.bootstrap.ciLowerPercent)} … ${formatCIBound(row.bootstrap.ciUpperPercent)}`
       : "n/a";
+    const trend = describeTrend(row, threshold);
     lines.push(
-      `| ${statusIcon} | \`${row.operationId}\`${noisyTag} | ${decision} | ${ciCell} | ${formatMetric(row.median.baseline)} | ${formatMetric(row.median.current)} |`
+      `| ${statusIcon} | \`${row.operationId}\`${noisyTag} | ${trend} | ${decision} | ${medianDelta} | ${ciRange} | ${formatMetric(row.median.baseline)} | ${formatMetric(row.median.current)} |`
     );
   }
 
