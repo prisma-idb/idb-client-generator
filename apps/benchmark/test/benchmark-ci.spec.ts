@@ -47,10 +47,7 @@ test("runs benchmark suite and exports JSON result", async ({ page }) => {
 
   const resultWithPlatform = { ...parsedResult, platform: process.platform };
 
-  const resultPath = resolve(
-    process.cwd(),
-    process.env.BENCHMARK_RESULT_PATH ?? "../../benchmarks/results/current.json"
-  );
+  const resultPath = resolve(process.cwd(), process.env.BENCHMARK_RESULT_PATH ?? "./.benchmark-results/current.json");
   await mkdir(dirname(resultPath), { recursive: true });
   await writeFile(resultPath, `${JSON.stringify(resultWithPlatform, null, 2)}\n`, "utf8");
 
