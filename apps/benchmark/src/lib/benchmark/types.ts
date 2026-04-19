@@ -54,6 +54,7 @@ export interface BenchmarkRunResult {
   startedAt: string;
   completedAt: string;
   browser: string;
+  platform?: string;
   config: BenchmarkConfig;
   totalDurationMs: number;
   operations: BenchmarkOperationResult[];

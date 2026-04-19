@@ -45,12 +45,14 @@ test("runs benchmark suite and exports JSON result", async ({ page }) => {
     expect(operation.summary.meanMs).toBeGreaterThanOrEqual(0);
   }
 
+  const resultWithPlatform = { ...parsedResult, platform: process.platform };
+
   const resultPath = resolve(
     process.cwd(),
     process.env.BENCHMARK_RESULT_PATH ?? "../../benchmarks/results/current.json"
   );
   await mkdir(dirname(resultPath), { recursive: true });
-  await writeFile(resultPath, `${JSON.stringify(parsedResult, null, 2)}\n`, "utf8");
+  await writeFile(resultPath, `${JSON.stringify(resultWithPlatform, null, 2)}\n`, "utf8");
 
   test.info().annotations.push({ type: "benchmark-result", description: resultPath });
 });
