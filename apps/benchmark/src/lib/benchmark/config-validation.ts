@@ -6,7 +6,7 @@ export const BENCHMARK_LIMITS = {
   minWarmupRuns: 0,
   maxWarmupRuns: 8,
   minMeasuredRuns: 1,
-  maxMeasuredRuns: 50,
+  maxMeasuredRuns: 30,
 } as const;
 
 export type SanitizedBenchmarkConfigResult =

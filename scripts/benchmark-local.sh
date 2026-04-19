@@ -50,7 +50,7 @@ BRANCH="${BRANCH:-HEAD}"
 
 echo ""
 echo "╭──────────────────────────────────────────────╮"
-echo "│  Local Benchmark Comparison via act           │"
+echo "│  Local Benchmark Comparison via act          │"
 echo "╰──────────────────────────────────────────────╯"
 echo ""
 echo "  Current : $BRANCH ($HEAD_SHA)"
@@ -117,8 +117,7 @@ act pull_request \
   --env CI=true \
   --rm \
   --artifact-server-path "$ROOT/benchmarks/act-artifacts" \
-  -v "$PLAYWRIGHT_CACHE:/root/.cache/ms-playwright" \
-  -v "$PNPM_STORE:/root/.local/share/pnpm/store" \
+  --container-options "-v $PLAYWRIGHT_CACHE:/root/.cache/ms-playwright -v $PNPM_STORE:/root/.local/share/pnpm/store" \
   "${ACT_EXTRA_ARGS[@]+"${ACT_EXTRA_ARGS[@]}"}"
 
 echo ""

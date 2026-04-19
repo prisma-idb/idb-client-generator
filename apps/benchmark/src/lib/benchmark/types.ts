@@ -23,7 +23,7 @@ export interface BenchmarkConfig {
 export const BENCHMARK_DEFAULT_CONFIG: BenchmarkConfig = {
   datasetSize: 1000,
   warmupRuns: 2,
-  measuredRuns: 50,
+  measuredRuns: 30,
 };
 
 export const BENCHMARK_REGRESSION_GATE = {

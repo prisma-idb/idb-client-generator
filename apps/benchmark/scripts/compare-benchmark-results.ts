@@ -178,6 +178,13 @@ function formatDelta(value: number | null, threshold: number): string {
   return formatted;
 }
 
+function formatDeltaCompact(value: number | null): string {
+  if (value === null) return "n/a";
+  if (!Number.isFinite(value)) return value > 0 ? "+∞" : "-∞";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(2)}%`;
+}
+
 function formatCIBound(value: number): string {
   if (!Number.isFinite(value)) return value > 0 ? "+∞" : "-∞";
   const sign = value > 0 ? "+" : "";
@@ -209,13 +216,14 @@ function pairMetric(baseline: number, current: number): MetricPair {
 }
 
 function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
-  // Derive the gate state from the actual outcome (shouldFail) first so the
-  // displayed label matches CI gating behavior. Notices are surfaced as a
-  // secondary "advisory" annotation rather than overriding the primary state.
-  const gateIcon = summary.shouldFail ? "❌" : "✅";
-  const baseLabel = summary.shouldFail ? "FAILED" : "passed";
-  const advisorySuffix = summary.notices.length > 0 ? " — ℹ️ advisory notes" : "";
-  const gateLabel = `${baseLabel}${advisorySuffix}`;
+  const noisyRegressions = summary.rows.filter((r) => r.status === "FAIL" && r.noisy).length;
+  const potentialRegressions = summary.rows.filter((r) => r.status === "WARN").length;
+
+  const gateLabel = summary.isAdvisory
+    ? "ℹ️ advisory only (non-blocking)"
+    : summary.shouldFail
+      ? "❌ failed"
+      : "✅ passed";
 
   const lines: string[] = [
     "## Benchmark Regression Report",
@@ -223,10 +231,12 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
     `| Summary | |`,
     `| :-- | :-- |`,
     `| **Gate metric** | bootstrap 95% CI on median delta |`,
-    `| **Gate mode** | ${gateIcon} ${gateLabel} |`,
+    `| **Gate mode** | ${gateLabel} |`,
     `| **Regression threshold** | CI lower bound > +${threshold}% and ≥${BENCHMARK_REGRESSION_GATE.minAbsoluteDeltaMs}ms absolute median change |`,
     `| **Compared operations** | ${summary.rows.length} |`,
-    `| **Regressions** | ${summary.regressions.length > 0 ? `⚠️ ${summary.regressions.length}` : `${summary.regressions.length}`} |`,
+    `| **Blocking regressions** | ${summary.regressions.length} |`,
+    `| **Potential regressions** | ${potentialRegressions} |`,
+    `| **Noisy regressions (non-blocking)** | ${noisyRegressions} |`,
     `| **Added / Removed** | ${summary.addedOperations.length} / ${summary.removedOperations.length} |`,
     "",
   ];
@@ -234,12 +244,19 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
   if (summary.notices.length > 0) {
     lines.push("> [!NOTE]");
     for (const notice of summary.notices) lines.push(`> ${notice}`);
+    lines.push("> Merge is not blocked while advisory notices are present.");
     lines.push("");
   }
 
+  lines.push("> [!TIP]");
   lines.push(
-    "| Status | Operation | Median Δ (95% CI) | Baseline median | Current median | Δ p95 | Δ mean |",
-    "| :---: | :-- | :--- | ---: | ---: | ---: | ---: |"
+    "> Gate status is based only on the median CI column below. p95/mean are context metrics and can disagree."
+  );
+  lines.push("");
+
+  lines.push(
+    "| Status | Operation | Gate decision | Median Δ (95% CI) | Baseline median | Current median |",
+    "| :---: | :-- | :-- | :--- | ---: | ---: |"
   );
 
   for (const row of summary.rows) {
@@ -252,15 +269,33 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
           ? "\uD83D\uDFE1"
           : "\uD83D\uDFE2";
     const noisyTag = row.noisy ? " \uD83C\uDFB2" : "";
+    const decision =
+      row.status === "FAIL"
+        ? row.noisy
+          ? `CI lower > +${threshold}%, but high variance (non-blocking)`
+          : `CI lower > +${threshold}%`
+        : row.status === "WARN"
+          ? `Point estimate > +${threshold}% but CI lower <= +${threshold}%`
+          : `CI lower <= +${threshold}%`;
     const ciCell = row.bootstrap
       ? `${formatDelta(row.bootstrap.medianDeltaPercent, threshold)} (${formatCIBound(row.bootstrap.ciLowerPercent)} … ${formatCIBound(row.bootstrap.ciUpperPercent)})`
       : "n/a";
-    const deltaP95 = formatDelta(row.p95.delta, threshold);
-    const deltaMean = formatDelta(row.mean.delta, threshold);
     lines.push(
-      `| ${statusIcon} | \`${row.operationId}\`${noisyTag} | ${ciCell} | ${formatMetric(row.median.baseline)} | ${formatMetric(row.median.current)} | ${deltaP95} | ${deltaMean} |`
+      `| ${statusIcon} | \`${row.operationId}\`${noisyTag} | ${decision} | ${ciCell} | ${formatMetric(row.median.baseline)} | ${formatMetric(row.median.current)} |`
     );
   }
+
+  lines.push("");
+  lines.push("<details><summary>Context Metrics (Not Used For Gate)</summary>");
+  lines.push("");
+  lines.push("| Operation | Δ p95 | Δ mean |");
+  lines.push("| :-- | ---: | ---: |");
+  for (const row of summary.rows) {
+    lines.push(
+      `| \`${row.operationId}\` | ${formatDeltaCompact(row.p95.delta)} | ${formatDeltaCompact(row.mean.delta)} |`
+    );
+  }
+  lines.push("", "</details>");
 
   for (const [heading, ids] of [
     ["Added Operations", summary.addedOperations],
@@ -279,9 +314,9 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
   lines.push("<details><summary>Legend</summary>", "");
   lines.push("| Symbol | Meaning |");
   lines.push("| :---: | :-- |");
-  lines.push("| 🟢 | Pass — CI lower bound is within threshold |");
+  lines.push(`| 🟢 | Pass — CI lower <= +${threshold}% |`);
   lines.push("| 🟡 | Warn — point estimate exceeds threshold but CI lower bound does not (likely noise) |");
-  lines.push("| 🔴 | Fail — even pessimistic edge of CI exceeds threshold |");
+  lines.push(`| 🔴 | Fail — CI lower > +${threshold}% |`);
   if (hasNoisyFail) {
     lines.push("| 🟠 | Fail but noisy — high variance makes this unreliable |");
   }
