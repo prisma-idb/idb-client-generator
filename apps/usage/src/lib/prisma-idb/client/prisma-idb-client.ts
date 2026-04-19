@@ -628,6 +628,9 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           posts_hashMap!.get(key)!.push(value as unknown);
         }
         if (posts_skip !== undefined || posts_take !== undefined) {
+          if (posts_skip !== undefined && (!Number.isInteger(posts_skip) || posts_skip < 0))
+            throw new Error("skip must be a non-negative integer");
+          if (posts_take !== undefined && !Number.isInteger(posts_take)) throw new Error("take must be an integer");
           for (const [key, group] of posts_hashMap!) {
             let sliced = group;
             if (posts_skip !== undefined) sliced = sliced.slice(posts_skip);
@@ -701,6 +704,10 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           comments_hashMap!.get(key)!.push(value as unknown);
         }
         if (comments_skip !== undefined || comments_take !== undefined) {
+          if (comments_skip !== undefined && (!Number.isInteger(comments_skip) || comments_skip < 0))
+            throw new Error("skip must be a non-negative integer");
+          if (comments_take !== undefined && !Number.isInteger(comments_take))
+            throw new Error("take must be an integer");
           for (const [key, group] of comments_hashMap!) {
             let sliced = group;
             if (comments_skip !== undefined) sliced = sliced.slice(comments_skip);
@@ -774,6 +781,9 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           Child_hashMap!.get(key)!.push(value as unknown);
         }
         if (Child_skip !== undefined || Child_take !== undefined) {
+          if (Child_skip !== undefined && (!Number.isInteger(Child_skip) || Child_skip < 0))
+            throw new Error("skip must be a non-negative integer");
+          if (Child_take !== undefined && !Number.isInteger(Child_take)) throw new Error("take must be an integer");
           for (const [key, group] of Child_hashMap!) {
             let sliced = group;
             if (Child_skip !== undefined) sliced = sliced.slice(Child_skip);
@@ -847,6 +857,9 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           Father_hashMap!.get(key)!.push(value as unknown);
         }
         if (Father_skip !== undefined || Father_take !== undefined) {
+          if (Father_skip !== undefined && (!Number.isInteger(Father_skip) || Father_skip < 0))
+            throw new Error("skip must be a non-negative integer");
+          if (Father_take !== undefined && !Number.isInteger(Father_take)) throw new Error("take must be an integer");
           for (const [key, group] of Father_hashMap!) {
             let sliced = group;
             if (Father_skip !== undefined) sliced = sliced.slice(Father_skip);
@@ -920,6 +933,9 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           Mother_hashMap!.get(key)!.push(value as unknown);
         }
         if (Mother_skip !== undefined || Mother_take !== undefined) {
+          if (Mother_skip !== undefined && (!Number.isInteger(Mother_skip) || Mother_skip < 0))
+            throw new Error("skip must be a non-negative integer");
+          if (Mother_take !== undefined && !Number.isInteger(Mother_take)) throw new Error("take must be an integer");
           for (const [key, group] of Mother_hashMap!) {
             let sliced = group;
             if (Mother_skip !== undefined) sliced = sliced.slice(Mother_skip);
@@ -993,6 +1009,9 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           groups_hashMap!.get(key)!.push(value as unknown);
         }
         if (groups_skip !== undefined || groups_take !== undefined) {
+          if (groups_skip !== undefined && (!Number.isInteger(groups_skip) || groups_skip < 0))
+            throw new Error("skip must be a non-negative integer");
+          if (groups_take !== undefined && !Number.isInteger(groups_take)) throw new Error("take must be an integer");
           for (const [key, group] of groups_hashMap!) {
             let sliced = group;
             if (groups_skip !== undefined) sliced = sliced.slice(groups_skip);
@@ -1066,6 +1085,9 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           todos_hashMap!.get(key)!.push(value as unknown);
         }
         if (todos_skip !== undefined || todos_take !== undefined) {
+          if (todos_skip !== undefined && (!Number.isInteger(todos_skip) || todos_skip < 0))
+            throw new Error("skip must be a non-negative integer");
+          if (todos_take !== undefined && !Number.isInteger(todos_take)) throw new Error("take must be an integer");
           for (const [key, group] of todos_hashMap!) {
             let sliced = group;
             if (todos_skip !== undefined) sliced = sliced.slice(todos_skip);
@@ -1079,28 +1101,52 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       if (attach_profile) {
-        unsafeRecord["profile"] = profile_hashMap!.get(JSON.stringify(record.id)) ?? null;
+        unsafeRecord["profile"] = (() => {
+          const _v = profile_hashMap!.get(JSON.stringify(record.id));
+          return _v == null ? null : structuredClone(_v);
+        })();
       }
       if (attach_posts) {
-        unsafeRecord["posts"] = posts_hashMap!.get(JSON.stringify(record.id)) ?? [];
+        unsafeRecord["posts"] = (() => {
+          const _v = posts_hashMap!.get(JSON.stringify(record.id));
+          return _v == null ? [] : structuredClone(_v);
+        })();
       }
       if (attach_comments) {
-        unsafeRecord["comments"] = comments_hashMap!.get(JSON.stringify(record.id)) ?? [];
+        unsafeRecord["comments"] = (() => {
+          const _v = comments_hashMap!.get(JSON.stringify(record.id));
+          return _v == null ? [] : structuredClone(_v);
+        })();
       }
       if (attach_Child) {
-        unsafeRecord["Child"] = Child_hashMap!.get(JSON.stringify(record.id)) ?? [];
+        unsafeRecord["Child"] = (() => {
+          const _v = Child_hashMap!.get(JSON.stringify(record.id));
+          return _v == null ? [] : structuredClone(_v);
+        })();
       }
       if (attach_Father) {
-        unsafeRecord["Father"] = Father_hashMap!.get(JSON.stringify(record.id)) ?? [];
+        unsafeRecord["Father"] = (() => {
+          const _v = Father_hashMap!.get(JSON.stringify(record.id));
+          return _v == null ? [] : structuredClone(_v);
+        })();
       }
       if (attach_Mother) {
-        unsafeRecord["Mother"] = Mother_hashMap!.get(JSON.stringify(record.id)) ?? [];
+        unsafeRecord["Mother"] = (() => {
+          const _v = Mother_hashMap!.get(JSON.stringify(record.id));
+          return _v == null ? [] : structuredClone(_v);
+        })();
       }
       if (attach_groups) {
-        unsafeRecord["groups"] = groups_hashMap!.get(JSON.stringify(record.id)) ?? [];
+        unsafeRecord["groups"] = (() => {
+          const _v = groups_hashMap!.get(JSON.stringify(record.id));
+          return _v == null ? [] : structuredClone(_v);
+        })();
       }
       if (attach_todos) {
-        unsafeRecord["todos"] = todos_hashMap!.get(JSON.stringify(record.id)) ?? [];
+        unsafeRecord["todos"] = (() => {
+          const _v = todos_hashMap!.get(JSON.stringify(record.id));
+          return _v == null ? [] : structuredClone(_v);
+        })();
       }
       return unsafeRecord;
     });
@@ -3840,6 +3886,10 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
           userGroups_hashMap!.get(key)!.push(value as unknown);
         }
         if (userGroups_skip !== undefined || userGroups_take !== undefined) {
+          if (userGroups_skip !== undefined && (!Number.isInteger(userGroups_skip) || userGroups_skip < 0))
+            throw new Error("skip must be a non-negative integer");
+          if (userGroups_take !== undefined && !Number.isInteger(userGroups_take))
+            throw new Error("take must be an integer");
           for (const [key, group] of userGroups_hashMap!) {
             let sliced = group;
             if (userGroups_skip !== undefined) sliced = sliced.slice(userGroups_skip);
@@ -3853,7 +3903,10 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       if (attach_userGroups) {
-        unsafeRecord["userGroups"] = userGroups_hashMap!.get(JSON.stringify(record.id)) ?? [];
+        unsafeRecord["userGroups"] = (() => {
+          const _v = userGroups_hashMap!.get(JSON.stringify(record.id));
+          return _v == null ? [] : structuredClone(_v);
+        })();
       }
       return unsafeRecord;
     });
@@ -4778,7 +4831,10 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       if (attach_user) {
-        unsafeRecord["user"] = user_hashMap!.get(JSON.stringify(record.userId)) ?? null;
+        unsafeRecord["user"] = (() => {
+          const _v = user_hashMap!.get(JSON.stringify(record.userId));
+          return _v == null ? null : structuredClone(_v);
+        })();
       }
       return unsafeRecord;
     });
@@ -5727,6 +5783,10 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
           comments_hashMap!.get(key)!.push(value as unknown);
         }
         if (comments_skip !== undefined || comments_take !== undefined) {
+          if (comments_skip !== undefined && (!Number.isInteger(comments_skip) || comments_skip < 0))
+            throw new Error("skip must be a non-negative integer");
+          if (comments_take !== undefined && !Number.isInteger(comments_take))
+            throw new Error("take must be an integer");
           for (const [key, group] of comments_hashMap!) {
             let sliced = group;
             if (comments_skip !== undefined) sliced = sliced.slice(comments_skip);
@@ -5741,10 +5801,18 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
       const unsafeRecord = record as Record<string, unknown>;
       if (attach_author) {
         unsafeRecord["author"] =
-          record.authorId === null ? null : (author_hashMap!.get(JSON.stringify(record.authorId)) ?? null);
+          record.authorId === null
+            ? null
+            : (() => {
+                const _v = author_hashMap!.get(JSON.stringify(record.authorId));
+                return _v == null ? null : structuredClone(_v);
+              })();
       }
       if (attach_comments) {
-        unsafeRecord["comments"] = comments_hashMap!.get(JSON.stringify(record.id)) ?? [];
+        unsafeRecord["comments"] = (() => {
+          const _v = comments_hashMap!.get(JSON.stringify(record.id));
+          return _v == null ? [] : structuredClone(_v);
+        })();
       }
       return unsafeRecord;
     });
@@ -6940,10 +7008,16 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       if (attach_post) {
-        unsafeRecord["post"] = post_hashMap!.get(JSON.stringify(record.postId)) ?? null;
+        unsafeRecord["post"] = (() => {
+          const _v = post_hashMap!.get(JSON.stringify(record.postId));
+          return _v == null ? null : structuredClone(_v);
+        })();
       }
       if (attach_user) {
-        unsafeRecord["user"] = user_hashMap!.get(JSON.stringify(record.userId)) ?? null;
+        unsafeRecord["user"] = (() => {
+          const _v = user_hashMap!.get(JSON.stringify(record.userId));
+          return _v == null ? null : structuredClone(_v);
+        })();
       }
       return unsafeRecord;
     });
@@ -7942,7 +8016,10 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       if (attach_user) {
-        unsafeRecord["user"] = user_hashMap!.get(JSON.stringify(record.userId)) ?? null;
+        unsafeRecord["user"] = (() => {
+          const _v = user_hashMap!.get(JSON.stringify(record.userId));
+          return _v == null ? null : structuredClone(_v);
+        })();
       }
       return unsafeRecord;
     });
@@ -10786,7 +10863,12 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
       const unsafeRecord = record as Record<string, unknown>;
       if (attach_link) {
         unsafeRecord["link"] =
-          record.linkId === null ? null : (link_hashMap!.get(JSON.stringify(record.linkId)) ?? null);
+          record.linkId === null
+            ? null
+            : (() => {
+                const _v = link_hashMap!.get(JSON.stringify(record.linkId));
+                return _v == null ? null : structuredClone(_v);
+              })();
       }
       return unsafeRecord;
     });
@@ -11767,6 +11849,9 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
           links_hashMap!.get(key)!.push(value as unknown);
         }
         if (links_skip !== undefined || links_take !== undefined) {
+          if (links_skip !== undefined && (!Number.isInteger(links_skip) || links_skip < 0))
+            throw new Error("skip must be a non-negative integer");
+          if (links_take !== undefined && !Number.isInteger(links_take)) throw new Error("take must be an integer");
           for (const [key, group] of links_hashMap!) {
             let sliced = group;
             if (links_skip !== undefined) sliced = sliced.slice(links_skip);
@@ -11780,7 +11865,10 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       if (attach_links) {
-        unsafeRecord["links"] = links_hashMap!.get(JSON.stringify(record.id)) ?? [];
+        unsafeRecord["links"] = (() => {
+          const _v = links_hashMap!.get(JSON.stringify(record.id));
+          return _v == null ? [] : structuredClone(_v);
+        })();
       }
       return unsafeRecord;
     });
@@ -12832,10 +12920,16 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       if (attach_group) {
-        unsafeRecord["group"] = group_hashMap!.get(JSON.stringify(record.groupId)) ?? null;
+        unsafeRecord["group"] = (() => {
+          const _v = group_hashMap!.get(JSON.stringify(record.groupId));
+          return _v == null ? null : structuredClone(_v);
+        })();
       }
       if (attach_user) {
-        unsafeRecord["user"] = user_hashMap!.get(JSON.stringify(record.userId)) ?? null;
+        unsafeRecord["user"] = (() => {
+          const _v = user_hashMap!.get(JSON.stringify(record.userId));
+          return _v == null ? null : structuredClone(_v);
+        })();
       }
       return unsafeRecord;
     });
@@ -13970,6 +14064,10 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
           children_hashMap!.get(key)!.push(value as unknown);
         }
         if (children_skip !== undefined || children_take !== undefined) {
+          if (children_skip !== undefined && (!Number.isInteger(children_skip) || children_skip < 0))
+            throw new Error("skip must be a non-negative integer");
+          if (children_take !== undefined && !Number.isInteger(children_take))
+            throw new Error("take must be an integer");
           for (const [key, group] of children_hashMap!) {
             let sliced = group;
             if (children_skip !== undefined) sliced = sliced.slice(children_skip);
@@ -14052,15 +14150,25 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       if (attach_children) {
-        unsafeRecord["children"] = children_hashMap!.get(JSON.stringify([record.lastName, record.firstName])) ?? [];
+        unsafeRecord["children"] = (() => {
+          const _v = children_hashMap!.get(JSON.stringify([record.lastName, record.firstName]));
+          return _v == null ? [] : structuredClone(_v);
+        })();
       }
       if (attach_wife) {
-        unsafeRecord["wife"] =
-          wife_hashMap!.get(JSON.stringify([record.motherFirstName, record.motherLastName])) ?? null;
+        unsafeRecord["wife"] = (() => {
+          const _v = wife_hashMap!.get(JSON.stringify([record.motherFirstName, record.motherLastName]));
+          return _v == null ? null : structuredClone(_v);
+        })();
       }
       if (attach_user) {
         unsafeRecord["user"] =
-          record.userId === null ? null : (user_hashMap!.get(JSON.stringify(record.userId)) ?? null);
+          record.userId === null
+            ? null
+            : (() => {
+                const _v = user_hashMap!.get(JSON.stringify(record.userId));
+                return _v == null ? null : structuredClone(_v);
+              })();
       }
       return unsafeRecord;
     });
@@ -15564,6 +15672,10 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
           children_hashMap!.get(key)!.push(value as unknown);
         }
         if (children_skip !== undefined || children_take !== undefined) {
+          if (children_skip !== undefined && (!Number.isInteger(children_skip) || children_skip < 0))
+            throw new Error("skip must be a non-negative integer");
+          if (children_take !== undefined && !Number.isInteger(children_take))
+            throw new Error("take must be an integer");
           for (const [key, group] of children_hashMap!) {
             let sliced = group;
             if (children_skip !== undefined) sliced = sliced.slice(children_skip);
@@ -15647,14 +15759,25 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       if (attach_children) {
-        unsafeRecord["children"] = children_hashMap!.get(JSON.stringify([record.firstName, record.lastName])) ?? [];
+        unsafeRecord["children"] = (() => {
+          const _v = children_hashMap!.get(JSON.stringify([record.firstName, record.lastName]));
+          return _v == null ? [] : structuredClone(_v);
+        })();
       }
       if (attach_husband) {
-        unsafeRecord["husband"] = husband_hashMap!.get(JSON.stringify([record.firstName, record.lastName])) ?? null;
+        unsafeRecord["husband"] = (() => {
+          const _v = husband_hashMap!.get(JSON.stringify([record.firstName, record.lastName]));
+          return _v == null ? null : structuredClone(_v);
+        })();
       }
       if (attach_user) {
         unsafeRecord["user"] =
-          record.userId === null ? null : (user_hashMap!.get(JSON.stringify(record.userId)) ?? null);
+          record.userId === null
+            ? null
+            : (() => {
+                const _v = user_hashMap!.get(JSON.stringify(record.userId));
+                return _v == null ? null : structuredClone(_v);
+              })();
       }
       return unsafeRecord;
     });
@@ -17192,15 +17315,24 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
       const unsafeRecord = record as Record<string, unknown>;
       if (attach_user) {
         unsafeRecord["user"] =
-          record.userId === null ? null : (user_hashMap!.get(JSON.stringify(record.userId)) ?? null);
+          record.userId === null
+            ? null
+            : (() => {
+                const _v = user_hashMap!.get(JSON.stringify(record.userId));
+                return _v == null ? null : structuredClone(_v);
+              })();
       }
       if (attach_father) {
-        unsafeRecord["father"] =
-          father_hashMap!.get(JSON.stringify([record.fatherLastName, record.fatherFirstName])) ?? null;
+        unsafeRecord["father"] = (() => {
+          const _v = father_hashMap!.get(JSON.stringify([record.fatherLastName, record.fatherFirstName]));
+          return _v == null ? null : structuredClone(_v);
+        })();
       }
       if (attach_mother) {
-        unsafeRecord["mother"] =
-          mother_hashMap!.get(JSON.stringify([record.motherFirstName, record.motherLastName])) ?? null;
+        unsafeRecord["mother"] = (() => {
+          const _v = mother_hashMap!.get(JSON.stringify([record.motherFirstName, record.motherLastName]));
+          return _v == null ? null : structuredClone(_v);
+        })();
       }
       return unsafeRecord;
     });

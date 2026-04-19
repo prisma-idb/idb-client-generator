@@ -47,6 +47,9 @@ interface ComparisonSummary {
 
 const round = (value: number) => Number(value.toFixed(3));
 
+/** Coefficient of variation threshold above which a measurement is flagged as noisy. */
+const CV_THRESHOLD = 0.3;
+
 /** Coefficient of variation (stdDev / mean). High CV → noisy measurement. */
 function coefficientOfVariation(samples: number[] | undefined): number | null {
   if (!samples || samples.length < 2) return null;
@@ -96,8 +99,13 @@ function pairMetric(baseline: number, current: number): MetricPair {
 }
 
 function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
-  const gateIcon = summary.isAdvisory ? "ℹ️" : summary.shouldFail ? "❌" : "✅";
-  const gateLabel = summary.isAdvisory ? "advisory" : summary.shouldFail ? "enforcing — FAILED" : "enforcing — passed";
+  // Derive the gate state from the actual outcome (shouldFail) first so the
+  // displayed label matches CI gating behavior. Notices are surfaced as a
+  // secondary "advisory" annotation rather than overriding the primary state.
+  const gateIcon = summary.shouldFail ? "❌" : "✅";
+  const baseLabel = summary.shouldFail ? "FAILED" : "passed";
+  const advisorySuffix = summary.notices.length > 0 ? " — ℹ️ advisory notes" : "";
+  const gateLabel = `${baseLabel}${advisorySuffix}`;
 
   const lines: string[] = [
     "## Benchmark Regression Report",
@@ -155,7 +163,9 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
   lines.push("| 🔴 | Fail — exceeds threshold |");
   if (hasNoisy) {
     lines.push("| 🟠 | Fail but noisy — high variance makes this unreliable |");
-    lines.push("| 🎲 | High coefficient of variation (CV > 30%) — samples are spread out |");
+    lines.push(
+      `| 🎲 | High coefficient of variation (CV > ${(CV_THRESHOLD * 100).toFixed(0)}%) — samples are spread out |`
+    );
   }
   lines.push("| 📈 | Regression > 10% |");
   lines.push("| 📉 | Improvement > 10% |");
@@ -271,9 +281,8 @@ async function main() {
     const p95 = pairMetric(Number(baselineOp.summary?.p95Ms), Number(currentOp.summary?.p95Ms));
     const mean = pairMetric(Number(baselineOp.summary?.meanMs), Number(currentOp.summary?.meanMs));
 
-    // Flag operations where either run has high coefficient of variation (CV > 0.3).
+    // Flag operations where either run has high coefficient of variation.
     // A high CV means the samples are spread out, making any % delta unreliable.
-    const CV_THRESHOLD = 0.3;
     const baselineCV = coefficientOfVariation(baselineOp.samplesMs);
     const currentCV = coefficientOfVariation(currentOp.samplesMs);
     const noisy =

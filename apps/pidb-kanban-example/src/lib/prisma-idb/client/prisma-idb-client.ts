@@ -698,6 +698,9 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
           todos_hashMap!.get(key)!.push(value as unknown);
         }
         if (todos_skip !== undefined || todos_take !== undefined) {
+          if (todos_skip !== undefined && (!Number.isInteger(todos_skip) || todos_skip < 0))
+            throw new Error("skip must be a non-negative integer");
+          if (todos_take !== undefined && !Number.isInteger(todos_take)) throw new Error("take must be an integer");
           for (const [key, group] of todos_hashMap!) {
             let sliced = group;
             if (todos_skip !== undefined) sliced = sliced.slice(todos_skip);
@@ -743,10 +746,16 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
     const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       if (attach_todos) {
-        unsafeRecord["todos"] = todos_hashMap!.get(JSON.stringify(record.id)) ?? [];
+        unsafeRecord["todos"] = (() => {
+          const _v = todos_hashMap!.get(JSON.stringify(record.id));
+          return _v == null ? [] : structuredClone(_v);
+        })();
       }
       if (attach_user) {
-        unsafeRecord["user"] = user_hashMap!.get(JSON.stringify(record.userId)) ?? null;
+        unsafeRecord["user"] = (() => {
+          const _v = user_hashMap!.get(JSON.stringify(record.userId));
+          return _v == null ? null : structuredClone(_v);
+        })();
       }
       return unsafeRecord;
     });
@@ -1840,7 +1849,10 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       if (attach_board) {
-        unsafeRecord["board"] = board_hashMap!.get(JSON.stringify(record.boardId)) ?? null;
+        unsafeRecord["board"] = (() => {
+          const _v = board_hashMap!.get(JSON.stringify(record.boardId));
+          return _v == null ? null : structuredClone(_v);
+        })();
       }
       return unsafeRecord;
     });
@@ -2752,6 +2764,9 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           boards_hashMap!.get(key)!.push(value as unknown);
         }
         if (boards_skip !== undefined || boards_take !== undefined) {
+          if (boards_skip !== undefined && (!Number.isInteger(boards_skip) || boards_skip < 0))
+            throw new Error("skip must be a non-negative integer");
+          if (boards_take !== undefined && !Number.isInteger(boards_take)) throw new Error("take must be an integer");
           for (const [key, group] of boards_hashMap!) {
             let sliced = group;
             if (boards_skip !== undefined) sliced = sliced.slice(boards_skip);
@@ -2765,7 +2780,10 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       if (attach_boards) {
-        unsafeRecord["boards"] = boards_hashMap!.get(JSON.stringify(record.id)) ?? [];
+        unsafeRecord["boards"] = (() => {
+          const _v = boards_hashMap!.get(JSON.stringify(record.id));
+          return _v == null ? [] : structuredClone(_v);
+        })();
       }
       return unsafeRecord;
     });

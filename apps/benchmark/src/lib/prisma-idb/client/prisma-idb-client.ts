@@ -248,6 +248,9 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           todos_hashMap!.get(key)!.push(value as unknown);
         }
         if (todos_skip !== undefined || todos_take !== undefined) {
+          if (todos_skip !== undefined && (!Number.isInteger(todos_skip) || todos_skip < 0))
+            throw new Error("skip must be a non-negative integer");
+          if (todos_take !== undefined && !Number.isInteger(todos_take)) throw new Error("take must be an integer");
           for (const [key, group] of todos_hashMap!) {
             let sliced = group;
             if (todos_skip !== undefined) sliced = sliced.slice(todos_skip);
@@ -261,7 +264,10 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       if (attach_todos) {
-        unsafeRecord["todos"] = todos_hashMap!.get(JSON.stringify(record.id)) ?? [];
+        unsafeRecord["todos"] = (() => {
+          const _v = todos_hashMap!.get(JSON.stringify(record.id));
+          return _v == null ? [] : structuredClone(_v);
+        })();
       }
       return unsafeRecord;
     });
@@ -1178,7 +1184,10 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       if (attach_user) {
-        unsafeRecord["user"] = user_hashMap!.get(JSON.stringify(record.userId)) ?? null;
+        unsafeRecord["user"] = (() => {
+          const _v = user_hashMap!.get(JSON.stringify(record.userId));
+          return _v == null ? null : structuredClone(_v);
+        })();
       }
       return unsafeRecord;
     });

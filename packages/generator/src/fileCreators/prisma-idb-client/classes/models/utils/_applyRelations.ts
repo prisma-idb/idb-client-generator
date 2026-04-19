@@ -366,6 +366,13 @@ function emitTypeCBatchPath(
 
   // Apply take/skip per group, mirroring `findMany`'s sign-aware semantics.
   writer.writeLine(`if (${field.name}_skip !== undefined || ${field.name}_take !== undefined)`).block(() => {
+    writer
+      .writeLine(
+        `if (${field.name}_skip !== undefined && (!Number.isInteger(${field.name}_skip) || ${field.name}_skip < 0)) throw new Error("skip must be a non-negative integer");`
+      )
+      .writeLine(
+        `if (${field.name}_take !== undefined && !Number.isInteger(${field.name}_take)) throw new Error("take must be an integer");`
+      );
     writer.writeLine(`for (const [key, group] of ${field.name}_hashMap!)`).block(() => {
       writer
         .writeLine(`let sliced = group;`)
@@ -418,10 +425,12 @@ function assignTypeARecord(writer: CodeBlockWriter, field: Field) {
 
   if (!field.isRequired) {
     writer.writeLine(
-      `unsafeRecord['${field.name}'] = record.${fkFields[0]} === null ? null : (${field.name}_hashMap!.get(${lookupKey}) ?? null);`
+      `unsafeRecord['${field.name}'] = record.${fkFields[0]} === null ? null : (() => { const _v = ${field.name}_hashMap!.get(${lookupKey}); return _v == null ? null : structuredClone(_v); })();`
     );
   } else {
-    writer.writeLine(`unsafeRecord['${field.name}'] = ${field.name}_hashMap!.get(${lookupKey}) ?? null;`);
+    writer.writeLine(
+      `unsafeRecord['${field.name}'] = (() => { const _v = ${field.name}_hashMap!.get(${lookupKey}); return _v == null ? null : structuredClone(_v); })();`
+    );
   }
 }
 
@@ -432,7 +441,9 @@ function assignTypeBRecord(writer: CodeBlockWriter, field: Field, otherField: Fi
       ? `JSON.stringify(record.${pkFields[0]})`
       : `JSON.stringify([${pkFields.map((f) => `record.${f}`).join(", ")}])`;
 
-  writer.writeLine(`unsafeRecord['${field.name}'] = ${field.name}_hashMap!.get(${lookupKey}) ?? null;`);
+  writer.writeLine(
+    `unsafeRecord['${field.name}'] = (() => { const _v = ${field.name}_hashMap!.get(${lookupKey}); return _v == null ? null : structuredClone(_v); })();`
+  );
 }
 
 function assignTypeCRecords(writer: CodeBlockWriter, field: Field, otherField: Field) {
@@ -442,7 +453,9 @@ function assignTypeCRecords(writer: CodeBlockWriter, field: Field, otherField: F
       ? `JSON.stringify(record.${pkFields[0]})`
       : `JSON.stringify([${pkFields.map((f) => `record.${f}`).join(", ")}])`;
 
-  writer.writeLine(`unsafeRecord['${field.name}'] = ${field.name}_hashMap!.get(${lookupKey}) ?? [];`);
+  writer.writeLine(
+    `unsafeRecord['${field.name}'] = (() => { const _v = ${field.name}_hashMap!.get(${lookupKey}); return _v == null ? [] : structuredClone(_v); })();`
+  );
 }
 
 function addReturn(writer: CodeBlockWriter, model: Model) {
