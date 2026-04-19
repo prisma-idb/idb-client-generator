@@ -45,7 +45,8 @@ done
 # ── Resolve SHAs ──────────────────────────────────────────────────────────
 BASE_SHA="$(git merge-base HEAD "$BASE_BRANCH")"
 HEAD_SHA="$(git rev-parse HEAD)"
-BRANCH="$(git branch --show-current 2>/dev/null || echo "HEAD")"
+BRANCH="$(git branch --show-current 2>/dev/null || true)"
+BRANCH="${BRANCH:-HEAD}"
 
 echo ""
 echo "╭──────────────────────────────────────────────╮"
@@ -63,28 +64,38 @@ echo ""
 EVENT_FILE="$(mktemp)"
 trap 'rm -f "$EVENT_FILE"' EXIT
 
-cat > "$EVENT_FILE" <<PAYLOAD
-{
-  "pull_request": {
-    "number": 0,
-    "base": { "sha": "$BASE_SHA", "ref": "$BASE_BRANCH" },
-    "head": {
-      "sha": "$HEAD_SHA",
-      "ref": "$BRANCH",
-      "repo": { "full_name": "local/benchmark" }
-    }
-  }
-}
-PAYLOAD
+BASE_SHA="$BASE_SHA" \
+  BASE_BRANCH="$BASE_BRANCH" \
+  HEAD_SHA="$HEAD_SHA" \
+  BRANCH="$BRANCH" \
+  node <<'NODE' > "$EVENT_FILE"
+const payload = {
+  pull_request: {
+    number: 0,
+    base: { sha: process.env.BASE_SHA, ref: process.env.BASE_BRANCH },
+    head: {
+      sha: process.env.HEAD_SHA,
+      ref: process.env.BRANCH,
+      repo: { full_name: "local/benchmark" },
+    },
+  },
+};
+process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+NODE
 
 # ── Kill any stale server on the benchmark port ──────────────────────────────
 # act uses --network host, so host-side processes on port 4175 collide with the
 # container's Playwright webServer.
 BENCHMARK_PORT=4175
-if lsof -ti:"$BENCHMARK_PORT" &>/dev/null; then
-  echo "Killing stale process on port ${BENCHMARK_PORT}…"
-  lsof -ti:"$BENCHMARK_PORT" | xargs kill -9 2>/dev/null || true
+PORT_PIDS="$(lsof -ti:"$BENCHMARK_PORT" 2>/dev/null || true)"
+if [[ -n "$PORT_PIDS" ]]; then
+  echo "Terminating stale process on port ${BENCHMARK_PORT}..."
+  printf '%s\n' "$PORT_PIDS" | xargs kill 2>/dev/null || true
   sleep 1
+  if lsof -ti:"$BENCHMARK_PORT" &>/dev/null; then
+    echo "Error: port ${BENCHMARK_PORT} is still in use after SIGTERM. Free it manually and retry." >&2
+    exit 1
+  fi
 fi
 
 # ── Persistent caches ────────────────────────────────────────────────────────

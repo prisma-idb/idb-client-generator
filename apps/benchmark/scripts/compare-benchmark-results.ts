@@ -115,16 +115,30 @@ function bootstrapMedianDeltaCI(
   const baselineDraw = new Array<number>(baselineN);
   const currentDraw = new Array<number>(currentN);
 
+  // Deterministic LCG seeded from a constant so identical inputs produce
+  // identical CIs across runs (avoids gate flapping on borderline regressions).
+  let rngState = 0x9e3779b9;
+  const nextRandom = () => {
+    rngState = (Math.imul(1664525, rngState) + 1013904223) >>> 0;
+    return rngState / 0x100000000;
+  };
+
   for (let i = 0; i < iterations; i++) {
     for (let j = 0; j < baselineN; j++) {
-      baselineDraw[j] = baselineSamples[Math.floor(Math.random() * baselineN)];
+      baselineDraw[j] = baselineSamples[Math.floor(nextRandom() * baselineN)];
     }
     for (let j = 0; j < currentN; j++) {
-      currentDraw[j] = currentSamples[Math.floor(Math.random() * currentN)];
+      currentDraw[j] = currentSamples[Math.floor(nextRandom() * currentN)];
     }
     const bMed = medianOf(baselineDraw);
     const cMed = medianOf(currentDraw);
-    replicateDeltas[i] = bMed === 0 ? Number.POSITIVE_INFINITY : ((cMed - bMed) / bMed) * 100;
+    if (bMed === 0 && cMed === 0) {
+      replicateDeltas[i] = 0;
+    } else if (bMed === 0) {
+      replicateDeltas[i] = cMed > 0 ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+    } else {
+      replicateDeltas[i] = ((cMed - bMed) / bMed) * 100;
+    }
   }
 
   replicateDeltas.sort((a, b) => a - b);
