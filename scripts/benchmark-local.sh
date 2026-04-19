@@ -102,7 +102,7 @@ fi
 # Mount host directories into the container so Playwright browsers and the pnpm
 # content-addressable store survive across runs.  This cuts ~60-90 s off repeat
 # runs (Playwright re-download) and speeds up pnpm install for the base commit.
-CACHE_DIR="$ROOT/benchmarks/act-cache"
+CACHE_DIR="$ROOT/.cache/benchmark-act"
 PLAYWRIGHT_CACHE="$CACHE_DIR/playwright"
 PNPM_STORE="$CACHE_DIR/pnpm-store"
 mkdir -p "$PLAYWRIGHT_CACHE" "$PNPM_STORE"
@@ -116,9 +116,9 @@ act pull_request \
   -e "$EVENT_FILE" \
   --env CI=true \
   --rm \
-  --artifact-server-path "$ROOT/benchmarks/act-artifacts" \
+  --artifact-server-path "$CACHE_DIR/artifacts" \
   --container-options "-v $PLAYWRIGHT_CACHE:/root/.cache/ms-playwright -v $PNPM_STORE:/root/.local/share/pnpm/store" \
   "${ACT_EXTRA_ARGS[@]+"${ACT_EXTRA_ARGS[@]}"}"
 
 echo ""
-echo "Done. Results are in benchmarks/results/"
+echo "Done. Benchmark artifacts are in $CACHE_DIR/artifacts"

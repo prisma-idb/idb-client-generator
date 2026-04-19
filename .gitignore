@@ -14,8 +14,7 @@ out
 /test-results/
 **/playwright-report/**
 /playwright/.cache/
-/benchmarks/results/
-/benchmarks/act-artifacts/
-/benchmarks/act-cache/
+/apps/benchmark/.benchmark-results/
+/.cache/benchmark-act/
 
 todo.md

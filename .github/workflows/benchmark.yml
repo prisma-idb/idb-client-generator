@@ -123,7 +123,7 @@ jobs:
           path: ${{ runner.temp }}/benchmark-results/
           retention-days: 30
 
-  refresh-main-baseline:
+  publish-main-benchmark-snapshot:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
@@ -171,29 +171,20 @@ jobs:
           mkdir -p "$RUNNER_TEMP/benchmark-results"
           pnpm benchmark:ci
 
-      - name: Refresh main baseline snapshot
+      - name: Prepare public benchmark snapshot
         run: |
-          mkdir -p benchmarks/baselines
-          cp "$RUNNER_TEMP/benchmark-results/main-current.json" benchmarks/baselines/main.json
+          mkdir -p "$RUNNER_TEMP/benchmark-public"
+          cp "$RUNNER_TEMP/benchmark-results/main-current.json" "$RUNNER_TEMP/benchmark-public/latest.json"
 
-      - name: Commit baseline update
-        run: |
-          # Check for both tracked changes and newly created/untracked baselines
-          if [ ! -f benchmarks/baselines/main.json ] || git diff --quiet -- benchmarks/baselines/main.json; then
-            echo "No baseline changes to commit"
-            exit 0
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add benchmarks/baselines/main.json
-          if ! git commit -m "chore(benchmark): refresh baseline snapshot [skip ci]"; then
-            echo "Nothing to commit (race condition)"
-            exit 0
-          fi
-          # Pull with rebase and autostash to handle concurrent updates from other runs
-          git pull --rebase --autostash origin main || true
-          git push
+      - name: Publish public benchmark snapshot
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: benchmark-data
+          publish_dir: ${{ runner.temp }}/benchmark-public
+          force_orphan: true
+          enable_jekyll: false
+          commit_message: "chore(benchmark): publish latest benchmark snapshot [skip ci]"
 
       - name: Upload benchmark artifacts
         if: ${{ !cancelled() }}
