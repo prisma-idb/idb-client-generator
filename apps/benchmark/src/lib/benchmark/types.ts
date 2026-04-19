@@ -28,6 +28,7 @@ export const BENCHMARK_DEFAULT_CONFIG: BenchmarkConfig = {
 
 export const BENCHMARK_REGRESSION_GATE = {
   thresholdPercent: 10,
+  meanCorroborationPercent: 5,
   minMeaningfulP95Samples: 20,
   minAbsoluteDeltaMs: 5,
 } as const;

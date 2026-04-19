@@ -112,9 +112,9 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
     "",
     `| Summary | |`,
     `| :-- | :-- |`,
-    `| **Gate metric** | p95 latency |`,
+    `| **Gate metric** | p95 latency (corroborated by mean) |`,
     `| **Gate mode** | ${gateIcon} ${gateLabel} |`,
-    `| **Regression threshold** | +${threshold}% and ≥${BENCHMARK_REGRESSION_GATE.minAbsoluteDeltaMs}ms absolute |`,
+    `| **Regression threshold** | p95 > +${threshold}% and ≥${BENCHMARK_REGRESSION_GATE.minAbsoluteDeltaMs}ms absolute, mean > +${BENCHMARK_REGRESSION_GATE.meanCorroborationPercent}% |`,
     `| **Compared operations** | ${summary.rows.length} |`,
     `| **Regressions** | ${summary.regressions.length > 0 ? `⚠️ ${summary.regressions.length}` : `${summary.regressions.length}`} |`,
     `| **Added / Removed** | ${summary.addedOperations.length} / ${summary.removedOperations.length} |`,
@@ -300,7 +300,11 @@ async function main() {
       p95.baseline !== null && p95.current !== null ? Math.abs(p95.current - p95.baseline) : null;
     const exceedsPercent = delta !== null && (!Number.isFinite(delta) || delta > threshold);
     const exceedsAbsolute = absoluteP95Delta === null || absoluteP95Delta >= minAbsDelta;
-    const isRegression = exceedsPercent && exceedsAbsolute;
+    const meanDelta = mean.delta;
+    const meanCorroborates =
+      meanDelta !== null &&
+      (!Number.isFinite(meanDelta) || meanDelta > BENCHMARK_REGRESSION_GATE.meanCorroborationPercent);
+    const isRegression = exceedsPercent && exceedsAbsolute && meanCorroborates;
     const isWarn = !isRegression && (delta === null || delta >= threshold / 2);
 
     const row: ComparisonRow = {
