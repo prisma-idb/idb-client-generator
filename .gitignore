@@ -14,3 +14,6 @@ out
 /test-results/
 **/playwright-report/**
 /playwright/.cache/
+/benchmarks/results/
+
+todo.md

@@ -1,0 +1,52 @@
+{
+  "name": "@prisma-idb/benchmark",
+  "version": "0.0.0",
+  "private": true,
+  "prisma": {
+    "schema": "./src/prisma/schema.prisma"
+  },
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev --port 3001",
+    "start": "serve out",
+    "generate": "prisma generate --config prisma.config.ts",
+    "test": "PLAYWRIGHT_HTML_OPEN=never playwright test --reporter=list",
+    "benchmark:ci": "pnpm test",
+    "benchmark:compare": "tsx ./scripts/compare-benchmark-results.ts",
+    "benchmark:comment": "tsx ./scripts/publish-benchmark-pr-comment.ts",
+    "check": "next typegen && tsc --noEmit",
+    "lint": "prettier --check . && eslint",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.4.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "geist": "^1.7.0",
+    "idb": "^8.0.3",
+    "lucide-react": "^0.563.0",
+    "next": "^16.2.4",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "recharts": "^2.15.4",
+    "shadcn": "^4.3.0",
+    "tailwind-merge": "^3.5.0",
+    "tw-animate-css": "1.4.0",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "@prisma-idb/idb-client-generator": "workspace:*",
+    "@prisma/client": "^7.7.0",
+    "@tailwindcss/postcss": "^4.2.2",
+    "@types/node": "^24.12.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "postcss": "^8.5.10",
+    "prisma": "^7.7.0",
+    "serve": "^14.2.6",
+    "tailwindcss": "^4.2.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

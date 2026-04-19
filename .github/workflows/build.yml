@@ -18,7 +18,7 @@ jobs:
       - name: Lint all packages
         run: pnpm lint
 
-  svelte-check:
+  typecheck:
     runs-on: ubuntu-latest
 
     steps:

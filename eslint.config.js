@@ -47,12 +47,12 @@ export default defineConfig([
       },
     },
   },
-  // Next.js/React config for docs app only (scoped with files property)
+  // Next.js/React config for docs and benchmark apps only (scoped with files property)
   ...nextVitals.map((config) => {
     const files = config.files ?? ["**/*.{js,jsx,mjs,ts,tsx,mts,cts}"];
     return {
       ...config,
-      files: files.map((pattern) => `apps/docs/${pattern}`),
+      files: files.map((pattern) => `apps/{docs,benchmark}/src/${pattern}`),
     };
   }),
 ]);

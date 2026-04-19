@@ -13,6 +13,7 @@
     "test:client": "turbo run test --filter=@prisma-idb/usage",
     "test:sync": "turbo run test --filter=@prisma-idb/pidb-kanban-example",
     "test:schema-gen": "turbo run test --filter=@prisma-idb/schema-gen-tests",
+    "test:benchmark": "turbo run test --filter=@prisma-idb/benchmark",
     "test:watch": "turbo run test:watch --no-cache",
     "generate": "turbo run generate",
     "clean": "turbo clean && rm -rf node_modules",
@@ -21,21 +22,21 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@eslint/compat": "^2.0.4",
+    "@eslint/compat": "^2.0.5",
     "@eslint/js": "^9.39.4",
     "eslint": "^9.39.4",
-    "eslint-config-next": "^16.2.2",
+    "eslint-config-next": "^16.2.4",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-svelte": "^3.17.0",
-    "globals": "^17.4.0",
+    "globals": "^17.5.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
-    "prettier": "^3.8.1",
+    "prettier": "^3.8.3",
     "prettier-plugin-svelte": "^3.5.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
-    "turbo": "^2.9.5",
+    "turbo": "^2.9.6",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.58.1"
+    "typescript-eslint": "^8.58.2"
   },
   "lint-staged": {
     "*.{js,ts,svelte,tsx,jsx,mjs}": ["prettier --write", "eslint --fix"],
