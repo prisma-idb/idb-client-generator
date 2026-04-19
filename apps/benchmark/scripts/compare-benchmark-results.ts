@@ -106,7 +106,7 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
     `| :-- | :-- |`,
     `| **Gate metric** | p95 latency |`,
     `| **Gate mode** | ${gateIcon} ${gateLabel} |`,
-    `| **Regression threshold** | +${threshold}% |`,
+    `| **Regression threshold** | +${threshold}% and ≥${BENCHMARK_REGRESSION_GATE.minAbsoluteDeltaMs}ms absolute |`,
     `| **Compared operations** | ${summary.rows.length} |`,
     `| **Regressions** | ${summary.regressions.length > 0 ? `⚠️ ${summary.regressions.length}` : `${summary.regressions.length}`} |`,
     `| **Added / Removed** | ${summary.addedOperations.length} / ${summary.removedOperations.length} |`,
@@ -215,14 +215,6 @@ function getComparisonNotices(baseline: BenchmarkRun, current: BenchmarkRun): st
     );
   }
 
-  if (baseline.platform !== current.platform) {
-    const bl = baseline.platform ?? "unknown";
-    const cl = current.platform ?? "unknown";
-    notices.push(
-      `Baseline and current runs were captured on different platforms (\`${bl}\` vs \`${cl}\`); absolute timings are not comparable, so this comparison is advisory.`
-    );
-  }
-
   return notices;
 }
 
@@ -288,8 +280,15 @@ async function main() {
       (baselineCV !== null && baselineCV > CV_THRESHOLD) || (currentCV !== null && currentCV > CV_THRESHOLD);
 
     // Treat baseline=0 → current>0 as a hard regression (delta becomes +Infinity).
+    // Also require the absolute change to exceed minAbsoluteDeltaMs to avoid flagging
+    // sub-millisecond jitter on fast operations as regressions.
     const delta = p95.delta;
-    const isRegression = delta !== null && (!Number.isFinite(delta) || delta > threshold);
+    const minAbsDelta = BENCHMARK_REGRESSION_GATE.minAbsoluteDeltaMs;
+    const absoluteP95Delta =
+      p95.baseline !== null && p95.current !== null ? Math.abs(p95.current - p95.baseline) : null;
+    const exceedsPercent = delta !== null && (!Number.isFinite(delta) || delta > threshold);
+    const exceedsAbsolute = absoluteP95Delta === null || absoluteP95Delta >= minAbsDelta;
+    const isRegression = exceedsPercent && exceedsAbsolute;
     const isWarn = !isRegression && (delta === null || delta >= threshold / 2);
 
     const row: ComparisonRow = {
@@ -322,7 +321,7 @@ async function main() {
     regressions,
     addedOperations,
     removedOperations,
-    shouldFail: !isAdvisory && (regressions.length > 0 || removedOperations.length > 0),
+    shouldFail: regressions.length > 0 || removedOperations.length > 0,
   };
 
   const markdown = renderMarkdown(summary, threshold);
