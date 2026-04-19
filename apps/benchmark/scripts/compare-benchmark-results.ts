@@ -105,9 +105,20 @@ function bootstrapMedianDeltaCI(
 
   const baselineMedian = medianOf(baselineSamples);
   const currentMedian = medianOf(currentSamples);
-  if (!Number.isFinite(baselineMedian) || baselineMedian === 0) return null;
+  if (!Number.isFinite(baselineMedian)) return null;
 
-  const observedDelta = ((currentMedian - baselineMedian) / baselineMedian) * 100;
+  // Zero-baseline ops (e.g. sub-millisecond ops measured as 0) are still
+  // comparable: any non-zero current is an unbounded change. Downstream gating
+  // requires |median delta| ≥ minAbsoluteDeltaMs, so micro-jitter still gets
+  // filtered out and we don't flag noise.
+  let observedDelta: number;
+  if (baselineMedian === 0 && currentMedian === 0) {
+    observedDelta = 0;
+  } else if (baselineMedian === 0) {
+    observedDelta = currentMedian > 0 ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+  } else {
+    observedDelta = ((currentMedian - baselineMedian) / baselineMedian) * 100;
+  }
 
   const replicateDeltas: number[] = new Array(iterations);
   const baselineN = baselineSamples.length;
@@ -157,13 +168,13 @@ function formatMetric(value: number | null): string {
   return value === null ? "n/a" : String(value);
 }
 
-function formatDelta(value: number | null): string {
+function formatDelta(value: number | null, threshold: number): string {
   if (value === null) return "n/a";
   if (!Number.isFinite(value)) return value > 0 ? "+∞" : "-∞";
   const sign = value > 0 ? "+" : "";
   const formatted = `${sign}${value.toFixed(2)}%`;
-  if (value > 10) return `**${formatted}** 📈`;
-  if (value < -10) return `**${formatted}** 📉`;
+  if (value > threshold) return `**${formatted}** 📈`;
+  if (value < -threshold) return `**${formatted}** 📉`;
   return formatted;
 }
 
@@ -242,10 +253,10 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
           : "\uD83D\uDFE2";
     const noisyTag = row.noisy ? " \uD83C\uDFB2" : "";
     const ciCell = row.bootstrap
-      ? `${formatDelta(row.bootstrap.medianDeltaPercent)} (${formatCIBound(row.bootstrap.ciLowerPercent)} … ${formatCIBound(row.bootstrap.ciUpperPercent)})`
+      ? `${formatDelta(row.bootstrap.medianDeltaPercent, threshold)} (${formatCIBound(row.bootstrap.ciLowerPercent)} … ${formatCIBound(row.bootstrap.ciUpperPercent)})`
       : "n/a";
-    const deltaP95 = formatDelta(row.p95.delta);
-    const deltaMean = formatDelta(row.mean.delta);
+    const deltaP95 = formatDelta(row.p95.delta, threshold);
+    const deltaMean = formatDelta(row.mean.delta, threshold);
     lines.push(
       `| ${statusIcon} | \`${row.operationId}\`${noisyTag} | ${ciCell} | ${formatMetric(row.median.baseline)} | ${formatMetric(row.median.current)} | ${deltaP95} | ${deltaMean} |`
     );
@@ -279,8 +290,8 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
       `| 🎲 | High coefficient of variation (CV > ${(CV_THRESHOLD * 100).toFixed(0)}%) — samples are spread out |`
     );
   }
-  lines.push("| 📈 | Regression > 10% |");
-  lines.push("| 📉 | Improvement > 10% |");
+  lines.push(`| 📈 | Regression > ${threshold}% |`);
+  lines.push(`| 📉 | Improvement > ${threshold}% |`);
   lines.push("", "</details>");
 
   lines.push("", `_Generated at ${new Date().toISOString()}_`);
@@ -418,13 +429,15 @@ async function main() {
       median.baseline !== null && median.current !== null ? Math.abs(median.current - median.baseline) : null;
     const exceedsAbsolute = absoluteMedianDelta === null || absoluteMedianDelta >= minAbsDelta;
     const ciLower = bootstrap?.ciLowerPercent ?? null;
-    const ciExceedsThreshold = ciLower !== null && (!Number.isFinite(ciLower) || ciLower > threshold);
+    // Only positive infinity counts as exceeding the threshold; -Infinity is a
+    // huge improvement, not a regression.
+    const ciExceedsThreshold = ciLower !== null && (ciLower === Number.POSITIVE_INFINITY || ciLower > threshold);
     const isRegression = ciExceedsThreshold && exceedsAbsolute;
     // Warn when the point estimate exceeds threshold but the CI lower bound
     // doesn't — i.e., the regression might be real but isn't statistically robust.
     const observedExceeds =
       bootstrap !== null &&
-      (!Number.isFinite(bootstrap.medianDeltaPercent) || bootstrap.medianDeltaPercent > threshold);
+      (bootstrap.medianDeltaPercent === Number.POSITIVE_INFINITY || bootstrap.medianDeltaPercent > threshold);
     const isWarn = !isRegression && observedExceeds && exceedsAbsolute;
 
     const row: ComparisonRow = {
@@ -459,7 +472,9 @@ async function main() {
     regressions,
     addedOperations,
     removedOperations,
-    shouldFail: regressions.length > 0 || removedOperations.length > 0,
+    // Advisory comparisons (e.g. mismatched sample counts, missing samplesMs)
+    // never block the gate — they're flagged as informational only.
+    shouldFail: !isAdvisory && (regressions.length > 0 || removedOperations.length > 0),
   };
 
   const markdown = renderMarkdown(summary, threshold);
