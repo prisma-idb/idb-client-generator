@@ -1,5 +1,7 @@
 # Prisma IDB
 
+[![Prisma IDB — Type-safe IndexedDB with the Prisma API](https://raw.githubusercontent.com/prisma-idb/idb-client-generator/main/apps/docs/public/og.png)](https://prisma-idb.dev/)
+
 > You already write Prisma on the server. Now write it in the browser.
 
 A Prisma generator that creates a type-safe IndexedDB client with the API you already know — plus an optional sync engine that handles conflict resolution, ownership, and offline-first data for you.
