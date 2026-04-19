@@ -29,11 +29,10 @@ Local-first benchmark dashboard for Prisma IDB generated clients.
 ## CI Regression Gate
 
 - CI runs benchmarks in headless Chromium via Playwright using `/?autoStart` with config query params.
-- The default benchmark preset uses 20 measured runs so p95 is estimated from a meaningful sample size.
+- PR benchmark comparisons run the PR head and PR base commit back-to-back on the same GitHub runner to reduce VM-to-VM variance.
 - Baseline snapshot is stored in `benchmarks/baselines/main.json` and refreshed on successful pushes to `main`.
-- PR checks do **not** trust the baseline file from the PR branch; they load the baseline from the PR base commit on `main`.
-- PR runs compare current results against baseline and fail if any operation p95 latency regresses by more than 10%.
-- If the trusted snapshot comparison is still advisory, CI benchmarks the PR base commit directly using the same config and uses that run for the final gate.
-- If baseline and current runs use insufficient or mismatched sample counts, the comparison is reported as advisory instead of enforcing.
+- PR checks do **not** trust the baseline file from the PR branch; they benchmark the PR base commit directly using the same config.
+- PR runs compare current results against baseline and fail only when the bootstrap 95% CI lower bound of median latency delta exceeds the threshold.
+- If baseline and current runs have insufficient or mismatched sample data, the comparison is reported as advisory instead of enforcing.
 - Newly added benchmark operations are reported in PR comments but do not fail the gate; removing baseline operations fails the gate.
 - CI posts a sticky PR comment with a per-operation delta table.

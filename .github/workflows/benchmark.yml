@@ -20,7 +20,7 @@ env:
   BENCHMARK_MEASURED_RUNS: "30"
 
 jobs:
-  benchmark-current:
+  benchmark-pr-compare:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
@@ -57,132 +57,51 @@ jobs:
         working-directory: apps/benchmark
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Run current benchmark suite
+      - name: Run current benchmark suite (PR head)
         working-directory: apps/benchmark
         env:
           BENCHMARK_DATASET_SIZE: ${{ env.BENCHMARK_DATASET_SIZE }}
           BENCHMARK_WARMUP_RUNS: ${{ env.BENCHMARK_WARMUP_RUNS }}
           BENCHMARK_MEASURED_RUNS: ${{ env.BENCHMARK_MEASURED_RUNS }}
-          BENCHMARK_RESULT_PATH: ${{ github.workspace }}/benchmarks/results/current.json
+          BENCHMARK_RESULT_PATH: ${{ runner.temp }}/benchmark-results/current.json
         run: |
-          mkdir -p ../../benchmarks/results
+          mkdir -p "$RUNNER_TEMP/benchmark-results"
           pnpm benchmark:ci
 
-      - name: Upload current benchmark artifact
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: benchmark-current
-          path: benchmarks/results/current.json
-          retention-days: 30
-
-  benchmark-base:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.base.sha }}
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-          cache: pnpm
-
-      - name: Install package dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Generate benchmark clients
-        working-directory: apps/benchmark
-        run: pnpm generate
-        env:
-          DATABASE_URL: "postgresql://placeholder@localhost:5432/placeholder"
-
-      - name: Restore Playwright browser cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
-
-      - name: Install Playwright Browser
-        working-directory: apps/benchmark
-        run: pnpm exec playwright install --with-deps chromium
-
-      - name: Run base benchmark suite
-        working-directory: apps/benchmark
-        env:
-          BENCHMARK_DATASET_SIZE: ${{ env.BENCHMARK_DATASET_SIZE }}
-          BENCHMARK_WARMUP_RUNS: ${{ env.BENCHMARK_WARMUP_RUNS }}
-          BENCHMARK_MEASURED_RUNS: ${{ env.BENCHMARK_MEASURED_RUNS }}
-          BENCHMARK_RESULT_PATH: ${{ github.workspace }}/benchmarks/results/baseline.json
+      - name: Run baseline benchmark suite (PR base)
         run: |
-          mkdir -p ../../benchmarks/results
+          git checkout --force ${{ github.event.pull_request.base.sha }}
+          pnpm install --frozen-lockfile
+          pushd apps/benchmark
+          DATABASE_URL="postgresql://placeholder@localhost:5432/placeholder" pnpm generate
+          BENCHMARK_DATASET_SIZE="${{ env.BENCHMARK_DATASET_SIZE }}" \
+          BENCHMARK_WARMUP_RUNS="${{ env.BENCHMARK_WARMUP_RUNS }}" \
+          BENCHMARK_MEASURED_RUNS="${{ env.BENCHMARK_MEASURED_RUNS }}" \
+          BENCHMARK_RESULT_PATH="$RUNNER_TEMP/benchmark-results/baseline.json" \
           pnpm benchmark:ci
+          popd
 
-      - name: Upload base benchmark artifact
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: benchmark-base
-          path: benchmarks/results/baseline.json
-          retention-days: 30
-
-  compare-benchmarks:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    needs: [benchmark-current, benchmark-base]
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-          cache: pnpm
-
-      - name: Install package dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Download current benchmark artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: benchmark-current
-          path: benchmarks/results
-
-      - name: Download base benchmark artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: benchmark-base
-          path: benchmarks/results
+      - name: Restore PR head checkout
+        run: |
+          git checkout --force ${{ github.sha }}
+          pnpm install --frozen-lockfile
 
       - name: Compare benchmarks
         working-directory: apps/benchmark
         run: |
-          test -f ../../benchmarks/results/baseline.json
-          test -f ../../benchmarks/results/current.json
+          test -f "$RUNNER_TEMP/benchmark-results/baseline.json"
+          test -f "$RUNNER_TEMP/benchmark-results/current.json"
           pnpm benchmark:compare \
-            --baseline ../../benchmarks/results/baseline.json \
-            --current ../../benchmarks/results/current.json \
+            --baseline "$RUNNER_TEMP/benchmark-results/baseline.json" \
+            --current "$RUNNER_TEMP/benchmark-results/current.json" \
             --threshold 10 \
-            --json-out ../../benchmarks/results/report.json \
-            --markdown-out ../../benchmarks/results/report.md
+            --json-out "$RUNNER_TEMP/benchmark-results/report.json" \
+            --markdown-out "$RUNNER_TEMP/benchmark-results/report.md"
 
       - name: Enforce benchmark regression gate
         run: |
-          jq -r '(.notices[]? | "Notice: " + .)' benchmarks/results/report.json
-          if [ "$(jq -r '.shouldFail' benchmarks/results/report.json)" = "true" ]; then
+          jq -r '(.notices[]? | "Notice: " + .)' "$RUNNER_TEMP/benchmark-results/report.json"
+          if [ "$(jq -r '.shouldFail' "$RUNNER_TEMP/benchmark-results/report.json")" = "true" ]; then
             echo "Benchmark regression gate failed." >&2
             exit 1
           fi
@@ -194,14 +113,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          pnpm benchmark:comment --body-file ../../benchmarks/results/report.md
+          pnpm benchmark:comment --body-file "$RUNNER_TEMP/benchmark-results/report.md"
 
       - name: Upload benchmark artifacts
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
-          path: benchmarks/results/
+          path: ${{ runner.temp }}/benchmark-results/
           retention-days: 30
 
   refresh-main-baseline:
@@ -247,15 +166,15 @@ jobs:
           BENCHMARK_DATASET_SIZE: ${{ env.BENCHMARK_DATASET_SIZE }}
           BENCHMARK_WARMUP_RUNS: ${{ env.BENCHMARK_WARMUP_RUNS }}
           BENCHMARK_MEASURED_RUNS: ${{ env.BENCHMARK_MEASURED_RUNS }}
-          BENCHMARK_RESULT_PATH: ${{ github.workspace }}/benchmarks/results/current.json
+          BENCHMARK_RESULT_PATH: ${{ runner.temp }}/benchmark-results/main-current.json
         run: |
-          mkdir -p ../../benchmarks/results
+          mkdir -p "$RUNNER_TEMP/benchmark-results"
           pnpm benchmark:ci
 
       - name: Refresh main baseline snapshot
         run: |
           mkdir -p benchmarks/baselines
-          cp benchmarks/results/current.json benchmarks/baselines/main.json
+          cp "$RUNNER_TEMP/benchmark-results/main-current.json" benchmarks/baselines/main.json
 
       - name: Commit baseline update
         run: |
@@ -281,5 +200,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-results-main
-          path: benchmarks/results/
+          path: ${{ runner.temp }}/benchmark-results/
           retention-days: 30

@@ -423,7 +423,7 @@ function getComparisonNotices(baseline: BenchmarkRun, current: BenchmarkRun): st
       notices.push(`${label} sample counts are missing or inconsistent across operations.`);
     } else if (count < minSamples) {
       notices.push(
-        `${label} only has ${count} measured samples per operation; meaningful p95 gating starts at ${minSamples}.`
+        `${label} only has ${count} measured samples per operation; reliable median-delta bootstrap CI gating starts at ${minSamples}.`
       );
     }
   }
