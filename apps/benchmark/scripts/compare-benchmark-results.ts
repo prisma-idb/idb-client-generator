@@ -23,10 +23,24 @@ interface MetricPair {
   delta: number | null;
 }
 
+interface BootstrapCI {
+  /** Percent change in median, point estimate from observed samples. */
+  medianDeltaPercent: number;
+  /** 95% CI lower bound on the percent change in median. */
+  ciLowerPercent: number;
+  /** 95% CI upper bound on the percent change in median. */
+  ciUpperPercent: number;
+  /** Number of bootstrap resamples used. */
+  iterations: number;
+}
+
 interface ComparisonRow {
   operationId: string;
   p95: MetricPair;
   mean: MetricPair;
+  median: MetricPair;
+  /** Bootstrap CI on the percent change in median. `null` when sample data is missing. */
+  bootstrap: BootstrapCI | null;
   status: "PASS" | "WARN" | "FAIL";
   noisy?: boolean;
 }
@@ -50,6 +64,9 @@ const round = (value: number) => Number(value.toFixed(3));
 /** Coefficient of variation threshold above which a measurement is flagged as noisy. */
 const CV_THRESHOLD = 0.3;
 
+/** Number of bootstrap resamples used to compute the CI on the median delta. */
+const BOOTSTRAP_ITERATIONS = 2000;
+
 /** Coefficient of variation (stdDev / mean). High CV → noisy measurement. */
 function coefficientOfVariation(samples: number[] | undefined): number | null {
   if (!samples || samples.length < 2) return null;
@@ -60,18 +77,86 @@ function coefficientOfVariation(samples: number[] | undefined): number | null {
   return Math.sqrt(variance) / mean;
 }
 
+function medianOf(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const n = sorted.length;
+  if (n === 0) return Number.NaN;
+  const mid = Math.floor(n / 2);
+  return n % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
+/**
+ * Bootstrap confidence interval on the percent change in median between two
+ * sample sets. Resamples both arrays with replacement, computes the median
+ * delta on each replicate, and returns the 2.5th / 97.5th percentiles as the
+ * 95% CI bounds.
+ *
+ * Using the CI lower bound (instead of a point estimate) as the gate criterion
+ * naturally handles benchmark noise: a true regression is one where even the
+ * pessimistic edge of the CI exceeds the threshold.
+ */
+function bootstrapMedianDeltaCI(
+  baselineSamples: number[] | undefined,
+  currentSamples: number[] | undefined,
+  iterations: number = BOOTSTRAP_ITERATIONS
+): BootstrapCI | null {
+  if (!baselineSamples || !currentSamples) return null;
+  if (baselineSamples.length < 2 || currentSamples.length < 2) return null;
+
+  const baselineMedian = medianOf(baselineSamples);
+  const currentMedian = medianOf(currentSamples);
+  if (!Number.isFinite(baselineMedian) || baselineMedian === 0) return null;
+
+  const observedDelta = ((currentMedian - baselineMedian) / baselineMedian) * 100;
+
+  const replicateDeltas: number[] = new Array(iterations);
+  const baselineN = baselineSamples.length;
+  const currentN = currentSamples.length;
+  const baselineDraw = new Array<number>(baselineN);
+  const currentDraw = new Array<number>(currentN);
+
+  for (let i = 0; i < iterations; i++) {
+    for (let j = 0; j < baselineN; j++) {
+      baselineDraw[j] = baselineSamples[Math.floor(Math.random() * baselineN)];
+    }
+    for (let j = 0; j < currentN; j++) {
+      currentDraw[j] = currentSamples[Math.floor(Math.random() * currentN)];
+    }
+    const bMed = medianOf(baselineDraw);
+    const cMed = medianOf(currentDraw);
+    replicateDeltas[i] = bMed === 0 ? Number.POSITIVE_INFINITY : ((cMed - bMed) / bMed) * 100;
+  }
+
+  replicateDeltas.sort((a, b) => a - b);
+  const lowerIdx = Math.floor(0.025 * iterations);
+  const upperIdx = Math.min(iterations - 1, Math.floor(0.975 * iterations));
+
+  return {
+    medianDeltaPercent: round(observedDelta),
+    ciLowerPercent: round(replicateDeltas[lowerIdx]),
+    ciUpperPercent: round(replicateDeltas[upperIdx]),
+    iterations,
+  };
+}
+
 function formatMetric(value: number | null): string {
   return value === null ? "n/a" : String(value);
 }
 
 function formatDelta(value: number | null): string {
   if (value === null) return "n/a";
-  if (!Number.isFinite(value)) return "∞";
+  if (!Number.isFinite(value)) return value > 0 ? "+∞" : "-∞";
   const sign = value > 0 ? "+" : "";
   const formatted = `${sign}${value.toFixed(2)}%`;
   if (value > 10) return `**${formatted}** 📈`;
   if (value < -10) return `**${formatted}** 📉`;
   return formatted;
+}
+
+function formatCIBound(value: number): string {
+  if (!Number.isFinite(value)) return value > 0 ? "+∞" : "-∞";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(1)}%`;
 }
 
 function pairMetric(baseline: number, current: number): MetricPair {
@@ -112,9 +197,9 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
     "",
     `| Summary | |`,
     `| :-- | :-- |`,
-    `| **Gate metric** | p95 latency (corroborated by mean) |`,
+    `| **Gate metric** | bootstrap 95% CI on median delta |`,
     `| **Gate mode** | ${gateIcon} ${gateLabel} |`,
-    `| **Regression threshold** | p95 > +${threshold}% and ≥${BENCHMARK_REGRESSION_GATE.minAbsoluteDeltaMs}ms absolute, mean > +${BENCHMARK_REGRESSION_GATE.meanCorroborationPercent}% |`,
+    `| **Regression threshold** | CI lower bound > +${threshold}% and ≥${BENCHMARK_REGRESSION_GATE.minAbsoluteDeltaMs}ms absolute median change |`,
     `| **Compared operations** | ${summary.rows.length} |`,
     `| **Regressions** | ${summary.regressions.length > 0 ? `⚠️ ${summary.regressions.length}` : `${summary.regressions.length}`} |`,
     `| **Added / Removed** | ${summary.addedOperations.length} / ${summary.removedOperations.length} |`,
@@ -128,17 +213,27 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
   }
 
   lines.push(
-    "| Status | Operation | Baseline p95 | Current p95 | Δ p95 | Baseline mean | Current mean | Δ mean |",
-    "| :---: | :-- | ---: | ---: | ---: | ---: | ---: | ---: |"
+    "| Status | Operation | Median Δ (95% CI) | Baseline median | Current median | Δ p95 | Δ mean |",
+    "| :---: | :-- | :--- | ---: | ---: | ---: | ---: |"
   );
 
   for (const row of summary.rows) {
-    const statusIcon = row.status === "FAIL" ? (row.noisy ? "🟠" : "🔴") : row.status === "WARN" ? "🟡" : "🟢";
-    const noisyTag = row.noisy ? " 🎲" : "";
+    const statusIcon =
+      row.status === "FAIL"
+        ? row.noisy
+          ? "\uD83D\uDFE0"
+          : "\uD83D\uDD34"
+        : row.status === "WARN"
+          ? "\uD83D\uDFE1"
+          : "\uD83D\uDFE2";
+    const noisyTag = row.noisy ? " \uD83C\uDFB2" : "";
+    const ciCell = row.bootstrap
+      ? `${formatDelta(row.bootstrap.medianDeltaPercent)} (${formatCIBound(row.bootstrap.ciLowerPercent)} … ${formatCIBound(row.bootstrap.ciUpperPercent)})`
+      : "n/a";
     const deltaP95 = formatDelta(row.p95.delta);
     const deltaMean = formatDelta(row.mean.delta);
     lines.push(
-      `| ${statusIcon} | \`${row.operationId}\`${noisyTag} | ${formatMetric(row.p95.baseline)} | ${formatMetric(row.p95.current)} | ${deltaP95} | ${formatMetric(row.mean.baseline)} | ${formatMetric(row.mean.current)} | ${deltaMean} |`
+      `| ${statusIcon} | \`${row.operationId}\`${noisyTag} | ${ciCell} | ${formatMetric(row.median.baseline)} | ${formatMetric(row.median.current)} | ${deltaP95} | ${deltaMean} |`
     );
   }
 
@@ -159,9 +254,9 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
   lines.push("<details><summary>Legend</summary>", "");
   lines.push("| Symbol | Meaning |");
   lines.push("| :---: | :-- |");
-  lines.push("| 🟢 | Pass — within threshold |");
-  lines.push("| 🟡 | Warn — approaching threshold |");
-  lines.push("| 🔴 | Fail — exceeds threshold |");
+  lines.push("| 🟢 | Pass — CI lower bound is within threshold |");
+  lines.push("| 🟡 | Warn — point estimate exceeds threshold but CI lower bound does not (likely noise) |");
+  lines.push("| 🔴 | Fail — even pessimistic edge of CI exceeds threshold |");
   if (hasNoisyFail) {
     lines.push("| 🟠 | Fail but noisy — high variance makes this unreliable |");
   }
@@ -284,33 +379,46 @@ async function main() {
     const p95 = pairMetric(Number(baselineOp.summary?.p95Ms), Number(currentOp.summary?.p95Ms));
     const mean = pairMetric(Number(baselineOp.summary?.meanMs), Number(currentOp.summary?.meanMs));
 
+    const baselineSamples = baselineOp.samplesMs;
+    const currentSamples = currentOp.samplesMs;
+    const median = pairMetric(
+      baselineSamples ? medianOf(baselineSamples) : Number.NaN,
+      currentSamples ? medianOf(currentSamples) : Number.NaN
+    );
+    const bootstrap = bootstrapMedianDeltaCI(baselineSamples, currentSamples);
+
     // Flag operations where either run has high coefficient of variation.
     // A high CV means the samples are spread out, making any % delta unreliable.
-    const baselineCV = coefficientOfVariation(baselineOp.samplesMs);
-    const currentCV = coefficientOfVariation(currentOp.samplesMs);
+    const baselineCV = coefficientOfVariation(baselineSamples);
+    const currentCV = coefficientOfVariation(currentSamples);
     const noisy =
       (baselineCV !== null && baselineCV > CV_THRESHOLD) || (currentCV !== null && currentCV > CV_THRESHOLD);
 
-    // Treat baseline=0 → current>0 as a hard regression (delta becomes +Infinity).
-    // Also require the absolute change to exceed minAbsoluteDeltaMs to avoid flagging
-    // sub-millisecond jitter on fast operations as regressions.
-    const delta = p95.delta;
+    // Gate criterion: lower bound of bootstrap CI on median delta must exceed the
+    // threshold. This filters out apparent regressions caused by sample variance:
+    // a true regression is one where even the pessimistic edge of the CI is above
+    // the threshold. Also require the absolute median change to exceed
+    // minAbsoluteDeltaMs to avoid flagging sub-millisecond jitter.
     const minAbsDelta = BENCHMARK_REGRESSION_GATE.minAbsoluteDeltaMs;
-    const absoluteP95Delta =
-      p95.baseline !== null && p95.current !== null ? Math.abs(p95.current - p95.baseline) : null;
-    const exceedsPercent = delta !== null && (!Number.isFinite(delta) || delta > threshold);
-    const exceedsAbsolute = absoluteP95Delta === null || absoluteP95Delta >= minAbsDelta;
-    const meanDelta = mean.delta;
-    const meanCorroborates =
-      meanDelta !== null &&
-      (!Number.isFinite(meanDelta) || meanDelta > BENCHMARK_REGRESSION_GATE.meanCorroborationPercent);
-    const isRegression = exceedsPercent && exceedsAbsolute && meanCorroborates;
-    const isWarn = !isRegression && (delta === null || delta >= threshold / 2);
+    const absoluteMedianDelta =
+      median.baseline !== null && median.current !== null ? Math.abs(median.current - median.baseline) : null;
+    const exceedsAbsolute = absoluteMedianDelta === null || absoluteMedianDelta >= minAbsDelta;
+    const ciLower = bootstrap?.ciLowerPercent ?? null;
+    const ciExceedsThreshold = ciLower !== null && (!Number.isFinite(ciLower) || ciLower > threshold);
+    const isRegression = ciExceedsThreshold && exceedsAbsolute;
+    // Warn when the point estimate exceeds threshold but the CI lower bound
+    // doesn't — i.e., the regression might be real but isn't statistically robust.
+    const observedExceeds =
+      bootstrap !== null &&
+      (!Number.isFinite(bootstrap.medianDeltaPercent) || bootstrap.medianDeltaPercent > threshold);
+    const isWarn = !isRegression && observedExceeds && exceedsAbsolute;
 
     const row: ComparisonRow = {
       operationId,
       p95,
       mean,
+      median,
+      bootstrap,
       status: isRegression ? "FAIL" : isWarn ? "WARN" : "PASS",
       noisy,
     };
