@@ -533,91 +533,344 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     query?: Q
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const attach_profile = query.select?.profile || query.include?.profile;
+    let profile_hashMap: Map<string, unknown> | undefined;
+    if (attach_profile) {
+      const profile_opts = (attach_profile === true ? {} : attach_profile) as Record<string, unknown>;
+      const profile_sel = profile_opts.select as Record<string, boolean> | undefined;
+      const profile_keysToInject = profile_sel ? (["userId"] as string[]).filter((k) => !profile_sel![k]) : [];
+      const profile_parentIds = [...new Set(records.map((r) => r.id))];
+      const profile_related = await this.client.profile.findMany(
+        {
+          ...profile_opts,
+          ...(profile_keysToInject.length > 0
+            ? { select: { ...profile_sel, ...Object.fromEntries(profile_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          where: { userId: { in: profile_parentIds } },
+        },
+        { tx }
+      );
+      profile_hashMap = new Map(
+        profile_related.map((r) => {
+          const _r = r as Record<string, unknown>;
+          const key = JSON.stringify(_r["userId"]);
+          const value =
+            profile_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !profile_keysToInject.includes(k)))
+              : _r;
+          return [key, value as unknown];
+        })
+      );
+    }
+    const attach_posts = query.select?.posts || query.include?.posts;
+    let posts_hashMap: Map<string, unknown[]> | undefined;
+    if (attach_posts) {
+      const posts_opts = (attach_posts === true ? {} : attach_posts) as Record<string, unknown>;
+      const posts_sel = posts_opts.select as Record<string, boolean> | undefined;
+      const posts_keysToInject = posts_sel ? (["authorId"] as string[]).filter((k) => !posts_sel![k]) : [];
+      const posts_parentIds = [...new Set(records.map((r) => r.id))];
+      const posts_allRelated = await this.client.post.findMany(
+        {
+          ...posts_opts,
+          ...(posts_keysToInject.length > 0
+            ? { select: { ...posts_sel, ...Object.fromEntries(posts_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          take: undefined,
+          skip: undefined,
+          where: { authorId: { in: posts_parentIds } },
+        },
+        { tx }
+      );
+      const posts_take = attach_posts !== true ? (attach_posts as Prisma.PostFindManyArgs).take : undefined;
+      const posts_skip = attach_posts !== true ? (attach_posts as Prisma.PostFindManyArgs).skip : undefined;
+      posts_hashMap = new Map<string, unknown[]>();
+      for (const related of posts_allRelated) {
+        const _r = related as Record<string, unknown>;
+        const key = JSON.stringify(_r["authorId"]);
+        if (!posts_hashMap!.has(key)) posts_hashMap!.set(key, []);
+        const value =
+          posts_keysToInject.length > 0
+            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !posts_keysToInject.includes(k)))
+            : _r;
+        posts_hashMap!.get(key)!.push(value as unknown);
+      }
+      if (posts_skip !== undefined || posts_take !== undefined) {
+        for (const [key, group] of posts_hashMap!) {
+          const start = posts_skip ?? 0;
+          const end = posts_take !== undefined ? start + posts_take : undefined;
+          posts_hashMap!.set(key, group.slice(start, end));
+        }
+      }
+    }
+    const attach_comments = query.select?.comments || query.include?.comments;
+    let comments_hashMap: Map<string, unknown[]> | undefined;
+    if (attach_comments) {
+      const comments_opts = (attach_comments === true ? {} : attach_comments) as Record<string, unknown>;
+      const comments_sel = comments_opts.select as Record<string, boolean> | undefined;
+      const comments_keysToInject = comments_sel ? (["userId"] as string[]).filter((k) => !comments_sel![k]) : [];
+      const comments_parentIds = [...new Set(records.map((r) => r.id))];
+      const comments_allRelated = await this.client.comment.findMany(
+        {
+          ...comments_opts,
+          ...(comments_keysToInject.length > 0
+            ? { select: { ...comments_sel, ...Object.fromEntries(comments_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          take: undefined,
+          skip: undefined,
+          where: { userId: { in: comments_parentIds } },
+        },
+        { tx }
+      );
+      const comments_take = attach_comments !== true ? (attach_comments as Prisma.CommentFindManyArgs).take : undefined;
+      const comments_skip = attach_comments !== true ? (attach_comments as Prisma.CommentFindManyArgs).skip : undefined;
+      comments_hashMap = new Map<string, unknown[]>();
+      for (const related of comments_allRelated) {
+        const _r = related as Record<string, unknown>;
+        const key = JSON.stringify(_r["userId"]);
+        if (!comments_hashMap!.has(key)) comments_hashMap!.set(key, []);
+        const value =
+          comments_keysToInject.length > 0
+            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !comments_keysToInject.includes(k)))
+            : _r;
+        comments_hashMap!.get(key)!.push(value as unknown);
+      }
+      if (comments_skip !== undefined || comments_take !== undefined) {
+        for (const [key, group] of comments_hashMap!) {
+          const start = comments_skip ?? 0;
+          const end = comments_take !== undefined ? start + comments_take : undefined;
+          comments_hashMap!.set(key, group.slice(start, end));
+        }
+      }
+    }
+    const attach_Child = query.select?.Child || query.include?.Child;
+    let Child_hashMap: Map<string, unknown[]> | undefined;
+    if (attach_Child) {
+      const Child_opts = (attach_Child === true ? {} : attach_Child) as Record<string, unknown>;
+      const Child_sel = Child_opts.select as Record<string, boolean> | undefined;
+      const Child_keysToInject = Child_sel ? (["userId"] as string[]).filter((k) => !Child_sel![k]) : [];
+      const Child_parentIds = [...new Set(records.map((r) => r.id))];
+      const Child_allRelated = await this.client.child.findMany(
+        {
+          ...Child_opts,
+          ...(Child_keysToInject.length > 0
+            ? { select: { ...Child_sel, ...Object.fromEntries(Child_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          take: undefined,
+          skip: undefined,
+          where: { userId: { in: Child_parentIds } },
+        },
+        { tx }
+      );
+      const Child_take = attach_Child !== true ? (attach_Child as Prisma.ChildFindManyArgs).take : undefined;
+      const Child_skip = attach_Child !== true ? (attach_Child as Prisma.ChildFindManyArgs).skip : undefined;
+      Child_hashMap = new Map<string, unknown[]>();
+      for (const related of Child_allRelated) {
+        const _r = related as Record<string, unknown>;
+        const key = JSON.stringify(_r["userId"]);
+        if (!Child_hashMap!.has(key)) Child_hashMap!.set(key, []);
+        const value =
+          Child_keysToInject.length > 0
+            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !Child_keysToInject.includes(k)))
+            : _r;
+        Child_hashMap!.get(key)!.push(value as unknown);
+      }
+      if (Child_skip !== undefined || Child_take !== undefined) {
+        for (const [key, group] of Child_hashMap!) {
+          const start = Child_skip ?? 0;
+          const end = Child_take !== undefined ? start + Child_take : undefined;
+          Child_hashMap!.set(key, group.slice(start, end));
+        }
+      }
+    }
+    const attach_Father = query.select?.Father || query.include?.Father;
+    let Father_hashMap: Map<string, unknown[]> | undefined;
+    if (attach_Father) {
+      const Father_opts = (attach_Father === true ? {} : attach_Father) as Record<string, unknown>;
+      const Father_sel = Father_opts.select as Record<string, boolean> | undefined;
+      const Father_keysToInject = Father_sel ? (["userId"] as string[]).filter((k) => !Father_sel![k]) : [];
+      const Father_parentIds = [...new Set(records.map((r) => r.id))];
+      const Father_allRelated = await this.client.father.findMany(
+        {
+          ...Father_opts,
+          ...(Father_keysToInject.length > 0
+            ? { select: { ...Father_sel, ...Object.fromEntries(Father_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          take: undefined,
+          skip: undefined,
+          where: { userId: { in: Father_parentIds } },
+        },
+        { tx }
+      );
+      const Father_take = attach_Father !== true ? (attach_Father as Prisma.FatherFindManyArgs).take : undefined;
+      const Father_skip = attach_Father !== true ? (attach_Father as Prisma.FatherFindManyArgs).skip : undefined;
+      Father_hashMap = new Map<string, unknown[]>();
+      for (const related of Father_allRelated) {
+        const _r = related as Record<string, unknown>;
+        const key = JSON.stringify(_r["userId"]);
+        if (!Father_hashMap!.has(key)) Father_hashMap!.set(key, []);
+        const value =
+          Father_keysToInject.length > 0
+            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !Father_keysToInject.includes(k)))
+            : _r;
+        Father_hashMap!.get(key)!.push(value as unknown);
+      }
+      if (Father_skip !== undefined || Father_take !== undefined) {
+        for (const [key, group] of Father_hashMap!) {
+          const start = Father_skip ?? 0;
+          const end = Father_take !== undefined ? start + Father_take : undefined;
+          Father_hashMap!.set(key, group.slice(start, end));
+        }
+      }
+    }
+    const attach_Mother = query.select?.Mother || query.include?.Mother;
+    let Mother_hashMap: Map<string, unknown[]> | undefined;
+    if (attach_Mother) {
+      const Mother_opts = (attach_Mother === true ? {} : attach_Mother) as Record<string, unknown>;
+      const Mother_sel = Mother_opts.select as Record<string, boolean> | undefined;
+      const Mother_keysToInject = Mother_sel ? (["userId"] as string[]).filter((k) => !Mother_sel![k]) : [];
+      const Mother_parentIds = [...new Set(records.map((r) => r.id))];
+      const Mother_allRelated = await this.client.mother.findMany(
+        {
+          ...Mother_opts,
+          ...(Mother_keysToInject.length > 0
+            ? { select: { ...Mother_sel, ...Object.fromEntries(Mother_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          take: undefined,
+          skip: undefined,
+          where: { userId: { in: Mother_parentIds } },
+        },
+        { tx }
+      );
+      const Mother_take = attach_Mother !== true ? (attach_Mother as Prisma.MotherFindManyArgs).take : undefined;
+      const Mother_skip = attach_Mother !== true ? (attach_Mother as Prisma.MotherFindManyArgs).skip : undefined;
+      Mother_hashMap = new Map<string, unknown[]>();
+      for (const related of Mother_allRelated) {
+        const _r = related as Record<string, unknown>;
+        const key = JSON.stringify(_r["userId"]);
+        if (!Mother_hashMap!.has(key)) Mother_hashMap!.set(key, []);
+        const value =
+          Mother_keysToInject.length > 0
+            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !Mother_keysToInject.includes(k)))
+            : _r;
+        Mother_hashMap!.get(key)!.push(value as unknown);
+      }
+      if (Mother_skip !== undefined || Mother_take !== undefined) {
+        for (const [key, group] of Mother_hashMap!) {
+          const start = Mother_skip ?? 0;
+          const end = Mother_take !== undefined ? start + Mother_take : undefined;
+          Mother_hashMap!.set(key, group.slice(start, end));
+        }
+      }
+    }
+    const attach_groups = query.select?.groups || query.include?.groups;
+    let groups_hashMap: Map<string, unknown[]> | undefined;
+    if (attach_groups) {
+      const groups_opts = (attach_groups === true ? {} : attach_groups) as Record<string, unknown>;
+      const groups_sel = groups_opts.select as Record<string, boolean> | undefined;
+      const groups_keysToInject = groups_sel ? (["userId"] as string[]).filter((k) => !groups_sel![k]) : [];
+      const groups_parentIds = [...new Set(records.map((r) => r.id))];
+      const groups_allRelated = await this.client.userGroup.findMany(
+        {
+          ...groups_opts,
+          ...(groups_keysToInject.length > 0
+            ? { select: { ...groups_sel, ...Object.fromEntries(groups_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          take: undefined,
+          skip: undefined,
+          where: { userId: { in: groups_parentIds } },
+        },
+        { tx }
+      );
+      const groups_take = attach_groups !== true ? (attach_groups as Prisma.UserGroupFindManyArgs).take : undefined;
+      const groups_skip = attach_groups !== true ? (attach_groups as Prisma.UserGroupFindManyArgs).skip : undefined;
+      groups_hashMap = new Map<string, unknown[]>();
+      for (const related of groups_allRelated) {
+        const _r = related as Record<string, unknown>;
+        const key = JSON.stringify(_r["userId"]);
+        if (!groups_hashMap!.has(key)) groups_hashMap!.set(key, []);
+        const value =
+          groups_keysToInject.length > 0
+            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !groups_keysToInject.includes(k)))
+            : _r;
+        groups_hashMap!.get(key)!.push(value as unknown);
+      }
+      if (groups_skip !== undefined || groups_take !== undefined) {
+        for (const [key, group] of groups_hashMap!) {
+          const start = groups_skip ?? 0;
+          const end = groups_take !== undefined ? start + groups_take : undefined;
+          groups_hashMap!.set(key, group.slice(start, end));
+        }
+      }
+    }
+    const attach_todos = query.select?.todos || query.include?.todos;
+    let todos_hashMap: Map<string, unknown[]> | undefined;
+    if (attach_todos) {
+      const todos_opts = (attach_todos === true ? {} : attach_todos) as Record<string, unknown>;
+      const todos_sel = todos_opts.select as Record<string, boolean> | undefined;
+      const todos_keysToInject = todos_sel ? (["userId"] as string[]).filter((k) => !todos_sel![k]) : [];
+      const todos_parentIds = [...new Set(records.map((r) => r.id))];
+      const todos_allRelated = await this.client.todo.findMany(
+        {
+          ...todos_opts,
+          ...(todos_keysToInject.length > 0
+            ? { select: { ...todos_sel, ...Object.fromEntries(todos_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          take: undefined,
+          skip: undefined,
+          where: { userId: { in: todos_parentIds } },
+        },
+        { tx }
+      );
+      const todos_take = attach_todos !== true ? (attach_todos as Prisma.TodoFindManyArgs).take : undefined;
+      const todos_skip = attach_todos !== true ? (attach_todos as Prisma.TodoFindManyArgs).skip : undefined;
+      todos_hashMap = new Map<string, unknown[]>();
+      for (const related of todos_allRelated) {
+        const _r = related as Record<string, unknown>;
+        const key = JSON.stringify(_r["userId"]);
+        if (!todos_hashMap!.has(key)) todos_hashMap!.set(key, []);
+        const value =
+          todos_keysToInject.length > 0
+            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !todos_keysToInject.includes(k)))
+            : _r;
+        todos_hashMap!.get(key)!.push(value as unknown);
+      }
+      if (todos_skip !== undefined || todos_take !== undefined) {
+        for (const [key, group] of todos_hashMap!) {
+          const start = todos_skip ?? 0;
+          const end = todos_take !== undefined ? start + todos_take : undefined;
+          todos_hashMap!.set(key, group.slice(start, end));
+        }
+      }
+    }
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
-      const attach_profile = query.select?.profile || query.include?.profile;
       if (attach_profile) {
-        unsafeRecord["profile"] = await this.client.profile.findUnique(
-          {
-            ...(attach_profile === true ? {} : attach_profile),
-            where: { userId: record.id },
-          },
-          { tx }
-        );
+        unsafeRecord["profile"] = profile_hashMap!.get(JSON.stringify(record.id)) ?? null;
       }
-      const attach_posts = query.select?.posts || query.include?.posts;
       if (attach_posts) {
-        unsafeRecord["posts"] = await this.client.post.findMany(
-          {
-            ...(attach_posts === true ? {} : attach_posts),
-            where: { authorId: record.id! },
-          },
-          { tx }
-        );
+        unsafeRecord["posts"] = posts_hashMap!.get(JSON.stringify(record.id)) ?? [];
       }
-      const attach_comments = query.select?.comments || query.include?.comments;
       if (attach_comments) {
-        unsafeRecord["comments"] = await this.client.comment.findMany(
-          {
-            ...(attach_comments === true ? {} : attach_comments),
-            where: { userId: record.id! },
-          },
-          { tx }
-        );
+        unsafeRecord["comments"] = comments_hashMap!.get(JSON.stringify(record.id)) ?? [];
       }
-      const attach_Child = query.select?.Child || query.include?.Child;
       if (attach_Child) {
-        unsafeRecord["Child"] = await this.client.child.findMany(
-          {
-            ...(attach_Child === true ? {} : attach_Child),
-            where: { userId: record.id! },
-          },
-          { tx }
-        );
+        unsafeRecord["Child"] = Child_hashMap!.get(JSON.stringify(record.id)) ?? [];
       }
-      const attach_Father = query.select?.Father || query.include?.Father;
       if (attach_Father) {
-        unsafeRecord["Father"] = await this.client.father.findMany(
-          {
-            ...(attach_Father === true ? {} : attach_Father),
-            where: { userId: record.id! },
-          },
-          { tx }
-        );
+        unsafeRecord["Father"] = Father_hashMap!.get(JSON.stringify(record.id)) ?? [];
       }
-      const attach_Mother = query.select?.Mother || query.include?.Mother;
       if (attach_Mother) {
-        unsafeRecord["Mother"] = await this.client.mother.findMany(
-          {
-            ...(attach_Mother === true ? {} : attach_Mother),
-            where: { userId: record.id! },
-          },
-          { tx }
-        );
+        unsafeRecord["Mother"] = Mother_hashMap!.get(JSON.stringify(record.id)) ?? [];
       }
-      const attach_groups = query.select?.groups || query.include?.groups;
       if (attach_groups) {
-        unsafeRecord["groups"] = await this.client.userGroup.findMany(
-          {
-            ...(attach_groups === true ? {} : attach_groups),
-            where: { userId: record.id! },
-          },
-          { tx }
-        );
+        unsafeRecord["groups"] = groups_hashMap!.get(JSON.stringify(record.id)) ?? [];
       }
-      const attach_todos = query.select?.todos || query.include?.todos;
       if (attach_todos) {
-        unsafeRecord["todos"] = await this.client.todo.findMany(
-          {
-            ...(attach_todos === true ? {} : attach_todos),
-            where: { userId: record.id! },
-          },
-          { tx }
-        );
+        unsafeRecord["todos"] = todos_hashMap!.get(JSON.stringify(record.id)) ?? [];
       }
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[];
+    return recordsWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.UserDelegate, "findMany">["orderBy"],
@@ -3284,21 +3537,58 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     query?: Q
   ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.GroupDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const attach_userGroups = query.select?.userGroups || query.include?.userGroups;
+    let userGroups_hashMap: Map<string, unknown[]> | undefined;
+    if (attach_userGroups) {
+      const userGroups_opts = (attach_userGroups === true ? {} : attach_userGroups) as Record<string, unknown>;
+      const userGroups_sel = userGroups_opts.select as Record<string, boolean> | undefined;
+      const userGroups_keysToInject = userGroups_sel
+        ? (["groupId"] as string[]).filter((k) => !userGroups_sel![k])
+        : [];
+      const userGroups_parentIds = [...new Set(records.map((r) => r.id))];
+      const userGroups_allRelated = await this.client.userGroup.findMany(
+        {
+          ...userGroups_opts,
+          ...(userGroups_keysToInject.length > 0
+            ? { select: { ...userGroups_sel, ...Object.fromEntries(userGroups_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          take: undefined,
+          skip: undefined,
+          where: { groupId: { in: userGroups_parentIds } },
+        },
+        { tx }
+      );
+      const userGroups_take =
+        attach_userGroups !== true ? (attach_userGroups as Prisma.UserGroupFindManyArgs).take : undefined;
+      const userGroups_skip =
+        attach_userGroups !== true ? (attach_userGroups as Prisma.UserGroupFindManyArgs).skip : undefined;
+      userGroups_hashMap = new Map<string, unknown[]>();
+      for (const related of userGroups_allRelated) {
+        const _r = related as Record<string, unknown>;
+        const key = JSON.stringify(_r["groupId"]);
+        if (!userGroups_hashMap!.has(key)) userGroups_hashMap!.set(key, []);
+        const value =
+          userGroups_keysToInject.length > 0
+            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !userGroups_keysToInject.includes(k)))
+            : _r;
+        userGroups_hashMap!.get(key)!.push(value as unknown);
+      }
+      if (userGroups_skip !== undefined || userGroups_take !== undefined) {
+        for (const [key, group] of userGroups_hashMap!) {
+          const start = userGroups_skip ?? 0;
+          const end = userGroups_take !== undefined ? start + userGroups_take : undefined;
+          userGroups_hashMap!.set(key, group.slice(start, end));
+        }
+      }
+    }
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
-      const attach_userGroups = query.select?.userGroups || query.include?.userGroups;
       if (attach_userGroups) {
-        unsafeRecord["userGroups"] = await this.client.userGroup.findMany(
-          {
-            ...(attach_userGroups === true ? {} : attach_userGroups),
-            where: { groupId: record.id! },
-          },
-          { tx }
-        );
+        unsafeRecord["userGroups"] = userGroups_hashMap!.get(JSON.stringify(record.id)) ?? [];
       }
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.GroupDelegate, Q, "findFirstOrThrow">[];
+    return recordsWithRelations as Prisma.Result<Prisma.GroupDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.GroupDelegate, "findMany">["orderBy"],
@@ -4184,21 +4474,43 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     query?: Q
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const attach_user = query.select?.user || query.include?.user;
+    let user_hashMap: Map<string, unknown> | undefined;
+    if (attach_user) {
+      const user_opts = (attach_user === true ? {} : attach_user) as Record<string, unknown>;
+      const user_sel = user_opts.select as Record<string, boolean> | undefined;
+      const user_keysToInject = user_sel ? (["id"] as string[]).filter((k) => !user_sel![k]) : [];
+      const user_fkValues = [...new Set(records.map((r) => r.userId).filter((v) => v !== null && v !== undefined))];
+      const user_related = await this.client.user.findMany(
+        {
+          ...user_opts,
+          ...(user_keysToInject.length > 0
+            ? { select: { ...user_sel, ...Object.fromEntries(user_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          where: { id: { in: user_fkValues } },
+        },
+        { tx }
+      );
+      user_hashMap = new Map(
+        user_related.map((r) => {
+          const _r = r as Record<string, unknown>;
+          const key = JSON.stringify(_r["id"]);
+          const value =
+            user_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !user_keysToInject.includes(k)))
+              : _r;
+          return [key, value as unknown];
+        })
+      );
+    }
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
-      const attach_user = query.select?.user || query.include?.user;
       if (attach_user) {
-        unsafeRecord["user"] = await this.client.user.findUnique(
-          {
-            ...(attach_user === true ? {} : attach_user),
-            where: { id: record.userId! },
-          },
-          { tx }
-        );
+        unsafeRecord["user"] = user_hashMap!.get(JSON.stringify(record.userId)) ?? null;
       }
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">[];
+    return recordsWithRelations as Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.ProfileDelegate, "findMany">["orderBy"],
@@ -5048,34 +5360,87 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     query?: Q
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.PostDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const attach_author = query.select?.author || query.include?.author;
+    let author_hashMap: Map<string, unknown> | undefined;
+    if (attach_author) {
+      const author_opts = (attach_author === true ? {} : attach_author) as Record<string, unknown>;
+      const author_sel = author_opts.select as Record<string, boolean> | undefined;
+      const author_keysToInject = author_sel ? (["id"] as string[]).filter((k) => !author_sel![k]) : [];
+      const author_fkValues = [...new Set(records.map((r) => r.authorId).filter((v) => v !== null && v !== undefined))];
+      const author_related = await this.client.user.findMany(
+        {
+          ...author_opts,
+          ...(author_keysToInject.length > 0
+            ? { select: { ...author_sel, ...Object.fromEntries(author_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          where: { id: { in: author_fkValues } },
+        },
+        { tx }
+      );
+      author_hashMap = new Map(
+        author_related.map((r) => {
+          const _r = r as Record<string, unknown>;
+          const key = JSON.stringify(_r["id"]);
+          const value =
+            author_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !author_keysToInject.includes(k)))
+              : _r;
+          return [key, value as unknown];
+        })
+      );
+    }
+    const attach_comments = query.select?.comments || query.include?.comments;
+    let comments_hashMap: Map<string, unknown[]> | undefined;
+    if (attach_comments) {
+      const comments_opts = (attach_comments === true ? {} : attach_comments) as Record<string, unknown>;
+      const comments_sel = comments_opts.select as Record<string, boolean> | undefined;
+      const comments_keysToInject = comments_sel ? (["postId"] as string[]).filter((k) => !comments_sel![k]) : [];
+      const comments_parentIds = [...new Set(records.map((r) => r.id))];
+      const comments_allRelated = await this.client.comment.findMany(
+        {
+          ...comments_opts,
+          ...(comments_keysToInject.length > 0
+            ? { select: { ...comments_sel, ...Object.fromEntries(comments_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          take: undefined,
+          skip: undefined,
+          where: { postId: { in: comments_parentIds } },
+        },
+        { tx }
+      );
+      const comments_take = attach_comments !== true ? (attach_comments as Prisma.CommentFindManyArgs).take : undefined;
+      const comments_skip = attach_comments !== true ? (attach_comments as Prisma.CommentFindManyArgs).skip : undefined;
+      comments_hashMap = new Map<string, unknown[]>();
+      for (const related of comments_allRelated) {
+        const _r = related as Record<string, unknown>;
+        const key = JSON.stringify(_r["postId"]);
+        if (!comments_hashMap!.has(key)) comments_hashMap!.set(key, []);
+        const value =
+          comments_keysToInject.length > 0
+            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !comments_keysToInject.includes(k)))
+            : _r;
+        comments_hashMap!.get(key)!.push(value as unknown);
+      }
+      if (comments_skip !== undefined || comments_take !== undefined) {
+        for (const [key, group] of comments_hashMap!) {
+          const start = comments_skip ?? 0;
+          const end = comments_take !== undefined ? start + comments_take : undefined;
+          comments_hashMap!.set(key, group.slice(start, end));
+        }
+      }
+    }
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
-      const attach_author = query.select?.author || query.include?.author;
       if (attach_author) {
         unsafeRecord["author"] =
-          record.authorId === null
-            ? null
-            : await this.client.user.findUnique(
-                {
-                  ...(attach_author === true ? {} : attach_author),
-                  where: { id: record.authorId! },
-                },
-                { tx }
-              );
+          record.authorId === null ? null : (author_hashMap!.get(JSON.stringify(record.authorId)) ?? null);
       }
-      const attach_comments = query.select?.comments || query.include?.comments;
       if (attach_comments) {
-        unsafeRecord["comments"] = await this.client.comment.findMany(
-          {
-            ...(attach_comments === true ? {} : attach_comments),
-            where: { postId: record.id! },
-          },
-          { tx }
-        );
+        unsafeRecord["comments"] = comments_hashMap!.get(JSON.stringify(record.id)) ?? [];
       }
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.PostDelegate, Q, "findFirstOrThrow">[];
+    return recordsWithRelations as Prisma.Result<Prisma.PostDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.PostDelegate, "findMany">["orderBy"],
@@ -6200,31 +6565,75 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     query?: Q
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const attach_post = query.select?.post || query.include?.post;
+    let post_hashMap: Map<string, unknown> | undefined;
+    if (attach_post) {
+      const post_opts = (attach_post === true ? {} : attach_post) as Record<string, unknown>;
+      const post_sel = post_opts.select as Record<string, boolean> | undefined;
+      const post_keysToInject = post_sel ? (["id"] as string[]).filter((k) => !post_sel![k]) : [];
+      const post_fkValues = [...new Set(records.map((r) => r.postId).filter((v) => v !== null && v !== undefined))];
+      const post_related = await this.client.post.findMany(
+        {
+          ...post_opts,
+          ...(post_keysToInject.length > 0
+            ? { select: { ...post_sel, ...Object.fromEntries(post_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          where: { id: { in: post_fkValues } },
+        },
+        { tx }
+      );
+      post_hashMap = new Map(
+        post_related.map((r) => {
+          const _r = r as Record<string, unknown>;
+          const key = JSON.stringify(_r["id"]);
+          const value =
+            post_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !post_keysToInject.includes(k)))
+              : _r;
+          return [key, value as unknown];
+        })
+      );
+    }
+    const attach_user = query.select?.user || query.include?.user;
+    let user_hashMap: Map<string, unknown> | undefined;
+    if (attach_user) {
+      const user_opts = (attach_user === true ? {} : attach_user) as Record<string, unknown>;
+      const user_sel = user_opts.select as Record<string, boolean> | undefined;
+      const user_keysToInject = user_sel ? (["id"] as string[]).filter((k) => !user_sel![k]) : [];
+      const user_fkValues = [...new Set(records.map((r) => r.userId).filter((v) => v !== null && v !== undefined))];
+      const user_related = await this.client.user.findMany(
+        {
+          ...user_opts,
+          ...(user_keysToInject.length > 0
+            ? { select: { ...user_sel, ...Object.fromEntries(user_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          where: { id: { in: user_fkValues } },
+        },
+        { tx }
+      );
+      user_hashMap = new Map(
+        user_related.map((r) => {
+          const _r = r as Record<string, unknown>;
+          const key = JSON.stringify(_r["id"]);
+          const value =
+            user_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !user_keysToInject.includes(k)))
+              : _r;
+          return [key, value as unknown];
+        })
+      );
+    }
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
-      const attach_post = query.select?.post || query.include?.post;
       if (attach_post) {
-        unsafeRecord["post"] = await this.client.post.findUnique(
-          {
-            ...(attach_post === true ? {} : attach_post),
-            where: { id: record.postId! },
-          },
-          { tx }
-        );
+        unsafeRecord["post"] = post_hashMap!.get(JSON.stringify(record.postId)) ?? null;
       }
-      const attach_user = query.select?.user || query.include?.user;
       if (attach_user) {
-        unsafeRecord["user"] = await this.client.user.findUnique(
-          {
-            ...(attach_user === true ? {} : attach_user),
-            where: { id: record.userId! },
-          },
-          { tx }
-        );
+        unsafeRecord["user"] = user_hashMap!.get(JSON.stringify(record.userId)) ?? null;
       }
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">[];
+    return recordsWithRelations as Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.CommentDelegate, "findMany">["orderBy"],
@@ -7184,21 +7593,43 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     query?: Q
   ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const attach_user = query.select?.user || query.include?.user;
+    let user_hashMap: Map<string, unknown> | undefined;
+    if (attach_user) {
+      const user_opts = (attach_user === true ? {} : attach_user) as Record<string, unknown>;
+      const user_sel = user_opts.select as Record<string, boolean> | undefined;
+      const user_keysToInject = user_sel ? (["id"] as string[]).filter((k) => !user_sel![k]) : [];
+      const user_fkValues = [...new Set(records.map((r) => r.userId).filter((v) => v !== null && v !== undefined))];
+      const user_related = await this.client.user.findMany(
+        {
+          ...user_opts,
+          ...(user_keysToInject.length > 0
+            ? { select: { ...user_sel, ...Object.fromEntries(user_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          where: { id: { in: user_fkValues } },
+        },
+        { tx }
+      );
+      user_hashMap = new Map(
+        user_related.map((r) => {
+          const _r = r as Record<string, unknown>;
+          const key = JSON.stringify(_r["id"]);
+          const value =
+            user_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !user_keysToInject.includes(k)))
+              : _r;
+          return [key, value as unknown];
+        })
+      );
+    }
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
-      const attach_user = query.select?.user || query.include?.user;
       if (attach_user) {
-        unsafeRecord["user"] = await this.client.user.findUnique(
-          {
-            ...(attach_user === true ? {} : attach_user),
-            where: { id: record.userId! },
-          },
-          { tx }
-        );
+        unsafeRecord["user"] = user_hashMap!.get(JSON.stringify(record.userId)) ?? null;
       }
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[];
+    return recordsWithRelations as Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.TodoDelegate, "findMany">["orderBy"],
@@ -8040,15 +8471,11 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     query?: Q
   ): Promise<Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
-      Prisma.AllFieldScalarTypesDelegate,
-      Q,
-      "findFirstOrThrow"
-    >[];
+    return recordsWithRelations as Prisma.Result<Prisma.AllFieldScalarTypesDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "findMany">["orderBy"],
@@ -8778,15 +9205,11 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     query?: Q
   ): Promise<Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
-      Prisma.ModelWithEnumDelegate,
-      Q,
-      "findFirstOrThrow"
-    >[];
+    return recordsWithRelations as Prisma.Result<Prisma.ModelWithEnumDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.ModelWithEnumDelegate, "findMany">["orderBy"],
@@ -9387,11 +9810,11 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     query?: Q
   ): Promise<Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirstOrThrow">[];
+    return recordsWithRelations as Prisma.Result<Prisma.TestUuidDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.TestUuidDelegate, "findMany">["orderBy"],
@@ -10010,24 +10433,44 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
         Q,
         "findFirstOrThrow"
       >[];
-    const recordsWithRelations = records.map(async (record) => {
+    const attach_link = query.select?.link || query.include?.link;
+    let link_hashMap: Map<string, unknown> | undefined;
+    if (attach_link) {
+      const link_opts = (attach_link === true ? {} : attach_link) as Record<string, unknown>;
+      const link_sel = link_opts.select as Record<string, boolean> | undefined;
+      const link_keysToInject = link_sel ? (["id"] as string[]).filter((k) => !link_sel![k]) : [];
+      const link_fkValues = [...new Set(records.map((r) => r.linkId).filter((v) => v !== null && v !== undefined))];
+      const link_related = await this.client.modelWithUniqueAttributes.findMany(
+        {
+          ...link_opts,
+          ...(link_keysToInject.length > 0
+            ? { select: { ...link_sel, ...Object.fromEntries(link_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          where: { id: { in: link_fkValues } },
+        },
+        { tx }
+      );
+      link_hashMap = new Map(
+        link_related.map((r) => {
+          const _r = r as Record<string, unknown>;
+          const key = JSON.stringify(_r["id"]);
+          const value =
+            link_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !link_keysToInject.includes(k)))
+              : _r;
+          return [key, value as unknown];
+        })
+      );
+    }
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
-      const attach_link = query.select?.link || query.include?.link;
       if (attach_link) {
         unsafeRecord["link"] =
-          record.linkId === null
-            ? null
-            : await this.client.modelWithUniqueAttributes.findUnique(
-                {
-                  ...(attach_link === true ? {} : attach_link),
-                  where: { id: record.linkId! },
-                },
-                { tx }
-              );
+          record.linkId === null ? null : (link_hashMap!.get(JSON.stringify(record.linkId)) ?? null);
       }
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
+    return recordsWithRelations as Prisma.Result<
       Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
       Q,
       "findFirstOrThrow"
@@ -10941,25 +11384,60 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     query?: Q
   ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const attach_links = query.select?.links || query.include?.links;
+    let links_hashMap: Map<string, unknown[]> | undefined;
+    if (attach_links) {
+      const links_opts = (attach_links === true ? {} : attach_links) as Record<string, unknown>;
+      const links_sel = links_opts.select as Record<string, boolean> | undefined;
+      const links_keysToInject = links_sel ? (["linkId"] as string[]).filter((k) => !links_sel![k]) : [];
+      const links_parentIds = [...new Set(records.map((r) => r.id))];
+      const links_allRelated = await this.client.modelWithOptionalRelationToUniqueAttributes.findMany(
+        {
+          ...links_opts,
+          ...(links_keysToInject.length > 0
+            ? { select: { ...links_sel, ...Object.fromEntries(links_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          take: undefined,
+          skip: undefined,
+          where: { linkId: { in: links_parentIds } },
+        },
+        { tx }
+      );
+      const links_take =
+        attach_links !== true
+          ? (attach_links as Prisma.ModelWithOptionalRelationToUniqueAttributesFindManyArgs).take
+          : undefined;
+      const links_skip =
+        attach_links !== true
+          ? (attach_links as Prisma.ModelWithOptionalRelationToUniqueAttributesFindManyArgs).skip
+          : undefined;
+      links_hashMap = new Map<string, unknown[]>();
+      for (const related of links_allRelated) {
+        const _r = related as Record<string, unknown>;
+        const key = JSON.stringify(_r["linkId"]);
+        if (!links_hashMap!.has(key)) links_hashMap!.set(key, []);
+        const value =
+          links_keysToInject.length > 0
+            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !links_keysToInject.includes(k)))
+            : _r;
+        links_hashMap!.get(key)!.push(value as unknown);
+      }
+      if (links_skip !== undefined || links_take !== undefined) {
+        for (const [key, group] of links_hashMap!) {
+          const start = links_skip ?? 0;
+          const end = links_take !== undefined ? start + links_take : undefined;
+          links_hashMap!.set(key, group.slice(start, end));
+        }
+      }
+    }
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
-      const attach_links = query.select?.links || query.include?.links;
       if (attach_links) {
-        unsafeRecord["links"] = await this.client.modelWithOptionalRelationToUniqueAttributes.findMany(
-          {
-            ...(attach_links === true ? {} : attach_links),
-            where: { linkId: record.id! },
-          },
-          { tx }
-        );
+        unsafeRecord["links"] = links_hashMap!.get(JSON.stringify(record.id)) ?? [];
       }
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
-      Prisma.ModelWithUniqueAttributesDelegate,
-      Q,
-      "findFirstOrThrow"
-    >[];
+    return recordsWithRelations as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "findMany">["orderBy"],
@@ -11940,35 +12418,75 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     query?: Q
   ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const attach_group = query.select?.group || query.include?.group;
+    let group_hashMap: Map<string, unknown> | undefined;
+    if (attach_group) {
+      const group_opts = (attach_group === true ? {} : attach_group) as Record<string, unknown>;
+      const group_sel = group_opts.select as Record<string, boolean> | undefined;
+      const group_keysToInject = group_sel ? (["id"] as string[]).filter((k) => !group_sel![k]) : [];
+      const group_fkValues = [...new Set(records.map((r) => r.groupId).filter((v) => v !== null && v !== undefined))];
+      const group_related = await this.client.group.findMany(
+        {
+          ...group_opts,
+          ...(group_keysToInject.length > 0
+            ? { select: { ...group_sel, ...Object.fromEntries(group_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          where: { id: { in: group_fkValues } },
+        },
+        { tx }
+      );
+      group_hashMap = new Map(
+        group_related.map((r) => {
+          const _r = r as Record<string, unknown>;
+          const key = JSON.stringify(_r["id"]);
+          const value =
+            group_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !group_keysToInject.includes(k)))
+              : _r;
+          return [key, value as unknown];
+        })
+      );
+    }
+    const attach_user = query.select?.user || query.include?.user;
+    let user_hashMap: Map<string, unknown> | undefined;
+    if (attach_user) {
+      const user_opts = (attach_user === true ? {} : attach_user) as Record<string, unknown>;
+      const user_sel = user_opts.select as Record<string, boolean> | undefined;
+      const user_keysToInject = user_sel ? (["id"] as string[]).filter((k) => !user_sel![k]) : [];
+      const user_fkValues = [...new Set(records.map((r) => r.userId).filter((v) => v !== null && v !== undefined))];
+      const user_related = await this.client.user.findMany(
+        {
+          ...user_opts,
+          ...(user_keysToInject.length > 0
+            ? { select: { ...user_sel, ...Object.fromEntries(user_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          where: { id: { in: user_fkValues } },
+        },
+        { tx }
+      );
+      user_hashMap = new Map(
+        user_related.map((r) => {
+          const _r = r as Record<string, unknown>;
+          const key = JSON.stringify(_r["id"]);
+          const value =
+            user_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !user_keysToInject.includes(k)))
+              : _r;
+          return [key, value as unknown];
+        })
+      );
+    }
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
-      const attach_group = query.select?.group || query.include?.group;
       if (attach_group) {
-        unsafeRecord["group"] = await this.client.group.findUnique(
-          {
-            ...(attach_group === true ? {} : attach_group),
-            where: { id: record.groupId! },
-          },
-          { tx }
-        );
+        unsafeRecord["group"] = group_hashMap!.get(JSON.stringify(record.groupId)) ?? null;
       }
-      const attach_user = query.select?.user || query.include?.user;
       if (attach_user) {
-        unsafeRecord["user"] = await this.client.user.findUnique(
-          {
-            ...(attach_user === true ? {} : attach_user),
-            where: { id: record.userId! },
-          },
-          { tx }
-        );
+        unsafeRecord["user"] = user_hashMap!.get(JSON.stringify(record.userId)) ?? null;
       }
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
-      Prisma.UserGroupDelegate,
-      Q,
-      "findFirstOrThrow"
-    >[];
+    return recordsWithRelations as Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.UserGroupDelegate, "findMany">["orderBy"],
@@ -13030,44 +13548,128 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     query?: Q
   ): Promise<Prisma.Result<Prisma.FatherDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.FatherDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const attach_children = query.select?.children || query.include?.children;
+    let children_hashMap: Map<string, unknown[]> | undefined;
+    if (attach_children) {
+      const children_opts = (attach_children === true ? {} : attach_children) as Record<string, unknown>;
+      const children_sel = children_opts.select as Record<string, boolean> | undefined;
+      const children_keysToInject = children_sel
+        ? (["fatherLastName", "fatherFirstName"] as string[]).filter((k) => !children_sel![k])
+        : [];
+      const children_pk0_values = [...new Set(records.map((r) => r.lastName))];
+      const children_pk1_values = [...new Set(records.map((r) => r.firstName))];
+      const children_allRelated = await this.client.child.findMany(
+        {
+          ...children_opts,
+          ...(children_keysToInject.length > 0
+            ? { select: { ...children_sel, ...Object.fromEntries(children_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          take: undefined,
+          skip: undefined,
+          where: { fatherLastName: { in: children_pk0_values }, fatherFirstName: { in: children_pk1_values } },
+        },
+        { tx }
+      );
+      const children_take = attach_children !== true ? (attach_children as Prisma.ChildFindManyArgs).take : undefined;
+      const children_skip = attach_children !== true ? (attach_children as Prisma.ChildFindManyArgs).skip : undefined;
+      children_hashMap = new Map<string, unknown[]>();
+      for (const related of children_allRelated) {
+        const _r = related as Record<string, unknown>;
+        const key = JSON.stringify([_r["fatherLastName"], _r["fatherFirstName"]]);
+        if (!children_hashMap!.has(key)) children_hashMap!.set(key, []);
+        const value =
+          children_keysToInject.length > 0
+            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !children_keysToInject.includes(k)))
+            : _r;
+        children_hashMap!.get(key)!.push(value as unknown);
+      }
+      if (children_skip !== undefined || children_take !== undefined) {
+        for (const [key, group] of children_hashMap!) {
+          const start = children_skip ?? 0;
+          const end = children_take !== undefined ? start + children_take : undefined;
+          children_hashMap!.set(key, group.slice(start, end));
+        }
+      }
+    }
+    const attach_wife = query.select?.wife || query.include?.wife;
+    let wife_hashMap: Map<string, unknown> | undefined;
+    if (attach_wife) {
+      const wife_opts = (attach_wife === true ? {} : attach_wife) as Record<string, unknown>;
+      const wife_sel = wife_opts.select as Record<string, boolean> | undefined;
+      const wife_keysToInject = wife_sel ? (["firstName", "lastName"] as string[]).filter((k) => !wife_sel![k]) : [];
+      const wife_pk0_values = [
+        ...new Set(records.map((r) => r.motherFirstName).filter((v) => v !== null && v !== undefined)),
+      ];
+      const wife_pk1_values = [
+        ...new Set(records.map((r) => r.motherLastName).filter((v) => v !== null && v !== undefined)),
+      ];
+      const wife_related = await this.client.mother.findMany(
+        {
+          ...wife_opts,
+          ...(wife_keysToInject.length > 0
+            ? { select: { ...wife_sel, ...Object.fromEntries(wife_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          where: { firstName: { in: wife_pk0_values }, lastName: { in: wife_pk1_values } },
+        },
+        { tx }
+      );
+      wife_hashMap = new Map(
+        wife_related.map((r) => {
+          const _r = r as Record<string, unknown>;
+          const key = JSON.stringify([_r["firstName"], _r["lastName"]]);
+          const value =
+            wife_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !wife_keysToInject.includes(k)))
+              : _r;
+          return [key, value as unknown];
+        })
+      );
+    }
+    const attach_user = query.select?.user || query.include?.user;
+    let user_hashMap: Map<string, unknown> | undefined;
+    if (attach_user) {
+      const user_opts = (attach_user === true ? {} : attach_user) as Record<string, unknown>;
+      const user_sel = user_opts.select as Record<string, boolean> | undefined;
+      const user_keysToInject = user_sel ? (["id"] as string[]).filter((k) => !user_sel![k]) : [];
+      const user_fkValues = [...new Set(records.map((r) => r.userId).filter((v) => v !== null && v !== undefined))];
+      const user_related = await this.client.user.findMany(
+        {
+          ...user_opts,
+          ...(user_keysToInject.length > 0
+            ? { select: { ...user_sel, ...Object.fromEntries(user_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          where: { id: { in: user_fkValues } },
+        },
+        { tx }
+      );
+      user_hashMap = new Map(
+        user_related.map((r) => {
+          const _r = r as Record<string, unknown>;
+          const key = JSON.stringify(_r["id"]);
+          const value =
+            user_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !user_keysToInject.includes(k)))
+              : _r;
+          return [key, value as unknown];
+        })
+      );
+    }
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
-      const attach_children = query.select?.children || query.include?.children;
       if (attach_children) {
-        unsafeRecord["children"] = await this.client.child.findMany(
-          {
-            ...(attach_children === true ? {} : attach_children),
-            where: { fatherLastName: record.lastName!, fatherFirstName: record.firstName! },
-          },
-          { tx }
-        );
+        unsafeRecord["children"] = children_hashMap!.get(JSON.stringify([record.lastName, record.firstName])) ?? [];
       }
-      const attach_wife = query.select?.wife || query.include?.wife;
       if (attach_wife) {
-        unsafeRecord["wife"] = await this.client.mother.findUnique(
-          {
-            ...(attach_wife === true ? {} : attach_wife),
-            where: { firstName_lastName: { firstName: record.motherFirstName!, lastName: record.motherLastName! } },
-          },
-          { tx }
-        );
+        unsafeRecord["wife"] =
+          wife_hashMap!.get(JSON.stringify([record.motherFirstName, record.motherLastName])) ?? null;
       }
-      const attach_user = query.select?.user || query.include?.user;
       if (attach_user) {
         unsafeRecord["user"] =
-          record.userId === null
-            ? null
-            : await this.client.user.findUnique(
-                {
-                  ...(attach_user === true ? {} : attach_user),
-                  where: { id: record.userId! },
-                },
-                { tx }
-              );
+          record.userId === null ? null : (user_hashMap!.get(JSON.stringify(record.userId)) ?? null);
       }
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.FatherDelegate, Q, "findFirstOrThrow">[];
+    return recordsWithRelations as Prisma.Result<Prisma.FatherDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.FatherDelegate, "findMany">["orderBy"],
@@ -14498,46 +15100,125 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     query?: Q
   ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.MotherDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const attach_children = query.select?.children || query.include?.children;
+    let children_hashMap: Map<string, unknown[]> | undefined;
+    if (attach_children) {
+      const children_opts = (attach_children === true ? {} : attach_children) as Record<string, unknown>;
+      const children_sel = children_opts.select as Record<string, boolean> | undefined;
+      const children_keysToInject = children_sel
+        ? (["motherFirstName", "motherLastName"] as string[]).filter((k) => !children_sel![k])
+        : [];
+      const children_pk0_values = [...new Set(records.map((r) => r.firstName))];
+      const children_pk1_values = [...new Set(records.map((r) => r.lastName))];
+      const children_allRelated = await this.client.child.findMany(
+        {
+          ...children_opts,
+          ...(children_keysToInject.length > 0
+            ? { select: { ...children_sel, ...Object.fromEntries(children_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          take: undefined,
+          skip: undefined,
+          where: { motherFirstName: { in: children_pk0_values }, motherLastName: { in: children_pk1_values } },
+        },
+        { tx }
+      );
+      const children_take = attach_children !== true ? (attach_children as Prisma.ChildFindManyArgs).take : undefined;
+      const children_skip = attach_children !== true ? (attach_children as Prisma.ChildFindManyArgs).skip : undefined;
+      children_hashMap = new Map<string, unknown[]>();
+      for (const related of children_allRelated) {
+        const _r = related as Record<string, unknown>;
+        const key = JSON.stringify([_r["motherFirstName"], _r["motherLastName"]]);
+        if (!children_hashMap!.has(key)) children_hashMap!.set(key, []);
+        const value =
+          children_keysToInject.length > 0
+            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !children_keysToInject.includes(k)))
+            : _r;
+        children_hashMap!.get(key)!.push(value as unknown);
+      }
+      if (children_skip !== undefined || children_take !== undefined) {
+        for (const [key, group] of children_hashMap!) {
+          const start = children_skip ?? 0;
+          const end = children_take !== undefined ? start + children_take : undefined;
+          children_hashMap!.set(key, group.slice(start, end));
+        }
+      }
+    }
+    const attach_husband = query.select?.husband || query.include?.husband;
+    let husband_hashMap: Map<string, unknown> | undefined;
+    if (attach_husband) {
+      const husband_opts = (attach_husband === true ? {} : attach_husband) as Record<string, unknown>;
+      const husband_sel = husband_opts.select as Record<string, boolean> | undefined;
+      const husband_keysToInject = husband_sel
+        ? (["motherFirstName", "motherLastName"] as string[]).filter((k) => !husband_sel![k])
+        : [];
+      const husband_pk0_values = [...new Set(records.map((r) => r.firstName))];
+      const husband_pk1_values = [...new Set(records.map((r) => r.lastName))];
+      const husband_related = await this.client.father.findMany(
+        {
+          ...husband_opts,
+          ...(husband_keysToInject.length > 0
+            ? { select: { ...husband_sel, ...Object.fromEntries(husband_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          where: { motherFirstName: { in: husband_pk0_values }, motherLastName: { in: husband_pk1_values } },
+        },
+        { tx }
+      );
+      husband_hashMap = new Map(
+        husband_related.map((r) => {
+          const _r = r as Record<string, unknown>;
+          const key = JSON.stringify([_r["motherFirstName"], _r["motherLastName"]]);
+          const value =
+            husband_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !husband_keysToInject.includes(k)))
+              : _r;
+          return [key, value as unknown];
+        })
+      );
+    }
+    const attach_user = query.select?.user || query.include?.user;
+    let user_hashMap: Map<string, unknown> | undefined;
+    if (attach_user) {
+      const user_opts = (attach_user === true ? {} : attach_user) as Record<string, unknown>;
+      const user_sel = user_opts.select as Record<string, boolean> | undefined;
+      const user_keysToInject = user_sel ? (["id"] as string[]).filter((k) => !user_sel![k]) : [];
+      const user_fkValues = [...new Set(records.map((r) => r.userId).filter((v) => v !== null && v !== undefined))];
+      const user_related = await this.client.user.findMany(
+        {
+          ...user_opts,
+          ...(user_keysToInject.length > 0
+            ? { select: { ...user_sel, ...Object.fromEntries(user_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          where: { id: { in: user_fkValues } },
+        },
+        { tx }
+      );
+      user_hashMap = new Map(
+        user_related.map((r) => {
+          const _r = r as Record<string, unknown>;
+          const key = JSON.stringify(_r["id"]);
+          const value =
+            user_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !user_keysToInject.includes(k)))
+              : _r;
+          return [key, value as unknown];
+        })
+      );
+    }
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
-      const attach_children = query.select?.children || query.include?.children;
       if (attach_children) {
-        unsafeRecord["children"] = await this.client.child.findMany(
-          {
-            ...(attach_children === true ? {} : attach_children),
-            where: { motherFirstName: record.firstName!, motherLastName: record.lastName! },
-          },
-          { tx }
-        );
+        unsafeRecord["children"] = children_hashMap!.get(JSON.stringify([record.firstName, record.lastName])) ?? [];
       }
-      const attach_husband = query.select?.husband || query.include?.husband;
       if (attach_husband) {
-        unsafeRecord["husband"] = await this.client.father.findUnique(
-          {
-            ...(attach_husband === true ? {} : attach_husband),
-            where: {
-              motherFirstName_motherLastName: { motherFirstName: record.firstName, motherLastName: record.lastName },
-            },
-          },
-          { tx }
-        );
+        unsafeRecord["husband"] = husband_hashMap!.get(JSON.stringify([record.firstName, record.lastName])) ?? null;
       }
-      const attach_user = query.select?.user || query.include?.user;
       if (attach_user) {
         unsafeRecord["user"] =
-          record.userId === null
-            ? null
-            : await this.client.user.findUnique(
-                {
-                  ...(attach_user === true ? {} : attach_user),
-                  where: { id: record.userId! },
-                },
-                { tx }
-              );
+          record.userId === null ? null : (user_hashMap!.get(JSON.stringify(record.userId)) ?? null);
       }
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.MotherDelegate, Q, "findFirstOrThrow">[];
+    return recordsWithRelations as Prisma.Result<Prisma.MotherDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.MotherDelegate, "findMany">["orderBy"],
@@ -15957,44 +16638,124 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     query?: Q
   ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.ChildDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const attach_user = query.select?.user || query.include?.user;
+    let user_hashMap: Map<string, unknown> | undefined;
+    if (attach_user) {
+      const user_opts = (attach_user === true ? {} : attach_user) as Record<string, unknown>;
+      const user_sel = user_opts.select as Record<string, boolean> | undefined;
+      const user_keysToInject = user_sel ? (["id"] as string[]).filter((k) => !user_sel![k]) : [];
+      const user_fkValues = [...new Set(records.map((r) => r.userId).filter((v) => v !== null && v !== undefined))];
+      const user_related = await this.client.user.findMany(
+        {
+          ...user_opts,
+          ...(user_keysToInject.length > 0
+            ? { select: { ...user_sel, ...Object.fromEntries(user_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          where: { id: { in: user_fkValues } },
+        },
+        { tx }
+      );
+      user_hashMap = new Map(
+        user_related.map((r) => {
+          const _r = r as Record<string, unknown>;
+          const key = JSON.stringify(_r["id"]);
+          const value =
+            user_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !user_keysToInject.includes(k)))
+              : _r;
+          return [key, value as unknown];
+        })
+      );
+    }
+    const attach_father = query.select?.father || query.include?.father;
+    let father_hashMap: Map<string, unknown> | undefined;
+    if (attach_father) {
+      const father_opts = (attach_father === true ? {} : attach_father) as Record<string, unknown>;
+      const father_sel = father_opts.select as Record<string, boolean> | undefined;
+      const father_keysToInject = father_sel
+        ? (["lastName", "firstName"] as string[]).filter((k) => !father_sel![k])
+        : [];
+      const father_pk0_values = [
+        ...new Set(records.map((r) => r.fatherLastName).filter((v) => v !== null && v !== undefined)),
+      ];
+      const father_pk1_values = [
+        ...new Set(records.map((r) => r.fatherFirstName).filter((v) => v !== null && v !== undefined)),
+      ];
+      const father_related = await this.client.father.findMany(
+        {
+          ...father_opts,
+          ...(father_keysToInject.length > 0
+            ? { select: { ...father_sel, ...Object.fromEntries(father_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          where: { lastName: { in: father_pk0_values }, firstName: { in: father_pk1_values } },
+        },
+        { tx }
+      );
+      father_hashMap = new Map(
+        father_related.map((r) => {
+          const _r = r as Record<string, unknown>;
+          const key = JSON.stringify([_r["lastName"], _r["firstName"]]);
+          const value =
+            father_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !father_keysToInject.includes(k)))
+              : _r;
+          return [key, value as unknown];
+        })
+      );
+    }
+    const attach_mother = query.select?.mother || query.include?.mother;
+    let mother_hashMap: Map<string, unknown> | undefined;
+    if (attach_mother) {
+      const mother_opts = (attach_mother === true ? {} : attach_mother) as Record<string, unknown>;
+      const mother_sel = mother_opts.select as Record<string, boolean> | undefined;
+      const mother_keysToInject = mother_sel
+        ? (["firstName", "lastName"] as string[]).filter((k) => !mother_sel![k])
+        : [];
+      const mother_pk0_values = [
+        ...new Set(records.map((r) => r.motherFirstName).filter((v) => v !== null && v !== undefined)),
+      ];
+      const mother_pk1_values = [
+        ...new Set(records.map((r) => r.motherLastName).filter((v) => v !== null && v !== undefined)),
+      ];
+      const mother_related = await this.client.mother.findMany(
+        {
+          ...mother_opts,
+          ...(mother_keysToInject.length > 0
+            ? { select: { ...mother_sel, ...Object.fromEntries(mother_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          where: { firstName: { in: mother_pk0_values }, lastName: { in: mother_pk1_values } },
+        },
+        { tx }
+      );
+      mother_hashMap = new Map(
+        mother_related.map((r) => {
+          const _r = r as Record<string, unknown>;
+          const key = JSON.stringify([_r["firstName"], _r["lastName"]]);
+          const value =
+            mother_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !mother_keysToInject.includes(k)))
+              : _r;
+          return [key, value as unknown];
+        })
+      );
+    }
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
-      const attach_user = query.select?.user || query.include?.user;
       if (attach_user) {
         unsafeRecord["user"] =
-          record.userId === null
-            ? null
-            : await this.client.user.findUnique(
-                {
-                  ...(attach_user === true ? {} : attach_user),
-                  where: { id: record.userId! },
-                },
-                { tx }
-              );
+          record.userId === null ? null : (user_hashMap!.get(JSON.stringify(record.userId)) ?? null);
       }
-      const attach_father = query.select?.father || query.include?.father;
       if (attach_father) {
-        unsafeRecord["father"] = await this.client.father.findUnique(
-          {
-            ...(attach_father === true ? {} : attach_father),
-            where: { firstName_lastName: { firstName: record.fatherFirstName!, lastName: record.fatherLastName! } },
-          },
-          { tx }
-        );
+        unsafeRecord["father"] =
+          father_hashMap!.get(JSON.stringify([record.fatherLastName, record.fatherFirstName])) ?? null;
       }
-      const attach_mother = query.select?.mother || query.include?.mother;
       if (attach_mother) {
-        unsafeRecord["mother"] = await this.client.mother.findUnique(
-          {
-            ...(attach_mother === true ? {} : attach_mother),
-            where: { firstName_lastName: { firstName: record.motherFirstName!, lastName: record.motherLastName! } },
-          },
-          { tx }
-        );
+        unsafeRecord["mother"] =
+          mother_hashMap!.get(JSON.stringify([record.motherFirstName, record.motherLastName])) ?? null;
       }
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.ChildDelegate, Q, "findFirstOrThrow">[];
+    return recordsWithRelations as Prisma.Result<Prisma.ChildDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.ChildDelegate, "findMany">["orderBy"],
@@ -17262,15 +18023,11 @@ class CompositeIdIntStringIDBClass extends BaseIDBModelClass<"CompositeIdIntStri
     query?: Q
   ): Promise<Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
-      Prisma.CompositeIdIntStringDelegate,
-      Q,
-      "findFirstOrThrow"
-    >[];
+    return recordsWithRelations as Prisma.Result<Prisma.CompositeIdIntStringDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "findMany">["orderBy"],
@@ -17893,15 +18650,11 @@ class CompositeIdWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeIdWith
     query?: Q
   ): Promise<Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
-      Prisma.CompositeIdWithDateTimeDelegate,
-      Q,
-      "findFirstOrThrow"
-    >[];
+    return recordsWithRelations as Prisma.Result<Prisma.CompositeIdWithDateTimeDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "findMany">["orderBy"],
@@ -18532,15 +19285,11 @@ class TripleCompositeIdWithDateIDBClass extends BaseIDBModelClass<"TripleComposi
     query?: Q
   ): Promise<Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
-      Prisma.TripleCompositeIdWithDateDelegate,
-      Q,
-      "findFirstOrThrow"
-    >[];
+    return recordsWithRelations as Prisma.Result<Prisma.TripleCompositeIdWithDateDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "findMany">["orderBy"],
@@ -19228,15 +19977,11 @@ class CompositeUniqueWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeUn
     query?: Q
   ): Promise<Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
-      Prisma.CompositeUniqueWithDateTimeDelegate,
-      Q,
-      "findFirstOrThrow"
-    >[];
+    return recordsWithRelations as Prisma.Result<Prisma.CompositeUniqueWithDateTimeDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "findMany">["orderBy"],
@@ -19899,15 +20644,11 @@ class CompositeUniqueFloatIntIDBClass extends BaseIDBModelClass<"CompositeUnique
     query?: Q
   ): Promise<Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
-      Prisma.CompositeUniqueFloatIntDelegate,
-      Q,
-      "findFirstOrThrow"
-    >[];
+    return recordsWithRelations as Prisma.Result<Prisma.CompositeUniqueFloatIntDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "findMany">["orderBy"],
@@ -20563,15 +21304,11 @@ class MultipleCompositeUniquesIDBClass extends BaseIDBModelClass<"MultipleCompos
     query?: Q
   ): Promise<Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
-      Prisma.MultipleCompositeUniquesDelegate,
-      Q,
-      "findFirstOrThrow"
-    >[];
+    return recordsWithRelations as Prisma.Result<Prisma.MultipleCompositeUniquesDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "findMany">["orderBy"],
@@ -21287,15 +22024,11 @@ class ModelWithIndexIDBClass extends BaseIDBModelClass<"ModelWithIndex"> {
     query?: Q
   ): Promise<Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<
-      Prisma.ModelWithIndexDelegate,
-      Q,
-      "findFirstOrThrow"
-    >[];
+    return recordsWithRelations as Prisma.Result<Prisma.ModelWithIndexDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.ModelWithIndexDelegate, "findMany">["orderBy"],

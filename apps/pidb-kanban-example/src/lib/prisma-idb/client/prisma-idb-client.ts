@@ -635,31 +635,86 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
     query?: Q
   ): Promise<Prisma.Result<Prisma.BoardDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.BoardDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
-      const unsafeRecord = record as Record<string, unknown>;
-      const attach_todos = query.select?.todos || query.include?.todos;
-      if (attach_todos) {
-        unsafeRecord["todos"] = await this.client.todo.findMany(
-          {
-            ...(attach_todos === true ? {} : attach_todos),
-            where: { boardId: record.id! },
-          },
-          { tx }
-        );
+    const attach_todos = query.select?.todos || query.include?.todos;
+    let todos_hashMap: Map<string, unknown[]> | undefined;
+    if (attach_todos) {
+      const todos_opts = (attach_todos === true ? {} : attach_todos) as Record<string, unknown>;
+      const todos_sel = todos_opts.select as Record<string, boolean> | undefined;
+      const todos_keysToInject = todos_sel ? (["boardId"] as string[]).filter((k) => !todos_sel![k]) : [];
+      const todos_parentIds = [...new Set(records.map((r) => r.id))];
+      const todos_allRelated = await this.client.todo.findMany(
+        {
+          ...todos_opts,
+          ...(todos_keysToInject.length > 0
+            ? { select: { ...todos_sel, ...Object.fromEntries(todos_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          take: undefined,
+          skip: undefined,
+          where: { boardId: { in: todos_parentIds } },
+        },
+        { tx }
+      );
+      const todos_take = attach_todos !== true ? (attach_todos as Prisma.TodoFindManyArgs).take : undefined;
+      const todos_skip = attach_todos !== true ? (attach_todos as Prisma.TodoFindManyArgs).skip : undefined;
+      todos_hashMap = new Map<string, unknown[]>();
+      for (const related of todos_allRelated) {
+        const _r = related as Record<string, unknown>;
+        const key = JSON.stringify(_r["boardId"]);
+        if (!todos_hashMap!.has(key)) todos_hashMap!.set(key, []);
+        const value =
+          todos_keysToInject.length > 0
+            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !todos_keysToInject.includes(k)))
+            : _r;
+        todos_hashMap!.get(key)!.push(value as unknown);
       }
-      const attach_user = query.select?.user || query.include?.user;
+      if (todos_skip !== undefined || todos_take !== undefined) {
+        for (const [key, group] of todos_hashMap!) {
+          const start = todos_skip ?? 0;
+          const end = todos_take !== undefined ? start + todos_take : undefined;
+          todos_hashMap!.set(key, group.slice(start, end));
+        }
+      }
+    }
+    const attach_user = query.select?.user || query.include?.user;
+    let user_hashMap: Map<string, unknown> | undefined;
+    if (attach_user) {
+      const user_opts = (attach_user === true ? {} : attach_user) as Record<string, unknown>;
+      const user_sel = user_opts.select as Record<string, boolean> | undefined;
+      const user_keysToInject = user_sel ? (["id"] as string[]).filter((k) => !user_sel![k]) : [];
+      const user_fkValues = [...new Set(records.map((r) => r.userId).filter((v) => v !== null && v !== undefined))];
+      const user_related = await this.client.user.findMany(
+        {
+          ...user_opts,
+          ...(user_keysToInject.length > 0
+            ? { select: { ...user_sel, ...Object.fromEntries(user_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          where: { id: { in: user_fkValues } },
+        },
+        { tx }
+      );
+      user_hashMap = new Map(
+        user_related.map((r) => {
+          const _r = r as Record<string, unknown>;
+          const key = JSON.stringify(_r["id"]);
+          const value =
+            user_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !user_keysToInject.includes(k)))
+              : _r;
+          return [key, value as unknown];
+        })
+      );
+    }
+    const recordsWithRelations = records.map((record) => {
+      const unsafeRecord = record as Record<string, unknown>;
+      if (attach_todos) {
+        unsafeRecord["todos"] = todos_hashMap!.get(JSON.stringify(record.id)) ?? [];
+      }
       if (attach_user) {
-        unsafeRecord["user"] = await this.client.user.findUnique(
-          {
-            ...(attach_user === true ? {} : attach_user),
-            where: { id: record.userId! },
-          },
-          { tx }
-        );
+        unsafeRecord["user"] = user_hashMap!.get(JSON.stringify(record.userId)) ?? null;
       }
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.BoardDelegate, Q, "findFirstOrThrow">[];
+    return recordsWithRelations as Prisma.Result<Prisma.BoardDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.BoardDelegate, "findMany">["orderBy"],
@@ -1714,21 +1769,43 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     query?: Q
   ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const attach_board = query.select?.board || query.include?.board;
+    let board_hashMap: Map<string, unknown> | undefined;
+    if (attach_board) {
+      const board_opts = (attach_board === true ? {} : attach_board) as Record<string, unknown>;
+      const board_sel = board_opts.select as Record<string, boolean> | undefined;
+      const board_keysToInject = board_sel ? (["id"] as string[]).filter((k) => !board_sel![k]) : [];
+      const board_fkValues = [...new Set(records.map((r) => r.boardId).filter((v) => v !== null && v !== undefined))];
+      const board_related = await this.client.board.findMany(
+        {
+          ...board_opts,
+          ...(board_keysToInject.length > 0
+            ? { select: { ...board_sel, ...Object.fromEntries(board_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          where: { id: { in: board_fkValues } },
+        },
+        { tx }
+      );
+      board_hashMap = new Map(
+        board_related.map((r) => {
+          const _r = r as Record<string, unknown>;
+          const key = JSON.stringify(_r["id"]);
+          const value =
+            board_keysToInject.length > 0
+              ? Object.fromEntries(Object.entries(_r).filter(([k]) => !board_keysToInject.includes(k)))
+              : _r;
+          return [key, value as unknown];
+        })
+      );
+    }
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
-      const attach_board = query.select?.board || query.include?.board;
       if (attach_board) {
-        unsafeRecord["board"] = await this.client.board.findUnique(
-          {
-            ...(attach_board === true ? {} : attach_board),
-            where: { id: record.boardId! },
-          },
-          { tx }
-        );
+        unsafeRecord["board"] = board_hashMap!.get(JSON.stringify(record.boardId)) ?? null;
       }
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[];
+    return recordsWithRelations as Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.TodoDelegate, "findMany">["orderBy"],
@@ -2573,21 +2650,54 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     query?: Q
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[];
-    const recordsWithRelations = records.map(async (record) => {
+    const attach_boards = query.select?.boards || query.include?.boards;
+    let boards_hashMap: Map<string, unknown[]> | undefined;
+    if (attach_boards) {
+      const boards_opts = (attach_boards === true ? {} : attach_boards) as Record<string, unknown>;
+      const boards_sel = boards_opts.select as Record<string, boolean> | undefined;
+      const boards_keysToInject = boards_sel ? (["userId"] as string[]).filter((k) => !boards_sel![k]) : [];
+      const boards_parentIds = [...new Set(records.map((r) => r.id))];
+      const boards_allRelated = await this.client.board.findMany(
+        {
+          ...boards_opts,
+          ...(boards_keysToInject.length > 0
+            ? { select: { ...boards_sel, ...Object.fromEntries(boards_keysToInject.map((k) => [k, true])) } }
+            : {}),
+          take: undefined,
+          skip: undefined,
+          where: { userId: { in: boards_parentIds } },
+        },
+        { tx }
+      );
+      const boards_take = attach_boards !== true ? (attach_boards as Prisma.BoardFindManyArgs).take : undefined;
+      const boards_skip = attach_boards !== true ? (attach_boards as Prisma.BoardFindManyArgs).skip : undefined;
+      boards_hashMap = new Map<string, unknown[]>();
+      for (const related of boards_allRelated) {
+        const _r = related as Record<string, unknown>;
+        const key = JSON.stringify(_r["userId"]);
+        if (!boards_hashMap!.has(key)) boards_hashMap!.set(key, []);
+        const value =
+          boards_keysToInject.length > 0
+            ? Object.fromEntries(Object.entries(_r).filter(([k]) => !boards_keysToInject.includes(k)))
+            : _r;
+        boards_hashMap!.get(key)!.push(value as unknown);
+      }
+      if (boards_skip !== undefined || boards_take !== undefined) {
+        for (const [key, group] of boards_hashMap!) {
+          const start = boards_skip ?? 0;
+          const end = boards_take !== undefined ? start + boards_take : undefined;
+          boards_hashMap!.set(key, group.slice(start, end));
+        }
+      }
+    }
+    const recordsWithRelations = records.map((record) => {
       const unsafeRecord = record as Record<string, unknown>;
-      const attach_boards = query.select?.boards || query.include?.boards;
       if (attach_boards) {
-        unsafeRecord["boards"] = await this.client.board.findMany(
-          {
-            ...(attach_boards === true ? {} : attach_boards),
-            where: { userId: record.id! },
-          },
-          { tx }
-        );
+        unsafeRecord["boards"] = boards_hashMap!.get(JSON.stringify(record.id)) ?? [];
       }
       return unsafeRecord;
     });
-    return (await Promise.all(recordsWithRelations)) as Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[];
+    return recordsWithRelations as Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[];
   }
   async _applyOrderByClause<
     O extends Prisma.Args<Prisma.UserDelegate, "findMany">["orderBy"],
