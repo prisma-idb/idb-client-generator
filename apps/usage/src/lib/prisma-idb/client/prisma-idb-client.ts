@@ -2707,7 +2707,8 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.UserDelegate, "deleteMany">>(
@@ -4443,7 +4444,8 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.GroupDelegate, "deleteMany">>(
@@ -5351,7 +5353,8 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.ProfileDelegate, "deleteMany">>(
@@ -6516,7 +6519,8 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.PostDelegate, "deleteMany">>(
@@ -7654,7 +7658,8 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.CommentDelegate, "deleteMany">>(
@@ -8550,7 +8555,8 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.TodoDelegate, "deleteMany">>(
@@ -9364,7 +9370,8 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.AllFieldScalarTypesDelegate, "deleteMany">>(
@@ -10028,7 +10035,8 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.ModelWithEnumDelegate, "deleteMany">>(
@@ -10622,7 +10630,8 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.TestUuidDelegate, "deleteMany">>(
@@ -11479,7 +11488,8 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate, "deleteMany">>(
@@ -12507,7 +12517,8 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.ModelWithUniqueAttributesDelegate, "deleteMany">>(
@@ -13617,7 +13628,8 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.UserGroupDelegate, "deleteMany">>(
@@ -15065,7 +15077,8 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.FatherDelegate, "deleteMany">>(
@@ -16659,7 +16672,8 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.MotherDelegate, "deleteMany">>(
@@ -18216,7 +18230,8 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.ChildDelegate, "deleteMany">>(
@@ -19071,7 +19086,8 @@ class CompositeIdIntStringIDBClass extends BaseIDBModelClass<"CompositeIdIntStri
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.CompositeIdIntStringDelegate, "deleteMany">>(
@@ -19710,7 +19726,8 @@ class CompositeIdWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeIdWith
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.CompositeIdWithDateTimeDelegate, "deleteMany">>(
@@ -20359,7 +20376,8 @@ class TripleCompositeIdWithDateIDBClass extends BaseIDBModelClass<"TripleComposi
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.TripleCompositeIdWithDateDelegate, "deleteMany">>(
@@ -21056,7 +21074,8 @@ class CompositeUniqueWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeUn
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.CompositeUniqueWithDateTimeDelegate, "deleteMany">>(
@@ -21738,7 +21757,8 @@ class CompositeUniqueFloatIntIDBClass extends BaseIDBModelClass<"CompositeUnique
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.CompositeUniqueFloatIntDelegate, "deleteMany">>(
@@ -22428,7 +22448,8 @@ class MultipleCompositeUniquesIDBClass extends BaseIDBModelClass<"MultipleCompos
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.MultipleCompositeUniquesDelegate, "deleteMany">>(
@@ -23092,7 +23113,8 @@ class ModelWithIndexIDBClass extends BaseIDBModelClass<"ModelWithIndex"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.ModelWithIndexDelegate, "deleteMany">>(

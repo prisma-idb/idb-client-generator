@@ -30,7 +30,10 @@ export function addDeleteMethod(writer: CodeBlockWriter, model: Model) {
     .block(() => {
       writer.write(getOptionsSetupWrite());
       createTxAndGetRecord(writer);
-      writer.writeLine(`await this._deleteRecord(record, tx, { silent, addToOutbox });`).writeLine(`return record;`);
+      writer
+        .writeLine(`const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });`)
+        .writeLine(`await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });`)
+        .writeLine(`return record;`);
     });
 }
 

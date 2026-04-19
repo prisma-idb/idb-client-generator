@@ -33,3 +33,21 @@ test("delete_ExistingRecordWithCascade_DeletesAndReturnsFirstRecordWithRelation"
   });
   await expectQueryToSucceed({ page, model: "profile", operation: "findMany", query: { include: { user: true } } });
 });
+
+test("delete_WithSelectWithoutPrimaryKey_ReturnsSelectedShapeAndStillCascades", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "create",
+    query: { data: { name: "John", todos: { create: [{ title: "Todo 1" }, { title: "Todo 2" }] } } },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "delete",
+    query: { where: { id: 1 }, select: { name: true } },
+  });
+
+  await expectQueryToSucceed({ page, model: "todo", operation: "findMany" });
+});

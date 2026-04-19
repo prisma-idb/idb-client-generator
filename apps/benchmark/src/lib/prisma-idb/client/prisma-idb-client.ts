@@ -786,7 +786,8 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.UserDelegate, "deleteMany">>(
@@ -1679,7 +1680,8 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
     const record = await this.findUnique(query, { tx });
     if (!record) throw new Error("Record not found");
-    await this._deleteRecord(record, tx, { silent, addToOutbox });
+    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
+    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
     return record;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.TodoDelegate, "deleteMany">>(
