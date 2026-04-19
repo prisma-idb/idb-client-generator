@@ -28,6 +28,7 @@ interface ComparisonRow {
   p95: MetricPair;
   mean: MetricPair;
   status: "PASS" | "WARN" | "FAIL";
+  noisy?: boolean;
 }
 
 interface ComparisonSummary {
@@ -46,15 +47,28 @@ interface ComparisonSummary {
 
 const round = (value: number) => Number(value.toFixed(3));
 
+/** Coefficient of variation (stdDev / mean). High CV → noisy measurement. */
+function coefficientOfVariation(samples: number[] | undefined): number | null {
+  if (!samples || samples.length < 2) return null;
+  const n = samples.length;
+  const mean = samples.reduce((s, v) => s + v, 0) / n;
+  if (mean === 0) return null;
+  const variance = samples.reduce((s, v) => s + (v - mean) ** 2, 0) / (n - 1);
+  return Math.sqrt(variance) / mean;
+}
+
 function formatMetric(value: number | null): string {
   return value === null ? "n/a" : String(value);
 }
 
-function formatPercent(value: number | null): string {
+function formatDelta(value: number | null): string {
   if (value === null) return "n/a";
-  if (!Number.isFinite(value)) return "inf";
+  if (!Number.isFinite(value)) return "∞";
   const sign = value > 0 ? "+" : "";
-  return `${sign}${value.toFixed(2)}%`;
+  const formatted = `${sign}${value.toFixed(2)}%`;
+  if (value > 10) return `**${formatted}** 📈`;
+  if (value < -10) return `**${formatted}** 📉`;
+  return formatted;
 }
 
 function pairMetric(baseline: number, current: number): MetricPair {
@@ -82,32 +96,41 @@ function pairMetric(baseline: number, current: number): MetricPair {
 }
 
 function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
+  const gateIcon = summary.isAdvisory ? "ℹ️" : summary.shouldFail ? "❌" : "✅";
+  const gateLabel = summary.isAdvisory ? "advisory" : summary.shouldFail ? "enforcing — FAILED" : "enforcing — passed";
+
   const lines: string[] = [
     "## Benchmark Regression Report",
     "",
-    "- Gate metric: p95 latency",
-    `- Gate mode: ${summary.isAdvisory ? "advisory" : "enforcing"}`,
-    `- Regression threshold: +${threshold}%`,
-    `- Compared operations: ${summary.rows.length}`,
-    `- Regressions: ${summary.regressions.length}`,
-    `- Added operations: ${summary.addedOperations.length}`,
-    `- Removed operations: ${summary.removedOperations.length}`,
+    `| | |`,
+    `| :-- | :-- |`,
+    `| **Gate metric** | p95 latency |`,
+    `| **Gate mode** | ${gateIcon} ${gateLabel} |`,
+    `| **Regression threshold** | +${threshold}% |`,
+    `| **Compared operations** | ${summary.rows.length} |`,
+    `| **Regressions** | ${summary.regressions.length > 0 ? `⚠️ ${summary.regressions.length}` : `${summary.regressions.length}`} |`,
+    `| **Added / Removed** | ${summary.addedOperations.length} / ${summary.removedOperations.length} |`,
     "",
   ];
 
   if (summary.notices.length > 0) {
-    for (const notice of summary.notices) lines.push(`- Notice: ${notice}`);
+    lines.push("> [!NOTE]");
+    for (const notice of summary.notices) lines.push(`> ${notice}`);
     lines.push("");
   }
 
   lines.push(
-    "| Operation | Baseline p95 (ms) | Current p95 (ms) | Delta p95 | Baseline mean (ms) | Current mean (ms) | Delta mean | Status |",
-    "| --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: |"
+    "| Status | Operation | Baseline p95 | Current p95 | Δ p95 | Baseline mean | Current mean | Δ mean |",
+    "| :---: | :-- | ---: | ---: | ---: | ---: | ---: | ---: |"
   );
 
   for (const row of summary.rows) {
+    const statusIcon = row.status === "FAIL" ? (row.noisy ? "🟠" : "🔴") : row.status === "WARN" ? "🟡" : "🟢";
+    const noisyTag = row.noisy ? " 🎲" : "";
+    const deltaP95 = formatDelta(row.p95.delta);
+    const deltaMean = formatDelta(row.mean.delta);
     lines.push(
-      `| ${row.operationId} | ${formatMetric(row.p95.baseline)} | ${formatMetric(row.p95.current)} | ${formatPercent(row.p95.delta)} | ${formatMetric(row.mean.baseline)} | ${formatMetric(row.mean.current)} | ${formatPercent(row.mean.delta)} | ${row.status} |`
+      `| ${statusIcon} | \`${row.operationId}\`${noisyTag} | ${formatMetric(row.p95.baseline)} | ${formatMetric(row.p95.current)} | ${deltaP95} | ${formatMetric(row.mean.baseline)} | ${formatMetric(row.mean.current)} | ${deltaMean} |`
     );
   }
 
@@ -117,9 +140,26 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
   ] as const) {
     if (ids.length > 0) {
       lines.push("", `### ${heading}`, "");
-      for (const id of ids) lines.push(`- ${id}`);
+      for (const id of ids) lines.push(`- \`${id}\``);
     }
   }
+
+  const hasNoisy = summary.rows.some((r) => r.noisy);
+
+  lines.push("");
+  lines.push("<details><summary>Legend</summary>", "");
+  lines.push("| Symbol | Meaning |");
+  lines.push("| :---: | :-- |");
+  lines.push("| 🟢 | Pass — within threshold |");
+  lines.push("| 🟡 | Warn — approaching threshold |");
+  lines.push("| 🔴 | Fail — exceeds threshold |");
+  if (hasNoisy) {
+    lines.push("| 🟠 | Fail but noisy — high variance makes this unreliable |");
+    lines.push("| 🎲 | High coefficient of variation (CV > 30%) — samples are spread out |");
+  }
+  lines.push("| 📈 | Regression > 10% |");
+  lines.push("| 📉 | Improvement > 10% |");
+  lines.push("", "</details>");
 
   lines.push("", `_Generated at ${new Date().toISOString()}_`);
   return `${lines.join("\n")}\n`;
@@ -239,6 +279,14 @@ async function main() {
     const p95 = pairMetric(Number(baselineOp.summary?.p95Ms), Number(currentOp.summary?.p95Ms));
     const mean = pairMetric(Number(baselineOp.summary?.meanMs), Number(currentOp.summary?.meanMs));
 
+    // Flag operations where either run has high coefficient of variation (CV > 0.3).
+    // A high CV means the samples are spread out, making any % delta unreliable.
+    const CV_THRESHOLD = 0.3;
+    const baselineCV = coefficientOfVariation(baselineOp.samplesMs);
+    const currentCV = coefficientOfVariation(currentOp.samplesMs);
+    const noisy =
+      (baselineCV !== null && baselineCV > CV_THRESHOLD) || (currentCV !== null && currentCV > CV_THRESHOLD);
+
     // Treat baseline=0 → current>0 as a hard regression (delta becomes +Infinity).
     const delta = p95.delta;
     const isRegression = delta !== null && (!Number.isFinite(delta) || delta > threshold);
@@ -249,9 +297,10 @@ async function main() {
       p95,
       mean,
       status: isRegression ? "FAIL" : isWarn ? "WARN" : "PASS",
+      noisy,
     };
     rows.push(row);
-    if (isRegression) regressions.push(row);
+    if (isRegression && !noisy) regressions.push(row);
   }
 
   rows.sort((a, b) => a.operationId.localeCompare(b.operationId));
