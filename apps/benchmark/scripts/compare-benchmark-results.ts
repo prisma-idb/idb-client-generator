@@ -141,7 +141,7 @@ function bootstrapMedianDeltaCI(
     }
   }
 
-  replicateDeltas.sort((a, b) => a - b);
+  replicateDeltas.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   const lowerIdx = Math.floor(0.025 * iterations);
   const upperIdx = Math.min(iterations - 1, Math.floor(0.975 * iterations));
 
