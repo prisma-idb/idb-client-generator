@@ -263,7 +263,7 @@ export function BenchmarkRunSettingsCard({ controller }: SectionProps) {
         </div>
 
         {progress && (
-          <div className="mt-4 space-y-2">
+          <div className="mt-4 space-y-2" role="status" aria-live="polite" aria-atomic="true">
             <Progress value={progressPercent}>
               <ProgressLabel>{progress.currentOperationLabel}</ProgressLabel>
               <span className="text-muted-foreground ms-auto text-sm tabular-nums">
@@ -273,7 +273,11 @@ export function BenchmarkRunSettingsCard({ controller }: SectionProps) {
             <p className="text-muted-foreground text-xs">{etaLabel}</p>
           </div>
         )}
-        {error && <p className="text-destructive mt-3 text-sm">{error}</p>}
+        {error && (
+          <p className="text-destructive mt-3 text-sm" role="alert" aria-atomic="true">
+            {error}
+          </p>
+        )}
       </CardContent>
     </Card>
   );
@@ -390,30 +394,32 @@ export function BenchmarkRunDetails({ controller }: SectionProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Operation</TableHead>
-                <TableHead>Average</TableHead>
-                <TableHead>p95</TableHead>
-                <TableHead>Throughput</TableHead>
-                <TableHead>User Impact</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {selectedRun.operations.map((operation) => (
-                <TableRow key={operation.operationId}>
-                  <TableCell>{operation.label}</TableCell>
-                  <TableCell>{formatMs(operation.summary.meanMs)}</TableCell>
-                  <TableCell>{formatMs(operation.summary.p95Ms)}</TableCell>
-                  <TableCell>{formatOpsPerSecond(operation.summary.opsPerSecond)}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{userImpactLabel(operation.summary.p95Ms)}</Badge>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Operation</TableHead>
+                  <TableHead>Average</TableHead>
+                  <TableHead>p95</TableHead>
+                  <TableHead>Throughput</TableHead>
+                  <TableHead>User Impact</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {selectedRun.operations.map((operation) => (
+                  <TableRow key={operation.operationId}>
+                    <TableCell>{operation.label}</TableCell>
+                    <TableCell>{formatMs(operation.summary.meanMs)}</TableCell>
+                    <TableCell>{formatMs(operation.summary.p95Ms)}</TableCell>
+                    <TableCell>{formatOpsPerSecond(operation.summary.opsPerSecond)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{userImpactLabel(operation.summary.p95Ms)}</Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </>
