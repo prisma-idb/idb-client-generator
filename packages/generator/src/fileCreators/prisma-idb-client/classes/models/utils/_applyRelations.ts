@@ -10,6 +10,8 @@ export function addApplyRelations(writer: CodeBlockWriter, model: Model, models:
     .writeLine(`query?: Q): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, 'findFirstOrThrow'>[]>`)
     .block(() => {
       addEarlyExit(writer, model);
+      addAttachFlags(writer, model);
+      addNoRelationsEarlyExit(writer, model);
       addHashJoinBuildPhase(writer, model, models);
       addHashJoinAssignPhase(writer, model, models);
       addReturn(writer, model);
@@ -19,6 +21,29 @@ export function addApplyRelations(writer: CodeBlockWriter, model: Model, models:
 function addEarlyExit(writer: CodeBlockWriter, model: Model) {
   writer.writeLine(
     `if (!query) return records as Prisma.Result<Prisma.${model.name}Delegate, Q, 'findFirstOrThrow'>[];`
+  );
+}
+
+/**
+ * Hoist `attach_<relation>` flags above the build phase so we can short-circuit
+ * the entire body when no relations are being attached. Without this, every
+ * `findMany` (even ones with no `select`/`include`) pays the cost of `records.map`
+ * over potentially thousands of records, plus the larger function body
+ * impedes V8 inlining for the hot path.
+ */
+function addAttachFlags(writer: CodeBlockWriter, model: Model) {
+  const relationFields = model.fields.filter(({ kind }) => kind === "object");
+  for (const field of relationFields) {
+    writer.writeLine(`const attach_${field.name} = query.select?.${field.name} || query.include?.${field.name};`);
+  }
+}
+
+function addNoRelationsEarlyExit(writer: CodeBlockWriter, model: Model) {
+  const relationFields = model.fields.filter(({ kind }) => kind === "object");
+  if (relationFields.length === 0) return;
+  const condition = relationFields.map((f) => `!attach_${f.name}`).join(" && ");
+  writer.writeLine(
+    `if (${condition}) return records as Prisma.Result<Prisma.${model.name}Delegate, Q, 'findFirstOrThrow'>[];`
   );
 }
 
@@ -32,8 +57,6 @@ function addHashJoinBuildPhase(writer: CodeBlockWriter, model: Model, models: re
 
   relationFields.forEach((field) => {
     const otherField = allFields.find((_field) => _field.relationName === field.relationName && field !== _field)!;
-
-    writer.writeLine(`const attach_${field.name} = query.select?.${field.name} || query.include?.${field.name};`);
 
     const mapValueType = field.isList ? "unknown[]" : "unknown";
     writer.writeLine(`let ${field.name}_hashMap: Map<string, ${mapValueType}> | undefined;`);

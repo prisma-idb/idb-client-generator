@@ -636,6 +636,8 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
   ): Promise<Prisma.Result<Prisma.BoardDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.BoardDelegate, Q, "findFirstOrThrow">[];
     const attach_todos = query.select?.todos || query.include?.todos;
+    const attach_user = query.select?.user || query.include?.user;
+    if (!attach_todos && !attach_user) return records as Prisma.Result<Prisma.BoardDelegate, Q, "findFirstOrThrow">[];
     let todos_hashMap: Map<string, unknown[]> | undefined;
     if (attach_todos) {
       const todos_opts = (attach_todos === true ? {} : attach_todos) as Record<string, unknown>;
@@ -711,7 +713,6 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
         }
       }
     }
-    const attach_user = query.select?.user || query.include?.user;
     let user_hashMap: Map<string, unknown> | undefined;
     if (attach_user) {
       const user_opts = (attach_user === true ? {} : attach_user) as Record<string, unknown>;
@@ -1815,6 +1816,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
   ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[];
     const attach_board = query.select?.board || query.include?.board;
+    if (!attach_board) return records as Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[];
     let board_hashMap: Map<string, unknown> | undefined;
     if (attach_board) {
       const board_opts = (attach_board === true ? {} : attach_board) as Record<string, unknown>;
@@ -2702,6 +2704,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[];
     const attach_boards = query.select?.boards || query.include?.boards;
+    if (!attach_boards) return records as Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[];
     let boards_hashMap: Map<string, unknown[]> | undefined;
     if (attach_boards) {
       const boards_opts = (attach_boards === true ? {} : attach_boards) as Record<string, unknown>;

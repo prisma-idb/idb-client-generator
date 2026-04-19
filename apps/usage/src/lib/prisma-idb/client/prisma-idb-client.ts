@@ -534,6 +534,24 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
   ): Promise<Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[];
     const attach_profile = query.select?.profile || query.include?.profile;
+    const attach_posts = query.select?.posts || query.include?.posts;
+    const attach_comments = query.select?.comments || query.include?.comments;
+    const attach_Child = query.select?.Child || query.include?.Child;
+    const attach_Father = query.select?.Father || query.include?.Father;
+    const attach_Mother = query.select?.Mother || query.include?.Mother;
+    const attach_groups = query.select?.groups || query.include?.groups;
+    const attach_todos = query.select?.todos || query.include?.todos;
+    if (
+      !attach_profile &&
+      !attach_posts &&
+      !attach_comments &&
+      !attach_Child &&
+      !attach_Father &&
+      !attach_Mother &&
+      !attach_groups &&
+      !attach_todos
+    )
+      return records as Prisma.Result<Prisma.UserDelegate, Q, "findFirstOrThrow">[];
     let profile_hashMap: Map<string, unknown> | undefined;
     if (attach_profile) {
       const profile_opts = (attach_profile === true ? {} : attach_profile) as Record<string, unknown>;
@@ -565,7 +583,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         })
       );
     }
-    const attach_posts = query.select?.posts || query.include?.posts;
     let posts_hashMap: Map<string, unknown[]> | undefined;
     if (attach_posts) {
       const posts_opts = (attach_posts === true ? {} : attach_posts) as Record<string, unknown>;
@@ -641,7 +658,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         }
       }
     }
-    const attach_comments = query.select?.comments || query.include?.comments;
     let comments_hashMap: Map<string, unknown[]> | undefined;
     if (attach_comments) {
       const comments_opts = (attach_comments === true ? {} : attach_comments) as Record<string, unknown>;
@@ -718,7 +734,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         }
       }
     }
-    const attach_Child = query.select?.Child || query.include?.Child;
     let Child_hashMap: Map<string, unknown[]> | undefined;
     if (attach_Child) {
       const Child_opts = (attach_Child === true ? {} : attach_Child) as Record<string, unknown>;
@@ -794,7 +809,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         }
       }
     }
-    const attach_Father = query.select?.Father || query.include?.Father;
     let Father_hashMap: Map<string, unknown[]> | undefined;
     if (attach_Father) {
       const Father_opts = (attach_Father === true ? {} : attach_Father) as Record<string, unknown>;
@@ -870,7 +884,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         }
       }
     }
-    const attach_Mother = query.select?.Mother || query.include?.Mother;
     let Mother_hashMap: Map<string, unknown[]> | undefined;
     if (attach_Mother) {
       const Mother_opts = (attach_Mother === true ? {} : attach_Mother) as Record<string, unknown>;
@@ -946,7 +959,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         }
       }
     }
-    const attach_groups = query.select?.groups || query.include?.groups;
     let groups_hashMap: Map<string, unknown[]> | undefined;
     if (attach_groups) {
       const groups_opts = (attach_groups === true ? {} : attach_groups) as Record<string, unknown>;
@@ -1022,7 +1034,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         }
       }
     }
-    const attach_todos = query.select?.todos || query.include?.todos;
     let todos_hashMap: Map<string, unknown[]> | undefined;
     if (attach_todos) {
       const todos_opts = (attach_todos === true ? {} : attach_todos) as Record<string, unknown>;
@@ -3818,6 +3829,7 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
   ): Promise<Prisma.Result<Prisma.GroupDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.GroupDelegate, Q, "findFirstOrThrow">[];
     const attach_userGroups = query.select?.userGroups || query.include?.userGroups;
+    if (!attach_userGroups) return records as Prisma.Result<Prisma.GroupDelegate, Q, "findFirstOrThrow">[];
     let userGroups_hashMap: Map<string, unknown[]> | undefined;
     if (attach_userGroups) {
       const userGroups_opts = (attach_userGroups === true ? {} : attach_userGroups) as Record<string, unknown>;
@@ -4797,6 +4809,7 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
   ): Promise<Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">[];
     const attach_user = query.select?.user || query.include?.user;
+    if (!attach_user) return records as Prisma.Result<Prisma.ProfileDelegate, Q, "findFirstOrThrow">[];
     let user_hashMap: Map<string, unknown> | undefined;
     if (attach_user) {
       const user_opts = (attach_user === true ? {} : attach_user) as Record<string, unknown>;
@@ -5689,6 +5702,9 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
   ): Promise<Prisma.Result<Prisma.PostDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.PostDelegate, Q, "findFirstOrThrow">[];
     const attach_author = query.select?.author || query.include?.author;
+    const attach_comments = query.select?.comments || query.include?.comments;
+    if (!attach_author && !attach_comments)
+      return records as Prisma.Result<Prisma.PostDelegate, Q, "findFirstOrThrow">[];
     let author_hashMap: Map<string, unknown> | undefined;
     if (attach_author) {
       const author_opts = (attach_author === true ? {} : attach_author) as Record<string, unknown>;
@@ -5720,7 +5736,6 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
         })
       );
     }
-    const attach_comments = query.select?.comments || query.include?.comments;
     let comments_hashMap: Map<string, unknown[]> | undefined;
     if (attach_comments) {
       const comments_opts = (attach_comments === true ? {} : attach_comments) as Record<string, unknown>;
@@ -6942,6 +6957,8 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
   ): Promise<Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">[];
     const attach_post = query.select?.post || query.include?.post;
+    const attach_user = query.select?.user || query.include?.user;
+    if (!attach_post && !attach_user) return records as Prisma.Result<Prisma.CommentDelegate, Q, "findFirstOrThrow">[];
     let post_hashMap: Map<string, unknown> | undefined;
     if (attach_post) {
       const post_opts = (attach_post === true ? {} : attach_post) as Record<string, unknown>;
@@ -6973,7 +6990,6 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
         })
       );
     }
-    const attach_user = query.select?.user || query.include?.user;
     let user_hashMap: Map<string, unknown> | undefined;
     if (attach_user) {
       const user_opts = (attach_user === true ? {} : attach_user) as Record<string, unknown>;
@@ -7982,6 +7998,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
   ): Promise<Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[];
     const attach_user = query.select?.user || query.include?.user;
+    if (!attach_user) return records as Prisma.Result<Prisma.TodoDelegate, Q, "findFirstOrThrow">[];
     let user_hashMap: Map<string, unknown> | undefined;
     if (attach_user) {
       const user_opts = (attach_user === true ? {} : attach_user) as Record<string, unknown>;
@@ -10828,6 +10845,12 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
         "findFirstOrThrow"
       >[];
     const attach_link = query.select?.link || query.include?.link;
+    if (!attach_link)
+      return records as Prisma.Result<
+        Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
+        Q,
+        "findFirstOrThrow"
+      >[];
     let link_hashMap: Map<string, unknown> | undefined;
     if (attach_link) {
       const link_opts = (attach_link === true ? {} : attach_link) as Record<string, unknown>;
@@ -11787,6 +11810,8 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
   ): Promise<Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findFirstOrThrow">[];
     const attach_links = query.select?.links || query.include?.links;
+    if (!attach_links)
+      return records as Prisma.Result<Prisma.ModelWithUniqueAttributesDelegate, Q, "findFirstOrThrow">[];
     let links_hashMap: Map<string, unknown[]> | undefined;
     if (attach_links) {
       const links_opts = (attach_links === true ? {} : attach_links) as Record<string, unknown>;
@@ -12854,6 +12879,9 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
   ): Promise<Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirstOrThrow">[];
     const attach_group = query.select?.group || query.include?.group;
+    const attach_user = query.select?.user || query.include?.user;
+    if (!attach_group && !attach_user)
+      return records as Prisma.Result<Prisma.UserGroupDelegate, Q, "findFirstOrThrow">[];
     let group_hashMap: Map<string, unknown> | undefined;
     if (attach_group) {
       const group_opts = (attach_group === true ? {} : attach_group) as Record<string, unknown>;
@@ -12885,7 +12913,6 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
         })
       );
     }
-    const attach_user = query.select?.user || query.include?.user;
     let user_hashMap: Map<string, unknown> | undefined;
     if (attach_user) {
       const user_opts = (attach_user === true ? {} : attach_user) as Record<string, unknown>;
@@ -13996,6 +14023,10 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
   ): Promise<Prisma.Result<Prisma.FatherDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.FatherDelegate, Q, "findFirstOrThrow">[];
     const attach_children = query.select?.children || query.include?.children;
+    const attach_wife = query.select?.wife || query.include?.wife;
+    const attach_user = query.select?.user || query.include?.user;
+    if (!attach_children && !attach_wife && !attach_user)
+      return records as Prisma.Result<Prisma.FatherDelegate, Q, "findFirstOrThrow">[];
     let children_hashMap: Map<string, unknown[]> | undefined;
     if (attach_children) {
       const children_opts = (attach_children === true ? {} : attach_children) as Record<string, unknown>;
@@ -14078,7 +14109,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
         }
       }
     }
-    const attach_wife = query.select?.wife || query.include?.wife;
     let wife_hashMap: Map<string, unknown> | undefined;
     if (attach_wife) {
       const wife_opts = (attach_wife === true ? {} : attach_wife) as Record<string, unknown>;
@@ -14115,7 +14145,6 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
         })
       );
     }
-    const attach_user = query.select?.user || query.include?.user;
     let user_hashMap: Map<string, unknown> | undefined;
     if (attach_user) {
       const user_opts = (attach_user === true ? {} : attach_user) as Record<string, unknown>;
@@ -15604,6 +15633,10 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
   ): Promise<Prisma.Result<Prisma.MotherDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.MotherDelegate, Q, "findFirstOrThrow">[];
     const attach_children = query.select?.children || query.include?.children;
+    const attach_husband = query.select?.husband || query.include?.husband;
+    const attach_user = query.select?.user || query.include?.user;
+    if (!attach_children && !attach_husband && !attach_user)
+      return records as Prisma.Result<Prisma.MotherDelegate, Q, "findFirstOrThrow">[];
     let children_hashMap: Map<string, unknown[]> | undefined;
     if (attach_children) {
       const children_opts = (attach_children === true ? {} : attach_children) as Record<string, unknown>;
@@ -15686,7 +15719,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
         }
       }
     }
-    const attach_husband = query.select?.husband || query.include?.husband;
     let husband_hashMap: Map<string, unknown> | undefined;
     if (attach_husband) {
       const husband_opts = (attach_husband === true ? {} : attach_husband) as Record<string, unknown>;
@@ -15724,7 +15756,6 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
         })
       );
     }
-    const attach_user = query.select?.user || query.include?.user;
     let user_hashMap: Map<string, unknown> | undefined;
     if (attach_user) {
       const user_opts = (attach_user === true ? {} : attach_user) as Record<string, unknown>;
@@ -17202,6 +17233,10 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
   ): Promise<Prisma.Result<Prisma.ChildDelegate, Q, "findFirstOrThrow">[]> {
     if (!query) return records as Prisma.Result<Prisma.ChildDelegate, Q, "findFirstOrThrow">[];
     const attach_user = query.select?.user || query.include?.user;
+    const attach_father = query.select?.father || query.include?.father;
+    const attach_mother = query.select?.mother || query.include?.mother;
+    if (!attach_user && !attach_father && !attach_mother)
+      return records as Prisma.Result<Prisma.ChildDelegate, Q, "findFirstOrThrow">[];
     let user_hashMap: Map<string, unknown> | undefined;
     if (attach_user) {
       const user_opts = (attach_user === true ? {} : attach_user) as Record<string, unknown>;
@@ -17233,7 +17268,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
         })
       );
     }
-    const attach_father = query.select?.father || query.include?.father;
     let father_hashMap: Map<string, unknown> | undefined;
     if (attach_father) {
       const father_opts = (attach_father === true ? {} : attach_father) as Record<string, unknown>;
@@ -17272,7 +17306,6 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
         })
       );
     }
-    const attach_mother = query.select?.mother || query.include?.mother;
     let mother_hashMap: Map<string, unknown> | undefined;
     if (attach_mother) {
       const mother_opts = (attach_mother === true ? {} : attach_mother) as Record<string, unknown>;

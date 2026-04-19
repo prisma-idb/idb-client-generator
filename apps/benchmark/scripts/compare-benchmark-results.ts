@@ -110,7 +110,7 @@ function renderMarkdown(summary: ComparisonSummary, threshold: number): string {
   const lines: string[] = [
     "## Benchmark Regression Report",
     "",
-    `| | |`,
+    `| Summary | |`,
     `| :-- | :-- |`,
     `| **Gate metric** | p95 latency |`,
     `| **Gate mode** | ${gateIcon} ${gateLabel} |`,
