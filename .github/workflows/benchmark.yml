@@ -14,8 +14,14 @@ permissions:
   contents: write
   pull-requests: write
 
+env:
+  BENCHMARK_DATASET_SIZE: "1000"
+  BENCHMARK_WARMUP_RUNS: "2"
+  BENCHMARK_MEASURED_RUNS: "30"
+
 jobs:
-  benchmark:
+  benchmark-pr-compare:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
@@ -23,7 +29,132 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: ./.github/actions/
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - name: Install package dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate benchmark clients
+        working-directory: apps/benchmark
+        run: pnpm generate
+        env:
+          DATABASE_URL: "postgresql://placeholder@localhost:5432/placeholder"
+
+      - name: Restore Playwright browser cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright Browser
+        working-directory: apps/benchmark
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run current benchmark suite (PR head)
+        working-directory: apps/benchmark
+        env:
+          BENCHMARK_DATASET_SIZE: ${{ env.BENCHMARK_DATASET_SIZE }}
+          BENCHMARK_WARMUP_RUNS: ${{ env.BENCHMARK_WARMUP_RUNS }}
+          BENCHMARK_MEASURED_RUNS: ${{ env.BENCHMARK_MEASURED_RUNS }}
+          BENCHMARK_RESULT_PATH: ${{ runner.temp }}/benchmark-results/current.json
+        run: |
+          mkdir -p "$RUNNER_TEMP/benchmark-results"
+          pnpm benchmark:ci
+
+      - name: Run baseline benchmark suite (PR base)
+        run: |
+          git checkout --force ${{ github.event.pull_request.base.sha }}
+          pnpm install --frozen-lockfile
+          pushd apps/benchmark
+          DATABASE_URL="postgresql://placeholder@localhost:5432/placeholder" pnpm generate
+          BENCHMARK_DATASET_SIZE="${{ env.BENCHMARK_DATASET_SIZE }}" \
+          BENCHMARK_WARMUP_RUNS="${{ env.BENCHMARK_WARMUP_RUNS }}" \
+          BENCHMARK_MEASURED_RUNS="${{ env.BENCHMARK_MEASURED_RUNS }}" \
+          BENCHMARK_RESULT_PATH="$RUNNER_TEMP/benchmark-results/baseline.json" \
+          pnpm benchmark:ci
+          popd
+
+      - name: Restore PR head checkout
+        run: |
+          git checkout --force ${{ github.sha }}
+          pnpm install --frozen-lockfile
+
+      - name: Compare benchmarks
+        working-directory: apps/benchmark
+        run: |
+          test -f "$RUNNER_TEMP/benchmark-results/baseline.json"
+          test -f "$RUNNER_TEMP/benchmark-results/current.json"
+          pnpm benchmark:compare \
+            --baseline "$RUNNER_TEMP/benchmark-results/baseline.json" \
+            --current "$RUNNER_TEMP/benchmark-results/current.json" \
+            --threshold 10 \
+            --json-out "$RUNNER_TEMP/benchmark-results/report.json" \
+            --markdown-out "$RUNNER_TEMP/benchmark-results/report.md"
+
+      - name: Enforce benchmark regression gate
+        run: |
+          jq -r '(.notices[]? | "Notice: " + .)' "$RUNNER_TEMP/benchmark-results/report.json"
+          if [ "$(jq -r '.shouldFail' "$RUNNER_TEMP/benchmark-results/report.json")" = "true" ]; then
+            echo "Benchmark regression gate failed." >&2
+            exit 1
+          fi
+
+      - name: Publish benchmark PR comment
+        if: ${{ !cancelled() && github.event.pull_request.head.repo.full_name == github.repository }}
+        continue-on-error: true
+        working-directory: apps/benchmark
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pnpm benchmark:comment --body-file "$RUNNER_TEMP/benchmark-results/report.md"
+
+      - name: Upload benchmark artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: ${{ runner.temp }}/benchmark-results/
+          retention-days: 30
+
+  refresh-main-baseline:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - name: Install package dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate benchmark clients
+        working-directory: apps/benchmark
+        run: pnpm generate
+        env:
+          DATABASE_URL: "postgresql://placeholder@localhost:5432/placeholder"
+
+      - name: Restore Playwright browser cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install Playwright Browser
         working-directory: apps/benchmark
@@ -31,130 +162,21 @@ jobs:
 
       - name: Run benchmark suite
         working-directory: apps/benchmark
-        run: |
-          mkdir -p ../../benchmarks/results
-          pnpm benchmark:ci
-
-      - name: Capture current benchmark config
-        if: github.event_name == 'pull_request'
-        run: |
-          jq -er '
-            .config
-            | if (.datasetSize | type) != "number" or (.warmupRuns | type) != "number" or (.measuredRuns | type) != "number"
-              then error("Missing integer config in benchmarks/results/current.json")
-              else "BENCHMARK_DATASET_SIZE=\(.datasetSize)\nBENCHMARK_WARMUP_RUNS=\(.warmupRuns)\nBENCHMARK_MEASURED_RUNS=\(.measuredRuns)"
-              end
-          ' benchmarks/results/current.json >> "$GITHUB_ENV"
-
-      - name: Load trusted baseline from PR base commit
-        if: github.event_name == 'pull_request'
-        run: |
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          TARGET_PATH="benchmarks/results/baseline-main.json"
-          TEMP_PATH="$(mktemp)"
-
-          if git show "$BASE_SHA:benchmarks/baselines/main.json" > "$TEMP_PATH"; then
-            mv "$TEMP_PATH" "$TARGET_PATH"
-            echo "Loaded baseline snapshot from base commit: $BASE_SHA"
-          else
-            rm -f "$TEMP_PATH"
-            echo "Baseline snapshot not found at base commit: $BASE_SHA"
-            exit 1
-          fi
-
-      - name: Compare against trusted baseline
-        if: github.event_name == 'pull_request'
-        id: compare_trusted_baseline
-        working-directory: apps/benchmark
-        run: |
-          test -f ../../benchmarks/results/baseline-main.json
-          pnpm benchmark:compare \
-            --baseline ../../benchmarks/results/baseline-main.json \
-            --current ../../benchmarks/results/current.json \
-            --threshold 10 \
-            --json-out ../../benchmarks/results/report.json \
-            --markdown-out ../../benchmarks/results/report.md
-
-          jq -r '"is_advisory=\(.isAdvisory)"' ../../benchmarks/results/report.json >> "$GITHUB_OUTPUT"
-
-      - name: Check out PR base commit for direct benchmark
-        if: github.event_name == 'pull_request' && steps.compare_trusted_baseline.outputs.is_advisory == 'true'
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          path: benchmark-base
-          ref: ${{ github.event.pull_request.base.sha }}
-
-      - name: Install base commit dependencies
-        if: github.event_name == 'pull_request' && steps.compare_trusted_baseline.outputs.is_advisory == 'true'
-        working-directory: benchmark-base
-        run: pnpm install --frozen-lockfile
-
-      - name: Sync base commit SvelteKit
-        if: github.event_name == 'pull_request' && steps.compare_trusted_baseline.outputs.is_advisory == 'true'
-        working-directory: benchmark-base
-        run: pnpm --filter usage exec svelte-kit sync
-
-      - name: Generate base commit clients
-        if: github.event_name == 'pull_request' && steps.compare_trusted_baseline.outputs.is_advisory == 'true'
-        working-directory: benchmark-base
-        run: pnpm generate
-        env:
-          DATABASE_URL: "postgresql://placeholder@localhost:5432/placeholder"
-
-      - name: Install base commit Playwright browser
-        if: github.event_name == 'pull_request' && steps.compare_trusted_baseline.outputs.is_advisory == 'true'
-        working-directory: benchmark-base/apps/benchmark
-        run: pnpm exec playwright install --with-deps chromium
-
-      - name: Benchmark PR base commit directly
-        if: github.event_name == 'pull_request' && steps.compare_trusted_baseline.outputs.is_advisory == 'true'
-        working-directory: benchmark-base/apps/benchmark
         env:
           BENCHMARK_DATASET_SIZE: ${{ env.BENCHMARK_DATASET_SIZE }}
           BENCHMARK_WARMUP_RUNS: ${{ env.BENCHMARK_WARMUP_RUNS }}
           BENCHMARK_MEASURED_RUNS: ${{ env.BENCHMARK_MEASURED_RUNS }}
-          BENCHMARK_RESULT_PATH: ${{ github.workspace }}/benchmarks/results/base-current.json
-        run: pnpm benchmark:ci
-
-      - name: Compare against directly benchmarked base commit
-        if: github.event_name == 'pull_request' && steps.compare_trusted_baseline.outputs.is_advisory == 'true'
-        working-directory: apps/benchmark
+          BENCHMARK_RESULT_PATH: ${{ runner.temp }}/benchmark-results/main-current.json
         run: |
-          test -f ../../benchmarks/results/base-current.json
-          pnpm benchmark:compare \
-            --baseline ../../benchmarks/results/base-current.json \
-            --current ../../benchmarks/results/current.json \
-            --threshold 10 \
-            --json-out ../../benchmarks/results/report.json \
-            --markdown-out ../../benchmarks/results/report.md
-
-      - name: Enforce benchmark regression gate
-        if: github.event_name == 'pull_request'
-        run: |
-          jq -r '"Final benchmark gate mode: " + (if .isAdvisory then "advisory" else "enforcing" end), (.notices[]? | "Notice: " + .)' benchmarks/results/report.json
-          if [ "$(jq -r '.shouldFail' benchmarks/results/report.json)" = "true" ]; then
-            echo "Benchmark regression gate failed." >&2
-            exit 1
-          fi
-
-      - name: Publish benchmark PR comment
-        if: github.event_name == 'pull_request' && !cancelled() && github.event.pull_request.head.repo.full_name == github.repository
-        continue-on-error: true
-        working-directory: apps/benchmark
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          pnpm benchmark:comment --body-file ../../benchmarks/results/report.md
+          mkdir -p "$RUNNER_TEMP/benchmark-results"
+          pnpm benchmark:ci
 
       - name: Refresh main baseline snapshot
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           mkdir -p benchmarks/baselines
-          cp benchmarks/results/current.json benchmarks/baselines/main.json
+          cp "$RUNNER_TEMP/benchmark-results/main-current.json" benchmarks/baselines/main.json
 
       - name: Commit baseline update
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           # Check for both tracked changes and newly created/untracked baselines
           if [ ! -f benchmarks/baselines/main.json ] || git diff --quiet -- benchmarks/baselines/main.json; then
@@ -177,6 +199,6 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-results
-          path: benchmarks/results/
+          name: benchmark-results-main
+          path: ${{ runner.temp }}/benchmark-results/
           retention-days: 30

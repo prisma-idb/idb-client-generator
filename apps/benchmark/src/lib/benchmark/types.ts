@@ -23,12 +23,13 @@ export interface BenchmarkConfig {
 export const BENCHMARK_DEFAULT_CONFIG: BenchmarkConfig = {
   datasetSize: 1000,
   warmupRuns: 2,
-  measuredRuns: 20,
+  measuredRuns: 30,
 };
 
 export const BENCHMARK_REGRESSION_GATE = {
   thresholdPercent: 10,
   minMeaningfulP95Samples: 20,
+  minAbsoluteDeltaMs: 5,
 } as const;
 
 export interface BenchmarkStatSummary {
@@ -54,6 +55,7 @@ export interface BenchmarkRunResult {
   startedAt: string;
   completedAt: string;
   browser: string;
+  platform?: string;
   config: BenchmarkConfig;
   totalDurationMs: number;
   operations: BenchmarkOperationResult[];
