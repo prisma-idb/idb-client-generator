@@ -15,21 +15,26 @@ export function addUpdateMany(writer: CodeBlockWriter, model: Model) {
       const keyPath = JSON.parse(pk.keyPath) as string[];
       writer
         .write(`tx = tx ?? this.client._db.transaction(`)
-        .writeLine(`Array.from(this._getNeededStoresForFind(query)), "readwrite");`)
+        .writeLine(
+          `Array.from(this._getNeededStoresForUpdate(query as unknown as Prisma.Args<Prisma.${model.name}Delegate, "update">)), "readwrite");`
+        )
         .writeLine(`const records = await this.findMany({ where: query.where }, { tx });`)
         .writeLine(`await Promise.all(`)
         .writeLine(`records.map(async (record) =>`)
         .block(() => {
+          let whereUnique: string;
           if (keyPath.length === 1) {
-            writer.writeLine(
-              `await this.update({ where: { ${pk.name}: record.${keyPath[0]} }, data: query.data }, { tx, silent, addToOutbox });`
-            );
+            whereUnique = `{ ${pk.name}: record.${keyPath[0]} }`;
           } else {
             const compositeKey = keyPath.map((field) => `${field}: record.${field}`).join(", ");
-            writer.writeLine(
-              `await this.update({ where: { ${pk.name}: { ${compositeKey} } }, data: query.data }, { tx, silent, addToOutbox });`
-            );
+            whereUnique = `{ ${pk.name}: { ${compositeKey} } }`;
           }
+          writer
+            .writeLine(`const updateQuery = {`)
+            .writeLine(`where: ${whereUnique},`)
+            .writeLine(`data: query.data,`)
+            .writeLine(`} as Prisma.Args<Prisma.${model.name}Delegate, "update">;`)
+            .writeLine(`await this._updateRecord(record, updateQuery, tx, { silent, addToOutbox });`);
         })
         .writeLine(`));`)
         .writeLine(`return { count: records.length };`);

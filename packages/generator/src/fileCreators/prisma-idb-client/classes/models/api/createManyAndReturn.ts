@@ -27,17 +27,43 @@ export function addCreateManyAndReturn(
           .writeLine(`storesNeeded.add("${versionMetaModelName}");`)
           .writeLine(`}`);
       }
-      writer
-        .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");`)
-        .writeLine(`for (const createData of createManyData)`)
-        .block(() => {
+      writer.writeLine(`tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");`);
+      if (hasAutoincrementDefault(model)) {
+        // Autoincrement defaults must be assigned sequentially so each record
+        // observes the previous record's id and avoids duplicate keys.
+        writer.writeLine(`for (const createData of createManyData)`).block(() => {
           writer
             .writeLine(`const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));`)
             .writeLine(`const keyPath = await tx.objectStore("${model.name}").add(record);`)
             .writeLine(`await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });`)
             .writeLine(`records.push(this._applySelectClause([record], query.select)[0]);`);
-        })
+        });
+      } else {
+        writer
+          .writeLine(`const inserted = await Promise.all(`)
+          .writeLine(`createManyData.map(async (createData) =>`)
+          .block(() => {
+            writer
+              .writeLine(`const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));`)
+              .writeLine(`const keyPath = await tx.objectStore("${model.name}").add(record);`)
+              .writeLine(`await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });`)
+              .writeLine(`return this._applySelectClause([record], query.select)[0];`);
+          })
+          .writeLine(`));`)
+          .writeLine(`records.push(...inserted);`);
+      }
+      writer
         .writeLine(`this._preprocessListFields(records);`)
         .writeLine(`return records as Prisma.Result<Prisma.${model.name}Delegate, Q, "createManyAndReturn">;`);
     });
+}
+
+function hasAutoincrementDefault(model: Model): boolean {
+  return model.fields.some(
+    (field) =>
+      typeof field.default === "object" &&
+      field.default !== null &&
+      "name" in field.default &&
+      field.default.name === "autoincrement"
+  );
 }

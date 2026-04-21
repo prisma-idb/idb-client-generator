@@ -3,7 +3,13 @@ import { Field, Model } from "../../../../../fileCreators/types";
 import { getUniqueIdentifiers, toCamelCase } from "../../../../../helpers/utils";
 import { getOptionsParameterWrite, getOptionsSetupWrite } from "../helpers/methodOptions";
 
-export function addUpdateMethod(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+export function addUpdateMethod(writer: CodeBlockWriter, model: Model) {
+  const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
+  const whereUnique =
+    pk.length === 1
+      ? `{ ${pk[0]}: keyPath[0] }`
+      : `{ ${pk.join("_")}: { ${pk.map((field, idx) => `${field}: keyPath[${idx}]`).join(", ")} } }`;
+
   writer
     .writeLine(`async update<Q extends Prisma.Args<Prisma.${model.name}Delegate, "update">>(`)
     .writeLine(`query: Q,`)
@@ -11,7 +17,39 @@ export function addUpdateMethod(writer: CodeBlockWriter, model: Model, models: r
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "update">>`)
     .block(() => {
       writer.write(getOptionsSetupWrite());
-      addGetRecord(writer, model);
+      writer
+        .write(`tx = tx ?? this.client._db.transaction(`)
+        .writeLine(`Array.from(this._getNeededStoresForUpdate(query)), "readwrite");`)
+        .writeLine(`const record = await this.findUnique({ where: query.where }, { tx });`)
+        .writeLine(`if (record === null)`)
+        .block(() => {
+          writer.writeLine(`tx.abort();`).writeLine(`throw new Error("Record not found");`);
+        })
+        .writeLine(`const keyPath = await this._updateRecord(record, query, tx, { silent, addToOutbox });`)
+        .writeLine(`const recordWithRelations = (await this.findUnique(`)
+        .block(() => {
+          writer.writeLine(`where: ${whereUnique},`);
+        })
+        .writeLine(`, { tx }))!;`)
+        .writeLine(`return recordWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "update">;`);
+    });
+}
+
+export function addUpdateRecordInternalMethod(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
+  const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
+  writer
+    .writeLine(`private async _updateRecord<Q extends Prisma.Args<Prisma.${model.name}Delegate, "update">>(`)
+    .writeLine(`record: Prisma.Result<Prisma.${model.name}Delegate, object, "findFirstOrThrow">,`)
+    .writeLine(`query: Q,`)
+    .writeLine(`tx: IDBUtils.ReadwriteTransactionType,`)
+    .writeLine(`options?: { silent?: boolean; addToOutbox?: boolean },`)
+    .writeLine(`): Promise<PrismaIDBSchema["${model.name}"]["key"]>`)
+    .block(() => {
+      writer
+        .writeLine(`const { silent = false, addToOutbox = true } = options ?? {};`)
+        .writeLine(
+          `const startKeyPath: PrismaIDBSchema["${model.name}"]["key"] = [${pk.map((field) => `record.${field}`)}];`
+        );
       addStringUpdateHandling(writer, model);
       addDateTimeUpdateHandling(writer, model);
       addBooleanUpdateHandling(writer, model);
@@ -24,31 +62,12 @@ export function addUpdateMethod(writer: CodeBlockWriter, model: Model, models: r
       addScalarListUpdateHandling(writer, model);
       addRelationUpdateHandling(writer, model, models);
       addFkValidation(writer, model, models);
-      addPutAndReturn(writer, model, models);
+      addPutAndReferential(writer, model, models);
     });
 }
 
-function addGetRecord(writer: CodeBlockWriter, model: Model) {
+function addPutAndReferential(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
   const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
-  writer
-    .write(`tx = tx ?? this.client._db.transaction(`)
-    .writeLine(`Array.from(this._getNeededStoresForUpdate(query)), "readwrite");`)
-    .writeLine(`const record = await this.findUnique({ where: query.where }, { tx });`)
-    .writeLine(`if (record === null)`)
-    .block(() => {
-      writer.writeLine(`tx.abort();`).writeLine(`throw new Error("Record not found");`);
-    })
-    .writeLine(
-      `const startKeyPath: PrismaIDBSchema["${model.name}"]["key"] = [${pk.map((field) => `record.${field}`)}];`
-    );
-}
-
-function addPutAndReturn(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
-  const pk = JSON.parse(getUniqueIdentifiers(model)[0].keyPath) as string[];
-  const whereUnique =
-    pk.length === 1
-      ? `{ ${pk[0]}: keyPath[0] }`
-      : `{ ${pk.join("_")}: { ${pk.map((field, idx) => `${field}: keyPath[${idx}]`).join(", ")} } }`;
 
   writer
     .writeLine(`const endKeyPath: PrismaIDBSchema["${model.name}"]["key"] = [${pk.map((field) => `record.${field}`)}];`)
@@ -68,13 +87,7 @@ function addPutAndReturn(writer: CodeBlockWriter, model: Model, models: readonly
     .writeLine(`await this.emit("update", keyPath, startKeyPath, record, { silent, addToOutbox, tx });`);
 
   addReferentialUpdateHandling(writer, model, models);
-  writer
-    .writeLine(`const recordWithRelations = (await this.findUnique(`)
-    .block(() => {
-      writer.writeLine(`where: ${whereUnique},`);
-    })
-    .writeLine(`, { tx }))!;`)
-    .writeLine(`return recordWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "update">;`);
+  writer.writeLine(`return keyPath;`);
 }
 
 function addStringUpdateHandling(writer: CodeBlockWriter, model: Model) {

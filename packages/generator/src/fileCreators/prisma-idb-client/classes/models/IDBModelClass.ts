@@ -13,7 +13,7 @@ import { addFindFirstOrThrow } from "./api/findFirstOrThrow";
 import { addFindManyMethod } from "./api/findMany";
 import { addFindUniqueMethod } from "./api/findUnique";
 import { addFindUniqueOrThrow } from "./api/findUniqueOrThrow";
-import { addUpdateMethod } from "./api/update";
+import { addUpdateMethod, addUpdateRecordInternalMethod } from "./api/update";
 import { addUpdateMany } from "./api/updateMany";
 import { addUpsertMethod } from "./api/upsert";
 import { addApplyOrderByClause } from "./utils/_applyOrderByClause";
@@ -60,6 +60,7 @@ export function addIDBModelClass(
     addGetRecords(writer, model, datamodelIndexes);
 
     addDeleteRecordInternalMethod(writer, model, models);
+    addUpdateRecordInternalMethod(writer, model, models);
 
     addFindManyMethod(writer, model);
     addFindFirstMethod(writer, model);
@@ -75,7 +76,7 @@ export function addIDBModelClass(
     addDeleteMethod(writer, model);
     addDeleteManyMethod(writer, model);
 
-    addUpdateMethod(writer, model, models);
+    addUpdateMethod(writer, model);
     addUpdateMany(writer, model);
     addUpsertMethod(writer, model);
 
