@@ -3,6 +3,8 @@ import { source } from "@/lib/source";
 
 const siteUrl = "https://prisma-idb.dev";
 
+export const dynamic = "force-static";
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const docPages = source.getPages().map((page) => ({
     url: `${siteUrl}${page.url}`,
