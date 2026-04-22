@@ -436,9 +436,8 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     if (query.data?.todos?.update) {
       neededStores.add("Todo");
       IDBUtils.convertToArray(query.data.todos.update).forEach((update) => {
-        this.client.todo
-          ._getNeededStoresForUpdate(update as Prisma.Args<Prisma.TodoDelegate, "update">)
-          .forEach((store) => neededStores.add(store));
+        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.TodoDelegate, "update">;
+        this.client.todo._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
     if (query.data?.todos?.upsert) {
@@ -991,9 +990,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     tx =
       tx ??
       this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForUpdate({ where: query.where } as Prisma.Args<Prisma.UserDelegate, "update">)
-        ),
+        Array.from(this._getNeededStoresForUpdate(query as unknown as Prisma.Args<Prisma.UserDelegate, "update">)),
         "readwrite"
       );
     const records = await this.findMany({ where: query.where }, { tx });
@@ -1383,9 +1380,8 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     if (query.data?.user?.update) {
       neededStores.add("User");
       IDBUtils.convertToArray(query.data.user.update).forEach((update) => {
-        this.client.user
-          ._getNeededStoresForUpdate(update as Prisma.Args<Prisma.UserDelegate, "update">)
-          .forEach((store) => neededStores.add(store));
+        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.UserDelegate, "update">;
+        this.client.user._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
     if (query.data?.user?.upsert) {
@@ -1860,9 +1856,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     tx =
       tx ??
       this.client._db.transaction(
-        Array.from(
-          this._getNeededStoresForUpdate({ where: query.where } as Prisma.Args<Prisma.TodoDelegate, "update">)
-        ),
+        Array.from(this._getNeededStoresForUpdate(query as unknown as Prisma.Args<Prisma.TodoDelegate, "update">)),
         "readwrite"
       );
     const records = await this.findMany({ where: query.where }, { tx });

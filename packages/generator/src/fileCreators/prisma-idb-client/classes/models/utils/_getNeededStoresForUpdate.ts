@@ -95,9 +95,13 @@ function addNestedQueryStores(writer: CodeBlockWriter, model: Model) {
           .writeLine(`neededStores.add("${field.type}");`)
           .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.update).forEach((update) => `)
           .block(() => {
-            writer.writeLine(
-              `this.client.${toCamelCase(field.type)}._getNeededStoresForUpdate(update as Prisma.Args<Prisma.${field.type}Delegate, "update">).forEach((store) => neededStores.add(store));`
-            );
+            writer
+              .writeLine(
+                `const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.${field.type}Delegate, "update">;`
+              )
+              .writeLine(
+                `this.client.${toCamelCase(field.type)}._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));`
+              );
           })
           .writeLine(`)`);
       })
