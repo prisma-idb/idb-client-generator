@@ -19,8 +19,7 @@ export function addUpdateMany(writer: CodeBlockWriter, model: Model) {
           `Array.from(this._getNeededStoresForUpdate(query as unknown as Prisma.Args<Prisma.${model.name}Delegate, "update">)), "readwrite");`
         )
         .writeLine(`const records = await this.findMany({ where: query.where }, { tx });`)
-        .writeLine(`await Promise.all(`)
-        .writeLine(`records.map(async (record) =>`)
+        .writeLine(`for (const record of records)`)
         .block(() => {
           let whereUnique: string;
           if (keyPath.length === 1) {
@@ -36,7 +35,6 @@ export function addUpdateMany(writer: CodeBlockWriter, model: Model) {
             .writeLine(`} as Prisma.Args<Prisma.${model.name}Delegate, "update">;`)
             .writeLine(`await this._updateRecord(record, updateQuery, tx, { silent, addToOutbox });`);
         })
-        .writeLine(`));`)
         .writeLine(`return { count: records.length };`);
     });
 }

@@ -29,6 +29,8 @@ export function addUpdateMethod(writer: CodeBlockWriter, model: Model) {
         .writeLine(`const recordWithRelations = (await this.findUnique(`)
         .block(() => {
           writer.writeLine(`where: ${whereUnique},`);
+          writer.writeLine(`select: query.select,`);
+          writer.writeLine(`...("include" in query ? { include: query.include } : {}),`);
         })
         .writeLine(`, { tx }))!;`)
         .writeLine(`return recordWithRelations as Prisma.Result<Prisma.${model.name}Delegate, Q, "update">;`);
@@ -50,6 +52,7 @@ export function addUpdateRecordInternalMethod(writer: CodeBlockWriter, model: Mo
         .writeLine(
           `const startKeyPath: PrismaIDBSchema["${model.name}"]["key"] = [${pk.map((field) => `record.${field}`)}];`
         );
+      addRelationUpdateHandling(writer, model, models);
       addStringUpdateHandling(writer, model);
       addDateTimeUpdateHandling(writer, model);
       addBooleanUpdateHandling(writer, model);
@@ -60,7 +63,6 @@ export function addUpdateRecordInternalMethod(writer: CodeBlockWriter, model: Mo
       addEnumUpdateHandling(writer, model);
       // TODO: decimal, json
       addScalarListUpdateHandling(writer, model);
-      addRelationUpdateHandling(writer, model, models);
       addFkValidation(writer, model, models);
       addPutAndReferential(writer, model, models);
     });
@@ -288,7 +290,7 @@ function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, ot
         .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.update).map(async (updateData) => `)
         .block(() => {
           writer.writeLine(
-            `await this.client.${toCamelCase(field.type)}.update(updateData, { tx, silent, addToOutbox });`
+            `await this.client.${toCamelCase(field.type)}.update({ ...updateData, where: { ...updateData.where, ${fkFields} } as Prisma.${field.type}WhereUniqueInput }, { tx, silent, addToOutbox });`
           );
         })
         .writeLine(`))`);
@@ -300,7 +302,7 @@ function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, ot
         .writeLine(`IDBUtils.convertToArray(query.data.${field.name}.updateMany).map(async (updateData) => `)
         .block(() => {
           writer.writeLine(
-            `await this.client.${toCamelCase(field.type)}.updateMany(updateData, { tx, silent, addToOutbox });`
+            `await this.client.${toCamelCase(field.type)}.updateMany({ ...updateData, where: { ...updateData.where, ${fkFields} } }, { tx, silent, addToOutbox });`
           );
         })
         .writeLine(`))`);
@@ -404,28 +406,33 @@ function handleOneToOneRelationMetaOnCurrentUpdate(writer: CodeBlockWriter, fiel
       writer
         .writeLine(`const updateData = query.data.${field.name}.update.data ?? query.data.${field.name}.update;`)
         .writeLine(
-          `await this.client.${toCamelCase(field.type)}.update({ where: { ...query.data.${field.name}.update.where, ${uniqueInput} } as Prisma.${field.type}WhereUniqueInput, data: updateData }, { tx, silent, addToOutbox });`
+          `const other = await this.client.${toCamelCase(field.type)}.update({ where: { ...query.data.${field.name}.update.where, ${uniqueInput} } as Prisma.${field.type}WhereUniqueInput, data: updateData }, { tx, silent, addToOutbox });`
         );
+      for (let i = 0; i < field.relationFromFields!.length; i++) {
+        writer.writeLine(`record.${field.relationFromFields?.at(i)} = other.${field.relationToFields?.at(i)};`);
+      }
     })
     .writeLine(`if (query.data.${field.name}.upsert)`)
     .block(() => {
       writer.writeLine(
-        `await this.client.${toCamelCase(field.type)}.upsert({ where: { ...query.data.${field.name}.upsert.where, ${uniqueInput} } as Prisma.${field.type}WhereUniqueInput, create: { ...query.data.${field.name}.upsert.create, ${fkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'], update: query.data.${field.name}.upsert.update, }, { tx, silent, addToOutbox });`
+        `const other = await this.client.${toCamelCase(field.type)}.upsert({ where: { ...query.data.${field.name}.upsert.where, ${uniqueInput} } as Prisma.${field.type}WhereUniqueInput, create: { ...query.data.${field.name}.upsert.create, ${fkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'], update: query.data.${field.name}.upsert.update, }, { tx, silent, addToOutbox });`
       );
+      for (let i = 0; i < field.relationFromFields!.length; i++) {
+        writer.writeLine(`record.${field.relationFromFields?.at(i)} = other.${field.relationToFields?.at(i)};`);
+      }
     })
     .writeLine(`if (query.data.${field.name}.connectOrCreate)`)
     .block(() => {
       writer
-        .writeLine(`await this.client.${toCamelCase(field.type)}.upsert(`)
-        .block(() => {
-          writer
-            .writeLine(`where: { ...query.data.${field.name}.connectOrCreate.where, ${uniqueInput} },`)
-            .writeLine(
-              `create: { ...query.data.${field.name}.connectOrCreate.create, ${fkFields} } as Prisma.Args<Prisma.${field.type}Delegate, "upsert">['create'],`
-            )
-            .writeLine(`update: { ${fkFields} },`);
-        })
-        .writeLine(`, { tx, silent, addToOutbox });`);
+        .writeLine(
+          `const other = (await this.client.${toCamelCase(field.type)}.findUnique({ where: query.data.${field.name}.connectOrCreate.where }, { tx })) ??`
+        )
+        .writeLine(
+          `await this.client.${toCamelCase(field.type)}.create({ data: query.data.${field.name}.connectOrCreate.create as Prisma.Args<Prisma.${field.type}Delegate, "create">["data"] }, { tx, silent, addToOutbox });`
+        );
+      for (let i = 0; i < field.relationFromFields!.length; i++) {
+        writer.writeLine(`record.${field.relationFromFields?.at(i)} = other.${field.relationToFields?.at(i)};`);
+      }
     });
 
   if (!field.isRequired) {
@@ -518,6 +525,8 @@ function addReferentialUpdateHandling(writer: CodeBlockWriter, model: Model, mod
   const referencingModels = models.filter((m) =>
     m.fields.some((field) => field.kind === "object" && field.type === model.name && field.relationFromFields?.length)
   );
+
+  if (referencingModels.length === 0) return;
 
   writer.writeLine(`for (let i = 0; i < startKeyPath.length; i++)`).block(() => {
     writer.writeLine(`if (startKeyPath[i] !== endKeyPath[i])`).block(() => {

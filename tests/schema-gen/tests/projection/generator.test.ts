@@ -33,6 +33,32 @@ describe("schema projection", () => {
     expect(client).toContain("return IDBUtils.removeDuplicatesByKeyPath(");
   }, 20000);
 
+  it("forwards update projections and emits safe key-path updateMany handling", async () => {
+    const schemaPath = path.join(schemasDir, "valid", "user-board-todo.prisma");
+
+    await execa("pnpm", ["prisma", "generate", "--schema", schemaPath]);
+
+    const client = await fs.readFile("./tests/projection/generated/prisma-idb/client/prisma-idb-client.ts", "utf8");
+
+    expect(client).toContain("select: query.select,");
+    expect(client).toContain('...("include" in query ? { include: query.include } : {}),');
+    expect(client).toContain("for (const record of records) {");
+
+    const updateRecordStart = client.indexOf(
+      'private async _updateRecord<Q extends Prisma.Args<Prisma.BoardDelegate, "update">>('
+    );
+    const relationHandlingIndex = client.indexOf("if (query.data.user)", updateRecordStart);
+    const scalarHandlingIndex = client.indexOf(
+      'const stringFields = ["id", "name", "userId"] as const;',
+      updateRecordStart
+    );
+
+    expect(updateRecordStart).toBeGreaterThan(-1);
+    expect(relationHandlingIndex).toBeGreaterThan(updateRecordStart);
+    expect(scalarHandlingIndex).toBeGreaterThan(updateRecordStart);
+    expect(relationHandlingIndex).toBeLessThan(scalarHandlingIndex);
+  }, 20000);
+
   it("generates correct batch-processor for optional relations in ownership path", async () => {
     const schemaPath = path.join(schemasDir, "valid", "user-meal-foodentry-optional.prisma");
 

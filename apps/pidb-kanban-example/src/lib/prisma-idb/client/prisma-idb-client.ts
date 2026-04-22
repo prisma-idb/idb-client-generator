@@ -621,7 +621,7 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
       return records as Prisma.Result<Prisma.BoardDelegate, { select: S }, "findFirstOrThrow">[];
     }
     return records.map((record) => {
-      const partialRecord: Partial<typeof record> = record;
+      const partialRecord: Partial<typeof record> = { ...record };
       for (const untypedKey of ["id", "name", "createdAt", "todos", "user", "userId"]) {
         const key = untypedKey as keyof typeof record & keyof S;
         if (!selectClause[key]) delete partialRecord[key];
@@ -1086,14 +1086,6 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
   ): Promise<PrismaIDBSchema["Board"]["key"]> {
     const { silent = false, addToOutbox = true } = options ?? {};
     const startKeyPath: PrismaIDBSchema["Board"]["key"] = [record.id];
-    const stringFields = ["id", "name", "userId"] as const;
-    for (const field of stringFields) {
-      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
-    }
-    const dateTimeFields = ["createdAt"] as const;
-    for (const field of dateTimeFields) {
-      IDBUtils.handleDateTimeUpdateField(record, field, query.data[field]);
-    }
     if (query.data.todos) {
       if (query.data.todos.connect) {
         await Promise.all(
@@ -1127,14 +1119,20 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
       if (query.data.todos.update) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.todos.update).map(async (updateData) => {
-            await this.client.todo.update(updateData, { tx, silent, addToOutbox });
+            await this.client.todo.update(
+              { ...updateData, where: { ...updateData.where, boardId: record.id } as Prisma.TodoWhereUniqueInput },
+              { tx, silent, addToOutbox }
+            );
           })
         );
       }
       if (query.data.todos.updateMany) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.todos.updateMany).map(async (updateData) => {
-            await this.client.todo.updateMany(updateData, { tx, silent, addToOutbox });
+            await this.client.todo.updateMany(
+              { ...updateData, where: { ...updateData.where, boardId: record.id } },
+              { tx, silent, addToOutbox }
+            );
           })
         );
       }
@@ -1201,16 +1199,17 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
       }
       if (query.data.user.update) {
         const updateData = query.data.user.update.data ?? query.data.user.update;
-        await this.client.user.update(
+        const other = await this.client.user.update(
           {
             where: { ...query.data.user.update.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
             data: updateData,
           },
           { tx, silent, addToOutbox }
         );
+        record.userId = other.id;
       }
       if (query.data.user.upsert) {
-        await this.client.user.upsert(
+        const other = await this.client.user.upsert(
           {
             where: { ...query.data.user.upsert.where, id: record.userId! } as Prisma.UserWhereUniqueInput,
             create: { ...query.data.user.upsert.create, id: record.userId! } as Prisma.Args<
@@ -1221,20 +1220,25 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
           },
           { tx, silent, addToOutbox }
         );
+        record.userId = other.id;
       }
       if (query.data.user.connectOrCreate) {
-        await this.client.user.upsert(
-          {
-            where: { ...query.data.user.connectOrCreate.where, id: record.userId! },
-            create: { ...query.data.user.connectOrCreate.create, id: record.userId! } as Prisma.Args<
-              Prisma.UserDelegate,
-              "upsert"
-            >["create"],
-            update: { id: record.userId! },
-          },
-          { tx, silent, addToOutbox }
-        );
+        const other =
+          (await this.client.user.findUnique({ where: query.data.user.connectOrCreate.where }, { tx })) ??
+          (await this.client.user.create(
+            { data: query.data.user.connectOrCreate.create as Prisma.Args<Prisma.UserDelegate, "create">["data"] },
+            { tx, silent, addToOutbox }
+          ));
+        record.userId = other.id;
       }
+    }
+    const stringFields = ["id", "name", "userId"] as const;
+    for (const field of stringFields) {
+      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const dateTimeFields = ["createdAt"] as const;
+    for (const field of dateTimeFields) {
+      IDBUtils.handleDateTimeUpdateField(record, field, query.data[field]);
     }
     if (query.data.userId !== undefined) {
       const related = await this.client.user.findUnique({ where: { id: record.userId } }, { tx });
@@ -1453,14 +1457,12 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
         fk[0] = record.id;
       }
       if (query.data.user?.connectOrCreate) {
-        const record = await this.client.user.upsert(
-          {
-            where: query.data.user.connectOrCreate.where,
-            create: query.data.user.connectOrCreate.create,
-            update: {},
-          },
-          { tx, silent, addToOutbox }
-        );
+        const record =
+          (await this.client.user.findUnique({ where: query.data.user.connectOrCreate.where }, { tx })) ??
+          (await this.client.user.create(
+            { data: query.data.user.connectOrCreate.create },
+            { tx, silent, addToOutbox }
+          ));
         fk[0] = record.id;
       }
       const unsafeData = query.data as Record<string, unknown>;
@@ -1552,13 +1554,11 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
       storesNeeded.add("VersionMeta");
     }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    await Promise.all(
-      createManyData.map(async (createData) => {
-        const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-        const keyPath = await tx.objectStore("Board").add(record);
-        await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
-      })
-    );
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("Board").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+    }
     return { count: createManyData.length };
   }
   async createManyAndReturn<Q extends Prisma.Args<Prisma.BoardDelegate, "createManyAndReturn">>(
@@ -1579,15 +1579,12 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
       storesNeeded.add("VersionMeta");
     }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    const inserted = await Promise.all(
-      createManyData.map(async (createData) => {
-        const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-        const keyPath = await tx.objectStore("Board").add(record);
-        await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
-        return this._applySelectClause([record], query.select)[0];
-      })
-    );
-    records.push(...inserted);
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("Board").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+      records.push(this._applySelectClause([record], query.select)[0]);
+    }
     this._preprocessListFields(records);
     return records as Prisma.Result<Prisma.BoardDelegate, Q, "createManyAndReturn">;
   }
@@ -1604,11 +1601,17 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
     const storesNeeded = this._getNeededStoresForFind(query);
     this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    const record = await this.findUnique(query, { tx });
-    if (!record) throw new Error("Record not found");
-    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
-    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
-    return record;
+    const recordForDelete = (await this.findUniqueOrThrow({ where: query.where }, { tx })) as Prisma.Result<
+      Prisma.BoardDelegate,
+      object,
+      "findFirstOrThrow"
+    >;
+    const projectionRecord = structuredClone(recordForDelete);
+    const recordsWithRelations = await this._applyRelations([projectionRecord], tx, query);
+    const record = this._applySelectClause(recordsWithRelations, query.select)[0];
+    this._preprocessListFields([record]);
+    await this._deleteRecord(recordForDelete, tx, { silent, addToOutbox });
+    return record as Prisma.Result<Prisma.BoardDelegate, Q, "delete">;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.BoardDelegate, "deleteMany">>(
     query?: Q,
@@ -1647,6 +1650,8 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
     const recordWithRelations = (await this.findUnique(
       {
         where: { id: keyPath[0] },
+        select: query.select,
+        ...("include" in query ? { include: query.include } : {}),
       },
       { tx }
     ))!;
@@ -1665,19 +1670,19 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
     tx =
       tx ??
       this.client._db.transaction(
-        Array.from(this._getNeededStoresForUpdate(query as unknown as Prisma.Args<Prisma.BoardDelegate, "update">)),
+        Array.from(
+          this._getNeededStoresForUpdate({ where: query.where } as Prisma.Args<Prisma.BoardDelegate, "update">)
+        ),
         "readwrite"
       );
     const records = await this.findMany({ where: query.where }, { tx });
-    await Promise.all(
-      records.map(async (record) => {
-        const updateQuery = {
-          where: { id: record.id },
-          data: query.data,
-        } as Prisma.Args<Prisma.BoardDelegate, "update">;
-        await this._updateRecord(record, updateQuery, tx, { silent, addToOutbox });
-      })
-    );
+    for (const record of records) {
+      const updateQuery = {
+        where: { id: record.id },
+        data: query.data,
+      } as Prisma.Args<Prisma.BoardDelegate, "update">;
+      await this._updateRecord(record, updateQuery, tx, { silent, addToOutbox });
+    }
     return { count: records.length };
   }
   async upsert<Q extends Prisma.Args<Prisma.BoardDelegate, "upsert">>(
@@ -1832,7 +1837,7 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       return records as Prisma.Result<Prisma.TodoDelegate, { select: S }, "findFirstOrThrow">[];
     }
     return records.map((record) => {
-      const partialRecord: Partial<typeof record> = record;
+      const partialRecord: Partial<typeof record> = { ...record };
       for (const untypedKey of ["id", "title", "description", "isCompleted", "createdAt", "board", "boardId"]) {
         const key = untypedKey as keyof typeof record & keyof S;
         if (!selectClause[key]) delete partialRecord[key];
@@ -2123,18 +2128,6 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
   ): Promise<PrismaIDBSchema["Todo"]["key"]> {
     const { silent = false, addToOutbox = true } = options ?? {};
     const startKeyPath: PrismaIDBSchema["Todo"]["key"] = [record.id];
-    const stringFields = ["id", "title", "description", "boardId"] as const;
-    for (const field of stringFields) {
-      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
-    }
-    const dateTimeFields = ["createdAt"] as const;
-    for (const field of dateTimeFields) {
-      IDBUtils.handleDateTimeUpdateField(record, field, query.data[field]);
-    }
-    const booleanFields = ["isCompleted"] as const;
-    for (const field of booleanFields) {
-      IDBUtils.handleBooleanUpdateField(record, field, query.data[field]);
-    }
     if (query.data.board) {
       if (query.data.board.connect) {
         const other = await this.client.board.findUniqueOrThrow({ where: query.data.board.connect }, { tx });
@@ -2146,16 +2139,17 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       }
       if (query.data.board.update) {
         const updateData = query.data.board.update.data ?? query.data.board.update;
-        await this.client.board.update(
+        const other = await this.client.board.update(
           {
             where: { ...query.data.board.update.where, id: record.boardId! } as Prisma.BoardWhereUniqueInput,
             data: updateData,
           },
           { tx, silent, addToOutbox }
         );
+        record.boardId = other.id;
       }
       if (query.data.board.upsert) {
-        await this.client.board.upsert(
+        const other = await this.client.board.upsert(
           {
             where: { ...query.data.board.upsert.where, id: record.boardId! } as Prisma.BoardWhereUniqueInput,
             create: { ...query.data.board.upsert.create, id: record.boardId! } as Prisma.Args<
@@ -2166,20 +2160,29 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
           },
           { tx, silent, addToOutbox }
         );
+        record.boardId = other.id;
       }
       if (query.data.board.connectOrCreate) {
-        await this.client.board.upsert(
-          {
-            where: { ...query.data.board.connectOrCreate.where, id: record.boardId! },
-            create: { ...query.data.board.connectOrCreate.create, id: record.boardId! } as Prisma.Args<
-              Prisma.BoardDelegate,
-              "upsert"
-            >["create"],
-            update: { id: record.boardId! },
-          },
-          { tx, silent, addToOutbox }
-        );
+        const other =
+          (await this.client.board.findUnique({ where: query.data.board.connectOrCreate.where }, { tx })) ??
+          (await this.client.board.create(
+            { data: query.data.board.connectOrCreate.create as Prisma.Args<Prisma.BoardDelegate, "create">["data"] },
+            { tx, silent, addToOutbox }
+          ));
+        record.boardId = other.id;
       }
+    }
+    const stringFields = ["id", "title", "description", "boardId"] as const;
+    for (const field of stringFields) {
+      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const dateTimeFields = ["createdAt"] as const;
+    for (const field of dateTimeFields) {
+      IDBUtils.handleDateTimeUpdateField(record, field, query.data[field]);
+    }
+    const booleanFields = ["isCompleted"] as const;
+    for (const field of booleanFields) {
+      IDBUtils.handleBooleanUpdateField(record, field, query.data[field]);
     }
     if (query.data.boardId !== undefined) {
       const related = await this.client.board.findUnique({ where: { id: record.boardId } }, { tx });
@@ -2197,11 +2200,6 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     }
     const keyPath = await tx.objectStore("Todo").put(record);
     await this.emit("update", keyPath, startKeyPath, record, { silent, addToOutbox, tx });
-    for (let i = 0; i < startKeyPath.length; i++) {
-      if (startKeyPath[i] !== endKeyPath[i]) {
-        break;
-      }
-    }
     return keyPath;
   }
   async findMany<Q extends Prisma.Args<Prisma.TodoDelegate, "findMany">>(
@@ -2391,14 +2389,12 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
         fk[0] = record.id;
       }
       if (query.data.board?.connectOrCreate) {
-        const record = await this.client.board.upsert(
-          {
-            where: query.data.board.connectOrCreate.where,
-            create: query.data.board.connectOrCreate.create,
-            update: {},
-          },
-          { tx, silent, addToOutbox }
-        );
+        const record =
+          (await this.client.board.findUnique({ where: query.data.board.connectOrCreate.where }, { tx })) ??
+          (await this.client.board.create(
+            { data: query.data.board.connectOrCreate.create },
+            { tx, silent, addToOutbox }
+          ));
         fk[0] = record.id;
       }
       const unsafeData = query.data as Record<string, unknown>;
@@ -2440,13 +2436,11 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       storesNeeded.add("VersionMeta");
     }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    await Promise.all(
-      createManyData.map(async (createData) => {
-        const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-        const keyPath = await tx.objectStore("Todo").add(record);
-        await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
-      })
-    );
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("Todo").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+    }
     return { count: createManyData.length };
   }
   async createManyAndReturn<Q extends Prisma.Args<Prisma.TodoDelegate, "createManyAndReturn">>(
@@ -2467,15 +2461,12 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
       storesNeeded.add("VersionMeta");
     }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    const inserted = await Promise.all(
-      createManyData.map(async (createData) => {
-        const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-        const keyPath = await tx.objectStore("Todo").add(record);
-        await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
-        return this._applySelectClause([record], query.select)[0];
-      })
-    );
-    records.push(...inserted);
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("Todo").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+      records.push(this._applySelectClause([record], query.select)[0]);
+    }
     this._preprocessListFields(records);
     return records as Prisma.Result<Prisma.TodoDelegate, Q, "createManyAndReturn">;
   }
@@ -2492,11 +2483,17 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     const storesNeeded = this._getNeededStoresForFind(query);
     this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    const record = await this.findUnique(query, { tx });
-    if (!record) throw new Error("Record not found");
-    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
-    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
-    return record;
+    const recordForDelete = (await this.findUniqueOrThrow({ where: query.where }, { tx })) as Prisma.Result<
+      Prisma.TodoDelegate,
+      object,
+      "findFirstOrThrow"
+    >;
+    const projectionRecord = structuredClone(recordForDelete);
+    const recordsWithRelations = await this._applyRelations([projectionRecord], tx, query);
+    const record = this._applySelectClause(recordsWithRelations, query.select)[0];
+    this._preprocessListFields([record]);
+    await this._deleteRecord(recordForDelete, tx, { silent, addToOutbox });
+    return record as Prisma.Result<Prisma.TodoDelegate, Q, "delete">;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.TodoDelegate, "deleteMany">>(
     query?: Q,
@@ -2535,6 +2532,8 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     const recordWithRelations = (await this.findUnique(
       {
         where: { id: keyPath[0] },
+        select: query.select,
+        ...("include" in query ? { include: query.include } : {}),
       },
       { tx }
     ))!;
@@ -2553,19 +2552,19 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     tx =
       tx ??
       this.client._db.transaction(
-        Array.from(this._getNeededStoresForUpdate(query as unknown as Prisma.Args<Prisma.TodoDelegate, "update">)),
+        Array.from(
+          this._getNeededStoresForUpdate({ where: query.where } as Prisma.Args<Prisma.TodoDelegate, "update">)
+        ),
         "readwrite"
       );
     const records = await this.findMany({ where: query.where }, { tx });
-    await Promise.all(
-      records.map(async (record) => {
-        const updateQuery = {
-          where: { id: record.id },
-          data: query.data,
-        } as Prisma.Args<Prisma.TodoDelegate, "update">;
-        await this._updateRecord(record, updateQuery, tx, { silent, addToOutbox });
-      })
-    );
+    for (const record of records) {
+      const updateQuery = {
+        where: { id: record.id },
+        data: query.data,
+      } as Prisma.Args<Prisma.TodoDelegate, "update">;
+      await this._updateRecord(record, updateQuery, tx, { silent, addToOutbox });
+    }
     return { count: records.length };
   }
   async upsert<Q extends Prisma.Args<Prisma.TodoDelegate, "upsert">>(
@@ -2741,7 +2740,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       return records as Prisma.Result<Prisma.UserDelegate, { select: S }, "findFirstOrThrow">[];
     }
     return records.map((record) => {
-      const partialRecord: Partial<typeof record> = record;
+      const partialRecord: Partial<typeof record> = { ...record };
       for (const untypedKey of [
         "id",
         "name",
@@ -3132,18 +3131,6 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
   ): Promise<PrismaIDBSchema["User"]["key"]> {
     const { silent = false, addToOutbox = true } = options ?? {};
     const startKeyPath: PrismaIDBSchema["User"]["key"] = [record.id];
-    const stringFields = ["id", "name", "email", "image"] as const;
-    for (const field of stringFields) {
-      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
-    }
-    const dateTimeFields = ["createdAt", "updatedAt"] as const;
-    for (const field of dateTimeFields) {
-      IDBUtils.handleDateTimeUpdateField(record, field, query.data[field]);
-    }
-    const booleanFields = ["emailVerified", "isAnonymous"] as const;
-    for (const field of booleanFields) {
-      IDBUtils.handleBooleanUpdateField(record, field, query.data[field]);
-    }
     if (query.data.boards) {
       if (query.data.boards.connect) {
         await Promise.all(
@@ -3179,14 +3166,20 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       if (query.data.boards.update) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.boards.update).map(async (updateData) => {
-            await this.client.board.update(updateData, { tx, silent, addToOutbox });
+            await this.client.board.update(
+              { ...updateData, where: { ...updateData.where, userId: record.id } as Prisma.BoardWhereUniqueInput },
+              { tx, silent, addToOutbox }
+            );
           })
         );
       }
       if (query.data.boards.updateMany) {
         await Promise.all(
           IDBUtils.convertToArray(query.data.boards.updateMany).map(async (updateData) => {
-            await this.client.board.updateMany(updateData, { tx, silent, addToOutbox });
+            await this.client.board.updateMany(
+              { ...updateData, where: { ...updateData.where, userId: record.id } },
+              { tx, silent, addToOutbox }
+            );
           })
         );
       }
@@ -3241,6 +3234,18 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
           })
         );
       }
+    }
+    const stringFields = ["id", "name", "email", "image"] as const;
+    for (const field of stringFields) {
+      IDBUtils.handleStringUpdateField(record, field, query.data[field]);
+    }
+    const dateTimeFields = ["createdAt", "updatedAt"] as const;
+    for (const field of dateTimeFields) {
+      IDBUtils.handleDateTimeUpdateField(record, field, query.data[field]);
+    }
+    const booleanFields = ["emailVerified", "isAnonymous"] as const;
+    for (const field of booleanFields) {
+      IDBUtils.handleBooleanUpdateField(record, field, query.data[field]);
     }
     const endKeyPath: PrismaIDBSchema["User"]["key"] = [record.id];
     for (let i = 0; i < startKeyPath.length; i++) {
@@ -3526,13 +3531,11 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       storesNeeded.add("VersionMeta");
     }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    await Promise.all(
-      createManyData.map(async (createData) => {
-        const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-        const keyPath = await tx.objectStore("User").add(record);
-        await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
-      })
-    );
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("User").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+    }
     return { count: createManyData.length };
   }
   async createManyAndReturn<Q extends Prisma.Args<Prisma.UserDelegate, "createManyAndReturn">>(
@@ -3553,15 +3556,12 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       storesNeeded.add("VersionMeta");
     }
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    const inserted = await Promise.all(
-      createManyData.map(async (createData) => {
-        const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
-        const keyPath = await tx.objectStore("User").add(record);
-        await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
-        return this._applySelectClause([record], query.select)[0];
-      })
-    );
-    records.push(...inserted);
+    for (const createData of createManyData) {
+      const record = this._removeNestedCreateData(await this._fillDefaults(createData, tx));
+      const keyPath = await tx.objectStore("User").add(record);
+      await this.emit("create", keyPath, undefined, record, { silent, addToOutbox, tx });
+      records.push(this._applySelectClause([record], query.select)[0]);
+    }
     this._preprocessListFields(records);
     return records as Prisma.Result<Prisma.UserDelegate, Q, "createManyAndReturn">;
   }
@@ -3578,11 +3578,17 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     const storesNeeded = this._getNeededStoresForFind(query);
     this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    const record = await this.findUnique(query, { tx });
-    if (!record) throw new Error("Record not found");
-    const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });
-    await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });
-    return record;
+    const recordForDelete = (await this.findUniqueOrThrow({ where: query.where }, { tx })) as Prisma.Result<
+      Prisma.UserDelegate,
+      object,
+      "findFirstOrThrow"
+    >;
+    const projectionRecord = structuredClone(recordForDelete);
+    const recordsWithRelations = await this._applyRelations([projectionRecord], tx, query);
+    const record = this._applySelectClause(recordsWithRelations, query.select)[0];
+    this._preprocessListFields([record]);
+    await this._deleteRecord(recordForDelete, tx, { silent, addToOutbox });
+    return record as Prisma.Result<Prisma.UserDelegate, Q, "delete">;
   }
   async deleteMany<Q extends Prisma.Args<Prisma.UserDelegate, "deleteMany">>(
     query?: Q,
@@ -3621,6 +3627,8 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     const recordWithRelations = (await this.findUnique(
       {
         where: { id: keyPath[0] },
+        select: query.select,
+        ...("include" in query ? { include: query.include } : {}),
       },
       { tx }
     ))!;
@@ -3639,19 +3647,19 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     tx =
       tx ??
       this.client._db.transaction(
-        Array.from(this._getNeededStoresForUpdate(query as unknown as Prisma.Args<Prisma.UserDelegate, "update">)),
+        Array.from(
+          this._getNeededStoresForUpdate({ where: query.where } as Prisma.Args<Prisma.UserDelegate, "update">)
+        ),
         "readwrite"
       );
     const records = await this.findMany({ where: query.where }, { tx });
-    await Promise.all(
-      records.map(async (record) => {
-        const updateQuery = {
-          where: { id: record.id },
-          data: query.data,
-        } as Prisma.Args<Prisma.UserDelegate, "update">;
-        await this._updateRecord(record, updateQuery, tx, { silent, addToOutbox });
-      })
-    );
+    for (const record of records) {
+      const updateQuery = {
+        where: { id: record.id },
+        data: query.data,
+      } as Prisma.Args<Prisma.UserDelegate, "update">;
+      await this._updateRecord(record, updateQuery, tx, { silent, addToOutbox });
+    }
     return { count: records.length };
   }
   async upsert<Q extends Prisma.Args<Prisma.UserDelegate, "upsert">>(
