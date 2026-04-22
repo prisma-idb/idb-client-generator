@@ -1,9 +1,10 @@
 import { test } from "../../fixtures";
 import { expectQueryToSucceed } from "../../queryRunnerHelper";
 
-test("updateMany_ChangeNames_SuccessfullyUpdatesRecord", async ({ page }) => {
+test("updateMany_ChangeNames_SuccessfullyUpdatesRecord", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "createMany",
     query: { data: [{ name: "John" }, { name: "Alice" }, { name: "Clark" }] },
@@ -11,6 +12,7 @@ test("updateMany_ChangeNames_SuccessfullyUpdatesRecord", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "updateMany",
     query: { where: { name: { contains: "c", mode: "insensitive" } }, data: { name: "ALICE" } },
@@ -18,14 +20,16 @@ test("updateMany_ChangeNames_SuccessfullyUpdatesRecord", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
   });
 });
 
-test("updateMany_ChangeForeignKey_SuccessfullyUpdatesFKOnMatchingRecords", async ({ page }) => {
+test("updateMany_ChangeForeignKey_SuccessfullyUpdatesFKOnMatchingRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "createMany",
     query: { data: [{ name: "UserA" }, { name: "UserB" }] },
@@ -33,6 +37,7 @@ test("updateMany_ChangeForeignKey_SuccessfullyUpdatesFKOnMatchingRecords", async
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "todo",
     operation: "createMany",
     query: {
@@ -46,6 +51,7 @@ test("updateMany_ChangeForeignKey_SuccessfullyUpdatesFKOnMatchingRecords", async
   // Move all of UserA's todos to UserB — requires User store to be open for FK validation
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "todo",
     operation: "updateMany",
     query: { where: { userId: 1 }, data: { userId: 2 } },
@@ -53,6 +59,7 @@ test("updateMany_ChangeForeignKey_SuccessfullyUpdatesFKOnMatchingRecords", async
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "todo",
     operation: "findMany",
     query: { where: { userId: 2 } },

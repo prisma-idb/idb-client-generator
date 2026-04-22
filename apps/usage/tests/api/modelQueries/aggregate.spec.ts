@@ -1,9 +1,10 @@
 import { test } from "../../fixtures";
 import { expectQueryToSucceed } from "../../queryRunnerHelper";
 
-test("aggregate_count_NoWhere_ReturnsAllRecords", async ({ page }) => {
+test("aggregate_count_NoWhere_ReturnsAllRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "createMany",
     query: { data: [{ name: "Alice" }, { name: "Bob" }] },
@@ -11,15 +12,17 @@ test("aggregate_count_NoWhere_ReturnsAllRecords", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "aggregate",
     query: { _count: true },
   });
 });
 
-test("aggregate_count_WhereClause_ReturnsFilteredCount", async ({ page }) => {
+test("aggregate_count_WhereClause_ReturnsFilteredCount", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "createMany",
     query: { data: [{ name: "John" }, { name: "Johnny" }] },
@@ -27,15 +30,17 @@ test("aggregate_count_WhereClause_ReturnsFilteredCount", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "aggregate",
     query: { _count: true, where: { name: { contains: "John" } } },
   });
 });
 
-test("aggregate_sum_CalculatesSum", async ({ page }) => {
+test("aggregate_sum_CalculatesSum", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "createMany",
     query: {
@@ -48,15 +53,17 @@ test("aggregate_sum_CalculatesSum", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "aggregate",
     query: { _sum: { id: true } },
   });
 });
 
-test("aggregate_minAndMax_CalculatesCorrectValues", async ({ page }) => {
+test("aggregate_minAndMax_CalculatesCorrectValues", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "createMany",
     query: {
@@ -69,15 +76,17 @@ test("aggregate_minAndMax_CalculatesCorrectValues", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "aggregate",
     query: { _min: { id: true }, _max: { id: true } },
   });
 });
 
-test("aggregate_avg_CalculatesAverage", async ({ page }) => {
+test("aggregate_avg_CalculatesAverage", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "createMany",
     query: {
@@ -90,6 +99,7 @@ test("aggregate_avg_CalculatesAverage", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "aggregate",
     query: { _avg: { id: true } },

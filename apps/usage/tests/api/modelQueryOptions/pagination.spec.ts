@@ -1,9 +1,10 @@
 import { test } from "../../fixtures";
 import { expectQueryToSucceed } from "../../queryRunnerHelper";
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "createMany",
     query: {
@@ -12,9 +13,10 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("take_LimitsResults", async ({ page }) => {
+test("take_LimitsResults", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {
@@ -24,9 +26,10 @@ test("take_LimitsResults", async ({ page }) => {
   });
 });
 
-test("skip_SkipsResults", async ({ page }) => {
+test("skip_SkipsResults", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {
@@ -36,9 +39,10 @@ test("skip_SkipsResults", async ({ page }) => {
   });
 });
 
-test("skipAndTake_CombinedPagination", async ({ page }) => {
+test("skipAndTake_CombinedPagination", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {
@@ -49,9 +53,10 @@ test("skipAndTake_CombinedPagination", async ({ page }) => {
   });
 });
 
-test("take_NegativeTake_ReturnsFromEnd", async ({ page }) => {
+test("take_NegativeTake_ReturnsFromEnd", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {
@@ -61,9 +66,10 @@ test("take_NegativeTake_ReturnsFromEnd", async ({ page }) => {
   });
 });
 
-test("cursor_StartFromCursor", async ({ page }) => {
+test("cursor_StartFromCursor", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {
@@ -73,9 +79,10 @@ test("cursor_StartFromCursor", async ({ page }) => {
   });
 });
 
-test("cursor_WithTake_LimitsAfterCursor", async ({ page }) => {
+test("cursor_WithTake_LimitsAfterCursor", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {
@@ -86,9 +93,10 @@ test("cursor_WithTake_LimitsAfterCursor", async ({ page }) => {
   });
 });
 
-test("cursor_WithSkipAndTake_SkipsFromCursorAndTakes", async ({ page }) => {
+test("cursor_WithSkipAndTake_SkipsFromCursorAndTakes", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {
@@ -100,9 +108,10 @@ test("cursor_WithSkipAndTake_SkipsFromCursorAndTakes", async ({ page }) => {
   });
 });
 
-test("skip_SkipMoreThanAvailable_ReturnsEmpty", async ({ page }) => {
+test("skip_SkipMoreThanAvailable_ReturnsEmpty", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {
@@ -112,9 +121,10 @@ test("skip_SkipMoreThanAvailable_ReturnsEmpty", async ({ page }) => {
   });
 });
 
-test("take_Zero_ReturnsEmpty", async ({ page }) => {
+test("take_Zero_ReturnsEmpty", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {
@@ -124,9 +134,10 @@ test("take_Zero_ReturnsEmpty", async ({ page }) => {
   });
 });
 
-test("cursor_WithNegativeTake_ReturnsRecordsBeforeCursor", async ({ page }) => {
+test("cursor_WithNegativeTake_ReturnsRecordsBeforeCursor", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {
@@ -137,9 +148,10 @@ test("cursor_WithNegativeTake_ReturnsRecordsBeforeCursor", async ({ page }) => {
   });
 });
 
-test("cursor_WithNegativeTakeAndSkip_SkipsBackwardFromCursor", async ({ page }) => {
+test("cursor_WithNegativeTakeAndSkip_SkipsBackwardFromCursor", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {
@@ -151,9 +163,10 @@ test("cursor_WithNegativeTakeAndSkip_SkipsBackwardFromCursor", async ({ page }) 
   });
 });
 
-test("cursor_WithNegativeTakeOne_ReturnsSingleRecordBeforeCursor", async ({ page }) => {
+test("cursor_WithNegativeTakeOne_ReturnsSingleRecordBeforeCursor", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {
@@ -164,11 +177,12 @@ test("cursor_WithNegativeTakeOne_ReturnsSingleRecordBeforeCursor", async ({ page
   });
 });
 
-test("cursor_WithDistinct_PaginatesCorrectlyAfterDistinctFiltering", async ({ page }) => {
+test("cursor_WithDistinct_PaginatesCorrectlyAfterDistinctFiltering", async ({ page, prisma }) => {
   // beforeEach creates: Alice(1), Bob(2), Charlie(3), Diana(4), Eve(5)
   // Add duplicates so distinct removes records BEFORE the cursor in name order
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "createMany",
     query: {
@@ -180,6 +194,7 @@ test("cursor_WithDistinct_PaginatesCorrectlyAfterDistinctFiltering", async ({ pa
   // relationAppliedRecords and selectAppliedRecords
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {
@@ -191,9 +206,10 @@ test("cursor_WithDistinct_PaginatesCorrectlyAfterDistinctFiltering", async ({ pa
   });
 });
 
-test("cursor_WithSelectExcludingCursorField_PaginatesCorrectly", async ({ page }) => {
+test("cursor_WithSelectExcludingCursorField_PaginatesCorrectly", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {
@@ -205,9 +221,10 @@ test("cursor_WithSelectExcludingCursorField_PaginatesCorrectly", async ({ page }
   });
 });
 
-test("cursor_WithNegativeTakeAndSelectExcludingCursorField_PaginatesCorrectly", async ({ page }) => {
+test("cursor_WithNegativeTakeAndSelectExcludingCursorField_PaginatesCorrectly", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {
@@ -219,9 +236,10 @@ test("cursor_WithNegativeTakeAndSelectExcludingCursorField_PaginatesCorrectly", 
   });
 });
 
-test("cursor_WithSkipTakeAndSelectExcludingCursorField_PaginatesCorrectly", async ({ page }) => {
+test("cursor_WithSkipTakeAndSelectExcludingCursorField_PaginatesCorrectly", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {
@@ -234,9 +252,10 @@ test("cursor_WithSkipTakeAndSelectExcludingCursorField_PaginatesCorrectly", asyn
   });
 });
 
-test("findFirst_WithSkip_SkipsBeforePickingFirst", async ({ page }) => {
+test("findFirst_WithSkip_SkipsBeforePickingFirst", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findFirst",
     query: {
@@ -246,9 +265,10 @@ test("findFirst_WithSkip_SkipsBeforePickingFirst", async ({ page }) => {
   });
 });
 
-test("skip_Zero_ReturnsAllResults", async ({ page }) => {
+test("skip_Zero_ReturnsAllResults", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {

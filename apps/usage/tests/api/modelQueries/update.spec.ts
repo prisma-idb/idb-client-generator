@@ -1,9 +1,10 @@
 import { test } from "../../fixtures";
 import { expectQueryToFail, expectQueryToSucceed } from "../../queryRunnerHelper";
 
-test("update_ChangeId_SuccessfullyUpdatesRecord", async ({ page }) => {
+test("update_ChangeId_SuccessfullyUpdatesRecord", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { id: 1, name: "John Doe" } },
@@ -11,6 +12,7 @@ test("update_ChangeId_SuccessfullyUpdatesRecord", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: { where: { id: 1 }, data: { name: "Alice" } },
@@ -18,14 +20,16 @@ test("update_ChangeId_SuccessfullyUpdatesRecord", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
   });
 });
 
-test("update_CascadeUpdateToFkFields_SuccessfullyUpdatesDependentRecords", async ({ page }) => {
+test("update_CascadeUpdateToFkFields_SuccessfullyUpdatesDependentRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { id: 1, name: "John Doe" } },
@@ -33,6 +37,7 @@ test("update_CascadeUpdateToFkFields_SuccessfullyUpdatesDependentRecords", async
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "create",
     query: { data: { id: 1, userId: 1, bio: "Hello World" } },
@@ -40,6 +45,7 @@ test("update_CascadeUpdateToFkFields_SuccessfullyUpdatesDependentRecords", async
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: { where: { id: 1 }, data: { id: 2 } },
@@ -47,15 +53,17 @@ test("update_CascadeUpdateToFkFields_SuccessfullyUpdatesDependentRecords", async
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "findMany",
     query: { where: { userId: 2 } },
   });
 });
 
-test("update_ChangeIdToExistingId_ThrowsError", async ({ page }) => {
+test("update_ChangeIdToExistingId_ThrowsError", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { id: 1, name: "John Doe" } },
@@ -63,6 +71,7 @@ test("update_ChangeIdToExistingId_ThrowsError", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { id: 2, name: "Jane Doe" } },
@@ -70,6 +79,7 @@ test("update_ChangeIdToExistingId_ThrowsError", async ({ page }) => {
 
   await expectQueryToFail({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: { where: { id: 1 }, data: { id: 2 } },
@@ -78,14 +88,16 @@ test("update_ChangeIdToExistingId_ThrowsError", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
   });
 });
 
-test("update_ChangeEnumField_SuccessfullyUpdatesRecord", async ({ page }) => {
+test("update_ChangeEnumField_SuccessfullyUpdatesRecord", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "modelWithEnum",
     operation: "create",
     query: { data: { id: 1, enum: "A" } },
@@ -93,6 +105,7 @@ test("update_ChangeEnumField_SuccessfullyUpdatesRecord", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "modelWithEnum",
     operation: "update",
     query: { where: { id: 1 }, data: { enum: "B" } },
@@ -100,14 +113,16 @@ test("update_ChangeEnumField_SuccessfullyUpdatesRecord", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "modelWithEnum",
     operation: "findMany",
   });
 });
 
-test("update_WithSelect_PreservesSelectedFields", async ({ page }) => {
+test("update_WithSelect_PreservesSelectedFields", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "John Doe", profile: { create: { bio: "John's Bio" } } } },
@@ -115,6 +130,7 @@ test("update_WithSelect_PreservesSelectedFields", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: {
@@ -125,9 +141,10 @@ test("update_WithSelect_PreservesSelectedFields", async ({ page }) => {
   });
 });
 
-test("update_WithInclude_PreservesIncludedRelations", async ({ page }) => {
+test("update_WithInclude_PreservesIncludedRelations", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "Jane Doe", profile: { create: { bio: "Jane's Bio" } } } },
@@ -135,6 +152,7 @@ test("update_WithInclude_PreservesIncludedRelations", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: {

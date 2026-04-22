@@ -1,9 +1,10 @@
 import { test } from "../../fixtures";
 import { expectQueryToSucceed } from "../../queryRunnerHelper";
 
-test("upsert_NestedUpsertQuery_SuccessfullyUpsertsNestedRelations", async ({ page }) => {
+test("upsert_NestedUpsertQuery_SuccessfullyUpsertsNestedRelations", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "upsert",
     query: {
@@ -18,15 +19,17 @@ test("upsert_NestedUpsertQuery_SuccessfullyUpsertsNestedRelations", async ({ pag
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: { include: { profile: true } },
   });
 });
 
-test("upsert_NestedUpsertQueryWithCreate_SuccessfullyCreatesAndUpsertsNestedRelations", async ({ page }) => {
+test("upsert_NestedUpsertQueryWithCreate_SuccessfullyCreatesAndUpsertsNestedRelations", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "upsert",
     query: {
@@ -41,15 +44,17 @@ test("upsert_NestedUpsertQueryWithCreate_SuccessfullyCreatesAndUpsertsNestedRela
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: { include: { posts: true } },
   });
 });
 
-test("upsert_NestedUpsertQueryWithDelete_SuccessfullyDeletesNestedRelations", async ({ page }) => {
+test("upsert_NestedUpsertQueryWithDelete_SuccessfullyDeletesNestedRelations", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "upsert",
     query: {
@@ -61,15 +66,17 @@ test("upsert_NestedUpsertQueryWithDelete_SuccessfullyDeletesNestedRelations", as
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: { include: { posts: true } },
   });
 });
 
-test("upsert_NestedUpsertQueryWithInvalidData_CreatesRecords", async ({ page }) => {
+test("upsert_NestedUpsertQueryWithInvalidData_CreatesRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "upsert",
     query: {
@@ -83,9 +90,13 @@ test("upsert_NestedUpsertQueryWithInvalidData_CreatesRecords", async ({ page }) 
   });
 });
 
-test("upsert_NestedUpsertQueryWithConnectOrCreate_SuccessfullyConnectsOrCreatesNestedRelations", async ({ page }) => {
+test("upsert_NestedUpsertQueryWithConnectOrCreate_SuccessfullyConnectsOrCreatesNestedRelations", async ({
+  page,
+  prisma,
+}) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "upsert",
     query: {
@@ -104,6 +115,7 @@ test("upsert_NestedUpsertQueryWithConnectOrCreate_SuccessfullyConnectsOrCreatesN
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: { include: { profile: true } },

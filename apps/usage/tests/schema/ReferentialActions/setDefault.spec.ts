@@ -1,9 +1,10 @@
 import { test } from "../../fixtures";
 import { expectQueryToFail, expectQueryToSucceed } from "../../queryRunnerHelper";
 
-test("setDefault_DeleteUserWithPosts_ThrowsErrorIfNoDefaultUserIdExists", async ({ page }) => {
+test("setDefault_DeleteUserWithPosts_ThrowsErrorIfNoDefaultUserIdExists", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: {
@@ -16,6 +17,7 @@ test("setDefault_DeleteUserWithPosts_ThrowsErrorIfNoDefaultUserIdExists", async 
 
   await expectQueryToFail({
     page,
+    prisma,
     model: "user",
     operation: "delete",
     query: { where: { id: 1 } },
@@ -23,9 +25,10 @@ test("setDefault_DeleteUserWithPosts_ThrowsErrorIfNoDefaultUserIdExists", async 
   });
 });
 
-test("setDefault_DeleteUserWithPosts_SuccessIfDefaultUserIdExists", async ({ page }) => {
+test("setDefault_DeleteUserWithPosts_SuccessIfDefaultUserIdExists", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { id: 0, name: "Anonymous" } },
@@ -33,6 +36,7 @@ test("setDefault_DeleteUserWithPosts_SuccessIfDefaultUserIdExists", async ({ pag
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: {
@@ -46,6 +50,7 @@ test("setDefault_DeleteUserWithPosts_SuccessIfDefaultUserIdExists", async ({ pag
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "delete",
     query: { where: { id: 1 } },
@@ -53,6 +58,7 @@ test("setDefault_DeleteUserWithPosts_SuccessIfDefaultUserIdExists", async ({ pag
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: { include: { posts: { include: { comments: true } } } },

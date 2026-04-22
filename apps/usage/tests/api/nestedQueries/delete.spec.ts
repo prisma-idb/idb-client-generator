@@ -1,9 +1,10 @@
 import { test } from "../../fixtures";
 import { expectQueryToFail, expectQueryToSucceed } from "../../queryRunnerHelper";
 
-test("delete_NestedDeleteQuery_SuccessfullyDeletesNestedRelations", async ({ page }) => {
+test("delete_NestedDeleteQuery_SuccessfullyDeletesNestedRelations", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "John", posts: { create: [{ title: "Post1" }, { title: "Post2" }] } } },
@@ -11,6 +12,7 @@ test("delete_NestedDeleteQuery_SuccessfullyDeletesNestedRelations", async ({ pag
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: { where: { id: 1 }, data: { posts: { delete: { id: 1 } } } },
@@ -18,6 +20,7 @@ test("delete_NestedDeleteQuery_SuccessfullyDeletesNestedRelations", async ({ pag
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: { include: { posts: true } },
@@ -25,15 +28,17 @@ test("delete_NestedDeleteQuery_SuccessfullyDeletesNestedRelations", async ({ pag
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
     query: { where: { id: 1 } },
   });
 });
 
-test("delete_NestedDeleteManyQuery_SuccessfullyDeletesMultipleNestedRelations", async ({ page }) => {
+test("delete_NestedDeleteManyQuery_SuccessfullyDeletesMultipleNestedRelations", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "Alice", posts: { create: [{ title: "Post1" }, { title: "Post2" }] } } },
@@ -41,6 +46,7 @@ test("delete_NestedDeleteManyQuery_SuccessfullyDeletesMultipleNestedRelations", 
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: { where: { id: 1 }, data: { posts: { deleteMany: { title: { contains: "Post" } } } } },
@@ -48,6 +54,7 @@ test("delete_NestedDeleteManyQuery_SuccessfullyDeletesMultipleNestedRelations", 
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: { include: { posts: true } },
@@ -55,14 +62,16 @@ test("delete_NestedDeleteManyQuery_SuccessfullyDeletesMultipleNestedRelations", 
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
   });
 });
 
-test("delete_NestedDeleteQueryWithInvalidData_ThrowsError", async ({ page }) => {
+test("delete_NestedDeleteQueryWithInvalidData_ThrowsError", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "Bob", posts: { create: [{ title: "Post1" }] } } },
@@ -70,6 +79,7 @@ test("delete_NestedDeleteQueryWithInvalidData_ThrowsError", async ({ page }) => 
 
   await expectQueryToFail({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: { where: { id: 1 }, data: { posts: { delete: { id: 999 } } } },
@@ -77,9 +87,10 @@ test("delete_NestedDeleteQueryWithInvalidData_ThrowsError", async ({ page }) => 
   });
 });
 
-test("delete_NestedDeleteQueryWithCascade_SuccessfullyDeletesCascadingRelations", async ({ page }) => {
+test("delete_NestedDeleteQueryWithCascade_SuccessfullyDeletesCascadingRelations", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: {
@@ -92,6 +103,7 @@ test("delete_NestedDeleteQueryWithCascade_SuccessfullyDeletesCascadingRelations"
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: { where: { id: 1 }, data: { posts: { delete: { id: 1 } } } },
@@ -99,12 +111,14 @@ test("delete_NestedDeleteQueryWithCascade_SuccessfullyDeletesCascadingRelations"
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
   });
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "comment",
     operation: "findMany",
   });

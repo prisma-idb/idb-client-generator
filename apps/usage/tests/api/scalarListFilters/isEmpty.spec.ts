@@ -1,9 +1,10 @@
 import { test } from "../../fixtures";
 import { expectQueryToSucceed } from "../../queryRunnerHelper";
 
-test("isEmpty_GetPostsWithNoTags_ReturnsFilteredRecords", async ({ page }) => {
+test("isEmpty_GetPostsWithNoTags_ReturnsFilteredRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "createMany",
     query: {
@@ -18,15 +19,17 @@ test("isEmpty_GetPostsWithNoTags_ReturnsFilteredRecords", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
     query: { where: { tags: { isEmpty: true } } },
   });
 });
 
-test("isEmpty_GetPostsWithTags_ReturnsFilteredRecords", async ({ page }) => {
+test("isEmpty_GetPostsWithTags_ReturnsFilteredRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "createMany",
     query: {
@@ -41,6 +44,7 @@ test("isEmpty_GetPostsWithTags_ReturnsFilteredRecords", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
     query: { where: { tags: { isEmpty: false } } },

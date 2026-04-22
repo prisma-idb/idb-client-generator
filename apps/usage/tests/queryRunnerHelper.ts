@@ -1,15 +1,15 @@
-import type { Prisma } from "$lib/generated/prisma/client";
+import type { Prisma, PrismaClient } from "$lib/generated/prisma/client";
 import { expect, type Page } from "@playwright/test";
-import { prisma } from "../src/lib/prisma";
 import type { Operation } from "@prisma/client/runtime/client";
 
-type Model = Exclude<keyof typeof prisma, `$${string}` | symbol>;
+type Model = Exclude<keyof PrismaClient, `$${string}` | symbol>;
 type Op = Exclude<Operation, "findRaw" | "aggregateRaw" | `$${string}`>;
 type QueryParams<M extends Model, F extends Op> = {
   page: Page;
+  prisma: PrismaClient;
   model: M;
   operation: F;
-  query?: Prisma.Args<(typeof prisma)[M], F>;
+  query?: Prisma.Args<PrismaClient[M], F>;
 };
 
 async function submitQuery(page: Page, model: string, operation: string, query: unknown) {
@@ -18,7 +18,7 @@ async function submitQuery(page: Page, model: string, operation: string, query: 
 }
 
 export async function runQuery<M extends Model, F extends Op>(params: QueryParams<M, F>) {
-  const { page, model, operation, query } = params;
+  const { page, prisma, model, operation, query } = params;
 
   const operationFunction = prisma[model][operation] as (...args: unknown[]) => unknown;
   const prismaClientResult = await operationFunction(query);
@@ -41,7 +41,7 @@ export async function expectQueryToSucceed<M extends Model, F extends Op>(params
 export async function expectQueryToFail<M extends Model, F extends Op>(
   params: QueryParams<M, F> & { errorMessage: string; expectPrismaToAlsoFail?: boolean }
 ) {
-  const { page, model, operation, query, errorMessage, expectPrismaToAlsoFail = true } = params;
+  const { page, prisma, model, operation, query, errorMessage, expectPrismaToAlsoFail = true } = params;
 
   const operationFunction = prisma[model][operation] as (...args: unknown[]) => unknown;
   if (expectPrismaToAlsoFail) {

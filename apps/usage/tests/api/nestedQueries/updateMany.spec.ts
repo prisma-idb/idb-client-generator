@@ -1,9 +1,10 @@
 import { test } from "../../fixtures";
 import { expectQueryToSucceed } from "../../queryRunnerHelper";
 
-test("updateMany_NestedUpdateManyQuery_OnlyUpdatesRecordsBelongingToTargetParent", async ({ page }) => {
+test("updateMany_NestedUpdateManyQuery_OnlyUpdatesRecordsBelongingToTargetParent", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "createMany",
     query: { data: [{ name: "Alice" }, { name: "Bob" }] },
@@ -11,6 +12,7 @@ test("updateMany_NestedUpdateManyQuery_OnlyUpdatesRecordsBelongingToTargetParent
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "createMany",
     query: {
@@ -24,6 +26,7 @@ test("updateMany_NestedUpdateManyQuery_OnlyUpdatesRecordsBelongingToTargetParent
   // Nested updateMany scoped to Alice — should NOT touch Bob's posts
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: {
@@ -36,15 +39,17 @@ test("updateMany_NestedUpdateManyQuery_OnlyUpdatesRecordsBelongingToTargetParent
   // Bob's post must be unchanged
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
     query: { where: { title: "Bob Post" } },
   });
 });
 
-test("updateMany_NestedUpdateManyQuery_SuccessfullyUpdatesMultipleNestedRelations", async ({ page }) => {
+test("updateMany_NestedUpdateManyQuery_SuccessfullyUpdatesMultipleNestedRelations", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "Alice", posts: { create: [{ title: "Post1" }, { title: "Post2" }] } } },
@@ -52,6 +57,7 @@ test("updateMany_NestedUpdateManyQuery_SuccessfullyUpdatesMultipleNestedRelation
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: {
@@ -62,15 +68,17 @@ test("updateMany_NestedUpdateManyQuery_SuccessfullyUpdatesMultipleNestedRelation
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
     query: { where: { title: "Updated Post" } },
   });
 });
 
-test("updateMany_NestedUpdateManyQueryWithInvalidData_LeavesAsIs", async ({ page }) => {
+test("updateMany_NestedUpdateManyQueryWithInvalidData_LeavesAsIs", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "Bob", posts: { create: [{ title: "Post1" }] } } },
@@ -78,6 +86,7 @@ test("updateMany_NestedUpdateManyQueryWithInvalidData_LeavesAsIs", async ({ page
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: {
@@ -88,15 +97,17 @@ test("updateMany_NestedUpdateManyQueryWithInvalidData_LeavesAsIs", async ({ page
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: { include: { posts: true } },
   });
 });
 
-test("updateMany_NestedUpdateManyQueryWithEmptyData_SuccessfullyHandlesNoUpdate", async ({ page }) => {
+test("updateMany_NestedUpdateManyQueryWithEmptyData_SuccessfullyHandlesNoUpdate", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "Charlie", posts: { create: [{ title: "Post1" }, { title: "Post2" }] } } },
@@ -104,6 +115,7 @@ test("updateMany_NestedUpdateManyQueryWithEmptyData_SuccessfullyHandlesNoUpdate"
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: {
@@ -114,6 +126,7 @@ test("updateMany_NestedUpdateManyQueryWithEmptyData_SuccessfullyHandlesNoUpdate"
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
     query: { where: { title: "No Update" } },

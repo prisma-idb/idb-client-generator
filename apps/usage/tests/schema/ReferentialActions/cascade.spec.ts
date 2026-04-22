@@ -1,9 +1,10 @@
 import { test } from "../../fixtures";
 import { expectQueryToSucceed } from "../../queryRunnerHelper";
 
-test("cascade_DeleteParentRecord_DeletesChildRecords", async ({ page }) => {
+test("cascade_DeleteParentRecord_DeletesChildRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "John", posts: { create: [{ title: "Post1" }, { title: "Post2" }] } } },
@@ -11,6 +12,7 @@ test("cascade_DeleteParentRecord_DeletesChildRecords", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "delete",
     query: { where: { id: 1 } },
@@ -18,15 +20,17 @@ test("cascade_DeleteParentRecord_DeletesChildRecords", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
     query: { where: { authorId: 1 } },
   });
 });
 
-test("cascade_DeleteParentRecordWithNoChildren_Success", async ({ page }) => {
+test("cascade_DeleteParentRecordWithNoChildren_Success", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "Alice" } },
@@ -34,6 +38,7 @@ test("cascade_DeleteParentRecordWithNoChildren_Success", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "delete",
     query: { where: { id: 1 } },
@@ -41,14 +46,16 @@ test("cascade_DeleteParentRecordWithNoChildren_Success", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
   });
 });
 
-test("cascade_DeleteParentRecordWithMixedChildren_DeletesOnlyRelatedChildren", async ({ page }) => {
+test("cascade_DeleteParentRecordWithMixedChildren_DeletesOnlyRelatedChildren", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "John", posts: { create: [{ title: "Post1" }, { title: "Post2" }] } } },
@@ -56,6 +63,7 @@ test("cascade_DeleteParentRecordWithMixedChildren_DeletesOnlyRelatedChildren", a
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "Alice", posts: { create: [{ title: "Post3" }] } } },
@@ -63,6 +71,7 @@ test("cascade_DeleteParentRecordWithMixedChildren_DeletesOnlyRelatedChildren", a
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "delete",
     query: { where: { id: 1 } },
@@ -70,6 +79,7 @@ test("cascade_DeleteParentRecordWithMixedChildren_DeletesOnlyRelatedChildren", a
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
     query: { where: { authorId: 2 } },

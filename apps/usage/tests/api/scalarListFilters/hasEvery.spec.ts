@@ -1,9 +1,10 @@
 import { test } from "../../fixtures";
 import { expectQueryToSucceed } from "../../queryRunnerHelper";
 
-test("hasEvery_TagsInPost_ReturnsFilteredRecords", async ({ page }) => {
+test("hasEvery_TagsInPost_ReturnsFilteredRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "createMany",
     query: {
@@ -19,6 +20,7 @@ test("hasEvery_TagsInPost_ReturnsFilteredRecords", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
     query: { where: { tags: { hasEvery: ["Second", "Third"] } } },
@@ -27,6 +29,7 @@ test("hasEvery_TagsInPost_ReturnsFilteredRecords", async ({ page }) => {
   // This fails
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
     query: { where: { tags: { hasEvery: [] } } },

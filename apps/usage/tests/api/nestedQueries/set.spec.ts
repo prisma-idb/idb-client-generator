@@ -1,9 +1,10 @@
 import { test } from "../../fixtures";
 import { expectQueryToSucceed, expectQueryToFail } from "../../queryRunnerHelper";
 
-test("set_DisconnectExistingRelations_SuccessfullyDisconnects", async ({ page }) => {
+test("set_DisconnectExistingRelations_SuccessfullyDisconnects", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "John", posts: { create: [{ title: "Post1" }, { title: "Post2" }] } } },
@@ -11,6 +12,7 @@ test("set_DisconnectExistingRelations_SuccessfullyDisconnects", async ({ page })
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: { where: { id: 1 }, data: { posts: { set: [] } } },
@@ -18,6 +20,7 @@ test("set_DisconnectExistingRelations_SuccessfullyDisconnects", async ({ page })
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: { include: { posts: true } },
@@ -25,15 +28,17 @@ test("set_DisconnectExistingRelations_SuccessfullyDisconnects", async ({ page })
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
     query: { include: { author: true } },
   });
 });
 
-test("set_NestedSetQuery_SuccessfullySetsNestedRelations", async ({ page }) => {
+test("set_NestedSetQuery_SuccessfullySetsNestedRelations", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "John" } },
@@ -41,6 +46,7 @@ test("set_NestedSetQuery_SuccessfullySetsNestedRelations", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "create",
     query: { data: { title: "Post1" } },
@@ -48,6 +54,7 @@ test("set_NestedSetQuery_SuccessfullySetsNestedRelations", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: { where: { id: 1 }, data: { posts: { set: [{ id: 1 }] } } },
@@ -55,15 +62,17 @@ test("set_NestedSetQuery_SuccessfullySetsNestedRelations", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: { include: { posts: true } },
   });
 });
 
-test("set_InvalidSetQuery_ThrowsError", async ({ page }) => {
+test("set_InvalidSetQuery_ThrowsError", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "John" } },
@@ -72,6 +81,7 @@ test("set_InvalidSetQuery_ThrowsError", async ({ page }) => {
   // IDB client intentionally throws here; Prisma silently no-ops
   await expectQueryToFail({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: { where: { id: 1 }, data: { posts: { set: [{ id: 999 }] } } },

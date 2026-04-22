@@ -1,9 +1,10 @@
 import { test } from "../../fixtures";
 import { expectQueryToSucceed } from "../../queryRunnerHelper";
 
-test("has_TagInPost_ReturnsFilteredRecords", async ({ page }) => {
+test("has_TagInPost_ReturnsFilteredRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "createMany",
     query: {
@@ -19,15 +20,17 @@ test("has_TagInPost_ReturnsFilteredRecords", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
     query: { where: { tags: { has: "Second" } } },
   });
 });
 
-test("has_NullInScalarList_ReturnsFilteredRecords", async ({ page }) => {
+test("has_NullInScalarList_ReturnsFilteredRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "createMany",
     query: {
@@ -43,6 +46,7 @@ test("has_NullInScalarList_ReturnsFilteredRecords", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
     query: { where: { tags: { has: null } } },

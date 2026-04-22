@@ -1,27 +1,30 @@
 import { test } from "../../fixtures";
 import { expectQueryToSucceed } from "../../queryRunnerHelper";
 
-test("@@id_CreateRecordWithCompositeKey_SuccessfullyCreatesRecord", async ({ page }) => {
+test("@@id_CreateRecordWithCompositeKey_SuccessfullyCreatesRecord", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "mother",
     operation: "create",
     query: { data: { firstName: "Alice", lastName: "Doe" } },
   });
-  await expectQueryToSucceed({ page, model: "mother", operation: "findMany" });
+  await expectQueryToSucceed({ page, prisma, model: "mother", operation: "findMany" });
 });
 
-test("@@id_CreateRelatedRecords_SuccessfullyCreatesRecords", async ({ page }) => {
+test("@@id_CreateRelatedRecords_SuccessfullyCreatesRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "mother",
     operation: "create",
     query: { data: { firstName: "Alice", lastName: "Doe" } },
   });
-  await expectQueryToSucceed({ page, model: "mother", operation: "findMany" });
+  await expectQueryToSucceed({ page, prisma, model: "mother", operation: "findMany" });
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "father",
     operation: "create",
     query: {
@@ -33,13 +36,26 @@ test("@@id_CreateRelatedRecords_SuccessfullyCreatesRecords", async ({ page }) =>
     },
   });
 
-  await expectQueryToSucceed({ page, model: "father", operation: "findMany", query: { include: { wife: true } } });
-  await expectQueryToSucceed({ page, model: "mother", operation: "findMany", query: { include: { husband: true } } });
-});
-
-test("@@id_CreateNestedRecords_SuccessfullyCreatesRecords", async ({ page }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
+    model: "father",
+    operation: "findMany",
+    query: { include: { wife: true } },
+  });
+  await expectQueryToSucceed({
+    page,
+    prisma,
+    model: "mother",
+    operation: "findMany",
+    query: { include: { husband: true } },
+  });
+});
+
+test("@@id_CreateNestedRecords_SuccessfullyCreatesRecords", async ({ page, prisma }) => {
+  await expectQueryToSucceed({
+    page,
+    prisma,
     model: "mother",
     operation: "create",
     query: {
@@ -56,21 +72,24 @@ test("@@id_CreateNestedRecords_SuccessfullyCreatesRecords", async ({ page }) => 
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "father",
     operation: "findMany",
     query: { include: { wife: true, children: true } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "mother",
     operation: "findMany",
     query: { include: { husband: true, children: true } },
   });
 });
 
-test("@@id_CreateFatherAndMotherDuringChildCreation_SuccessfullyRearrangesDeps", async ({ page }) => {
+test("@@id_CreateFatherAndMotherDuringChildCreation_SuccessfullyRearrangesDeps", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "child",
     operation: "create",
     query: {
@@ -91,21 +110,24 @@ test("@@id_CreateFatherAndMotherDuringChildCreation_SuccessfullyRearrangesDeps",
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "father",
     operation: "findMany",
     query: { include: { wife: true, children: true } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "mother",
     operation: "findMany",
     query: { include: { husband: true, children: true } },
   });
 });
 
-test("@@id_CreateDeeplyNestedRecords_SuccessfullyCreatesRecords", async ({ page }) => {
+test("@@id_CreateDeeplyNestedRecords_SuccessfullyCreatesRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "mother",
     operation: "create",
     query: {
@@ -120,18 +142,21 @@ test("@@id_CreateDeeplyNestedRecords_SuccessfullyCreatesRecords", async ({ page 
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "father",
     operation: "findMany",
     query: { include: { wife: true, children: true, user: true } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "mother",
     operation: "findMany",
     query: { include: { husband: true, children: true, user: true } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: { include: { Mother: true, Father: true, Child: true } },
@@ -140,92 +165,105 @@ test("@@id_CreateDeeplyNestedRecords_SuccessfullyCreatesRecords", async ({ page 
 
 // ── CompositeIdIntString (@@id([orgId, code])) ───────────────────────
 
-test("CompositeIdIntString_Create_SuccessfullyCreatesRecord", async ({ page }) => {
+test("CompositeIdIntString_Create_SuccessfullyCreatesRecord", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "create",
     query: { data: { orgId: 1, code: "ABC", details: "first" } },
   });
 });
 
-test("CompositeIdIntString_FindUnique_ReturnsRecord", async ({ page }) => {
+test("CompositeIdIntString_FindUnique_ReturnsRecord", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "create",
     query: { data: { orgId: 1, code: "ABC", details: "first" } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "findUnique",
     query: { where: { orgId_code: { orgId: 1, code: "ABC" } } },
   });
 });
 
-test("CompositeIdIntString_Update_SuccessfullyUpdatesRecord", async ({ page }) => {
+test("CompositeIdIntString_Update_SuccessfullyUpdatesRecord", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "create",
     query: { data: { orgId: 1, code: "ABC", details: "first" } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "update",
     query: { where: { orgId_code: { orgId: 1, code: "ABC" } }, data: { details: "updated" } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "findUnique",
     query: { where: { orgId_code: { orgId: 1, code: "ABC" } } },
   });
 });
 
-test("CompositeIdIntString_Delete_SuccessfullyDeletesRecord", async ({ page }) => {
+test("CompositeIdIntString_Delete_SuccessfullyDeletesRecord", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "create",
     query: { data: { orgId: 1, code: "ABC", details: "first" } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "delete",
     query: { where: { orgId_code: { orgId: 1, code: "ABC" } } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "findMany",
   });
 });
 
-test("CompositeIdIntString_FindMany_ReturnsMultipleRecords", async ({ page }) => {
+test("CompositeIdIntString_FindMany_ReturnsMultipleRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "create",
     query: { data: { orgId: 1, code: "ABC" } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "create",
     query: { data: { orgId: 1, code: "DEF" } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "create",
     query: { data: { orgId: 2, code: "ABC" } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "findMany",
   });
@@ -233,95 +271,108 @@ test("CompositeIdIntString_FindMany_ReturnsMultipleRecords", async ({ page }) =>
 
 // ── CompositeIdWithDateTime (@@id([tenantId, createdAt])) ────────────
 
-test("CompositeIdWithDateTime_Create_SuccessfullyCreatesRecord", async ({ page }) => {
+test("CompositeIdWithDateTime_Create_SuccessfullyCreatesRecord", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdWithDateTime",
     operation: "create",
     query: { data: { tenantId: "t1", createdAt: new Date("2024-01-15T10:00:00Z"), label: "first" } },
   });
 });
 
-test("CompositeIdWithDateTime_FindUnique_ReturnsRecord", async ({ page }) => {
+test("CompositeIdWithDateTime_FindUnique_ReturnsRecord", async ({ page, prisma }) => {
   const date = new Date("2024-01-15T10:00:00Z");
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdWithDateTime",
     operation: "create",
     query: { data: { tenantId: "t1", createdAt: date, label: "first" } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdWithDateTime",
     operation: "findUnique",
     query: { where: { tenantId_createdAt: { tenantId: "t1", createdAt: date } } },
   });
 });
 
-test("CompositeIdWithDateTime_Update_SuccessfullyUpdatesRecord", async ({ page }) => {
+test("CompositeIdWithDateTime_Update_SuccessfullyUpdatesRecord", async ({ page, prisma }) => {
   const date = new Date("2024-01-15T10:00:00Z");
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdWithDateTime",
     operation: "create",
     query: { data: { tenantId: "t1", createdAt: date, label: "first" } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdWithDateTime",
     operation: "update",
     query: { where: { tenantId_createdAt: { tenantId: "t1", createdAt: date } }, data: { label: "updated" } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdWithDateTime",
     operation: "findUnique",
     query: { where: { tenantId_createdAt: { tenantId: "t1", createdAt: date } } },
   });
 });
 
-test("CompositeIdWithDateTime_Delete_SuccessfullyDeletesRecord", async ({ page }) => {
+test("CompositeIdWithDateTime_Delete_SuccessfullyDeletesRecord", async ({ page, prisma }) => {
   const date = new Date("2024-01-15T10:00:00Z");
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdWithDateTime",
     operation: "create",
     query: { data: { tenantId: "t1", createdAt: date, label: "first" } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdWithDateTime",
     operation: "delete",
     query: { where: { tenantId_createdAt: { tenantId: "t1", createdAt: date } } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdWithDateTime",
     operation: "findMany",
   });
 });
 
-test("CompositeIdWithDateTime_FindMany_ReturnsMultipleRecords", async ({ page }) => {
+test("CompositeIdWithDateTime_FindMany_ReturnsMultipleRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdWithDateTime",
     operation: "create",
     query: { data: { tenantId: "t1", createdAt: new Date("2024-01-15T10:00:00Z"), label: "a" } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdWithDateTime",
     operation: "create",
     query: { data: { tenantId: "t1", createdAt: new Date("2024-06-20T15:30:00Z"), label: "b" } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdWithDateTime",
     operation: "create",
     query: { data: { tenantId: "t2", createdAt: new Date("2024-01-15T10:00:00Z"), label: "c" } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdWithDateTime",
     operation: "findMany",
   });
@@ -329,9 +380,10 @@ test("CompositeIdWithDateTime_FindMany_ReturnsMultipleRecords", async ({ page })
 
 // ── TripleCompositeIdWithDate (@@id([region, year, eventDate])) ──────
 
-test("TripleCompositeIdWithDate_Create_SuccessfullyCreatesRecord", async ({ page }) => {
+test("TripleCompositeIdWithDate_Create_SuccessfullyCreatesRecord", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "tripleCompositeIdWithDate",
     operation: "create",
     query: {
@@ -340,32 +392,36 @@ test("TripleCompositeIdWithDate_Create_SuccessfullyCreatesRecord", async ({ page
   });
 });
 
-test("TripleCompositeIdWithDate_FindUnique_ReturnsRecord", async ({ page }) => {
+test("TripleCompositeIdWithDate_FindUnique_ReturnsRecord", async ({ page, prisma }) => {
   const eventDate = new Date("2024-07-04T00:00:00Z");
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "tripleCompositeIdWithDate",
     operation: "create",
     query: { data: { region: "US", year: 2024, eventDate, payload: "fireworks" } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "tripleCompositeIdWithDate",
     operation: "findUnique",
     query: { where: { region_year_eventDate: { region: "US", year: 2024, eventDate } } },
   });
 });
 
-test("TripleCompositeIdWithDate_Update_SuccessfullyUpdatesRecord", async ({ page }) => {
+test("TripleCompositeIdWithDate_Update_SuccessfullyUpdatesRecord", async ({ page, prisma }) => {
   const eventDate = new Date("2024-07-04T00:00:00Z");
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "tripleCompositeIdWithDate",
     operation: "create",
     query: { data: { region: "US", year: 2024, eventDate, payload: "fireworks" } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "tripleCompositeIdWithDate",
     operation: "update",
     query: {
@@ -375,27 +431,31 @@ test("TripleCompositeIdWithDate_Update_SuccessfullyUpdatesRecord", async ({ page
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "tripleCompositeIdWithDate",
     operation: "findUnique",
     query: { where: { region_year_eventDate: { region: "US", year: 2024, eventDate } } },
   });
 });
 
-test("TripleCompositeIdWithDate_FindMany_ReturnsMultipleRecords", async ({ page }) => {
+test("TripleCompositeIdWithDate_FindMany_ReturnsMultipleRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "tripleCompositeIdWithDate",
     operation: "create",
     query: { data: { region: "US", year: 2024, eventDate: new Date("2024-07-04T00:00:00Z") } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "tripleCompositeIdWithDate",
     operation: "create",
     query: { data: { region: "EU", year: 2024, eventDate: new Date("2024-12-25T00:00:00Z") } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "tripleCompositeIdWithDate",
     operation: "findMany",
     query: { orderBy: { region: "asc" } },
@@ -404,9 +464,10 @@ test("TripleCompositeIdWithDate_FindMany_ReturnsMultipleRecords", async ({ page 
 
 // ── DateTime Composite Key Cursor Pagination ────────────────────────
 
-test("CompositeIdWithDateTime_Cursor_FindsRecordByDateTimeCursor", async ({ page }) => {
+test("CompositeIdWithDateTime_Cursor_FindsRecordByDateTimeCursor", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdWithDateTime",
     operation: "createMany",
     query: {
@@ -420,6 +481,7 @@ test("CompositeIdWithDateTime_Cursor_FindsRecordByDateTimeCursor", async ({ page
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdWithDateTime",
     operation: "findMany",
     query: {
@@ -430,9 +492,10 @@ test("CompositeIdWithDateTime_Cursor_FindsRecordByDateTimeCursor", async ({ page
   });
 });
 
-test("CompositeIdWithDateTime_CursorWithNegativeTake_BackwardFromDateTimeCursor", async ({ page }) => {
+test("CompositeIdWithDateTime_CursorWithNegativeTake_BackwardFromDateTimeCursor", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdWithDateTime",
     operation: "createMany",
     query: {
@@ -446,6 +509,7 @@ test("CompositeIdWithDateTime_CursorWithNegativeTake_BackwardFromDateTimeCursor"
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdWithDateTime",
     operation: "findMany",
     query: {
@@ -466,15 +530,17 @@ const compositeIdIntStringSeed = [
   { orgId: 2, code: "BBB" },
 ];
 
-test("CompositeIdIntString_Cursor_StartFromCompositeCursor", async ({ page }) => {
+test("CompositeIdIntString_Cursor_StartFromCompositeCursor", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "createMany",
     query: { data: compositeIdIntStringSeed },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "findMany",
     query: {
@@ -484,15 +550,17 @@ test("CompositeIdIntString_Cursor_StartFromCompositeCursor", async ({ page }) =>
   });
 });
 
-test("CompositeIdIntString_CursorWithTake_LimitsAfterCompositeCursor", async ({ page }) => {
+test("CompositeIdIntString_CursorWithTake_LimitsAfterCompositeCursor", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "createMany",
     query: { data: compositeIdIntStringSeed },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "findMany",
     query: {
@@ -503,15 +571,17 @@ test("CompositeIdIntString_CursorWithTake_LimitsAfterCompositeCursor", async ({ 
   });
 });
 
-test("CompositeIdIntString_CursorWithNegativeTake_ReturnsBeforeCursor", async ({ page }) => {
+test("CompositeIdIntString_CursorWithNegativeTake_ReturnsBeforeCursor", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "createMany",
     query: { data: compositeIdIntStringSeed },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "findMany",
     query: {
@@ -522,15 +592,17 @@ test("CompositeIdIntString_CursorWithNegativeTake_ReturnsBeforeCursor", async ({
   });
 });
 
-test("CompositeIdIntString_CursorWithSkipAndTake_PaginatesCorrectly", async ({ page }) => {
+test("CompositeIdIntString_CursorWithSkipAndTake_PaginatesCorrectly", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "createMany",
     query: { data: compositeIdIntStringSeed },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeIdIntString",
     operation: "findMany",
     query: {
