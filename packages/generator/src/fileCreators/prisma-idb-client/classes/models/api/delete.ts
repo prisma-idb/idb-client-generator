@@ -29,21 +29,33 @@ export function addDeleteMethod(writer: CodeBlockWriter, model: Model) {
     .writeLine(`): Promise<Prisma.Result<Prisma.${model.name}Delegate, Q, "delete">>`)
     .block(() => {
       writer.write(getOptionsSetupWrite());
-      createTxAndGetRecord(writer);
+      createTxAndGetRecord(writer, model);
       writer
-        .writeLine(`const recordToDelete = await this.findUniqueOrThrow({ where: query.where }, { tx });`)
-        .writeLine(`await this._deleteRecord(recordToDelete, tx, { silent, addToOutbox });`)
-        .writeLine(`return record;`);
+        .writeLine(`await this._deleteRecord(recordForDelete, tx, { silent, addToOutbox });`)
+        .writeLine(`return record as Prisma.Result<Prisma.${model.name}Delegate, Q, "delete">;`);
     });
 }
 
-function createTxAndGetRecord(writer: CodeBlockWriter) {
+function createTxAndGetRecord(writer: CodeBlockWriter, model: Model) {
   writer
     .writeLine(`const storesNeeded = this._getNeededStoresForFind(query);`)
     .writeLine(`this._getNeededStoresForNestedDelete(storesNeeded);`)
     .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");`)
-    .writeLine(`const record = await this.findUnique(query, { tx });`)
-    .writeLine(`if (!record) throw new Error("Record not found");`);
+    .writeLine(
+      `const recordForDelete = await this.findUniqueOrThrow({ where: query.where }, { tx }) as Prisma.Result<Prisma.${model.name}Delegate, object, "findFirstOrThrow">;`
+    )
+    // Clone before _applyRelations because that helper mutates the input
+    // records by attaching relation data; we must keep recordForDelete pristine
+    // so that the OutboxEvent payload emitted by _deleteRecord contains the
+    // raw row instead of a hydrated one.
+    .writeLine(`const projectionRecord = structuredClone(recordForDelete);`)
+    .writeLine(`const recordsWithRelations = await this._applyRelations(`)
+    .writeLine(`[projectionRecord],`)
+    .writeLine(`tx,`)
+    .writeLine(`query`)
+    .writeLine(`);`)
+    .writeLine(`const record = this._applySelectClause(recordsWithRelations, query.select)[0];`)
+    .writeLine(`this._preprocessListFields([record]);`);
 }
 
 function handleCascadeDeletes(writer: CodeBlockWriter, model: Model, models: readonly Model[]) {
