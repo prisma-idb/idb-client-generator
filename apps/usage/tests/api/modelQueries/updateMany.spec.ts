@@ -37,8 +37,8 @@ test("updateMany_ChangeForeignKey_SuccessfullyUpdatesFKOnMatchingRecords", async
     operation: "createMany",
     query: {
       data: [
-        { title: "Task1", userId: 1 },
-        { title: "Task2", userId: 1 },
+        { id: "aaaaaaaa-0001-0001-0001-000000000001", title: "Task1", userId: 1 },
+        { id: "aaaaaaaa-0001-0001-0001-000000000002", title: "Task2", userId: 1 },
       ],
     },
   });
