@@ -1,6 +1,47 @@
 import { test } from "../../fixtures";
 import { expectQueryToSucceed } from "../../queryRunnerHelper";
 
+test("updateMany_NestedUpdateManyQuery_OnlyUpdatesRecordsBelongingToTargetParent", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "createMany",
+    query: { data: [{ name: "Alice" }, { name: "Bob" }] },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    model: "post",
+    operation: "createMany",
+    query: {
+      data: [
+        { title: "Alice Post", authorId: 1 },
+        { title: "Bob Post", authorId: 2 },
+      ],
+    },
+  });
+
+  // Nested updateMany scoped to Alice — should NOT touch Bob's posts
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "update",
+    query: {
+      where: { id: 1 },
+      data: { posts: { updateMany: { where: {}, data: { title: "Alice Updated" } } } },
+      include: { posts: true },
+    },
+  });
+
+  // Bob's post must be unchanged
+  await expectQueryToSucceed({
+    page,
+    model: "post",
+    operation: "findMany",
+    query: { where: { title: "Bob Post" } },
+  });
+});
+
 test("updateMany_NestedUpdateManyQuery_SuccessfullyUpdatesMultipleNestedRelations", async ({ page }) => {
   await expectQueryToSucceed({
     page,

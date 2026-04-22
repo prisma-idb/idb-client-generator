@@ -194,3 +194,81 @@ test("update_NestedUpdateQueryWithTwoLevels_SuccessfullyUpdatesNestedRelations",
     query: { include: { posts: { include: { comments: true } } } },
   });
 });
+
+test("update_ChangingParentKey_UsesOriginalKeyForNestedRelationWrites", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "create",
+    query: { data: { id: 1, name: "Alice", posts: { create: [{ title: "Post1" }, { title: "Post2" }] } } },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "update",
+    query: {
+      where: { id: 1 },
+      data: {
+        id: 2,
+        posts: { deleteMany: { title: { contains: "Post" } } },
+      },
+      include: { posts: true },
+    },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    model: "post",
+    operation: "findMany",
+    query: { where: { authorId: 2 } },
+  });
+});
+
+test("update_NestedOneToOneUpdateChangesRelatedPK_UpdatesFKOnCurrentRecord", async ({ page }) => {
+  // Father holds FKs (motherFirstName, motherLastName) pointing to Mother's composite PK.
+  // When we update Father with a nested mother.update that changes Mother's name (PK),
+  // the FK fields on Father must be updated too — otherwise Father ends up pointing to a
+  // non-existent Mother row.
+  await expectQueryToSucceed({
+    page,
+    model: "mother",
+    operation: "create",
+    query: { data: { firstName: "Jane", lastName: "Smith" } },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    model: "father",
+    operation: "create",
+    query: {
+      data: {
+        firstName: "John",
+        lastName: "Smith",
+        motherFirstName: "Jane",
+        motherLastName: "Smith",
+      },
+    },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    model: "father",
+    operation: "update",
+    query: {
+      where: { firstName_lastName: { firstName: "John", lastName: "Smith" } },
+      data: {
+        wife: { update: { firstName: "Janet", lastName: "Smith" } },
+      },
+      include: { wife: true },
+    },
+  });
+
+  // Father must now reference the renamed Mother
+  await expectQueryToSucceed({
+    page,
+    model: "father",
+    operation: "findMany",
+    query: { include: { wife: true } },
+  });
+});

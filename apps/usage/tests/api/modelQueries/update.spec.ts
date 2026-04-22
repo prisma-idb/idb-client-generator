@@ -104,3 +104,43 @@ test("update_ChangeEnumField_SuccessfullyUpdatesRecord", async ({ page }) => {
     operation: "findMany",
   });
 });
+
+test("update_WithSelect_PreservesSelectedFields", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "create",
+    query: { data: { name: "John Doe", profile: { create: { bio: "John's Bio" } } } },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "update",
+    query: {
+      where: { id: 1 },
+      data: { name: "Alice" },
+      select: { name: true, profile: { select: { bio: true } } },
+    },
+  });
+});
+
+test("update_WithInclude_PreservesIncludedRelations", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "create",
+    query: { data: { name: "Jane Doe", profile: { create: { bio: "Jane's Bio" } } } },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "update",
+    query: {
+      where: { id: 1 },
+      data: { name: "Janet" },
+      include: { profile: true },
+    },
+  });
+});

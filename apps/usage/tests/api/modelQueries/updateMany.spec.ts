@@ -22,3 +22,39 @@ test("updateMany_ChangeNames_SuccessfullyUpdatesRecord", async ({ page }) => {
     operation: "findMany",
   });
 });
+
+test("updateMany_ChangeForeignKey_SuccessfullyUpdatesFKOnMatchingRecords", async ({ page }) => {
+  await expectQueryToSucceed({
+    page,
+    model: "user",
+    operation: "createMany",
+    query: { data: [{ name: "UserA" }, { name: "UserB" }] },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    model: "todo",
+    operation: "createMany",
+    query: {
+      data: [
+        { title: "Task1", userId: 1 },
+        { title: "Task2", userId: 1 },
+      ],
+    },
+  });
+
+  // Move all of UserA's todos to UserB — requires User store to be open for FK validation
+  await expectQueryToSucceed({
+    page,
+    model: "todo",
+    operation: "updateMany",
+    query: { where: { userId: 1 }, data: { userId: 2 } },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    model: "todo",
+    operation: "findMany",
+    query: { where: { userId: 2 } },
+  });
+});
