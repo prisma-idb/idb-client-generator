@@ -514,6 +514,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         );
       }
       if (query.data.todos.disconnect) {
+        tx.abort();
         throw new Error("Cannot disconnect required relation");
       }
       if (query.data.todos.create) {
@@ -589,6 +590,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       if (query.data.todos.set) {
         const existing = await this.client.todo.findMany({ where: { userId: record.id } }, { tx });
         if (existing.length > 0) {
+          tx.abort();
           throw new Error("Cannot set required relation");
         }
         await Promise.all(
@@ -610,6 +612,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("User").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("User").delete(startKeyPath);
@@ -1504,12 +1507,16 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     }
     if (query.data.userId !== undefined) {
       const related = await this.client.user.findUnique({ where: { id: record.userId } }, { tx });
-      if (!related) throw new Error("Related record not found");
+      if (!related) {
+        tx.abort();
+        throw new Error("Related record not found");
+      }
     }
     const endKeyPath: PrismaIDBSchema["Todo"]["key"] = [record.id];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("Todo").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("Todo").delete(startKeyPath);

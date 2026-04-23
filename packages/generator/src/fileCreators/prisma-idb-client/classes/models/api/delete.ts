@@ -106,9 +106,12 @@ function handleCascadeDeletes(writer: CodeBlockWriter, model: Model, models: rea
           .writeLine(
             `const related${cascadeModel.name} = await this.client.${toCamelCase(cascadeModel.name)}.findMany({ where: { ${whereClause} } }, { tx });`
           )
-          .writeLine(
-            `if (related${cascadeModel.name}.length) throw new Error("Cannot delete record, other records depend on it");`
-          );
+          .writeLine(`if (related${cascadeModel.name}.length)`)
+          .block(() => {
+            writer
+              .writeLine(`tx.abort();`)
+              .writeLine(`throw new Error("Cannot delete record, other records depend on it");`);
+          });
       }
     }
   }

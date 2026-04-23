@@ -79,7 +79,9 @@ function addPutAndReferential(writer: CodeBlockWriter, model: Model, models: rea
         writer
           .writeLine(`if (await tx.objectStore("${model.name}").get(endKeyPath) !== undefined)`)
           .block(() => {
-            writer.writeLine(`throw new Error("Record with the same keyPath already exists");`);
+            writer
+              .writeLine(`tx.abort();`)
+              .writeLine(`throw new Error("Record with the same keyPath already exists");`);
           })
           .writeLine(`await tx.objectStore("${model.name}").delete(startKeyPath);`)
           .writeLine(`break;`);
@@ -245,7 +247,7 @@ function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, ot
     .writeLine(`if (query.data.${field.name}.disconnect)`)
     .block(() => {
       if (otherField.isRequired) {
-        writer.writeLine(`throw new Error("Cannot disconnect required relation");`);
+        writer.writeLine(`tx.abort();`).writeLine(`throw new Error("Cannot disconnect required relation");`);
       } else {
         writer
           .writeLine(`await Promise.all(`)
@@ -352,7 +354,7 @@ function handleOneToManyRelationUpdate(writer: CodeBlockWriter, field: Field, ot
         .writeLine(`if (existing.length > 0)`)
         .block(() => {
           if (otherField.isRequired) {
-            writer.writeLine(`throw new Error("Cannot set required relation");`);
+            writer.writeLine(`tx.abort();`).writeLine(`throw new Error("Cannot set required relation");`);
           } else {
             writer.writeLine(
               `await this.client.${toCamelCase(field.type)}.updateMany({ where: { ${fkFields} }, data: { ${fkFieldsNull} } }, { tx, silent, addToOutbox });`
@@ -472,7 +474,7 @@ function handleOneToOneRelationMetaOnOtherUpdate(writer: CodeBlockWriter, field:
     .writeLine(`if (query.data.${field.name}.disconnect)`)
     .block(() => {
       if (otherField.isRequired) {
-        writer.writeLine(`throw new Error("Cannot disconnect required relation");`);
+        writer.writeLine(`tx.abort();`).writeLine(`throw new Error("Cannot disconnect required relation");`);
       } else {
         writer.writeLine(
           `await this.client.${toCamelCase(field.type)}.update({ where: query.data.${field.name}.disconnect, data: { ${otherFkFieldsNull} } }, { tx, silent, addToOutbox });`
@@ -580,7 +582,9 @@ function addFkValidation(writer: CodeBlockWriter, model: Model, models: readonly
       writer.writeLine(
         `const related = await this.client.${toCamelCase(dependentModelField.type)}.findUnique({ where: ${whereUnique} }, { tx });`
       );
-      writer.writeLine(`if (!related) throw new Error("Related record not found");`);
+      writer.writeLine(`if (!related)`).block(() => {
+        writer.writeLine(`tx.abort();`).writeLine(`throw new Error("Related record not found");`);
+      });
     });
   }
 }

@@ -2064,7 +2064,10 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       { tx, silent, addToOutbox }
     );
     const relatedUserGroup = await this.client.userGroup.findMany({ where: { userId: record.id } }, { tx });
-    if (relatedUserGroup.length) throw new Error("Cannot delete record, other records depend on it");
+    if (relatedUserGroup.length) {
+      tx.abort();
+      throw new Error("Cannot delete record, other records depend on it");
+    }
     await this.client.father.updateMany(
       {
         where: { userId: record.id },
@@ -2105,6 +2108,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         );
       }
       if (query.data.profile.disconnect) {
+        tx.abort();
         throw new Error("Cannot disconnect required relation");
       }
       if (query.data.profile.create) {
@@ -2289,6 +2293,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         );
       }
       if (query.data.comments.disconnect) {
+        tx.abort();
         throw new Error("Cannot disconnect required relation");
       }
       if (query.data.comments.create) {
@@ -2372,6 +2377,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       if (query.data.comments.set) {
         const existing = await this.client.comment.findMany({ where: { userId: record.id } }, { tx });
         if (existing.length > 0) {
+          tx.abort();
           throw new Error("Cannot set required relation");
         }
         await Promise.all(
@@ -2742,6 +2748,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         );
       }
       if (query.data.groups.disconnect) {
+        tx.abort();
         throw new Error("Cannot disconnect required relation");
       }
       if (query.data.groups.create) {
@@ -2825,6 +2832,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       if (query.data.groups.set) {
         const existing = await this.client.userGroup.findMany({ where: { userId: record.id } }, { tx });
         if (existing.length > 0) {
+          tx.abort();
           throw new Error("Cannot set required relation");
         }
         await Promise.all(
@@ -2849,6 +2857,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
         );
       }
       if (query.data.todos.disconnect) {
+        tx.abort();
         throw new Error("Cannot disconnect required relation");
       }
       if (query.data.todos.create) {
@@ -2924,6 +2933,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
       if (query.data.todos.set) {
         const existing = await this.client.todo.findMany({ where: { userId: record.id } }, { tx });
         if (existing.length > 0) {
+          tx.abort();
           throw new Error("Cannot set required relation");
         }
         await Promise.all(
@@ -2945,6 +2955,7 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("User").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("User").delete(startKeyPath);
@@ -4228,7 +4239,10 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
   ): Promise<void> {
     const { silent = false, addToOutbox = true } = options ?? {};
     const relatedUserGroup = await this.client.userGroup.findMany({ where: { groupId: record.id } }, { tx });
-    if (relatedUserGroup.length) throw new Error("Cannot delete record, other records depend on it");
+    if (relatedUserGroup.length) {
+      tx.abort();
+      throw new Error("Cannot delete record, other records depend on it");
+    }
     await tx.objectStore("Group").delete([record.id]);
     await this.emit("delete", [record.id], undefined, record, { silent, addToOutbox, tx });
   }
@@ -4252,6 +4266,7 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
         );
       }
       if (query.data.userGroups.disconnect) {
+        tx.abort();
         throw new Error("Cannot disconnect required relation");
       }
       if (query.data.userGroups.create) {
@@ -4335,6 +4350,7 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
       if (query.data.userGroups.set) {
         const existing = await this.client.userGroup.findMany({ where: { groupId: record.id } }, { tx });
         if (existing.length > 0) {
+          tx.abort();
           throw new Error("Cannot set required relation");
         }
         await Promise.all(
@@ -4359,6 +4375,7 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("Group").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("Group").delete(startKeyPath);
@@ -5251,12 +5268,16 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     }
     if (query.data.userId !== undefined) {
       const related = await this.client.user.findUnique({ where: { id: record.userId } }, { tx });
-      if (!related) throw new Error("Related record not found");
+      if (!related) {
+        tx.abort();
+        throw new Error("Related record not found");
+      }
     }
     const endKeyPath: PrismaIDBSchema["Profile"]["key"] = [record.id];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("Profile").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("Profile").delete(startKeyPath);
@@ -6403,6 +6424,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
         );
       }
       if (query.data.comments.disconnect) {
+        tx.abort();
         throw new Error("Cannot disconnect required relation");
       }
       if (query.data.comments.create) {
@@ -6486,6 +6508,7 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
       if (query.data.comments.set) {
         const existing = await this.client.comment.findMany({ where: { postId: record.id } }, { tx });
         if (existing.length > 0) {
+          tx.abort();
           throw new Error("Cannot set required relation");
         }
         await Promise.all(
@@ -6512,12 +6535,16 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     }
     if (query.data.authorId !== undefined && record.authorId !== null) {
       const related = await this.client.user.findUnique({ where: { id: record.authorId } }, { tx });
-      if (!related) throw new Error("Related record not found");
+      if (!related) {
+        tx.abort();
+        throw new Error("Related record not found");
+      }
     }
     const endKeyPath: PrismaIDBSchema["Post"]["key"] = [record.id];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("Post").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("Post").delete(startKeyPath);
@@ -7623,16 +7650,23 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     }
     if (query.data.postId !== undefined) {
       const related = await this.client.post.findUnique({ where: { id: record.postId } }, { tx });
-      if (!related) throw new Error("Related record not found");
+      if (!related) {
+        tx.abort();
+        throw new Error("Related record not found");
+      }
     }
     if (query.data.userId !== undefined) {
       const related = await this.client.user.findUnique({ where: { id: record.userId } }, { tx });
-      if (!related) throw new Error("Related record not found");
+      if (!related) {
+        tx.abort();
+        throw new Error("Related record not found");
+      }
     }
     const endKeyPath: PrismaIDBSchema["Comment"]["key"] = [record.id];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("Comment").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("Comment").delete(startKeyPath);
@@ -8527,12 +8561,16 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     }
     if (query.data.userId !== undefined) {
       const related = await this.client.user.findUnique({ where: { id: record.userId } }, { tx });
-      if (!related) throw new Error("Related record not found");
+      if (!related) {
+        tx.abort();
+        throw new Error("Related record not found");
+      }
     }
     const endKeyPath: PrismaIDBSchema["Todo"]["key"] = [record.id];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("Todo").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("Todo").delete(startKeyPath);
@@ -9366,6 +9404,7 @@ class AllFieldScalarTypesIDBClass extends BaseIDBModelClass<"AllFieldScalarTypes
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("AllFieldScalarTypes").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("AllFieldScalarTypes").delete(startKeyPath);
@@ -10036,6 +10075,7 @@ class ModelWithEnumIDBClass extends BaseIDBModelClass<"ModelWithEnum"> {
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("ModelWithEnum").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("ModelWithEnum").delete(startKeyPath);
@@ -10645,6 +10685,7 @@ class TestUuidIDBClass extends BaseIDBModelClass<"TestUuid"> {
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("TestUuid").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("TestUuid").delete(startKeyPath);
@@ -11542,12 +11583,16 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     }
     if (query.data.linkId !== undefined && record.linkId !== null) {
       const related = await this.client.modelWithUniqueAttributes.findUnique({ where: { id: record.linkId } }, { tx });
-      if (!related) throw new Error("Related record not found");
+      if (!related) {
+        tx.abort();
+        throw new Error("Related record not found");
+      }
     }
     const endKeyPath: PrismaIDBSchema["ModelWithOptionalRelationToUniqueAttributes"]["key"] = [record.id];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("ModelWithOptionalRelationToUniqueAttributes").delete(startKeyPath);
@@ -12669,6 +12714,7 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("ModelWithUniqueAttributes").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("ModelWithUniqueAttributes").delete(startKeyPath);
@@ -13759,16 +13805,23 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     }
     if (query.data.groupId !== undefined) {
       const related = await this.client.group.findUnique({ where: { id: record.groupId } }, { tx });
-      if (!related) throw new Error("Related record not found");
+      if (!related) {
+        tx.abort();
+        throw new Error("Related record not found");
+      }
     }
     if (query.data.userId !== undefined) {
       const related = await this.client.user.findUnique({ where: { id: record.userId } }, { tx });
-      if (!related) throw new Error("Related record not found");
+      if (!related) {
+        tx.abort();
+        throw new Error("Related record not found");
+      }
     }
     const endKeyPath: PrismaIDBSchema["UserGroup"]["key"] = [record.groupId, record.userId];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("UserGroup").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("UserGroup").delete(startKeyPath);
@@ -15032,7 +15085,10 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
       { where: { fatherLastName: record.lastName, fatherFirstName: record.firstName } },
       { tx }
     );
-    if (relatedChild.length) throw new Error("Cannot delete record, other records depend on it");
+    if (relatedChild.length) {
+      tx.abort();
+      throw new Error("Cannot delete record, other records depend on it");
+    }
     await tx.objectStore("Father").delete([record.firstName, record.lastName]);
     await this.emit("delete", [record.firstName, record.lastName], undefined, record, { silent, addToOutbox, tx });
   }
@@ -15056,6 +15112,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
         );
       }
       if (query.data.children.disconnect) {
+        tx.abort();
         throw new Error("Cannot disconnect required relation");
       }
       if (query.data.children.create) {
@@ -15158,6 +15215,7 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
           { tx }
         );
         if (existing.length > 0) {
+          tx.abort();
           throw new Error("Cannot set required relation");
         }
         await Promise.all(
@@ -15295,16 +15353,23 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
         { where: { firstName_lastName: { firstName: record.motherFirstName, lastName: record.motherLastName } } },
         { tx }
       );
-      if (!related) throw new Error("Related record not found");
+      if (!related) {
+        tx.abort();
+        throw new Error("Related record not found");
+      }
     }
     if (query.data.userId !== undefined && record.userId !== null) {
       const related = await this.client.user.findUnique({ where: { id: record.userId } }, { tx });
-      if (!related) throw new Error("Related record not found");
+      if (!related) {
+        tx.abort();
+        throw new Error("Related record not found");
+      }
     }
     const endKeyPath: PrismaIDBSchema["Father"]["key"] = [record.firstName, record.lastName];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("Father").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("Father").delete(startKeyPath);
@@ -16677,12 +16742,18 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
       { where: { motherFirstName: record.firstName, motherLastName: record.lastName } },
       { tx }
     );
-    if (relatedFather.length) throw new Error("Cannot delete record, other records depend on it");
+    if (relatedFather.length) {
+      tx.abort();
+      throw new Error("Cannot delete record, other records depend on it");
+    }
     const relatedChild = await this.client.child.findMany(
       { where: { motherFirstName: record.firstName, motherLastName: record.lastName } },
       { tx }
     );
-    if (relatedChild.length) throw new Error("Cannot delete record, other records depend on it");
+    if (relatedChild.length) {
+      tx.abort();
+      throw new Error("Cannot delete record, other records depend on it");
+    }
     await tx.objectStore("Mother").delete([record.firstName, record.lastName]);
     await this.emit("delete", [record.firstName, record.lastName], undefined, record, { silent, addToOutbox, tx });
   }
@@ -16706,6 +16777,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
         );
       }
       if (query.data.children.disconnect) {
+        tx.abort();
         throw new Error("Cannot disconnect required relation");
       }
       if (query.data.children.create) {
@@ -16808,6 +16880,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
           { tx }
         );
         if (existing.length > 0) {
+          tx.abort();
           throw new Error("Cannot set required relation");
         }
         await Promise.all(
@@ -16831,6 +16904,7 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
         );
       }
       if (query.data.husband.disconnect) {
+        tx.abort();
         throw new Error("Cannot disconnect required relation");
       }
       if (query.data.husband.create) {
@@ -16975,12 +17049,16 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     }
     if (query.data.userId !== undefined && record.userId !== null) {
       const related = await this.client.user.findUnique({ where: { id: record.userId } }, { tx });
-      if (!related) throw new Error("Related record not found");
+      if (!related) {
+        tx.abort();
+        throw new Error("Related record not found");
+      }
     }
     const endKeyPath: PrismaIDBSchema["Mother"]["key"] = [record.firstName, record.lastName];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("Mother").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("Mother").delete(startKeyPath);
@@ -18483,26 +18561,36 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     }
     if (query.data.userId !== undefined && record.userId !== null) {
       const related = await this.client.user.findUnique({ where: { id: record.userId } }, { tx });
-      if (!related) throw new Error("Related record not found");
+      if (!related) {
+        tx.abort();
+        throw new Error("Related record not found");
+      }
     }
     if (query.data.fatherLastName !== undefined || query.data.fatherFirstName !== undefined) {
       const related = await this.client.father.findUnique(
         { where: { firstName_lastName: { firstName: record.fatherFirstName, lastName: record.fatherLastName } } },
         { tx }
       );
-      if (!related) throw new Error("Related record not found");
+      if (!related) {
+        tx.abort();
+        throw new Error("Related record not found");
+      }
     }
     if (query.data.motherFirstName !== undefined || query.data.motherLastName !== undefined) {
       const related = await this.client.mother.findUnique(
         { where: { firstName_lastName: { firstName: record.motherFirstName, lastName: record.motherLastName } } },
         { tx }
       );
-      if (!related) throw new Error("Related record not found");
+      if (!related) {
+        tx.abort();
+        throw new Error("Related record not found");
+      }
     }
     const endKeyPath: PrismaIDBSchema["Child"]["key"] = [record.childFirstName, record.childLastName];
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("Child").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("Child").delete(startKeyPath);
@@ -19278,6 +19366,7 @@ class CompositeIdIntStringIDBClass extends BaseIDBModelClass<"CompositeIdIntStri
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("CompositeIdIntString").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("CompositeIdIntString").delete(startKeyPath);
@@ -19931,6 +20020,7 @@ class CompositeIdWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeIdWith
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("CompositeIdWithDateTime").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("CompositeIdWithDateTime").delete(startKeyPath);
@@ -20606,6 +20696,7 @@ class TripleCompositeIdWithDateIDBClass extends BaseIDBModelClass<"TripleComposi
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("TripleCompositeIdWithDate").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("TripleCompositeIdWithDate").delete(startKeyPath);
@@ -21313,6 +21404,7 @@ class CompositeUniqueWithDateTimeIDBClass extends BaseIDBModelClass<"CompositeUn
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("CompositeUniqueWithDateTime").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("CompositeUniqueWithDateTime").delete(startKeyPath);
@@ -22012,6 +22104,7 @@ class CompositeUniqueFloatIntIDBClass extends BaseIDBModelClass<"CompositeUnique
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("CompositeUniqueFloatInt").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("CompositeUniqueFloatInt").delete(startKeyPath);
@@ -22722,6 +22815,7 @@ class MultipleCompositeUniquesIDBClass extends BaseIDBModelClass<"MultipleCompos
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("MultipleCompositeUniques").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("MultipleCompositeUniques").delete(startKeyPath);
@@ -23440,6 +23534,7 @@ class ModelWithIndexIDBClass extends BaseIDBModelClass<"ModelWithIndex"> {
     for (let i = 0; i < startKeyPath.length; i++) {
       if (startKeyPath[i] !== endKeyPath[i]) {
         if ((await tx.objectStore("ModelWithIndex").get(endKeyPath)) !== undefined) {
+          tx.abort();
           throw new Error("Record with the same keyPath already exists");
         }
         await tx.objectStore("ModelWithIndex").delete(startKeyPath);
