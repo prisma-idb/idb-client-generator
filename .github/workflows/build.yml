@@ -34,6 +34,8 @@ jobs:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5433/postgres"
           GOOGLE_CLIENT_ID: "placeholder"
           GOOGLE_CLIENT_SECRET: "placeholder"
+          PUBLIC_POSTHOG_PROJECT_TOKEN: "placeholder"
+          PUBLIC_POSTHOG_HOST: "https://us.i.posthog.com"
 
   test-schema-gen:
     runs-on: ubuntu-latest
@@ -85,6 +87,8 @@ jobs:
         env:
           GOOGLE_CLIENT_ID: "placeholder"
           GOOGLE_CLIENT_SECRET: "placeholder"
+          PUBLIC_POSTHOG_PROJECT_TOKEN: "placeholder"
+          PUBLIC_POSTHOG_HOST: "https://us.i.posthog.com"
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:

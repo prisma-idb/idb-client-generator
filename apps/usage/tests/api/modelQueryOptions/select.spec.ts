@@ -1,39 +1,44 @@
 import { test } from "../../fixtures";
 import { expectQueryToSucceed } from "../../queryRunnerHelper";
 
-test("select_WithRelationAndName_ReturnsSelectedData", async ({ page }) => {
+test("select_WithRelationAndName_ReturnsSelectedData", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "John Doe", profile: { create: { bio: "John's Bio" } } } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: { select: { profile: true, name: true } },
   });
 });
 
-test("select_WithNestedRelationSelect_ReturnsSelectedData", async ({ page }) => {
+test("select_WithNestedRelationSelect_ReturnsSelectedData", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "John Doe", profile: { create: { bio: "John's Bio" } } } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: { select: { profile: { select: { bio: true } }, name: true } },
   });
 });
 
-test("select_WithOneToManyRelation_ReturnsSelectedData", async ({ page }) => {
+test("select_WithOneToManyRelation_ReturnsSelectedData", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: {
@@ -47,15 +52,17 @@ test("select_WithOneToManyRelation_ReturnsSelectedData", async ({ page }) => {
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: { select: { posts: true, name: true } },
   });
 });
 
-test("select_WithOneToOneRelation_ReturnsSelectedData", async ({ page }) => {
+test("select_WithOneToOneRelation_ReturnsSelectedData", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: {
@@ -69,6 +76,7 @@ test("select_WithOneToOneRelation_ReturnsSelectedData", async ({ page }) => {
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: { select: { profile: true, name: true } },

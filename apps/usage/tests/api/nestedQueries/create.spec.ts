@@ -2,10 +2,11 @@ import { createId } from "@paralleldrive/cuid2";
 import { test } from "../../fixtures";
 import { expectQueryToFail, expectQueryToSucceed } from "../../queryRunnerHelper";
 
-test("create_NestedCreateTransactionFailsOnError_RollsBackChanges", async ({ page }) => {
+test("create_NestedCreateTransactionFailsOnError_RollsBackChanges", async ({ page, prisma }) => {
   // Create test user with profile
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { id: 1, name: "Alice with bio", profile: { create: { bio: "generic bio" } } } },
@@ -14,85 +15,96 @@ test("create_NestedCreateTransactionFailsOnError_RollsBackChanges", async ({ pag
   // Repeat with same IDs (should fail)
   await expectQueryToFail({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "Alice with bio", profile: { create: { id: 1, bio: "generic bio" } } } },
     errorMessage: "Key already exists in the object store",
   });
 
-  await expectQueryToSucceed({ page, model: "user", operation: "count" });
-  await expectQueryToSucceed({ page, model: "profile", operation: "count" });
+  await expectQueryToSucceed({ page, prisma, model: "user", operation: "count" });
+  await expectQueryToSucceed({ page, prisma, model: "profile", operation: "count" });
 });
 
-test("create_WithOneToOneRelationMetaOnNested_SuccessfullyCreatesBothEntities", async ({ page }) => {
+test("create_WithOneToOneRelationMetaOnNested_SuccessfullyCreatesBothEntities", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "Alice with bio", profile: { create: { bio: "generic bio" } } } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findUnique",
     query: { where: { id: 1 } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "findUnique",
     query: { where: { userId: 1 } },
   });
 });
 
-test("create_WithOneToOneRelationMetaOnParent_SuccessfullyCreatesBothEntities", async ({ page }) => {
+test("create_WithOneToOneRelationMetaOnParent_SuccessfullyCreatesBothEntities", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "create",
     query: { data: { bio: "Alice's bio", user: { create: { name: "Alice" } } } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findUnique",
     query: { where: { id: 1 } },
   });
 });
 
-test("create_WithOneToManyRelation_CreatesParentAndOneChildRecord", async ({ page }) => {
+test("create_WithOneToManyRelation_CreatesParentAndOneChildRecord", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "Alice", posts: { create: { title: "Post1" } } } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
     query: { where: { id: 1 } },
   });
 });
 
-test("create_WithOneToManyRelation_CreatesParentAndManyChildRecords", async ({ page }) => {
+test("create_WithOneToManyRelation_CreatesParentAndManyChildRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "Alice", posts: { create: [{ title: "Post1" }, { title: "Post2" }] } } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
     query: { where: { id: 1 } },
   });
 });
 
-test("create_WithExplicitManyToManyRelation_CreatesJoinRecords", async ({ page }) => {
+test("create_WithExplicitManyToManyRelation_CreatesJoinRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "userGroup",
     operation: "create",
     query: {
@@ -101,16 +113,18 @@ test("create_WithExplicitManyToManyRelation_CreatesJoinRecords", async ({ page }
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: { include: { groups: { include: { group: true, user: true } } } },
   });
 });
 
-test("create_WithDeeplyNestedRelations_PersistsAllEntities", async ({ page }) => {
+test("create_WithDeeplyNestedRelations_PersistsAllEntities", async ({ page, prisma }) => {
   const randomCUID = createId();
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "create",
     query: {
@@ -122,6 +136,7 @@ test("create_WithDeeplyNestedRelations_PersistsAllEntities", async ({ page }) =>
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
     query: { include: { author: true, comments: { include: { user: true } } } },

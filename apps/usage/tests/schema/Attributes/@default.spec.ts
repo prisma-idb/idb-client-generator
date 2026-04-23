@@ -2,9 +2,10 @@ import type { Comment, Post, UserGroup } from "$lib/generated/prisma/client";
 import { expect, test } from "../../fixtures";
 import { expectQueryToSucceed, runQuery } from "../../queryRunnerHelper";
 
-test("@default(autoincrement) - Creates new post with auto-increment ID", async ({ page }) => {
+test("@default(autoincrement) - Creates new post with auto-increment ID", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "create",
     query: {
@@ -14,6 +15,7 @@ test("@default(autoincrement) - Creates new post with auto-increment ID", async 
 
   const response: Post[] = (await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
     query: {},
@@ -23,9 +25,10 @@ test("@default(autoincrement) - Creates new post with auto-increment ID", async 
   expect(response[0].id).toBeGreaterThan(0);
 });
 
-test("@default(cuid(2)) - Creates new comment with cuid generated ID", async ({ page }) => {
+test("@default(cuid(2)) - Creates new comment with cuid generated ID", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: {
@@ -35,6 +38,7 @@ test("@default(cuid(2)) - Creates new comment with cuid generated ID", async ({ 
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "create",
     query: {
@@ -44,6 +48,7 @@ test("@default(cuid(2)) - Creates new comment with cuid generated ID", async ({ 
 
   const { idbClientResult } = await runQuery({
     page,
+    prisma,
     model: "comment",
     operation: "create",
     query: {
@@ -54,9 +59,10 @@ test("@default(cuid(2)) - Creates new comment with cuid generated ID", async ({ 
   expect((idbClientResult as Comment).id).toHaveLength(24); // typical length of cuid
 });
 
-test("@default(now()) - Creates new userGroup with current date", async ({ page }) => {
+test("@default(now()) - Creates new userGroup with current date", async ({ page, prisma }) => {
   const { idbClientResult } = await runQuery({
     page,
+    prisma,
     model: "userGroup",
     operation: "create",
     query: {
@@ -74,9 +80,10 @@ test("@default(now()) - Creates new userGroup with current date", async ({ page 
   );
 });
 
-test("@default(uuid()) - Creates new TestUuid entry with uuid generated ID", async ({ page }) => {
+test("@default(uuid()) - Creates new TestUuid entry with uuid generated ID", async ({ page, prisma }) => {
   const { idbClientResult } = await runQuery({
     page,
+    prisma,
     model: "testUuid",
     operation: "create",
     query: {

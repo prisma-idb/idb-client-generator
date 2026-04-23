@@ -1,12 +1,15 @@
+/// <reference types="node" />
+
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests",
-  fullyParallel: false,
+  fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: 1,
+  retries: 0,
+  workers: process.env.CI ? 1 : 4,
   reporter: "html",
+  globalSetup: "./tests/global-setup.ts",
   use: { trace: "on-first-retry", video: "retain-on-failure" },
   projects: [
     // Can only use one or we get race conditions
@@ -41,7 +44,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: "pnpm exec prisma db push --force-reset && pnpm build && pnpm preview",
+    command: "pnpm build && pnpm preview",
     port: 4174,
     reuseExistingServer: false,
   },

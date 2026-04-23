@@ -1,9 +1,10 @@
 import { expect, test } from "../fixtures";
 import { expectQueryToSucceed } from "../queryRunnerHelper";
 
-test("updateEvent_UpdateUser_EmitsUpdateEvent", async ({ page }) => {
+test("updateEvent_UpdateUser_EmitsUpdateEvent", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "NewUser" } },
@@ -11,6 +12,7 @@ test("updateEvent_UpdateUser_EmitsUpdateEvent", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: { where: { id: 1 }, data: { name: "UpdatedUser" } },
@@ -19,9 +21,10 @@ test("updateEvent_UpdateUser_EmitsUpdateEvent", async ({ page }) => {
   await expect(page.locator("pre").first()).toContainText(`{ "keyPath": [ 1 ], "oldKeyPath": [ 1 ] }`);
 });
 
-test("updateEvent_UpdateManyUsers_EmitsUpdateEvents", async ({ page }) => {
+test("updateEvent_UpdateManyUsers_EmitsUpdateEvents", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "createMany",
     query: {
@@ -31,6 +34,7 @@ test("updateEvent_UpdateManyUsers_EmitsUpdateEvents", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "updateMany",
     query: { where: { id: { in: [1, 2] } }, data: { name: "UpdatedUser" } },
@@ -39,9 +43,10 @@ test("updateEvent_UpdateManyUsers_EmitsUpdateEvents", async ({ page }) => {
   await expect(page.locator("pre").first()).toContainText(`{ "keyPath": [ 2 ], "oldKeyPath": [ 2 ] }`);
 });
 
-test("updateEvent_UpsertUser_EmitsUpdateEventWhenUpdating", async ({ page }) => {
+test("updateEvent_UpsertUser_EmitsUpdateEventWhenUpdating", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: {
@@ -51,6 +56,7 @@ test("updateEvent_UpsertUser_EmitsUpdateEventWhenUpdating", async ({ page }) => 
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "upsert",
     query: {
@@ -63,9 +69,10 @@ test("updateEvent_UpsertUser_EmitsUpdateEventWhenUpdating", async ({ page }) => 
   await expect(page.locator("pre").first()).toContainText(`{ "keyPath": [ 1 ], "oldKeyPath": [ 1 ] }`);
 });
 
-test("updateEvent_UpdateUserId_EmitsUpdateEventWithNewId", async ({ page }) => {
+test("updateEvent_UpdateUserId_EmitsUpdateEventWithNewId", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "NewUser" } },
@@ -73,6 +80,7 @@ test("updateEvent_UpdateUserId_EmitsUpdateEventWithNewId", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: { where: { id: 1 }, data: { id: 2, name: "UpdatedUser" } },

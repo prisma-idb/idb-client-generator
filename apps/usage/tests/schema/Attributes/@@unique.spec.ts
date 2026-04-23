@@ -3,56 +3,63 @@ import { expectQueryToSucceed } from "../../queryRunnerHelper";
 
 // ── CompositeUniqueWithDateTime (@@unique([category, timestamp])) ────
 
-test("CompositeUniqueWithDateTime_Create_SuccessfullyCreatesRecord", async ({ page }) => {
+test("CompositeUniqueWithDateTime_Create_SuccessfullyCreatesRecord", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueWithDateTime",
     operation: "create",
     query: { data: { category: "news", timestamp: new Date("2024-03-10T08:00:00Z") } },
   });
 });
 
-test("CompositeUniqueWithDateTime_FindUnique_ByCompositeUnique", async ({ page }) => {
+test("CompositeUniqueWithDateTime_FindUnique_ByCompositeUnique", async ({ page, prisma }) => {
   const timestamp = new Date("2024-03-10T08:00:00Z");
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueWithDateTime",
     operation: "create",
     query: { data: { category: "news", timestamp } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueWithDateTime",
     operation: "findUnique",
     query: { where: { category_timestamp: { category: "news", timestamp } } },
   });
 });
 
-test("CompositeUniqueWithDateTime_FindUnique_ById", async ({ page }) => {
+test("CompositeUniqueWithDateTime_FindUnique_ById", async ({ page, prisma }) => {
   const result = await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueWithDateTime",
     operation: "create",
     query: { data: { category: "news", timestamp: new Date("2024-03-10T08:00:00Z") } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueWithDateTime",
     operation: "findUnique",
     query: { where: { id: (result as { id: number }).id } },
   });
 });
 
-test("CompositeUniqueWithDateTime_Update_ByCompositeUnique", async ({ page }) => {
+test("CompositeUniqueWithDateTime_Update_ByCompositeUnique", async ({ page, prisma }) => {
   const timestamp = new Date("2024-03-10T08:00:00Z");
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueWithDateTime",
     operation: "create",
     query: { data: { category: "news", timestamp } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueWithDateTime",
     operation: "update",
     query: {
@@ -62,32 +69,37 @@ test("CompositeUniqueWithDateTime_Update_ByCompositeUnique", async ({ page }) =>
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueWithDateTime",
     operation: "findMany",
   });
 });
 
-test("CompositeUniqueWithDateTime_FindMany_ReturnsMultipleRecords", async ({ page }) => {
+test("CompositeUniqueWithDateTime_FindMany_ReturnsMultipleRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueWithDateTime",
     operation: "create",
     query: { data: { category: "news", timestamp: new Date("2024-03-10T08:00:00Z") } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueWithDateTime",
     operation: "create",
     query: { data: { category: "news", timestamp: new Date("2024-06-15T12:00:00Z") } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueWithDateTime",
     operation: "create",
     query: { data: { category: "sports", timestamp: new Date("2024-03-10T08:00:00Z") } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueWithDateTime",
     operation: "findMany",
   });
@@ -95,60 +107,68 @@ test("CompositeUniqueWithDateTime_FindMany_ReturnsMultipleRecords", async ({ pag
 
 // ── CompositeUniqueFloatInt (@@unique([lat, lng]), @@unique([zoneId, lat])) ──
 
-test("CompositeUniqueFloatInt_Create_SuccessfullyCreatesRecord", async ({ page }) => {
+test("CompositeUniqueFloatInt_Create_SuccessfullyCreatesRecord", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueFloatInt",
     operation: "create",
     query: { data: { lat: 40.7128, lng: -74.006, zoneId: 1 } },
   });
 });
 
-test("CompositeUniqueFloatInt_FindUnique_ByLatLng", async ({ page }) => {
+test("CompositeUniqueFloatInt_FindUnique_ByLatLng", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueFloatInt",
     operation: "create",
     query: { data: { lat: 40.7128, lng: -74.006, zoneId: 1 } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueFloatInt",
     operation: "findUnique",
     query: { where: { lat_lng: { lat: 40.7128, lng: -74.006 } } },
   });
 });
 
-test("CompositeUniqueFloatInt_FindUnique_ByZoneIdLat", async ({ page }) => {
+test("CompositeUniqueFloatInt_FindUnique_ByZoneIdLat", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueFloatInt",
     operation: "create",
     query: { data: { lat: 40.7128, lng: -74.006, zoneId: 1 } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueFloatInt",
     operation: "findUnique",
     query: { where: { zoneId_lat: { zoneId: 1, lat: 40.7128 } } },
   });
 });
 
-test("CompositeUniqueFloatInt_FindMany_ReturnsMultipleRecords", async ({ page }) => {
+test("CompositeUniqueFloatInt_FindMany_ReturnsMultipleRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueFloatInt",
     operation: "create",
     query: { data: { lat: 40.7128, lng: -74.006, zoneId: 1 } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueFloatInt",
     operation: "create",
     query: { data: { lat: 51.5074, lng: -0.1278, zoneId: 2 } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueFloatInt",
     operation: "findMany",
   });
@@ -156,9 +176,10 @@ test("CompositeUniqueFloatInt_FindMany_ReturnsMultipleRecords", async ({ page })
 
 // ── MultipleCompositeUniques (@@unique([a,b]), @@unique([c,d]), @@unique([a,c])) ──
 
-test("MultipleCompositeUniques_Create_SuccessfullyCreatesRecord", async ({ page }) => {
+test("MultipleCompositeUniques_Create_SuccessfullyCreatesRecord", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "multipleCompositeUniques",
     operation: "create",
     query: {
@@ -167,97 +188,110 @@ test("MultipleCompositeUniques_Create_SuccessfullyCreatesRecord", async ({ page 
   });
 });
 
-test("MultipleCompositeUniques_FindUnique_ByAB", async ({ page }) => {
+test("MultipleCompositeUniques_FindUnique_ByAB", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "multipleCompositeUniques",
     operation: "create",
     query: { data: { a: "hello", b: 42, c: new Date("2024-01-01T00:00:00Z"), d: 3.14 } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "multipleCompositeUniques",
     operation: "findUnique",
     query: { where: { a_b: { a: "hello", b: 42 } } },
   });
 });
 
-test("MultipleCompositeUniques_FindUnique_ByCD", async ({ page }) => {
+test("MultipleCompositeUniques_FindUnique_ByCD", async ({ page, prisma }) => {
   const c = new Date("2024-01-01T00:00:00Z");
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "multipleCompositeUniques",
     operation: "create",
     query: { data: { a: "hello", b: 42, c, d: 3.14 } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "multipleCompositeUniques",
     operation: "findUnique",
     query: { where: { c_d: { c, d: 3.14 } } },
   });
 });
 
-test("MultipleCompositeUniques_FindUnique_ByAC", async ({ page }) => {
+test("MultipleCompositeUniques_FindUnique_ByAC", async ({ page, prisma }) => {
   const c = new Date("2024-01-01T00:00:00Z");
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "multipleCompositeUniques",
     operation: "create",
     query: { data: { a: "hello", b: 42, c, d: 3.14 } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "multipleCompositeUniques",
     operation: "findUnique",
     query: { where: { a_c: { a: "hello", c } } },
   });
 });
 
-test("MultipleCompositeUniques_Update_ByCompositeUnique", async ({ page }) => {
+test("MultipleCompositeUniques_Update_ByCompositeUnique", async ({ page, prisma }) => {
   const c = new Date("2024-01-01T00:00:00Z");
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "multipleCompositeUniques",
     operation: "create",
     query: { data: { a: "hello", b: 42, c, d: 3.14 } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "multipleCompositeUniques",
     operation: "update",
     query: { where: { a_b: { a: "hello", b: 42 } }, data: { d: 2.71 } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "multipleCompositeUniques",
     operation: "findMany",
   });
 });
 
-test("MultipleCompositeUniques_FindMany_ReturnsMultipleRecords", async ({ page }) => {
+test("MultipleCompositeUniques_FindMany_ReturnsMultipleRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "multipleCompositeUniques",
     operation: "create",
     query: { data: { a: "x", b: 1, c: new Date("2024-01-01T00:00:00Z"), d: 1.0 } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "multipleCompositeUniques",
     operation: "create",
     query: { data: { a: "y", b: 2, c: new Date("2024-06-01T00:00:00Z"), d: 2.0 } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "multipleCompositeUniques",
     operation: "findMany",
   });
 });
 
-test("MultipleCompositeUniques_FindMany_BySharedPrefix", async ({ page }) => {
+test("MultipleCompositeUniques_FindMany_BySharedPrefix", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "multipleCompositeUniques",
     operation: "createMany",
     query: {
@@ -270,6 +304,7 @@ test("MultipleCompositeUniques_FindMany_BySharedPrefix", async ({ page }) => {
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "multipleCompositeUniques",
     operation: "findMany",
     query: { where: { a: "x" } },
@@ -286,15 +321,17 @@ const compositeUniqueFloatIntSeed = [
   { lat: 90.0, lng: 100.0, zoneId: 5 },
 ];
 
-test("CompositeUniqueFloatInt_CursorByLatLng_StartFromCompositeCursor", async ({ page }) => {
+test("CompositeUniqueFloatInt_CursorByLatLng_StartFromCompositeCursor", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueFloatInt",
     operation: "createMany",
     query: { data: compositeUniqueFloatIntSeed },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueFloatInt",
     operation: "findMany",
     query: {
@@ -304,15 +341,17 @@ test("CompositeUniqueFloatInt_CursorByLatLng_StartFromCompositeCursor", async ({
   });
 });
 
-test("CompositeUniqueFloatInt_CursorByLatLngWithTake_LimitsAfterCursor", async ({ page }) => {
+test("CompositeUniqueFloatInt_CursorByLatLngWithTake_LimitsAfterCursor", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueFloatInt",
     operation: "createMany",
     query: { data: compositeUniqueFloatIntSeed },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueFloatInt",
     operation: "findMany",
     query: {
@@ -323,15 +362,17 @@ test("CompositeUniqueFloatInt_CursorByLatLngWithTake_LimitsAfterCursor", async (
   });
 });
 
-test("CompositeUniqueFloatInt_CursorByZoneIdLat_StartFromCompositeCursor", async ({ page }) => {
+test("CompositeUniqueFloatInt_CursorByZoneIdLat_StartFromCompositeCursor", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueFloatInt",
     operation: "createMany",
     query: { data: compositeUniqueFloatIntSeed },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueFloatInt",
     operation: "findMany",
     query: {
@@ -342,15 +383,17 @@ test("CompositeUniqueFloatInt_CursorByZoneIdLat_StartFromCompositeCursor", async
   });
 });
 
-test("CompositeUniqueFloatInt_CursorByLatLngWithNegativeTake_ReturnsBeforeCursor", async ({ page }) => {
+test("CompositeUniqueFloatInt_CursorByLatLngWithNegativeTake_ReturnsBeforeCursor", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueFloatInt",
     operation: "createMany",
     query: { data: compositeUniqueFloatIntSeed },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueFloatInt",
     operation: "findMany",
     query: {
@@ -361,15 +404,17 @@ test("CompositeUniqueFloatInt_CursorByLatLngWithNegativeTake_ReturnsBeforeCursor
   });
 });
 
-test("CompositeUniqueFloatInt_CursorByLatLngWithSkipAndTake_PaginatesCorrectly", async ({ page }) => {
+test("CompositeUniqueFloatInt_CursorByLatLngWithSkipAndTake_PaginatesCorrectly", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueFloatInt",
     operation: "createMany",
     query: { data: compositeUniqueFloatIntSeed },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "compositeUniqueFloatInt",
     operation: "findMany",
     query: {

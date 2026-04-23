@@ -1,9 +1,10 @@
 import { test } from "../../fixtures";
 import { expectQueryToFail, expectQueryToSucceed } from "../../queryRunnerHelper";
 
-test("connectOrCreate_ConnectOrCreateProfileToUser_AddsOrConnectsProfile", async ({ page }) => {
+test("connectOrCreate_ConnectOrCreateProfileToUser_AddsOrConnectsProfile", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "John" } },
@@ -11,6 +12,7 @@ test("connectOrCreate_ConnectOrCreateProfileToUser_AddsOrConnectsProfile", async
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "create",
     query: {
@@ -28,15 +30,17 @@ test("connectOrCreate_ConnectOrCreateProfileToUser_AddsOrConnectsProfile", async
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "findMany",
     query: { include: { user: true } },
   });
 });
 
-test("connectOrCreate_ConnectOrCreateProfileToInvalidUser_CreatesUser", async ({ page }) => {
+test("connectOrCreate_ConnectOrCreateProfileToInvalidUser_CreatesUser", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "create",
     query: {
@@ -54,15 +58,17 @@ test("connectOrCreate_ConnectOrCreateProfileToInvalidUser_CreatesUser", async ({
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findUnique",
     query: { where: { id: 999 } },
   });
 });
 
-test("connectOrCreate_ConnectOrCreatePostsToUser_AddsOrConnectsPosts", async ({ page }) => {
+test("connectOrCreate_ConnectOrCreatePostsToUser_AddsOrConnectsPosts", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "createMany",
     query: {
@@ -75,6 +81,7 @@ test("connectOrCreate_ConnectOrCreatePostsToUser_AddsOrConnectsPosts", async ({ 
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: {
@@ -92,15 +99,17 @@ test("connectOrCreate_ConnectOrCreatePostsToUser_AddsOrConnectsPosts", async ({ 
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
     query: { include: { author: true }, orderBy: { id: "asc" } },
   });
 });
 
-test("connectOrCreate_ConnectOrCreateNonExistentPost_CreatesAndConnectsPost", async ({ page }) => {
+test("connectOrCreate_ConnectOrCreateNonExistentPost_CreatesAndConnectsPost", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: {
@@ -117,9 +126,10 @@ test("connectOrCreate_ConnectOrCreateNonExistentPost_CreatesAndConnectsPost", as
   });
 });
 
-test("connectOrCreate_ConnectOrCreateMultipleProfilesToUser_ThrowsErrorOnDuplicate", async ({ page }) => {
+test("connectOrCreate_ConnectOrCreateMultipleProfilesToUser_ThrowsErrorOnDuplicate", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "John" } },
@@ -127,6 +137,7 @@ test("connectOrCreate_ConnectOrCreateMultipleProfilesToUser_ThrowsErrorOnDuplica
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "create",
     query: {
@@ -144,6 +155,7 @@ test("connectOrCreate_ConnectOrCreateMultipleProfilesToUser_ThrowsErrorOnDuplica
 
   await expectQueryToFail({
     page,
+    prisma,
     model: "profile",
     operation: "create",
     query: {
@@ -163,14 +175,16 @@ test("connectOrCreate_ConnectOrCreateMultipleProfilesToUser_ThrowsErrorOnDuplica
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "findMany",
   });
 });
 
-test("connectOrCreate_UpdateUserWithConnectOrCreateProfile_AddsOrConnectsProfile", async ({ page }) => {
+test("connectOrCreate_UpdateUserWithConnectOrCreateProfile_AddsOrConnectsProfile", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "John" } },
@@ -178,6 +192,7 @@ test("connectOrCreate_UpdateUserWithConnectOrCreateProfile_AddsOrConnectsProfile
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: {
@@ -195,15 +210,20 @@ test("connectOrCreate_UpdateUserWithConnectOrCreateProfile_AddsOrConnectsProfile
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "findMany",
     query: { include: { user: true } },
   });
 });
 
-test("connectOrCreate_UpdateUserWithConnectOrCreateNonExistentProfile_CreatesAndConnectsProfile", async ({ page }) => {
+test("connectOrCreate_UpdateUserWithConnectOrCreateNonExistentProfile_CreatesAndConnectsProfile", async ({
+  page,
+  prisma,
+}) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "John" } },
@@ -211,6 +231,7 @@ test("connectOrCreate_UpdateUserWithConnectOrCreateNonExistentProfile_CreatesAnd
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: {
@@ -228,6 +249,7 @@ test("connectOrCreate_UpdateUserWithConnectOrCreateNonExistentProfile_CreatesAnd
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "findMany",
     query: { include: { user: true } },

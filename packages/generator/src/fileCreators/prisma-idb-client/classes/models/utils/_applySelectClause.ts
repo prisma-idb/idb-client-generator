@@ -26,7 +26,7 @@ function addSelectProcessing(writer: CodeBlockWriter, model: Model) {
     .writeLine("return records.map((record) => ")
     .block(() => {
       writer
-        .writeLine("const partialRecord: Partial<typeof record> = record;")
+        .writeLine("const partialRecord: Partial<typeof record> = { ...record };")
         .writeLine(`for (const untypedKey of ${JSON.stringify(model.fields.map(({ name }) => name))}) `)
         .block(() => {
           writer

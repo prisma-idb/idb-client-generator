@@ -1,9 +1,10 @@
 import { test } from "../../fixtures";
 import { expectQueryToFail, expectQueryToSucceed } from "../../queryRunnerHelper";
 
-test("connect_ConnectProfileToUser_AddsForeignKeyToProfile", async ({ page }) => {
+test("connect_ConnectProfileToUser_AddsForeignKeyToProfile", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "John" } },
@@ -11,15 +12,17 @@ test("connect_ConnectProfileToUser_AddsForeignKeyToProfile", async ({ page }) =>
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "create",
     query: { data: { bio: "John's bio", user: { connect: { id: 1 } } } },
   });
 });
 
-test("connect_ConnectProfileToInvalidUser_ThrowsError", async ({ page }) => {
+test("connect_ConnectProfileToInvalidUser_ThrowsError", async ({ page, prisma }) => {
   await expectQueryToFail({
     page,
+    prisma,
     model: "profile",
     operation: "create",
     query: { data: { bio: "John's bio", user: { connect: { id: 1 } } } },
@@ -27,14 +30,16 @@ test("connect_ConnectProfileToInvalidUser_ThrowsError", async ({ page }) => {
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "findMany",
   });
 });
 
-test("connect_ConnectProfileToUserDirectly_AddsForeignKeyToProfile", async ({ page }) => {
+test("connect_ConnectProfileToUserDirectly_AddsForeignKeyToProfile", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "John" } },
@@ -42,15 +47,17 @@ test("connect_ConnectProfileToUserDirectly_AddsForeignKeyToProfile", async ({ pa
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "create",
     query: { data: { bio: "John's bio", userId: 1 } },
   });
 });
 
-test("connect_ConnectProfileToInvalidUserDirectly_ThrowsError", async ({ page }) => {
+test("connect_ConnectProfileToInvalidUserDirectly_ThrowsError", async ({ page, prisma }) => {
   await expectQueryToFail({
     page,
+    prisma,
     model: "profile",
     operation: "create",
     query: { data: { bio: "John's bio", userId: 1 } },
@@ -58,14 +65,16 @@ test("connect_ConnectProfileToInvalidUserDirectly_ThrowsError", async ({ page })
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "findMany",
   });
 });
 
-test("connect_ConnectTwoProfilesToUser_ThrowsError", async ({ page }) => {
+test("connect_ConnectTwoProfilesToUser_ThrowsError", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "John" } },
@@ -73,6 +82,7 @@ test("connect_ConnectTwoProfilesToUser_ThrowsError", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "create",
     query: { data: { bio: "John's bio 1", user: { connect: { id: 1 } } } },
@@ -80,6 +90,7 @@ test("connect_ConnectTwoProfilesToUser_ThrowsError", async ({ page }) => {
 
   await expectQueryToFail({
     page,
+    prisma,
     model: "profile",
     operation: "create",
     query: { data: { bio: "John's bio 2", user: { connect: { id: 1 } } } },
@@ -89,15 +100,17 @@ test("connect_ConnectTwoProfilesToUser_ThrowsError", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "findMany",
     query: { include: { user: true } },
   });
 });
 
-test("connect_ConnectValidPostsToUser_AddsForeignKeysToPosts", async ({ page }) => {
+test("connect_ConnectValidPostsToUser_AddsForeignKeysToPosts", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "createMany",
     query: {
@@ -110,6 +123,7 @@ test("connect_ConnectValidPostsToUser_AddsForeignKeysToPosts", async ({ page }) 
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "John", posts: { connect: [{ id: 1 }, { id: 2 /* conditions in connect */ }] } } },
@@ -117,15 +131,17 @@ test("connect_ConnectValidPostsToUser_AddsForeignKeysToPosts", async ({ page }) 
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
     query: { include: { author: true } },
   });
 });
 
-test("connect_ConnectNonExistentProfile_ThrowsError", async ({ page }) => {
+test("connect_ConnectNonExistentProfile_ThrowsError", async ({ page, prisma }) => {
   await expectQueryToFail({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: {
@@ -135,41 +151,47 @@ test("connect_ConnectNonExistentProfile_ThrowsError", async ({ page }) => {
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
   });
 });
 
-test("connect_ConnectProfileToUserWithNameCondition_SuccessfullyConnects", async ({ page }) => {
+test("connect_ConnectProfileToUserWithNameCondition_SuccessfullyConnects", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "Jane" } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "create",
     query: { data: { bio: "Jane's bio", user: { connect: { id: 1, name: "Jane" } } } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "findMany",
     query: { include: { user: true } },
   });
 });
 
-test("connect_ConnectProfileToInvalidNameCondition_ThrowsError", async ({ page }) => {
+test("connect_ConnectProfileToInvalidNameCondition_ThrowsError", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "Bob" } },
   });
   await expectQueryToFail({
     page,
+    prisma,
     model: "profile",
     operation: "create",
     query: { data: { bio: "Failing bio", user: { connect: { id: 1, name: "Alice" } } } },
@@ -177,15 +199,17 @@ test("connect_ConnectProfileToInvalidNameCondition_ThrowsError", async ({ page }
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "findMany",
   });
 });
 
 // Connect multiple posts to the same user if posts meet certain conditions
-test("connect_ConnectMultiplePostsToUserWithTitleCondition_SuccessfullyConnects", async ({ page }) => {
+test("connect_ConnectMultiplePostsToUserWithTitleCondition_SuccessfullyConnects", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "createMany",
     query: {
@@ -197,12 +221,14 @@ test("connect_ConnectMultiplePostsToUserWithTitleCondition_SuccessfullyConnects"
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "Charlie" } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: {
@@ -219,6 +245,7 @@ test("connect_ConnectMultiplePostsToUserWithTitleCondition_SuccessfullyConnects"
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
     query: { include: { author: true } },
@@ -226,21 +253,24 @@ test("connect_ConnectMultiplePostsToUserWithTitleCondition_SuccessfullyConnects"
 });
 
 // Attempt to connect two profiles to a user with name condition, expecting an error
-test("connect_ConnectTwoProfilesToUserWithNameCondition_ThrowsError", async ({ page }) => {
+test("connect_ConnectTwoProfilesToUserWithNameCondition_ThrowsError", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "Dave" } },
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "create",
     query: { data: { bio: "First bio", user: { connect: { id: 1 } } } },
   });
   await expectQueryToFail({
     page,
+    prisma,
     model: "profile",
     operation: "create",
     query: { data: { bio: "Second bio", user: { connect: { id: 1 } } } },
@@ -249,6 +279,7 @@ test("connect_ConnectTwoProfilesToUserWithNameCondition_ThrowsError", async ({ p
   });
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "findMany",
     query: { include: { user: true } },

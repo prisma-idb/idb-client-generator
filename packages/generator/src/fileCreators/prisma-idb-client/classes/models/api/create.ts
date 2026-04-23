@@ -135,11 +135,12 @@ function addOneToOneMetaOnFieldRelation(writer: CodeBlockWriter, field: Field, m
 
   writer.writeLine(`if (query.data.${field.name}?.connectOrCreate)`).block(() => {
     writer
-      .writeLine(`const record = await this.client.${toCamelCase(field.type)}.upsert({`)
-      .writeLine(`where: query.data.${field.name}.connectOrCreate.where,`)
-      .writeLine(`create: query.data.${field.name}.connectOrCreate.create,`)
-      .writeLine(`update: {},`)
-      .writeLine(`}, { tx, silent, addToOutbox });`);
+      .writeLine(
+        `const record = (await this.client.${toCamelCase(field.type)}.findUnique({ where: query.data.${field.name}.connectOrCreate.where }, { tx })) ??`
+      )
+      .writeLine(
+        `await this.client.${toCamelCase(field.type)}.create({ data: query.data.${field.name}.connectOrCreate.create }, { tx, silent, addToOutbox });`
+      );
     for (let i = 0; i < otherModelKeyPath!.length; i++) {
       writer.writeLine(`fk[${i}] = record.${otherModelKeyPath?.at(i)};`);
     }

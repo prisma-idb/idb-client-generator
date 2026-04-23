@@ -1,9 +1,10 @@
 import { test } from "../../fixtures";
 import { expectQueryToSucceed } from "../../queryRunnerHelper";
 
-test("distinct_SingleField_ReturnsDistinctRows", async ({ page }) => {
+test("distinct_SingleField_ReturnsDistinctRows", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "createMany",
     query: {
@@ -13,6 +14,7 @@ test("distinct_SingleField_ReturnsDistinctRows", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {
@@ -22,9 +24,10 @@ test("distinct_SingleField_ReturnsDistinctRows", async ({ page }) => {
   });
 });
 
-test("distinct_MultipleFields_ReturnsDistinctRows", async ({ page }) => {
+test("distinct_MultipleFields_ReturnsDistinctRows", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "createMany",
     query: {
@@ -34,6 +37,7 @@ test("distinct_MultipleFields_ReturnsDistinctRows", async ({ page }) => {
   // Re-create with same name but also a different field to test multiple distinct fields
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "createMany",
     query: {
@@ -48,6 +52,7 @@ test("distinct_MultipleFields_ReturnsDistinctRows", async ({ page }) => {
   // Distinct on multiple fields doesn't do much if there's only one user, but we include it for coverage
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "profile",
     operation: "findMany",
     query: {
@@ -57,9 +62,10 @@ test("distinct_MultipleFields_ReturnsDistinctRows", async ({ page }) => {
   });
 });
 
-test("distinct_WithWhereClause_AppliesFiltersAndDistinct", async ({ page }) => {
+test("distinct_WithWhereClause_AppliesFiltersAndDistinct", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "createMany",
     query: {
@@ -69,6 +75,7 @@ test("distinct_WithWhereClause_AppliesFiltersAndDistinct", async ({ page }) => {
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {
@@ -78,9 +85,10 @@ test("distinct_WithWhereClause_AppliesFiltersAndDistinct", async ({ page }) => {
   });
 });
 
-test("distinct_WithOrderByAndMultipleUsers_ReturnsOrderedDistinctData", async ({ page }) => {
+test("distinct_WithOrderByAndMultipleUsers_ReturnsOrderedDistinctData", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "createMany",
     query: {
@@ -90,6 +98,7 @@ test("distinct_WithOrderByAndMultipleUsers_ReturnsOrderedDistinctData", async ({
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {
@@ -99,9 +108,10 @@ test("distinct_WithOrderByAndMultipleUsers_ReturnsOrderedDistinctData", async ({
   });
 });
 
-test("distinct_EmptyArray_CollapsesAllRows", async ({ page }) => {
+test("distinct_EmptyArray_CollapsesAllRows", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "createMany",
     query: {
@@ -112,6 +122,7 @@ test("distinct_EmptyArray_CollapsesAllRows", async ({ page }) => {
   // Prisma treats distinct: [] as collapsing all rows to a single result
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: {

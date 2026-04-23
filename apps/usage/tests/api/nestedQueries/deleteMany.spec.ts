@@ -1,9 +1,10 @@
 import { test } from "../../fixtures";
 import { expectQueryToSucceed } from "../../queryRunnerHelper";
 
-test("deleteMany_NestedDeleteManyQuery_SuccessfullyDeletesMultipleNestedRelations", async ({ page }) => {
+test("deleteMany_NestedDeleteManyQuery_SuccessfullyDeletesMultipleNestedRelations", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "Alice", posts: { create: [{ title: "Post1" }, { title: "Post2" }] } } },
@@ -11,6 +12,7 @@ test("deleteMany_NestedDeleteManyQuery_SuccessfullyDeletesMultipleNestedRelation
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: { where: { id: 1 }, data: { posts: { deleteMany: { title: { contains: "Post" } } } } },
@@ -18,6 +20,7 @@ test("deleteMany_NestedDeleteManyQuery_SuccessfullyDeletesMultipleNestedRelation
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: { include: { posts: true } },
@@ -25,14 +28,16 @@ test("deleteMany_NestedDeleteManyQuery_SuccessfullyDeletesMultipleNestedRelation
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
   });
 });
 
-test("deleteMany_NestedDeleteManyQueryWithInvalidData_LeavesAsIs", async ({ page }) => {
+test("deleteMany_NestedDeleteManyQueryWithInvalidData_LeavesAsIs", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "Bob", posts: { create: [{ title: "Post1" }] } } },
@@ -40,6 +45,7 @@ test("deleteMany_NestedDeleteManyQueryWithInvalidData_LeavesAsIs", async ({ page
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: { where: { id: 1 }, data: { posts: { deleteMany: { id: 999 } } } },
@@ -47,15 +53,17 @@ test("deleteMany_NestedDeleteManyQueryWithInvalidData_LeavesAsIs", async ({ page
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: { include: { posts: true } },
   });
 });
 
-test("deleteMany_NestedDeleteManyQueryWithCascade_SuccessfullyDeletesCascadingRelations", async ({ page }) => {
+test("deleteMany_NestedDeleteManyQueryWithCascade_SuccessfullyDeletesCascadingRelations", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: {
@@ -68,6 +76,7 @@ test("deleteMany_NestedDeleteManyQueryWithCascade_SuccessfullyDeletesCascadingRe
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: { where: { id: 1 }, data: { posts: { deleteMany: { title: { contains: "Post" } } } } },
@@ -75,20 +84,23 @@ test("deleteMany_NestedDeleteManyQueryWithCascade_SuccessfullyDeletesCascadingRe
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
   });
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "comment",
     operation: "findMany",
   });
 });
 
-test("deleteMany_NestedDeleteManyQueryWithEmptyData_SuccessfullyHandlesNoDeletion", async ({ page }) => {
+test("deleteMany_NestedDeleteManyQueryWithEmptyData_SuccessfullyHandlesNoDeletion", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "create",
     query: { data: { name: "Eve", posts: { create: [{ title: "Post1" }, { title: "Post2" }] } } },
@@ -96,6 +108,7 @@ test("deleteMany_NestedDeleteManyQueryWithEmptyData_SuccessfullyHandlesNoDeletio
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "update",
     query: { where: { id: 1 }, data: { posts: { deleteMany: { title: { contains: "NonExistent" } } } } },
@@ -103,6 +116,7 @@ test("deleteMany_NestedDeleteManyQueryWithEmptyData_SuccessfullyHandlesNoDeletio
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "user",
     operation: "findMany",
     query: { include: { posts: true } },
@@ -110,6 +124,7 @@ test("deleteMany_NestedDeleteManyQueryWithEmptyData_SuccessfullyHandlesNoDeletio
 
   await expectQueryToSucceed({
     page,
+    prisma,
     model: "post",
     operation: "findMany",
   });
