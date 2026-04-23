@@ -6,7 +6,14 @@
     "build": {
       "outputs": [".svelte-kit/**", ".next/**", ".vercel/**", "dist/**", "out/**"],
       "dependsOn": ["^build"],
-      "env": ["DATABASE_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "BETTER_AUTH_SECRET"]
+      "env": [
+        "DATABASE_URL",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "BETTER_AUTH_SECRET",
+        "NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN",
+        "NEXT_PUBLIC_POSTHOG_HOST_URL"
+      ]
     },
     "dev": {
       "cache": false,
