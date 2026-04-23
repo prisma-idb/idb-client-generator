@@ -50,14 +50,14 @@ test("equals_IntField_ReturnsFilteredRecords", async ({ page, prisma }) => {
   await expectQueryToSucceed({
     page,
     prisma,
-    model: "profile",
+    model: "user",
     operation: "findMany",
     query: { where: { id: { equals: 3 } } },
   });
   await expectQueryToSucceed({
     page,
     prisma,
-    model: "profile",
+    model: "user",
     operation: "findMany",
     query: { where: { id: { equals: 1 } } },
   });

@@ -979,7 +979,10 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
     if (query.data?.todos?.update) {
       neededStores.add("Todo");
       IDBUtils.convertToArray(query.data.todos.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.TodoDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.TodoDelegate,
+          "update"
+        >;
         this.client.todo._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -1002,7 +1005,10 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
     if (query.data?.user?.update) {
       neededStores.add("User");
       IDBUtils.convertToArray(query.data.user.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.UserDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.UserDelegate,
+          "update"
+        >;
         this.client.user._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -2055,7 +2061,10 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     if (query.data?.board?.update) {
       neededStores.add("Board");
       IDBUtils.convertToArray(query.data.board.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.BoardDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.BoardDelegate,
+          "update"
+        >;
         this.client.board._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -3042,7 +3051,10 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     if (query.data?.boards?.update) {
       neededStores.add("Board");
       IDBUtils.convertToArray(query.data.boards.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.BoardDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.BoardDelegate,
+          "update"
+        >;
         this.client.board._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }

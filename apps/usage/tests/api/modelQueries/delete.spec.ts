@@ -1,3 +1,4 @@
+import { expect } from "@playwright/test";
 import { test } from "../../fixtures";
 import { expectQueryToFail, expectQueryToSucceed } from "../../queryRunnerHelper";
 
@@ -52,13 +53,15 @@ test("delete_WithSelectWithoutPrimaryKey_ReturnsSelectedShapeAndStillCascades", 
     query: { data: { name: "John", todos: { create: [{ title: "Todo 1" }, { title: "Todo 2" }] } } },
   });
 
-  await expectQueryToSucceed({
+  const deleted = await expectQueryToSucceed({
     page,
     prisma,
     model: "user",
     operation: "delete",
     query: { where: { id: 1 }, select: { name: true } },
   });
+  expect((deleted as { name: string }).name).toBe("John");
+  expect((deleted as Record<string, unknown>).id).toBeUndefined();
 
   await expectQueryToSucceed({ page, prisma, model: "todo", operation: "findMany" });
 });

@@ -139,6 +139,14 @@ test("update_WithSelect_PreservesSelectedFields", async ({ page, prisma }) => {
       select: { name: true, profile: { select: { bio: true } } },
     },
   });
+
+  await expectQueryToSucceed({
+    page,
+    prisma,
+    model: "user",
+    operation: "findMany",
+    query: { select: { name: true, profile: { select: { bio: true } } } },
+  });
 });
 
 test("update_WithInclude_PreservesIncludedRelations", async ({ page, prisma }) => {
@@ -160,5 +168,59 @@ test("update_WithInclude_PreservesIncludedRelations", async ({ page, prisma }) =
       data: { name: "Janet" },
       include: { profile: true },
     },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    prisma,
+    model: "user",
+    operation: "findMany",
+    query: { include: { profile: true } },
+  });
+});
+
+test("update_NestedUpdateWithWhere_UpdatesCorrectRelatedRecord", async ({ page, prisma }) => {
+  // Regression test: nested relation update with a `where` clause must preserve
+  // update.where when normalizing for _getNeededStoresForUpdate, otherwise the
+  // wrong (or no) related record is targeted.
+  await expectQueryToSucceed({
+    page,
+    prisma,
+    model: "user",
+    operation: "create",
+    query: {
+      data: {
+        name: "Alice",
+        posts: { create: [{ title: "First Post" }, { title: "Second Post" }] },
+      },
+    },
+  });
+
+  // Update only the post titled "First Post" via nested update with where
+  await expectQueryToSucceed({
+    page,
+    prisma,
+    model: "user",
+    operation: "update",
+    query: {
+      where: { id: 1 },
+      data: {
+        posts: {
+          update: {
+            where: { id: 1 },
+            data: { title: "Updated First Post" },
+          },
+        },
+      },
+    },
+  });
+
+  // Verify that only the targeted post was changed
+  await expectQueryToSucceed({
+    page,
+    prisma,
+    model: "post",
+    operation: "findMany",
+    query: { orderBy: { id: "asc" } },
   });
 });

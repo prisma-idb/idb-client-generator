@@ -97,7 +97,7 @@ function addNestedQueryStores(writer: CodeBlockWriter, model: Model) {
           .block(() => {
             writer
               .writeLine(
-                `const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.${field.type}Delegate, "update">;`
+                `const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<Prisma.${field.type}Delegate, "update">;`
               )
               .writeLine(
                 `this.client.${toCamelCase(field.type)}._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));`

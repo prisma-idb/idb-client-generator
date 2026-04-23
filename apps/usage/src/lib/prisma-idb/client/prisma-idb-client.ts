@@ -1666,7 +1666,10 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     if (query.data?.profile?.update) {
       neededStores.add("Profile");
       IDBUtils.convertToArray(query.data.profile.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.ProfileDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.ProfileDelegate,
+          "update"
+        >;
         this.client.profile._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -1703,7 +1706,10 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     if (query.data?.posts?.update) {
       neededStores.add("Post");
       IDBUtils.convertToArray(query.data.posts.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.PostDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.PostDelegate,
+          "update"
+        >;
         this.client.post._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -1740,7 +1746,10 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     if (query.data?.comments?.update) {
       neededStores.add("Comment");
       IDBUtils.convertToArray(query.data.comments.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.CommentDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.CommentDelegate,
+          "update"
+        >;
         this.client.comment._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -1777,7 +1786,10 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     if (query.data?.Child?.update) {
       neededStores.add("Child");
       IDBUtils.convertToArray(query.data.Child.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.ChildDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.ChildDelegate,
+          "update"
+        >;
         this.client.child._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -1814,7 +1826,10 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     if (query.data?.Father?.update) {
       neededStores.add("Father");
       IDBUtils.convertToArray(query.data.Father.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.FatherDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.FatherDelegate,
+          "update"
+        >;
         this.client.father._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -1851,7 +1866,10 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     if (query.data?.Mother?.update) {
       neededStores.add("Mother");
       IDBUtils.convertToArray(query.data.Mother.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.MotherDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.MotherDelegate,
+          "update"
+        >;
         this.client.mother._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -1888,7 +1906,10 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     if (query.data?.groups?.update) {
       neededStores.add("UserGroup");
       IDBUtils.convertToArray(query.data.groups.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.UserGroupDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.UserGroupDelegate,
+          "update"
+        >;
         this.client.userGroup._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -1925,7 +1946,10 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     if (query.data?.todos?.update) {
       neededStores.add("Todo");
       IDBUtils.convertToArray(query.data.todos.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.TodoDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.TodoDelegate,
+          "update"
+        >;
         this.client.todo._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -4154,7 +4178,10 @@ class GroupIDBClass extends BaseIDBModelClass<"Group"> {
     if (query.data?.userGroups?.update) {
       neededStores.add("UserGroup");
       IDBUtils.convertToArray(query.data.userGroups.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.UserGroupDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.UserGroupDelegate,
+          "update"
+        >;
         this.client.userGroup._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -5107,7 +5134,10 @@ class ProfileIDBClass extends BaseIDBModelClass<"Profile"> {
     if (query.data?.user?.update) {
       neededStores.add("User");
       IDBUtils.convertToArray(query.data.user.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.UserDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.UserDelegate,
+          "update"
+        >;
         this.client.user._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -6180,7 +6210,10 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     if (query.data?.author?.update) {
       neededStores.add("User");
       IDBUtils.convertToArray(query.data.author.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.UserDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.UserDelegate,
+          "update"
+        >;
         this.client.user._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -6217,7 +6250,10 @@ class PostIDBClass extends BaseIDBModelClass<"Post"> {
     if (query.data?.comments?.update) {
       neededStores.add("Comment");
       IDBUtils.convertToArray(query.data.comments.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.CommentDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.CommentDelegate,
+          "update"
+        >;
         this.client.comment._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -7392,7 +7428,10 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     if (query.data?.post?.update) {
       neededStores.add("Post");
       IDBUtils.convertToArray(query.data.post.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.PostDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.PostDelegate,
+          "update"
+        >;
         this.client.post._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -7415,7 +7454,10 @@ class CommentIDBClass extends BaseIDBModelClass<"Comment"> {
     if (query.data?.user?.update) {
       neededStores.add("User");
       IDBUtils.convertToArray(query.data.user.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.UserDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.UserDelegate,
+          "update"
+        >;
         this.client.user._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -8364,7 +8406,10 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     if (query.data?.user?.update) {
       neededStores.add("User");
       IDBUtils.convertToArray(query.data.user.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.UserDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.UserDelegate,
+          "update"
+        >;
         this.client.user._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -11334,7 +11379,7 @@ class ModelWithOptionalRelationToUniqueAttributesIDBClass extends BaseIDBModelCl
     if (query.data?.link?.update) {
       neededStores.add("ModelWithUniqueAttributes");
       IDBUtils.convertToArray(query.data.link.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
           Prisma.ModelWithUniqueAttributesDelegate,
           "update"
         >;
@@ -12396,7 +12441,7 @@ class ModelWithUniqueAttributesIDBClass extends BaseIDBModelClass<"ModelWithUniq
     if (query.data?.links?.update) {
       neededStores.add("ModelWithOptionalRelationToUniqueAttributes");
       IDBUtils.convertToArray(query.data.links.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
           Prisma.ModelWithOptionalRelationToUniqueAttributesDelegate,
           "update"
         >;
@@ -13515,7 +13560,10 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     if (query.data?.group?.update) {
       neededStores.add("Group");
       IDBUtils.convertToArray(query.data.group.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.GroupDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.GroupDelegate,
+          "update"
+        >;
         this.client.group._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -13538,7 +13586,10 @@ class UserGroupIDBClass extends BaseIDBModelClass<"UserGroup"> {
     if (query.data?.user?.update) {
       neededStores.add("User");
       IDBUtils.convertToArray(query.data.user.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.UserDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.UserDelegate,
+          "update"
+        >;
         this.client.user._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -14833,7 +14884,10 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     if (query.data?.children?.update) {
       neededStores.add("Child");
       IDBUtils.convertToArray(query.data.children.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.ChildDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.ChildDelegate,
+          "update"
+        >;
         this.client.child._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -14856,7 +14910,10 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     if (query.data?.wife?.update) {
       neededStores.add("Mother");
       IDBUtils.convertToArray(query.data.wife.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.MotherDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.MotherDelegate,
+          "update"
+        >;
         this.client.mother._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -14887,7 +14944,10 @@ class FatherIDBClass extends BaseIDBModelClass<"Father"> {
     if (query.data?.user?.update) {
       neededStores.add("User");
       IDBUtils.convertToArray(query.data.user.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.UserDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.UserDelegate,
+          "update"
+        >;
         this.client.user._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -16470,7 +16530,10 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     if (query.data?.children?.update) {
       neededStores.add("Child");
       IDBUtils.convertToArray(query.data.children.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.ChildDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.ChildDelegate,
+          "update"
+        >;
         this.client.child._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -16501,7 +16564,10 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     if (query.data?.husband?.update) {
       neededStores.add("Father");
       IDBUtils.convertToArray(query.data.husband.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.FatherDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.FatherDelegate,
+          "update"
+        >;
         this.client.father._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -16532,7 +16598,10 @@ class MotherIDBClass extends BaseIDBModelClass<"Mother"> {
     if (query.data?.user?.update) {
       neededStores.add("User");
       IDBUtils.convertToArray(query.data.user.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.UserDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.UserDelegate,
+          "update"
+        >;
         this.client.user._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -18071,7 +18140,10 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     if (query.data?.user?.update) {
       neededStores.add("User");
       IDBUtils.convertToArray(query.data.user.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.UserDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.UserDelegate,
+          "update"
+        >;
         this.client.user._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -18094,7 +18166,10 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     if (query.data?.father?.update) {
       neededStores.add("Father");
       IDBUtils.convertToArray(query.data.father.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.FatherDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.FatherDelegate,
+          "update"
+        >;
         this.client.father._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
@@ -18117,7 +18192,10 @@ class ChildIDBClass extends BaseIDBModelClass<"Child"> {
     if (query.data?.mother?.update) {
       neededStores.add("Mother");
       IDBUtils.convertToArray(query.data.mother.update).forEach((update) => {
-        const normalizedUpdate = { data: update.data ?? update } as Prisma.Args<Prisma.MotherDelegate, "update">;
+        const normalizedUpdate = { ...update, data: update.data ?? update } as Prisma.Args<
+          Prisma.MotherDelegate,
+          "update"
+        >;
         this.client.mother._getNeededStoresForUpdate(normalizedUpdate).forEach((store) => neededStores.add(store));
       });
     }
