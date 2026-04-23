@@ -89,3 +89,41 @@ test("set_InvalidSetQuery_ThrowsError", async ({ page, prisma }) => {
     expectPrismaToAlsoFail: false,
   });
 });
+
+test("set_RequiredOneToManyRelationWithExistingRecords_ThrowsAndLeavesStateUnchanged", async ({ page, prisma }) => {
+  // Todo.userId is required — clearing it via `set: []` is forbidden.
+  // The tx should be aborted so the existing todo's ownership is preserved.
+  await expectQueryToSucceed({
+    page,
+    prisma,
+    model: "user",
+    operation: "create",
+    query: { data: { name: "John" } },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    prisma,
+    model: "todo",
+    operation: "create",
+    query: { data: { id: "aaaaaaaa-0000-0000-0000-000000000001", title: "My Todo", userId: 1 } },
+  });
+
+  await expectQueryToFail({
+    page,
+    prisma,
+    model: "user",
+    operation: "update",
+    query: { where: { id: 1 }, data: { todos: { set: [] } } },
+    errorMessage: "Cannot set required relation",
+  });
+
+  // Transaction should have been aborted — todo still belongs to user
+  await expectQueryToSucceed({
+    page,
+    prisma,
+    model: "todo",
+    operation: "findMany",
+    query: { where: { userId: 1 } },
+  });
+});

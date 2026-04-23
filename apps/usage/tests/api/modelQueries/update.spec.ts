@@ -224,3 +224,94 @@ test("update_NestedUpdateWithWhere_UpdatesCorrectRelatedRecord", async ({ page, 
     query: { orderBy: { id: "asc" } },
   });
 });
+
+test("update_SetFkToNonExistentRecord_ThrowsAndStateUnchanged", async ({ page, prisma }) => {
+  // Updating a FK field to an ID that doesn't exist should throw "Related record not found".
+  // The tx should be aborted so the todo's FK is not left pointing at a ghost record.
+  await expectQueryToSucceed({
+    page,
+    prisma,
+    model: "user",
+    operation: "create",
+    query: { data: { name: "John" } },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    prisma,
+    model: "todo",
+    operation: "create",
+    query: { data: { id: "aaaaaaaa-0000-0000-0000-000000000001", title: "My Todo", userId: 1 } },
+  });
+
+  await expectQueryToFail({
+    page,
+    prisma,
+    model: "todo",
+    operation: "update",
+    query: { where: { id: "aaaaaaaa-0000-0000-0000-000000000001" }, data: { userId: 99999 } },
+    errorMessage: "Related record not found",
+  });
+
+  // Transaction should have been aborted — todo's userId is unchanged
+  await expectQueryToSucceed({
+    page,
+    prisma,
+    model: "todo",
+    operation: "findMany",
+  });
+});
+
+test("update_DuplicateKeyWithNestedCreate_RollsBackNestedCreate", async ({ page, prisma }) => {
+  // When the updated PK collides with an existing record, the tx must abort so that
+  // any nested writes that ran before the collision check are fully rolled back.
+  await expectQueryToSucceed({
+    page,
+    prisma,
+    model: "user",
+    operation: "create",
+    query: { data: { id: 1, name: "User One" } },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    prisma,
+    model: "user",
+    operation: "create",
+    query: { data: { id: 2, name: "User Two" } },
+  });
+
+  // The nested todo.create runs first (IDB write), then the keyPath collision is
+  // detected. The tx.abort() should roll back the todo that was already created.
+  await expectQueryToFail({
+    page,
+    prisma,
+    model: "user",
+    operation: "update",
+    query: {
+      where: { id: 1 },
+      data: {
+        id: 2,
+        todos: { create: [{ id: "aaaaaaaa-0000-0000-0000-000000000001", title: "Should be rolled back" }] },
+      },
+    },
+    errorMessage: "Record with the same keyPath already exists",
+  });
+
+  // Both users should still exist unchanged
+  await expectQueryToSucceed({
+    page,
+    prisma,
+    model: "user",
+    operation: "findMany",
+    query: { orderBy: { id: "asc" } },
+  });
+
+  // The nested todo create must have been rolled back — no todos should exist
+  await expectQueryToSucceed({
+    page,
+    prisma,
+    model: "todo",
+    operation: "findMany",
+  });
+});

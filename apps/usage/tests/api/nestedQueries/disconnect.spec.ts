@@ -74,3 +74,41 @@ test("disconnect_DisconnectRequiredRelation_ThrowsError", async ({ page, prisma 
     errorMessage: "Cannot disconnect required relation",
   });
 });
+
+test("disconnect_DisconnectRequiredOneToManyRelation_ThrowsAndLeavesStateUnchanged", async ({ page, prisma }) => {
+  // Todo.userId is required, so disconnecting a todo from its user is forbidden.
+  // The tx should be aborted so no partial mutations survive.
+  await expectQueryToSucceed({
+    page,
+    prisma,
+    model: "user",
+    operation: "create",
+    query: { data: { name: "John" } },
+  });
+
+  await expectQueryToSucceed({
+    page,
+    prisma,
+    model: "todo",
+    operation: "create",
+    query: { data: { id: "aaaaaaaa-0000-0000-0000-000000000001", title: "My Todo", userId: 1 } },
+  });
+
+  await expectQueryToFail({
+    page,
+    prisma,
+    model: "user",
+    operation: "update",
+    query: { where: { id: 1 }, data: { todos: { disconnect: [{ id: "aaaaaaaa-0000-0000-0000-000000000001" }] } } },
+    errorMessage: "Cannot disconnect required relation",
+  });
+
+  // Transaction should have been aborted — todo still belongs to user
+  await expectQueryToSucceed({
+    page,
+    prisma,
+    model: "todo",
+    operation: "findMany",
+    query: { where: { userId: 1 } },
+  });
+});
