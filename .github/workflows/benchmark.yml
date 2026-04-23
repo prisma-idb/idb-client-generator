@@ -64,7 +64,7 @@ jobs:
           BENCHMARK_WARMUP_RUNS: ${{ env.BENCHMARK_WARMUP_RUNS }}
           BENCHMARK_MEASURED_RUNS: ${{ env.BENCHMARK_MEASURED_RUNS }}
           BENCHMARK_RESULT_PATH: ${{ runner.temp }}/benchmark-results/current.json
-          NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: "placeholder"
+          NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: ""
           NEXT_PUBLIC_POSTHOG_HOST: "https://us.i.posthog.com"
         run: |
           mkdir -p "$RUNNER_TEMP/benchmark-results"
@@ -80,7 +80,7 @@ jobs:
           BENCHMARK_WARMUP_RUNS="${{ env.BENCHMARK_WARMUP_RUNS }}" \
           BENCHMARK_MEASURED_RUNS="${{ env.BENCHMARK_MEASURED_RUNS }}" \
           BENCHMARK_RESULT_PATH="$RUNNER_TEMP/benchmark-results/baseline.json" \
-          NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN="placeholder" \
+          NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN="" \
           NEXT_PUBLIC_POSTHOG_HOST="https://us.i.posthog.com" \
           pnpm benchmark:ci
           popd
@@ -171,7 +171,7 @@ jobs:
           BENCHMARK_WARMUP_RUNS: ${{ env.BENCHMARK_WARMUP_RUNS }}
           BENCHMARK_MEASURED_RUNS: ${{ env.BENCHMARK_MEASURED_RUNS }}
           BENCHMARK_RESULT_PATH: ${{ runner.temp }}/benchmark-results/main-current.json
-          NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: "placeholder"
+          NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: ""
           NEXT_PUBLIC_POSTHOG_HOST: "https://us.i.posthog.com"
         run: |
           mkdir -p "$RUNNER_TEMP/benchmark-results"

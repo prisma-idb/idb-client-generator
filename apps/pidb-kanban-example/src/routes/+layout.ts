@@ -8,9 +8,11 @@ export const prerender = true;
 export async function load() {
   if (browser) {
     await initializeClient();
-    posthog.init(PUBLIC_POSTHOG_PROJECT_TOKEN, {
-      api_host: PUBLIC_POSTHOG_HOST,
-      defaults: "2026-01-30",
-    });
+    if (PUBLIC_POSTHOG_PROJECT_TOKEN) {
+      posthog.init(PUBLIC_POSTHOG_PROJECT_TOKEN, {
+        api_host: PUBLIC_POSTHOG_HOST,
+        defaults: "2026-01-30",
+      });
+    }
   }
 }

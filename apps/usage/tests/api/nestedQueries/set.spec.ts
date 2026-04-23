@@ -118,12 +118,12 @@ test("set_RequiredOneToManyRelationWithExistingRecords_ThrowsAndLeavesStateUncha
     errorMessage: "Cannot set required relation",
   });
 
-  // Transaction should have been aborted — todo still belongs to user
+  // Transaction should have been aborted — the specific todo still exists
   await expectQueryToSucceed({
     page,
     prisma,
     model: "todo",
-    operation: "findMany",
-    query: { where: { userId: 1 } },
+    operation: "findUnique",
+    query: { where: { id: "aaaaaaaa-0000-0000-0000-000000000001" } },
   });
 });

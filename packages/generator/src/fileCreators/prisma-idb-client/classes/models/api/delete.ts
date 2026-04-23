@@ -41,9 +41,17 @@ function createTxAndGetRecord(writer: CodeBlockWriter, model: Model) {
     .writeLine(`const storesNeeded = this._getNeededStoresForFind(query);`)
     .writeLine(`this._getNeededStoresForNestedDelete(storesNeeded);`)
     .writeLine(`tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");`)
-    .writeLine(
-      `const recordForDelete = await this.findUniqueOrThrow({ where: query.where }, { tx }) as Prisma.Result<Prisma.${model.name}Delegate, object, "findFirstOrThrow">;`
-    )
+    .writeLine(`let recordForDelete: Prisma.Result<Prisma.${model.name}Delegate, object, "findFirstOrThrow">;`)
+    .writeLine(`try`)
+    .block(() => {
+      writer.writeLine(
+        `recordForDelete = await this.findUniqueOrThrow({ where: query.where }, { tx }) as Prisma.Result<Prisma.${model.name}Delegate, object, "findFirstOrThrow">;`
+      );
+    })
+    .writeLine(`catch (e)`)
+    .block(() => {
+      writer.writeLine(`tx.abort();`).writeLine(`throw e;`);
+    })
     // Clone before _applyRelations because that helper mutates the input
     // records by attaching relation data; we must keep recordForDelete pristine
     // so that the OutboxEvent payload emitted by _deleteRecord contains the

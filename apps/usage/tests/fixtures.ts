@@ -34,7 +34,7 @@ export const test = base.extend<{ prepareTest: void }, { prisma: PrismaClient }>
     async ({}, use, workerInfo) => {
       const url = new URL(process.env.DATABASE_URL!);
       const baseName = url.pathname.slice(1);
-      url.pathname = `/${baseName}_worker_${workerInfo.workerIndex}`;
+      url.pathname = `/${baseName}_worker_${workerInfo.parallelIndex}`;
       const prisma = new PrismaClient({
         adapter: new PrismaPg({ connectionString: url.toString() }),
       });

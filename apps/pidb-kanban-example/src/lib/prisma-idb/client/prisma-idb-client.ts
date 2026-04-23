@@ -1611,11 +1611,17 @@ class BoardIDBClass extends BaseIDBModelClass<"Board"> {
     const storesNeeded = this._getNeededStoresForFind(query);
     this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    const recordForDelete = (await this.findUniqueOrThrow({ where: query.where }, { tx })) as Prisma.Result<
-      Prisma.BoardDelegate,
-      object,
-      "findFirstOrThrow"
-    >;
+    let recordForDelete: Prisma.Result<Prisma.BoardDelegate, object, "findFirstOrThrow">;
+    try {
+      recordForDelete = (await this.findUniqueOrThrow({ where: query.where }, { tx })) as Prisma.Result<
+        Prisma.BoardDelegate,
+        object,
+        "findFirstOrThrow"
+      >;
+    } catch (e) {
+      tx.abort();
+      throw e;
+    }
     const projectionRecord = structuredClone(recordForDelete);
     const recordsWithRelations = await this._applyRelations([projectionRecord], tx, query);
     const record = this._applySelectClause(recordsWithRelations, query.select)[0];
@@ -2497,11 +2503,17 @@ class TodoIDBClass extends BaseIDBModelClass<"Todo"> {
     const storesNeeded = this._getNeededStoresForFind(query);
     this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    const recordForDelete = (await this.findUniqueOrThrow({ where: query.where }, { tx })) as Prisma.Result<
-      Prisma.TodoDelegate,
-      object,
-      "findFirstOrThrow"
-    >;
+    let recordForDelete: Prisma.Result<Prisma.TodoDelegate, object, "findFirstOrThrow">;
+    try {
+      recordForDelete = (await this.findUniqueOrThrow({ where: query.where }, { tx })) as Prisma.Result<
+        Prisma.TodoDelegate,
+        object,
+        "findFirstOrThrow"
+      >;
+    } catch (e) {
+      tx.abort();
+      throw e;
+    }
     const projectionRecord = structuredClone(recordForDelete);
     const recordsWithRelations = await this._applyRelations([projectionRecord], tx, query);
     const record = this._applySelectClause(recordsWithRelations, query.select)[0];
@@ -3595,11 +3607,17 @@ class UserIDBClass extends BaseIDBModelClass<"User"> {
     const storesNeeded = this._getNeededStoresForFind(query);
     this._getNeededStoresForNestedDelete(storesNeeded);
     tx = tx ?? this.client._db.transaction(Array.from(storesNeeded), "readwrite");
-    const recordForDelete = (await this.findUniqueOrThrow({ where: query.where }, { tx })) as Prisma.Result<
-      Prisma.UserDelegate,
-      object,
-      "findFirstOrThrow"
-    >;
+    let recordForDelete: Prisma.Result<Prisma.UserDelegate, object, "findFirstOrThrow">;
+    try {
+      recordForDelete = (await this.findUniqueOrThrow({ where: query.where }, { tx })) as Prisma.Result<
+        Prisma.UserDelegate,
+        object,
+        "findFirstOrThrow"
+      >;
+    } catch (e) {
+      tx.abort();
+      throw e;
+    }
     const projectionRecord = structuredClone(recordForDelete);
     const recordsWithRelations = await this._applyRelations([projectionRecord], tx, query);
     const record = this._applySelectClause(recordsWithRelations, query.select)[0];

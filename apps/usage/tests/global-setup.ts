@@ -34,23 +34,25 @@ export default async function globalSetup(config: FullConfig) {
   const client = new Client({ connectionString: adminUrl.toString() });
   await client.connect();
 
-  // Terminate all connections to the base DB once before the loop; CREATE DATABASE ... TEMPLATE requires no active connections
-  await client.query(
-    `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()`,
-    [baseName]
-  );
-
-  for (let i = 0; i < workerCount; i++) {
-    const workerDb = `${baseName}_worker_${i}`;
-
-    // Terminate any lingering connections to the worker DB from prior runs
+  try {
+    // Terminate all connections to the base DB once before the loop; CREATE DATABASE ... TEMPLATE requires no active connections
     await client.query(
       `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()`,
-      [workerDb]
+      [baseName]
     );
-    await client.query(`DROP DATABASE IF EXISTS "${escapeIdentifier(workerDb)}"`);
-    await client.query(`CREATE DATABASE "${escapeIdentifier(workerDb)}" TEMPLATE "${escapeIdentifier(baseName)}"`);
-  }
 
-  await client.end();
+    for (let i = 0; i < workerCount; i++) {
+      const workerDb = `${baseName}_worker_${i}`;
+
+      // Terminate any lingering connections to the worker DB from prior runs
+      await client.query(
+        `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()`,
+        [workerDb]
+      );
+      await client.query(`DROP DATABASE IF EXISTS "${escapeIdentifier(workerDb)}"`);
+      await client.query(`CREATE DATABASE "${escapeIdentifier(workerDb)}" TEMPLATE "${escapeIdentifier(baseName)}"`);
+    }
+  } finally {
+    await client.end();
+  }
 }
