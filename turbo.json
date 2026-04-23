@@ -12,7 +12,9 @@
         "GOOGLE_CLIENT_SECRET",
         "BETTER_AUTH_SECRET",
         "NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN",
-        "NEXT_PUBLIC_POSTHOG_HOST_URL"
+        "NEXT_PUBLIC_POSTHOG_HOST",
+        "PUBLIC_POSTHOG_PROJECT_TOKEN",
+        "PUBLIC_POSTHOG_HOST"
       ]
     },
     "dev": {
@@ -29,11 +31,19 @@
       "outputs": []
     },
     "check": {
-      "outputs": []
+      "outputs": [],
+      "env": ["PUBLIC_POSTHOG_PROJECT_TOKEN", "PUBLIC_POSTHOG_HOST"]
     },
     "test": {
       "dependsOn": ["generate", "^build"],
-      "env": ["DATABASE_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "BETTER_AUTH_SECRET"],
+      "env": [
+        "DATABASE_URL",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "BETTER_AUTH_SECRET",
+        "NEXT_PUBLIC_POSTHOG_HOST",
+        "NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"
+      ],
       "outputs": []
     },
     "generate": {
