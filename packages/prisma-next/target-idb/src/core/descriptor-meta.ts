@@ -21,7 +21,6 @@ export const idbTargetDescriptorMeta = {
   targetId: "idb",
   id: "idb",
   version: "0.0.1",
-  capabilities: {},
   types: {
     codecTypes: {
       import: {

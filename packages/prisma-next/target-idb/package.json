@@ -5,20 +5,21 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": "./dist/exports/pack.mjs",
-    "./pack": "./dist/exports/pack.mjs",
-    "./control": "./dist/exports/control.mjs",
-    "./runtime": "./dist/exports/runtime.mjs",
+    ".": "./dist/pack.mjs",
+    "./pack": "./dist/pack.mjs",
+    "./control": "./dist/control.mjs",
+    "./runtime": "./dist/runtime.mjs",
     "./package.json": "./package.json"
   },
-  "main": "./dist/exports/pack.mjs",
-  "module": "./dist/exports/pack.mjs",
+  "main": "./dist/pack.mjs",
+  "module": "./dist/pack.mjs",
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
     "check": "tsc --noEmit"
   },
   "dependencies": {
+    "@prisma-next/contract": "^0.4.4",
     "@prisma-next/framework-components": "^0.4.4"
   },
   "devDependencies": {
