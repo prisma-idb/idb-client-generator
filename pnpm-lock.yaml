@@ -541,6 +541,9 @@ importers:
       '@prisma-next-idb/target-idb':
         specifier: workspace:*
         version: link:../target-idb
+      '@prisma-next/contract':
+        specifier: ^0.4.4
+        version: 0.4.4
       '@prisma-next/framework-components':
         specifier: ^0.4.4
         version: 0.4.4

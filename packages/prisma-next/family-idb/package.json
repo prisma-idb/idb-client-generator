@@ -15,6 +15,7 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
+    "@prisma-next/contract": "^0.4.4",
     "@prisma-next/framework-components": "^0.4.4",
     "@prisma-next-idb/target-idb": "workspace:*"
   },

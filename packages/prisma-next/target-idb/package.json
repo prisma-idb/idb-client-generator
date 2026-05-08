@@ -9,7 +9,6 @@
     "./pack": "./dist/exports/pack.mjs",
     "./control": "./dist/exports/control.mjs",
     "./runtime": "./dist/exports/runtime.mjs",
-    "./migration": "./dist/exports/migration.mjs",
     "./package.json": "./package.json"
   },
   "main": "./dist/exports/pack.mjs",
