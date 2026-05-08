@@ -14,8 +14,11 @@
     "dev": "tsdown --watch",
     "check": "tsc --noEmit"
   },
+  "dependencies": {
+    "@prisma-next/framework-components": "^0.4.4"
+  },
   "devDependencies": {
-    "tsdown": "^0.12.9",
-    "typescript": "^5.8.3"
+    "tsdown": "^0.22.0",
+    "typescript": "^6.0.3"
   }
 }
