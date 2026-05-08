@@ -1,4 +1,5 @@
 import type { TargetDescriptor } from "@prisma-next/framework-components/components";
+import { codecInstances } from "./codecs";
 
 /**
  * Descriptor metadata for the IndexedDB target.
@@ -28,6 +29,7 @@ export const idbTargetDescriptorMeta = {
         named: "CodecTypes",
         alias: "IdbCodecTypes",
       },
+      codecInstances,
     },
   },
 } as const satisfies TargetDescriptor<"idb", "idb">;
