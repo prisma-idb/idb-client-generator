@@ -1,0 +1,21 @@
+{
+  "name": "@prisma-next-idb/driver-idb",
+  "version": "0.0.1",
+  "description": "Prisma Next IDB family — driver (wraps window.indexedDB for the execution stack)",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./control": "./dist/exports/control.mjs",
+    "./runtime": "./dist/exports/runtime.mjs",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsdown": "^0.12.9",
+    "typescript": "^5.8.3"
+  }
+}

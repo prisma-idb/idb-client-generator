@@ -1,0 +1,26 @@
+{
+  "name": "@prisma-next-idb/target-idb",
+  "version": "0.0.1",
+  "description": "Prisma Next IDB family — target pack (identity, migration runner, DDL op factories)",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./dist/exports/pack.mjs",
+    "./pack": "./dist/exports/pack.mjs",
+    "./control": "./dist/exports/control.mjs",
+    "./runtime": "./dist/exports/runtime.mjs",
+    "./migration": "./dist/exports/migration.mjs",
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/exports/pack.mjs",
+  "module": "./dist/exports/pack.mjs",
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsdown": "^0.12.9",
+    "typescript": "^5.8.3"
+  }
+}
