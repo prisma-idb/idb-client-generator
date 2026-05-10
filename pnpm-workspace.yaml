@@ -4,6 +4,16 @@ packages:
   - apps/*
   - tests/*
 
+allowBuilds:
+  "@prisma/engines": true
+  core-js: true
+  esbuild: true
+  msw: true
+  prisma: true
+  protobufjs: true
+  sharp: true
+  unrs-resolver: true
+
 onlyBuiltDependencies:
   - "@prisma/client"
   - "@prisma/engines"

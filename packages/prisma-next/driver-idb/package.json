@@ -5,20 +5,23 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    "./control": "./dist/exports/control.mjs",
-    "./runtime": "./dist/exports/runtime.mjs",
+    "./control": "./dist/control.mjs",
+    "./runtime": "./dist/runtime.mjs",
     "./package.json": "./package.json"
   },
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@prisma-next/framework-components": "^0.4.4"
   },
   "devDependencies": {
+    "fake-indexeddb": "^6.2.5",
     "tsdown": "^0.22.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
   }
 }
