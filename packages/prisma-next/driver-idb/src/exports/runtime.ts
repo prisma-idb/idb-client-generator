@@ -15,6 +15,8 @@ export type {
   IdbRowComparator,
 } from "../core/plan-body";
 export type { IdbRuntimeDriverInstance } from "../core/idb-driver";
+export { IdbExecuteError } from "../core/execute/error";
+export type { IdbExecuteErrorCode } from "../core/execute/error";
 
 /**
  * Creates a runtime driver descriptor for IndexedDB.

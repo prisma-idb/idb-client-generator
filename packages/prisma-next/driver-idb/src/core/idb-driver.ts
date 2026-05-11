@@ -1,4 +1,5 @@
 import type { RuntimeDriverInstance } from "@prisma-next/framework-components/execution";
+import { executeIdbPlan } from "./execute";
 import type { IdbPlanBody } from "./plan-body";
 
 export class IdbRuntimeDriverInstance implements RuntimeDriverInstance<"idb", "idb"> {
@@ -24,14 +25,23 @@ export class IdbRuntimeDriverInstance implements RuntimeDriverInstance<"idb", "i
   /**
    * Execute an IDB plan body and yield rows as an async iterable.
    *
-   * Phase 3 implements this: opens an IDB transaction on the object store(s)
-   * referenced by `plan`, executes the plan (cursor scan / key-get / put /
-   * delete / batch), and yields each result row.
+   * Opens a new IDB transaction for each call, collects all rows inside the
+   * transaction (collect-then-yield; see execute/index.ts for rationale),
+   * and yields them after the transaction commits.
    *
    * Called by `IdbRuntimeImpl.runDriver()` in `@prisma-next-idb/runtime-idb`.
    */
-  execute(_plan: IdbPlanBody): AsyncIterable<Record<string, unknown>> {
-    throw new Error("IDB execute not yet implemented — Phase 3");
+  execute(plan: IdbPlanBody): AsyncIterable<Record<string, unknown>> {
+    const dbPromise = this.db;
+    return {
+      [Symbol.asyncIterator]() {
+        return (async function* () {
+          const db = await dbPromise;
+          const rows = await executeIdbPlan(db, plan);
+          yield* rows;
+        })();
+      },
+    };
   }
 }
 
