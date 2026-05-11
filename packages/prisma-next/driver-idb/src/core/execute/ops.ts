@@ -22,6 +22,7 @@ import type {
   IdbIndexGetPlan,
   IdbKeyGetPlan,
   IdbPutPlan,
+  IdbUpdatePlan,
 } from "../plan-body";
 import { IdbExecuteError } from "./error";
 
@@ -53,6 +54,8 @@ export function executeOpInTx(
       return execCursorScan(store, plan, onComplete, onError);
     case "put":
       return execPut(store, plan, onComplete, onError);
+    case "update":
+      return execUpdate(store, plan, onComplete, onError);
     case "delete":
       return execDelete(store, plan, onComplete, onError);
   }
@@ -60,7 +63,7 @@ export function executeOpInTx(
 
 /** Returns the IDB transaction mode appropriate for a given atomic plan. */
 export function planTxMode(plan: IdbAtomicPlan): IDBTransactionMode {
-  return plan.kind === "put" || plan.kind === "delete" ? "readwrite" : "readonly";
+  return plan.kind === "put" || plan.kind === "update" || plan.kind === "delete" ? "readwrite" : "readonly";
 }
 
 // ── Per-operation executors ──────────────────────────────────────────────────
@@ -185,6 +188,33 @@ function execPut(store: IDBObjectStore, plan: IdbPutPlan, onComplete: OnComplete
       new IdbExecuteError(
         { code: "PUT_FAILED", planKind: "put", storeName: plan.storeName, cause: req.error },
         `IDB put failed on store "${plan.storeName}": ${String(req.error)}`
+      )
+    );
+}
+
+function execUpdate(store: IDBObjectStore, plan: IdbUpdatePlan, onComplete: OnComplete, onError: OnError): void {
+  // Step 1: read the current record.
+  const getReq = store.get(plan.key);
+  getReq.onsuccess = () => {
+    const existing = (getReq.result as Row | undefined) ?? {};
+    // Step 2: shallow-merge patch onto existing record.
+    const merged: Row = { ...existing, ...plan.patch };
+    // Step 3: write the merged record back.
+    const putReq = store.put(merged);
+    putReq.onsuccess = () => onComplete([merged]);
+    putReq.onerror = () =>
+      onError(
+        new IdbExecuteError(
+          { code: "PUT_FAILED", planKind: "update", storeName: plan.storeName, cause: putReq.error },
+          `IDB update (put phase) failed on store "${plan.storeName}": ${String(putReq.error)}`
+        )
+      );
+  };
+  getReq.onerror = () =>
+    onError(
+      new IdbExecuteError(
+        { code: "KEY_GET_FAILED", planKind: "update", storeName: plan.storeName, cause: getReq.error },
+        `IDB update (get phase) failed on store "${plan.storeName}": ${String(getReq.error)}`
       )
     );
 }

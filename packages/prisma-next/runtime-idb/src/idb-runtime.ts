@@ -1,6 +1,11 @@
 import type { CodecCallContext } from "@prisma-next/framework-components/codec";
-import { RuntimeCore, type QueryPlan, type RuntimeMiddlewareContext } from "@prisma-next/framework-components/runtime";
-import type { IdbRuntimeAdapterInstance } from "@prisma-next-idb/adapter-idb/runtime";
+import {
+  AsyncIterableResult,
+  RuntimeCore,
+  type RuntimeExecuteOptions,
+  type RuntimeMiddlewareContext,
+} from "@prisma-next/framework-components/runtime";
+import type { IdbQueryPlan, IdbRuntimeAdapterInstance } from "@prisma-next-idb/adapter-idb/runtime";
 import type { IdbPlanBody, IdbRuntimeDriverInstance } from "@prisma-next-idb/driver-idb/runtime";
 import type { IdbMiddleware } from "./idb-middleware";
 
@@ -29,10 +34,12 @@ export interface IdbRuntimeOptions {
 /**
  * Public IDB runtime interface.
  *
- * Phase 3 will flesh this out with an `execute()` method that returns a
- * typed `AsyncIterableResult<Row>`.
+ * `execute()` accepts an {@link IdbQueryPlan} and returns an
+ * `AsyncIterableResult<Row>` — an async iterable that also fulfils as a
+ * `Row[]` when awaited. Phase 3b delivers the first real implementation.
  */
 export interface IdbRuntime {
+  execute<Row>(plan: IdbQueryPlan & { readonly _row?: Row }, options?: RuntimeExecuteOptions): AsyncIterableResult<Row>;
   close(): Promise<void>;
 }
 
@@ -54,12 +61,12 @@ const NOOP_CTX: RuntimeMiddlewareContext = {
  * Wires together:
  * - `lower(plan, ctx)` — delegates to `adapter.lower()` to produce an `IdbPlanBody`
  * - `runDriver(exec)` — delegates to `driver.execute()` to run the plan against IDB
+ * - `execute()` — the concrete template method from `RuntimeCore`; overridden to
+ *   satisfy the `IdbRuntime` interface type (identity decode, Phase 4 adds per-field
+ *   codec decoding via `IdbExecutionContext`)
  * - `close()` — closes the IDB connection via `driver.close()`
- *
- * Phase 2: stubs only — `lower()` and `runDriver()` throw until Phase 3
- * provides real adapter and driver implementations.
  */
-class IdbRuntimeImpl extends RuntimeCore<QueryPlan, IdbPlanBody, IdbMiddleware> implements IdbRuntime {
+class IdbRuntimeImpl extends RuntimeCore<IdbQueryPlan, IdbPlanBody, IdbMiddleware> implements IdbRuntime {
   readonly #adapter: IdbRuntimeAdapterInstance;
   readonly #driver: IdbRuntimeDriverInstance;
 
@@ -70,21 +77,38 @@ class IdbRuntimeImpl extends RuntimeCore<QueryPlan, IdbPlanBody, IdbMiddleware> 
   }
 
   /**
-   * Lower a query plan to an IDB plan body via the adapter.
+   * Lower an IDB query plan to an IDB plan body via the adapter.
    *
-   * Phase 3 provides a real `IdbAdapter` implementation.
+   * Phase 3b: delegates to `IdbAdapter.lower()` which is a structural
+   * passthrough (Phase 4 adds per-field codec encoding).
    */
-  protected override lower(plan: QueryPlan, ctx: CodecCallContext): Promise<IdbPlanBody> {
+  protected override lower(plan: IdbQueryPlan, ctx: CodecCallContext): Promise<IdbPlanBody> {
     return this.#adapter.lower(plan, ctx);
   }
 
   /**
    * Execute a lowered IDB plan body via the driver.
-   *
-   * Phase 3 provides a real `execute()` implementation on the driver.
    */
   protected override runDriver(exec: IdbPlanBody): AsyncIterable<Record<string, unknown>> {
     return this.#driver.execute(exec);
+  }
+
+  /**
+   * Execute an IDB query plan and return a typed async-iterable result.
+   *
+   * Phase 3b: rows are yielded as-is from the driver (identity pass-through).
+   * All current `idb/*` codecs are identity transforms — no per-field
+   * decoding is needed.
+   *
+   * Phase 4 will add per-field codec decoding here when `IdbExecutionContext`
+   * provides the per-store field→codec schema (e.g. decoding `idb/date@1`
+   * stored values back to `Date` instances, or custom codec output types).
+   */
+  override execute<Row>(
+    plan: IdbQueryPlan & { readonly _row?: Row },
+    options?: RuntimeExecuteOptions
+  ): AsyncIterableResult<Row> {
+    return super.execute(plan, options);
   }
 
   override async close(): Promise<void> {

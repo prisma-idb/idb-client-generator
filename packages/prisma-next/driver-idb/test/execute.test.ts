@@ -34,6 +34,7 @@ import type {
   IdbIndexGetPlan,
   IdbKeyGetPlan,
   IdbPutPlan,
+  IdbUpdatePlan,
 } from "../src/core/plan-body";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -408,6 +409,84 @@ describe("delete", () => {
 
     const allRows = await executeIdbPlan(db, { meta: META, kind: "cursor-scan", storeName: "users" });
     expect(allRows).toHaveLength(0);
+  });
+});
+
+// ── update ───────────────────────────────────────────────────────────────────
+
+describe("update", () => {
+  let db: IDBDatabase;
+
+  beforeEach(async () => {
+    db = await openTestDb(dbName(), [USERS_STORE]);
+    await seedStore(db, "users", [ALICE]);
+  });
+  afterEach(() => db.close());
+
+  it("merges patch onto existing record and echoes the result", async () => {
+    const plan: IdbUpdatePlan = {
+      meta: META,
+      kind: "update",
+      storeName: "users",
+      key: "u1",
+      patch: { score: 42, active: false },
+    };
+    const rows = await executeIdbPlan(db, plan);
+    expect(rows).toHaveLength(1);
+    // Patch fields are applied.
+    expect(rows[0]).toMatchObject({ score: 42, active: false });
+    // Unpatched fields are preserved from the original record.
+    expect(rows[0]).toMatchObject({ id: "u1", email: ALICE["email"] });
+  });
+
+  it("persists the merged record to the store", async () => {
+    const plan: IdbUpdatePlan = {
+      meta: META,
+      kind: "update",
+      storeName: "users",
+      key: "u1",
+      patch: { score: 99 },
+    };
+    await executeIdbPlan(db, plan);
+    const getRows = await executeIdbPlan(db, {
+      meta: META,
+      kind: "key-get",
+      storeName: "users",
+      key: "u1",
+    });
+    expect(getRows[0]).toMatchObject({ id: "u1", score: 99 });
+  });
+
+  it("inserts a record (insert semantics) when key does not exist", async () => {
+    const plan: IdbUpdatePlan = {
+      meta: META,
+      kind: "update",
+      storeName: "users",
+      key: "u99",
+      patch: { id: "u99", email: "ghost@example.com", score: 0 },
+    };
+    const rows = await executeIdbPlan(db, plan);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: "u99", email: "ghost@example.com" });
+  });
+
+  it("patch does NOT affect other records in the store", async () => {
+    await seedStore(db, "users", [BOB]);
+    await executeIdbPlan(db, {
+      meta: META,
+      kind: "update",
+      storeName: "users",
+      key: "u1",
+      patch: { score: 7 },
+    });
+    const bobRows = await executeIdbPlan(db, {
+      meta: META,
+      kind: "key-get",
+      storeName: "users",
+      key: "u2",
+    });
+    // Bob's score is untouched.
+    expect(bobRows[0]).toMatchObject({ id: "u2", score: BOB["score"] });
   });
 });
 

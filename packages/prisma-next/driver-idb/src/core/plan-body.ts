@@ -61,8 +61,9 @@ export interface IdbIndexGetPlan extends ExecutionPlan {
 /**
  * Upsert a single record via `store.put(record[, key])`.
  *
- * Used for `create`, `update`, and `upsert`. The driver echoes `record` back
- * as the result row — IDB does not have RETURNING.
+ * Used for `create` and `upsert` where the full merged record is already
+ * known. The driver echoes `record` back as the result row — IDB does not
+ * have RETURNING.
  *
  * `key` is only needed for out-of-line key stores (`keyPath: null`).
  */
@@ -71,6 +72,28 @@ export interface IdbPutPlan extends ExecutionPlan {
   readonly storeName: string;
   readonly record: Record<string, unknown>;
   readonly key?: IDBValidKey;
+}
+
+/**
+ * Atomic partial update: get → merge → put in a single readwrite transaction.
+ *
+ * Used for Prisma `update` where only a subset of fields change. The driver:
+ *   1. Reads the current record via `store.get(key)`.
+ *   2. Deep-merges `patch` onto the existing record with `{ ...existing, ...patch }`.
+ *   3. Writes the merged record back via `store.put(merged)`.
+ *   4. Echoes the merged record as the result row.
+ *
+ * This preserves fields not mentioned in `patch` — unlike `IdbPutPlan` which
+ * does a full replacement. The get and put are issued inside the same
+ * readwrite transaction so no other writer can interleave.
+ *
+ * If no record exists for `key`, the driver echoes `patch` as-is (insert semantics).
+ */
+export interface IdbUpdatePlan extends ExecutionPlan {
+  readonly kind: "update";
+  readonly storeName: string;
+  readonly key: IDBValidKey;
+  readonly patch: Record<string, unknown>;
 }
 
 /**
@@ -87,7 +110,13 @@ export interface IdbDeletePlan extends ExecutionPlan {
 /**
  * All single-store atomic op types — valid both standalone and inside a batch.
  */
-export type IdbAtomicPlan = IdbCursorScanPlan | IdbKeyGetPlan | IdbIndexGetPlan | IdbPutPlan | IdbDeletePlan;
+export type IdbAtomicPlan =
+  | IdbCursorScanPlan
+  | IdbKeyGetPlan
+  | IdbIndexGetPlan
+  | IdbPutPlan
+  | IdbUpdatePlan
+  | IdbDeletePlan;
 
 /**
  * Multi-op atomic batch executed inside a single IDB transaction.

@@ -10,6 +10,7 @@ export type {
   IdbKeyGetPlan,
   IdbIndexGetPlan,
   IdbPutPlan,
+  IdbUpdatePlan,
   IdbDeletePlan,
   IdbRowFilter,
   IdbRowComparator,
