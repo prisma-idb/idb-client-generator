@@ -9,6 +9,7 @@
     "./pack": "./dist/pack.mjs",
     "./control": "./dist/control.mjs",
     "./runtime": "./dist/runtime.mjs",
+    "./migration": "./dist/migration.mjs",
     "./package.json": "./package.json"
   },
   "main": "./dist/pack.mjs",
@@ -24,6 +25,7 @@
     "@prisma-next/framework-components": "^0.4.4"
   },
   "devDependencies": {
+    "fake-indexeddb": "^6.2.5",
     "tsdown": "^0.22.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.5"
