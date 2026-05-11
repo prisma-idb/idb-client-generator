@@ -1,4 +1,4 @@
-import type { Contract, ContractMarkerRecord } from "@prisma-next/contract/types";
+import type { ContractMarkerRecord } from "@prisma-next/contract/types";
 import type {
   ControlDriverInstance,
   ControlFamilyInstance,
@@ -7,22 +7,36 @@ import type {
   VerifyDatabaseResult,
   VerifyDatabaseSchemaResult,
 } from "@prisma-next/framework-components/control";
+import {
+  VERIFY_CODE_HASH_MISMATCH,
+  VERIFY_CODE_MARKER_MISSING,
+  VERIFY_CODE_TARGET_MISMATCH,
+} from "@prisma-next/framework-components/control";
+import { emptyManifest, markerToRecord } from "./manifest";
+import { extractManifestDriver } from "./manifest-driver";
+import type { IdbSchemaIR } from "./schema-ir";
+import { verifyIdbSchema } from "./schema-verify";
 import { validateContract } from "./validate";
 
-/**
- * Schema IR type for IDB.
- *
- * Represents the on-disk manifest state used during CLI control-plane operations
- * (migrate, verify, introspect). IDB is browser-only so the CLI cannot open a
- * live IndexedDB connection — all control operations read/write a manifest file
- * instead.
- *
- * @remarks This is a placeholder shape. The full manifest schema will be defined
- * when the manifest-based control operations are implemented.
- */
-export type IdbSchemaIR = {
-  readonly stores: Record<string, { readonly keyPath: string; readonly autoIncrement?: boolean }>;
-};
+// `APP_SPACE_ID` is not exported from @prisma-next/framework-components v0.4.4;
+// define it locally. IDB only ever has a single "app" space.
+const APP_SPACE_ID = "app" as const;
+
+// ── exactOptionalPropertyTypes helpers ───────────────────────────────────────
+// The framework uses exactOptionalPropertyTypes:true, so we must never assign
+// `undefined` to a required-optional property. Use conditional spreads instead.
+
+function contractInfo(storageHash: string, profileHash: string | undefined) {
+  return profileHash !== undefined ? ({ storageHash, profileHash } as const) : ({ storageHash } as const);
+}
+
+function verifyMeta(contractPath: string, configPath: string | undefined) {
+  return configPath !== undefined ? ({ contractPath, configPath } as const) : ({ contractPath } as const);
+}
+
+function signMeta(contractPath: string, configPath: string | undefined) {
+  return configPath !== undefined ? ({ contractPath, configPath } as const) : ({ contractPath } as const);
+}
 
 /** Fully-typed IDB control family instance returned by {@link createIdbFamilyInstance}. */
 export type IdbControlFamilyInstance = ControlFamilyInstance<"idb", IdbSchemaIR>;
@@ -30,81 +44,216 @@ export type IdbControlFamilyInstance = ControlFamilyInstance<"idb", IdbSchemaIR>
 /**
  * Creates an IDB control family instance for the given control stack.
  *
- * The instance implements the {@link ControlFamilyInstance} interface consumed by
- * the Prisma Next CLI for `contract emit`, `db verify`, `db sign`, and related
- * commands.
+ * IDB is a browser-only API, so all CLI control-plane operations read/write a
+ * manifest JSON file on disk instead of connecting to a live database.
+ * The caller must provide an {@link IdbManifestControlDriver} as the `driver`
+ * parameter — see {@link IdbManifestControlDriverDescriptor}.
  *
- * **What is implemented now:**
- * - `validateContract` — fully implemented via {@link validateContract}.
- *
- * **What is stubbed (throws):**
- * - `verify`, `schemaVerify`, `sign`, `readMarker`, `introspect` — these require
- *   reading/writing a manifest file on disk. They will be implemented when the
- *   manifest-based control operations are designed.
- *
- * @param _stack - The assembled control stack (unused until the manifest-based
- *                 operations are implemented).
+ * @param _stack - The assembled control stack (unused; IDB has no adapter/extension layer).
  */
 export function createIdbFamilyInstance(_stack: ControlStack<"idb", string>): IdbControlFamilyInstance {
   return {
     familyId: "idb",
 
-    /**
-     * Parses and validates a raw contract value against the IDB contract schema.
-     * @see {@link validateContract} in `./validate.ts`.
-     */
-    validateContract(contractJson: unknown): Contract {
+    // ── validateContract ────────────────────────────────────────────────────
+
+    validateContract(contractJson: unknown) {
       return validateContract(contractJson);
     },
 
-    /**
-     * @throws Always — manifest-based verify is not yet implemented.
-     * @todo Read the IDB schema manifest file and compare hashes against the
-     *       expected contract. The driver parameter is intentionally unused for IDB
-     *       since the manifest file lives on disk, not in the browser.
-     */
-    async verify(_options: unknown): Promise<VerifyDatabaseResult> {
-      throw new Error("IDB verify: manifest-based control operations are not yet implemented");
+    // ── verify ──────────────────────────────────────────────────────────────
+
+    async verify(options: {
+      readonly driver: ControlDriverInstance<"idb", string>;
+      readonly contract: unknown;
+      readonly expectedTargetId: string;
+      readonly contractPath: string;
+      readonly configPath?: string;
+    }): Promise<VerifyDatabaseResult> {
+      const start = Date.now();
+      const mDriver = extractManifestDriver(options.driver);
+      const contract = validateContract(options.contract);
+
+      const storageHash = (contract.storage as { storageHash: string }).storageHash;
+      const profileHash = (contract as { profileHash?: string }).profileHash;
+
+      // Target ID check — IDB only supports the "idb" target.
+      if (options.expectedTargetId !== "idb") {
+        return {
+          ok: false,
+          code: VERIFY_CODE_TARGET_MISMATCH,
+          summary: `Target mismatch: expected "idb", got "${options.expectedTargetId}"`,
+          contract: contractInfo(storageHash, profileHash),
+          target: { expected: options.expectedTargetId, actual: "idb" },
+          meta: verifyMeta(options.contractPath, options.configPath),
+          timings: { total: Date.now() - start },
+        };
+      }
+
+      const manifest = await mDriver.readManifest();
+
+      if (!manifest?.marker) {
+        return {
+          ok: false,
+          code: VERIFY_CODE_MARKER_MISSING,
+          summary: "Manifest marker is missing — run `prisma-next db sign` first",
+          contract: contractInfo(storageHash, profileHash),
+          target: { expected: "idb", actual: "idb" },
+          meta: verifyMeta(options.contractPath, options.configPath),
+          timings: { total: Date.now() - start },
+        };
+      }
+
+      const markerHash = manifest.marker.storageHash;
+      if (markerHash !== storageHash) {
+        return {
+          ok: false,
+          code: VERIFY_CODE_HASH_MISMATCH,
+          summary: `Storage hash mismatch: contract has "${storageHash}", manifest has "${markerHash}"`,
+          contract: contractInfo(storageHash, profileHash),
+          marker: { storageHash: markerHash, profileHash: manifest.marker.profileHash },
+          target: { expected: "idb", actual: "idb" },
+          meta: verifyMeta(options.contractPath, options.configPath),
+          timings: { total: Date.now() - start },
+        };
+      }
+
+      return {
+        ok: true,
+        summary: "Verification passed",
+        contract: contractInfo(storageHash, profileHash),
+        marker: { storageHash: markerHash, profileHash: manifest.marker.profileHash },
+        target: { expected: "idb", actual: "idb" },
+        meta: verifyMeta(options.contractPath, options.configPath),
+        timings: { total: Date.now() - start },
+      };
     },
 
-    /**
-     * @throws Always — manifest-based schemaVerify is not yet implemented.
-     * @todo Read the IDB schema manifest file and compare the store/index structure
-     *       against the contract's `storage.stores`.
-     */
-    async schemaVerify(_options: unknown): Promise<VerifyDatabaseSchemaResult> {
-      throw new Error("IDB schemaVerify: manifest-based control operations are not yet implemented");
+    // ── schemaVerify ─────────────────────────────────────────────────────────
+
+    async schemaVerify(options: {
+      readonly driver: ControlDriverInstance<"idb", string>;
+      readonly contract: unknown;
+      readonly strict: boolean;
+      readonly contractPath: string;
+      readonly configPath?: string;
+      readonly frameworkComponents: ReadonlyArray<unknown>;
+    }): Promise<VerifyDatabaseSchemaResult> {
+      const mDriver = extractManifestDriver(options.driver);
+      const contract = validateContract(options.contract);
+      const manifest = await mDriver.readManifest();
+      const schema: IdbSchemaIR = manifest?.schema ?? emptyManifest().schema;
+
+      const verifyOpts = {
+        contractPath: options.contractPath,
+        ...(options.configPath !== undefined ? { configPath: options.configPath } : {}),
+      };
+      return verifyIdbSchema(contract, schema, options.strict, verifyOpts);
     },
 
-    /**
-     * @throws Always — manifest-based sign is not yet implemented.
-     * @todo Write the contract's storage hash to the IDB schema manifest file,
-     *       creating or updating the file as needed.
-     */
-    async sign(_options: unknown): Promise<SignDatabaseResult> {
-      throw new Error("IDB sign: manifest-based control operations are not yet implemented");
+    // ── sign ─────────────────────────────────────────────────────────────────
+
+    async sign(options: {
+      readonly driver: ControlDriverInstance<"idb", string>;
+      readonly contract: unknown;
+      readonly contractPath: string;
+      readonly configPath?: string;
+    }): Promise<SignDatabaseResult> {
+      const start = Date.now();
+      const mDriver = extractManifestDriver(options.driver);
+      const contract = validateContract(options.contract);
+
+      const storageHash = (contract.storage as { storageHash: string }).storageHash;
+      const profileHash = (contract as { profileHash?: string }).profileHash ?? "";
+
+      const existing = await mDriver.readManifest();
+      const existingMarker = existing?.marker;
+
+      // CAS: no-op when hashes match.
+      if (existingMarker?.storageHash === storageHash && existingMarker?.profileHash === profileHash) {
+        return {
+          ok: true,
+          summary: "Manifest marker is already up-to-date",
+          contract: contractInfo(storageHash, profileHash),
+          target: { expected: "idb", actual: "idb" },
+          marker: { created: false, updated: false },
+          meta: signMeta(options.contractPath, options.configPath),
+          timings: { total: Date.now() - start },
+        };
+      }
+
+      const newMarker = {
+        storageHash,
+        profileHash,
+        updatedAt: new Date().toISOString(),
+        invariants: [] as readonly string[],
+        contractJson: null as unknown,
+        canonicalVersion: null as number | null,
+        appTag: null as string | null,
+        meta: {} as Record<string, unknown>,
+      };
+
+      await mDriver.writeManifest({
+        version: 1,
+        schema: existing?.schema ?? emptyManifest().schema,
+        marker: newMarker,
+      });
+
+      const created = !existingMarker;
+      const markerResult = existingMarker
+        ? ({
+            created: false,
+            updated: true,
+            previous: {
+              storageHash: existingMarker.storageHash,
+              profileHash: existingMarker.profileHash,
+            },
+          } as const)
+        : ({ created: true, updated: false } as const);
+
+      return {
+        ok: true,
+        summary: created ? "Manifest marker created" : "Manifest marker updated",
+        contract: contractInfo(storageHash, profileHash),
+        target: { expected: "idb", actual: "idb" },
+        marker: markerResult,
+        meta: signMeta(options.contractPath, options.configPath),
+        timings: { total: Date.now() - start },
+      };
     },
 
-    /**
-     * @throws Always — manifest-based readMarker is not yet implemented.
-     * @todo Read the stored contract marker (storageHash + profileHash) from the
-     *       IDB schema manifest file. Return `null` if no marker exists.
-     */
-    async readMarker(_options: unknown): Promise<ContractMarkerRecord | null> {
-      throw new Error("IDB readMarker: manifest-based control operations are not yet implemented");
+    // ── readMarker ───────────────────────────────────────────────────────────
+
+    async readMarker(options: {
+      readonly driver: ControlDriverInstance<"idb", string>;
+      readonly space?: string;
+    }): Promise<ContractMarkerRecord | null> {
+      const space = (options as { space?: string }).space ?? APP_SPACE_ID;
+      if (space !== APP_SPACE_ID) {
+        // IDB only has a single "app" space.
+        return null;
+      }
+      const mDriver = extractManifestDriver(options.driver);
+      const manifest = await mDriver.readManifest();
+      if (!manifest?.marker) return null;
+      return markerToRecord(manifest.marker);
     },
 
-    /**
-     * @throws Always — manifest-based introspect is not yet implemented.
-     * @todo Read the IDB schema manifest file and return an {@link IdbSchemaIR}
-     *       describing the current object stores and indexes.
-     */
-    async introspect(_options: unknown): Promise<IdbSchemaIR> {
-      throw new Error("IDB introspect: manifest-based control operations are not yet implemented");
+    // ── introspect ───────────────────────────────────────────────────────────
+
+    async introspect(options: {
+      readonly driver: ControlDriverInstance<"idb", string>;
+      readonly contract?: unknown;
+    }): Promise<IdbSchemaIR> {
+      const mDriver = extractManifestDriver(options.driver);
+      const manifest = await mDriver.readManifest();
+      return manifest?.schema ?? emptyManifest().schema;
     },
   };
 }
 
-// Suppress unused-import warning: these types appear in stub return-type
-// annotations above and are needed for interface satisfaction.
 export type { ControlDriverInstance, SignDatabaseResult, VerifyDatabaseResult, VerifyDatabaseSchemaResult };
+
+export type { IdbSchemaIR } from "./schema-ir";
+import { IdbManifestControlDriverDescriptor } from "./manifest-driver";
+export { IdbManifestControlDriverDescriptor };
