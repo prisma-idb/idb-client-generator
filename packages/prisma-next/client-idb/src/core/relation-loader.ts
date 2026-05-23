@@ -22,7 +22,8 @@ export async function loadRelation(
   rows: Record<string, unknown>[],
   contract: IdbContract,
   modelName: string,
-  executor: IdbQueryExecutor
+  executor: IdbQueryExecutor,
+  groupingKey: string
 ): Promise<Record<string, unknown>[]> {
   if (rows.length === 0) return rows;
 
@@ -72,7 +73,7 @@ export async function loadRelation(
   const filter: IdbRowFilter = (row: Record<string, unknown>): boolean => localValues.has(row[capturedForeignField]);
 
   const storageHash = contract.storage.storageHash;
-  const planMeta = { target: "idb", storageHash, lane: "idb-orm" } as const;
+  const planMeta = { target: "idb", storageHash, lane: "idb-orm", annotations: { groupingKey } } as const;
   const plan: IdbQueryPlan<Record<string, unknown>> = {
     meta: planMeta,
     idbPlan: { meta: planMeta, kind: "cursor-scan", storeName: relatedStoreName, filter },

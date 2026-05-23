@@ -1,5 +1,5 @@
 /**
- * Phase 6 — client-idb ORM tests.
+ * Client IDB ORM tests.
  *
  * Uses fake-indexeddb (injected globally by vitest.config.ts setupFiles) and a
  * minimal in-process executor that wraps IdbRuntimeDriverInstance.execute()

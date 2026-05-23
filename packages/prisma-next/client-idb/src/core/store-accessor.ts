@@ -1,6 +1,12 @@
 import { AsyncIterableResult } from "@prisma-next/framework-components/runtime";
 import type { PlanMeta } from "@prisma-next/contract/types";
 import type { IdbQueryPlan } from "@prisma-next-idb/adapter-idb/runtime";
+import type {
+  IdbCreateAst,
+  IdbDeleteAst,
+  IdbFindManyAst,
+  IdbFindUniqueAst,
+} from "@prisma-next-idb/adapter-idb/runtime";
 import type { IdbRowComparator, IdbRowFilter } from "@prisma-next-idb/driver-idb/runtime";
 import {
   type CreateInput,
@@ -18,6 +24,23 @@ import {
 import { type IdbAccessorState, emptyAccessorState, mergeAccessorState } from "./store-state";
 import type { IdbQueryExecutor } from "./executor";
 import { loadRelation } from "./relation-loader";
+
+// ── Grouping key ─────────────────────────────────────────────────────────────
+
+/**
+ * Generate a new grouping key for correlating multi-statement operations.
+ *
+ * Uses a simple counter-based scheme (no crypto needed — grouping keys are
+ * for observability, not security). Each ORM operation invocation gets a
+ * unique key that is attached to every sub-plan (main query + relation loads).
+ *
+ * Upstream: ADR 160 — Plan grouping keys for multi-statement orchestration.
+ */
+let _nextGroupingKey = 0;
+function newGroupingKey(): string {
+  _nextGroupingKey += 1;
+  return `idb-op-${_nextGroupingKey}`;
+}
 
 // ── Interface ─────────────────────────────────────────────────────────────────
 
@@ -154,20 +177,24 @@ export class IdbStoreAccessorImpl<
   // ── Execution methods ─────────────────────────────────────────────────────
 
   all(): AsyncIterableResult<IncludedRow<TContract, ModelName, TIncludes>> {
+    const groupingKey = newGroupingKey();
+    // Capture the private fields needed inside the generator. Private names
+    // must be accessed on `this`, so we bind the methods to keep them callable
+    // without aliasing `this` (no-this-alias).
     const buildScanPlan = this.#buildScanPlan.bind(this);
-    const executor = this.#executor;
+    const executorExecute = this.#executor.execute.bind(this.#executor);
     const applyIncludes = this.#applyIncludes.bind(this);
     return new AsyncIterableResult(
       (async function* (): AsyncGenerator<IncludedRow<TContract, ModelName, TIncludes>, void, unknown> {
         // 1. Run the main cursor scan and materialise rows.
-        const scanPlan = buildScanPlan<Record<string, unknown>>();
+        const scanPlan = buildScanPlan<Record<string, unknown>>(groupingKey);
         const rows: Record<string, unknown>[] = [];
-        for await (const row of executor.execute(scanPlan)) {
+        for await (const row of executorExecute(scanPlan)) {
           rows.push(row);
         }
 
         // 2. Batch-load any included relations.
-        const withIncludes = await applyIncludes(rows);
+        const withIncludes = await applyIncludes(rows, groupingKey);
 
         // 3. Yield the merged rows.
         for (const row of withIncludes) {
@@ -183,9 +210,12 @@ export class IdbStoreAccessorImpl<
 
   async create(data: CreateInput<TContract, ModelName>): Promise<DefaultModelRow<TContract, ModelName>> {
     const record = data as Record<string, unknown>;
-    const meta = this.#planMeta();
+    const groupingKey = newGroupingKey();
+    const meta = this.#planMeta(groupingKey);
+    const ast: IdbCreateAst = { kind: "create", modelName: this.#modelName, data: record };
     const plan: IdbQueryPlan<Record<string, unknown>> = {
       meta,
+      ast,
       idbPlan: { meta, kind: "put", storeName: this.#storeName, record },
     };
     // The IDB driver echoes the stored record back as the single result row.
@@ -197,9 +227,12 @@ export class IdbStoreAccessorImpl<
   }
 
   async findUnique(key: KeyType<TContract, ModelName>): Promise<DefaultModelRow<TContract, ModelName> | null> {
-    const meta = this.#planMeta();
+    const groupingKey = newGroupingKey();
+    const meta = this.#planMeta(groupingKey);
+    const ast: IdbFindUniqueAst = { kind: "findUnique", modelName: this.#modelName, key };
     const plan: IdbQueryPlan<Record<string, unknown>> = {
       meta,
+      ast,
       idbPlan: { meta, kind: "key-get", storeName: this.#storeName, key: key as IDBValidKey },
     };
     for await (const row of this.#executor.execute(plan)) {
@@ -209,9 +242,12 @@ export class IdbStoreAccessorImpl<
   }
 
   async delete(key: KeyType<TContract, ModelName>): Promise<void> {
-    const meta = this.#planMeta();
+    const groupingKey = newGroupingKey();
+    const meta = this.#planMeta(groupingKey);
+    const ast: IdbDeleteAst = { kind: "delete", modelName: this.#modelName, key };
     const plan: IdbQueryPlan<Record<string, unknown>> = {
       meta,
+      ast,
       idbPlan: { meta, kind: "delete", storeName: this.#storeName, key: key as IDBValidKey },
     };
     // `delete` yields no rows; drain via toArray() to execute the plan.
@@ -220,14 +256,25 @@ export class IdbStoreAccessorImpl<
 
   // ── Private helpers ───────────────────────────────────────────────────────
 
-  #buildScanPlan<Row>(): IdbQueryPlan<Row> {
+  #buildScanPlan<Row>(groupingKey: string): IdbQueryPlan<Row> {
     const filter = this.#buildFilter();
     const comparator = this.#buildComparator();
-    const meta = this.#planMeta();
+    const meta = this.#planMeta(groupingKey);
+    const ast: IdbFindManyAst = {
+      kind: "findMany",
+      modelName: this.#modelName,
+      ...(this.#state.filters.length > 0
+        ? { where: Object.assign({}, ...this.#state.filters) as Record<string, unknown> }
+        : {}),
+      ...(this.#state.orderBy !== undefined ? { orderBy: this.#state.orderBy as Record<string, "asc" | "desc"> } : {}),
+      ...(this.#state.skip !== undefined ? { skip: this.#state.skip } : {}),
+      ...(this.#state.take !== undefined ? { take: this.#state.take } : {}),
+    };
     // exactOptionalPropertyTypes: spread conditionally to avoid `undefined`
     // values in optional fields.
     return {
       meta,
+      ast,
       idbPlan: {
         meta,
         kind: "cursor-scan" as const,
@@ -270,21 +317,22 @@ export class IdbStoreAccessorImpl<
     };
   }
 
-  async #applyIncludes(rows: Record<string, unknown>[]): Promise<Record<string, unknown>[]> {
+  async #applyIncludes(rows: Record<string, unknown>[], groupingKey: string): Promise<Record<string, unknown>[]> {
     const relNames = Object.keys(this.#state.includes);
     if (relNames.length === 0) return rows;
     let result = rows;
     for (const relName of relNames) {
-      result = await loadRelation(relName, result, this.#contract, this.#modelName, this.#executor);
+      result = await loadRelation(relName, result, this.#contract, this.#modelName, this.#executor, groupingKey);
     }
     return result;
   }
 
-  #planMeta(): PlanMeta {
+  #planMeta(groupingKey: string): PlanMeta {
     return {
       target: "idb",
       storageHash: this.#contract.storage.storageHash,
       lane: "idb-orm",
+      annotations: { groupingKey },
     };
   }
 
