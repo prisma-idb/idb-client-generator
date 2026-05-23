@@ -118,7 +118,6 @@ describe("idbEmission", () => {
 
   describe("generateModelStorageType", () => {
     it("serializes a model's IDB storage metadata", () => {
-       
       const model = minimalIdbContract.models["Post"]!;
       const result = idbEmission.generateModelStorageType("Post", model);
       expect(result).toBe("{ readonly storeName: 'posts'; readonly keyPath: 'id' }");
