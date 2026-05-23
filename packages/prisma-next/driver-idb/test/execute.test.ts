@@ -1,5 +1,5 @@
 /**
- * Phase 3a execute() tests.
+ * execute() tests.
  *
  * Tests the `executeIdbPlan` dispatcher (src/core/execute/index.ts) and
  * `IdbRuntimeDriverInstance.execute()` (the async-iterable wrapper) against
@@ -9,8 +9,9 @@
  * Test strategy:
  * - Each test opens a fresh-named database (via dbName()) to avoid cross-test
  *   state. fake-indexeddb/auto provides a global IDB singleton per test file.
- * - Object stores are created with an in-test helper (openTestDb) because our
- *   driver's upgradeneeded handler is a Phase 5 no-op.
+ * - Object stores are created with an in-test helper (openTestDb) because the
+ *   driver's upgradeneeded handler is a no-op (migrations are handled by
+ *   IdbMigrationRunner).
  * - `executeIdbPlan` is tested directly; `IdbRuntimeDriverInstance.execute()`
  *   gets a smoke test that covers the async-iterable wrapper.
  *

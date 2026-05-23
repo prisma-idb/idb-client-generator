@@ -1,5 +1,5 @@
 /**
- * Phase 2 driver tests.
+ * Driver tests.
  *
  * What we test here:
  * - createIDBRuntimeDriver produces a descriptor with correct identity

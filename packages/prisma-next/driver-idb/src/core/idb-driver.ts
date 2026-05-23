@@ -85,8 +85,9 @@ export class IdbRuntimeDriverInstance implements RuntimeDriverInstance<"idb", "i
  * Opens an IDB database and resolves once it is ready for use.
  *
  * Wraps the IDB event-based open API in a Promise. The `upgradeneeded`
- * handler is a no-op in Phase 2 — the IDBMigrationRunner (Phase 5) will
- * replace it.
+ * handler is a no-op at this level — migrations are orchestrated by
+ * `IdbMigrationRunner` (target-idb) which opens the database at a specific
+ * version and runs DDL inside the version-change transaction.
  */
 function openIdbDatabase(dbName: string, version: number): Promise<IDBDatabase> {
   return new Promise<IDBDatabase>((resolve, reject) => {
@@ -100,7 +101,10 @@ function openIdbDatabase(dbName: string, version: number): Promise<IDBDatabase> 
       reject(new Error(`IDB open blocked for "${dbName}": another connection is open with an older version.`));
     };
 
-    // Phase 5 — IDBMigrationRunner will hook here to create / drop object stores.
+    // Migration runner hooks here to create / drop object stores during
+    // version-change transactions. At the driver level this is a no-op
+    // because the driver does not own schema — migrations are the
+    // responsibility of `IdbMigrationRunner` in target-idb.
     req.onupgradeneeded = handleUpgradeNeeded;
 
     req.onsuccess = () => {
@@ -110,12 +114,12 @@ function openIdbDatabase(dbName: string, version: number): Promise<IDBDatabase> 
 }
 
 /**
- * No-op upgrade handler for Phase 2.
+ * No-op upgrade handler.
  *
- * Phase 5 replaces this with the full IDBMigrationRunner which diffs the
- * manifest and runs DDL ops (createObjectStore, createIndex, etc.) inside
- * the version-change transaction provided here.
+ * The driver does not own schema. Object stores and indexes are created
+ * by `IdbMigrationRunner` (target-idb) when it opens the database at a
+ * bumped version number with a migration plan.
  */
 function handleUpgradeNeeded(_event: IDBVersionChangeEvent): void {
-  // No-op. DDL is Phase 5.
+  // No-op — DDL is handled by IdbMigrationRunner.
 }

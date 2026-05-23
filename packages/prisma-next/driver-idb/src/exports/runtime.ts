@@ -14,7 +14,9 @@ export type {
   IdbDeletePlan,
   IdbRowFilter,
   IdbRowComparator,
+  IdbMarkerRecord,
 } from "../core/plan-body";
+export { MARKER_STORE_NAME } from "../core/plan-body";
 export type { IdbRuntimeDriverInstance } from "../core/idb-driver";
 export { IdbExecuteError } from "../core/execute/error";
 export type { IdbExecuteErrorCode } from "../core/execute/error";
@@ -27,8 +29,8 @@ export type { IdbExecuteErrorCode } from "../core/execute/error";
  * the adapter inside `runDriver()` for the first query.
  *
  * @param dbName  - The IDB database name to open.
- * @param version - The IDB version number (default: 1). Phase 5 will use this
- *   to trigger `upgradeneeded`-based migrations when the version is bumped.
+ * @param version - The IDB version number (default: 1). Bumping this
+ *   triggers `upgradeneeded`-based migrations via `IdbMigrationRunner`.
  *
  * @example
  * ```ts
