@@ -13,7 +13,9 @@
     "build": "tsdown",
     "dev": "tsdown --watch",
     "check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "prettier --check . && eslint .",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@prisma-next/framework-components": "^0.4.4",

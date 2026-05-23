@@ -11,7 +11,9 @@
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "lint": "prettier --check . && eslint .",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@prisma-next/framework-components": "^0.4.4",
