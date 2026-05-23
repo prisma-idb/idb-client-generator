@@ -8,8 +8,8 @@ import type { IdbPlanBody } from "@prisma-next-idb/driver-idb/runtime";
  * discriminant so the runtime can verify that only IDB-compatible middleware
  * is registered on an IDB runtime instance.
  *
- * Phase 3 will add IDB-specific middleware hooks (e.g. query budgets,
- * cursor-scan guardrails, audit logging).
+ * Future hooks may include query budgets, cursor-scan guardrails, and audit
+ * logging.
  */
 export interface IdbMiddleware extends RuntimeMiddleware<IdbPlanBody> {
   readonly family: "idb";
