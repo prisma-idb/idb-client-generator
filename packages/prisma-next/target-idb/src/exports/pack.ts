@@ -9,4 +9,7 @@ export type {
   IdbStoreDefinition,
   IdbStorage,
   IdbTypeMaps,
+  ExtractIdbTypeMaps,
+  ExtractIdbFieldOutputTypes,
+  ExtractIdbFieldInputTypes,
 } from "../core/idb-contract-types";

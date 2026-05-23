@@ -1,0 +1,299 @@
+import { AsyncIterableResult } from "@prisma-next/framework-components/runtime";
+import type { PlanMeta } from "@prisma-next/contract/types";
+import type { IdbQueryPlan } from "@prisma-next-idb/adapter-idb/runtime";
+import type { IdbRowComparator, IdbRowFilter } from "@prisma-next-idb/driver-idb/runtime";
+import {
+  type CreateInput,
+  type DefaultModelRow,
+  type IdbContract,
+  type IncludeSpec,
+  type IncludedRow,
+  type KeyType,
+  type NoIncludes,
+  type OrderBySpec,
+  type ReferenceRelKeys,
+  type WhereFilter,
+  getStoreName,
+} from "./types";
+import { type IdbAccessorState, emptyAccessorState, mergeAccessorState } from "./store-state";
+import type { IdbQueryExecutor } from "./executor";
+import { loadRelation } from "./relation-loader";
+
+// ── Interface ─────────────────────────────────────────────────────────────────
+
+/**
+ * Immutable query-builder for a single IDB object store.
+ *
+ * Each method that narrows the query (`.where()`, `.take()`, etc.) returns a
+ * new, independent accessor instance — the original is never mutated. This
+ * mirrors the `MongoCollection` pattern from `@prisma-next/2-mongo-family`.
+ *
+ * @template TContract   - The full IDB contract (with or without type maps).
+ * @template ModelName   - The model (store) this accessor targets.
+ * @template TIncludes   - Tracks which relations have been included via
+ *   `.include()` calls, so the return type widens progressively.
+ */
+export interface IdbStoreAccessor<
+  TContract,
+  ModelName extends string,
+  TIncludes extends IncludeSpec<TContract, ModelName> = NoIncludes,
+> {
+  /** Add an equality filter (ANDed with any previous `.where()` calls). */
+  where(filter: WhereFilter<TContract, ModelName>): IdbStoreAccessor<TContract, ModelName, TIncludes>;
+
+  /** Set the sort order. Replaces any previous `.orderBy()` call. */
+  orderBy(spec: OrderBySpec<TContract, ModelName>): IdbStoreAccessor<TContract, ModelName, TIncludes>;
+
+  /** Limit the number of rows returned. */
+  take(n: number): IdbStoreAccessor<TContract, ModelName, TIncludes>;
+
+  /** Skip the first `n` rows (OFFSET). */
+  skip(n: number): IdbStoreAccessor<TContract, ModelName, TIncludes>;
+
+  /**
+   * Include a reference relation in the returned rows.
+   *
+   * The relation is loaded via a single batch cursor scan after the main
+   * query — O(1) round trips to IDB per included relation regardless of
+   * the number of parent rows.
+   *
+   * The return type gains the relation field automatically.
+   */
+  include<K extends ReferenceRelKeys<TContract, ModelName>>(
+    relation: K
+  ): IdbStoreAccessor<TContract, ModelName, TIncludes & Record<K, true>>;
+
+  /** Return all matching rows as an async iterable (also awaitable as `Row[]`). */
+  all(): AsyncIterableResult<IncludedRow<TContract, ModelName, TIncludes>>;
+
+  /** Return the first matching row, or `null` if none match. */
+  first(): Promise<IncludedRow<TContract, ModelName, TIncludes> | null>;
+
+  /**
+   * Insert a record into the store and return the stored row.
+   *
+   * The primary key field is optional in `data` — pass it to use a
+   * client-generated ID (`cuid`, `uuid`) or omit it for auto-increment stores.
+   */
+  create(data: CreateInput<TContract, ModelName>): Promise<DefaultModelRow<TContract, ModelName>>;
+
+  /** Look up a single row by primary key. Returns `null` if not found. */
+  findUnique(key: KeyType<TContract, ModelName>): Promise<DefaultModelRow<TContract, ModelName> | null>;
+
+  /** Delete the row with the given primary key. */
+  delete(key: KeyType<TContract, ModelName>): Promise<void>;
+}
+
+// ── Implementation ────────────────────────────────────────────────────────────
+
+/**
+ * Concrete immutable query builder.
+ *
+ * Internal details:
+ * - All state is in `#state` (filters, orderBy, skip, take, includes).
+ * - Builder methods clone via `#clone()` — O(1) copies since state is
+ *   structurally shared.
+ * - `all()` materialises the main rows first, then batch-loads each included
+ *   relation before yielding (necessary for batch FK strategy).
+ */
+export class IdbStoreAccessorImpl<
+  TContract extends IdbContract,
+  ModelName extends string,
+  TIncludes extends IncludeSpec<TContract, ModelName> = NoIncludes,
+> implements IdbStoreAccessor<TContract, ModelName, TIncludes> {
+  readonly #contract: TContract;
+  readonly #modelName: ModelName;
+  readonly #executor: IdbQueryExecutor;
+  readonly #storeName: string;
+  readonly #state: IdbAccessorState;
+
+  constructor(contract: TContract, modelName: ModelName, executor: IdbQueryExecutor, state?: IdbAccessorState) {
+    this.#contract = contract;
+    this.#modelName = modelName;
+    this.#executor = executor;
+    this.#storeName = getStoreName(contract, modelName);
+    this.#state = state ?? emptyAccessorState();
+  }
+
+  // ── Builder methods ───────────────────────────────────────────────────────
+
+  where(filter: WhereFilter<TContract, ModelName>): IdbStoreAccessor<TContract, ModelName, TIncludes> {
+    return this.#clone({
+      filters: [...this.#state.filters, filter as Record<string, unknown>],
+    });
+  }
+
+  orderBy(spec: OrderBySpec<TContract, ModelName>): IdbStoreAccessor<TContract, ModelName, TIncludes> {
+    return this.#clone({ orderBy: spec as Record<string, "asc" | "desc"> });
+  }
+
+  take(n: number): IdbStoreAccessor<TContract, ModelName, TIncludes> {
+    return this.#clone({ take: n });
+  }
+
+  skip(n: number): IdbStoreAccessor<TContract, ModelName, TIncludes> {
+    return this.#clone({ skip: n });
+  }
+
+  include<K extends ReferenceRelKeys<TContract, ModelName>>(
+    relation: K
+  ): IdbStoreAccessor<TContract, ModelName, TIncludes & Record<K, true>> {
+    const newState = mergeAccessorState(this.#state, {
+      includes: { ...this.#state.includes, [relation]: true as const },
+    });
+    // The new instance is identical at runtime; the narrowed TIncludes type is
+    // only a compile-time distinction — so an `as unknown as` cast is safe.
+    return new IdbStoreAccessorImpl(
+      this.#contract,
+      this.#modelName,
+      this.#executor,
+      newState
+    ) as unknown as IdbStoreAccessorImpl<TContract, ModelName, TIncludes & Record<K, true>>;
+  }
+
+  // ── Execution methods ─────────────────────────────────────────────────────
+
+  all(): AsyncIterableResult<IncludedRow<TContract, ModelName, TIncludes>> {
+    const buildScanPlan = this.#buildScanPlan.bind(this);
+    const executor = this.#executor;
+    const applyIncludes = this.#applyIncludes.bind(this);
+    return new AsyncIterableResult(
+      (async function* (): AsyncGenerator<IncludedRow<TContract, ModelName, TIncludes>, void, unknown> {
+        // 1. Run the main cursor scan and materialise rows.
+        const scanPlan = buildScanPlan<Record<string, unknown>>();
+        const rows: Record<string, unknown>[] = [];
+        for await (const row of executor.execute(scanPlan)) {
+          rows.push(row);
+        }
+
+        // 2. Batch-load any included relations.
+        const withIncludes = await applyIncludes(rows);
+
+        // 3. Yield the merged rows.
+        for (const row of withIncludes) {
+          yield row as IncludedRow<TContract, ModelName, TIncludes>;
+        }
+      })()
+    );
+  }
+
+  async first(): Promise<IncludedRow<TContract, ModelName, TIncludes> | null> {
+    return this.take(1).all().first();
+  }
+
+  async create(data: CreateInput<TContract, ModelName>): Promise<DefaultModelRow<TContract, ModelName>> {
+    const record = data as Record<string, unknown>;
+    const meta = this.#planMeta();
+    const plan: IdbQueryPlan<Record<string, unknown>> = {
+      meta,
+      idbPlan: { meta, kind: "put", storeName: this.#storeName, record },
+    };
+    // The IDB driver echoes the stored record back as the single result row.
+    for await (const row of this.#executor.execute(plan)) {
+      return row as DefaultModelRow<TContract, ModelName>;
+    }
+    // Fallback: driver yielded no rows (shouldn't happen for `put`).
+    return record as DefaultModelRow<TContract, ModelName>;
+  }
+
+  async findUnique(key: KeyType<TContract, ModelName>): Promise<DefaultModelRow<TContract, ModelName> | null> {
+    const meta = this.#planMeta();
+    const plan: IdbQueryPlan<Record<string, unknown>> = {
+      meta,
+      idbPlan: { meta, kind: "key-get", storeName: this.#storeName, key: key as IDBValidKey },
+    };
+    for await (const row of this.#executor.execute(plan)) {
+      return row as DefaultModelRow<TContract, ModelName>;
+    }
+    return null;
+  }
+
+  async delete(key: KeyType<TContract, ModelName>): Promise<void> {
+    const meta = this.#planMeta();
+    const plan: IdbQueryPlan<Record<string, unknown>> = {
+      meta,
+      idbPlan: { meta, kind: "delete", storeName: this.#storeName, key: key as IDBValidKey },
+    };
+    // `delete` yields no rows; drain via toArray() to execute the plan.
+    await this.#executor.execute(plan).toArray();
+  }
+
+  // ── Private helpers ───────────────────────────────────────────────────────
+
+  #buildScanPlan<Row>(): IdbQueryPlan<Row> {
+    const filter = this.#buildFilter();
+    const comparator = this.#buildComparator();
+    const meta = this.#planMeta();
+    // exactOptionalPropertyTypes: spread conditionally to avoid `undefined`
+    // values in optional fields.
+    return {
+      meta,
+      idbPlan: {
+        meta,
+        kind: "cursor-scan" as const,
+        storeName: this.#storeName,
+        ...(filter !== undefined ? { filter } : {}),
+        ...(comparator !== undefined ? { comparator } : {}),
+        ...(this.#state.skip !== undefined ? { skip: this.#state.skip } : {}),
+        ...(this.#state.take !== undefined ? { take: this.#state.take } : {}),
+      },
+    } as IdbQueryPlan<Row>;
+  }
+
+  #buildFilter(): IdbRowFilter | undefined {
+    if (this.#state.filters.length === 0) return undefined;
+    const filters = this.#state.filters;
+    return (row: Record<string, unknown>): boolean => {
+      for (const predicate of filters) {
+        for (const [key, value] of Object.entries(predicate)) {
+          if (value === undefined) continue;
+          if (row[key] !== value) return false;
+        }
+      }
+      return true;
+    };
+  }
+
+  #buildComparator(): IdbRowComparator | undefined {
+    if (this.#state.orderBy === undefined) return undefined;
+    const orderBy = this.#state.orderBy;
+    return (a: Record<string, unknown>, b: Record<string, unknown>): number => {
+      for (const [field, dir] of Object.entries(orderBy)) {
+        const av = a[field];
+        const bv = b[field];
+        if (av === bv) continue;
+        // Values are primitives (strings, numbers, dates) in practice.
+        const cmp = (av as string | number) < (bv as string | number) ? -1 : 1;
+        return dir === "desc" ? -cmp : cmp;
+      }
+      return 0;
+    };
+  }
+
+  async #applyIncludes(rows: Record<string, unknown>[]): Promise<Record<string, unknown>[]> {
+    const relNames = Object.keys(this.#state.includes);
+    if (relNames.length === 0) return rows;
+    let result = rows;
+    for (const relName of relNames) {
+      result = await loadRelation(relName, result, this.#contract, this.#modelName, this.#executor);
+    }
+    return result;
+  }
+
+  #planMeta(): PlanMeta {
+    return {
+      target: "idb",
+      storageHash: this.#contract.storage.storageHash,
+      lane: "idb-orm",
+    };
+  }
+
+  #clone(overrides: Partial<IdbAccessorState>): IdbStoreAccessorImpl<TContract, ModelName, TIncludes> {
+    return new IdbStoreAccessorImpl(
+      this.#contract,
+      this.#modelName,
+      this.#executor,
+      mergeAccessorState(this.#state, overrides)
+    );
+  }
+}

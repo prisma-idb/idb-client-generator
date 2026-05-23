@@ -87,3 +87,36 @@ type IdbTypeMapsPhantomKey = "__@prisma-next-idb/family-idb/typeMaps@__";
 export type IdbContractWithTypeMaps<TContract, TTypeMaps> = TContract & {
   readonly [K in IdbTypeMapsPhantomKey]?: TTypeMaps;
 };
+
+// ── Type-map extraction helpers ───────────────────────────────────────────────
+
+/**
+ * Extract the full {@link IdbTypeMaps} from a contract wrapped with
+ * {@link IdbContractWithTypeMaps}. Returns `never` if the contract does not
+ * carry type maps (e.g. a plain `Contract<IdbStorage>` without the phantom key).
+ */
+export type ExtractIdbTypeMaps<TContract> = TContract extends {
+  readonly [K in IdbTypeMapsPhantomKey]?: infer TM;
+}
+  ? TM
+  : never;
+
+/**
+ * Extract the `fieldOutputTypes` slot from a contract's type maps.
+ *
+ * Used by the IDB ORM client to resolve per-model, per-field TypeScript output
+ * types from the emitted `IdbTypeMaps<CodecTypes, FieldOutputTypes, FieldInputTypes>`.
+ */
+export type ExtractIdbFieldOutputTypes<TContract> =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- any is used as a wildcard for type inference; the actual constraint is Record<string, { output: unknown }> | Record<string, Record<string, unknown>>
+  ExtractIdbTypeMaps<TContract> extends IdbTypeMaps<any, infer FO, any> ? FO : never;
+
+/**
+ * Extract the `fieldInputTypes` slot from a contract's type maps.
+ *
+ * Used by the IDB ORM client to resolve per-model, per-field TypeScript input
+ * types (for `create()`, `where()`, etc.).
+ */
+export type ExtractIdbFieldInputTypes<TContract> =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- any is used as a wildcard for type inference
+  ExtractIdbTypeMaps<TContract> extends IdbTypeMaps<any, any, infer FI> ? FI : never;

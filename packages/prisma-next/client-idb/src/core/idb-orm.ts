@@ -1,0 +1,75 @@
+import type { Contract } from "@prisma-next/contract/types";
+import type { IdbContract, IdbStorage } from "./types";
+import type { IdbQueryExecutor } from "./executor";
+import { type IdbStoreAccessor, IdbStoreAccessorImpl } from "./store-accessor";
+
+// ── Public types ──────────────────────────────────────────────────────────────
+
+/**
+ * The ORM client object returned by {@link idbOrm}.
+ *
+ * Keys are the root keys from `contract.roots` (e.g. `"users"`, `"posts"`).
+ * Each value is an {@link IdbStoreAccessor} targeting the corresponding model.
+ *
+ * @example
+ * ```ts
+ * const db = idbOrm({ contract, executor: runtime });
+ * const users = await db.users.all(); // IdbStoreAccessor<..., "User">
+ * ```
+ */
+export type IdbOrmClient<TContract extends Contract<IdbStorage>> = {
+  readonly [K in string & keyof TContract["roots"]]: TContract["roots"][K] extends string
+    ? TContract["roots"][K] extends keyof TContract["models"]
+      ? IdbStoreAccessor<TContract, TContract["roots"][K]>
+      : never
+    : never;
+};
+
+/**
+ * Options for {@link idbOrm}.
+ */
+export interface IdbOrmOptions<TContract extends IdbContract> {
+  /** The resolved IDB contract (with or without attached type maps). */
+  readonly contract: TContract;
+  /**
+   * The query executor.
+   *
+   * Any object with a compatible `execute()` signature satisfies this —
+   * most commonly an `IdbRuntime` created via `createIdbRuntime()`.
+   */
+  readonly executor: IdbQueryExecutor;
+}
+
+// ── Factory function ──────────────────────────────────────────────────────────
+
+/**
+ * Create a typed IDB ORM client from a contract and executor.
+ *
+ * The client exposes one `IdbStoreAccessor` per entry in `contract.roots`.
+ * Only roots-declared stores are accessible at the top level — other stores
+ * can be reached via `.include()` on any accessor.
+ *
+ * @example
+ * ```ts
+ * import { idbOrm } from "@prisma-next-idb/client-idb/orm";
+ * import { createIdbRuntime } from "@prisma-next-idb/runtime-idb/runtime";
+ * import contract from "./prisma/idb-contract";
+ *
+ * const runtime = createIdbRuntime({ adapter, driver });
+ * const db = idbOrm({ contract, executor: runtime });
+ *
+ * // Typed query builder:
+ * const alice = await db.users.where({ email: "alice@example.com" }).first();
+ * const postsWithAuthor = await db.posts.include("author").all();
+ * ```
+ */
+export function idbOrm<TContract extends IdbContract>(options: IdbOrmOptions<TContract>): IdbOrmClient<TContract> {
+  const { contract, executor } = options;
+  const client: Record<string, IdbStoreAccessor<TContract, string>> = {};
+
+  for (const [rootKey, modelName] of Object.entries(contract.roots)) {
+    client[rootKey] = new IdbStoreAccessorImpl(contract, modelName, executor);
+  }
+
+  return client as unknown as IdbOrmClient<TContract>;
+}
