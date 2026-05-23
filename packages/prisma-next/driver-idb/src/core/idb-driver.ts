@@ -1,6 +1,6 @@
 import type { RuntimeDriverInstance } from "@prisma-next/framework-components/execution";
 import { executeIdbPlan } from "./execute";
-import type { IdbPlanBody } from "./plan-body";
+import { MARKER_STORE_NAME, type IdbMarkerRecord, type IdbPlanBody } from "./plan-body";
 
 export class IdbRuntimeDriverInstance implements RuntimeDriverInstance<"idb", "idb"> {
   readonly familyId = "idb" as const;
@@ -20,6 +20,42 @@ export class IdbRuntimeDriverInstance implements RuntimeDriverInstance<"idb", "i
 
   async close(): Promise<void> {
     (await this.db).close();
+  }
+
+  /**
+   * Read the contract marker from the `_prisma_next_marker` store.
+   *
+   * Returns `null` when the marker store does not exist (fresh database
+   * that hasn't been initialised yet) or when no marker record is present.
+   *
+   * Called by `IdbRuntimeImpl` at init time to verify that the live IDB
+   * schema matches the contract.
+   */
+  async readMarker(): Promise<IdbMarkerRecord | null> {
+    const db = await this.db;
+    if (!db.objectStoreNames.contains(MARKER_STORE_NAME)) {
+      return null;
+    }
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(MARKER_STORE_NAME, "readonly");
+      const store = tx.objectStore(MARKER_STORE_NAME);
+      const req = store.get("default");
+
+      req.onsuccess = () => {
+        const record = req.result;
+        if (record === undefined || record === null) {
+          resolve(null);
+          return;
+        }
+        resolve(record as IdbMarkerRecord);
+      };
+      req.onerror = () => reject(req.error);
+
+      tx.oncomplete = () => {
+        /* resolve already called */
+      };
+      tx.onerror = () => reject(tx.error);
+    });
   }
 
   /**

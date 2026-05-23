@@ -1,5 +1,30 @@
 import type { ExecutionPlan } from "@prisma-next/framework-components/runtime";
 
+// ── Marker store ─────────────────────────────────────────────────────────────
+
+/**
+ * Name of the object store that holds the contract marker.
+ *
+ * Created during `upgradeneeded` by the migration runner and verified by the
+ * runtime before every query execution to detect schema drift.
+ *
+ * Upstream equivalent: `_prisma_marker` table in SQLite/Postgres,
+ * `_prisma_marker` collection in MongoDB.
+ */
+export const MARKER_STORE_NAME = "_prisma_next_marker";
+
+/**
+ * Shape of a marker record stored in {@link MARKER_STORE_NAME}.
+ */
+export interface IdbMarkerRecord {
+  /** The `storageHash` from the contract that was last signed. */
+  readonly storageHash: string;
+  /** The `profileHash` from the contract that was last signed. */
+  readonly profileHash: string;
+  /** ISO-8601 timestamp of when the marker was written. */
+  readonly updatedAt: string;
+}
+
 /**
  * In-memory predicate applied to each row while iterating a cursor.
  * Returns true if the row should be included in the result set.
