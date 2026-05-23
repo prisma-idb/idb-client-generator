@@ -4,6 +4,22 @@ import type { IdbPlanBody } from "@prisma-next-idb/driver-idb/runtime";
 import type { IdbQueryPlan } from "./idb-query-plan";
 
 /**
+ * Lowering context passed to the adapter's `lower()` method.
+ *
+ * Extends the framework's {@link CodecCallContext} (which carries an optional
+ * `AbortSignal` for cooperative cancellation) with the resolved IDB contract.
+ * The contract provides the per-store field→codec schema for per-field
+ * codec encoding (e.g. resolving which codec to use for a `DateTime` field).
+ *
+ * Upstream equivalent: `LowererContext<TContract>` from
+ * `@prisma-next/sql-relational-core/ast`.
+ */
+export interface IdbLowererContext<TContract = unknown> extends CodecCallContext {
+  /** The resolved IDB contract carrying the full storage schema. */
+  readonly contract: TContract;
+}
+
+/**
  * Runtime adapter instance for IndexedDB.
  *
  * Extends the generic `RuntimeAdapterInstance` marker with the IDB-specific
@@ -12,7 +28,7 @@ import type { IdbQueryPlan } from "./idb-query-plan";
  * (one of the strongly-typed IDB operation plans) that the driver can execute
  * directly against `window.indexedDB`.
  *
- * Phase 3b provides a concrete implementation ({@link import('./idb-adapter').IdbAdapter}).
+ * The concrete implementation is {@link import('./idb-adapter').IdbAdapter}.
  * This interface exists so `runtime-idb` has a stable contract to depend on
  * when building `IdbRuntimeImpl`.
  */
@@ -22,10 +38,10 @@ export interface IdbRuntimeAdapterInstance extends RuntimeAdapterInstance<"idb",
    *
    * @param plan - The pre-lowering query plan from a Prisma lane. Carries the
    *   execution-ready `IdbPlanBody` plus plan metadata.
-   * @param ctx  - Codec call context forwarded from the runtime. Carries an
-   *   optional `AbortSignal` for cooperative cancellation. Phase 4 uses this
-   *   to cancel in-flight async codec.encode() calls.
+   * @param ctx  - Lowering context with the resolved contract (for per-field
+   *   codec resolution via the contract's storage schema) and an optional
+   *   `AbortSignal` for cooperative cancellation.
    * @returns The IDB plan body describing the exact IDB operation(s) to run.
    */
-  lower(plan: IdbQueryPlan, ctx: CodecCallContext): Promise<IdbPlanBody>;
+  lower(plan: IdbQueryPlan, ctx: IdbLowererContext): Promise<IdbPlanBody>;
 }

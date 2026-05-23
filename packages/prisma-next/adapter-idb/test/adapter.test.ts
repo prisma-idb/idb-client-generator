@@ -1,9 +1,9 @@
 /**
- * Phase 3b adapter tests.
+ * Adapter tests.
  *
  * Tests the IdbAdapter.lower() implementation against a set of IdbQueryPlan
- * fixtures. Since lower() is a structural passthrough in Phase 3b (all
- * idb/* codecs are identity transforms), the primary assertions are:
+ * fixtures. Since lower() is a structural passthrough (all idb/* codecs are
+ * identity transforms), the primary assertions are:
  *   - lower() returns the `idbPlan` field unchanged.
  *   - lower() returns a Promise (async contract).
  *   - The returned plan is the exact same reference as plan.idbPlan.
@@ -22,6 +22,7 @@
 import { describe, expect, it } from "vitest";
 import { IdbAdapter } from "../src/core/idb-adapter";
 import type { IdbQueryPlan } from "../src/core/idb-query-plan";
+import type { IdbLowererContext } from "../src/core/runtime-adapter-instance";
 import idbRuntimeAdapterDescriptor from "../src/exports/runtime";
 import { emptyCodecLookup } from "@prisma-next/framework-components/codec";
 import type {
@@ -42,7 +43,11 @@ function makePlan<P extends IdbQueryPlan["idbPlan"]>(idbPlan: P): IdbQueryPlan {
 }
 
 const adapter = new IdbAdapter(emptyCodecLookup);
-const EMPTY_CTX = {};
+
+/** Minimal lowering context with a stub contract for testing. */
+const TEST_CTX: IdbLowererContext = {
+  contract: { storage: { storageHash: "test-hash", stores: {} } },
+};
 
 // ── lower() passthrough ───────────────────────────────────────────────────────
 
@@ -54,14 +59,14 @@ describe("IdbAdapter.lower() — passthrough", () => {
       storeName: "users",
       key: "u1",
     } satisfies IdbKeyGetPlan);
-    const result = adapter.lower(plan, EMPTY_CTX);
+    const result = adapter.lower(plan, TEST_CTX);
     expect(result).toBeInstanceOf(Promise);
   });
 
   it("key-get: returns the exact idbPlan reference", async () => {
     const idbPlan: IdbKeyGetPlan = { meta: META, kind: "key-get", storeName: "users", key: "u1" };
     const plan = makePlan(idbPlan);
-    const result = await adapter.lower(plan, EMPTY_CTX);
+    const result = await adapter.lower(plan, TEST_CTX);
     expect(result).toBe(idbPlan);
   });
 
@@ -74,7 +79,7 @@ describe("IdbAdapter.lower() — passthrough", () => {
       take: 10,
     };
     const plan = makePlan(idbPlan);
-    const result = await adapter.lower(plan, EMPTY_CTX);
+    const result = await adapter.lower(plan, TEST_CTX);
     expect(result).toBe(idbPlan);
   });
 
@@ -86,7 +91,7 @@ describe("IdbAdapter.lower() — passthrough", () => {
       record: { id: "u1", name: "Alice" },
     };
     const plan = makePlan(idbPlan);
-    const result = await adapter.lower(plan, EMPTY_CTX);
+    const result = await adapter.lower(plan, TEST_CTX);
     expect(result).toBe(idbPlan);
   });
 
@@ -99,7 +104,7 @@ describe("IdbAdapter.lower() — passthrough", () => {
       patch: { name: "Alice Updated" },
     };
     const plan = makePlan(idbPlan);
-    const result = await adapter.lower(plan, EMPTY_CTX);
+    const result = await adapter.lower(plan, TEST_CTX);
     expect(result).toBe(idbPlan);
   });
 
@@ -111,7 +116,7 @@ describe("IdbAdapter.lower() — passthrough", () => {
       key: "u1",
     };
     const plan = makePlan(idbPlan);
-    const result = await adapter.lower(plan, EMPTY_CTX);
+    const result = await adapter.lower(plan, TEST_CTX);
     expect(result).toBe(idbPlan);
   });
 
@@ -126,13 +131,16 @@ describe("IdbAdapter.lower() — passthrough", () => {
       ],
     };
     const plan = makePlan(idbPlan);
-    const result = await adapter.lower(plan, EMPTY_CTX);
+    const result = await adapter.lower(plan, TEST_CTX);
     expect(result).toBe(idbPlan);
   });
 
   it("threads ctx with AbortSignal without throwing", async () => {
     const controller = new AbortController();
-    const ctx = { signal: controller.signal };
+    const ctx: IdbLowererContext = {
+      signal: controller.signal,
+      contract: { storage: { storageHash: "test-hash", stores: {} } },
+    };
     const idbPlan: IdbKeyGetPlan = { meta: META, kind: "key-get", storeName: "users", key: "u99" };
     const plan = makePlan(idbPlan);
     const result = await adapter.lower(plan, ctx);
@@ -160,7 +168,7 @@ describe("idbRuntimeAdapterDescriptor.create()", () => {
     const instance = idbRuntimeAdapterDescriptor.create(fakeStack);
     const idbPlan: IdbKeyGetPlan = { meta: META, kind: "key-get", storeName: "users", key: "u1" };
     const plan = makePlan(idbPlan);
-    const result = await instance.lower(plan, EMPTY_CTX);
+    const result = await instance.lower(plan, TEST_CTX);
     expect(result).toBe(idbPlan);
   });
 });
