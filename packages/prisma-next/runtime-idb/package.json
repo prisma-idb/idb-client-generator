@@ -12,6 +12,7 @@
     "build": "tsdown",
     "dev": "tsdown --watch",
     "check": "tsc --noEmit",
+    "test": "vitest run",
     "lint": "prettier --check . && eslint .",
     "format": "prettier --write ."
   },
@@ -21,7 +22,9 @@
     "@prisma-next-idb/driver-idb": "workspace:*"
   },
   "devDependencies": {
+    "fake-indexeddb": "^6.2.5",
     "tsdown": "^0.22.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
   }
 }
