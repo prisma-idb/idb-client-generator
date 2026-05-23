@@ -87,7 +87,8 @@ function applyOneDdlOp(db: IDBDatabase, tx: IDBTransaction, op: IdbDdlOp): void 
 
 /**
  * Open the database at `targetVersion`, apply all DDL ops inside
- * `upgradeneeded`, and resolve once the connection is established.
+ * `upgradeneeded`, write the contract marker, and resolve once the
+ * connection is established.
  *
  * Returns the number of operations applied.
  */
@@ -96,6 +97,7 @@ function openAndUpgrade(
   dbName: string,
   targetVersion: number,
   ops: readonly IdbDdlOp[],
+  markerData: { readonly storageHash: string; readonly profileHash?: string } | undefined,
   callbacks?: {
     onOperationStart?(op: MigrationPlanOperation): void;
     onOperationComplete?(op: MigrationPlanOperation): void;
@@ -119,9 +121,19 @@ function openAndUpgrade(
       }
     };
 
-    request.onsuccess = (event) => {
+    request.onsuccess = async (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      db.close();
+      try {
+        // Write the contract marker after the version-change transaction
+        // commits. IDB DDL can only happen during upgradeneeded, but data
+        // writes (put into the marker store) happen in a regular readwrite
+        // transaction after the upgrade completes.
+        if (markerData !== undefined) {
+          await writeMarker(db, markerData);
+        }
+      } finally {
+        db.close();
+      }
       resolve(ops.length);
     };
 
@@ -129,6 +141,45 @@ function openAndUpgrade(
       const err = (event.target as IDBOpenDBRequest).error;
       reject(err ?? new Error("IDB: migration open request failed without an error object"));
     };
+  });
+}
+
+/**
+ * Write the contract marker into the `_prisma_next_marker` store.
+ *
+ * Uses a separate readwrite transaction after the version-change transaction
+ * has committed. The marker store was created during `upgradeneeded`.
+ */
+function writeMarker(
+  db: IDBDatabase,
+  marker: { readonly storageHash: string; readonly profileHash?: string }
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // The marker store should exist — it was created during upgradeneeded.
+    if (!db.objectStoreNames.contains("_prisma_next_marker")) {
+      // Marker store not found — this can happen if the migration plan
+      // didn't include the marker store creation op (shouldn't occur in
+      // normal operation, but is non-fatal). Skip writing the marker.
+      resolve();
+      return;
+    }
+    const tx = db.transaction("_prisma_next_marker", "readwrite");
+    const store = tx.objectStore("_prisma_next_marker");
+    const record = {
+      id: "default",
+      storageHash: marker.storageHash,
+      profileHash: marker.profileHash ?? "",
+      updatedAt: new Date().toISOString(),
+    };
+    const putReq = store.put(record);
+
+    putReq.onsuccess = () => {
+      /* marker written */
+    };
+    putReq.onerror = () => reject(putReq.error);
+
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
   });
 }
 
@@ -200,7 +251,31 @@ export class IdbMigrationRunner implements MigrationRunner<"idb", "idb"> {
     }
 
     try {
-      const executed = await openAndUpgrade(mDriver.factory, mDriver.dbName, mDriver.targetVersion, allowed, callbacks);
+      // Extract marker data from the destination contract so we can write
+      // the contract marker into the _prisma_next_marker store after DDL.
+      const destContract = options.destinationContract as Record<string, unknown> | null | undefined;
+      const storage =
+        destContract !== null && destContract !== undefined
+          ? (destContract["storage"] as Record<string, unknown> | undefined)
+          : undefined;
+      const markerData =
+        storage !== undefined && typeof storage["storageHash"] === "string"
+          ? ({
+              storageHash: storage["storageHash"] as string,
+              ...(typeof destContract?.["profileHash"] === "string"
+                ? { profileHash: destContract["profileHash"] as string }
+                : {}),
+            } as const)
+          : undefined;
+
+      const executed = await openAndUpgrade(
+        mDriver.factory,
+        mDriver.dbName,
+        mDriver.targetVersion,
+        allowed,
+        markerData,
+        callbacks
+      );
       return makeOk({ operationsPlanned: ddlOps.length, operationsExecuted: executed });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

@@ -1,6 +1,14 @@
 import type { MigrationOperationClass, MigrationPlanOperation } from "@prisma-next/framework-components/control";
 import type { IdbIndexDefinition, IdbStoreDefinition } from "./idb-contract-types";
 
+// ── Marker store ─────────────────────────────────────────────────────────────
+
+/** Name of the internal marker store. Must match {@link MARKER_STORE_NAME} in driver-idb. */
+export const IDB_MARKER_STORE = "_prisma_next_marker";
+
+/** Default keyPath for the marker store (single string key). */
+const MARKER_KEYPATH = "id";
+
 // ── Op kinds ──────────────────────────────────────────────────────────────────
 
 /** DDL operation that creates a new object store. Always `additive`. */
@@ -90,5 +98,23 @@ export function dropIndexOp(storeName: string, indexName: string): DropIndexOp {
     operationClass: "destructive" as MigrationOperationClass,
     storeName,
     indexName,
+  };
+}
+
+/**
+ * Create the internal `_prisma_next_marker` object store.
+ *
+ * This store holds the contract marker (`storageHash` + `profileHash`) that
+ * the runtime verifies before executing queries. It is always additive and
+ * should be the first op in any migration plan.
+ */
+export function createMarkerStoreOp(): CreateObjectStoreOp {
+  return {
+    kind: "createObjectStore",
+    id: `object-store.${IDB_MARKER_STORE}.create`,
+    label: `Create internal marker store "${IDB_MARKER_STORE}"`,
+    operationClass: "additive" as MigrationOperationClass,
+    storeName: IDB_MARKER_STORE,
+    def: { keyPath: MARKER_KEYPATH },
   };
 }

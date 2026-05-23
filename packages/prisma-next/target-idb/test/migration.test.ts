@@ -1,5 +1,5 @@
 /**
- * Phase 5 migration infrastructure tests.
+ * Migration infrastructure tests.
  *
  * Coverage:
  * - diffIdbSchema: all four operation kinds, ordering, null-from (fresh DB)
@@ -216,8 +216,13 @@ describe("IdbMigrationPlanner", () => {
     });
     expect(result.kind).toBe("success");
     if (result.kind !== "success") return;
-    expect(result.plan.operations).toHaveLength(1);
-    expect(result.plan.operations[0]?.kind).toBe("createObjectStore");
+    expect(result.plan.operations.length).toBeGreaterThanOrEqual(1);
+    // The marker store op is always prepended; the user's store comes after.
+    const userStoreOp = result.plan.operations.find(
+      (op) => (op as unknown as Record<string, unknown>)["storeName"] === "users"
+    );
+    expect(userStoreOp).toBeDefined();
+    expect((userStoreOp as unknown as Record<string, unknown>)["kind"]).toBe("createObjectStore");
     expect(result.plan.targetId).toBe("idb");
     expect(result.plan.destination.storageHash).toBe("abc123");
     expect(result.plan.origin).toBeNull();

@@ -8,7 +8,7 @@ import type {
   MigrationScaffoldContext,
 } from "@prisma-next/framework-components/control";
 import type { IdbStoreDefinition } from "./idb-contract-types";
-import type { IdbDdlOp } from "./migration-factories";
+import { createMarkerStoreOp, type IdbDdlOp } from "./migration-factories";
 import type { IdbSchemaDiffInput } from "./schema-diff";
 import { diffIdbSchema } from "./schema-diff";
 
@@ -165,6 +165,15 @@ export class IdbMigrationPlanner implements MigrationPlanner<"idb", "idb"> {
     }
 
     const ops = diffIdbSchema(fromSchema, toSchema);
+
+    // On first migration (fresh database), create the internal
+    // _prisma_next_marker store so the runtime can verify the
+    // contract marker before executing queries. Subsequent migrations
+    // don't need this — the marker store persists across upgrades
+    // since it's an internal store not declared in the user's contract.
+    if (fromSchema === null) {
+      ops.unshift(createMarkerStoreOp());
+    }
 
     const fromHash = extractStorageHash(fromContract);
     const toHash = extractStorageHash(contract);
