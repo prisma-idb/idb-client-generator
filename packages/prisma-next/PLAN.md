@@ -52,6 +52,8 @@ The **planner** owns schema diffing. The **runner** owns DDL execution. The **ma
 - IDB's native version-change mechanism is used (`factory.open(name, targetVersion)`)
 - On success, caller writes `idbVersion: targetVersion` back to the manifest
 
+> **Note (not yet implemented):** `IdbManifest` does not yet have an `idbVersion` field. The current implementation relies solely on `storageHash` comparison via `verifyMarker()` for drift detection. The `idbVersion` counter and its manifest field are still needed to correctly compute `targetVersion` for the migration runner — without it, the runner always opens at version 1 and DDL only fires on a fresh database. This is the next thing to add before the migration runner can be used in a real app flow.
+
 ### New files in `target-idb/src/core/`
 
 | File                     | What it does                                                                                                                                                                                                                                                                |
@@ -177,9 +179,33 @@ const users = await db.users.all();
 
 ---
 
+## Parallel Testing Strategy
+
+Each Phase 6.x implementation step is developed alongside a matching test file in `apps/prisma-next-usage`. Tests in the demo app provide integration-level coverage (contract → idbOrm → runtime → driver → IDB) that the package unit tests cannot fully cover.
+
+### Mapping: phase → test file
+
+| Phase | `apps/prisma-next-usage/test/` file(s)                                                                                                                                                              |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 6.1   | `filterConditions/operators.spec.ts`, `filterConditions/combinators.spec.ts`                                                                                                                        |
+| 6.2   | `modelQueries/update.spec.ts`, `modelQueries/updateMany.spec.ts`, `modelQueries/upsert.spec.ts`, `modelQueries/createMany.spec.ts`, `modelQueries/deleteMany.spec.ts`, `modelQueries/count.spec.ts` |
+| 6.3   | `atomicOperations/multiStoreTransaction.spec.ts`                                                                                                                                                    |
+| 6.4   | `nestedWrites/create.spec.ts`, `nestedWrites/connect.spec.ts`, `nestedWrites/disconnect.spec.ts`                                                                                                    |
+| 6.5   | `includeRefinement/whereInsideInclude.spec.ts`, `includeRefinement/scalarInclude.spec.ts`                                                                                                           |
+| 6.6   | `modelQueries/aggregate.spec.ts`, `modelQueries/groupBy.spec.ts`                                                                                                                                    |
+| 6.7   | `modelQueries/select.spec.ts`                                                                                                                                                                       |
+
+**Already covered** (from demo app setup): `modelQueries/create.spec.ts`, `modelQueries/findFirst.spec.ts`, `modelQueries/findUnique.spec.ts`, `modelQueries/delete.spec.ts`, `filterConditions/equality.spec.ts`, `modelQueryOptions/orderBy.spec.ts`, `modelQueryOptions/take.spec.ts`, `modelQueryOptions/skip.spec.ts`, `nestedQueries/include.spec.ts`.
+
+### Rule
+
+Write the demo app test first (red), then implement the feature in the package (green). The demo app tests exercise the fully assembled stack; package unit tests (`client-idb/test/orm.test.ts`) cover edge cases and internal invariants in isolation.
+
+---
+
 ## Phase 6.1 — Filter expression AST + operator API
 
-**Goal:** Replace the equality-only `WhereFilter` with a full expression AST and a typed `ModelAccessor` proxy. After this phase a developer can write:
+**Goal:** Replace the equality-only `WhereFilter` with a full expression AST and a typed `IdbModelAccessor` proxy. After this phase a developer can write:
 
 ```ts
 // Callback form with operators:
@@ -191,65 +217,177 @@ await db.users.where((u) => and(u.age.gte(18), u.active.eq(true))).all();
 await db.users.where({ active: true }).all();
 ```
 
+### Reference
+
+Mongo ORM: `MongoFieldFilter`, `MongoAndExpr`, `MongoOrExpr`, `MongoNotExpr` (class-based frozen nodes).
+SQL ORM: `BinaryExpr`, `AndExpr`, `OrExpr` from `sql-relational-core/ast` (class-based, codec trait-gated).
+
+**IDB adaptation**: use **plain frozen objects** (not classes) — no visitor pattern needed, no codec traits. `evaluateFilter()` is a simple recursive function. All operators are always available on all fields (IDB stores native JS values, so numeric vs string comparison is governed by JS semantics, not codec metadata).
+
 ### New: `IdbFilterExpr` discriminated union (`adapter-idb/src/core/idb-filter-expr.ts`)
 
-Mirror of `MongoFilterExpr` from `@prisma-next/mongo-query-ast`. Frozen class nodes, visitor-friendly.
-
 ```ts
-type IdbFilterExpr =
-  | IdbFieldFilter // { kind: 'field', field, op, value }
-  | IdbAndExpr // { kind: 'and', exprs }
-  | IdbOrExpr // { kind: 'or', exprs }
-  | IdbNotExpr // { kind: 'not', expr }
-  | IdbNullCheckExpr; // { kind: 'null-check', field, isNull }
-```
+export type IdbFilterOp =
+  | "eq"
+  | "neq"
+  | "gt"
+  | "lt"
+  | "gte"
+  | "lte"
+  | "in"
+  | "notIn"
+  | "contains"
+  | "startsWith"
+  | "endsWith";
 
-Operators on `IdbFieldFilter`: `eq`, `neq`, `gt`, `lt`, `gte`, `lte`, `in`, `notIn`, `contains`, `startsWith`, `endsWith`.
+export interface IdbFieldFilter {
+  readonly kind: "field";
+  readonly field: string;
+  readonly op: IdbFilterOp;
+  readonly value: unknown;
+}
+export interface IdbAndExpr {
+  readonly kind: "and";
+  readonly exprs: ReadonlyArray<IdbFilterExpr>;
+}
+export interface IdbOrExpr {
+  readonly kind: "or";
+  readonly exprs: ReadonlyArray<IdbFilterExpr>;
+}
+export interface IdbNotExpr {
+  readonly kind: "not";
+  readonly expr: IdbFilterExpr;
+}
+export interface IdbNullCheckExpr {
+  readonly kind: "null-check";
+  readonly field: string;
+  readonly isNull: boolean;
+}
+
+export type IdbFilterExpr = IdbFieldFilter | IdbAndExpr | IdbOrExpr | IdbNotExpr | IdbNullCheckExpr;
+
+// Factory helpers used by IdbFieldAccessor and shorthandToFilterExpr:
+export const fieldFilter = (field: string, op: IdbFilterOp, value: unknown): IdbFieldFilter =>
+  Object.freeze({ kind: "field", field, op, value });
+export const andExpr = (exprs: ReadonlyArray<IdbFilterExpr>): IdbAndExpr =>
+  Object.freeze({ kind: "and", exprs: Object.freeze([...exprs]) });
+export const orExpr = (exprs: ReadonlyArray<IdbFilterExpr>): IdbOrExpr =>
+  Object.freeze({ kind: "or", exprs: Object.freeze([...exprs]) });
+export const notExpr = (expr: IdbFilterExpr): IdbNotExpr => Object.freeze({ kind: "not", expr });
+export const nullCheckExpr = (field: string, isNull: boolean): IdbNullCheckExpr =>
+  Object.freeze({ kind: "null-check", field, isNull });
+```
 
 ### New: `evaluateFilter(expr, row)` (`adapter-idb/src/core/filter-eval.ts`)
 
-Walks the `IdbFilterExpr` tree against a materialized row. Replaces the current closure-based `#buildFilter()` in `store-accessor.ts`. This function is used directly in the `cursor-scan` executor inside `driver-idb`.
+Recursive function — no visitor. Used in `store-accessor.ts` to build the `IdbRowFilter` closure passed to the driver plan. The driver's `IdbRowFilter` type stays as `(row) => boolean`; the filter closure calls `evaluateFilter(combinedExpr, row)`.
+
+```ts
+export function evaluateFilter(expr: IdbFilterExpr, row: Record<string, unknown>): boolean;
+```
+
+String ops (`contains`, `startsWith`, `endsWith`) coerce field values with `String()` before comparing. `in`/`notIn` use `===` per element. All comparison ops use JS `<`/`>`/`<=`/`>=`.
+
+### New: `shorthandToFilterExpr` helper (`adapter-idb/src/core/idb-filter-expr.ts`)
+
+Mirrors `shorthandToWhereExpr` from `sql-orm-client/filters.ts`:
+
+```ts
+export function shorthandToFilterExpr(filters: Record<string, unknown>): IdbFilterExpr | undefined {
+  const exprs: IdbFilterExpr[] = [];
+  for (const [field, value] of Object.entries(filters)) {
+    if (value === undefined) continue;
+    if (value === null) {
+      exprs.push(nullCheckExpr(field, true));
+      continue;
+    }
+    exprs.push(fieldFilter(field, "eq", value));
+  }
+  if (exprs.length === 0) return undefined;
+  return exprs.length === 1 ? exprs[0] : andExpr(exprs);
+}
+```
 
 ### New: `IdbModelAccessor` proxy (`client-idb/src/core/model-accessor.ts`)
 
-Mirrors `createModelAccessor()` from `sql-orm-client`. A `Proxy` keyed on field names; each field returns a scalar accessor with operator methods:
+Mirrors `createModelAccessor()` from `sql-orm-client` but **without codec trait-gating**. A `Proxy` keyed on field names; each field returns an `IdbFieldAccessor<T>`:
 
 ```ts
-interface IdbFieldAccessor<T> {
+// The typed surface (compile-time):
+export type IdbFieldAccessor<T> = {
   eq(value: T): IdbFilterExpr;
   neq(value: T): IdbFilterExpr;
-  gt(value: T): IdbFilterExpr; // only if field type is orderable
+  gt(value: T): IdbFilterExpr;
   lt(value: T): IdbFilterExpr;
   gte(value: T): IdbFilterExpr;
   lte(value: T): IdbFilterExpr;
   in(values: T[]): IdbFilterExpr;
   notIn(values: T[]): IdbFilterExpr;
-  contains(value: string): IdbFilterExpr; // string fields only
-  startsWith(value: string): IdbFilterExpr; // string fields only
-  endsWith(value: string): IdbFilterExpr; // string fields only
+  contains(sub: string): IdbFilterExpr; // all fields (coerces to string at eval time)
+  startsWith(sub: string): IdbFilterExpr;
+  endsWith(sub: string): IdbFilterExpr;
   isNull(): IdbFilterExpr;
   isNotNull(): IdbFilterExpr;
+};
+
+// At runtime the Proxy get-trap creates this for any field name:
+function createIdbFieldAccessor(field: string): IdbFieldAccessor<unknown> {
+  return {
+    eq: (value) => fieldFilter(field, "eq", value),
+    neq: (value) => fieldFilter(field, "neq", value),
+    gt: (value) => fieldFilter(field, "gt", value),
+    lt: (value) => fieldFilter(field, "lt", value),
+    gte: (value) => fieldFilter(field, "gte", value),
+    lte: (value) => fieldFilter(field, "lte", value),
+    in: (values) => fieldFilter(field, "in", values),
+    notIn: (values) => fieldFilter(field, "notIn", values),
+    contains: (sub) => fieldFilter(field, "contains", sub),
+    startsWith: (sub) => fieldFilter(field, "startsWith", sub),
+    endsWith: (sub) => fieldFilter(field, "endsWith", sub),
+    isNull: () => nullCheckExpr(field, true),
+    isNotNull: () => nullCheckExpr(field, false),
+  };
+}
+
+// ModelAccessor<TContract, ModelName> maps each scalar field key → IdbFieldAccessor<FieldType>
+export type IdbModelAccessor<TContract, ModelName extends string> = {
+  readonly [K in keyof DefaultModelRow<TContract, ModelName>]: IdbFieldAccessor<
+    DefaultModelRow<TContract, ModelName>[K]
+  >;
+};
+
+export function createModelAccessor<TContract extends IdbContract, ModelName extends string>(): IdbModelAccessor<
+  TContract,
+  ModelName
+> {
+  return new Proxy({} as IdbModelAccessor<TContract, ModelName>, {
+    get(_target, prop: string | symbol) {
+      if (typeof prop !== "string") return undefined;
+      return createIdbFieldAccessor(prop);
+    },
+  });
 }
 ```
 
-Unlike the SQL version, IDB does not use codec trait-gating — all operators are always available (IDB stores JS values natively, so numeric vs string comparisons are governed by JS semantics, not codec metadata).
-
-### New: `and()`, `or()`, `not()` helpers (`client-idb/src/core/filters.ts`)
+### New: `and()`, `or()`, `not()` user-facing helpers (`client-idb/src/core/filters.ts`)
 
 ```ts
-export const and = (...exprs: IdbFilterExpr[]): IdbAndExpr => ...
-export const or  = (...exprs: IdbFilterExpr[]): IdbOrExpr  => ...
-export const not = (expr: IdbFilterExpr): IdbNotExpr       => ...
+export const and = (...exprs: IdbFilterExpr[]): IdbAndExpr => andExpr(exprs);
+export const or = (...exprs: IdbFilterExpr[]): IdbOrExpr => orExpr(exprs);
+export const not = (expr: IdbFilterExpr): IdbNotExpr => notExpr(expr);
 ```
 
 ### Changes to existing files
 
-| File                | Change                                                                                                                                                                                        |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `store-state.ts`    | `filters: IdbFilterExpr[]` (was `Record<string, unknown>[]`)                                                                                                                                  |
-| `store-accessor.ts` | `where()` gains overload: `where(fn: (m: IdbModelAccessor) => IdbFilterExpr)`. Shorthand object form converts via `shorthandToFilterExpr()`. Filters accumulate as `IdbAndExpr`-wrapped list. |
-| `idb-query-ast.ts`  | `IdbFindManyAst.where` becomes `IdbFilterExpr` (was `Record<string, unknown>`)                                                                                                                |
-| `driver-idb/ops.ts` | `execCursorScan` uses `evaluateFilter(plan.filter, row)` instead of calling the filter closure directly                                                                                       |
+| File                             | Change                                                                                                                                                                                                        |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `store-state.ts`                 | `filters: ReadonlyArray<IdbFilterExpr>` (was `ReadonlyArray<Record<string, unknown>>`)                                                                                                                        |
+| `store-accessor.ts`              | `where()` gains overload: `where(fn: (m: IdbModelAccessor<TContract, ModelName>) => IdbFilterExpr)`. Shorthand object form converts via `shorthandToFilterExpr()`. `#buildFilter()` calls `evaluateFilter()`. |
+| `idb-query-ast.ts`               | `IdbFindManyAst.where` type → `IdbFilterExpr` (was `Record<string, unknown>`)                                                                                                                                 |
+| `adapter-idb/exports/runtime.ts` | Re-export `IdbFilterExpr`, `IdbFieldFilter`, etc. and `evaluateFilter`                                                                                                                                        |
+| `client-idb/exports/orm.ts`      | Re-export `IdbModelAccessor`, `IdbFieldAccessor`, `and`, `or`, `not`                                                                                                                                          |
+
+> **Note**: `IdbRowFilter` on `IdbCursorScanPlan` stays as `(row) => boolean`. The accessor builds the closure using `evaluateFilter()` — the driver does not import `IdbFilterExpr`. This keeps `driver-idb` free of `adapter-idb` dependencies.
 
 ---
 
@@ -268,7 +406,7 @@ const count = await db.users.where((u) => u.active.eq(false)).updateMany({ delet
 await db.users.upsert({
   create: { id: "u1", name: "Alice" },
   update: { name: "Alice Updated" },
-  by: "id", // the unique field to match on
+  where: { id: "u1" }, // shorthand or callback filter to locate existing row
 });
 
 // createMany
@@ -281,30 +419,43 @@ const n = await db.users.where((u) => u.active.eq(false)).deleteMany();
 const total = await db.users.where({ active: true }).count();
 ```
 
+### Reference
+
+SQL ORM: `compileUpdateReturning`, `compileUpdateCount`, `compileDeleteCount` — IDB equivalent is cursor-scan + batch put/delete in a single readwrite transaction. SQL ORM has `RETURNING`; IDB echoes the merged record after `store.put()` (get → merge → put pattern already in `IdbUpdatePlan`).
+
 ### Changes to `IdbStoreAccessorImpl` (`store-accessor.ts`)
 
 **New terminals (all use the existing cursor-scan infrastructure):**
 
-| Method                           | IDB plan                                      | Returns             |
-| -------------------------------- | --------------------------------------------- | ------------------- |
-| `update(patch)`                  | cursor-scan → filter → put first match        | `Row \| null`       |
-| `updateMany(patch)`              | cursor-scan → filter → put each match         | `{ count: number }` |
-| `upsert({ create, update, by })` | key-get on `by` field → put (insert or merge) | `Row`               |
-| `createMany(data[])`             | multiple put ops                              | `Row[]`             |
-| `deleteMany()`                   | cursor-scan → filter → delete each match      | `{ count: number }` |
-| `count()`                        | cursor-scan → filter → count                  | `number`            |
+| Method                              | Driver plan(s)                                                       | Returns             |
+| ----------------------------------- | -------------------------------------------------------------------- | ------------------- |
+| `update(patch)`                     | `cursor-scan` filter → `update` (key-get + merge + put) on first hit | `Row \| null`       |
+| `updateMany(patch)`                 | `cursor-scan` filter → `bulk-put` (merge on each hit)                | `{ count: number }` |
+| `upsert({ create, update, where })` | `key-get` on PK field → `put` (insert) or `update` (merge)           | `Row`               |
+| `createMany(data[])`                | `bulk-put` — one IDB `put` per record in a single readwrite tx       | `Row[]`             |
+| `deleteMany()`                      | `cursor-scan` filter → `bulk-delete`                                 | `{ count: number }` |
+| `count()`                           | `cursor-scan` filter → count collected rows                          | `number`            |
 
-**New driver-side op for bulk operations:**
-
-Add `IdbBulkDeletePlan` and `IdbBulkPutPlan` to `plan-body.ts` + `ops.ts` so the driver can handle multiple writes in a single transaction without round-tripping through the executor per record.
+**New driver-side plan kinds** added to `driver-idb/src/core/plan-body.ts`:
 
 ```ts
-// plan-body.ts additions
+// batch-scan-write: cursor scan + conditional writes in one readwrite tx
+// (used by update, updateMany, deleteMany — avoids N round-trips)
+type IdbScanWritePlan = {
+  kind: "scan-write";
+  storeName: string;
+  filter?: IdbRowFilter;
+  take?: number; // 1 for update, undefined for updateMany/deleteMany
+  write: "put-merged" | "delete"; // what to do per matching row
+  patch?: Record<string, unknown>; // only for "put-merged"
+};
+// bulk-put: multiple puts in one readwrite tx (used by createMany)
 type IdbBulkPutPlan = { kind: "bulk-put"; storeName: string; records: Record<string, unknown>[] };
-type IdbBulkDeletePlan = { kind: "bulk-delete"; storeName: string; keys: IDBValidKey[] };
 ```
 
-**New AST nodes (`idb-query-ast.ts`):**
+These are added to `IdbAtomicPlan` and dispatched in `execute/ops.ts` via the existing callback-based pattern.
+
+**New AST nodes** (`adapter-idb/src/core/idb-query-ast.ts`):
 
 ```ts
 type IdbUpdateAst = { kind: "update"; modelName: string; patch: Record<string, unknown>; where?: IdbFilterExpr };
@@ -319,7 +470,7 @@ type IdbUpsertAst = {
   modelName: string;
   create: Record<string, unknown>;
   update: Record<string, unknown>;
-  by: string;
+  where: Record<string, unknown>;
 };
 type IdbCreateManyAst = { kind: "createMany"; modelName: string; data: Record<string, unknown>[] };
 type IdbDeleteManyAst = { kind: "deleteMany"; modelName: string; where?: IdbFilterExpr };
@@ -332,6 +483,10 @@ type IdbCountAst = { kind: "count"; modelName: string; where?: IdbFilterExpr };
 
 **Goal:** Allow multiple stores to be written atomically. Required before Phase 6.4 (nested writes across stores).
 
+### Reference
+
+SQL ORM: `withMutationScope()` in `mutation-executor.ts` calls `runtime.transaction()` to get a `RuntimeScope`, runs the callback, then `commit()` or `rollback()` on error. Identical pattern for IDB.
+
 ### Mental model
 
 IDB transactions span one or more object stores named at open time. All requests inside the transaction either fully commit or fully roll back. We need to expose a way for the ORM layer to open a multi-store `readwrite` transaction and pipe multiple operations through it.
@@ -339,33 +494,40 @@ IDB transactions span one or more object stores named at open time. All requests
 ### New: `IdbTransactionScope` (`driver-idb/src/core/transaction-scope.ts`)
 
 ```ts
-interface IdbTransactionScope {
-  readonly tx: IDBTransaction;
+export interface IdbTransactionScope {
   execute(plan: IdbAtomicPlan): Promise<Record<string, unknown>[]>;
-  commit(): Promise<void>; // waits for tx.oncomplete
+  commit(): Promise<void>; // resolves when tx.oncomplete fires
   rollback(): void; // calls tx.abort()
 }
-
-// On IdbDriver:
-interface IdbDriver {
-  // ... existing
-  transaction(storeNames: string[], mode: IDBTransactionMode): IdbTransactionScope;
-}
 ```
+
+`IdbRuntimeDriverInstance` gains `transaction(storeNames: string[], mode?: IDBTransactionMode): IdbTransactionScope`.
+
+Implementation: open one IDB transaction scoped to `storeNames`, wrap each `execute()` call with `executeOpInTx` (existing callback pattern) inside that transaction. `commit()` returns a Promise resolved by `tx.oncomplete`.
 
 ### New: `withMutationScope()` (`client-idb/src/core/mutation-scope.ts`)
 
-Port of `withMutationScope()` from `sql-orm-client/mutation-executor.ts`. Acquires a multi-store `readwrite` transaction from the driver, runs the callback, then commits.
+Direct port of `withMutationScope()` from `sql-orm-client/mutation-executor.ts`:
 
 ```ts
-async function withMutationScope<T>(
-  executor: IdbQueryExecutor,
+export async function withMutationScope<T>(
+  executor: IdbQueryExecutorWithTransaction,
   storeNames: string[],
   run: (scope: IdbTransactionScope) => Promise<T>
-): Promise<T>;
+): Promise<T> {
+  const tx = executor.transaction(storeNames, "readwrite");
+  try {
+    const result = await run(tx);
+    await tx.commit();
+    return result;
+  } catch (err) {
+    tx.rollback();
+    throw err;
+  }
+}
 ```
 
-The executor interface gains a `transaction()` method. `IdbRuntime` satisfies it via `driver.transaction()`.
+`IdbQueryExecutorWithTransaction` extends `IdbQueryExecutor` with `transaction()`. `IdbRuntime` satisfies it by delegating to `driver.transaction()`.
 
 ---
 
@@ -392,12 +554,25 @@ await db.users.where({ id: "u1" }).update({
 });
 ```
 
+### Reference
+
+`sql-orm-client/relation-mutator.ts` — `createRelationMutator()`, `isRelationMutationDescriptor()`, `isRelationMutationCallback()`.
+`sql-orm-client/mutation-executor.ts` — `parseMutationInput`, `partitionByOwnership`, `createGraph`, `updateFirstGraph`, `withMutationScope`.
+
+**IDB adaptations vs SQL ORM:**
+
+- No `RETURNING` clause — echo input record after `put` (already done in `IdbPutPlan`)
+- After nested `update`, re-read via `key-get` to get the merged result (IDB `IdbUpdatePlan` already echoes merged record)
+- `connect` for child-owned: find the related row by criterion (cursor-scan + filter), then `put` it with the FK set to the parent key — no SQL `UPDATE SET` needed
+- `disconnect` for N:1: set the FK field to `null` in scalar data before insert/update
+- Store names for `withMutationScope` are collected by walking the relation graph at parse time
+
 ### New: `IdbRelationMutator` (`client-idb/src/core/relation-mutator.ts`)
 
-Direct port of `relation-mutator.ts` from `sql-orm-client`:
+Direct port of `sql-orm-client/relation-mutator.ts`. Same `createRelationMutator()`, `isRelationMutationDescriptor()`, `isRelationMutationCallback()` functions — just different type imports.
 
 ```ts
-interface IdbRelationMutator<TContract, ModelName extends string> {
+export interface IdbRelationMutator<TContract, ModelName extends string> {
   create(data: CreateInput<TContract, ModelName> | CreateInput<TContract, ModelName>[]): RelationMutationCreate;
   connect(criteria: Record<string, unknown> | Record<string, unknown>[]): RelationMutationConnect;
   disconnect(criteria?: Record<string, unknown>[]): RelationMutationDisconnect;
@@ -406,18 +581,19 @@ interface IdbRelationMutator<TContract, ModelName extends string> {
 
 ### New: `IdbMutationExecutor` (`client-idb/src/core/mutation-executor.ts`)
 
-Port of `mutation-executor.ts` from `sql-orm-client`, adapted for IDB:
+Port of `sql-orm-client/mutation-executor.ts`:
 
-- `parseMutationInput(contract, modelName, data)` — separates scalar fields from relation callbacks
-- `partitionByOwnership(mutations)` — N:1 (parent-owned) vs 1:N / 1:1 (child-owned)
-- `createGraph(scope, context, modelName, data)` — recursive nested insert
-- `updateFirstGraph(scope, context, modelName, filters, data)` — nested update
-
-Key IDB difference from SQL: there is no `RETURNING` clause, so after an insert we echo the input record (same as the current `put` op does). After an update, we re-read the record with a key-get to get the merged result.
+| Function                                                      | IDB adaptation                                                                 |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `parseMutationInput(contract, modelName, data)`               | Splits scalar fields from relation callbacks (identical logic)                 |
+| `partitionByOwnership(mutations)`                             | N:1 → parentOwned; 1:N / 1:1 → childOwned (identical logic)                    |
+| `createGraph(scope, contract, modelName, data)`               | Inserts via `scope.execute({ kind: 'put', ... })`; echoes record               |
+| `updateFirstGraph(scope, contract, modelName, filters, data)` | Finds row by filter, merges patch via `scope.execute({ kind: 'update', ... })` |
+| `hasNestedMutationCallbacks(contract, modelName, data)`       | Same check — any relation field that `isRelationMutationCallback`              |
 
 ### Changes to `IdbStoreAccessorImpl`
 
-`create()` and `update()` detect relation callbacks via `hasNestedMutationCallbacks()`. When nested writes are detected, the operation is wrapped in `withMutationScope()`.
+`create()` and `update()` detect relation callbacks via `hasNestedMutationCallbacks()`. When detected, wrap in `withMutationScope()` (collecting all required store names from the contract's relation graph).
 
 ---
 
@@ -435,27 +611,44 @@ const users = await db.users
 const users = await db.users.include("posts", (posts) => posts.count()).all();
 ```
 
+### Reference
+
+`sql-orm-client/collection.ts` `include()` overload: `refineFn?` receives a child `Collection` and may return a refined `Collection` or an `IncludeScalar`. `isIncludeScalar()` / `isCollectionStateCarrier()` from `include-descriptors.ts` distinguish scalar vs collection refinement.
+
+`sql-orm-client/include-strategy.ts` — dispatches includes using the refined collection state (filters/orderBy/take). IDB equivalent: use the refined `IdbAccessorState` directly to build the child cursor-scan plan.
+
 ### Changes to `include()` signature
 
 ```ts
 include<K extends ReferenceRelKeys<TContract, ModelName>>(
   relation: K,
-  refineFn?: (collection: IdbStoreAccessor<TContract, RelatedModelName>) =>
-    | IdbStoreAccessor<TContract, RelatedModelName>
-    | IdbIncludeScalar,
+  refineFn?: (
+    collection: IdbStoreAccessor<TContract, RelatedModelName>
+  ) => IdbStoreAccessor<TContract, RelatedModelName> | IdbIncludeScalar,
 ): IdbStoreAccessor<TContract, ModelName, TIncludes & { [P in K]: RelationResult }>
+```
+
+`IdbIncludeScalar` is a thin marker object returned by `.count()` terminal (when called in refinement context):
+
+```ts
+interface IdbIncludeScalar {
+  readonly kind: "scalar";
+  readonly fn: "count";
+}
 ```
 
 ### Changes to `relation-loader.ts`
 
-The relation loader currently uses a fixed cursor-scan to load all FK-matching records. With refinement, it uses the accessor returned by `refineFn` to build the sub-plan (inheriting the filters, orderBy, take from the refined accessor).
+The relation loader currently uses a fixed cursor-scan to load all FK-matching records. With refinement, it uses the `IdbAccessorState` returned by `refineFn` to build the sub-plan (inheriting filters, orderBy, take from the refined accessor).
 
-For scalar reduces (`count()`), the loader issues a count cursor-scan instead of a row-materializing scan.
+For scalar reduces (`count()`), the loader counts matching rows rather than materializing them.
 
 Include state in `IdbAccessorState` changes from `Record<string, true>` to:
 
 ```ts
-type IncludeEntry = { refined: IdbAccessorState } | { scalar: "count" | "sum" | "avg" | "min" | "max" };
+type IncludeEntry =
+  | { readonly kind: "collection"; readonly state: IdbAccessorState }
+  | { readonly kind: "scalar"; readonly fn: "count" };
 ```
 
 ---
@@ -465,9 +658,6 @@ type IncludeEntry = { refined: IdbAccessorState } | { scalar: "count" | "sum" | 
 **Goal:** Standalone aggregation and grouped aggregation. All in-memory (IDB has no aggregation API).
 
 ```ts
-// Simple count
-const total = await db.posts.where({ published: true }).count();
-
 // Full aggregate
 const stats = await db.posts.where({ published: true }).aggregate((agg) => ({
   total: agg.count(),
@@ -482,26 +672,53 @@ const byUser = await db.posts
   .aggregate((agg) => ({ count: agg.count(), totalViews: agg.sum("views") }));
 ```
 
+### Reference
+
+`sql-orm-client/grouped-collection.ts` `GroupedCollection.aggregate()` — materializes rows, groups, runs aggregate functions. IDB uses the same pattern but purely in-memory (no SQL compilation).
+
+`sql-orm-client/aggregate-builder.ts` — `createAggregateBuilder()` returns `{ count(), sum(field), avg(field), min(field), max(field) }`. Each returns an `AggregateSelector` marker with a `fn` tag and optional `field`. IDB version is identical minus the SQL AST.
+
+`coerceAggregateValue(fn, value)` from `grouped-collection.ts` — handles bigint, string-encoded numbers, null, undefined for count. Port directly.
+
 ### New: `IdbGroupedAccessor` (`client-idb/src/core/grouped-accessor.ts`)
 
-Port of `GroupedCollection` from `sql-orm-client`. Wraps a base accessor with a `groupBy` field list. The `aggregate()` terminal:
+Port of `GroupedCollection`. The `aggregate()` terminal:
 
-1. Materializes all matching rows (via the base accessor's cursor-scan)
-2. Groups by the specified fields in-memory
-3. Computes aggregate functions per group
-4. Returns typed result rows
+1. Materializes all matching rows via the base accessor's `all().toArray()`
+2. Groups in-memory by the `groupBy` field(s)
+3. Computes aggregate selectors per group
+4. Returns typed result rows (group fields + aggregate aliases)
 
-### New: `IdbAggregateBuilder`
+### New: `IdbAggregateBuilder` (`client-idb/src/core/aggregate-builder.ts`)
 
 ```ts
-interface IdbAggregateBuilder<TContract, ModelName extends string> {
-  count(): IdbAggregateSelector<number>;
-  sum<F extends NumericFieldNames<TContract, ModelName>>(field: F): IdbAggregateSelector<number | null>;
-  avg<F extends NumericFieldNames<TContract, ModelName>>(field: F): IdbAggregateSelector<number | null>;
-  min<F extends NumericFieldNames<TContract, ModelName>>(field: F): IdbAggregateSelector<number | null>;
-  max<F extends NumericFieldNames<TContract, ModelName>>(field: F): IdbAggregateSelector<number | null>;
+interface IdbAggregateSelector<T> {
+  readonly fn: "count" | "sum" | "avg" | "min" | "max";
+  readonly field?: string;
+}
+
+function createAggregateBuilder<TContract, ModelName>(): IdbAggregateBuilder<TContract, ModelName> {
+  return {
+    count: () => ({ fn: "count" }),
+    sum: (field) => ({ fn: "sum", field }),
+    avg: (field) => ({ fn: "avg", field }),
+    min: (field) => ({ fn: "min", field }),
+    max: (field) => ({ fn: "max", field }),
+  };
 }
 ```
+
+### New standalone `aggregate()` terminal on `IdbStoreAccessor`
+
+In addition to `groupBy().aggregate()`, the accessor itself gains `.aggregate()` for non-grouped aggregation:
+
+```ts
+aggregate<Spec extends Record<string, IdbAggregateSelector<unknown>>>(
+  fn: (agg: IdbAggregateBuilder<TContract, ModelName>) => Spec
+): Promise<AggregateResult<Spec>>
+```
+
+This is a pure in-memory reduce over the matching rows (same as `count()` for Phase 6.2, generalized).
 
 ---
 
@@ -514,11 +731,19 @@ const summaries = await db.users.select("id", "email").all();
 // typeof summaries[0] === { id: string; email: string }
 ```
 
+### Reference
+
+`sql-orm-client/selection-shaping.ts` — `augmentSelectionForJoinColumns` adds join columns for relation loads. IDB equivalent is simpler: just strip non-selected fields from materialized rows after cursor-scan and after relation loads.
+
+`sql-orm-client` collection type state carries `WithSelectState` tracking selected fields. IDB follows the same pattern: `IdbAccessorState.selectedFields?: ReadonlyArray<string>`.
+
 ### Changes to `IdbStoreAccessorImpl`
 
-`select(...fields)` stores the field list in `IdbAccessorState.selectedFields`. After cursor-scan materialization (and after relation loads), a projection step strips non-selected fields.
+`select(...fields)` stores the field list in `IdbAccessorState.selectedFields`. After cursor-scan materialization and after relation loads, a projection step strips non-selected fields via `Object.fromEntries(selectedFields.map(f => [f, row[f]]))`.
 
 The return type narrows: `select('id', 'email')` changes `Row` to `Pick<DefaultModelRow<...>, 'id' | 'email'>`.
+
+**Important**: `selectedFields` must be augmented with FK columns needed by any pending `include()` loads before projection. This mirrors what `augmentSelectionForJoinColumns` does in sql-orm-client. The projection step is applied after all relation loads complete.
 
 ---
 
@@ -577,4 +802,6 @@ Port the existing sync work from the generator to the new architecture:
 
 </details>
 
-**Immediate next step** = Demo app (`apps/prisma-next-demo/`). Exercise the full stack: contract → idbOrm → runtime → adapter → driver → IndexedDB.
+**Immediate next step** = Phase 6.1 (filter expression AST). Demo app scaffold (`apps/prisma-next-usage/`) is being set up in parallel by the user. Tests follow the red-green pattern: write the test in the demo app first, then implement in the package.
+
+Also consider WebWorker support (Phase 8) — the runtime and driver should be architected with workerization in mind (no direct `window` access in the driver, abstracted via an adapter layer).
