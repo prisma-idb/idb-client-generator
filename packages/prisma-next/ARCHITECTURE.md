@@ -1,6 +1,6 @@
 # Prisma Next IDB — Package Architecture
 
-This document covers the full mental model for the four packages in `packages/prisma-next/`: what each one is, why it exists, what every entrypoint contains, and how they connect to each other.
+This document covers the full mental model for the six packages in `packages/prisma-next/`: what each one is, why it exists, what every entrypoint contains, and how they connect to each other.
 
 ---
 
@@ -17,35 +17,43 @@ Every package in this family respects this split. Code that does DDL (creating o
 
 ---
 
-## The Four Layers
+## The Six Layers
 
-A Prisma Next database family is composed of four layers. Each layer has a specific responsibility and a specific location in the call stack.
+A Prisma Next database family is composed of six layers. Each layer has a specific responsibility and a specific location in the call stack.
 
 ```
-User's config / CLI
+User's app code
         │
         ▼
-   [ family ]          ← control plane only; wires everything for the CLI
+   [ client-idb ]      ← typed ORM surface (idbOrm)
         │
         ▼
-   [ target ]          ← identity + migration system + codec declarations
+   [ runtime-idb ]     ← wires adapter + driver into RuntimeCore
         │
         ▼
-   [ adapter ]         ← translates Prisma query AST → storage-specific plan
+   [ adapter-idb ]     ← translates query plan → IDB operation body
         │
         ▼
-   [ driver ]          ← executes the plan against the actual database API
+   [ driver-idb ]      ← executes the plan against indexedDB
+        │
+        ▼
+   [ target-idb ]      ← identity + codecs + migration system
         │
         ▼
    window.indexedDB
+        │
+        ▲
+   [ family-idb ]      ← control plane only; CLI integration
 ```
 
 ### Analogy: a restaurant kitchen
 
-- **family** — the restaurant manager. Knows the whole operation, talks to suppliers (CLI), knows the menu contract. Never cooks.
-- **target** — the recipe book + kitchen rulebook. Defines what the food is, how ingredients map to dishes (codecs), and how to upgrade the kitchen equipment (migrations).
-- **adapter** — the prep cook. Takes an order (query AST) and turns it into a set of specific actions ("slice onions, brown beef") using the recipe book.
-- **driver** — the line cook. Executes those specific actions against the actual stove (IndexedDB API). Doesn't know or care about recipes.
+- **client-idb** — the waiter/menu. Takes the customer's order in typed, familiar terms (`db.users.create({…})`) and hands a structured ticket to the kitchen.
+- **runtime-idb** — the expeditor. Coordinates the prep cook and line cook, verifies the recipe version matches, runs quality checks (middleware).
+- **adapter-idb** — the prep cook. Takes an order ticket and turns it into specific actions ("slice onions, brown beef") using the recipe book.
+- **driver-idb** — the line cook. Executes those specific actions against the actual stove (IndexedDB API). Doesn't know or care about recipes.
+- **target-idb** — the recipe book + kitchen rulebook. Defines what the food is, how ingredients map to dishes (codecs), and how to upgrade the kitchen equipment (migrations).
+- **family-idb** — the restaurant manager. Knows the whole operation, talks to suppliers (CLI), knows the menu contract. Never cooks.
 
 ---
 
@@ -135,7 +143,85 @@ Even though IDB is browser-native, the CLI needs to open an IDB-like connection 
 driver (no deps on adapter)
 adapter → target
 family → target
+runtime-idb → adapter, driver
+client-idb → target, adapter, driver
 ```
+
+---
+
+### `@prisma-next-idb/runtime-idb`
+
+**What it is:** The `RuntimeCore` subclass for IndexedDB. Wires the adapter and driver together into a single `execute(plan)` method, verifies the contract marker, and runs the middleware lifecycle.
+
+**Analogy:** the kitchen expeditor. Takes the waiter's ticket, coordinates the prep cook (adapter) and line cook (driver), verifies the recipe version hasn't changed, and enforces quality checks (middleware).
+
+**Entrypoints:**
+
+| Entrypoint  | Plane        | What it contains                                                                                                             | Who imports it       |
+| ----------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| `./runtime` | runtime only | `createIdbRuntime({ adapter, driver, contract })` factory + `IdbRuntime` interface + `IdbMiddleware` type + `verifyMarker()` | User app, client-idb |
+
+**Key methods on `IdbRuntime`:**
+
+| Method           | What it does                                                                              |
+| ---------------- | ----------------------------------------------------------------------------------------- |
+| `execute(plan)`  | Lowers the plan via the adapter, runs it via the driver, yields typed rows                |
+| `verifyMarker()` | Compares the live `_prisma_next_marker` store's `storageHash` against the contract's hash |
+| `close()`        | Closes the IDB database connection via the driver                                         |
+
+**`verifyMarker()` explained:**
+Before executing queries, the runtime reads the `_prisma_next_marker` object store (created by the migration runner) and compares the stored `storageHash` against `contract.storage.storageHash`. A match means the live schema matches what the contract expects. A mismatch means a migration is needed. A missing marker means the database was never initialised.
+
+**Middleware:**
+The runtime accepts an optional `middleware` array of `IdbMiddleware` objects. Each middleware has:
+
+- `family: "idb"` — discriminant so only IDB-compatible middleware is accepted
+- `beforeExecute(plan, ctx)` — called before the driver runs
+- `onRow(row, plan, ctx)` — called for every row yielded by the driver
+- `afterExecute(plan, ctx)` — called after the driver finishes
+
+**Depends on:** `adapter-idb` (for `lower()`), `driver-idb` (for `execute()`, `readMarker()`, `close()`).
+
+---
+
+### `@prisma-next-idb/client-idb`
+
+**What it is:** The typed ORM surface — `idbOrm({ contract, executor })` returns a client where every model in the contract becomes a typed accessor with methods like `.create()`, `.all()`, `.where()`, `.first()`, `.delete()`.
+
+**Analogy:** the waiter and menu. The customer (app code) writes `db.users.create({ name: "Alice" })` — the client translates this into an `IdbQueryPlan` and hands it to the runtime executor.
+
+**Entrypoints:**
+
+| Entrypoint | Plane        | What it contains                                                                         | Who imports it |
+| ---------- | ------------ | ---------------------------------------------------------------------------------------- | -------------- |
+| `./orm`    | runtime only | `idbOrm({ contract, executor })` factory + `IdbOrmClient` type + `IdbStoreAccessor` type | User app       |
+
+**Key types:**
+
+| Type                    | What it is                                                                                          |
+| ----------------------- | --------------------------------------------------------------------------------------------------- |
+| `IdbOrmClient<T>`       | A mapped type over `contract.roots` — each root key becomes an `IdbStoreAccessor` property          |
+| `IdbStoreAccessor<T,M>` | Typed per-model accessor with `create()`, `all()`, `where()`, `first()`, `findUnique()`, `delete()` |
+| `IdbQueryExecutor`      | A thin interface: `execute<Row>(plan: IdbQueryPlan<Row>): AsyncIterableResult<Row>`                 |
+| `WhereFilter<T,M>`      | Typed filter shape matching the model's fields                                                      |
+
+**How it works:**
+
+1. `idbOrm()` reads `contract.roots` (e.g. `{ users: "User", posts: "Post" }`)
+2. For each root, it instantiates an `IdbStoreAccessorImpl` targeting the model
+3. When you call `db.users.create({ name: "Alice" })`, the accessor:
+   - Generates a client-side `id` (uuid/cuid)
+   - Builds an `IdbQueryPlan` with an `IdbPutPlan` body
+   - Calls `executor.execute(plan)`
+4. The executor is typically an `IdbRuntime` — which lowers the plan via the adapter and runs it via the driver
+
+**`groupingKey` on plan meta:**
+Every `IdbQueryPlan` emitted by the ORM carries a `groupingKey` in its `meta.annotations` — a unique string like `"idb-op-1"`, `"idb-op-2"`. This key propagates through sub-plans (e.g. relation loads) so middleware can correlate operations.
+
+**Intermediate AST on plans:**
+Each plan carries an optional `ast` field (`IdbQueryAst`) describing the query intent (`findMany`, `findUnique`, `create`, `delete`). This lets middleware inspect query structure without parsing opaque plan bodies.
+
+**Depends on:** `target-idb` (for contract types), `adapter-idb` (for `IdbQueryPlan` shape), `driver-idb` (for `IdbPlanBody` types). Does NOT depend on `runtime-idb` — the executor interface is structural.
 
 ---
 
@@ -176,22 +262,33 @@ prisma.config.ts
                                 inside the upgradeneeded callback
 ```
 
-### Runtime plane (user calls `db.orm.users.findMany(...)`)
+### Runtime plane (user calls `db.users.all()` or `db.users.create({…})`)
 
 ```
 User's app
-  └── createRuntimeStack({
-        target: (await import('target-idb/runtime')).default,
-        adapter: (await import('adapter-idb/runtime')).default,
-        driver:  (await import('driver-idb/runtime')).default,
-      })
+  ├── import { idbOrm } from "@prisma-next-idb/client-idb/orm"
+  ├── import { createIdbRuntime } from "@prisma-next-idb/runtime-idb/runtime"
+  └── import contract from "./prisma/idb-contract"
         │
-        ├── target-idb/runtime ← RuntimeTargetDescriptor.create() → target instance
-        │     └── .codecs() → IDB codec registry (how DateTime etc. serialize)
-        ├── adapter-idb/runtime ← RuntimeAdapterDescriptor.create(stack) → adapter instance
-        │     └── .lower(queryAST) → opaque IDBPlanBody
-        └── driver-idb/runtime ← createIDBDriver(dbName) → driver instance
-              └── .execute(planBody) → runs cursor ops against window.indexedDB
+        ├── const runtime = createIdbRuntime({ adapter, driver, contract })
+        │     ├── runtime.verifyMarker()  // checks _prisma_next_marker store
+        │     ├── adapter-idb/runtime ← lower(plan, { contract }) → IdbPlanBody
+        │     └── driver-idb/runtime ← execute(planBody) → async iterable rows
+        │
+        └── const db = idbOrm({ contract, executor: runtime })
+              │
+              ├── db.users.create({ name: "Alice" })
+              │     └── builds IdbQueryPlan { idbPlan: IdbPutPlan, meta: { groupingKey: "idb-op-1" } }
+              │     └── runtime.execute(plan) → AsyncIterableResult<Row>
+              │
+              └── db.users.all()
+                    └── builds IdbQueryPlan { idbPlan: IdbCursorScanPlan }
+                    └── runtime.execute(plan)
+                          ├── adapter.lower(plan, { contract }) → IdbPlanBody
+                          ├── middleware.beforeExecute(planBody, ctx)
+                          ├── driver.execute(planBody) → yield rows
+                          │     └── middleware.onRow(row, planBody, ctx) per row
+                          └── middleware.afterExecute(planBody, ctx)
 ```
 
 ---
@@ -201,16 +298,22 @@ User's app
 ```
 family-idb ──────────────────┐
                               │ (depends on)
-target-idb ◄──────────────── adapter-idb
-     ▲
-     └── family-idb
+target-idb ◄──────────────── adapter-idb ◄────── runtime-idb
+     ▲                                              ▲
+     └── family-idb                                 │
+                                              client-idb
+                                                    │
+driver-idb ◄────────────────────────────────────────┘
 
-driver-idb   (no prod deps on target/adapter/family)
+client-idb depends on target-idb, adapter-idb, driver-idb
+runtime-idb depends on adapter-idb, driver-idb
 ```
 
 - `adapter-idb` → `target-idb` (needs target pack identity and codec types)
 - `family-idb` → `target-idb` (needs pack metadata to build control descriptors)
 - `driver-idb` → nothing in this family (only needs framework-components types)
+- `runtime-idb` → `adapter-idb`, `driver-idb` (wires `lower()` + `execute()` + `readMarker()` into a `RuntimeCore`)
+- `client-idb` → `target-idb`, `adapter-idb`, `driver-idb` (needs contract types, plan shapes, and plan body types)
 
 ---
 
@@ -236,6 +339,10 @@ driver-idb   (no prod deps on target/adapter/family)
 | **marker ledger**            | The system that tracks which migration has been applied to an IDB database. Stored as a special entry inside IDB itself.                                                                                  |
 | **upgradeneeded**            | The IDB callback that fires when `IDBFactory.open(name, newVersion)` is called with a version higher than the stored version. DDL (object store creation/deletion) can ONLY happen here.                  |
 | **opaque plan body**         | The output of `adapter.lower(queryAST)`. It's a data structure the driver knows how to execute, but the adapter doesn't need to know the driver's internals to produce it.                                |
+| **ORM client**               | The typed object returned by `idbOrm({ contract, executor })`. Maps contract roots to `IdbStoreAccessor` instances. The user-facing query API.                                                            |
+| **store accessor**           | A per-model typed query builder returned by the ORM client. Has methods like `create()`, `all()`, `where()`, `first()`, `findUnique()`, `delete()`.                                                       |
+| **groupingKey**              | A unique string (e.g. `"idb-op-1"`) attached to every plan emitted by the ORM. Propagates through sub-plans so middleware can correlate related operations.                                               |
+| **contract marker**          | A record in the `_prisma_next_marker` object store containing `storageHash`, `profileHash`, and `updatedAt`. Written by the migration runner, verified by `runtime.verifyMarker()`.                       |
 | **outbox sync**              | The bidirectional sync extension (separate from these packages). Client writes go to an outbox first; a background process syncs them to the server. Lives in a separate `extension-outbox-sync` package. |
 
 ---
@@ -263,6 +370,7 @@ packages/prisma-next/
 │       │   ├── capabilities.ts         ← IDB capability flags
 │       │   ├── migration-factories.ts  ← createObjectStore, createIndex, etc.
 │       │   ├── migration-runner.ts     ← IDBMigrationRunner (orchestrates upgradeneeded)
+│       │   ├── migration-planner.ts    ← contract→schema IR diffing + marker store op
 │       │   ├── schema-diff.ts          ← contract-to-contract diffing
 │       │   └── marker-ledger.ts        ← read/write applied migration version
 │       └── exports/
@@ -276,8 +384,11 @@ packages/prisma-next/
 │   ├── tsconfig.json
 │   └── src/
 │       ├── core/
-│       │   ├── codecs.ts           ← IDB codec implementations
-│       │   ├── idb-adapter.ts      ← lower(queryAST) → IDBPlanBody
+│       │   ├── codecs.ts                 ← IDB codec implementations
+│       │   ├── idb-adapter.ts            ← lower(plan, ctx) → IdbPlanBody
+│       │   ├── idb-query-ast.ts          ← IdbQueryAst (findMany / findUnique / create / delete)
+│       │   ├── idb-query-plan.ts         ← IdbQueryPlan shape
+│       │   ├── runtime-adapter-instance.ts ← IdbRuntimeAdapterInstance + IdbLowererContext
 │       │   └── introspect-schema.ts
 │       └── exports/
 │           ├── control.ts    ← ControlAdapterDescriptor + scalarTypeDescriptors
@@ -288,11 +399,42 @@ packages/prisma-next/
 │   ├── tsconfig.json
 │   └── src/
 │       ├── core/
-│       │   └── driver-info.ts      ← version constant
-│       ├── idb-driver.ts           ← IDBDriverImpl class
+│       │   ├── driver-info.ts      ← version constant
+│       │   ├── plan-body.ts        ← IdbPlanBody union, MARKER_STORE_NAME, IdbMarkerRecord
+│       │   ├── idb-driver.ts       ← IdbRuntimeDriverInstance (open, execute, readMarker, close)
+│       │   └── execute/            ← plan body execution helpers
 │       └── exports/
 │           ├── control.ts    ← ControlDriverDescriptor + create(dbName)
-│           └── runtime.ts    ← createIDBDriver() factory + IDBDriverImpl
+│           └── runtime.ts    ← createIDBRuntimeDriver() factory + IdbRuntimeDriverInstance
+│
+├── runtime-idb/
+│   ├── package.json          ← exports: ./runtime
+│   ├── tsconfig.json
+│   ├── vitest.config.ts
+│   ├── test/
+│   │   └── runtime.test.ts
+│   └── src/
+│       ├── idb-runtime.ts       ← IdbRuntimeImpl (extends RuntimeCore), createIdbRuntime()
+│       ├── idb-middleware.ts    ← IdbMiddleware interface (family: "idb")
+│       └── exports/
+│           └── runtime.ts       ← re-exports createIdbRuntime, IdbRuntime, IdbMiddleware
+│
+├── client-idb/
+│   ├── package.json          ← exports: ./orm
+│   ├── tsconfig.json
+│   ├── vitest.config.ts
+│   ├── test/
+│   │   └── orm.test.ts
+│   └── src/
+│       ├── core/
+│       │   ├── idb-orm.ts          ← idbOrm() factory, IdbOrmClient type
+│       │   ├── store-accessor.ts   ← IdbStoreAccessorImpl (create, all, where, first, findUnique, delete)
+│       │   ├── executor.ts         ← IdbQueryExecutor interface
+│       │   ├── relation-loader.ts  ← include() / relation traversal
+│       │   ├── store-state.ts      ← per-store groupingKey counter
+│       │   └── types.ts            ← IdbContract, WhereFilter, CreateInput, etc.
+│       └── exports/
+│           └── orm.ts              ← re-exports idbOrm, IdbOrmClient, IdbStoreAccessor, etc.
 │
 └── family-idb/
     ├── package.json          ← exports: /control /pack
