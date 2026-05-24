@@ -28,7 +28,7 @@ jobs:
       - name: Generate BETTER_AUTH_SECRET
         run: echo "BETTER_AUTH_SECRET=$(openssl rand -base64 32 | tr '/+=' '_-')" >> $GITHUB_ENV
 
-      - name: Run svelte-check
+      - name: Run typecheck commands
         run: pnpm check
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5433/postgres"
