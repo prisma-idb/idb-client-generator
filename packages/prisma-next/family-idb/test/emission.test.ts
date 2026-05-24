@@ -1,31 +1,24 @@
-import { createContract } from "@prisma-next/contract/testing";
 import type { ContractModel } from "@prisma-next/contract/types";
 import { describe, expect, it } from "vitest";
 import { idbEmission } from "../src/core/emission";
 import { validateContract } from "../src/core/validate";
+import { defineContract } from "../src/core/contract-builder";
+import idbFamilyPack from "../src/exports/pack";
+import idbTargetPack from "@prisma-next-idb/target-idb/pack";
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
 
 /** Minimal IDB contract with two stores used across emission tests. */
-const minimalIdbContract = createContract({
-  target: "idb",
-  targetFamily: "idb",
-  storage: {
-    stores: {
-      posts: {
-        keyPath: "id",
-      },
-      users: {
-        keyPath: "id",
-        indexes: {
-          byEmail: { keyPath: "email", unique: true },
-        },
-      },
-    },
-  },
+const minimalIdbContract = defineContract({
+  family: idbFamilyPack,
+  target: idbTargetPack,
   models: {
-    Post: { fields: {}, relations: {}, storage: { storeName: "posts", keyPath: "id" } },
-    User: { fields: {}, relations: {}, storage: { storeName: "users", keyPath: "id" } },
+    Post: { store: "posts", key: "id" },
+    User: {
+      store: "users",
+      key: "id",
+      indexes: { byEmail: { keyPath: "email", unique: true } },
+    },
   },
 });
 
@@ -69,35 +62,31 @@ describe("idbEmission", () => {
     });
 
     it("emits autoIncrement when present on a store", () => {
-      const contract = createContract({
-        target: "idb",
-        targetFamily: "idb",
-        storage: {
-          stores: {
-            items: { keyPath: "id", autoIncrement: true },
-          },
-        },
-        models: { Item: { fields: {}, relations: {}, storage: { storeName: "items", keyPath: "id" } } },
+      const contract = defineContract({
+        family: idbFamilyPack,
+        target: idbTargetPack,
+        models: { Item: { store: "items", key: "id" } },
       });
-      const result = idbEmission.generateStorageType(contract, "H");
+      // Patch the storage to inject autoIncrement for this emission-only test.
+      const patched = {
+        ...contract,
+        storage: { ...contract.storage, stores: { items: { keyPath: "id", autoIncrement: true } } },
+      };
+      const result = idbEmission.generateStorageType(patched as typeof contract, "H");
       expect(result).toContain("readonly autoIncrement: true");
     });
 
     it("emits multiEntry when present on an index", () => {
-      const contract = createContract({
-        target: "idb",
-        targetFamily: "idb",
-        storage: {
-          stores: {
-            items: {
-              keyPath: "id",
-              indexes: {
-                byTags: { keyPath: "tags", unique: false, multiEntry: true },
-              },
-            },
+      const contract = defineContract({
+        family: idbFamilyPack,
+        target: idbTargetPack,
+        models: {
+          Item: {
+            store: "items",
+            key: "id",
+            indexes: { byTags: { keyPath: "tags", unique: false, multiEntry: true } },
           },
         },
-        models: { Item: { fields: {}, relations: {}, storage: { storeName: "items", keyPath: "id" } } },
       });
       const result = idbEmission.generateStorageType(contract, "H");
       expect(result).toContain("readonly multiEntry: true");
@@ -105,13 +94,13 @@ describe("idbEmission", () => {
     });
 
     it("returns a Record<string, never> stores type for an empty stores object", () => {
-      const contract = createContract({
-        target: "idb",
-        targetFamily: "idb",
-        storage: { stores: {} },
-        models: {},
-      });
-      const result = idbEmission.generateStorageType(contract, "H");
+      // Use a raw object here — defineContract requires at least one model.
+      // This test exercises the emission path directly with an empty stores map.
+      const raw = makeRawWithStorage({ stores: {}, storageHash: "sha256:test" });
+      const result = idbEmission.generateStorageType(
+        raw as unknown as Parameters<typeof idbEmission.generateStorageType>[0],
+        "H"
+      );
       expect(result).toContain("readonly stores: Record<string, never>");
     });
   });

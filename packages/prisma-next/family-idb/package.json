@@ -5,8 +5,10 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    "./control": "./dist/exports/control.mjs",
-    "./pack": "./dist/exports/pack.mjs",
+    "./control": "./dist/control.mjs",
+    "./pack": "./dist/pack.mjs",
+    "./contract-ts": "./dist/contract-ts.mjs",
+    "./config-types": "./dist/config-types.mjs",
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -18,9 +20,12 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@prisma-next/config": "^0.4.4",
     "@prisma-next/contract": "^0.4.4",
+    "@prisma-next/utils": "^0.4.4",
     "@prisma-next/framework-components": "^0.4.4",
-    "@prisma-next-idb/target-idb": "workspace:*"
+    "@prisma-next-idb/target-idb": "workspace:*",
+    "pathe": "^2.0.3"
   },
   "devDependencies": {
     "tsdown": "^0.22.0",

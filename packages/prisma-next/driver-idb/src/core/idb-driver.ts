@@ -14,7 +14,7 @@ export class IdbRuntimeDriverInstance implements RuntimeDriverInstance<"idb", "i
    */
   readonly db: Promise<IDBDatabase>;
 
-  constructor(dbName: string, version: number) {
+  constructor(dbName: string, version?: number) {
     this.db = openIdbDatabase(dbName, version);
   }
 
@@ -88,8 +88,13 @@ export class IdbRuntimeDriverInstance implements RuntimeDriverInstance<"idb", "i
  * handler is a no-op at this level — migrations are orchestrated by
  * `IdbMigrationRunner` (target-idb) which opens the database at a specific
  * version and runs DDL inside the version-change transaction.
+ *
+ * When version is omitted the IDB spec opens the database at its current version
+ * (or version 1 for a brand-new database). This is the correct runtime behaviour
+ * per ADR 001: the migration runner owns version bumping; the runtime just connects
+ * to whatever schema is already in place.
  */
-function openIdbDatabase(dbName: string, version: number): Promise<IDBDatabase> {
+function openIdbDatabase(dbName: string, version?: number): Promise<IDBDatabase> {
   return new Promise<IDBDatabase>((resolve, reject) => {
     const req = indexedDB.open(dbName, version);
 

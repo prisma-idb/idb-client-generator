@@ -43,7 +43,7 @@ export type { IdbExecuteErrorCode } from "../core/execute/error";
  */
 export function createIDBRuntimeDriver(
   dbName: string,
-  version = 1
+  version?: number
 ): RuntimeDriverDescriptor<"idb", "idb", void, IdbRuntimeDriverInstance> {
   return {
     ...idbDriverDescriptorMeta,

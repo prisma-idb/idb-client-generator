@@ -8,8 +8,9 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AsyncIterableResult } from "@prisma-next/framework-components/runtime";
-import { createContract } from "@prisma-next/contract/testing";
-import type { IdbStorage } from "@prisma-next-idb/target-idb/pack";
+import { defineContract } from "@prisma-next-idb/family-idb/contract-ts";
+import idbFamilyPack from "@prisma-next-idb/family-idb/pack";
+import idbTargetPack from "@prisma-next-idb/target-idb/pack";
 import { createIDBRuntimeDriver } from "@prisma-next-idb/driver-idb/runtime";
 import type { IdbRuntimeDriverInstance } from "@prisma-next-idb/driver-idb/runtime";
 import type { IdbQueryPlan } from "@prisma-next-idb/adapter-idb/runtime";
@@ -92,7 +93,7 @@ function seedStore(db: IDBDatabase, storeName: string, records: Record<string, u
 // ── Test contract ─────────────────────────────────────────────────────────────
 
 function makeTestContract(
-  roots: Record<string, string>,
+  _roots: Record<string, string>,
   models: Record<
     string,
     {
@@ -105,26 +106,33 @@ function makeTestContract(
     }
   >
 ) {
-  const contractModels: Record<
+  const defModels: Record<
     string,
-    { storage: { storeName: string; keyPath: string }; relations: Record<string, never>; fields: Record<string, never> }
+    {
+      store: string;
+      key: string;
+      relations?: Record<
+        string,
+        { to: string; cardinality: "1:1" | "1:N" | "N:1"; on: { local: string[]; target: string[] } }
+      >;
+    }
   > = {};
   for (const [name, spec] of Object.entries(models)) {
-    contractModels[name] = {
-      storage: { storeName: spec.storeName, keyPath: spec.keyPath },
-      relations: (spec.relations ?? {}) as Record<string, never>,
-      fields: {},
+    const relations: (typeof defModels)[string]["relations"] = {};
+    for (const [relName, rel] of Object.entries(spec.relations ?? {})) {
+      relations[relName] = {
+        to: rel.to,
+        cardinality: rel.cardinality,
+        on: { local: rel.on.localFields, target: rel.on.targetFields },
+      };
+    }
+    defModels[name] = {
+      store: spec.storeName,
+      key: spec.keyPath,
+      ...(Object.keys(relations).length > 0 ? { relations } : {}),
     };
   }
-  return {
-    ...createContract<IdbStorage>({
-      target: "idb",
-      targetFamily: "idb",
-      storage: { stores: {} },
-      models: contractModels,
-    }),
-    roots,
-  };
+  return defineContract({ family: idbFamilyPack, target: idbTargetPack, models: defModels });
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

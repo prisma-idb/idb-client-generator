@@ -1,0 +1,68 @@
+import { emptyCodecLookup } from "@prisma-next/framework-components/codec";
+import { IdbAdapter } from "@prisma-next-idb/adapter-idb/runtime";
+import { createIDBRuntimeDriver } from "@prisma-next-idb/driver-idb/runtime";
+import type { IdbMiddleware } from "@prisma-next-idb/runtime-idb/runtime";
+import { createIdbRuntime } from "@prisma-next-idb/runtime-idb/runtime";
+import { idbOrm } from "./idb-orm";
+import type { IdbOrmClient } from "./idb-orm";
+import type { IdbContract } from "./types";
+
+export interface IdbClientOptions<TContract extends IdbContract> {
+  readonly contract: TContract;
+  readonly dbName: string;
+  // No version — the migration runner owns the IDB version integer (ADR 001).
+  readonly middleware?: readonly IdbMiddleware[];
+}
+
+export interface IdbClient<TContract extends IdbContract> {
+  readonly orm: IdbOrmClient<TContract>;
+  verifyMarker(): Promise<boolean>;
+  close(): Promise<void>;
+  [Symbol.asyncDispose](): Promise<void>;
+}
+
+/**
+ * Creates a typed IDB client from a contract and a database name.
+ *
+ * Assembles the full runtime stack (driver → adapter → runtime → ORM) internally.
+ * Equivalent to `postgres({ contract, url })` in `@prisma-next/postgres/runtime`.
+ *
+ * The IDB database version is not exposed — it is managed by the migration runner
+ * per ADR 001. The driver opens at the current database version, which is correct
+ * for a runtime that only reads/writes (no DDL).
+ *
+ * @example
+ * ```ts
+ * import { createIdbClient } from '@prisma-next-idb/client-idb/client';
+ * import contract from './contract';
+ *
+ * export const db = createIdbClient({ contract, dbName: 'my-app' });
+ *
+ * // Later:
+ * const users = await db.orm.users.all().toArray();
+ * ```
+ */
+export function createIdbClient<TContract extends IdbContract>(
+  options: IdbClientOptions<TContract>
+): IdbClient<TContract> {
+  const driver = createIDBRuntimeDriver(options.dbName).create();
+  const adapter = new IdbAdapter(emptyCodecLookup);
+  const runtime = createIdbRuntime({
+    adapter,
+    driver,
+    contract: options.contract as Record<string, unknown>,
+    ...(options.middleware !== undefined && options.middleware.length > 0 ? { middleware: options.middleware } : {}),
+  });
+  const orm = idbOrm({ contract: options.contract, executor: runtime });
+
+  return {
+    orm,
+    verifyMarker: () => runtime.verifyMarker(),
+    async close() {
+      await runtime.close();
+    },
+    [Symbol.asyncDispose]() {
+      return this.close();
+    },
+  };
+}
