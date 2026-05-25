@@ -1,8 +1,8 @@
-import { emptyCodecLookup } from "@prisma-next/framework-components/codec";
 import { IdbAdapter } from "@prisma-next-idb/adapter-idb/runtime";
 import { createIDBRuntimeDriver } from "@prisma-next-idb/driver-idb/runtime";
 import type { IdbMiddleware } from "@prisma-next-idb/runtime-idb/runtime";
 import { createIdbRuntime } from "@prisma-next-idb/runtime-idb/runtime";
+import { idbCodecLookup } from "@prisma-next-idb/target-idb/runtime";
 import { idbOrm } from "./idb-orm";
 import type { IdbOrmClient } from "./idb-orm";
 import type { IdbContract } from "./types";
@@ -46,7 +46,7 @@ export function createIdbClient<TContract extends IdbContract>(
   options: IdbClientOptions<TContract>
 ): IdbClient<TContract> {
   const driver = createIDBRuntimeDriver(options.dbName).create();
-  const adapter = new IdbAdapter(emptyCodecLookup);
+  const adapter = new IdbAdapter(idbCodecLookup);
   const runtime = createIdbRuntime({
     adapter,
     driver,

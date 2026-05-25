@@ -65,10 +65,15 @@ export interface IdbOrmOptions<TContract extends IdbContract> {
  */
 export function idbOrm<TContract extends IdbContract>(options: IdbOrmOptions<TContract>): IdbOrmClient<TContract> {
   const { contract, executor } = options;
-  const client: Record<string, IdbStoreAccessor<TContract, string>> = {};
 
+  // One counter per idbOrm() call — two clients in the same realm get
+  // independent key sequences and can't interleave (ADR 160).
+  let _key = 0;
+  const newGroupingKey = () => `idb-op-${++_key}`;
+
+  const client: Record<string, IdbStoreAccessor<TContract, string>> = {};
   for (const [rootKey, modelName] of Object.entries(contract.roots)) {
-    client[rootKey] = new IdbStoreAccessorImpl(contract, modelName, executor);
+    client[rootKey] = new IdbStoreAccessorImpl(contract, modelName, executor, undefined, newGroupingKey);
   }
 
   return client as unknown as IdbOrmClient<TContract>;

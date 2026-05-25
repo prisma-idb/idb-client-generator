@@ -25,23 +25,6 @@ import { type IdbAccessorState, emptyAccessorState, mergeAccessorState } from ".
 import type { IdbQueryExecutor } from "./executor";
 import { loadRelation } from "./relation-loader";
 
-// ── Grouping key ─────────────────────────────────────────────────────────────
-
-/**
- * Generate a new grouping key for correlating multi-statement operations.
- *
- * Uses a simple counter-based scheme (no crypto needed — grouping keys are
- * for observability, not security). Each ORM operation invocation gets a
- * unique key that is attached to every sub-plan (main query + relation loads).
- *
- * Upstream: ADR 160 — Plan grouping keys for multi-statement orchestration.
- */
-let _nextGroupingKey = 0;
-function newGroupingKey(): string {
-  _nextGroupingKey += 1;
-  return `idb-op-${_nextGroupingKey}`;
-}
-
 // ── Interface ─────────────────────────────────────────────────────────────────
 
 /**
@@ -129,13 +112,23 @@ export class IdbStoreAccessorImpl<
   readonly #executor: IdbQueryExecutor;
   readonly #storeName: string;
   readonly #state: IdbAccessorState;
+  readonly #newGroupingKey: () => string;
 
-  constructor(contract: TContract, modelName: ModelName, executor: IdbQueryExecutor, state?: IdbAccessorState) {
+  constructor(
+    contract: TContract,
+    modelName: ModelName,
+    executor: IdbQueryExecutor,
+    state?: IdbAccessorState,
+    newGroupingKey?: () => string
+  ) {
     this.#contract = contract;
     this.#modelName = modelName;
     this.#executor = executor;
     this.#storeName = getStoreName(contract, modelName);
     this.#state = state ?? emptyAccessorState();
+    // Default: per-instance counter (single client; avoids module-level interleaving).
+    let _key = 0;
+    this.#newGroupingKey = newGroupingKey ?? (() => `idb-op-${++_key}`);
   }
 
   // ── Builder methods ───────────────────────────────────────────────────────
@@ -170,14 +163,15 @@ export class IdbStoreAccessorImpl<
       this.#contract,
       this.#modelName,
       this.#executor,
-      newState
+      newState,
+      this.#newGroupingKey
     ) as unknown as IdbStoreAccessorImpl<TContract, ModelName, TIncludes & Record<K, true>>;
   }
 
   // ── Execution methods ─────────────────────────────────────────────────────
 
   all(): AsyncIterableResult<IncludedRow<TContract, ModelName, TIncludes>> {
-    const groupingKey = newGroupingKey();
+    const groupingKey = this.#newGroupingKey();
     // Capture the private fields needed inside the generator. Private names
     // must be accessed on `this`, so we bind the methods to keep them callable
     // without aliasing `this` (no-this-alias).
@@ -210,7 +204,7 @@ export class IdbStoreAccessorImpl<
 
   async create(data: CreateInput<TContract, ModelName>): Promise<DefaultModelRow<TContract, ModelName>> {
     const record = data as Record<string, unknown>;
-    const groupingKey = newGroupingKey();
+    const groupingKey = this.#newGroupingKey();
     const meta = this.#planMeta(groupingKey);
     const ast: IdbCreateAst = { kind: "create", modelName: this.#modelName, data: record };
     const plan: IdbQueryPlan<Record<string, unknown>> = {
@@ -227,7 +221,7 @@ export class IdbStoreAccessorImpl<
   }
 
   async findUnique(key: KeyType<TContract, ModelName>): Promise<DefaultModelRow<TContract, ModelName> | null> {
-    const groupingKey = newGroupingKey();
+    const groupingKey = this.#newGroupingKey();
     const meta = this.#planMeta(groupingKey);
     const ast: IdbFindUniqueAst = { kind: "findUnique", modelName: this.#modelName, key };
     const plan: IdbQueryPlan<Record<string, unknown>> = {
@@ -242,7 +236,7 @@ export class IdbStoreAccessorImpl<
   }
 
   async delete(key: KeyType<TContract, ModelName>): Promise<void> {
-    const groupingKey = newGroupingKey();
+    const groupingKey = this.#newGroupingKey();
     const meta = this.#planMeta(groupingKey);
     const ast: IdbDeleteAst = { kind: "delete", modelName: this.#modelName, key };
     const plan: IdbQueryPlan<Record<string, unknown>> = {
@@ -294,7 +288,13 @@ export class IdbStoreAccessorImpl<
       for (const predicate of filters) {
         for (const [key, value] of Object.entries(predicate)) {
           if (value === undefined) continue;
-          if (row[key] !== value) return false;
+          // null in the filter matches both null and undefined in stored rows —
+          // IDB may store absent fields as undefined rather than null.
+          if (value === null) {
+            if (row[key] !== null && row[key] !== undefined) return false;
+          } else if (row[key] !== value) {
+            return false;
+          }
         }
       }
       return true;
@@ -341,7 +341,8 @@ export class IdbStoreAccessorImpl<
       this.#contract,
       this.#modelName,
       this.#executor,
-      mergeAccessorState(this.#state, overrides)
+      mergeAccessorState(this.#state, overrides),
+      this.#newGroupingKey
     );
   }
 }
