@@ -120,7 +120,7 @@ describe("createIdbRuntime", () => {
   it("accepts an optional middleware array", () => {
     const mw: IdbMiddleware = {
       name: "test-mw",
-      family: "idb",
+      familyId: "idb",
       beforeExecute: vi.fn(),
     };
 
@@ -356,7 +356,7 @@ describe("execute", () => {
 
     const mw: IdbMiddleware = {
       name: "before-exec-mw",
-      family: "idb",
+      familyId: "idb",
       beforeExecute: async () => {
         callOrder.push("beforeExecute");
       },
@@ -391,7 +391,7 @@ describe("execute", () => {
 
     const mw: IdbMiddleware = {
       name: "on-row-mw",
-      family: "idb",
+      familyId: "idb",
       onRow: onRowSpy,
     };
 
@@ -473,7 +473,7 @@ describe("constructor middleware context", () => {
 
     const mw: IdbMiddleware = {
       name: "hash-capture",
-      family: "idb",
+      familyId: "idb",
       beforeExecute: async (_plan, ctx) => {
         // Call contentHash on a known plan shape
         capturedHash = await ctx.contentHash({
@@ -508,7 +508,7 @@ describe("constructor middleware context", () => {
 
     const mw: IdbMiddleware = {
       name: "hash-determinism",
-      family: "idb",
+      familyId: "idb",
       beforeExecute: async (_plan, ctx) => {
         const planShape = {
           kind: "keyGet",
@@ -541,7 +541,7 @@ describe("constructor middleware context", () => {
 
     const mw: IdbMiddleware = {
       name: "hash-distinct",
-      family: "idb",
+      familyId: "idb",
       beforeExecute: async (_plan, ctx) => {
         hashes.push(
           await ctx.contentHash({

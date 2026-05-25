@@ -4,9 +4,13 @@ import type { IdbPlanBody } from "@prisma-next-idb/driver-idb/runtime";
 /**
  * IDB-family middleware.
  *
- * Extends the generic `RuntimeMiddleware<IdbPlanBody>` marker with the `family`
- * discriminant so the runtime can verify that only IDB-compatible middleware
- * is registered on an IDB runtime instance.
+ * Extends the generic `RuntimeMiddleware<IdbPlanBody>` marker. `familyId` is
+ * optional so generic cross-family middleware (e.g. telemetry) — which carry
+ * no `familyId` — remain assignable. When present, it must be `'idb'`; the
+ * runtime can reject mismatches at construction time via
+ * `checkMiddlewareCompatibility`.
+ *
+ * Mirrors the vendor `MongoMiddleware` / `SqlMiddleware` pattern.
  *
  * ## `onRow` backpressure limitation
  *
@@ -23,5 +27,5 @@ import type { IdbPlanBody } from "@prisma-next-idb/driver-idb/runtime";
  *   correctly — they just receive rows from an already-complete scan.
  */
 export interface IdbMiddleware extends RuntimeMiddleware<IdbPlanBody> {
-  readonly family: "idb";
+  readonly familyId?: "idb";
 }
