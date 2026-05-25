@@ -1,36 +1,38 @@
 ## Status
 
-_Last reviewed: 2026-05-25 — see ["Review findings"](#review-findings-2026-05-25) at the bottom of this file for the audit notes. Issues #1–4 and #7 from that audit are now resolved._
+_Last reviewed: 2026-05-25 — see ["Review findings (2026-05-25)"](#review-findings-2026-05-25) at the bottom of this file for the first-round audit notes (issues #1-#10) and ["Second-round review (2026-05-25, vendor cross-check)"](#second-round-review-2026-05-25-vendor-cross-check) for the deeper audit against the cloned vendor reference (issues #11-#16). Issues #1-4, #7, #10 from the first round and #11-14 from the second round are now resolved._
 
-| Phase | Description                                                            | Status                                                                         |
-| ----- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| 1     | Codec system (`target-idb`)                                            | ✅ Done                                                                        |
-| 2     | Runtime driver (`driver-idb`)                                          | ✅ Done                                                                        |
-| 3     | Query lowering (`adapter-idb`)                                         | ✅ Done (passthrough; per-field codec encoding deferred — all codecs identity) |
-| 4     | Control plane manifest operations (`family-idb`)                       | ✅ Done — Issues #1, #2, #4 resolved                                           |
-| 5     | Migration infrastructure (`target-idb/control`)                        | ✅ Done — CLI `db update`/`db init` fully working and idempotent               |
-| 6     | IDB ORM lane (`client-idb`) + runtime (`runtime-idb`)                  | 🚧 MVP done — Issues #3, #5, #10 resolved; open: Issue #6                      |
-| 6.1   | Filter expression AST + operator API                                   | ❌ Not started                                                                 |
-| 6.2   | Missing CRUD terminals (update, upsert, createMany, deleteMany, count) | ❌ Not started — `IdbUpdatePlan` driver primitive exists, no ORM surface       |
-| 6.3   | Multi-store transaction support                                        | ⚠️ Half done — `IdbBatchPlan` exists in driver; no scope/`withMutationScope`   |
-| 6.4   | Nested relation writes (create/connect/disconnect)                     | ❌ Not started                                                                 |
-| 6.5   | Include refinement (where/orderBy/take inside include)                 | ❌ Not started                                                                 |
-| 6.6   | Aggregate / groupBy                                                    | ❌ Not started                                                                 |
-| 6.7   | Select projection                                                      | ❌ Not started                                                                 |
-| 7     | Outbox sync                                                            | ❌ Not started                                                                 |
-| 8     | `contract infer` — infer IDB schema from live manifest                 | ❌ Not started                                                                 |
+| Phase | Description                                                            | Status                                                                                                                                |
+| ----- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | Codec system (`target-idb`)                                            | ✅ Done                                                                                                                               |
+| 2     | Runtime driver (`driver-idb`)                                          | ✅ Done — Issue #11 (batch-with-update tx mode) fixed                                                                                 |
+| 3     | Query lowering (`adapter-idb`)                                         | ✅ Done (passthrough; per-field codec encoding deferred — all codecs identity); Issue #13 (descriptor `.create()` codec wiring) fixed |
+| 4     | Control plane manifest operations (`family-idb`)                       | ✅ Done — Issues #1, #2, #4 resolved                                                                                                  |
+| 5     | Migration infrastructure (`target-idb/control`)                        | ✅ Done — CLI `db update`/`db init` fully working and idempotent; Issue #14 (TS renderer `unique: undefined`) fixed                   |
+| 6     | IDB ORM lane (`client-idb`) + runtime (`runtime-idb`)                  | 🚧 MVP done — Issues #3, #5, #10, #12 (auto-migrate evolution) resolved; open: Issues #6, #15                                         |
+| 6.1   | Filter expression AST + operator API                                   | ❌ Not started                                                                                                                        |
+| 6.2   | Missing CRUD terminals (update, upsert, createMany, deleteMany, count) | ❌ Not started — `IdbUpdatePlan` driver primitive exists, no ORM surface                                                              |
+| 6.3   | Multi-store transaction support                                        | ⚠️ Half done — `IdbBatchPlan` exists in driver; no scope/`withMutationScope`                                                          |
+| 6.4   | Nested relation writes (create/connect/disconnect)                     | ❌ Not started                                                                                                                        |
+| 6.5   | Include refinement (where/orderBy/take inside include)                 | ❌ Not started                                                                                                                        |
+| 6.6   | Aggregate / groupBy                                                    | ❌ Not started                                                                                                                        |
+| 6.7   | Select projection                                                      | ❌ Not started                                                                                                                        |
+| 7     | Outbox sync                                                            | ❌ Not started                                                                                                                        |
+| 8     | `contract infer` — infer IDB schema from live manifest                 | ❌ Not started                                                                                                                        |
 
-### Test status (run 2026-05-25, updated)
+### Test status (run 2026-05-25, updated after second-round fixes)
 
-| Package             | Tests pass | Tests fail | Notes                                               |
-| ------------------- | ---------: | ---------: | --------------------------------------------------- |
-| `target-idb`        |         61 |          0 |                                                     |
-| `driver-idb`        |         38 |          0 |                                                     |
-| `adapter-idb`       |         11 |          0 |                                                     |
-| `runtime-idb`       |         21 |          0 |                                                     |
-| `client-idb`        |         19 |          0 |                                                     |
-| `family-idb`        |         60 |          0 | Issue #4 fixed — missing stores now always fail     |
-| `prisma-next-usage` |        n/a |        n/a | Playwright wired but no e2e spec files ([Issue #9]) |
+| Package             | Tests pass | Tests fail | Notes                                                  |
+| ------------------- | ---------: | ---------: | ------------------------------------------------------ |
+| `target-idb`        |         62 |          0 | +1 renderer regression test for Issue #14              |
+| `driver-idb`        |         39 |          0 | +1 batch-with-update regression test for Issue #11     |
+| `adapter-idb`       |         11 |          0 |                                                        |
+| `runtime-idb`       |         21 |          0 | Middleware tests updated to use `familyId` (Issue #16) |
+| `client-idb`        |         22 |          0 | +3 contract-evolution regression tests for Issue #12   |
+| `family-idb`        |         60 |          0 | Issue #4 fixed — missing stores now always fail        |
+| `prisma-next-usage` |        n/a |        n/a | Playwright wired but no e2e spec files ([Issue #9])    |
+
+**Total: 215/215 tests passing.**
 
 [Issue #1]: #issue-1--migrationrunner-missing-executeacrossspaces-blocks-cli-db-update
 [Issue #2]: #issue-2--sign-does-not-populate-manifestschema-from-contract
@@ -890,6 +892,76 @@ The `let _key = 0` counter now lives inside the `IdbStoreAccessorImpl` construct
 1. **Start Phase 6.1** (filter operators). Largest single quality-of-life jump; Mongo ORM has a clean pattern to port.
 2. **Add at least one E2E spec** in `prisma-next-usage` (Issue #9) so the assembled stack has regression coverage.
 3. **Fix Issue #6** (scope hard-coding) when Phase 6.3 lands — the fix is gated on `IdbTransactionScope` existing.
+
+---
+
+## Second-round review (2026-05-25, vendor cross-check)
+
+Audit comparing our six packages against the cloned vendor reference (`vendor/prisma-next/`), particularly mongo-target (`packages/3-mongo-target/`), sqlite-target (`packages/3-targets/3-targets/sqlite/`), and the sql/mongo families. What follows is just the gaps not already enumerated in the first-round review or in Phase 6.1-6.7.
+
+### ✅ Issue #11 — `executeBatchPlan` opens readonly for update-only batches — FIXED
+
+**Symptom.** [packages/prisma-next/driver-idb/src/core/execute/index.ts:92](packages/prisma-next/driver-idb/src/core/execute/index.ts#L92) determined the transaction mode by checking only for `"put"` and `"delete"` op kinds. A batch consisting only of `update` ops (or any future write op other than put/delete) would open the IDB transaction in `readonly` and the inner `store.put(merged)` would abort with `ReadOnlyError`.
+
+**Why this was hidden.** The existing tests in [packages/prisma-next/driver-idb/test/execute.test.ts](packages/prisma-next/driver-idb/test/execute.test.ts) only exercised batches with put/delete; the `update`-only path was never tested.
+
+**Fix.** The condition now also includes `"update"`. A regression test was added that runs a batch of one `update` op and verifies the merged row is written back. `planTxMode()` (used by atomic plans) already had this right; the divergence between `planTxMode` and `executeBatchPlan` was the underlying defect.
+
+### ✅ Issue #12 — `autoMigrate` plans from `fromContract: null` and breaks contract evolution — FIXED
+
+**Symptom.** [packages/prisma-next/client-idb/src/core/auto-migrate.ts](packages/prisma-next/client-idb/src/core/auto-migrate.ts) called `planner.plan({ fromContract: null, ... })` regardless of the live IDB state. For a fresh database this produces a correct "create everything" plan. But when the user changes their contract (e.g. adds a `Post` model to an existing v1 database with a `User` store), the planner emits ops to create `User` AND `Post` AND the marker store. The runner then opens at the next IDB version and tries to `createObjectStore("users")` inside `upgradeneeded` — which aborts the version-change transaction because the store already exists.
+
+**Impact.** The auto-migration path was only correct for two scenarios: the first run (empty DB) and re-opens with identical contracts. Any contract evolution broke. The demo app worked only because the manifest's pre-baked `idbVersion: 1` matched the initial signed contract — once a user changed `contract.server.ts` they would have hit this immediately on next browser load.
+
+**Fix.** Added `introspectLiveDb()` which opens the existing DB, reads `objectStoreNames`/`indexNames`/`keyPath`/`unique`/`multiEntry` via the IDB introspection API, and constructs a synthetic `fromContract` object whose `storage.stores` matches the live schema. The planner now produces a true delta plan (only the new ops). Three regression tests cover v1→v2 (add store), v2→v3 (add index), and v1→v1 (identity no-op).
+
+**Note.** SSR-aware mode (when the caller passes a `manifest` loaded server-side) still derives `targetVersion` from `manifest.idbVersion`. Introspection is purely a planner input — the manifest path's `idbVersion` continues to govern the IDB version bump.
+
+### ✅ Issue #13 — `idbRuntimeAdapterDescriptor.create()` used `emptyCodecLookup` — FIXED
+
+**Symptom.** First-round Issue #3 fixed `createIdbClient()`'s direct `new IdbAdapter(idbCodecLookup)` instantiation, but the framework-facing descriptor in [packages/prisma-next/adapter-idb/src/exports/runtime.ts](packages/prisma-next/adapter-idb/src/exports/runtime.ts) still constructed the adapter with `emptyCodecLookup`. Any code path that goes through the descriptor's `.create(stack)` factory (the canonical way per the vendor pattern — see `vendor/prisma-next/packages/3-mongo-target/2-mongo-adapter/src/exports/runtime.ts`) would silently get an adapter with no codec resolution.
+
+**Impact.** Latent today (all `idb/*` codecs are identity), but pre-Phase 6.x non-identity codecs (`DateTime` → `Date`, custom user codecs) would silently mis-route through the descriptor path.
+
+**Fix.** The descriptor now imports `idbCodecLookup` from `@prisma-next-idb/target-idb/runtime` and passes it to `new IdbAdapter(...)`. The hand-constructed adapter in `createIdbClient` and the descriptor-built adapter now agree.
+
+### ✅ Issue #14 — Migration TS renderer emits `unique: undefined` — FIXED
+
+**Symptom.** [packages/prisma-next/target-idb/src/core/migration-planner.ts:97](packages/prisma-next/target-idb/src/core/migration-planner.ts#L97) rendered the `unique` field via `String(op.def.unique)`. When the contract canonicaliser stripped `unique: false` (default-stripping behaviour), `op.def.unique` was `undefined` and `String(undefined)` produced the literal string `"undefined"`. The emitted `migration.ts` then contained `createIndexOp("posts", "byAuthorId", { keyPath: "authorId", unique: undefined })` — invalid TypeScript under `exactOptionalPropertyTypes: true` and ambiguous at runtime.
+
+**Visible in this repo.** [apps/prisma-next-usage/migrations/app/20260525T1045_migration/migration.ts:8](apps/prisma-next-usage/migrations/app/20260525T1045_migration/migration.ts#L8) was the example. The app's own tsconfig isn't strict on this so typecheck passed, but the file is shipping bad code.
+
+**Fix.** The renderer now defaults missing `unique` to `false` before string-formatting, matching IDB's own default in `IDBObjectStore.createIndex`. A regression test covers the omitted-unique case.
+
+### ✅ Issue #16 — `IdbMiddleware` used non-SPI field `family: "idb"` — FIXED
+
+**Symptom.** [packages/prisma-next/runtime-idb/src/idb-middleware.ts:25-27](packages/prisma-next/runtime-idb/src/idb-middleware.ts#L25) declared `readonly family: "idb"`. The framework SPI (`RuntimeMiddleware` in `vendor/prisma-next/packages/1-framework/1-core/framework-components/src/execution/runtime-middleware.ts`) defines `familyId?: string` and the vendor families (`MongoMiddleware`, `SqlMiddleware`) narrow it to `familyId?: 'mongo'` / `familyId?: 'sql'`. Using a non-standard `family` field meant:
+
+1. Cross-family middleware (e.g. `@prisma-next/middleware-cache`) that declared `familyId?: undefined` was not assignable to our middleware array.
+2. The framework's `checkMiddlewareCompatibility()` helper, which reads `familyId`, would see our middleware as cross-family rather than IDB-specific.
+
+**Fix.** Renamed to `familyId?: "idb"` matching the vendor pattern. The narrowing is optional so cross-family middleware drops in cleanly. All existing tests updated.
+
+### Issue #15 — `diffIdbSchema` doesn't detect mutations to existing indexes
+
+**Symptom.** [packages/prisma-next/target-idb/src/core/schema-diff.ts](packages/prisma-next/target-idb/src/core/schema-diff.ts) only detects three kinds of index changes: new index added, index removed, store added with indexes. It does not detect changes to an _existing_ index — e.g. changing `unique: false → true`, or `keyPath: "name" → "lastName"`, or toggling `multiEntry`. When such a change happens, the diff is empty, the planner returns no ops, and the new contract's storageHash silently mismatches the marker.
+
+**Impact.** The user changes an index definition, the marker stops matching, and… nothing happens because the plan is empty. They get a mysterious schema drift forever. (Note: a `unique` change is also a real correctness change in IDB — IDB enforces uniqueness on the index.)
+
+**Fix sketch.** Walk each surviving index, compare keyPath/unique/multiEntry, and emit `dropIndex` followed by `createIndex` when any of them differ. Similar logic should apply to `keyPath` on the object store itself (in IDB that requires dropping and recreating the store; for now, an explicit error is better than silent no-op). Deferred — not a blocker for Phase 6.1, but should be addressed before Phase 7 (sync).
+
+### ✅ Notes on what's _not_ a bug
+
+- **Codec descriptors placement on the target, not the adapter.** Mongo places `codecDescriptors` on the adapter descriptor (`vendor/prisma-next/packages/3-mongo-target/2-mongo-adapter/src/exports/runtime.ts`). Sqlite places them on the target (no codecs export from the SQL adapter). We chose the sqlite pattern (codecs on `target-idb`), which is correct for a target-only family. Either works structurally — the framework consumes from whichever descriptor exposes `types.codecTypes.codecDescriptors`.
+- **`autoMigrate` always passing policy `ALLOW_ALL`.** First-round notes flagged this implicitly. ADR-008 Path A is "browser-side single-user" — there is no separate deploy review step. `ALLOW_ALL` is intentional. The CLI's `db update` (Path B) uses a tighter default policy.
+- **Manifest writes happen in `executeAcrossSpaces`, not `execute`.** This looked weird relative to SQL/Mongo (which write the marker inside the same DB transaction as the DDL), but IDB cannot reach the manifest from inside the version-change transaction (the manifest is a Node-side file). The fake-IDB dry-run + manifest write pattern is the closest equivalent.
+
+### Recommended next steps (updated)
+
+1. **Start Phase 6.1** (filter operators). Largest single quality-of-life jump; Mongo ORM has a clean pattern to port.
+2. **Address Issue #15** (index-mutation diff) — quick win, prevents silent schema drift.
+3. **Add at least one E2E spec** in `prisma-next-usage` (Issue #9) so the assembled stack has regression coverage.
+4. **Fix Issue #6** (scope hard-coding) when Phase 6.3 lands — the fix is gated on `IdbTransactionScope` existing.
 
 ---
 

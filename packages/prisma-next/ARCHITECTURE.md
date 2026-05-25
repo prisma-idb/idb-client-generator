@@ -175,7 +175,8 @@ Before executing queries, the runtime reads the `_prisma_next_marker` object sto
 **Middleware:**
 The runtime accepts an optional `middleware` array of `IdbMiddleware` objects. Each middleware has:
 
-- `family: "idb"` — discriminant so only IDB-compatible middleware is accepted
+- `name: string` — required by the framework SPI for diagnostics and the cache key
+- `familyId?: "idb"` — optional family discriminant; matches the vendor `MongoMiddleware`/`SqlMiddleware` pattern. Cross-family middleware (e.g. `@prisma-next/middleware-cache`) omits this field
 - `beforeExecute(plan, ctx)` — called before the driver runs
 - `onRow(row, plan, ctx)` — called for every row yielded by the driver
 - `afterExecute(plan, ctx)` — called after the driver finishes

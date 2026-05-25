@@ -25,11 +25,13 @@ const db = await createAutoMigratingIdbClient({ contract, dbName: "my-app" });
 
 Under the hood:
 
-1. Reads the `_prisma_next_marker` store from the live IDB database
-2. If the marker's `storageHash` doesn't match the contract → diffs the schema, plans DDL ops, opens IDB at the next integer version, applies them in `upgradeneeded`, writes the new marker
-3. If the marker matches → instant open, no overhead
+1. Opens the live IDB database and introspects the current schema — reads `objectStoreNames`, `indexNames`, `keyPath`, `unique`, `multiEntry` for each user store. Also reads the `_prisma_next_marker` store to get the last-signed `storageHash`.
+2. If the marker's `storageHash` matches the contract → instant open, no overhead.
+3. Otherwise, builds a synthetic `fromContract` from the introspected schema, passes it to the planner so the diff produces only the delta (add/drop), opens IDB at the next integer version, applies the ops in `upgradeneeded`, and writes the new marker.
 
 This is the **only** path needed for local dev, prototypes, and SPAs without a server.
+
+> **Implementation note.** Earlier revisions passed `fromContract: null` regardless of live state, which forced the planner to emit a "from scratch" plan. That broke any contract evolution (the runner would try to `createObjectStore` on stores that already existed and abort the version-change tx). Live-DB introspection is now the canonical input for the planner on Path A.
 
 ### Path B — CLI-managed migrations (opt-in)
 
