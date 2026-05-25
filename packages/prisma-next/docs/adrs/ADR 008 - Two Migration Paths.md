@@ -71,6 +71,37 @@ Both paths use the **same** types, planner, runner, and marker store:
 
 The manifest's `idbVersion` field is the bridge: the CLI bumps it when applying migrations, and the runtime reads it (when provided) to compute the correct `targetVersion` for `IDBFactory.open()`. When the manifest is not provided, the runtime probes the live database to discover the current version.
 
+### `dbName` is the space boundary (not `spaceId`)
+
+The vendor framework (Postgres, Mongo) uses `spaceId` to partition a **single database connection** into logical slices — one per extension pack — sharing the same underlying connection. This works because SQL databases have schemas and Mongo has collections inside a single cluster handle.
+
+IndexedDB has no such nesting. Its only namespace primitive is the **database name** passed to `indexedDB.open(name, version)`. Every object store is flat at the top level inside that database. You cannot create "schemas inside a database" — the database name **is** the space.
+
+**Therefore, `dbName` — not `spaceId` — is the natural isolation boundary for IDB:**
+
+```
+indexedDB.open("my-app")          → users, posts, _prisma_next_marker
+indexedDB.open("my-app-tenant-b") → users, posts, _prisma_next_marker
+```
+
+Each database name gets its own:
+
+- Version counter (IDB enforces monotonic per-name)
+- Object stores and indexes
+- `_prisma_next_marker` store
+- Manifest `idbVersion` (one per database, tracked via `prisma-idb.manifest.json`)
+
+This means **multi-tenancy in IDB is achieved by varying `dbName`**, not by introducing a nested `spaceId` concept. For single-database use, we hardcode `spaceId = "app"` to satisfy the vendor's `MigrationPlanner.plan()` interface — it costs nothing and the parameter is ignored by the IDB planner.
+
+We deliberately chose **not** to map `spaceId` to `dbName` because:
+
+| If we did this...              | Problem                                                                                                                                                                                                      |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `spaceId = dbName` everywhere  | Conflates the vendor's "extension slice" concept with IDB's "database" concept. When IDB extensions arrive (future), they'd need true `spaceId` partitioning within a single database to share transactions. |
+| `spaceId = some tenant prefix` | The manifest tracks one `idbVersion` per file; per-tenant manifests would need per-tenant files. That's correct (each database has its own version), but it muddies the CLI's single-manifest model.         |
+
+Keeping `spaceId = "app"` and using `dbName` as the user-facing multi-tenancy primitive keeps both concepts clean and future-proof.
+
 ### Which path when?
 
 | Concern                              | Path A (runtime) | Path B (CLI) |
