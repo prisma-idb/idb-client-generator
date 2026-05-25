@@ -9,6 +9,11 @@ import type {
   MigrationRunnerFailure,
   MigrationRunnerResult,
   MigrationRunnerSuccessValue,
+  MultiSpaceCapableRunner,
+  MultiSpaceRunnerFailure,
+  MultiSpaceRunnerPerSpaceOptions,
+  MultiSpaceRunnerResult,
+  MultiSpaceRunnerSuccessValue,
 } from "@prisma-next/framework-components/control";
 import type { IdbDdlOp } from "./migration-factories";
 import { isIdbDdlOp } from "./migration-factories";
@@ -32,6 +37,32 @@ function makeOk(value: MigrationRunnerSuccessValue): MigrationRunnerResult {
 }
 
 function makeNotOk(failure: MigrationRunnerFailure): MigrationRunnerResult {
+  return {
+    ok: false as const,
+    failure,
+    assertOk(): never {
+      throw new Error("assertOk called on NotOk result");
+    },
+    assertNotOk() {
+      return failure;
+    },
+  };
+}
+
+function makeMultiOk(value: MultiSpaceRunnerSuccessValue): MultiSpaceRunnerResult {
+  return {
+    ok: true as const,
+    value,
+    assertOk() {
+      return value;
+    },
+    assertNotOk(): never {
+      throw new Error("assertNotOk called on Ok result");
+    },
+  };
+}
+
+function makeMultiNotOk(failure: MultiSpaceRunnerFailure): MultiSpaceRunnerResult {
   return {
     ok: false as const,
     failure,
@@ -211,7 +242,117 @@ function filterByPolicy(ops: readonly IdbDdlOp[], policy: MigrationOperationPoli
  * skipped. A plan with zero allowed ops returns success with
  * `operationsExecuted = 0` and does not open the database.
  */
-export class IdbMigrationRunner implements MigrationRunner<"idb", "idb"> {
+export class IdbMigrationRunner implements MigrationRunner<"idb", "idb">, MultiSpaceCapableRunner<"idb", "idb"> {
+  /**
+   * Multi-space entry point required by the CLI since framework v0.11.0.
+   *
+   * IDB only ever has a single "app" space (no multi-tenancy). Unlike SQL/Mongo,
+   * IDB is a browser API that cannot be opened from a Node.js CLI process.
+   * The CLI path validates the DDL ops, then writes the manifest marker and
+   * schema directly through the manifest driver — equivalent to how SQL writes
+   * the `_prisma_marker` row inside its transaction.
+   *
+   * The manifest driver is detected via duck typing to avoid a circular
+   * dependency between `target-idb` and `family-idb`.
+   */
+  async executeAcrossSpaces(options: {
+    readonly driver: ControlDriverInstance<"idb", "idb">;
+    readonly perSpaceOptions: ReadonlyArray<MultiSpaceRunnerPerSpaceOptions<"idb", "idb">>;
+  }): Promise<MultiSpaceRunnerResult> {
+    // Duck-type the top-level driver to check if it's an IdbManifestControlDriver.
+    // This avoids importing `family-idb` from `target-idb` (circular dependency).
+    const manifestDriver = options.driver as {
+      readManifest?: () => Promise<{
+        version: 1;
+        idbVersion?: number;
+        schema: { stores: Record<string, unknown> };
+        marker?: unknown;
+      } | null>;
+      writeManifest?: (m: unknown) => Promise<void>;
+    };
+    const hasManifestIo =
+      typeof manifestDriver.readManifest === "function" && typeof manifestDriver.writeManifest === "function";
+
+    const perSpaceResults: Array<{ space: string; value: MigrationRunnerSuccessValue }> = [];
+
+    for (const spaceOpt of options.perSpaceOptions) {
+      const ddlOps: IdbDdlOp[] = [];
+      for (const op of spaceOpt.plan.operations) {
+        if (!isIdbDdlOp(op)) {
+          return makeMultiNotOk({
+            code: "IDB-RUNNER-001",
+            summary: `Unrecognised operation kind in plan: "${String("kind" in op ? op.kind : "<none>")}"`,
+            why: "All operations in an IDB migration plan must be IdbDdlOp instances produced by the IDB planner or migration factories.",
+            failingSpace: spaceOpt.space,
+          });
+        }
+        ddlOps.push(op);
+      }
+
+      const allowed = filterByPolicy(ddlOps, spaceOpt.policy);
+
+      // Validate DDL ops are actually executable before committing to the manifest.
+      // IDB cannot be opened in Node.js, so we replay the ops against a fresh
+      // fake-indexeddb instance — same execution path the browser uses.
+      if (allowed.length > 0) {
+        try {
+          const { IDBFactory } = await import("fake-indexeddb");
+          await openAndUpgrade(new IDBFactory(), "_prisma_next_validate", 1, allowed, undefined);
+        } catch (err) {
+          return makeMultiNotOk({
+            code: "IDB-RUNNER-003",
+            summary: `DDL dry-run failed: ${err instanceof Error ? err.message : String(err)}`,
+            why: "The migration plan contains operations that IDB would reject at runtime. Fix the plan before applying it.",
+            failingSpace: spaceOpt.space,
+          });
+        }
+      }
+
+      if (hasManifestIo) {
+        const existing = await manifestDriver.readManifest!();
+        const destContract = spaceOpt.destinationContract as Record<string, unknown> | null | undefined;
+        const storage =
+          destContract !== null && destContract !== undefined
+            ? (destContract["storage"] as Record<string, unknown> | undefined)
+            : undefined;
+        const storageHash = typeof storage?.["storageHash"] === "string" ? (storage["storageHash"] as string) : "";
+        const profileHash =
+          typeof destContract?.["profileHash"] === "string" ? (destContract["profileHash"] as string) : "";
+
+        // Derive schema IR from the destination contract's storage.stores.
+        const contractStores = (storage?.["stores"] ?? {}) as Record<string, unknown>;
+        const schemaStores: Record<string, unknown> = {};
+        for (const [sName, sVal] of Object.entries(contractStores)) {
+          schemaStores[sName] = sVal;
+        }
+
+        const nextIdbVersion = (existing?.idbVersion ?? 0) + 1;
+        await manifestDriver.writeManifest!({
+          version: 1 as const,
+          idbVersion: nextIdbVersion,
+          schema: { stores: schemaStores },
+          marker: {
+            storageHash,
+            profileHash,
+            updatedAt: new Date().toISOString(),
+            invariants: [],
+            contractJson: null,
+            canonicalVersion: null,
+            appTag: null,
+            meta: {},
+          },
+        });
+      }
+
+      perSpaceResults.push({
+        space: spaceOpt.space,
+        value: { operationsPlanned: ddlOps.length, operationsExecuted: allowed.length },
+      });
+    }
+
+    return makeMultiOk({ perSpaceResults });
+  }
+
   async execute(options: {
     readonly plan: MigrationPlan;
     readonly driver: ControlDriverInstance<"idb", "idb">;

@@ -1,5 +1,5 @@
 import { JsonValue } from "@prisma-next/contract/types";
-import type { AnyCodecDescriptor } from "@prisma-next/framework-components/codec";
+import type { AnyCodecDescriptor, CodecInstanceContext, CodecLookup } from "@prisma-next/framework-components/codec";
 
 /**
  * IDB codec descriptors — the registry of type→IDB mapping metadata.
@@ -179,3 +179,29 @@ export const codecDescriptors: readonly AnyCodecDescriptor[] = [
     }),
   },
 ] as const;
+
+// ── Codec lookup ──────────────────────────────────────────────────────────────
+
+/**
+ * Pre-built CodecLookup for all IDB codecs.
+ *
+ * All IDB codecs are currently identity transforms, but using the real lookup
+ * ensures per-field encoding works automatically when non-identity codecs are
+ * added (e.g. idb/date@1 already encodes/decodes Date objects).
+ */
+export const idbCodecLookup: CodecLookup = (() => {
+  const codecMap = new Map(
+    codecDescriptors.map((desc) => {
+      const ctx: CodecInstanceContext = { name: `<codec:${desc.codecId}>` };
+      const codec = (desc as AnyCodecDescriptor).factory(undefined)(ctx);
+      return [desc.codecId, codec] as const;
+    })
+  );
+  const targetTypesMap = new Map(codecDescriptors.map((desc) => [desc.codecId, desc.targetTypes]));
+  return {
+    get: (id) => codecMap.get(id),
+    targetTypesFor: (id) => targetTypesMap.get(id),
+    metaFor: () => undefined,
+    renderOutputTypeFor: () => undefined,
+  };
+})();

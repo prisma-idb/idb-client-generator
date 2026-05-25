@@ -1,5 +1,6 @@
 import type { RuntimeTargetDescriptor, RuntimeTargetInstance } from "@prisma-next/framework-components/execution";
 import { idbTargetDescriptorMeta } from "../core/descriptor-meta";
+export { idbCodecLookup } from "../core/codecs";
 
 export type IdbRuntimeTargetInstance = RuntimeTargetInstance<"idb", "idb">;
 
