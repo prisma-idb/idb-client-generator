@@ -1,5 +1,5 @@
 import type { RuntimeAdapterDescriptor, ExecutionStack } from "@prisma-next/framework-components/execution";
-import { emptyCodecLookup } from "@prisma-next/framework-components/codec";
+import { idbCodecLookup } from "@prisma-next-idb/target-idb/runtime";
 import { idbAdapterDescriptorMeta } from "../core/descriptor-meta";
 import { IdbAdapter } from "../core/idb-adapter";
 import type { IdbRuntimeAdapterInstance } from "../core/runtime-adapter-instance";
@@ -12,10 +12,12 @@ export { IdbAdapter } from "../core/idb-adapter";
 const idbRuntimeAdapterDescriptor: RuntimeAdapterDescriptor<"idb", "idb", IdbRuntimeAdapterInstance> = {
   ...idbAdapterDescriptorMeta,
   create(_stack: ExecutionStack<"idb", "idb">): IdbRuntimeAdapterInstance {
-    // Create a passthrough IdbAdapter with an empty codec lookup.
-    // When per-field codec encoding is needed, thread the codec registry
-    // and schema from the execution stack so lower() can encode field values.
-    return new IdbAdapter(emptyCodecLookup);
+    // Construct the adapter with the real IDB codec lookup so per-field
+    // encoding works when non-identity codecs are added. The current set
+    // is all-identity, so output behavior is unchanged; this wiring makes
+    // the descriptor-built adapter match the hand-constructed one in
+    // `createIdbClient`.
+    return new IdbAdapter(idbCodecLookup);
   },
 };
 
