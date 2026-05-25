@@ -94,7 +94,11 @@ function renderDdlOpsTs(ops: readonly IdbDdlOp[]): string {
       }
       case "createIndex": {
         imports.add("createIndexOp");
-        const optsParts = [`keyPath: "${op.def.keyPath}"`, `unique: ${String(op.def.unique)}`];
+        // IDB defaults `unique` to false when absent; the IR sometimes omits it
+        // after canonicalisation. Default to false in the rendered TS so the
+        // output is always valid.
+        const unique = op.def.unique ?? false;
+        const optsParts = [`keyPath: "${op.def.keyPath}"`, `unique: ${String(unique)}`];
         if (op.def.multiEntry !== undefined) {
           optsParts.push(`multiEntry: ${String(op.def.multiEntry)}`);
         }

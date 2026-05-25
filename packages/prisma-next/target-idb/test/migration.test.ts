@@ -288,6 +288,36 @@ describe("IdbMigrationPlanner", () => {
     expect(src).toContain("users");
   });
 
+  it("renderTypeScript() defaults missing unique to false (regression)", () => {
+    // The contract canonicaliser may strip `unique: false` from indexes
+    // (default-stripping). Previously the renderer wrote `unique: undefined`,
+    // which is sloppy output and a type error under exactOptionalPropertyTypes.
+    const contract = {
+      storage: {
+        storageHash: "x",
+        stores: {
+          posts: {
+            keyPath: "id",
+            // No `unique` field — exercises the default path.
+            indexes: { byAuthorId: { keyPath: "authorId" } },
+          },
+        },
+      },
+    };
+    const result = planner.plan({
+      contract,
+      schema: null,
+      policy: ALLOW_ALL,
+      fromContract: null,
+      frameworkComponents: [],
+      spaceId: "app",
+    });
+    if (result.kind !== "success") throw new Error("expected success");
+    const src = result.plan.renderTypeScript();
+    expect(src).toContain("unique: false");
+    expect(src).not.toContain("unique: undefined");
+  });
+
   it("emptyMigration() returns a stub plan with no ops", () => {
     const plan = planner.emptyMigration({ packageDir: "/tmp", fromHash: null, toHash: "x" }, "app");
     expect(plan.operations).toHaveLength(0);
