@@ -15,6 +15,7 @@ For high-level architecture, see [ARCHITECTURE.md](../../ARCHITECTURE.md). For i
 | 005 | [Event-Driven Execution: No async/await Inside IDB Transactions](ADR%20005%20-%20Event-Driven%20Execution%20No%20Async%20Await.md)              | Driver             | Decided                       |
 | 006 | [Collect-then-Yield: Full Row Materialization Inside the Transaction](ADR%20006%20-%20Collect%20then%20Yield%20Full%20Row%20Materialization.md) | Driver             | Decided                       |
 | 007 | [Two Transaction APIs: Automatic Store Inference vs. Manual Scope](ADR%20007%20-%20Two%20Transaction%20APIs.md)                                 | ORM / Phase 6.3    | Decided — not yet implemented |
+| 008 | [Two Migration Paths: Runtime Auto-Migration and CLI-Managed](ADR%20008%20-%20Two%20Migration%20Paths.md)                                       | Migrations / DX    | Decided                       |
 
 ---
 
