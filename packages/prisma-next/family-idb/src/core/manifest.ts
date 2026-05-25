@@ -28,6 +28,8 @@ export type IdbManifestMarker = {
 /** Top-level shape of the `prisma-idb.manifest.json` file on disk. */
 export type IdbManifest = {
   readonly version: 1;
+  /** Monotone integer version counter for IndexedDB DDL (see ADR 001). */
+  readonly idbVersion?: number;
   readonly schema: IdbSchemaIR;
   readonly marker?: IdbManifestMarker;
 };

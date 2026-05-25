@@ -195,6 +195,7 @@ export function createIdbFamilyInstance(_stack: ControlStack<"idb", string>): Id
 
       await mDriver.writeManifest({
         version: 1,
+        ...(existing?.idbVersion !== undefined ? { idbVersion: existing.idbVersion } : {}),
         schema: existing?.schema ?? emptyManifest().schema,
         marker: newMarker,
       });
