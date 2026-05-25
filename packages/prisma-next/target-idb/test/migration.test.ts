@@ -122,6 +122,89 @@ describe("diffIdbSchema", () => {
     expect(ops[0]?.label).toContain("users");
     expect(ops[0]?.operationClass).toBe("additive");
   });
+
+  // ── Index-mutation detection (regression for Issue #15) ─────────────────────
+
+  it("emits drop+create when an existing index's unique flag changes", () => {
+    const from: IdbSchemaDiffInput = {
+      stores: { users: { keyPath: "id", indexes: { byEmail: { keyPath: "email", unique: false } } } },
+    };
+    const to: IdbSchemaDiffInput = {
+      stores: { users: { keyPath: "id", indexes: { byEmail: { keyPath: "email", unique: true } } } },
+    };
+    const ops = diffIdbSchema(from, to);
+    expect(ops).toHaveLength(2);
+    expect(ops[0]).toMatchObject({ kind: "dropIndex", storeName: "users", indexName: "byEmail" });
+    expect(ops[1]).toMatchObject({
+      kind: "createIndex",
+      storeName: "users",
+      indexName: "byEmail",
+      def: expect.objectContaining({ unique: true }),
+    });
+  });
+
+  it("emits drop+create when an existing index's keyPath changes", () => {
+    const from: IdbSchemaDiffInput = {
+      stores: { users: { keyPath: "id", indexes: { byName: { keyPath: "firstName", unique: false } } } },
+    };
+    const to: IdbSchemaDiffInput = {
+      stores: { users: { keyPath: "id", indexes: { byName: { keyPath: "lastName", unique: false } } } },
+    };
+    const ops = diffIdbSchema(from, to);
+    expect(ops).toHaveLength(2);
+    expect(ops[0]).toMatchObject({ kind: "dropIndex", indexName: "byName" });
+    expect(ops[1]).toMatchObject({
+      kind: "createIndex",
+      indexName: "byName",
+      def: expect.objectContaining({ keyPath: "lastName" }),
+    });
+  });
+
+  it("emits drop+create when multiEntry toggles", () => {
+    const from: IdbSchemaDiffInput = {
+      stores: {
+        posts: {
+          keyPath: "id",
+          indexes: { byTags: { keyPath: "tags", unique: false, multiEntry: false } },
+        },
+      },
+    };
+    const to: IdbSchemaDiffInput = {
+      stores: {
+        posts: {
+          keyPath: "id",
+          indexes: { byTags: { keyPath: "tags", unique: false, multiEntry: true } },
+        },
+      },
+    };
+    const ops = diffIdbSchema(from, to);
+    expect(ops).toHaveLength(2);
+    expect(ops[0]).toMatchObject({ kind: "dropIndex", indexName: "byTags" });
+    expect(ops[1]).toMatchObject({ kind: "createIndex", def: expect.objectContaining({ multiEntry: true }) });
+  });
+
+  it("treats undefined unique/multiEntry as equivalent to false (no spurious diff)", () => {
+    const from: IdbSchemaDiffInput = {
+      stores: { users: { keyPath: "id", indexes: { byEmail: { keyPath: "email", unique: false } } } },
+    };
+    const to: IdbSchemaDiffInput = {
+      // `unique` omitted — equivalent to false after default-stripping
+      stores: { users: { keyPath: "id", indexes: { byEmail: { keyPath: "email" } as never } } },
+    };
+    expect(diffIdbSchema(from, to)).toHaveLength(0);
+  });
+
+  it("throws when an existing store's keyPath changes", () => {
+    const from: IdbSchemaDiffInput = { stores: { users: { keyPath: "id" } } };
+    const to: IdbSchemaDiffInput = { stores: { users: { keyPath: "uuid" } } };
+    expect(() => diffIdbSchema(from, to)).toThrow(/keyPath/);
+  });
+
+  it("throws when autoIncrement toggles on an existing store", () => {
+    const from: IdbSchemaDiffInput = { stores: { users: { keyPath: "id", autoIncrement: false } } };
+    const to: IdbSchemaDiffInput = { stores: { users: { keyPath: "id", autoIncrement: true } } };
+    expect(() => diffIdbSchema(from, to)).toThrow(/autoIncrement/);
+  });
 });
 
 // ── migration-factories ───────────────────────────────────────────────────────

@@ -116,4 +116,36 @@ describe("auto-migrate across contract evolution", () => {
     expect(users).toHaveLength(1);
     await c1b.close();
   });
+
+  it("v3 → v3-tightened reflects a flipped index unique flag (Issue #15 e2e)", async () => {
+    // The contract authors take an existing byEmail index with unique:true
+    // and remove it (v3-loosened drops the index entirely). The diff must
+    // emit a dropIndex op rather than a no-op.
+    const v3Loosened = defineContract({
+      family: idbFamilyPack,
+      target: idbTargetPack,
+      models: {
+        User: {
+          store: "users",
+          key: "id",
+          fields: { id: "String", email: "String" },
+          // no indexes
+        },
+        Post: { store: "posts", key: "id", fields: { id: "String", title: "String" } },
+      },
+    });
+
+    const name = dbName();
+    const c3 = await createAutoMigratingIdbClient({ contract: v3, dbName: name });
+    await asRecord(c3.orm)["users"]!.create({ id: "u1", email: "alice@example.com" });
+    await c3.close();
+
+    const c3l = await createAutoMigratingIdbClient({ contract: v3Loosened, dbName: name });
+    // After loosening, two users with the same email must not throw
+    // (the unique constraint is gone).
+    await asRecord(c3l.orm)["users"]!.create({ id: "u2", email: "alice@example.com" });
+    const users = await asRecord(c3l.orm)["users"]!.all().toArray();
+    expect(users).toHaveLength(2);
+    await c3l.close();
+  });
 });
