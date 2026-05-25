@@ -54,34 +54,92 @@ function getStorageHash(contract: IdbContract): string | null {
   return typeof hash === "string" ? hash : null;
 }
 
-function readCurrentMarker(
+type IntrospectedStore = {
+  keyPath: string;
+  autoIncrement?: boolean;
+  indexes?: Record<string, { keyPath: string; unique: boolean; multiEntry?: boolean }>;
+};
+
+function introspectLiveDb(
   dbName: string,
   factory: IDBFactory
-): Promise<{ version: number; markerHash: string | null }> {
+): Promise<{ version: number; markerHash: string | null; stores: Record<string, IntrospectedStore> }> {
   return new Promise((resolve) => {
     const req = factory.open(dbName);
     req.onsuccess = () => {
       const db = req.result;
       const version = db.version;
-      if (!db.objectStoreNames.contains("_prisma_next_marker")) {
-        db.close();
-        resolve({ version, markerHash: null });
+      const storeNames = Array.from(db.objectStoreNames).filter((n) => n !== "_prisma_next_marker");
+
+      // Empty DB (no user stores) → no introspection needed.
+      if (storeNames.length === 0) {
+        const hasMarker = db.objectStoreNames.contains("_prisma_next_marker");
+        if (!hasMarker) {
+          db.close();
+          resolve({ version, markerHash: null, stores: {} });
+          return;
+        }
+        const tx = db.transaction("_prisma_next_marker", "readonly");
+        const markerReq = tx.objectStore("_prisma_next_marker").get("default");
+        markerReq.onsuccess = () => {
+          const record = markerReq.result as { storageHash?: string } | undefined;
+          db.close();
+          resolve({ version, markerHash: record?.storageHash ?? null, stores: {} });
+        };
+        markerReq.onerror = () => {
+          db.close();
+          resolve({ version, markerHash: null, stores: {} });
+        };
         return;
       }
-      const tx = db.transaction("_prisma_next_marker", "readonly");
-      const markerReq = tx.objectStore("_prisma_next_marker").get("default");
-      markerReq.onsuccess = () => {
-        const record = markerReq.result as { storageHash?: string } | undefined;
+
+      // Read marker + introspect user stores in one transaction.
+      const txStores = db.objectStoreNames.contains("_prisma_next_marker")
+        ? ["_prisma_next_marker", ...storeNames]
+        : storeNames;
+      const tx = db.transaction(txStores, "readonly");
+
+      const stores: Record<string, IntrospectedStore> = {};
+      for (const storeName of storeNames) {
+        const store = tx.objectStore(storeName);
+        const keyPath = typeof store.keyPath === "string" ? store.keyPath : "id";
+        const indexes: Record<string, { keyPath: string; unique: boolean; multiEntry?: boolean }> = {};
+        for (const indexName of Array.from(store.indexNames)) {
+          const idx = store.index(indexName);
+          const idxKeyPath = typeof idx.keyPath === "string" ? idx.keyPath : String(idx.keyPath);
+          indexes[indexName] = {
+            keyPath: idxKeyPath,
+            unique: idx.unique,
+            ...(idx.multiEntry ? { multiEntry: true } : {}),
+          };
+        }
+        stores[storeName] = {
+          keyPath,
+          ...(store.autoIncrement ? { autoIncrement: true } : {}),
+          ...(Object.keys(indexes).length > 0 ? { indexes } : {}),
+        };
+      }
+
+      let markerHash: string | null = null;
+      if (db.objectStoreNames.contains("_prisma_next_marker")) {
+        const markerReq = tx.objectStore("_prisma_next_marker").get("default");
+        markerReq.onsuccess = () => {
+          const record = markerReq.result as { storageHash?: string } | undefined;
+          markerHash = record?.storageHash ?? null;
+        };
+      }
+
+      tx.oncomplete = () => {
         db.close();
-        resolve({ version, markerHash: record?.storageHash ?? null });
+        resolve({ version, markerHash, stores });
       };
-      markerReq.onerror = () => {
+      tx.onerror = () => {
         db.close();
-        resolve({ version, markerHash: null });
+        resolve({ version, markerHash: null, stores });
       };
     };
     req.onerror = () => {
-      resolve({ version: 0, markerHash: null });
+      resolve({ version: 0, markerHash: null, stores: {} });
     };
   });
 }
@@ -105,18 +163,30 @@ export async function autoMigrate(
   const targetHash = getStorageHash(contract);
   if (!targetHash) return;
 
-  const { version: currentVersion, markerHash } = await readCurrentMarker(dbName, factory);
+  const { version: currentVersion, markerHash, stores: existingStores } = await introspectLiveDb(dbName, factory);
   if (markerHash === targetHash) return;
 
   const baseVersion = manifest?.idbVersion ?? currentVersion;
   const targetVersion = baseVersion + 1;
+
+  // Build a synthetic "fromContract" from the live DB schema so the planner
+  // produces a delta plan (add/drop), not a from-scratch plan.
+  // The planner only reads `contract.storage.stores`; the other fields can
+  // be stubs. When the live DB is empty, pass `null` to trigger the
+  // first-migration path (creates the marker store).
+  const hasExistingSchema = Object.keys(existingStores).length > 0 || markerHash !== null;
+  const fromContract = hasExistingSchema
+    ? ({
+        storage: { stores: existingStores, storageHash: markerHash ?? "unknown" },
+      } as unknown as Parameters<typeof IdbMigrationPlanner.prototype.plan>[0]["fromContract"])
+    : null;
 
   const planner = new IdbMigrationPlanner();
   const planResult = planner.plan({
     contract: contract as unknown,
     schema: null,
     policy: ALLOW_ALL,
-    fromContract: null,
+    fromContract,
     frameworkComponents: [],
     spaceId: "app",
   });
