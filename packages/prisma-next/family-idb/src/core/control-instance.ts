@@ -15,12 +15,39 @@ import {
 } from "@prisma-next/framework-components/control";
 import { emptyManifest, markerToRecord } from "./manifest";
 import { extractManifestDriver } from "./manifest-driver";
-import type { IdbSchemaIR } from "./schema-ir";
+import type { IdbSchemaIR, IdbStoreIR } from "./schema-ir";
 import { verifyIdbSchema } from "./schema-verify";
 import { validateContract } from "./validate";
 
 // IDB only ever has a single "app" space (no multi-tenancy).
 const APP_SPACE_ID = "app" as const;
+
+// ── Schema derivation ─────────────────────────────────────────────────────────
+
+function schemaFromContract(contract: ReturnType<typeof validateContract>): IdbSchemaIR {
+  const contractStores = (
+    contract.storage as {
+      stores: Record<
+        string,
+        {
+          keyPath: string;
+          autoIncrement?: boolean;
+          indexes?: Record<string, { keyPath: string; unique: boolean; multiEntry?: boolean }>;
+        }
+      >;
+    }
+  ).stores;
+
+  const stores: Record<string, IdbStoreIR> = {};
+  for (const [storeName, store] of Object.entries(contractStores)) {
+    stores[storeName] = {
+      keyPath: store.keyPath,
+      ...(store.autoIncrement !== undefined ? { autoIncrement: store.autoIncrement } : {}),
+      ...(store.indexes !== undefined && Object.keys(store.indexes).length > 0 ? { indexes: store.indexes } : {}),
+    };
+  }
+  return { stores };
+}
 
 // ── exactOptionalPropertyTypes helpers ───────────────────────────────────────
 // The framework uses exactOptionalPropertyTypes:true, so we must never assign
@@ -186,7 +213,7 @@ export function createIdbFamilyInstance(_stack: ControlStack<"idb", string>): Id
       await mDriver.writeManifest({
         version: 1,
         ...(existing?.idbVersion !== undefined ? { idbVersion: existing.idbVersion } : {}),
-        schema: existing?.schema ?? emptyManifest().schema,
+        schema: schemaFromContract(contract),
         marker: newMarker,
       });
 

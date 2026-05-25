@@ -9,6 +9,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AsyncIterableResult } from "@prisma-next/framework-components/runtime";
 import { defineContract } from "@prisma-next-idb/family-idb/contract-ts";
+import type { FieldSpec } from "@prisma-next-idb/family-idb/contract-ts";
 import idbFamilyPack from "@prisma-next-idb/family-idb/pack";
 import idbTargetPack from "@prisma-next-idb/target-idb/pack";
 import { createIDBRuntimeDriver } from "@prisma-next-idb/driver-idb/runtime";
@@ -111,6 +112,7 @@ function makeTestContract(
     {
       store: string;
       key: string;
+      fields: Record<string, FieldSpec>;
       relations?: Record<
         string,
         { to: string; cardinality: "1:1" | "1:N" | "N:1"; on: { local: string[]; target: string[] } }
@@ -129,6 +131,7 @@ function makeTestContract(
     defModels[name] = {
       store: spec.storeName,
       key: spec.keyPath,
+      fields: { [spec.keyPath]: "String" },
       ...(Object.keys(relations).length > 0 ? { relations } : {}),
     };
   }

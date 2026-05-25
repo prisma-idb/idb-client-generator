@@ -180,21 +180,35 @@ The runtime accepts an optional `middleware` array of `IdbMiddleware` objects. E
 - `onRow(row, plan, ctx)` — called for every row yielded by the driver
 - `afterExecute(plan, ctx)` — called after the driver finishes
 
+**`RuntimeMiddlewareContext` construction (`buildMiddlewareContext()`):**
+When the caller doesn't supply a `ctx`, the runtime builds one from the contract:
+
+- `contract` — the contract object itself, available for middleware introspection (model layout, hashes)
+- `mode: "permissive"` — non-strict semantics for parse/decode boundary
+- `log` — no-op stubs (info/warn/error); user supplies their own via `ctx` override
+- `now: Date.now` — wall-clock provider
+- `scope: "runtime"` — fixed today; will switch to `"transaction"` when `withMutationScope()` lands (Phase 6.3)
+- `contentHash(exec)` — canonicalizes the lowered plan, hashes via WebCrypto SHA-512. Functions (`IdbRowFilter`, `IdbRowComparator`) are skipped; `IDBKeyRange` is reduced to `{ lower, upper, lowerOpen, upperOpen }`. Output is stable across equivalent queries — suitable as a `@prisma-next/middleware-cache` cache key.
+
+Note: collect-then-yield (ADR 006) means `onRow` fires after all rows have already been materialized inside the IDB transaction. The hook runs as a sequence over the in-memory array, not as backpressure into the cursor — see Phase 6 review notes in `PLAN.md`.
+
 **Depends on:** `adapter-idb` (for `lower()`), `driver-idb` (for `execute()`, `readMarker()`, `close()`).
 
 ---
 
 ### `@prisma-next-idb/client-idb`
 
-**What it is:** The typed ORM surface — `idbOrm({ contract, executor })` returns a client where every model in the contract becomes a typed accessor with methods like `.create()`, `.all()`, `.where()`, `.first()`, `.delete()`.
+**What it is:** The typed ORM surface — `idbOrm({ contract, executor })` returns a client where every model in the contract becomes a typed accessor with methods like `.create()`, `.all()`, `.where()`, `.first()`, `.delete()`. Also ships two higher-level entrypoints (`./client`, `./client-auto`) that assemble the whole runtime stack so user code doesn't need to wire driver/adapter/runtime by hand.
 
 **Analogy:** the waiter and menu. The customer (app code) writes `db.users.create({ name: "Alice" })` — the client translates this into an `IdbQueryPlan` and hands it to the runtime executor.
 
 **Entrypoints:**
 
-| Entrypoint | Plane        | What it contains                                                                         | Who imports it |
-| ---------- | ------------ | ---------------------------------------------------------------------------------------- | -------------- |
-| `./orm`    | runtime only | `idbOrm({ contract, executor })` factory + `IdbOrmClient` type + `IdbStoreAccessor` type | User app       |
+| Entrypoint      | Plane        | What it contains                                                                                                                                                | Who imports it |
+| --------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| `./orm`         | runtime only | `idbOrm({ contract, executor })` factory + `IdbOrmClient` type + `IdbStoreAccessor` type. Bring-your-own runtime (you pass any `IdbQueryExecutor`).             | Advanced users |
+| `./client`      | runtime only | `createIdbClient({ contract, dbName, middleware? })` — assembles `driver + adapter + runtime + orm` and returns `{ orm, verifyMarker, close, [asyncDispose] }`. | Most user apps |
+| `./client-auto` | runtime only | `createAutoMigratingIdbClient({ contract, dbName, manifest? })` — same as `./client` but runs the migration planner+runner first if marker doesn't match.       | SPA / Path A   |
 
 **Key types:**
 
@@ -233,12 +247,33 @@ Each plan carries an optional `ast` field (`IdbQueryAst`) describing the query i
 
 **Entrypoints:**
 
-| Entrypoint  | Plane               | What it contains                                                                                                              | Who imports it                |
-| ----------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| `./control` | control only        | `idbFamilyDescriptor` (`ControlFamilyDescriptor`), `idbTargetDescriptor`, `createIDBFamilyInstance()`                         | `prisma.config.ts`, CLI       |
-| `./pack`    | neither (pure data) | The family's pure pack ref — used by `defineContract(...)` in TypeScript authoring flows to bind a contract to the IDB family | `contract.ts` authoring files |
+| Entrypoint       | Plane               | What it contains                                                                                                                                                                                                                                                                        | Who imports it                |
+| ---------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `./control`      | control only        | Default export `IdbFamilyDescriptor` + `IdbManifestControlDriverDescriptor` + type re-exports (`IdbContract`, `IdbManifest`, `IdbSchemaIR`)                                                                                                                                             | `prisma-next.config.ts`, CLI  |
+| `./pack`         | neither (pure data) | The family's pure pack ref — passed to `defineContract({ family, ... })` so the contract is bound to the IDB family identity                                                                                                                                                            | `contract.ts` authoring files |
+| `./contract-ts`  | neither (pure data) | `defineContract(input)` — TypeScript-first authoring helper. Takes `{ family, target, models: { ModelName: { store, key, indexes?, relations? } } }`, derives the full `Contract<IdbStorage>` object with `storageHash` + `profileHash` computed, validates it, returns. No PSL needed. | `contract.ts` authoring files |
+| `./config-types` | control only        | `defineConfig()` re-export for `prisma-next.config.ts`, plus `typescriptContract()` helper that ties a TS-authored contract to its emitted `contract.json` path                                                                                                                         | `prisma-next.config.ts`       |
 
-**There is no `./runtime` that does anything.** If `family-idb/runtime` exists, it only exports identity types — no creation helpers. Runtime stack composition is done directly by the user via `createRuntimeStack({ target, adapter, driver })`.
+**There is no `./runtime` entrypoint.** Runtime stack composition is done by `client-idb` via `createIdbClient()` (or `createAutoMigratingIdbClient()`).
+
+**Manifest format (`prisma-idb.manifest.json`):**
+
+```json
+{
+  "version": 1,
+  "idbVersion": 1,
+  "schema": { "stores": { "users": { "keyPath": "id", "indexes": { ... } } } },
+  "marker": {
+    "storageHash": "sha256:...",
+    "profileHash": "sha256:...",
+    "updatedAt": "2026-05-25T05:58:37.985Z",
+    "invariants": [], "contractJson": null,
+    "canonicalVersion": null, "appTag": null, "meta": {}
+  }
+}
+```
+
+`version` is the **manifest file format** version (always `1`). `idbVersion` is the **IndexedDB version number** the runner last opened the database at — bumped on every successful `db update`. `schema` is the IR diff target (currently populated only when `db update` runs successfully — see PLAN.md Issue #2). `marker` mirrors what's written into the `_prisma_next_marker` store after each migration; `db sign` writes only the marker portion.
 
 **Depends on:** `target-idb` only. The family descriptor needs the target's `/pack` metadata to expose `idbTargetDescriptor` to the CLI. It does not depend on the adapter or driver — those are the user's runtime concern.
 

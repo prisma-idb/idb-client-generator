@@ -13,10 +13,11 @@ const minimalIdbContract = defineContract({
   family: idbFamilyPack,
   target: idbTargetPack,
   models: {
-    Post: { store: "posts", key: "id" },
+    Post: { store: "posts", key: "id", fields: { id: "String" } },
     User: {
       store: "users",
       key: "id",
+      fields: { id: "String", email: "String" },
       indexes: { byEmail: { keyPath: "email", unique: true } },
     },
   },
@@ -65,7 +66,7 @@ describe("idbEmission", () => {
       const contract = defineContract({
         family: idbFamilyPack,
         target: idbTargetPack,
-        models: { Item: { store: "items", key: "id" } },
+        models: { Item: { store: "items", key: "id", fields: { id: "String" } } },
       });
       // Patch the storage to inject autoIncrement for this emission-only test.
       const patched = {
@@ -84,6 +85,7 @@ describe("idbEmission", () => {
           Item: {
             store: "items",
             key: "id",
+            fields: { id: "String" },
             indexes: { byTags: { keyPath: "tags", unique: false, multiEntry: true } },
           },
         },

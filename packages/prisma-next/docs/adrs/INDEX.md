@@ -6,16 +6,16 @@ For high-level architecture, see [ARCHITECTURE.md](../../ARCHITECTURE.md). For i
 
 ---
 
-| #   | Title                                                                                                                                           | Area               | Status                        |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ----------------------------- |
-| 001 | [IDB Version Integer as Migration Identity](ADR%20001%20-%20IDB%20Version%20Integer%20as%20Migration%20Identity.md)                             | Migrations         | Decided                       |
-| 002 | [Two-Phase Migration: DDL in upgradeneeded, Marker Write Separately](ADR%20002%20-%20Two-Phase%20Migration.md)                                  | Migrations         | Decided                       |
-| 003 | [Plain Frozen Objects for Filter AST](ADR%20003%20-%20Plain%20Frozen%20Objects%20for%20Filter%20AST.md)                                         | Query layer        | Decided                       |
-| 004 | [Driver Isolation via IdbRowFilter Closure Boundary](ADR%20004%20-%20Driver%20Isolation%20via%20Row%20Filter%20Closure.md)                      | Package boundaries | Decided                       |
-| 005 | [Event-Driven Execution: No async/await Inside IDB Transactions](ADR%20005%20-%20Event-Driven%20Execution%20No%20Async%20Await.md)              | Driver             | Decided                       |
-| 006 | [Collect-then-Yield: Full Row Materialization Inside the Transaction](ADR%20006%20-%20Collect%20then%20Yield%20Full%20Row%20Materialization.md) | Driver             | Decided                       |
-| 007 | [Two Transaction APIs: Automatic Store Inference vs. Manual Scope](ADR%20007%20-%20Two%20Transaction%20APIs.md)                                 | ORM / Phase 6.3    | Decided — not yet implemented |
-| 008 | [Two Migration Paths: Runtime Auto-Migration and CLI-Managed](ADR%20008%20-%20Two%20Migration%20Paths.md)                                       | Migrations / DX    | Decided                       |
+| #   | Title                                                                                                                                           | Area               | Status                                                                                                                              |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 001 | [IDB Version Integer as Migration Identity](ADR%20001%20-%20IDB%20Version%20Integer%20as%20Migration%20Identity.md)                             | Migrations         | Decided — implemented (`manifest.idbVersion`, `targetVersion = idbVersion + 1`)                                                     |
+| 002 | [Two-Phase Migration: DDL in upgradeneeded, Marker Write Separately](ADR%20002%20-%20Two-Phase%20Migration.md)                                  | Migrations         | Decided — implemented (DDL in `upgradeneeded`, marker in subsequent `readwrite` tx)                                                 |
+| 003 | [Plain Frozen Objects for Filter AST](ADR%20003%20-%20Plain%20Frozen%20Objects%20for%20Filter%20AST.md)                                         | Query layer        | Decided — gated on Phase 6.1 (`IdbFieldFilter`, `IdbAndExpr`, etc. not yet authored)                                                |
+| 004 | [Driver Isolation via IdbRowFilter Closure Boundary](ADR%20004%20-%20Driver%20Isolation%20via%20Row%20Filter%20Closure.md)                      | Package boundaries | Decided — implemented (`IdbRowFilter = (row) => boolean` in driver)                                                                 |
+| 005 | [Event-Driven Execution: No async/await Inside IDB Transactions](ADR%20005%20-%20Event-Driven%20Execution%20No%20Async%20Await.md)              | Driver             | Decided — implemented (`execute/ops.ts` is callback-driven throughout)                                                              |
+| 006 | [Collect-then-Yield: Full Row Materialization Inside the Transaction](ADR%20006%20-%20Collect%20then%20Yield%20Full%20Row%20Materialization.md) | Driver             | Decided — implemented (`tx.oncomplete → resolve(rows)` in `execute/index.ts`)                                                       |
+| 007 | [Two Transaction APIs: Automatic Store Inference vs. Manual Scope](ADR%20007%20-%20Two%20Transaction%20APIs.md)                                 | ORM / Phase 6.3    | Decided — driver-side `IdbBatchPlan` exists; ORM `withMutationScope` deferred to 6.3                                                |
+| 008 | [Two Migration Paths: Runtime Auto-Migration and CLI-Managed](ADR%20008%20-%20Two%20Migration%20Paths.md)                                       | Migrations / DX    | Decided — Path A done (`createAutoMigratingIdbClient`); Path B blocked by [PLAN Issue #1](../../PLAN.md#review-findings-2026-05-25) |
 
 ---
 

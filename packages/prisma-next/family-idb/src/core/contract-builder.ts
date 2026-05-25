@@ -1,5 +1,5 @@
 import { computeProfileHash, computeStorageHash } from "@prisma-next/contract/hashing";
-import type { Contract } from "@prisma-next/contract/types";
+import type { Contract, ContractField } from "@prisma-next/contract/types";
 import type {
   IdbIndexDefinition,
   IdbModelStorage,
@@ -7,6 +7,28 @@ import type {
   IdbStoreDefinition,
 } from "@prisma-next-idb/target-idb/pack";
 import { validateContract } from "./validate";
+
+// ── Field type system ─────────────────────────────────────────────────────────
+
+type PrismaScalarType = "String" | "Int" | "Float" | "Boolean" | "DateTime" | "BigInt" | "Decimal" | "Json" | "Bytes";
+
+/**
+ * A field spec string: the Prisma scalar type name, optionally suffixed with
+ * `?` to indicate the field is nullable (e.g. `"String"`, `"Int?"`, `"DateTime?"`).
+ */
+export type FieldSpec = PrismaScalarType | `${PrismaScalarType}?`;
+
+const SCALAR_TO_CODEC_ID: Record<PrismaScalarType, string> = {
+  String: "idb/string@1",
+  Int: "idb/int32@1",
+  Float: "idb/double@1",
+  Boolean: "idb/bool@1",
+  DateTime: "idb/date@1",
+  BigInt: "idb/bigint@1",
+  Decimal: "idb/decimal@1",
+  Json: "idb/json@1",
+  Bytes: "idb/bytes@1",
+};
 
 // ── Input types ───────────────────────────────────────────────────────────────
 
@@ -28,7 +50,8 @@ export type IndexDef = {
 export type ModelDef = {
   readonly store: string;
   readonly key: string;
-  readonly fields?: Record<string, string>;
+  /** All scalar fields on the model. Use `"Type"` for non-nullable, `"Type?"` for nullable. */
+  readonly fields: Record<string, FieldSpec>;
   readonly indexes?: Record<string, IndexDef>;
   readonly relations?: Record<string, RelationDef>;
 };
@@ -40,6 +63,22 @@ export type DefineContractInput = {
   readonly target: { readonly targetId: string; readonly id: string };
   readonly models: Record<string, ModelDef>;
 };
+
+// ── Helper: build ContractField entries from field specs ──────────────────────
+
+function buildFields(fields: Record<string, FieldSpec>): Record<string, ContractField> {
+  const result: Record<string, ContractField> = {};
+  for (const [name, spec] of Object.entries(fields)) {
+    const nullable = spec.endsWith("?");
+    const typeName = (nullable ? spec.slice(0, -1) : spec) as PrismaScalarType;
+    const codecId = SCALAR_TO_CODEC_ID[typeName];
+    if (codecId === undefined) {
+      throw new Error(`Unknown field type "${typeName}" for field "${name}"`);
+    }
+    result[name] = { nullable, type: { kind: "scalar" as const, codecId } };
+  }
+  return result;
+}
 
 // ── Helper: derive the `roots` map (storeName → ModelName) ───────────────────
 
@@ -75,7 +114,7 @@ function buildStores(models: Record<string, ModelDef>): Record<string, IdbStoreD
 // ── Helper: build the models section ─────────────────────────────────────────
 
 type ContractModelEntry = {
-  readonly fields: Record<string, never>;
+  readonly fields: Record<string, ContractField>;
   readonly relations: Record<
     string,
     {
@@ -99,7 +138,7 @@ function buildModels(models: Record<string, ModelDef>): Record<string, ContractM
       };
     }
     result[modelName] = {
-      fields: {} as Record<string, never>,
+      fields: buildFields(def.fields),
       relations,
       storage: { storeName: def.store, keyPath: def.key },
     };
@@ -129,7 +168,7 @@ function buildModels(models: Record<string, ModelDef>): Record<string, ContractM
  *     User: {
  *       store: 'users',
  *       key: 'id',
- *       fields: { id: 'String', name: 'String', email: 'String' },
+ *       fields: { id: 'String', name: 'String?', email: 'String' },
  *       indexes: { byEmail: { keyPath: 'email', unique: true } },
  *     },
  *   },
@@ -165,8 +204,6 @@ export function defineContract(input: DefineContractInput): Contract<IdbStorage>
     profileHash,
   };
 
-  // Validate at definition time — surfaces schema errors immediately rather
-  // than at first query execution.
   validateContract(contract);
 
   return contract;

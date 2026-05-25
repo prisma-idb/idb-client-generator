@@ -51,10 +51,46 @@ This is not a performance trade-off — it is a correctness requirement. There i
 - `driver-idb`'s `execute()` method returns `AsyncIterable<Row>` for interface compatibility with the framework, but the iterable is always backed by a materialized array.
 - `IdbStoreAccessor.all()` materializes all rows. Users should use `take()` and `skip()` for pagination.
 - The sort, skip, and take operations in the driver are all post-materialization (sort the array, then slice). This is consistent with the collect-then-yield model.
-- Middleware `onRow` hooks in `runtime-idb` fire synchronously over the materialized array, not during cursor traversal.
+- Middleware `onRow` hooks in `runtime-idb` fire synchronously over the materialized array, not during cursor traversal. See the section below for the full implications of this.
+
+## Middleware implications
+
+The framework's `run-with-middleware.ts` fires `onRow` inside a `for await` loop over the row source. For SQL and Mongo drivers, that row source is a live cursor: rows arrive one at a time as the cursor advances, so middleware that wants to short-circuit (e.g. stop after collecting N rows, or cancel via `AbortSignal`) genuinely prevents further database work.
+
+**For IDB this invariant does not hold.** When the `for await` loop in `run-with-middleware.ts` starts, the IDB driver has already returned a fully materialized array. All rows are in memory. Consequently:
+
+- **Backpressure is ineffective.** A middleware that returns early from `onRow` (or throws an abort signal) does not reduce the number of rows read from the object store. The cursor scan already ran to completion before `onRow` was called for the first time.
+- **`AbortSignal` cannot short-circuit materialization.** Aborting after seeing row N does not prevent rows N+1 … M from having been read; they are already in memory, just not yet yielded to the caller.
+- **The `onRow` hook is still useful for observation.** Logging, metrics collection, and read-through cache population all work correctly — they just receive rows from an already-complete scan rather than observing rows as they arrive from the database.
+
+### What this means in practice
+
+Use `take(n)` on the query builder, not `onRow` early-exit, to bound the number of rows materialized:
+
+```ts
+// ✅ Correct — bounding happens before IDB reads
+const rows = await db.users.take(100).all().toArray();
+
+// ⚠️  Does not reduce IDB reads — onRow fires after all rows are in memory
+db.users
+  .all()
+  .execute()
+  .onRow((row, plan, ctx) => {
+    if (someCondition) throw new AbortError(); // too late; full scan already ran
+  });
+```
+
+Middleware that needs to observe IDB query results (cache population, telemetry) should use `afterExecute` with the `rowCount` rather than assuming `onRow` will fire incrementally.
+
+### Why this diverges from the framework contract
+
+The framework's `RuntimeMiddleware` type documents `onRow` as firing "per row as the driver yields". That language assumes a streaming driver. IDB is structurally incapable of being a streaming driver (see "Why full materialization is required" above), so our `onRow` firing pattern is a compliant-but-semantically-different implementation of the same hook. The hook fires once per row and in order — the only difference is that all rows have been read before any of them are delivered to `onRow`.
+
+This divergence is harmless for all middleware written today. It becomes observable if someone writes middleware that depends on `onRow` to apply backpressure. Any such middleware must document that it does not apply to IDB targets.
 
 ## Related
 
 - `driver-idb/src/core/execute/index.ts` — `executeAtomicPlan` implementation
 - `driver-idb/src/core/execute/ops.ts` — `execCursorScan` cursor collection loop
+- `runtime-idb/src/idb-middleware.ts` — `IdbMiddleware` type with onRow warning
 - [ADR 005](ADR%20005%20-%20Event-Driven%20Execution%20No%20Async%20Await.md) — why we can't yield inside the transaction (the async/await constraint is what makes streaming impossible)

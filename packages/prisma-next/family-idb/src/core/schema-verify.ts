@@ -138,8 +138,8 @@ function verifyIndex(
     children.push(passNode("field", "keyPath", `${indexPath}.keyPath`));
   }
 
-  // unique
-  if (contractIndex.unique !== actualIndex.unique) {
+  // unique — treat undefined as false to match how multiEntry is handled
+  if ((contractIndex.unique ?? false) !== (actualIndex.unique ?? false)) {
     const msg = `Index "${indexName}" unique mismatch: expected ${contractIndex.unique}, got ${actualIndex.unique}`;
     issues.push({ kind: "index_mismatch", table: storePath, indexOrConstraint: indexName, message: msg });
     children.push(

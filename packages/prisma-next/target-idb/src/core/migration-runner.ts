@@ -16,7 +16,7 @@ import type {
   MultiSpaceRunnerSuccessValue,
 } from "@prisma-next/framework-components/control";
 import type { IdbDdlOp } from "./migration-factories";
-import { isIdbDdlOp } from "./migration-factories";
+import { createIndexOp, createMarkerStoreOp, createObjectStoreOp, isIdbDdlOp } from "./migration-factories";
 import { extractMigrationDriver } from "./migration-driver";
 
 // ── Inline Result helpers ─────────────────────────────────────────────────────
@@ -221,6 +221,46 @@ function filterByPolicy(ops: readonly IdbDdlOp[], policy: MigrationOperationPoli
   return ops.filter((op) => allowed.has(op.operationClass));
 }
 
+// ── Schema seed helper ────────────────────────────────────────────────────────
+
+type ManifestStoreMap = Record<
+  string,
+  {
+    keyPath: string;
+    autoIncrement?: boolean;
+    indexes?: Record<string, { keyPath: string; unique?: boolean; multiEntry?: boolean }>;
+  }
+>;
+
+/**
+ * Convert a manifest schema's stores map into a sequence of DDL ops that
+ * recreate that exact schema in a fresh fake-indexeddb instance.
+ *
+ * The marker store is always included first because it was created during the
+ * initial migration and is present in the real IDB but not in manifest.schema.stores.
+ */
+function buildSeedOps(stores: ManifestStoreMap): IdbDdlOp[] {
+  const ops: IdbDdlOp[] = [createMarkerStoreOp()];
+  for (const [storeName, def] of Object.entries(stores)) {
+    ops.push(
+      createObjectStoreOp(storeName, {
+        keyPath: def.keyPath,
+        ...(def.autoIncrement !== undefined ? { autoIncrement: def.autoIncrement } : {}),
+      })
+    );
+    for (const [indexName, indexDef] of Object.entries(def.indexes ?? {})) {
+      ops.push(
+        createIndexOp(storeName, indexName, {
+          keyPath: indexDef.keyPath,
+          unique: indexDef.unique ?? false,
+          ...(indexDef.multiEntry !== undefined ? { multiEntry: indexDef.multiEntry } : {}),
+        })
+      );
+    }
+  }
+  return ops;
+}
+
 // ── Runner ────────────────────────────────────────────────────────────────────
 
 /**
@@ -291,13 +331,63 @@ export class IdbMigrationRunner implements MigrationRunner<"idb", "idb">, MultiS
 
       const allowed = filterByPolicy(ddlOps, spaceOpt.policy);
 
-      // Validate DDL ops are actually executable before committing to the manifest.
-      // IDB cannot be opened in Node.js, so we replay the ops against a fresh
-      // fake-indexeddb instance — same execution path the browser uses.
+      // Extract destination contract info (needed for both short-circuit and manifest write).
+      const destContract = spaceOpt.destinationContract as Record<string, unknown> | null | undefined;
+      const storage =
+        destContract !== null && destContract !== undefined
+          ? (destContract["storage"] as Record<string, unknown> | undefined)
+          : undefined;
+      const storageHash = typeof storage?.["storageHash"] === "string" ? (storage["storageHash"] as string) : "";
+      const profileHash =
+        typeof destContract?.["profileHash"] === "string" ? (destContract["profileHash"] as string) : "";
+
+      // Read the manifest once; used for short-circuit check, dry-run pre-seed, and write.
+      let existing: {
+        version: 1;
+        idbVersion?: number;
+        schema: { stores: Record<string, unknown> };
+        marker?: unknown;
+      } | null = null;
+      if (hasManifestIo) {
+        existing = await manifestDriver.readManifest!();
+
+        // Short-circuit: manifest already reflects the destination contract.
+        // db init and db update are both no-ops when the storageHash matches.
+        const existingStorageHash = (existing?.marker as { storageHash?: string } | undefined)?.storageHash;
+        if (storageHash !== "" && existingStorageHash === storageHash) {
+          perSpaceResults.push({
+            space: spaceOpt.space,
+            value: { operationsPlanned: 0, operationsExecuted: 0 },
+          });
+          continue;
+        }
+      }
+
+      // DDL dry-run: validate that the ops are executable before writing the manifest.
+      // We start the fake-IDB from the manifest's current schema (not from empty) so
+      // that drop ops are verifiable and incremental migrations are tested correctly.
       if (allowed.length > 0) {
+        const currentVersion = existing?.idbVersion ?? 0;
+        const currentSchemaStores = (existing?.schema?.stores ?? {}) as ManifestStoreMap;
+
         try {
           const { IDBFactory } = await import("fake-indexeddb");
-          await openAndUpgrade(new IDBFactory(), "_prisma_next_validate", 1, allowed, undefined);
+          const fakeFactory = new IDBFactory();
+
+          // Pre-seed: replay the manifest's current schema into the fake-IDB so the
+          // dry-run reflects the true database state, not an empty slate.
+          if (currentVersion > 0 && Object.keys(currentSchemaStores).length > 0) {
+            await openAndUpgrade(
+              fakeFactory,
+              "_prisma_next_validate",
+              currentVersion,
+              buildSeedOps(currentSchemaStores),
+              undefined
+            );
+          }
+
+          // Apply the delta ops on top of the current state.
+          await openAndUpgrade(fakeFactory, "_prisma_next_validate", currentVersion + 1, allowed, undefined);
         } catch (err) {
           return makeMultiNotOk({
             code: "IDB-RUNNER-003",
@@ -309,16 +399,6 @@ export class IdbMigrationRunner implements MigrationRunner<"idb", "idb">, MultiS
       }
 
       if (hasManifestIo) {
-        const existing = await manifestDriver.readManifest!();
-        const destContract = spaceOpt.destinationContract as Record<string, unknown> | null | undefined;
-        const storage =
-          destContract !== null && destContract !== undefined
-            ? (destContract["storage"] as Record<string, unknown> | undefined)
-            : undefined;
-        const storageHash = typeof storage?.["storageHash"] === "string" ? (storage["storageHash"] as string) : "";
-        const profileHash =
-          typeof destContract?.["profileHash"] === "string" ? (destContract["profileHash"] as string) : "";
-
         // Derive schema IR from the destination contract's storage.stores.
         const contractStores = (storage?.["stores"] ?? {}) as Record<string, unknown>;
         const schemaStores: Record<string, unknown> = {};
