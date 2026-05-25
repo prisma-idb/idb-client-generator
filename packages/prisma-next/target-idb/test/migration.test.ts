@@ -213,6 +213,7 @@ describe("IdbMigrationPlanner", () => {
       policy: ALLOW_ALL,
       fromContract: null,
       frameworkComponents: [],
+      spaceId: "app",
     });
     expect(result.kind).toBe("success");
     if (result.kind !== "success") return;
@@ -237,6 +238,7 @@ describe("IdbMigrationPlanner", () => {
       policy: ALLOW_ALL,
       fromContract: from as never,
       frameworkComponents: [],
+      spaceId: "app",
     });
     expect(result.kind).toBe("success");
     if (result.kind !== "success") return;
@@ -251,6 +253,7 @@ describe("IdbMigrationPlanner", () => {
       policy: ALLOW_ALL,
       fromContract: contract as never,
       frameworkComponents: [],
+      spaceId: "app",
     });
     expect(result.kind).toBe("success");
     if (result.kind !== "success") return;
@@ -264,6 +267,7 @@ describe("IdbMigrationPlanner", () => {
       policy: ALLOW_ALL,
       fromContract: null,
       frameworkComponents: [],
+      spaceId: "app",
     });
     expect(result.kind).toBe("failure");
   });
@@ -276,6 +280,7 @@ describe("IdbMigrationPlanner", () => {
       policy: ALLOW_ALL,
       fromContract: null,
       frameworkComponents: [],
+      spaceId: "app",
     });
     if (result.kind !== "success") throw new Error("expected success");
     const src = result.plan.renderTypeScript();

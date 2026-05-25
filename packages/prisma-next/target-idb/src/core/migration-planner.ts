@@ -144,6 +144,17 @@ export class IdbMigrationPlanner implements MigrationPlanner<"idb", "idb"> {
     readonly policy: MigrationOperationPolicy;
     readonly fromContract: Contract | null;
     readonly frameworkComponents: ReadonlyArray<TargetBoundComponentDescriptor<"idb", "idb">>;
+    /**
+     * Contract space this plan applies to.
+     *
+     * Stamped onto the produced plan so the runner keys the marker row
+     * by the right space. IDB only has a single space (`"app"`), but
+     * the parameter is required by the framework's
+     * {@link MigrationPlanner} interface (added for multi-space support
+     * in contract-spaces ADR 212). Ignored by the IDB planner — all
+     * IDB schemas are single-space.
+     */
+    readonly spaceId: string;
   }): MigrationPlannerResult {
     const { contract, fromContract } = options;
 
