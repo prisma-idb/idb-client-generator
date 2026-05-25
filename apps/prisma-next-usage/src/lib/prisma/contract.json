@@ -17,10 +17,45 @@
             "kind": "scalar"
           }
         },
+        "content": {
+          "nullable": true,
+          "type": {
+            "codecId": "idb/string@1",
+            "kind": "scalar"
+          }
+        },
         "id": {
           "nullable": false,
           "type": {
             "codecId": "idb/string@1",
+            "kind": "scalar"
+          }
+        },
+        "published": {
+          "nullable": false,
+          "type": {
+            "codecId": "idb/bool@1",
+            "kind": "scalar"
+          }
+        },
+        "publishedAt": {
+          "nullable": true,
+          "type": {
+            "codecId": "idb/date@1",
+            "kind": "scalar"
+          }
+        },
+        "title": {
+          "nullable": false,
+          "type": {
+            "codecId": "idb/string@1",
+            "kind": "scalar"
+          }
+        },
+        "views": {
+          "nullable": false,
+          "type": {
+            "codecId": "idb/int32@1",
             "kind": "scalar"
           }
         }
@@ -42,6 +77,20 @@
     },
     "User": {
       "fields": {
+        "active": {
+          "nullable": false,
+          "type": {
+            "codecId": "idb/bool@1",
+            "kind": "scalar"
+          }
+        },
+        "bio": {
+          "nullable": true,
+          "type": {
+            "codecId": "idb/string@1",
+            "kind": "scalar"
+          }
+        },
         "email": {
           "nullable": false,
           "type": {
@@ -55,6 +104,27 @@
             "codecId": "idb/string@1",
             "kind": "scalar"
           }
+        },
+        "joinedAt": {
+          "nullable": false,
+          "type": {
+            "codecId": "idb/date@1",
+            "kind": "scalar"
+          }
+        },
+        "name": {
+          "nullable": false,
+          "type": {
+            "codecId": "idb/string@1",
+            "kind": "scalar"
+          }
+        },
+        "score": {
+          "nullable": false,
+          "type": {
+            "codecId": "idb/int32@1",
+            "kind": "scalar"
+          }
         }
       },
       "relations": {},
@@ -65,7 +135,7 @@
     }
   },
   "storage": {
-    "storageHash": "sha256:aed3ca821d99fc4545d38cf8c180976754852ceae54392e65bacd3849c9a599c",
+    "storageHash": "sha256:c1ad80d3bd2f9f5db48c5126fe1257ba9817ddc6ba0a8af9453e39f17d76dd30",
     "stores": {
       "posts": {
         "indexes": {
@@ -80,6 +150,9 @@
           "byEmail": {
             "keyPath": "email",
             "unique": true
+          },
+          "byScore": {
+            "keyPath": "score"
           }
         },
         "keyPath": "id"

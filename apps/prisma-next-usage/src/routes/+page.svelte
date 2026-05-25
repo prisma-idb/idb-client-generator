@@ -1,100 +1,149 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { UsersState } from "$lib/prisma/users.svelte";
   import { Alert, AlertDescription, AlertTitle } from "$lib/components/ui/alert";
   import { Badge } from "$lib/components/ui/badge";
   import { Button } from "$lib/components/ui/button";
-  import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "$lib/components/ui/card";
-  import { Input } from "$lib/components/ui/input";
+  import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card";
   import { Label } from "$lib/components/ui/label";
-  import { Separator } from "$lib/components/ui/separator";
+  import { Textarea } from "$lib/components/ui/textarea";
+  import { getDb, resetDb, resolveDbName } from "$lib/prisma/db";
   import type { PageData } from "./$types";
-  import { resolve } from "$app/paths";
 
   let { data }: { data: PageData } = $props();
 
-  const users = new UsersState(data.contract);
+  // The ORM client surface — bound to `db.orm` once loaded so query
+  // expressions in the textarea can address `orm.users.all()`, etc.
+  let orm = $state<Record<string, unknown> | null>(null);
+  let dbName = $state(resolveDbName());
+  let query = $state("");
+  let resultText = $state("");
+  let resultKind = $state<"ok" | "error" | "idle">("idle");
+  let running = $state(false);
 
-  let name = $state("");
-  let email = $state("");
-  let submitting = $state(false);
-
-  onMount(() => users.load());
-
-  async function addUser(event: SubmitEvent) {
-    event.preventDefault();
-    submitting = true;
+  onMount(async () => {
     try {
-      await users.create(name.trim(), email.trim());
-      name = "";
-      email = "";
+      const db = await getDb(data.contract);
+      orm = db.orm as Record<string, unknown>;
+    } catch (err) {
+      resultKind = "error";
+      resultText = err instanceof Error ? err.message : String(err);
+    }
+  });
+
+  /**
+   * Run the textarea contents as a JS expression against the ORM.
+   *
+   * `orm`, `and`, `or`, `not` are in scope. Expressions that return a
+   * Promise or AsyncIterableResult are awaited and JSON-stringified into
+   * the output panel. Errors render as kind="error" so Playwright specs
+   * can assert on failures without inspecting the console.
+   */
+  async function run() {
+    if (orm === null) {
+      resultKind = "error";
+      resultText = "Client not ready";
+      return;
+    }
+    running = true;
+    resultKind = "idle";
+    resultText = "";
+    try {
+      const body = `return (async () => {\n  return (${query});\n})();`;
+      const fn = new Function("orm", "and", "or", "not", body) as (
+        ormArg: unknown,
+        andFn: unknown,
+        orFn: unknown,
+        notFn: unknown
+      ) => Promise<unknown>;
+      // Combinator placeholders — replaced with real exports once Phase 6.1
+      // lands. Today they throw so authors get a clear error if they try
+      // to use them before the AST exists.
+      const placeholder = () => {
+        throw new Error("Filter combinators (and/or/not) require Phase 6.1");
+      };
+      let raw = await fn(orm, placeholder, placeholder, placeholder);
+
+      // AsyncIterableResult: drain to an array so the JSON output is
+      // useful. Duck-typed so we don't need a hard dep on the framework.
+      if (raw && typeof (raw as Record<string, unknown>)["toArray"] === "function") {
+        raw = await (raw as { toArray(): Promise<unknown[]> }).toArray();
+      }
+      resultKind = "ok";
+      resultText = JSON.stringify(raw, null, 2);
+    } catch (err) {
+      resultKind = "error";
+      resultText = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
     } finally {
-      submitting = false;
+      running = false;
+    }
+  }
+
+  async function reset() {
+    running = true;
+    try {
+      await resetDb();
+      const db = await getDb(data.contract);
+      orm = db.orm as Record<string, unknown>;
+      resultKind = "idle";
+      resultText = "";
+    } catch (err) {
+      resultKind = "error";
+      resultText = err instanceof Error ? err.message : String(err);
+    } finally {
+      running = false;
     }
   }
 </script>
 
-<main class="mx-auto max-w-2xl space-y-8 px-4 py-12">
-  <div>
-    <h1 class="text-3xl font-bold">Users</h1>
-    <p class="text-muted-foreground mt-1 text-sm">Manage users stored in IndexedDB via prisma-next-idb.</p>
-  </div>
+<main class="mx-auto max-w-3xl space-y-6 px-4 py-12">
+  <header class="space-y-1">
+    <div class="flex items-baseline gap-2">
+      <h1 class="text-3xl font-bold">prisma-next-idb query runner</h1>
+      <Badge variant="secondary" data-testid="db-name">{dbName}</Badge>
+    </div>
+    <p class="text-muted-foreground text-sm">
+      A thin shell over <code>idbOrm</code> for interactive query exploration and Playwright specs. Use
+      <code>?db=&lt;name&gt;</code> to isolate the database per test run.
+    </p>
+  </header>
 
   <Card>
     <CardHeader>
-      <CardTitle>Add user</CardTitle>
+      <CardTitle>Query</CardTitle>
     </CardHeader>
     <CardContent>
-      <form id="add-user" onsubmit={addUser} class="grid grid-cols-2 gap-4">
+      <div class="space-y-3">
         <div class="space-y-1.5">
-          <Label for="name">Name</Label>
-          <Input id="name" bind:value={name} placeholder="Alice" required />
+          <Label for="query">Expression</Label>
+          <Textarea
+            id="query"
+            data-testid="query-input"
+            bind:value={query}
+            rows={5}
+            placeholder={'orm.users.create({\n  id: crypto.randomUUID(),\n  name: "Alice",\n  email: "alice@example.com",\n  bio: null,\n  score: 100,\n  active: true,\n  joinedAt: new Date(),\n})'}
+          />
         </div>
-        <div class="space-y-1.5">
-          <Label for="email">Email</Label>
-          <Input id="email" type="email" bind:value={email} placeholder="alice@example.com" required />
+        <div class="flex gap-2">
+          <Button onclick={run} disabled={running || orm === null} data-testid="run-query">Run</Button>
+          <Button variant="outline" onclick={reset} disabled={running} data-testid="reset-db">Reset DB</Button>
         </div>
-      </form>
+      </div>
     </CardContent>
-    <CardFooter>
-      <Button type="submit" form="add-user" disabled={submitting}>
-        {submitting ? "Adding…" : "Add user"}
-      </Button>
-    </CardFooter>
   </Card>
 
-  {#if users.error}
-    <Alert variant="destructive">
+  {#if resultKind === "error"}
+    <Alert variant="destructive" data-testid="result-error">
       <AlertTitle>Error</AlertTitle>
-      <AlertDescription>{users.error}</AlertDescription>
+      <AlertDescription data-testid="result-text">{resultText}</AlertDescription>
     </Alert>
+  {:else if resultKind === "ok"}
+    <Card data-testid="result-ok">
+      <CardHeader>
+        <CardTitle>Result</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <pre class="text-muted-foreground overflow-auto text-xs" data-testid="result-text">{resultText}</pre>
+      </CardContent>
+    </Card>
   {/if}
-
-  <div class="space-y-3">
-    <div class="flex items-center gap-2">
-      <h2 class="text-xl font-semibold">All users</h2>
-      <Badge variant="secondary">{users.users.length}</Badge>
-    </div>
-    <Separator />
-
-    {#if users.loading}
-      <p class="text-muted-foreground text-sm">Loading…</p>
-    {:else if users.users.length === 0}
-      <p class="text-muted-foreground text-sm">No users yet.</p>
-    {:else}
-      <div class="space-y-2">
-        {#each users.users as user (user.id)}
-          <Card>
-            <CardContent class="flex items-center justify-between py-4">
-              <a href={resolve(`/users/${user.id}`)} class="group flex-1">
-                <p class="font-medium group-hover:underline">{user.name}</p>
-                <p class="text-muted-foreground text-sm">{user.email}</p>
-              </a>
-              <Button variant="ghost" size="sm" onclick={() => users.remove(user.id)}>Delete</Button>
-            </CardContent>
-          </Card>
-        {/each}
-      </div>
-    {/if}
-  </div>
 </main>

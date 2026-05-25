@@ -16,6 +16,9 @@
           "byEmail": {
             "keyPath": "email",
             "unique": true
+          },
+          "byScore": {
+            "keyPath": "score"
           }
         },
         "keyPath": "id"
@@ -23,9 +26,9 @@
     }
   },
   "marker": {
-    "storageHash": "sha256:aed3ca821d99fc4545d38cf8c180976754852ceae54392e65bacd3849c9a599c",
+    "storageHash": "sha256:c1ad80d3bd2f9f5db48c5126fe1257ba9817ddc6ba0a8af9453e39f17d76dd30",
     "profileHash": "sha256:9c3dc53697717de6a430cccc6a5b4738f956c513b7997012addca5048dfaa743",
-    "updatedAt": "2026-05-25T10:59:10.698Z",
+    "updatedAt": "2026-05-25T16:55:35.686Z",
     "invariants": [],
     "contractJson": null,
     "canonicalVersion": null,

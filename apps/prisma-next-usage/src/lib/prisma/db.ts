@@ -2,20 +2,64 @@ import { createAutoMigratingIdbClient } from "@prisma-next-idb/client-idb/client
 import type { IdbContract } from "@prisma-next-idb/client-idb/orm";
 import type { ManifestLike } from "@prisma-next-idb/client-idb/client-auto";
 
-const DB_NAME = "prisma-next-usage";
+const DEFAULT_DB_NAME = "prisma-next-usage";
 
-let _client: Awaited<ReturnType<typeof createAutoMigratingIdbClient>> | null = null;
+type IdbClient = Awaited<ReturnType<typeof createAutoMigratingIdbClient>>;
+
+let _client: IdbClient | null = null;
+let _clientDbName: string | null = null;
 
 /**
- * Returns the singleton IDB client, running migrations first if needed.
+ * Resolve the IDB database name to use for the current page load.
+ *
+ * Reads `?db=<name>` from the URL when available so each Playwright spec
+ * can isolate its own database; falls back to a constant for the
+ * interactive UI.
+ */
+export function resolveDbName(): string {
+  if (typeof window === "undefined") return DEFAULT_DB_NAME;
+  const param = new URLSearchParams(window.location.search).get("db");
+  return param && param.length > 0 ? param : DEFAULT_DB_NAME;
+}
+
+/**
+ * Returns the singleton IDB client for the resolved `dbName`, running
+ * the auto-migration on first use. Caches by db name so the same page
+ * load can switch databases via reset() below.
  *
  * Pass `manifest` when the server can provide `prisma-idb.manifest.json`
- * (e.g. via a page loader). When omitted, the runtime probes the live
- * database to discover the current version.
+ * (e.g. via a page loader). When omitted, the runtime introspects the
+ * live database to discover its current schema.
  */
-export async function getDb(contract: IdbContract, manifest?: ManifestLike) {
-  if (!_client) {
-    _client = await createAutoMigratingIdbClient({ contract, dbName: DB_NAME, manifest });
-  }
+export async function getDb(contract: IdbContract, manifest?: ManifestLike): Promise<IdbClient> {
+  const dbName = resolveDbName();
+  if (_client && _clientDbName === dbName) return _client;
+  if (_client) await _client.close();
+  _client = await createAutoMigratingIdbClient({ contract, dbName, manifest });
+  _clientDbName = dbName;
   return _client;
+}
+
+/**
+ * Close the cached client (if any) and delete the IDB database from
+ * `window.indexedDB`. Used by the "Reset DB" control in the UI and by
+ * Playwright specs that need a guaranteed-clean slate.
+ *
+ * Returns once `IDBFactory.deleteDatabase` resolves; rejects with the
+ * underlying error event if delete fails.
+ */
+export async function resetDb(): Promise<void> {
+  const dbName = resolveDbName();
+  if (_client) {
+    await _client.close();
+    _client = null;
+    _clientDbName = null;
+  }
+  if (typeof indexedDB === "undefined") return;
+  await new Promise<void>((resolve, reject) => {
+    const req = indexedDB.deleteDatabase(dbName);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error ?? new Error(`deleteDatabase("${dbName}") failed`));
+    req.onblocked = () => reject(new Error(`deleteDatabase("${dbName}") blocked by an open connection`));
+  });
 }

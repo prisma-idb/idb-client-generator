@@ -11,7 +11,7 @@ import type {
   StorageHashBase,
 } from "@prisma-next/contract/types";
 
-export type StorageHash = StorageHashBase<"sha256:aed3ca821d99fc4545d38cf8c180976754852ceae54392e65bacd3849c9a599c">;
+export type StorageHash = StorageHashBase<"sha256:c1ad80d3bd2f9f5db48c5126fe1257ba9817ddc6ba0a8af9453e39f17d76dd30">;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash = ProfileHashBase<"sha256:9c3dc53697717de6a430cccc6a5b4738f956c513b7997012addca5048dfaa743">;
 
@@ -22,20 +22,40 @@ export type FieldOutputTypes = {
   readonly Post: {
     readonly id: CodecTypes["idb/string@1"]["output"];
     readonly authorId: CodecTypes["idb/string@1"]["output"];
+    readonly title: CodecTypes["idb/string@1"]["output"];
+    readonly content: CodecTypes["idb/string@1"]["output"] | null;
+    readonly views: CodecTypes["idb/int32@1"]["output"];
+    readonly published: CodecTypes["idb/bool@1"]["output"];
+    readonly publishedAt: CodecTypes["idb/date@1"]["output"] | null;
   };
   readonly User: {
     readonly id: CodecTypes["idb/string@1"]["output"];
+    readonly name: CodecTypes["idb/string@1"]["output"];
     readonly email: CodecTypes["idb/string@1"]["output"];
+    readonly bio: CodecTypes["idb/string@1"]["output"] | null;
+    readonly score: CodecTypes["idb/int32@1"]["output"];
+    readonly active: CodecTypes["idb/bool@1"]["output"];
+    readonly joinedAt: CodecTypes["idb/date@1"]["output"];
   };
 };
 export type FieldInputTypes = {
   readonly Post: {
     readonly id: CodecTypes["idb/string@1"]["input"];
     readonly authorId: CodecTypes["idb/string@1"]["input"];
+    readonly title: CodecTypes["idb/string@1"]["input"];
+    readonly content: CodecTypes["idb/string@1"]["input"] | null;
+    readonly views: CodecTypes["idb/int32@1"]["input"];
+    readonly published: CodecTypes["idb/bool@1"]["input"];
+    readonly publishedAt: CodecTypes["idb/date@1"]["input"] | null;
   };
   readonly User: {
     readonly id: CodecTypes["idb/string@1"]["input"];
+    readonly name: CodecTypes["idb/string@1"]["input"];
     readonly email: CodecTypes["idb/string@1"]["input"];
+    readonly bio: CodecTypes["idb/string@1"]["input"] | null;
+    readonly score: CodecTypes["idb/int32@1"]["input"];
+    readonly active: CodecTypes["idb/bool@1"]["input"];
+    readonly joinedAt: CodecTypes["idb/date@1"]["input"];
   };
 };
 export type TypeMaps = IdbTypeMaps<CodecTypes, FieldOutputTypes, FieldInputTypes>;
@@ -53,6 +73,7 @@ type ContractBase = ContractType<
         readonly keyPath: "id";
         readonly indexes: {
           readonly byEmail: { readonly keyPath: "email"; readonly unique: true };
+          readonly byScore: { readonly keyPath: "score"; readonly unique: false };
         };
       };
     };
@@ -68,6 +89,26 @@ type ContractBase = ContractType<
         readonly authorId: {
           readonly nullable: false;
           readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
+        };
+        readonly title: {
+          readonly nullable: false;
+          readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
+        };
+        readonly content: {
+          readonly nullable: true;
+          readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
+        };
+        readonly views: {
+          readonly nullable: false;
+          readonly type: { readonly kind: "scalar"; readonly codecId: "idb/int32@1" };
+        };
+        readonly published: {
+          readonly nullable: false;
+          readonly type: { readonly kind: "scalar"; readonly codecId: "idb/bool@1" };
+        };
+        readonly publishedAt: {
+          readonly nullable: true;
+          readonly type: { readonly kind: "scalar"; readonly codecId: "idb/date@1" };
         };
       };
       readonly relations: {
@@ -88,9 +129,29 @@ type ContractBase = ContractType<
           readonly nullable: false;
           readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
         };
+        readonly name: {
+          readonly nullable: false;
+          readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
+        };
         readonly email: {
           readonly nullable: false;
           readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
+        };
+        readonly bio: {
+          readonly nullable: true;
+          readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
+        };
+        readonly score: {
+          readonly nullable: false;
+          readonly type: { readonly kind: "scalar"; readonly codecId: "idb/int32@1" };
+        };
+        readonly active: {
+          readonly nullable: false;
+          readonly type: { readonly kind: "scalar"; readonly codecId: "idb/bool@1" };
+        };
+        readonly joinedAt: {
+          readonly nullable: false;
+          readonly type: { readonly kind: "scalar"; readonly codecId: "idb/date@1" };
         };
       };
       readonly relations: Record<string, never>;
