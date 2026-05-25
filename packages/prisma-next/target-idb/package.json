@@ -23,8 +23,8 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@prisma-next/contract": "^0.4.4",
-    "@prisma-next/framework-components": "^0.4.4"
+    "@prisma-next/contract": "^0.11.0",
+    "@prisma-next/framework-components": "^0.11.0"
   },
   "devDependencies": {
     "fake-indexeddb": "^6.2.5",

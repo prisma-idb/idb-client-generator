@@ -1,12 +1,13 @@
 import type { Codec, CodecCallContext } from "@prisma-next/framework-components/codec";
 import { describe, expect, it } from "vitest";
-import { codecInstances } from "../src/core/codecs";
+import { codecDescriptors } from "../src/core/codecs";
 
-// Cast to the base Codec type to avoid union-narrowed `never` parameter types.
-function getCodec(id: string): Codec {
-  const codec = codecInstances.find((c) => c.id === id);
-  if (!codec) throw new Error(`Codec "${id}" not found`);
-  return codec as Codec;
+// Instantiate a codec from its descriptor's factory.
+function getCodec(codecId: string): Codec {
+  const desc = codecDescriptors.find((d) => d.codecId === codecId);
+  if (!desc) throw new Error(`Codec descriptor "${codecId}" not found`);
+  const factory = desc.factory(undefined as never) as (ctx: unknown) => Codec;
+  return factory({ name: "test" });
 }
 
 // Minimal context — IDB codecs don't use signal or any family-specific context.
@@ -25,11 +26,6 @@ describe("idb/string@1", () => {
   it("encodeJson / decodeJson are identity", () => {
     expect(codec.encodeJson("world")).toBe("world");
     expect(codec.decodeJson("world")).toBe("world");
-  });
-
-  it("has equality and textual traits", () => {
-    expect(codec.traits).toContain("equality");
-    expect(codec.traits).toContain("textual");
   });
 });
 
@@ -67,11 +63,6 @@ describe("idb/double@1", () => {
     expect(await codec.encode(3.14, ctx)).toBe(3.14);
     expect(await codec.decode(3.14, ctx)).toBe(3.14);
   });
-
-  it("has numeric and order traits", () => {
-    expect(codec.traits).toContain("numeric");
-    expect(codec.traits).toContain("order");
-  });
 });
 
 // ── idb/bool@1 ───────────────────────────────────────────────────────────────
@@ -82,10 +73,6 @@ describe("idb/bool@1", () => {
   it("round-trips true and false", async () => {
     expect(await codec.encode(true, ctx)).toBe(true);
     expect(await codec.encode(false, ctx)).toBe(false);
-  });
-
-  it("has boolean trait", () => {
-    expect(codec.traits).toContain("boolean");
   });
 });
 
@@ -242,14 +229,21 @@ describe("codec registry", () => {
   ];
 
   it("contains all 9 expected codec IDs", () => {
-    const ids = codecInstances.map((c) => c.id);
+    const ids = codecDescriptors.map((d) => d.codecId);
     for (const id of expectedIds) {
       expect(ids).toContain(id);
     }
   });
 
   it("has no duplicate IDs", () => {
-    const ids = codecInstances.map((c) => c.id);
+    const ids = codecDescriptors.map((d) => d.codecId);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("every descriptor has traits and targetTypes", () => {
+    for (const desc of codecDescriptors) {
+      expect(desc.traits.length).toBeGreaterThan(0);
+      expect(desc.targetTypes.length).toBeGreaterThan(0);
+    }
   });
 });

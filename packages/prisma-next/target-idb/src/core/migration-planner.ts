@@ -203,7 +203,7 @@ export class IdbMigrationPlanner implements MigrationPlanner<"idb", "idb"> {
     return { kind: "success", plan };
   }
 
-  emptyMigration(_context: MigrationScaffoldContext): MigrationPlanWithAuthoringSurface {
+  emptyMigration(_context: MigrationScaffoldContext, _spaceId: string): MigrationPlanWithAuthoringSurface {
     return {
       targetId: "idb",
       origin: null,

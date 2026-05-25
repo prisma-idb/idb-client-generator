@@ -360,6 +360,9 @@ importers:
 
   apps/prisma-next-usage:
     dependencies:
+      '@prisma-next-idb/adapter-idb':
+        specifier: workspace:*
+        version: link:../../packages/prisma-next/adapter-idb
       '@prisma-next-idb/client-idb':
         specifier: workspace:*
         version: link:../../packages/prisma-next/client-idb
@@ -595,8 +598,8 @@ importers:
         specifier: workspace:*
         version: link:../target-idb
       '@prisma-next/framework-components':
-        specifier: ^0.4.4
-        version: 0.4.4
+        specifier: ^0.11.0
+        version: 0.11.0
     devDependencies:
       tsdown:
         specifier: ^0.22.0
@@ -623,11 +626,11 @@ importers:
         specifier: workspace:*
         version: link:../target-idb
       '@prisma-next/contract':
-        specifier: ^0.4.4
-        version: 0.4.4
+        specifier: ^0.11.0
+        version: 0.11.0
       '@prisma-next/framework-components':
-        specifier: ^0.4.4
-        version: 0.4.4
+        specifier: ^0.11.0
+        version: 0.11.0
     devDependencies:
       '@prisma-next-idb/family-idb':
         specifier: workspace:*
@@ -648,8 +651,8 @@ importers:
   packages/prisma-next/driver-idb:
     dependencies:
       '@prisma-next/framework-components':
-        specifier: ^0.4.4
-        version: 0.4.4
+        specifier: ^0.11.0
+        version: 0.11.0
     devDependencies:
       fake-indexeddb:
         specifier: ^6.2.5
@@ -670,17 +673,17 @@ importers:
         specifier: workspace:*
         version: link:../target-idb
       '@prisma-next/config':
-        specifier: ^0.4.4
-        version: 0.4.4
+        specifier: ^0.11.0
+        version: 0.11.0
       '@prisma-next/contract':
-        specifier: ^0.4.4
-        version: 0.4.4
+        specifier: ^0.11.0
+        version: 0.11.0
       '@prisma-next/framework-components':
-        specifier: ^0.4.4
-        version: 0.4.4
+        specifier: ^0.11.0
+        version: 0.11.0
       '@prisma-next/utils':
-        specifier: ^0.4.4
-        version: 0.4.4
+        specifier: ^0.11.0
+        version: 0.11.0
       pathe:
         specifier: ^2.0.3
         version: 2.0.3
@@ -704,8 +707,8 @@ importers:
         specifier: workspace:*
         version: link:../driver-idb
       '@prisma-next/framework-components':
-        specifier: ^0.4.4
-        version: 0.4.4
+        specifier: ^0.11.0
+        version: 0.11.0
     devDependencies:
       fake-indexeddb:
         specifier: ^6.2.5
@@ -723,11 +726,11 @@ importers:
   packages/prisma-next/target-idb:
     dependencies:
       '@prisma-next/contract':
-        specifier: ^0.4.4
-        version: 0.4.4
+        specifier: ^0.11.0
+        version: 0.11.0
       '@prisma-next/framework-components':
-        specifier: ^0.4.4
-        version: 0.4.4
+        specifier: ^0.11.0
+        version: 0.11.0
     devDependencies:
       fake-indexeddb:
         specifier: ^6.2.5
@@ -2764,23 +2767,27 @@ packages:
   '@posthog/types@1.370.1':
     resolution: {integrity: sha512-91AGn76zDgitMphnjrhvZ0WZ1oPipW4P8vrhVz/uKjtisYTZtokjrxeZyD+3imx4nYGyi6eNpPcvPdWXNBmN/A==}
 
-  '@prisma-next/config@0.4.4':
-    resolution: {integrity: sha512-c3YXgpqN5U27DoYZK3gs+wLkrTjtcbXEJuGd9vg//f+Y3Tq4miPub0jg8itcDCHyo4zHbalkoGBKlb6Sdv2iXw==}
+  '@prisma-next/config@0.11.0':
+    resolution: {integrity: sha512-Yza+AB0wps5vP8TozZl1qinY/fm04kb9E7i1FJts+pEDDElZH04iaTNv+NeOcWNCXVNkdPnPSJnXXi1XekFxfw==}
     engines: {node: '>=20'}
 
-  '@prisma-next/contract@0.4.4':
-    resolution: {integrity: sha512-OqdrzEK7GCu9sJEQfINxyTFBiL+RfWFLyExgREQW99oPdHzLH7uURCEP1X30czOA1QmWgNOc2UCTg793gA4X0Q==}
+  '@prisma-next/contract@0.11.0':
+    resolution: {integrity: sha512-PDddWjEtp9E5txyxavUxQ1fjH2pasjh57NZp6103swe9EatJP8LKqz9mBKo6zhuhF3xJasNgPBbNCMc4x4I0gg==}
     engines: {node: '>=20'}
 
-  '@prisma-next/framework-components@0.4.4':
-    resolution: {integrity: sha512-8NEWqvFl5SQGQ4yUp5/j/96rX0PEeAC2bKmWvFFOnQ0Wk0t7EcCSD2OgfoErDj2vUN0tqvbTYifRZLFSNlPKCQ==}
+  '@prisma-next/framework-components@0.11.0':
+    resolution: {integrity: sha512-yrBN3BOZKBIaKSgTR791ZC8vBLkQRppaAWFm2w5rVseGYElu4x1JVew33exnC2OikR6/AQeRswqA78Kpqiej0w==}
 
-  '@prisma-next/operations@0.4.4':
-    resolution: {integrity: sha512-w2Ad8ULKeVQvt389xjadkknBV6zXYq5ZS6p1NclOa2q3GR2sQ3nToRljBrUoWteMTJxUtuqLuMP01jQoQUxOMQ==}
+  '@prisma-next/operations@0.11.0':
+    resolution: {integrity: sha512-viAM+bmj9dVWdeO3R24TXorKC3v+6SyKyIQjQKmTSe4x1iwj6TjODxHbd6y6VUum/pph5Q79y3Flji+5vPDIcw==}
     engines: {node: '>=20'}
 
-  '@prisma-next/utils@0.4.4':
-    resolution: {integrity: sha512-EQVNhV7ZFDz9m2fGBebHixQN8bFgNilO3ld5uVxWagxIbB1nwbGXtitKDKtCH+LJpFzpTFtZ8ipz0g0GmjKKGw==}
+  '@prisma-next/ts-render@0.11.0':
+    resolution: {integrity: sha512-OX//hWyh9KMd2440KjA0R4vkDCZIQbzpgdirEeHnNxOuQ4QKgHCFSjg/3sqIeSRCBG0WnzAtrVBpsFV1qSHBsg==}
+    engines: {node: '>=20'}
+
+  '@prisma-next/utils@0.11.0':
+    resolution: {integrity: sha512-QUA2q5Qw0tFqXea5bK3M0jGVFpFpQ3kgAW51RhENkiShnIyWh0Jjn2TKBrvWBXCzvfF1kJI20/Hr7X8xC9p+3g==}
     engines: {node: '>=20'}
 
   '@prisma/adapter-pg@7.8.0':
@@ -12029,28 +12036,33 @@ snapshots:
 
   '@posthog/types@1.370.1': {}
 
-  '@prisma-next/config@0.4.4':
+  '@prisma-next/config@0.11.0':
     dependencies:
-      '@prisma-next/contract': 0.4.4
-      '@prisma-next/framework-components': 0.4.4
-      '@prisma-next/utils': 0.4.4
+      '@prisma-next/contract': 0.11.0
+      '@prisma-next/framework-components': 0.11.0
+      '@prisma-next/utils': 0.11.0
       arktype: 2.2.0
 
-  '@prisma-next/contract@0.4.4':
+  '@prisma-next/contract@0.11.0':
     dependencies:
-      '@prisma-next/utils': 0.4.4
-      arktype: 2.2.0
-
-  '@prisma-next/framework-components@0.4.4':
-    dependencies:
-      '@prisma-next/contract': 0.4.4
-      '@prisma-next/operations': 0.4.4
-      '@prisma-next/utils': 0.4.4
+      '@prisma-next/utils': 0.11.0
       '@standard-schema/spec': 1.1.0
+      arktype: 2.2.0
 
-  '@prisma-next/operations@0.4.4': {}
+  '@prisma-next/framework-components@0.11.0':
+    dependencies:
+      '@prisma-next/contract': 0.11.0
+      '@prisma-next/operations': 0.11.0
+      '@prisma-next/ts-render': 0.11.0
+      '@prisma-next/utils': 0.11.0
+      '@standard-schema/spec': 1.1.0
+      arktype: 2.2.0
 
-  '@prisma-next/utils@0.4.4': {}
+  '@prisma-next/operations@0.11.0': {}
+
+  '@prisma-next/ts-render@0.11.0': {}
+
+  '@prisma-next/utils@0.11.0': {}
 
   '@prisma/adapter-pg@7.8.0':
     dependencies:

@@ -289,7 +289,7 @@ describe("IdbMigrationPlanner", () => {
   });
 
   it("emptyMigration() returns a stub plan with no ops", () => {
-    const plan = planner.emptyMigration({ packageDir: "/tmp", fromHash: null, toHash: "x" });
+    const plan = planner.emptyMigration({ packageDir: "/tmp", fromHash: null, toHash: "x" }, "app");
     expect(plan.operations).toHaveLength(0);
     expect(plan.renderTypeScript()).toContain("IdbMigration");
   });
