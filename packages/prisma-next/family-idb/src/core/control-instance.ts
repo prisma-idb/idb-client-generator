@@ -1,4 +1,5 @@
-import type { ContractMarkerRecord } from "@prisma-next/contract/types";
+import type { Contract, ContractMarkerRecord } from "@prisma-next/contract/types";
+import type { TargetBoundComponentDescriptor } from "@prisma-next/framework-components/components";
 import type {
   ControlDriverInstance,
   ControlFamilyInstance,
@@ -18,8 +19,7 @@ import type { IdbSchemaIR } from "./schema-ir";
 import { verifyIdbSchema } from "./schema-verify";
 import { validateContract } from "./validate";
 
-// `APP_SPACE_ID` is not exported from @prisma-next/framework-components v0.4.4;
-// define it locally. IDB only ever has a single "app" space.
+// IDB only ever has a single "app" space (no multi-tenancy).
 const APP_SPACE_ID = "app" as const;
 
 // ── exactOptionalPropertyTypes helpers ───────────────────────────────────────
@@ -55,10 +55,10 @@ export function createIdbFamilyInstance(_stack: ControlStack<"idb", string>): Id
   return {
     familyId: "idb",
 
-    // ── validateContract ────────────────────────────────────────────────────
+    // ── deserializeContract ────────────────────────────────────────────────
 
-    validateContract(contractJson: unknown) {
-      return validateContract(contractJson);
+    deserializeContract(contractJson: unknown): Contract {
+      return validateContract(contractJson) as Contract;
     },
 
     // ── verify ──────────────────────────────────────────────────────────────
@@ -129,26 +129,16 @@ export function createIdbFamilyInstance(_stack: ControlStack<"idb", string>): Id
       };
     },
 
-    // ── schemaVerify ─────────────────────────────────────────────────────────
+    // ── verifySchema ───────────────────────────────────────────────────────
 
-    async schemaVerify(options: {
-      readonly driver: ControlDriverInstance<"idb", string>;
+    verifySchema(options: {
       readonly contract: unknown;
+      readonly schema: IdbSchemaIR;
       readonly strict: boolean;
-      readonly contractPath: string;
-      readonly configPath?: string;
-      readonly frameworkComponents: ReadonlyArray<unknown>;
-    }): Promise<VerifyDatabaseSchemaResult> {
-      const mDriver = extractManifestDriver(options.driver);
+      readonly frameworkComponents: ReadonlyArray<TargetBoundComponentDescriptor<"idb", string>>;
+    }): VerifyDatabaseSchemaResult {
       const contract = validateContract(options.contract);
-      const manifest = await mDriver.readManifest();
-      const schema: IdbSchemaIR = manifest?.schema ?? emptyManifest().schema;
-
-      const verifyOpts = {
-        contractPath: options.contractPath,
-        ...(options.configPath !== undefined ? { configPath: options.configPath } : {}),
-      };
-      return verifyIdbSchema(contract, schema, options.strict, verifyOpts);
+      return verifyIdbSchema(contract, options.schema, options.strict);
     },
 
     // ── sign ─────────────────────────────────────────────────────────────────
@@ -223,14 +213,13 @@ export function createIdbFamilyInstance(_stack: ControlStack<"idb", string>): Id
       };
     },
 
-    // ── readMarker ───────────────────────────────────────────────────────────
+    // ── readMarker ─────────────────────────────────────────────────────────
 
     async readMarker(options: {
       readonly driver: ControlDriverInstance<"idb", string>;
-      readonly space?: string;
+      readonly space: string;
     }): Promise<ContractMarkerRecord | null> {
-      const space = (options as { space?: string }).space ?? APP_SPACE_ID;
-      if (space !== APP_SPACE_ID) {
+      if (options.space !== APP_SPACE_ID) {
         // IDB only has a single "app" space.
         return null;
       }
@@ -240,7 +229,18 @@ export function createIdbFamilyInstance(_stack: ControlStack<"idb", string>): Id
       return markerToRecord(manifest.marker);
     },
 
-    // ── introspect ───────────────────────────────────────────────────────────
+    // ── readAllMarkers ─────────────────────────────────────────────────────
+
+    async readAllMarkers(options: {
+      readonly driver: ControlDriverInstance<"idb", string>;
+    }): Promise<ReadonlyMap<string, ContractMarkerRecord>> {
+      const mDriver = extractManifestDriver(options.driver);
+      const manifest = await mDriver.readManifest();
+      if (!manifest?.marker) return new Map();
+      return new Map([[APP_SPACE_ID, markerToRecord(manifest.marker)]]);
+    },
+
+    // ── introspect ─────────────────────────────────────────────────────────
 
     async introspect(options: {
       readonly driver: ControlDriverInstance<"idb", string>;

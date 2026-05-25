@@ -196,17 +196,11 @@ describe("verifyIdbSchema — index issues", () => {
 // ── Result shape ──────────────────────────────────────────────────────────────
 
 describe("verifyIdbSchema — result shape", () => {
-  it("includes contractPath and strict in meta", () => {
+  it("includes strict in meta", () => {
     const contract = makeContract({ users: { keyPath: "id" } });
     const schema = makeSchema({ users: { keyPath: "id" } });
-    const result = verifyIdbSchema(contract, schema, true, {
-      contractPath: "/path/to/contract.json",
-      configPath: "/path/to/prisma.config.ts",
-    });
-
+    const result = verifyIdbSchema(contract, schema, true);
     expect(result.meta?.strict).toBe(true);
-    expect(result.meta?.contractPath).toBe("/path/to/contract.json");
-    expect(result.meta?.configPath).toBe("/path/to/prisma.config.ts");
   });
 
   it("has counts that sum to totalNodes", () => {

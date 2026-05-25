@@ -20,10 +20,10 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@prisma-next/config": "^0.4.4",
-    "@prisma-next/contract": "^0.4.4",
-    "@prisma-next/utils": "^0.4.4",
-    "@prisma-next/framework-components": "^0.4.4",
+    "@prisma-next/config": "^0.11.0",
+    "@prisma-next/contract": "^0.11.0",
+    "@prisma-next/utils": "^0.11.0",
+    "@prisma-next/framework-components": "^0.11.0",
     "@prisma-next-idb/target-idb": "workspace:*",
     "pathe": "^2.0.3"
   },

@@ -6,13 +6,6 @@ import type {
 import type { IdbContract } from "./validate";
 import type { IdbIndexIR, IdbSchemaIR, IdbStoreIR } from "./schema-ir";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface VerifyOptions {
-  readonly contractPath?: string;
-  readonly configPath?: string;
-}
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function passNode(
@@ -342,8 +335,7 @@ function verifyStore(
 export function verifyIdbSchema(
   contract: IdbContract,
   schema: IdbSchemaIR,
-  strict: boolean,
-  options: VerifyOptions = {}
+  strict: boolean
 ): VerifyDatabaseSchemaResult {
   const start = Date.now();
   const issues: SchemaIssue[] = [];
@@ -416,8 +408,6 @@ export function verifyIdbSchema(
 
   const metaField = {
     strict,
-    ...(options.contractPath !== undefined ? { contractPath: options.contractPath } : {}),
-    ...(options.configPath !== undefined ? { configPath: options.configPath } : {}),
   };
 
   const sharedResult = {

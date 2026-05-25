@@ -85,9 +85,9 @@ describe("extractManifestDriver", () => {
 describe("createIdbFamilyInstance — full integration", () => {
   const instance = createIdbFamilyInstance({} as never);
 
-  it("validateContract accepts a valid IDB contract", () => {
+  it("deserializeContract accepts a valid IDB contract", () => {
     const contract = rawContract({ users: { keyPath: "id" } });
-    expect(() => instance.validateContract(contract)).not.toThrow();
+    expect(() => instance.deserializeContract(contract)).not.toThrow();
   });
 
   it("sign creates a manifest marker on first run", async () => {
@@ -161,7 +161,7 @@ describe("createIdbFamilyInstance — full integration", () => {
     const path = tmpPath("readmarker-empty");
     // Don't create the file — fresh project.
     const driver = await IdbManifestControlDriverDescriptor.create(path);
-    const marker = await instance.readMarker({ driver });
+    const marker = await instance.readMarker({ driver, space: "app" });
     expect(marker).toBeNull();
   });
 
@@ -179,7 +179,7 @@ describe("createIdbFamilyInstance — full integration", () => {
     const contract = rawContract({ users: { keyPath: "id" } });
 
     await instance.sign({ driver, contract, contractPath: "/contract.json" });
-    const marker = await instance.readMarker({ driver });
+    const marker = await instance.readMarker({ driver, space: "app" });
 
     expect(marker).not.toBeNull();
     expect(marker?.storageHash).toBeDefined();
@@ -276,29 +276,15 @@ describe("createIdbFamilyInstance — full integration", () => {
     expect(schema.stores).toEqual({});
   });
 
-  it("schemaVerify passes when manifest matches contract", async () => {
-    const path = tmpPath("schema-verify-pass");
-    afterEach(() => {
-      try {
-        rmSync(path);
-      } catch {
-        /* ignore */
-      }
-    });
-
-    // First write a manifest with the schema.
-    const driver = await IdbManifestControlDriverDescriptor.create(path);
-    await driver.writeManifest({
-      version: 1,
-      schema: { stores: { users: { keyPath: "id" } } },
-    });
-
+  it("verifySchema passes when manifest matches contract", () => {
+    // verifySchema is synchronous in 0.11.0 and takes no driver.
     const contract = rawContract({ users: { keyPath: "id" } });
-    const result = await instance.schemaVerify({
-      driver,
+    const schema = { stores: { users: { keyPath: "id" } } };
+
+    const result = instance.verifySchema({
       contract,
+      schema,
       strict: false,
-      contractPath: "/contract.json",
       frameworkComponents: [],
     });
 
