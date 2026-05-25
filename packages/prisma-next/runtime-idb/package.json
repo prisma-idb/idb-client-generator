@@ -17,7 +17,8 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@prisma-next/framework-components": "^0.4.4",
+    "@prisma-next/framework-components": "^0.11.0",
+    "@prisma-next/utils": "^0.11.0",
     "@prisma-next-idb/adapter-idb": "workspace:*",
     "@prisma-next-idb/driver-idb": "workspace:*"
   },

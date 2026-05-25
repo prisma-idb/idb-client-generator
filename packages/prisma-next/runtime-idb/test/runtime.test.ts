@@ -140,6 +140,8 @@ describe("createIdbRuntime", () => {
       mode: "permissive" as const,
       now: () => 0,
       log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      contentHash: async () => "",
+      scope: "runtime" as const,
     };
 
     const runtime = createIdbRuntime({
@@ -440,6 +442,8 @@ describe("constructor middleware context", () => {
       mode: "permissive" as const,
       now: () => 42,
       log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      contentHash: async () => "",
+      scope: "runtime" as const,
     };
 
     const runtime = createIdbRuntime({
@@ -460,6 +464,115 @@ describe("constructor middleware context", () => {
       rows.push(row as Record<string, unknown>);
     }
     expect(rows).toHaveLength(1);
+  });
+
+  it("built-in contentHash returns a sha512-prefixed digest", async () => {
+    // The built-in context's contentHash should produce a real SHA-512
+    // hash in the vendor format: "sha512:" + 128 lowercase hex digits.
+    let capturedHash = "";
+
+    const mw: IdbMiddleware = {
+      name: "hash-capture",
+      family: "idb",
+      beforeExecute: async (_plan, ctx) => {
+        // Call contentHash on a known plan shape
+        capturedHash = await ctx.contentHash({
+          kind: "cursorScan",
+          storeName: "User",
+          meta: { target: "idb", storageHash: "abc123", lane: "idb" },
+        } as unknown as import("@prisma-next/framework-components/runtime").ExecutionPlan);
+      },
+    };
+
+    const runtime = createIdbRuntime({
+      adapter: makeMockAdapter(),
+      driver: makeMockDriver(),
+      contract: TEST_CONTRACT,
+      middleware: [mw],
+    });
+
+    const plan = makeQueryPlan();
+    const result = runtime.execute(plan);
+    const rows: Record<string, unknown>[] = [];
+    for await (const row of result) {
+      rows.push(row as Record<string, unknown>);
+    }
+
+    expect(capturedHash).toMatch(/^sha512:[0-9a-f]{128}$/);
+    expect(capturedHash).toHaveLength(135); // "sha512:" + 128 hex
+    expect(rows).toHaveLength(1);
+  });
+
+  it("built-in contentHash is deterministic for the same plan", async () => {
+    const hashes: string[] = [];
+
+    const mw: IdbMiddleware = {
+      name: "hash-determinism",
+      family: "idb",
+      beforeExecute: async (_plan, ctx) => {
+        const planShape = {
+          kind: "keyGet",
+          storeName: "posts",
+          key: "post-1",
+          meta: { target: "idb", storageHash: "def456", lane: "idb" },
+        } as unknown as import("@prisma-next/framework-components/runtime").ExecutionPlan;
+        hashes.push(await ctx.contentHash(planShape));
+        hashes.push(await ctx.contentHash(planShape));
+      },
+    };
+
+    const runtime = createIdbRuntime({
+      adapter: makeMockAdapter(),
+      driver: makeMockDriver(),
+      contract: TEST_CONTRACT,
+      middleware: [mw],
+    });
+
+    const result = runtime.execute(makeQueryPlan());
+    const reader = result[Symbol.asyncIterator]();
+    await reader.next();
+
+    expect(hashes).toHaveLength(2);
+    expect(hashes[0]).toBe(hashes[1]);
+  });
+
+  it("built-in contentHash differs for different plans", async () => {
+    const hashes: string[] = [];
+
+    const mw: IdbMiddleware = {
+      name: "hash-distinct",
+      family: "idb",
+      beforeExecute: async (_plan, ctx) => {
+        hashes.push(
+          await ctx.contentHash({
+            kind: "cursorScan",
+            storeName: "users",
+            meta: { target: "idb", storageHash: "aaa", lane: "idb" },
+          } as import("@prisma-next/framework-components/runtime").ExecutionPlan)
+        );
+        hashes.push(
+          await ctx.contentHash({
+            kind: "cursorScan",
+            storeName: "posts",
+            meta: { target: "idb", storageHash: "bbb", lane: "idb" },
+          } as import("@prisma-next/framework-components/runtime").ExecutionPlan)
+        );
+      },
+    };
+
+    const runtime = createIdbRuntime({
+      adapter: makeMockAdapter(),
+      driver: makeMockDriver(),
+      contract: TEST_CONTRACT,
+      middleware: [mw],
+    });
+
+    const result = runtime.execute(makeQueryPlan());
+    const reader = result[Symbol.asyncIterator]();
+    await reader.next();
+
+    expect(hashes).toHaveLength(2);
+    expect(hashes[0]).not.toBe(hashes[1]);
   });
 });
 

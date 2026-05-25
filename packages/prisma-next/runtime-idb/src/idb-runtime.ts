@@ -2,9 +2,12 @@ import type { CodecCallContext } from "@prisma-next/framework-components/codec";
 import {
   AsyncIterableResult,
   RuntimeCore,
+  type ExecutionPlan,
   type RuntimeExecuteOptions,
   type RuntimeMiddlewareContext,
 } from "@prisma-next/framework-components/runtime";
+import { canonicalStringify } from "@prisma-next/utils/canonical-stringify";
+import { hashContent } from "@prisma-next/utils/hash-content";
 import type { IdbLowererContext, IdbQueryPlan, IdbRuntimeAdapterInstance } from "@prisma-next-idb/adapter-idb/runtime";
 import type { IdbPlanBody, IdbRuntimeDriverInstance } from "@prisma-next-idb/driver-idb/runtime";
 import type { IdbMiddleware } from "./idb-middleware";
@@ -69,6 +72,21 @@ export interface IdbRuntime {
  * so middleware can inspect contract data (plan meta hashes, model
  * names, storage layout).
  */
+/**
+ * Build a real {@link RuntimeMiddlewareContext} from the contract
+ * so middleware can inspect contract data (plan meta hashes, model
+ * names, storage layout) and compute content hashes for cache keys.
+ *
+ * `contentHash` mirrors the vendor SQL/Mongo runtimes: it
+ * canonicalizes the execution plan's structural identity fields
+ * and SHA-512 hashes them via WebCrypto. The resulting digest is
+ * a bounded, opaque cache key suitable for middleware like
+ * `@prisma-next/middleware-cache`.
+ *
+ * Non-serializable fields (in-memory filter functions, comparators,
+ * `IDBKeyRange` objects) are reduced to their deterministic shape
+ * so that two semantically identical plans produce the same hash.
+ */
 function buildMiddlewareContext(contract: Record<string, unknown>): RuntimeMiddlewareContext {
   return {
     contract,
@@ -79,6 +97,53 @@ function buildMiddlewareContext(contract: Record<string, unknown>): RuntimeMiddl
       warn: () => undefined,
       error: () => undefined,
     },
+    scope: "runtime",
+    contentHash: async (exec: ExecutionPlan) => {
+      // Reduce the plan to its structural identity for hashing.
+      // Exclude functions (IdbRowFilter, IdbRowComparator) and
+      // collapse IDBKeyRange to its bounds so deterministic
+      // comparisons work.
+      const plan = exec as unknown as Record<string, unknown>;
+      const hashable: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(plan)) {
+        if (key === "meta") {
+          // meta.storageHash is the primary identity field
+          const meta = value as Record<string, unknown> | undefined;
+          hashable["meta"] = { storageHash: meta?.["storageHash"] };
+        } else if (typeof value === "function") {
+          // Skip in-memory filters/comparators — not hashable
+          continue;
+        } else if ((typeof IDBKeyRange !== "undefined" && value instanceof IDBKeyRange) || isIdbKeyRange(value)) {
+          // Collapse IDBKeyRange to its bounds
+          hashable[key] = keyRangeIdentity(value as IDBKeyRange);
+        } else {
+          hashable[key] = value;
+        }
+      }
+      return hashContent(canonicalStringify(hashable));
+    },
+  };
+}
+
+/** Check for IDBKeyRange-like objects (e.g. from fake-indexeddb). */
+function isIdbKeyRange(value: unknown): value is IDBKeyRange {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "lower" in value &&
+    "upper" in value &&
+    "lowerOpen" in value &&
+    "upperOpen" in value
+  );
+}
+
+/** Extract a deterministic identity from an IDBKeyRange. */
+function keyRangeIdentity(range: IDBKeyRange): Record<string, unknown> {
+  return {
+    lower: range.lower,
+    upper: range.upper,
+    lowerOpen: range.lowerOpen,
+    upperOpen: range.upperOpen,
   };
 }
 
