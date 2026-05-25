@@ -14,6 +14,7 @@
     "test": "npm run test:e2e"
   },
   "devDependencies": {
+    "tsx": "^4.19.4",
     "@fontsource-variable/inter": "^5.2.8",
     "@internationalized/date": "^3.12.1",
     "@lucide/svelte": "^1.16.0",
