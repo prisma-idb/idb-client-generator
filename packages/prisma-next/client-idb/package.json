@@ -7,6 +7,7 @@
   "exports": {
     "./orm": "./dist/orm.mjs",
     "./client": "./dist/client.mjs",
+    "./client-auto": "./dist/client-auto.mjs",
     "./package.json": "./package.json"
   },
   "scripts": {
