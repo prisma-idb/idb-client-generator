@@ -561,6 +561,21 @@ describe("batch", () => {
     expect(rows[0]).toEqual(CAROL);
     expect(rows[1]).toEqual(post);
   });
+
+  it("opens the transaction in readwrite mode for update-only batches", async () => {
+    // Regression: `executeBatchPlan` previously checked only for `put`/`delete`
+    // when picking the tx mode. A batch containing only `update` ops would
+    // open readonly and the inner `store.put(merged)` would abort the tx.
+    const plan: IdbBatchPlan = {
+      meta: META,
+      kind: "batch",
+      storeNames: ["users"],
+      ops: [{ meta: META, kind: "update", storeName: "users", key: "u1", patch: { score: 99 } }],
+    };
+    const rows = await executeIdbPlan(db, plan);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: "u1", score: 99 });
+  });
 });
 
 // ── IdbRuntimeDriverInstance.execute() — async-iterable smoke test ────────────
