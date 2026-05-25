@@ -11,9 +11,14 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test:e2e": "playwright install && playwright test",
-    "test": "npm run test:e2e"
+    "test": "pnpm test:e2e",
+    "db:sign": "prisma-next db sign",
+    "db:verify": "prisma-next db verify",
+    "db:update": "prisma-next db update",
+    "migration:new": "prisma-next migration new"
   },
   "devDependencies": {
+    "prisma-next": "^0.11.0",
     "tsx": "^4.19.4",
     "@fontsource-variable/inter": "^5.2.8",
     "@internationalized/date": "^3.12.1",

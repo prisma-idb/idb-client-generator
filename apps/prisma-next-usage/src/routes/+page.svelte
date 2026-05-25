@@ -86,7 +86,7 @@
         {#each users.users as user (user.id)}
           <Card>
             <CardContent class="flex items-center justify-between py-4">
-              <a href={resolve("/users/{user.id}")} class="group flex-1">
+              <a href={resolve(`/users/${user.id}`)} class="group flex-1">
                 <p class="font-medium group-hover:underline">{user.name}</p>
                 <p class="text-muted-foreground text-sm">{user.email}</p>
               </a>

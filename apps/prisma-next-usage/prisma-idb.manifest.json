@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "idbVersion": 1,
+  "schema": {
+    "stores": {
+      "posts": {
+        "indexes": {
+          "byAuthorId": {
+            "keyPath": "authorId"
+          }
+        },
+        "keyPath": "id"
+      },
+      "users": {
+        "indexes": {
+          "byEmail": {
+            "keyPath": "email",
+            "unique": true
+          }
+        },
+        "keyPath": "id"
+      }
+    }
+  },
+  "marker": {
+    "storageHash": "sha256:aed3ca821d99fc4545d38cf8c180976754852ceae54392e65bacd3849c9a599c",
+    "profileHash": "sha256:9c3dc53697717de6a430cccc6a5b4738f956c513b7997012addca5048dfaa743",
+    "updatedAt": "2026-05-25T10:59:10.698Z",
+    "invariants": [],
+    "contractJson": null,
+    "canonicalVersion": null,
+    "appTag": null,
+    "meta": {}
+  }
+}

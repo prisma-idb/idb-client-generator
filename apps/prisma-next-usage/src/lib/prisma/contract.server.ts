@@ -9,11 +9,19 @@ export const contract = defineContract({
     User: {
       store: "users",
       key: "id",
+      fields: {
+        id: "String",
+        email: "String",
+      },
       indexes: { byEmail: { keyPath: "email", unique: true } },
     },
     Post: {
       store: "posts",
       key: "id",
+      fields: {
+        id: "String",
+        authorId: "String",
+      },
       indexes: { byAuthorId: { keyPath: "authorId", unique: false } },
       relations: {
         author: { to: "User", cardinality: "N:1", on: { local: ["authorId"], target: ["id"] } },
