@@ -11,6 +11,8 @@
  * step is an identity passthrough.
  */
 
+import type { IdbFilterExpr } from "./idb-filter-expr";
+
 /**
  * Discriminated union of all IDB query AST nodes.
  *
@@ -25,8 +27,8 @@ export interface IdbFindManyAst {
   readonly kind: "findMany";
   /** The model (store) being queried. */
   readonly modelName: string;
-  /** Where filters applied (equality predicates, ANDed together). */
-  readonly where?: Record<string, unknown>;
+  /** Where filter expression, lifted from shorthand or callback form. */
+  readonly where?: IdbFilterExpr;
   /** Sort order, if any. Maps field name to direction. */
   readonly orderBy?: Record<string, "asc" | "desc">;
   /** Number of rows to skip (OFFSET). */

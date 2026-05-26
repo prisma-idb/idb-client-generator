@@ -7,6 +7,17 @@ import type { IdbRuntimeAdapterInstance } from "../core/runtime-adapter-instance
 export type { IdbRuntimeAdapterInstance, IdbLowererContext } from "../core/runtime-adapter-instance";
 export type { IdbQueryPlan } from "../core/idb-query-plan";
 export type { IdbQueryAst, IdbFindManyAst, IdbFindUniqueAst, IdbCreateAst, IdbDeleteAst } from "../core/idb-query-ast";
+export type {
+  IdbFilterExpr,
+  IdbFieldFilter,
+  IdbAndExpr,
+  IdbOrExpr,
+  IdbNotExpr,
+  IdbNullCheckExpr,
+  IdbFilterOp,
+} from "../core/idb-filter-expr";
+export { fieldFilter, andExpr, orExpr, notExpr, nullCheckExpr, shorthandToFilterExpr } from "../core/idb-filter-expr";
+export { evaluateFilter } from "../core/filter-eval";
 export { IdbAdapter } from "../core/idb-adapter";
 
 const idbRuntimeAdapterDescriptor: RuntimeAdapterDescriptor<"idb", "idb", IdbRuntimeAdapterInstance> = {
