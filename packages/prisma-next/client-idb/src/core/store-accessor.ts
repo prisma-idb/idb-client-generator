@@ -2,10 +2,16 @@ import { AsyncIterableResult } from "@prisma-next/framework-components/runtime";
 import type { PlanMeta } from "@prisma-next/contract/types";
 import type { IdbFilterExpr, IdbQueryPlan } from "@prisma-next-idb/adapter-idb/runtime";
 import type {
+  IdbCountAst,
   IdbCreateAst,
+  IdbCreateAllAst,
   IdbDeleteAst,
+  IdbDeleteAllAst,
   IdbFindManyAst,
   IdbFindUniqueAst,
+  IdbUpdateAst,
+  IdbUpdateAllAst,
+  IdbUpsertAst,
 } from "@prisma-next-idb/adapter-idb/runtime";
 import { andExpr, evaluateFilter, shorthandToFilterExpr } from "@prisma-next-idb/adapter-idb/runtime";
 import type { IdbRowComparator } from "@prisma-next-idb/driver-idb/runtime";
@@ -18,8 +24,10 @@ import {
   type KeyType,
   type NoIncludes,
   type OrderBySpec,
+  type PatchInput,
   type ReferenceRelKeys,
   type WhereFilter,
+  getKeyPath,
   getStoreName,
 } from "./types";
 import { createModelAccessor, type IdbModelAccessor } from "./model-accessor";
@@ -109,6 +117,67 @@ export interface IdbStoreAccessor<
 
   /** Delete the row with the given primary key. */
   delete(key: KeyType<TContract, ModelName>): Promise<void>;
+
+  /**
+   * Update the first row matching the accumulated `.where()` filter.
+   * Returns the merged row, or `null` if no row matches.
+   */
+  update(patch: PatchInput<TContract, ModelName>): Promise<DefaultModelRow<TContract, ModelName> | null>;
+
+  /**
+   * Update all rows matching the accumulated `.where()` filter and return
+   * them as an `AsyncIterableResult` (also awaitable as `Row[]`).
+   */
+  updateAll(patch: PatchInput<TContract, ModelName>): AsyncIterableResult<DefaultModelRow<TContract, ModelName>>;
+
+  /**
+   * Update all rows matching the accumulated `.where()` filter.
+   * Returns the count of updated rows.
+   */
+  updateCount(patch: PatchInput<TContract, ModelName>): Promise<number>;
+
+  /**
+   * Insert or update a single record.
+   *
+   * - If a row matching `where` exists: shallow-merge `update` onto it and
+   *   return the merged row.
+   * - If no matching row exists: insert `create` and return it.
+   */
+  upsert(args: {
+    create: CreateInput<TContract, ModelName>;
+    update: PatchInput<TContract, ModelName>;
+    where: WhereFilter<TContract, ModelName>;
+  }): Promise<DefaultModelRow<TContract, ModelName>>;
+
+  /**
+   * Insert multiple records in a single atomic transaction.
+   * Returns all inserted rows as an `AsyncIterableResult`.
+   */
+  createAll(data: CreateInput<TContract, ModelName>[]): AsyncIterableResult<DefaultModelRow<TContract, ModelName>>;
+
+  /**
+   * Insert multiple records in a single atomic transaction.
+   * Returns the count of inserted rows.
+   */
+  createCount(data: CreateInput<TContract, ModelName>[]): Promise<number>;
+
+  /**
+   * Delete all rows matching the accumulated `.where()` filter.
+   * Returns the deleted rows as an `AsyncIterableResult`.
+   */
+  deleteAll(): AsyncIterableResult<DefaultModelRow<TContract, ModelName>>;
+
+  /**
+   * Delete all rows matching the accumulated `.where()` filter.
+   * Returns the count of deleted rows.
+   */
+  deleteCount(): Promise<number>;
+
+  /**
+   * Count all rows matching the accumulated `.where()` filter.
+   * With no filter, counts all rows in the store.
+   */
+  count(): Promise<number>;
 }
 
 // ── Implementation ────────────────────────────────────────────────────────────
@@ -275,6 +344,196 @@ export class IdbStoreAccessorImpl<
     };
     // `delete` yields no rows; drain via toArray() to execute the plan.
     await this.#executor.execute(plan).toArray();
+  }
+
+  async update(patch: PatchInput<TContract, ModelName>): Promise<DefaultModelRow<TContract, ModelName> | null> {
+    const groupingKey = this.#newGroupingKey();
+    const combined = this.#combinedFilterExpr();
+    const filter = combined !== undefined ? (row: Record<string, unknown>) => evaluateFilter(combined, row) : undefined;
+    const meta = this.#planMeta(groupingKey);
+    const ast: IdbUpdateAst = {
+      kind: "update",
+      modelName: this.#modelName,
+      patch: patch as Record<string, unknown>,
+      ...(combined !== undefined ? { where: combined } : {}),
+    };
+    const plan: IdbQueryPlan<Record<string, unknown>> = {
+      meta,
+      ast,
+      idbPlan: {
+        meta,
+        kind: "scan-write",
+        storeName: this.#storeName,
+        write: "put-merged",
+        patch: patch as Record<string, unknown>,
+        take: 1,
+        ...(filter !== undefined ? { filter } : {}),
+      },
+    };
+    for await (const row of this.#executor.execute(plan)) {
+      return row as DefaultModelRow<TContract, ModelName>;
+    }
+    return null;
+  }
+
+  updateAll(patch: PatchInput<TContract, ModelName>): AsyncIterableResult<DefaultModelRow<TContract, ModelName>> {
+    const groupingKey = this.#newGroupingKey();
+    const combined = this.#combinedFilterExpr();
+    const filter = combined !== undefined ? (row: Record<string, unknown>) => evaluateFilter(combined, row) : undefined;
+    const meta = this.#planMeta(groupingKey);
+    const storeName = this.#storeName;
+    const modelName = this.#modelName;
+    const patchRecord = patch as Record<string, unknown>;
+    const executorExecute = this.#executor.execute.bind(this.#executor);
+    return new AsyncIterableResult(
+      (async function* (): AsyncGenerator<DefaultModelRow<TContract, ModelName>, void, unknown> {
+        const ast: IdbUpdateAllAst = {
+          kind: "updateAll",
+          modelName,
+          patch: patchRecord,
+          ...(combined !== undefined ? { where: combined } : {}),
+        };
+        const plan: IdbQueryPlan<Record<string, unknown>> = {
+          meta,
+          ast,
+          idbPlan: {
+            meta,
+            kind: "scan-write",
+            storeName,
+            write: "put-merged",
+            patch: patchRecord,
+            ...(filter !== undefined ? { filter } : {}),
+          },
+        };
+        for await (const row of executorExecute(plan)) {
+          yield row as DefaultModelRow<TContract, ModelName>;
+        }
+      })()
+    );
+  }
+
+  async updateCount(patch: PatchInput<TContract, ModelName>): Promise<number> {
+    return (await this.updateAll(patch).toArray()).length;
+  }
+
+  async upsert(args: {
+    create: CreateInput<TContract, ModelName>;
+    update: PatchInput<TContract, ModelName>;
+    where: WhereFilter<TContract, ModelName>;
+  }): Promise<DefaultModelRow<TContract, ModelName>> {
+    const existing = await this.where(args.where).first();
+    if (!existing) {
+      return this.create(args.create);
+    }
+    const keyPath = getKeyPath(this.#contract, this.#modelName);
+    const key = (existing as Record<string, unknown>)[keyPath] as IDBValidKey;
+    const groupingKey = this.#newGroupingKey();
+    const meta = this.#planMeta(groupingKey);
+    const ast: IdbUpsertAst = {
+      kind: "upsert",
+      modelName: this.#modelName,
+      create: args.create as Record<string, unknown>,
+      update: args.update as Record<string, unknown>,
+      where: args.where as Record<string, unknown>,
+    };
+    const plan: IdbQueryPlan<Record<string, unknown>> = {
+      meta,
+      ast,
+      idbPlan: {
+        meta,
+        kind: "update",
+        storeName: this.#storeName,
+        key,
+        patch: args.update as Record<string, unknown>,
+      },
+    };
+    for await (const row of this.#executor.execute(plan)) {
+      return row as DefaultModelRow<TContract, ModelName>;
+    }
+    return existing;
+  }
+
+  createAll(data: CreateInput<TContract, ModelName>[]): AsyncIterableResult<DefaultModelRow<TContract, ModelName>> {
+    const groupingKey = this.#newGroupingKey();
+    const meta = this.#planMeta(groupingKey);
+    const records = data.map((d) => d as Record<string, unknown>);
+    const ast: IdbCreateAllAst = { kind: "createAll", modelName: this.#modelName, data: records };
+    const plan: IdbQueryPlan<Record<string, unknown>> = {
+      meta,
+      ast,
+      idbPlan: {
+        meta,
+        kind: "batch",
+        storeNames: [this.#storeName],
+        ops: records.map((record) => ({ meta, kind: "put" as const, storeName: this.#storeName, record })),
+      },
+    };
+    const executorExecute = this.#executor.execute.bind(this.#executor);
+    return new AsyncIterableResult(
+      (async function* (): AsyncGenerator<DefaultModelRow<TContract, ModelName>, void, unknown> {
+        for await (const row of executorExecute(plan)) {
+          yield row as DefaultModelRow<TContract, ModelName>;
+        }
+      })()
+    );
+  }
+
+  async createCount(data: CreateInput<TContract, ModelName>[]): Promise<number> {
+    return (await this.createAll(data).toArray()).length;
+  }
+
+  deleteAll(): AsyncIterableResult<DefaultModelRow<TContract, ModelName>> {
+    const groupingKey = this.#newGroupingKey();
+    const combined = this.#combinedFilterExpr();
+    const filter = combined !== undefined ? (row: Record<string, unknown>) => evaluateFilter(combined, row) : undefined;
+    const meta = this.#planMeta(groupingKey);
+    const ast: IdbDeleteAllAst = {
+      kind: "deleteAll",
+      modelName: this.#modelName,
+      ...(combined !== undefined ? { where: combined } : {}),
+    };
+    const storeName = this.#storeName;
+    const executorExecute = this.#executor.execute.bind(this.#executor);
+    return new AsyncIterableResult(
+      (async function* (): AsyncGenerator<DefaultModelRow<TContract, ModelName>, void, unknown> {
+        const plan: IdbQueryPlan<Record<string, unknown>> = {
+          meta,
+          ast,
+          idbPlan: {
+            meta,
+            kind: "scan-write",
+            storeName,
+            write: "delete",
+            ...(filter !== undefined ? { filter } : {}),
+          },
+        };
+        for await (const row of executorExecute(plan)) {
+          yield row as DefaultModelRow<TContract, ModelName>;
+        }
+      })()
+    );
+  }
+
+  async deleteCount(): Promise<number> {
+    return (await this.deleteAll().toArray()).length;
+  }
+
+  async count(): Promise<number> {
+    const groupingKey = this.#newGroupingKey();
+    const scanPlan = this.#buildScanPlan<Record<string, unknown>>(groupingKey);
+    // Override the AST kind for middleware introspection — the idbPlan stays cursor-scan.
+    const scanAst = scanPlan.ast;
+    const ast: IdbCountAst = {
+      kind: "count",
+      modelName: this.#modelName,
+      ...(scanAst?.kind === "findMany" && scanAst.where !== undefined ? { where: scanAst.where } : {}),
+    };
+    const plan: IdbQueryPlan<Record<string, unknown>> = { ...scanPlan, ast };
+    let n = 0;
+    for await (const _ of this.#executor.execute(plan)) {
+      n++;
+    }
+    return n;
   }
 
   // ── Private helpers ───────────────────────────────────────────────────────

@@ -194,6 +194,15 @@ export type IncludedRow<
   >;
 };
 
+// ── Patch input ───────────────────────────────────────────────────────────────
+
+/**
+ * Partial update shape for `update()`, `updateAll()`, `updateCount()`, and the
+ * `update` arm of `upsert()`. All fields are optional — only provided fields
+ * are shallow-merged onto the existing record.
+ */
+export type PatchInput<TContract, ModelName extends string> = Partial<DefaultModelRow<TContract, ModelName>>;
+
 // ── OrderBy spec ─────────────────────────────────────────────────────────────
 
 /** Sort direction for `orderBy()`. */

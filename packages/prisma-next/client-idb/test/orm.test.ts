@@ -428,3 +428,318 @@ describe("IdbStoreAccessor — include (relations)", () => {
     expect((author as Record<string, unknown>)["id"]).toBe("u1");
   });
 });
+
+// ── Phase 6.2 — Missing CRUD terminals ────────────────────────────────────────
+
+describe("IdbStoreAccessor — update", () => {
+  let driver: IdbRuntimeDriverInstance;
+  let executor: TestExecutor;
+
+  beforeEach(async () => {
+    const name = dbName();
+    const setupDb = await openTestDb(name, [USERS_STORE]);
+    await seedStore(setupDb, "users", [ALICE, BOB]);
+    setupDb.close();
+    driver = createIDBRuntimeDriver(name, 1).create();
+    executor = new TestExecutor(driver);
+  });
+  afterEach(async () => {
+    await driver.close();
+  });
+
+  function makeClient() {
+    const contract = makeTestContract({ users: "User" }, { User: { storeName: "users", keyPath: "id" } });
+    return asRecord(idbOrm({ contract, executor }));
+  }
+
+  it("updates and returns the first matching row", async () => {
+    const client = makeClient();
+    const row = await client["users"]!.where({ id: "u1" }).update({ name: "ALICE" });
+    expect(row).toMatchObject({ id: "u1", name: "ALICE", email: "alice@example.com" });
+  });
+
+  it("preserves fields not in the patch", async () => {
+    const client = makeClient();
+    await client["users"]!.where({ id: "u1" }).update({ name: "X" });
+    const verify = await client["users"]!.findUnique("u1");
+    expect(verify).toMatchObject({ id: "u1", name: "X", email: "alice@example.com" });
+  });
+
+  it("returns null when no row matches", async () => {
+    const client = makeClient();
+    const row = await client["users"]!.where({ id: "does-not-exist" }).update({ name: "X" });
+    expect(row).toBeNull();
+  });
+
+  it("updates only the first matching row (take:1 semantics)", async () => {
+    const client = makeClient();
+    // Both rows pass the empty filter — only first should be updated
+    await client["users"]!.update({ name: "FIRST" });
+    const rows = await client["users"]!.all().toArray();
+    const updated = (rows as Record<string, unknown>[]).filter((r) => r["name"] === "FIRST");
+    expect(updated).toHaveLength(1);
+  });
+});
+
+describe("IdbStoreAccessor — updateAll / updateCount", () => {
+  let driver: IdbRuntimeDriverInstance;
+  let executor: TestExecutor;
+
+  beforeEach(async () => {
+    const name = dbName();
+    const setupDb = await openTestDb(name, [USERS_STORE]);
+    await seedStore(setupDb, "users", [ALICE, BOB, { id: "u3", name: "Carol", email: "carol@x.com" }]);
+    setupDb.close();
+    driver = createIDBRuntimeDriver(name, 1).create();
+    executor = new TestExecutor(driver);
+  });
+  afterEach(async () => {
+    await driver.close();
+  });
+
+  function makeClient() {
+    const contract = makeTestContract({ users: "User" }, { User: { storeName: "users", keyPath: "id" } });
+    return asRecord(idbOrm({ contract, executor }));
+  }
+
+  it("updateAll returns AsyncIterableResult of merged rows", async () => {
+    const client = makeClient();
+    const result = client["users"]!.where({ id: "u1" }).updateAll({ name: "ALICE" });
+    const rows = await result.toArray();
+    expect(rows).toHaveLength(1);
+    expect((rows[0] as Record<string, unknown>)["name"]).toBe("ALICE");
+  });
+
+  it("updateAll updates multiple matching rows", async () => {
+    const client = makeClient();
+    const rows = await client["users"]!.updateAll({ name: "UPDATED" }).toArray();
+    expect(rows).toHaveLength(3);
+    expect((rows as Record<string, unknown>[]).every((r) => r["name"] === "UPDATED")).toBe(true);
+  });
+
+  it("updateAll returns empty array when no matches", async () => {
+    const client = makeClient();
+    const rows = await client["users"]!.where({ id: "nonexistent" }).updateAll({ name: "X" }).toArray();
+    expect(rows).toHaveLength(0);
+  });
+
+  it("updateCount returns number of updated rows", async () => {
+    const client = makeClient();
+    const n = await client["users"]!.updateCount({ name: "X" });
+    expect(n).toBe(3);
+  });
+
+  it("updateCount returns 0 when no matches", async () => {
+    const client = makeClient();
+    const n = await client["users"]!.where({ id: "nonexistent" }).updateCount({ name: "X" });
+    expect(n).toBe(0);
+  });
+});
+
+describe("IdbStoreAccessor — upsert", () => {
+  let driver: IdbRuntimeDriverInstance;
+  let executor: TestExecutor;
+
+  beforeEach(async () => {
+    const name = dbName();
+    const setupDb = await openTestDb(name, [USERS_STORE]);
+    await seedStore(setupDb, "users", [ALICE]);
+    setupDb.close();
+    driver = createIDBRuntimeDriver(name, 1).create();
+    executor = new TestExecutor(driver);
+  });
+  afterEach(async () => {
+    await driver.close();
+  });
+
+  function makeClient() {
+    const contract = makeTestContract({ users: "User" }, { User: { storeName: "users", keyPath: "id" } });
+    return asRecord(idbOrm({ contract, executor }));
+  }
+
+  it("inserts and returns new row when not found (create path)", async () => {
+    const client = makeClient();
+    const row = await client["users"]!.upsert({
+      where: { id: "u99" },
+      create: { id: "u99", name: "New", email: "new@x.com" },
+      update: { name: "Updated" },
+    });
+    expect(row).toMatchObject({ id: "u99", name: "New" });
+    const verify = await client["users"]!.findUnique("u99");
+    expect(verify).not.toBeNull();
+  });
+
+  it("updates and returns existing row when found (update path)", async () => {
+    const client = makeClient();
+    const row = await client["users"]!.upsert({
+      where: { id: "u1" },
+      create: { id: "u1", name: "Alice New", email: "new@x.com" },
+      update: { name: "Alice Updated" },
+    });
+    expect(row).toMatchObject({ id: "u1", name: "Alice Updated" });
+  });
+
+  it("does not duplicate rows on update path", async () => {
+    const client = makeClient();
+    await client["users"]!.upsert({
+      where: { id: "u1" },
+      create: { id: "u1", name: "Dup", email: "dup@x.com" },
+      update: { name: "No Dup" },
+    });
+    const rows = await client["users"]!.all().toArray();
+    expect(rows).toHaveLength(1);
+  });
+});
+
+describe("IdbStoreAccessor — createAll / createCount", () => {
+  let driver: IdbRuntimeDriverInstance;
+  let executor: TestExecutor;
+
+  beforeEach(async () => {
+    const name = dbName();
+    const setupDb = await openTestDb(name, [USERS_STORE]);
+    setupDb.close();
+    driver = createIDBRuntimeDriver(name, 1).create();
+    executor = new TestExecutor(driver);
+  });
+  afterEach(async () => {
+    await driver.close();
+  });
+
+  function makeClient() {
+    const contract = makeTestContract({ users: "User" }, { User: { storeName: "users", keyPath: "id" } });
+    return asRecord(idbOrm({ contract, executor }));
+  }
+
+  it("createAll inserts all records and returns them", async () => {
+    const client = makeClient();
+    const rows = await client["users"]!.createAll([ALICE, BOB]).toArray();
+    expect(rows).toHaveLength(2);
+    expect((rows as Record<string, unknown>[]).map((r) => r["id"]).sort()).toEqual(["u1", "u2"]);
+  });
+
+  it("createAll persists all records", async () => {
+    const client = makeClient();
+    await client["users"]!.createAll([ALICE, BOB]).toArray();
+    const all = await client["users"]!.all().toArray();
+    expect(all).toHaveLength(2);
+  });
+
+  it("createCount returns count of inserted records", async () => {
+    const client = makeClient();
+    const n = await client["users"]!.createCount([ALICE, BOB]);
+    expect(n).toBe(2);
+  });
+
+  it("createCount returns 0 for empty input", async () => {
+    const client = makeClient();
+    const n = await client["users"]!.createCount([]);
+    expect(n).toBe(0);
+  });
+});
+
+describe("IdbStoreAccessor — deleteAll / deleteCount", () => {
+  let driver: IdbRuntimeDriverInstance;
+  let executor: TestExecutor;
+
+  beforeEach(async () => {
+    const name = dbName();
+    const setupDb = await openTestDb(name, [USERS_STORE]);
+    await seedStore(setupDb, "users", [ALICE, BOB, { id: "u3", name: "Carol", email: "carol@x.com" }]);
+    setupDb.close();
+    driver = createIDBRuntimeDriver(name, 1).create();
+    executor = new TestExecutor(driver);
+  });
+  afterEach(async () => {
+    await driver.close();
+  });
+
+  function makeClient() {
+    const contract = makeTestContract({ users: "User" }, { User: { storeName: "users", keyPath: "id" } });
+    return asRecord(idbOrm({ contract, executor }));
+  }
+
+  it("deleteAll returns deleted rows", async () => {
+    const client = makeClient();
+    const rows = await client["users"]!.where({ id: "u1" }).deleteAll().toArray();
+    expect(rows).toHaveLength(1);
+    expect((rows[0] as Record<string, unknown>)["id"]).toBe("u1");
+  });
+
+  it("deleteAll removes rows from the store", async () => {
+    const client = makeClient();
+    await client["users"]!.where({ id: "u1" }).deleteAll().toArray();
+    const remaining = await client["users"]!.all().toArray();
+    expect(remaining).toHaveLength(2);
+    expect((remaining as Record<string, unknown>[]).map((r) => r["id"])).not.toContain("u1");
+  });
+
+  it("deleteAll deletes all rows when no filter", async () => {
+    const client = makeClient();
+    const rows = await client["users"]!.deleteAll().toArray();
+    expect(rows).toHaveLength(3);
+    const remaining = await client["users"]!.all().toArray();
+    expect(remaining).toHaveLength(0);
+  });
+
+  it("deleteCount returns number of deleted rows", async () => {
+    const client = makeClient();
+    const n = await client["users"]!.where({ id: "u1" }).deleteCount();
+    expect(n).toBe(1);
+  });
+
+  it("deleteCount returns 0 when no matches", async () => {
+    const client = makeClient();
+    const n = await client["users"]!.where({ id: "nonexistent" }).deleteCount();
+    expect(n).toBe(0);
+  });
+});
+
+describe("IdbStoreAccessor — count", () => {
+  let driver: IdbRuntimeDriverInstance;
+  let executor: TestExecutor;
+
+  beforeEach(async () => {
+    const name = dbName();
+    const setupDb = await openTestDb(name, [USERS_STORE]);
+    await seedStore(setupDb, "users", [ALICE, BOB]);
+    setupDb.close();
+    driver = createIDBRuntimeDriver(name, 1).create();
+    executor = new TestExecutor(driver);
+  });
+  afterEach(async () => {
+    await driver.close();
+  });
+
+  function makeClient() {
+    const contract = makeTestContract({ users: "User" }, { User: { storeName: "users", keyPath: "id" } });
+    return asRecord(idbOrm({ contract, executor }));
+  }
+
+  it("counts all rows when no filter", async () => {
+    const client = makeClient();
+    expect(await client["users"]!.count()).toBe(2);
+  });
+
+  it("counts filtered rows", async () => {
+    const client = makeClient();
+    expect(await client["users"]!.where({ id: "u1" }).count()).toBe(1);
+  });
+
+  it("returns 0 for empty store", async () => {
+    const name = dbName();
+    const setup = await openTestDb(name, [USERS_STORE]);
+    setup.close();
+    const emptyDriver = createIDBRuntimeDriver(name, 1).create();
+    const emptyExecutor = new TestExecutor(emptyDriver);
+    const contract = makeTestContract({ users: "User" }, { User: { storeName: "users", keyPath: "id" } });
+    const client = asRecord(idbOrm({ contract, executor: emptyExecutor }));
+    expect(await client["users"]!.count()).toBe(0);
+    await emptyDriver.close();
+  });
+
+  it("returns 0 when filter matches nothing", async () => {
+    const client = makeClient();
+    expect(await client["users"]!.where({ id: "nonexistent" }).count()).toBe(0);
+  });
+});

@@ -18,6 +18,7 @@ export type {
   KeyType,
   ModelKeyPath,
   CreateInput,
+  PatchInput,
   ReferenceRelKeys,
   IncludeSpec,
   NoIncludes,
