@@ -1,6 +1,6 @@
 ## Status
 
-_Last reviewed: 2026-05-25 — see ["Review findings (2026-05-25)"](#review-findings-2026-05-25) at the bottom of this file for the first-round audit notes (issues #1-#10) and ["Second-round review (2026-05-25, vendor cross-check)"](#second-round-review-2026-05-25-vendor-cross-check) for the deeper audit against the cloned vendor reference (issues #11-#16). Issues #1-4, #7, #10 from the first round and #11-16 from the second round are now resolved. Open: Issues #6 (scope hard-coding, gated on Phase 6.3) and #9 (Playwright spec coverage)._
+_Last reviewed: 2026-05-26 — see ["Review findings (2026-05-25)"](#review-findings-2026-05-25) at the bottom of this file for the first-round audit notes (issues #1-#10) and ["Second-round review (2026-05-25, vendor cross-check)"](#second-round-review-2026-05-25-vendor-cross-check) for the deeper audit against the cloned vendor reference (issues #11-#16). Issues #1-4, #7, #9, #10 from the first round and #11-16 from the second round are now resolved. Open: Issue #6 (scope hard-coding, gated on Phase 6.3)._
 
 | Phase | Description                                                            | Status                                                                                                                                       |
 | ----- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -10,7 +10,7 @@ _Last reviewed: 2026-05-25 — see ["Review findings (2026-05-25)"](#review-find
 | 4     | Control plane manifest operations (`family-idb`)                       | ✅ Done — Issues #1, #2, #4 resolved                                                                                                         |
 | 5     | Migration infrastructure (`target-idb/control`)                        | ✅ Done — CLI `db update`/`db init` fully working and idempotent; Issues #14 (TS renderer `unique: undefined`) + #15 (index mutations) fixed |
 | 6     | IDB ORM lane (`client-idb`) + runtime (`runtime-idb`)                  | 🚧 MVP done — Issues #3, #5, #10, #12 (auto-migrate evolution) resolved; open: Issue #6                                                      |
-| 6.1   | Filter expression AST + operator API                                   | ❌ Not started                                                                                                                               |
+| 6.1   | Filter expression AST + operator API                                   | ✅ Done — `IdbFilterExpr` + evaluator + `IdbModelAccessor` proxy + `and/or/not`; shorthand `null` lifts to null-check                        |
 | 6.2   | Missing CRUD terminals (update, upsert, createMany, deleteMany, count) | ❌ Not started — `IdbUpdatePlan` driver primitive exists, no ORM surface                                                                     |
 | 6.3   | Multi-store transaction support                                        | ⚠️ Half done — `IdbBatchPlan` exists in driver; no scope/`withMutationScope`                                                                 |
 | 6.4   | Nested relation writes (create/connect/disconnect)                     | ❌ Not started                                                                                                                               |
@@ -20,19 +20,19 @@ _Last reviewed: 2026-05-25 — see ["Review findings (2026-05-25)"](#review-find
 | 7     | Outbox sync                                                            | ❌ Not started                                                                                                                               |
 | 8     | `contract infer` — infer IDB schema from live manifest                 | ❌ Not started                                                                                                                               |
 
-### Test status (run 2026-05-25, updated after second-round fixes)
+### Test status (run 2026-05-26, after Phase 6.1 + Issue #9)
 
-| Package             | Tests pass | Tests fail | Notes                                                                             |
-| ------------------- | ---------: | ---------: | --------------------------------------------------------------------------------- |
-| `target-idb`        |         68 |          0 | +1 renderer regression for #14, +6 index-mutation regressions for #15             |
-| `driver-idb`        |         39 |          0 | +1 batch-with-update regression test for Issue #11                                |
-| `adapter-idb`       |         11 |          0 |                                                                                   |
-| `runtime-idb`       |         21 |          0 | Middleware tests updated to use `familyId` (Issue #16)                            |
-| `client-idb`        |         23 |          0 | +3 contract-evolution regressions for #12, +1 unique-loosening regression for #15 |
-| `family-idb`        |         60 |          0 | Issue #4 fixed — missing stores now always fail                                   |
-| `prisma-next-usage` |        n/a |        n/a | Playwright wired but no e2e spec files ([Issue #9])                               |
+| Package             | Tests pass | Tests fail | Notes                                                                          |
+| ------------------- | ---------: | ---------: | ------------------------------------------------------------------------------ |
+| `target-idb`        |         68 |          0 | +1 renderer regression for #14, +6 index-mutation regressions for #15          |
+| `driver-idb`        |         39 |          0 | +1 batch-with-update regression test for Issue #11                             |
+| `adapter-idb`       |         29 |          0 | +18 filter-AST tests (operators, combinators, shorthand lift) for Phase 6.1    |
+| `runtime-idb`       |         21 |          0 | Middleware tests updated to use `familyId` (Issue #16)                         |
+| `client-idb`        |         36 |          0 | +13 operator integration tests for Phase 6.1                                   |
+| `family-idb`        |         60 |          0 | Issue #4 fixed — missing stores now always fail                                |
+| `prisma-next-usage` |         18 |          0 | Playwright covers MVP smoke (6) + every Phase 6.1 operator and combinator (12) |
 
-**Total: 222/222 tests passing.**
+**Total: 271/271 tests passing (253 vitest + 18 Playwright).**
 
 [Issue #1]: #issue-1--migrationrunner-missing-executeacrossspaces-blocks-cli-db-update
 [Issue #2]: #issue-2--sign-does-not-populate-manifestschema-from-contract
@@ -243,7 +243,11 @@ Write the demo app test first (red), then implement the feature in the package (
 
 ---
 
-## Phase 6.1 — Filter expression AST + operator API
+## Phase 6.1 — Filter expression AST + operator API ✅ Done
+
+**Status (2026-05-26):** Shipped. `IdbFilterExpr` (frozen-object AST), `evaluateFilter`, `shorthandToFilterExpr`, the Proxy-based `IdbModelAccessor`, and the `and` / `or` / `not` combinators are all live in `adapter-idb` and `client-idb`. `IdbStoreAccessorImpl.where()` accepts both shorthand (`{ field: value }`, with `null` lifting to a null-check expression) and callback (`(m) => m.field.op(value)`) forms; multiple `.where()` calls compose with AND. The query-runner shell in `apps/prisma-next-usage` exposes the combinators in the JS sandbox so Playwright specs use the same operator surface end-to-end.
+
+Tests: 18 new vitest cases in `adapter-idb/test/filter-expr.test.ts` (operators, combinators, null-check, shorthand lift) and 13 new client-idb integration tests in `client-idb/test/operators.test.ts` exercising the whole stack through `fake-indexeddb`. The 12 Phase-6.1 Playwright specs in `apps/prisma-next-usage/tests/operators.spec.ts` cover the same surface against a real Vite preview build.
 
 **Goal:** Replace the equality-only `WhereFilter` with a full expression AST and a typed `IdbModelAccessor` proxy. After this phase a developer can write:
 
@@ -865,13 +869,16 @@ Not a code bug — the collect-then-yield behavior is a correct and unavoidable 
 
 **Fix sketch.** Phase 6.1 plan covers this with `IdbNullCheckExpr` + `shorthandToFilterExpr` that converts `value === null` to a `null-check` expression.
 
-### Issue #9 — `prisma-next-usage` has no automated tests
+### ✅ Issue #9 — `prisma-next-usage` has no automated tests — FIXED
 
-**Symptom.** `apps/prisma-next-usage/` has `playwright.config.ts` configured for `**/*.e2e.{ts,js}` but no spec files.
+The demo app has been refactored into a thin query-runner shell (a textarea + JSON output panel, modeled on `apps/usage`) so Playwright specs drive the ORM directly through the assembled stack instead of clicking a hand-coded UI. The shell reads `?db=<name>` from the URL so each spec gets an isolated IDB database, and the helpers in `tests/helpers.ts` ship a `runner` fixture that resets the DB between tests.
 
-**Impact.** All end-to-end coverage lives in package-level unit tests. The only true E2E exerciser is manual UI interaction.
+Coverage (18 specs):
 
-**Fix sketch.** Either (a) wire up at least one Playwright spec covering Path A migration + ORM + relation FK load across a page reload, or (b) replace Playwright with Vitest + happy-dom + fake-indexeddb for spec files per the Phase 6.x test plan. Option (b) is faster to run and consistent with the existing test infrastructure.
+- `tests/smoke.spec.ts` — 6 specs covering Path A auto-migration plus every MVP `IdbStoreAccessor` terminal (`create`, `all`, `findUnique`, `delete`, `orderBy + take + skip`, `include` across a 1:N relation).
+- `tests/operators.spec.ts` — 12 specs covering shorthand filtering with `null` and every Phase 6.1 operator (`eq`, `neq`, `gt`, `lt`, `gte`, `lte`, `in`, `notIn`, `contains`, `startsWith`, `endsWith`, `isNull`, `isNotNull`) plus all three combinators (`and`, `or`, `not`) including nested + chained compositions.
+
+`playwright.config.ts` was switched from the `**/*.e2e.{ts,js}` shape to `testDir: "./tests"` so the standard `*.spec.ts` discovery works.
 
 ### ✅ Issue #10 — Module-level grouping key counter — FIXED
 
@@ -956,11 +963,14 @@ Audit comparing our six packages against the cloned vendor reference (`vendor/pr
 - **`autoMigrate` always passing policy `ALLOW_ALL`.** First-round notes flagged this implicitly. ADR-008 Path A is "browser-side single-user" — there is no separate deploy review step. `ALLOW_ALL` is intentional. The CLI's `db update` (Path B) uses a tighter default policy.
 - **Manifest writes happen in `executeAcrossSpaces`, not `execute`.** This looked weird relative to SQL/Mongo (which write the marker inside the same DB transaction as the DDL), but IDB cannot reach the manifest from inside the version-change transaction (the manifest is a Node-side file). The fake-IDB dry-run + manifest write pattern is the closest equivalent.
 
-### Recommended next steps (updated)
+### Recommended next steps (updated 2026-05-26)
 
-1. **Start Phase 6.1** (filter operators). Largest single quality-of-life jump; Mongo ORM has a clean pattern to port.
-2. **Add at least one E2E spec** in `prisma-next-usage` (Issue #9) so the assembled stack has regression coverage. The demo app is being refactored into a thin query-runner shell (see [apps/usage](../../apps/usage/) for the reference pattern) so spec authors can drive the ORM directly from the UI.
-3. **Fix Issue #6** (scope hard-coding) when Phase 6.3 lands — the fix is gated on `IdbTransactionScope` existing.
+With Phase 6.1 and Issue #9 shipped, the queue is:
+
+1. **Phase 6.2** — `update` / `updateMany` / `upsert` / `createMany` / `deleteMany` / `count`. The driver primitives already exist (`IdbUpdatePlan`, `IdbBatchPlan`); each new accessor terminal needs a corresponding AST node, plan dispatch, and Playwright coverage. Smallest standalone phase.
+2. **Phase 6.3** — Multi-store transactions (`IdbTransactionScope` + `withMutationScope`). Required by Phase 6.4 (nested writes) and unlocks the Issue #6 fix (scope set to `"transaction"` while inside the scope).
+3. **Phase 6.4-6.7** in order — nested relation writes → include refinement → aggregate/groupBy → select projection. The grouping is roughly "complete write API" then "complete read API".
+4. **Issue #6** (scope hard-coding) — fix while Phase 6.3 is open; the change is a one-liner once the scope exists.
 
 ---
 

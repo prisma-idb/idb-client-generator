@@ -213,12 +213,15 @@ Note: collect-then-yield (ADR 006) means `onRow` fires after all rows have alrea
 
 **Key types:**
 
-| Type                    | What it is                                                                                          |
-| ----------------------- | --------------------------------------------------------------------------------------------------- |
-| `IdbOrmClient<T>`       | A mapped type over `contract.roots` — each root key becomes an `IdbStoreAccessor` property          |
-| `IdbStoreAccessor<T,M>` | Typed per-model accessor with `create()`, `all()`, `where()`, `first()`, `findUnique()`, `delete()` |
-| `IdbQueryExecutor`      | A thin interface: `execute<Row>(plan: IdbQueryPlan<Row>): AsyncIterableResult<Row>`                 |
-| `WhereFilter<T,M>`      | Typed filter shape matching the model's fields                                                      |
+| Type                    | What it is                                                                                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `IdbOrmClient<T>`       | A mapped type over `contract.roots` — each root key becomes an `IdbStoreAccessor` property                                                        |
+| `IdbStoreAccessor<T,M>` | Typed per-model accessor with `create()`, `all()`, `where()`, `first()`, `findUnique()`, `delete()`, `orderBy()`, `take()`, `skip()`, `include()` |
+| `IdbQueryExecutor`      | A thin interface: `execute<Row>(plan: IdbQueryPlan<Row>): AsyncIterableResult<Row>`                                                               |
+| `WhereFilter<T,M>`      | Typed shorthand filter shape — `{ field: value }`, with `null` lifting to a null-check expression                                                 |
+| `WhereCallback<T,M>`    | Callback form of `where()`: receives the typed `IdbModelAccessor` proxy and returns an `IdbFilterExpr`                                            |
+| `IdbModelAccessor<T,M>` | Proxy handed to `where(fn)` callbacks. Each field has `eq/neq/gt/lt/gte/lte/in/notIn/contains/startsWith/endsWith/isNull/isNotNull` operators     |
+| `IdbFilterExpr`         | Discriminated union AST (`field` / `and` / `or` / `not` / `null-check`) backing every filter. Combine via `and(...)`, `or(...)`, `not(e)` exports |
 
 **How it works:**
 
