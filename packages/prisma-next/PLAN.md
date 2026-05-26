@@ -1,38 +1,38 @@
 ## Status
 
-_Last reviewed: 2026-05-26 — see ["Review findings (2026-05-25)"](#review-findings-2026-05-25) at the bottom of this file for the first-round audit notes (issues #1-#10) and ["Second-round review (2026-05-25, vendor cross-check)"](#second-round-review-2026-05-25-vendor-cross-check) for the deeper audit against the cloned vendor reference (issues #11-#16). Issues #1-4, #7, #9, #10 from the first round and #11-16 from the second round are now resolved. Open: Issue #6 (scope hard-coding, gated on Phase 6.3)._
+_Last reviewed: 2026-05-26 — Phase 6.2 done (349/349 tests passing). See ["Review findings (2026-05-25)"](#review-findings-2026-05-25) for first-round audit notes (issues #1-#10) and ["Second-round review (2026-05-25, vendor cross-check)"](#second-round-review-2026-05-25-vendor-cross-check) for deeper audit against vendor reference (issues #11-#16). Issues #1-4, #7, #9, #10 and #11-16 resolved. Open: Issue #6 (scope hard-coding, gated on Phase 6.3). Known gap: `.where()` before write terminals not compile-time enforced (deferred post-6.2)._
 
-| Phase | Description                                                            | Status                                                                                                                                       |
-| ----- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1     | Codec system (`target-idb`)                                            | ✅ Done                                                                                                                                      |
-| 2     | Runtime driver (`driver-idb`)                                          | ✅ Done — Issue #11 (batch-with-update tx mode) fixed                                                                                        |
-| 3     | Query lowering (`adapter-idb`)                                         | ✅ Done (passthrough; per-field codec encoding deferred — all codecs identity); Issue #13 (descriptor `.create()` codec wiring) fixed        |
-| 4     | Control plane manifest operations (`family-idb`)                       | ✅ Done — Issues #1, #2, #4 resolved                                                                                                         |
-| 5     | Migration infrastructure (`target-idb/control`)                        | ✅ Done — CLI `db update`/`db init` fully working and idempotent; Issues #14 (TS renderer `unique: undefined`) + #15 (index mutations) fixed |
-| 6     | IDB ORM lane (`client-idb`) + runtime (`runtime-idb`)                  | 🚧 MVP done — Issues #3, #5, #10, #12 (auto-migrate evolution) resolved; open: Issue #6                                                      |
-| 6.1   | Filter expression AST + operator API                                   | ✅ Done — `IdbFilterExpr` + evaluator + `IdbModelAccessor` proxy + `and/or/not`; shorthand `null` lifts to null-check                        |
-| 6.2   | Missing CRUD terminals (update, upsert, createMany, deleteMany, count) | ❌ Not started — `IdbUpdatePlan` driver primitive exists, no ORM surface                                                                     |
-| 6.3   | Multi-store transaction support                                        | ⚠️ Half done — `IdbBatchPlan` exists in driver; no scope/`withMutationScope`                                                                 |
-| 6.4   | Nested relation writes (create/connect/disconnect)                     | ❌ Not started                                                                                                                               |
-| 6.5   | Include refinement (where/orderBy/take inside include)                 | ❌ Not started                                                                                                                               |
-| 6.6   | Aggregate / groupBy                                                    | ❌ Not started                                                                                                                               |
-| 6.7   | Select projection                                                      | ❌ Not started                                                                                                                               |
-| 7     | Outbox sync                                                            | ❌ Not started                                                                                                                               |
-| 8     | `contract infer` — infer IDB schema from live manifest                 | ❌ Not started                                                                                                                               |
+| Phase | Description                                                                                       | Status                                                                                                                                                                |
+| ----- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | Codec system (`target-idb`)                                                                       | ✅ Done                                                                                                                                                               |
+| 2     | Runtime driver (`driver-idb`)                                                                     | ✅ Done — Issue #11 (batch-with-update tx mode) fixed                                                                                                                 |
+| 3     | Query lowering (`adapter-idb`)                                                                    | ✅ Done (passthrough; per-field codec encoding deferred — all codecs identity); Issue #13 (descriptor `.create()` codec wiring) fixed                                 |
+| 4     | Control plane manifest operations (`family-idb`)                                                  | ✅ Done — Issues #1, #2, #4 resolved                                                                                                                                  |
+| 5     | Migration infrastructure (`target-idb/control`)                                                   | ✅ Done — CLI `db update`/`db init` fully working and idempotent; Issues #14 (TS renderer `unique: undefined`) + #15 (index mutations) fixed                          |
+| 6     | IDB ORM lane (`client-idb`) + runtime (`runtime-idb`)                                             | 🚧 MVP done — Issues #3, #5, #10, #12 (auto-migrate evolution) resolved; open: Issue #6                                                                               |
+| 6.1   | Filter expression AST + operator API                                                              | ✅ Done — `IdbFilterExpr` + evaluator + `IdbModelAccessor` proxy + `and/or/not`; shorthand `null` lifts to null-check                                                 |
+| 6.2   | Missing CRUD terminals (update, upsert, createAll/Count, deleteAll/Count, updateAll/Count, count) | ✅ Done — vendor naming adopted; `IdbScanWritePlan` + `IdbBatchPlan` driver primitives; 9 new ORM methods; known gap: `.where()` enforcement not compile-time-checked |
+| 6.3   | Multi-store transaction support                                                                   | ⚠️ Half done — `IdbBatchPlan` exists in driver; no scope/`withMutationScope`                                                                                          |
+| 6.4   | Nested relation writes (create/connect/disconnect)                                                | ❌ Not started                                                                                                                                                        |
+| 6.5   | Include refinement (where/orderBy/take inside include)                                            | ❌ Not started                                                                                                                                                        |
+| 6.6   | Aggregate / groupBy                                                                               | ❌ Not started                                                                                                                                                        |
+| 6.7   | Select projection                                                                                 | ❌ Not started                                                                                                                                                        |
+| 7     | Outbox sync                                                                                       | ❌ Not started                                                                                                                                                        |
+| 8     | `contract infer` — infer IDB schema from live manifest                                            | ❌ Not started                                                                                                                                                        |
 
-### Test status (run 2026-05-26, after Phase 6.1 + Issue #9)
+### Test status (run 2026-05-26, after Phase 6.2)
 
-| Package             | Tests pass | Tests fail | Notes                                                                          |
-| ------------------- | ---------: | ---------: | ------------------------------------------------------------------------------ |
-| `target-idb`        |         68 |          0 | +1 renderer regression for #14, +6 index-mutation regressions for #15          |
-| `driver-idb`        |         39 |          0 | +1 batch-with-update regression test for Issue #11                             |
-| `adapter-idb`       |         29 |          0 | +18 filter-AST tests (operators, combinators, shorthand lift) for Phase 6.1    |
-| `runtime-idb`       |         21 |          0 | Middleware tests updated to use `familyId` (Issue #16)                         |
-| `client-idb`        |         36 |          0 | +13 operator integration tests for Phase 6.1                                   |
-| `family-idb`        |         60 |          0 | Issue #4 fixed — missing stores now always fail                                |
-| `prisma-next-usage` |         18 |          0 | Playwright covers MVP smoke (6) + every Phase 6.1 operator and combinator (12) |
+| Package             | Tests pass | Tests fail | Notes                                                                                                  |
+| ------------------- | ---------: | ---------: | ------------------------------------------------------------------------------------------------------ |
+| `target-idb`        |         68 |          0 | +1 renderer regression for #14, +6 index-mutation regressions for #15                                  |
+| `driver-idb`        |         49 |          0 | +10 scan-write tests (put-merged and delete modes) for Phase 6.2                                       |
+| `adapter-idb`       |         29 |          0 | +18 filter-AST tests (operators, combinators, shorthand lift) for Phase 6.1                            |
+| `runtime-idb`       |         21 |          0 | Middleware tests updated to use `familyId` (Issue #16)                                                 |
+| `client-idb`        |         61 |          0 | +25 new tests for Phase 6.2 (update, updateAll/Count, upsert, createAll/Count, deleteAll/Count, count) |
+| `family-idb`        |         60 |          0 | Issue #4 fixed — missing stores now always fail                                                        |
+| `prisma-next-usage` |         61 |          0 | Playwright: +43 Phase 6.2 specs (9 new modelQueries files)                                             |
 
-**Total: 271/271 tests passing (253 vitest + 18 Playwright).**
+**Total: 349/349 tests passing (288 vitest + 61 Playwright).**
 
 [Issue #1]: #issue-1--migrationrunner-missing-executeacrossspaces-blocks-cli-db-update
 [Issue #2]: #issue-2--sign-does-not-populate-manifestschema-from-contract
@@ -225,15 +225,15 @@ Each Phase 6.x implementation step is developed alongside a matching test file i
 
 ### Mapping: phase → test file
 
-| Phase | `apps/prisma-next-usage/test/` file(s)                                                                                                                                                              |
-| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 6.1   | `filterConditions/operators.spec.ts`, `filterConditions/combinators.spec.ts`                                                                                                                        |
-| 6.2   | `modelQueries/update.spec.ts`, `modelQueries/updateMany.spec.ts`, `modelQueries/upsert.spec.ts`, `modelQueries/createMany.spec.ts`, `modelQueries/deleteMany.spec.ts`, `modelQueries/count.spec.ts` |
-| 6.3   | `atomicOperations/multiStoreTransaction.spec.ts`                                                                                                                                                    |
-| 6.4   | `nestedWrites/create.spec.ts`, `nestedWrites/connect.spec.ts`, `nestedWrites/disconnect.spec.ts`                                                                                                    |
-| 6.5   | `includeRefinement/whereInsideInclude.spec.ts`, `includeRefinement/scalarInclude.spec.ts`                                                                                                           |
-| 6.6   | `modelQueries/aggregate.spec.ts`, `modelQueries/groupBy.spec.ts`                                                                                                                                    |
-| 6.7   | `modelQueries/select.spec.ts`                                                                                                                                                                       |
+| Phase | `apps/prisma-next-usage/test/` file(s)                                                                                                                                                                                                                                                                       |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 6.1   | `filterConditions/operators.spec.ts`, `filterConditions/combinators.spec.ts`                                                                                                                                                                                                                                 |
+| 6.2   | `modelQueries/update.spec.ts`, `modelQueries/updateAll.spec.ts`, `modelQueries/updateCount.spec.ts`, `modelQueries/upsert.spec.ts`, `modelQueries/createAll.spec.ts`, `modelQueries/createCount.spec.ts`, `modelQueries/deleteAll.spec.ts`, `modelQueries/deleteCount.spec.ts`, `modelQueries/count.spec.ts` |
+| 6.3   | `atomicOperations/multiStoreTransaction.spec.ts`                                                                                                                                                                                                                                                             |
+| 6.4   | `nestedWrites/create.spec.ts`, `nestedWrites/connect.spec.ts`, `nestedWrites/disconnect.spec.ts`                                                                                                                                                                                                             |
+| 6.5   | `includeRefinement/whereInsideInclude.spec.ts`, `includeRefinement/scalarInclude.spec.ts`                                                                                                                                                                                                                    |
+| 6.6   | `modelQueries/aggregate.spec.ts`, `modelQueries/groupBy.spec.ts`                                                                                                                                                                                                                                             |
+| 6.7   | `modelQueries/select.spec.ts`                                                                                                                                                                                                                                                                                |
 
 **Already covered** (from demo app setup): `modelQueries/create.spec.ts`, `modelQueries/findFirst.spec.ts`, `modelQueries/findUnique.spec.ts`, `modelQueries/delete.spec.ts`, `filterConditions/equality.spec.ts`, `modelQueryOptions/orderBy.spec.ts`, `modelQueryOptions/take.spec.ts`, `modelQueryOptions/skip.spec.ts`, `nestedQueries/include.spec.ts`.
 
@@ -435,76 +435,88 @@ export const not = (expr: IdbFilterExpr): IdbNotExpr => notExpr(expr);
 
 ---
 
-## Phase 6.2 — Missing CRUD terminals
+## Phase 6.2 — Missing CRUD terminals ✅ Done
+
+**Status (2026-05-26):** Shipped. Vendor naming (`updateAll/updateCount`, `createAll/createCount`, `deleteAll/deleteCount`) adopted instead of the original `updateMany/createMany/deleteMany` sketch. `IdbScanWritePlan` (readwrite cursor, put-merged or delete) and `IdbBatchPlan` (N puts in one tx) handle the driver layer. 9 new ORM terminals on `IdbStoreAccessorImpl`. 43 new Playwright E2E specs across 9 files all pass. **Known gap:** `.where()` before `update`/`updateAll`/`updateCount`/`deleteAll`/`deleteCount` is not enforced at compile time — the SQL ORM vendor achieves this via a state-machine type parameter, deferred to a post-6.2 type-level refactor.
 
 **Goal:** Close the gap on the most-needed write operations. After this phase:
 
 ```ts
-// update — chain after where()
-await db.users.where({ id: "u1" }).update({ displayName: "New Name" });
+// update — first matching row (requires .where())
+await db.users.where({ id: "u1" }).update({ displayName: "New Name" }); // → Row | null
 
-// updateMany — updates all matching rows, returns count
-const count = await db.users.where((u) => u.active.eq(false)).updateMany({ deletedAt: new Date() });
+// updateAll — all matching rows returned (requires .where())
+const rows = await db.users.where((u) => u.active.eq(false)).updateAll({ archivedAt: new Date() });
+
+// updateCount — count of updated rows (requires .where())
+const n = await db.users.where((u) => u.active.eq(false)).updateCount({ archivedAt: new Date() });
 
 // upsert
 await db.users.upsert({
   create: { id: "u1", name: "Alice" },
   update: { name: "Alice Updated" },
-  where: { id: "u1" }, // shorthand or callback filter to locate existing row
+  where: { id: "u1" },
 });
 
-// createMany
-await db.posts.createMany([{ title: "Post A" }, { title: "Post B" }]);
+// createAll — batch insert, returns all inserted rows
+const rows = await db.posts.createAll([{ title: "Post A" }, { title: "Post B" }]);
 
-// deleteMany — deletes all matching rows, returns count
-const n = await db.users.where((u) => u.active.eq(false)).deleteMany();
+// createCount — batch insert, returns count only
+const n = await db.posts.createCount([{ title: "Post A" }, { title: "Post B" }]);
 
-// count
+// deleteAll — deletes matching rows, returns deleted rows
+const deleted = await db.users.where({ active: false }).deleteAll();
+
+// deleteCount — deletes matching rows, returns count
+const n = await db.users.where({ active: false }).deleteCount();
+
+// count — count matching rows (0 filters = count all)
 const total = await db.users.where({ active: true }).count();
 ```
 
 ### Reference
 
-SQL ORM: `compileUpdateReturning`, `compileUpdateCount`, `compileDeleteCount` — IDB equivalent is cursor-scan + batch put/delete in a single readwrite transaction. SQL ORM has `RETURNING`; IDB echoes the merged record after `store.put()` (get → merge → put pattern already in `IdbUpdatePlan`).
+SQL ORM: `compileUpdateReturning` (`updateAll`), `compileUpdateCount` (`updateCount`), `compileDeleteCount` (`deleteCount`), `compileDeleteReturning` (`deleteAll`), `compileBatchInsert` (`createAll/createCount`). IDB equivalent: `IdbScanWritePlan` (readwrite cursor, `put-merged` or `delete`) + `IdbBatchPlan` (N `put` ops in one tx). `updateAll`/`deleteAll` both return rows (vendor uses `RETURNING`; IDB captures row before `cursor.delete()` and echoes merged row after `cursor.update()`).
 
 ### Changes to `IdbStoreAccessorImpl` (`store-accessor.ts`)
 
 **New terminals (all use the existing cursor-scan infrastructure):**
 
-| Method                              | Driver plan(s)                                                       | Returns             |
-| ----------------------------------- | -------------------------------------------------------------------- | ------------------- |
-| `update(patch)`                     | `cursor-scan` filter → `update` (key-get + merge + put) on first hit | `Row \| null`       |
-| `updateMany(patch)`                 | `cursor-scan` filter → `bulk-put` (merge on each hit)                | `{ count: number }` |
-| `upsert({ create, update, where })` | `key-get` on PK field → `put` (insert) or `update` (merge)           | `Row`               |
-| `createMany(data[])`                | `bulk-put` — one IDB `put` per record in a single readwrite tx       | `Row[]`             |
-| `deleteMany()`                      | `cursor-scan` filter → `bulk-delete`                                 | `{ count: number }` |
-| `count()`                           | `cursor-scan` filter → count collected rows                          | `number`            |
+| Method                              | Driver plan(s)                                                                 | Returns                    |
+| ----------------------------------- | ------------------------------------------------------------------------------ | -------------------------- |
+| `update(patch)`                     | `IdbScanWritePlan { write:"put-merged", take:1 }` + accumulated filter         | `Row \| null`              |
+| `updateAll(patch)`                  | `IdbScanWritePlan { write:"put-merged" }` + accumulated filter                 | `AsyncIterableResult<Row>` |
+| `updateCount(patch)`                | delegates to `updateAll(patch).toArray().length`                               | `number`                   |
+| `upsert({ create, update, where })` | `first()` with where filter → `IdbPutPlan` (insert) or `IdbUpdatePlan` (merge) | `Row`                      |
+| `createAll(data[])`                 | `IdbBatchPlan` with N `IdbPutPlan` ops                                         | `AsyncIterableResult<Row>` |
+| `createCount(data[])`               | delegates to `createAll(data).toArray().length`                                | `number`                   |
+| `deleteAll()`                       | `IdbScanWritePlan { write:"delete" }` + accumulated filter                     | `AsyncIterableResult<Row>` |
+| `deleteCount()`                     | delegates to `deleteAll().toArray().length`                                    | `number`                   |
+| `count()`                           | existing `cursor-scan` plan, drains without collecting                         | `number`                   |
 
-**New driver-side plan kinds** added to `driver-idb/src/core/plan-body.ts`:
+**New driver-side plan kind** added to `driver-idb/src/core/plan-body.ts`:
 
 ```ts
-// batch-scan-write: cursor scan + conditional writes in one readwrite tx
-// (used by update, updateMany, deleteMany — avoids N round-trips)
+// readwrite cursor scan — put-merged or delete per matching row
 type IdbScanWritePlan = {
   kind: "scan-write";
   storeName: string;
   filter?: IdbRowFilter;
-  take?: number; // 1 for update, undefined for updateMany/deleteMany
-  write: "put-merged" | "delete"; // what to do per matching row
-  patch?: Record<string, unknown>; // only for "put-merged"
+  take?: number; // 1 for update(), undefined for updateAll/deleteAll
+  write: "put-merged" | "delete";
+  patch?: Record<string, unknown>; // required when write === "put-merged"
 };
-// bulk-put: multiple puts in one readwrite tx (used by createMany)
-type IdbBulkPutPlan = { kind: "bulk-put"; storeName: string; records: Record<string, unknown>[] };
 ```
 
-These are added to `IdbAtomicPlan` and dispatched in `execute/ops.ts` via the existing callback-based pattern.
+Added to `IdbAtomicPlan` and dispatched in `execute/ops.ts`. `planTxMode()` returns `"readwrite"` for `"scan-write"`.
 
 **New AST nodes** (`adapter-idb/src/core/idb-query-ast.ts`):
 
 ```ts
 type IdbUpdateAst = { kind: "update"; modelName: string; patch: Record<string, unknown>; where?: IdbFilterExpr };
-type IdbUpdateManyAst = {
-  kind: "updateMany";
+type IdbUpdateAllAst = { kind: "updateAll"; modelName: string; patch: Record<string, unknown>; where?: IdbFilterExpr };
+type IdbUpdateCountAst = {
+  kind: "updateCount";
   modelName: string;
   patch: Record<string, unknown>;
   where?: IdbFilterExpr;
@@ -516,10 +528,16 @@ type IdbUpsertAst = {
   update: Record<string, unknown>;
   where: Record<string, unknown>;
 };
-type IdbCreateManyAst = { kind: "createMany"; modelName: string; data: Record<string, unknown>[] };
-type IdbDeleteManyAst = { kind: "deleteMany"; modelName: string; where?: IdbFilterExpr };
+type IdbCreateAllAst = { kind: "createAll"; modelName: string; data: Record<string, unknown>[] };
+type IdbCreateCountAst = { kind: "createCount"; modelName: string; data: Record<string, unknown>[] };
+type IdbDeleteAllAst = { kind: "deleteAll"; modelName: string; where?: IdbFilterExpr };
+type IdbDeleteCountAst = { kind: "deleteCount"; modelName: string; where?: IdbFilterExpr };
 type IdbCountAst = { kind: "count"; modelName: string; where?: IdbFilterExpr };
 ```
+
+### Known gap — `.where()` compile-time enforcement
+
+The SQL ORM vendor enforces `.where()` before `update/updateAll/updateCount/deleteAll/deleteCount` at **compile time** via a state-machine type parameter. Our `IdbStoreAccessor` does not yet carry this parameter — calling `updateAll(patch)` without `.where()` updates every row (equivalent to `UPDATE table SET ...` with no WHERE). This is correct runtime behavior; the type system just doesn't warn about it. Deferred to a post-6.2 type-level refactor.
 
 ---
 
