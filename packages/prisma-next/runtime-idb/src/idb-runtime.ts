@@ -9,7 +9,7 @@ import {
 import { canonicalStringify } from "@prisma-next/utils/canonical-stringify";
 import { hashContent } from "@prisma-next/utils/hash-content";
 import type { IdbLowererContext, IdbQueryPlan, IdbRuntimeAdapterInstance } from "@prisma-next-idb/adapter-idb/runtime";
-import type { IdbPlanBody, IdbRuntimeDriverInstance } from "@prisma-next-idb/driver-idb/runtime";
+import type { IdbPlanBody, IdbRuntimeDriverInstance, IdbTransactionScope } from "@prisma-next-idb/driver-idb/runtime";
 import type { IdbMiddleware } from "./idb-middleware";
 
 /**
@@ -49,6 +49,17 @@ export interface IdbRuntimeOptions {
  */
 export interface IdbRuntime {
   execute<Row>(plan: IdbQueryPlan & { readonly _row?: Row }, options?: RuntimeExecuteOptions): AsyncIterableResult<Row>;
+  /**
+   * Open a multi-store IDB transaction and return an `IdbTransactionScope`.
+   *
+   * The scope's `execute(plan)` runs `IdbAtomicPlan`s directly inside the
+   * transaction — middleware is bypassed (Issue #6 fix: cache middleware
+   * never fires for reads inside a transaction). `commit()` resolves on
+   * `tx.oncomplete`; `rollback()` calls `tx.abort()`.
+   *
+   * Used by `withMutationScope()` in `client-idb` for Phase 6.3+.
+   */
+  transaction(storeNames: string[], mode?: IDBTransactionMode): Promise<IdbTransactionScope>;
   /**
    * Verify that the live IDB database's contract marker matches the
    * contract this runtime was created with.
@@ -206,6 +217,10 @@ class IdbRuntimeImpl extends RuntimeCore<IdbQueryPlan, IdbPlanBody, IdbMiddlewar
     options?: RuntimeExecuteOptions
   ): AsyncIterableResult<Row> {
     return super.execute(plan, options);
+  }
+
+  async transaction(storeNames: string[], mode: IDBTransactionMode = "readwrite"): Promise<IdbTransactionScope> {
+    return this.#driver.transaction(storeNames, mode);
   }
 
   override async close(): Promise<void> {

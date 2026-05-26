@@ -1,24 +1,24 @@
 ## Status
 
-_Last reviewed: 2026-05-26 — Phase 6.2 done (349/349 tests passing). See ["Review findings (2026-05-25)"](#review-findings-2026-05-25) for first-round audit notes (issues #1-#10) and ["Second-round review (2026-05-25, vendor cross-check)"](#second-round-review-2026-05-25-vendor-cross-check) for deeper audit against vendor reference (issues #11-#16). Issues #1-4, #7, #9, #10 and #11-16 resolved. Open: Issue #6 (scope hard-coding, gated on Phase 6.3). Known gap: `.where()` before write terminals not compile-time enforced (deferred post-6.2)._
+_Last reviewed: 2026-05-26 — Phase 6.3 done. See ["Review findings (2026-05-25)"](#review-findings-2026-05-25) for first-round audit notes (issues #1-#10) and ["Second-round review (2026-05-25, vendor cross-check)"](#second-round-review-2026-05-25-vendor-cross-check) for deeper audit against vendor reference (issues #11-#16). All issues #1-16 resolved. Known gap: `.where()` before write terminals not compile-time enforced (deferred post-6.2)._
 
-| Phase | Description                                                                                       | Status                                                                                                                                                                |
-| ----- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1     | Codec system (`target-idb`)                                                                       | ✅ Done                                                                                                                                                               |
-| 2     | Runtime driver (`driver-idb`)                                                                     | ✅ Done — Issue #11 (batch-with-update tx mode) fixed                                                                                                                 |
-| 3     | Query lowering (`adapter-idb`)                                                                    | ✅ Done (passthrough; per-field codec encoding deferred — all codecs identity); Issue #13 (descriptor `.create()` codec wiring) fixed                                 |
-| 4     | Control plane manifest operations (`family-idb`)                                                  | ✅ Done — Issues #1, #2, #4 resolved                                                                                                                                  |
-| 5     | Migration infrastructure (`target-idb/control`)                                                   | ✅ Done — CLI `db update`/`db init` fully working and idempotent; Issues #14 (TS renderer `unique: undefined`) + #15 (index mutations) fixed                          |
-| 6     | IDB ORM lane (`client-idb`) + runtime (`runtime-idb`)                                             | 🚧 MVP done — Issues #3, #5, #10, #12 (auto-migrate evolution) resolved; open: Issue #6                                                                               |
-| 6.1   | Filter expression AST + operator API                                                              | ✅ Done — `IdbFilterExpr` + evaluator + `IdbModelAccessor` proxy + `and/or/not`; shorthand `null` lifts to null-check                                                 |
-| 6.2   | Missing CRUD terminals (update, upsert, createAll/Count, deleteAll/Count, updateAll/Count, count) | ✅ Done — vendor naming adopted; `IdbScanWritePlan` + `IdbBatchPlan` driver primitives; 9 new ORM methods; known gap: `.where()` enforcement not compile-time-checked |
-| 6.3   | Multi-store transaction support                                                                   | ⚠️ Half done — `IdbBatchPlan` exists in driver; no scope/`withMutationScope`                                                                                          |
-| 6.4   | Nested relation writes (create/connect/disconnect)                                                | ❌ Not started                                                                                                                                                        |
-| 6.5   | Include refinement (where/orderBy/take inside include)                                            | ❌ Not started                                                                                                                                                        |
-| 6.6   | Aggregate / groupBy                                                                               | ❌ Not started                                                                                                                                                        |
-| 6.7   | Select projection                                                                                 | ❌ Not started                                                                                                                                                        |
-| 7     | Outbox sync                                                                                       | ❌ Not started                                                                                                                                                        |
-| 8     | `contract infer` — infer IDB schema from live manifest                                            | ❌ Not started                                                                                                                                                        |
+| Phase | Description                                                                                       | Status                                                                                                                                                                                       |
+| ----- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | Codec system (`target-idb`)                                                                       | ✅ Done                                                                                                                                                                                      |
+| 2     | Runtime driver (`driver-idb`)                                                                     | ✅ Done — Issue #11 (batch-with-update tx mode) fixed                                                                                                                                        |
+| 3     | Query lowering (`adapter-idb`)                                                                    | ✅ Done (passthrough; per-field codec encoding deferred — all codecs identity); Issue #13 (descriptor `.create()` codec wiring) fixed                                                        |
+| 4     | Control plane manifest operations (`family-idb`)                                                  | ✅ Done — Issues #1, #2, #4 resolved                                                                                                                                                         |
+| 5     | Migration infrastructure (`target-idb/control`)                                                   | ✅ Done — CLI `db update`/`db init` fully working and idempotent; Issues #14 (TS renderer `unique: undefined`) + #15 (index mutations) fixed                                                 |
+| 6     | IDB ORM lane (`client-idb`) + runtime (`runtime-idb`)                                             | 🚧 MVP done — all issues resolved; Phase 6.3 done                                                                                                                                            |
+| 6.1   | Filter expression AST + operator API                                                              | ✅ Done — `IdbFilterExpr` + evaluator + `IdbModelAccessor` proxy + `and/or/not`; shorthand `null` lifts to null-check                                                                        |
+| 6.2   | Missing CRUD terminals (update, upsert, createAll/Count, deleteAll/Count, updateAll/Count, count) | ✅ Done — vendor naming adopted; `IdbScanWritePlan` + `IdbBatchPlan` driver primitives; 9 new ORM methods; known gap: `.where()` enforcement not compile-time-checked                        |
+| 6.3   | Multi-store transaction support                                                                   | ✅ Done — `IdbTransactionScope` + `createTransactionScope` in driver; `withMutationScope` + `IdbQueryExecutorWithTransaction` in client; `IdbRuntime.transaction()` wired; Issue #6 resolved |
+| 6.4   | Nested relation writes (create/connect/disconnect)                                                | ❌ Not started                                                                                                                                                                               |
+| 6.5   | Include refinement (where/orderBy/take inside include)                                            | ❌ Not started                                                                                                                                                                               |
+| 6.6   | Aggregate / groupBy                                                                               | ❌ Not started                                                                                                                                                                               |
+| 6.7   | Select projection                                                                                 | ❌ Not started                                                                                                                                                                               |
+| 7     | Outbox sync                                                                                       | ❌ Not started                                                                                                                                                                               |
+| 8     | `contract infer` — infer IDB schema from live manifest                                            | ❌ Not started                                                                                                                                                                               |
 
 ### Test status (run 2026-05-26, after Phase 6.2)
 
@@ -541,7 +541,9 @@ The SQL ORM vendor enforces `.where()` before `update/updateAll/updateCount/dele
 
 ---
 
-## Phase 6.3 — Multi-store transaction support
+## Phase 6.3 — Multi-store transaction support ✅ Done
+
+**Status (2026-05-26):** Shipped. `IdbTransactionScope` (interface + `IdbTransactionScopeImpl`) + `createTransactionScope()` factory live in `driver-idb/src/core/transaction-scope.ts`. `withMutationScope()` + `IdbQueryExecutorWithTransaction` live in `client-idb/src/core/mutation-scope.ts`. `IdbRuntime.transaction()` delegates to `driver.db` + `createTransactionScope()`. Issue #6 resolved: scope operations bypass the middleware chain, so the cache middleware never incorrectly fires inside a transaction.
 
 **Goal:** Allow multiple stores to be written atomically. Required before Phase 6.4 (nested writes across stores).
 
@@ -551,7 +553,9 @@ SQL ORM: `withMutationScope()` in `mutation-executor.ts` calls `runtime.transact
 
 ### Mental model
 
-IDB transactions span one or more object stores named at open time. All requests inside the transaction either fully commit or fully roll back. We need to expose a way for the ORM layer to open a multi-store `readwrite` transaction and pipe multiple operations through it.
+IDB transactions span one or more object stores named at open time. All requests inside the transaction either fully commit or fully roll back. `IdbTransactionScope.execute(plan)` runs `executeOpInTx` directly inside the pre-opened `IDBTransaction` — no new transaction is opened per call. `commit()` returns a Promise that resolves when `tx.oncomplete` fires (all writes durable). `rollback()` calls `tx.abort()`.
+
+Transaction liveness across `await` boundaries: `IDBTransaction` auto-commits only in a macro-task (not a microtask). Since `await` resumes via a microtask, issuing the next `scope.execute()` call immediately after an `await` keeps the transaction alive. The standard `withMutationScope` usage pattern never crosses a macro-task boundary.
 
 ### New: `IdbTransactionScope` (`driver-idb/src/core/transaction-scope.ts`)
 
@@ -559,17 +563,13 @@ IDB transactions span one or more object stores named at open time. All requests
 export interface IdbTransactionScope {
   execute(plan: IdbAtomicPlan): Promise<Record<string, unknown>[]>;
   commit(): Promise<void>; // resolves when tx.oncomplete fires
-  rollback(): void; // calls tx.abort()
+  rollback(): void; // calls tx.abort() (idempotent — ignores already-aborted)
 }
 ```
 
-`IdbRuntimeDriverInstance` gains `transaction(storeNames: string[], mode?: IDBTransactionMode): IdbTransactionScope`.
-
-Implementation: open one IDB transaction scoped to `storeNames`, wrap each `execute()` call with `executeOpInTx` (existing callback pattern) inside that transaction. `commit()` returns a Promise resolved by `tx.oncomplete`.
+`IdbRuntimeDriverInstance` gains `transaction(storeNames: string[], mode?: IDBTransactionMode): Promise<IdbTransactionScope>` (async because `driver.db` is a `Promise<IDBDatabase>`).
 
 ### New: `withMutationScope()` (`client-idb/src/core/mutation-scope.ts`)
-
-Direct port of `withMutationScope()` from `sql-orm-client/mutation-executor.ts`:
 
 ```ts
 export async function withMutationScope<T>(
@@ -577,7 +577,7 @@ export async function withMutationScope<T>(
   storeNames: string[],
   run: (scope: IdbTransactionScope) => Promise<T>
 ): Promise<T> {
-  const tx = executor.transaction(storeNames, "readwrite");
+  const tx = await executor.transaction(storeNames, "readwrite");
   try {
     const result = await run(tx);
     await tx.commit();
@@ -589,7 +589,7 @@ export async function withMutationScope<T>(
 }
 ```
 
-`IdbQueryExecutorWithTransaction` extends `IdbQueryExecutor` with `transaction()`. `IdbRuntime` satisfies it by delegating to `driver.transaction()`.
+`IdbQueryExecutorWithTransaction` extends `IdbQueryExecutor` with `transaction(storeNames, mode?): Promise<IdbTransactionScope>`. `IdbRuntime` satisfies it by delegating to `driver.db` + `createTransactionScope()`.
 
 ---
 
@@ -869,11 +869,11 @@ Not a code bug — the collect-then-yield behavior is a correct and unavoidable 
 - **ADR 006** gained a "Middleware implications" section explaining why `onRow` backpressure doesn't reduce IDB reads, when to use `take(n)` instead, and how this diverges from the framework's streaming assumption.
 - **`IdbMiddleware`** (`runtime-idb/src/idb-middleware.ts`) has an inline doc block warning middleware authors about the collect-then-yield constraint and directing them to ADR 006.
 
-### Issue #6 — `RuntimeMiddlewareContext.scope` is hard-coded to `"runtime"`
+### ✅ Issue #6 — `RuntimeMiddlewareContext.scope` is hard-coded to `"runtime"` — RESOLVED
 
-**Symptom.** [packages/prisma-next/runtime-idb/src/idb-runtime.ts:100](packages/prisma-next/runtime-idb/src/idb-runtime.ts#L100) sets `scope: "runtime"`. The vendor framework defines three scopes — `"runtime"`, `"connection"`, `"transaction"` (ADR 207). The cache middleware skips inside transactions to preserve read-after-write coherence; with our hard-coded `"runtime"`, it will incorrectly cache inside a `withMutationScope()` block when Phase 6.3 lands.
+**Symptom.** `idb-runtime.ts` set `scope: "runtime"` unconditionally. The vendor framework's cache middleware skips caching inside transactions (scope `"transaction"`) to preserve read-after-write coherence.
 
-**Fix sketch.** When Phase 6.3 implements `IdbTransactionScope`, switch `scope` to `"transaction"` for the duration of the scope. The runtime-core base class may already accept a way to override this; if not, follow the vendor SQL runtime's pattern.
+**Fix (Phase 6.3).** `IdbTransactionScope.execute()` bypasses the `RuntimeCore` middleware chain entirely — it calls `executeOpInTx` directly inside the pre-opened IDB transaction. Because middleware never fires during scope execution, the cache middleware cannot incorrectly cache reads made inside a `withMutationScope()` block. The `scope: "runtime"` in `buildMiddlewareContext` remains correct for non-scoped (top-level) executions.
 
 ### ✅ Issue #7 — `contract.json` and `contract.d.ts` index `unique` field is inconsistent — FIXED
 
@@ -983,12 +983,12 @@ Audit comparing our six packages against the cloned vendor reference (`vendor/pr
 
 ### Recommended next steps (updated 2026-05-26)
 
-With Phase 6.1 and Issue #9 shipped, the queue is:
+With Phase 6.2 and Issue #6 shipped, the queue is:
 
-1. **Phase 6.2** — `update` / `updateMany` / `upsert` / `createMany` / `deleteMany` / `count`. The driver primitives already exist (`IdbUpdatePlan`, `IdbBatchPlan`); each new accessor terminal needs a corresponding AST node, plan dispatch, and Playwright coverage. Smallest standalone phase.
-2. **Phase 6.3** — Multi-store transactions (`IdbTransactionScope` + `withMutationScope`). Required by Phase 6.4 (nested writes) and unlocks the Issue #6 fix (scope set to `"transaction"` while inside the scope).
-3. **Phase 6.4-6.7** in order — nested relation writes → include refinement → aggregate/groupBy → select projection. The grouping is roughly "complete write API" then "complete read API".
-4. **Issue #6** (scope hard-coding) — fix while Phase 6.3 is open; the change is a one-liner once the scope exists.
+1. **Phase 6.4** — Nested relation writes (`create`/`connect`/`disconnect` inside `create`/`update`). Requires Phase 6.3 (now done). Port `parseMutationInput`, `partitionByOwnership`, `createGraph`, `updateFirstGraph`, `IdbRelationMutator` from sql-orm-client.
+2. **Phase 6.5** — Include refinement (`include(rel, refineFn)`). Port refined child accessor state + `IdbIncludeScalar` for `count()`.
+3. **Phase 6.6** — Aggregate / groupBy. `IdbGroupedAccessor`, `createAggregateBuilder`, standalone `accessor.aggregate()`.
+4. **Phase 6.7** — Select projection. `selectedFields` in state, post-load field stripping, FK augmentation for includes.
 
 ---
 

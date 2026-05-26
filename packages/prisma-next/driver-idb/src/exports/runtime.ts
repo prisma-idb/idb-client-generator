@@ -12,6 +12,7 @@ export type {
   IdbPutPlan,
   IdbUpdatePlan,
   IdbDeletePlan,
+  IdbScanWritePlan,
   IdbRowFilter,
   IdbRowComparator,
   IdbMarkerRecord,
@@ -20,6 +21,8 @@ export { MARKER_STORE_NAME } from "../core/plan-body";
 export type { IdbRuntimeDriverInstance } from "../core/idb-driver";
 export { IdbExecuteError } from "../core/execute/error";
 export type { IdbExecuteErrorCode } from "../core/execute/error";
+export type { IdbTransactionScope } from "../core/transaction-scope";
+export { createTransactionScope } from "../core/transaction-scope";
 
 /**
  * Creates a runtime driver descriptor for IndexedDB.

@@ -15,6 +15,11 @@
   // The ORM client surface — bound to `db.orm` once loaded so query
   // expressions in the textarea can address `orm.users.all()`, etc.
   let orm = $state<Record<string, unknown> | null>(null);
+  // `transaction` bound to `db.withTransaction` — available in the sandbox as
+  // `transaction(storeNames, fn)` for Phase 6.3 multi-store writes.
+  let transaction = $state<
+    ((storeNames: string[], fn: (scope: unknown) => Promise<unknown>) => Promise<unknown>) | null
+  >(null);
   let dbName = $state(resolveDbName());
   let query = $state("");
   let resultText = $state("");
@@ -25,6 +30,7 @@
     try {
       const db = await getDb(data.contract);
       orm = db.orm as Record<string, unknown>;
+      transaction = db.withTransaction.bind(db) as typeof transaction;
     } catch (err) {
       resultKind = "error";
       resultText = err instanceof Error ? err.message : String(err);
@@ -50,13 +56,14 @@
     resultText = "";
     try {
       const body = `return (async () => {\n  return (${query});\n})();`;
-      const fn = new Function("orm", "and", "or", "not", body) as (
+      const fn = new Function("orm", "and", "or", "not", "transaction", body) as (
         ormArg: unknown,
         andFn: unknown,
         orFn: unknown,
-        notFn: unknown
+        notFn: unknown,
+        transactionFn: unknown
       ) => Promise<unknown>;
-      let raw = await fn(orm, and, or, not);
+      let raw = await fn(orm, and, or, not, transaction);
 
       // AsyncIterableResult: drain to an array so the JSON output is
       // useful. Duck-typed so we don't need a hard dep on the framework.
@@ -85,6 +92,7 @@
       await resetDb();
       const db = await getDb(data.contract);
       orm = db.orm as Record<string, unknown>;
+      transaction = db.withTransaction.bind(db) as typeof transaction;
       resultKind = "idle";
       resultText = "";
     } catch (err) {

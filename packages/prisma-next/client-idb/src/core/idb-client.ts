@@ -1,8 +1,10 @@
 import { IdbAdapter } from "@prisma-next-idb/adapter-idb/runtime";
 import { createIDBRuntimeDriver } from "@prisma-next-idb/driver-idb/runtime";
+import type { IdbTransactionScope } from "@prisma-next-idb/driver-idb/runtime";
 import type { IdbMiddleware } from "@prisma-next-idb/runtime-idb/runtime";
 import { createIdbRuntime } from "@prisma-next-idb/runtime-idb/runtime";
 import { idbCodecLookup } from "@prisma-next-idb/target-idb/runtime";
+import { withMutationScope } from "./mutation-scope";
 import { idbOrm } from "./idb-orm";
 import type { IdbOrmClient } from "./idb-orm";
 import type { IdbContract } from "./types";
@@ -16,6 +18,17 @@ export interface IdbClientOptions<TContract extends IdbContract> {
 
 export interface IdbClient<TContract extends IdbContract> {
   readonly orm: IdbOrmClient<TContract>;
+  /**
+   * Run `fn` inside a single multi-store readwrite IDB transaction.
+   *
+   * Opens the transaction, passes an `IdbTransactionScope` to `fn`, then
+   * commits on success or rolls back on error. Equivalent to calling
+   * `withMutationScope(runtime, storeNames, fn)`.
+   *
+   * Useful from the query-runner shell (Phase 6.3 tests) and from any
+   * caller that has an `IdbClient` but not the raw runtime reference.
+   */
+  withTransaction<T>(storeNames: string[], fn: (scope: IdbTransactionScope) => Promise<T>): Promise<T>;
   verifyMarker(): Promise<boolean>;
   close(): Promise<void>;
   [Symbol.asyncDispose](): Promise<void>;
@@ -57,6 +70,8 @@ export function createIdbClient<TContract extends IdbContract>(
 
   return {
     orm,
+    withTransaction: <T>(storeNames: string[], fn: (scope: IdbTransactionScope) => Promise<T>) =>
+      withMutationScope(runtime, storeNames, fn),
     verifyMarker: () => runtime.verifyMarker(),
     async close() {
       await runtime.close();

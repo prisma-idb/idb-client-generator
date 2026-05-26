@@ -1,6 +1,7 @@
 import type { RuntimeDriverInstance } from "@prisma-next/framework-components/execution";
 import { executeIdbPlan } from "./execute";
 import { MARKER_STORE_NAME, type IdbMarkerRecord, type IdbPlanBody } from "./plan-body";
+import { createTransactionScope, type IdbTransactionScope } from "./transaction-scope";
 
 export class IdbRuntimeDriverInstance implements RuntimeDriverInstance<"idb", "idb"> {
   readonly familyId = "idb" as const;
@@ -56,6 +57,19 @@ export class IdbRuntimeDriverInstance implements RuntimeDriverInstance<"idb", "i
       };
       tx.onerror = () => reject(tx.error);
     });
+  }
+
+  /**
+   * Open a multi-store readwrite transaction and wrap it in an
+   * {@link IdbTransactionScope}.
+   *
+   * Awaits the live `IDBDatabase` connection before opening the transaction.
+   * Used by `withMutationScope()` in `client-idb` to run cross-store writes
+   * atomically (Phase 6.3+).
+   */
+  async transaction(storeNames: string[], mode: IDBTransactionMode = "readwrite"): Promise<IdbTransactionScope> {
+    const db = await this.db;
+    return createTransactionScope(db, storeNames, mode);
   }
 
   /**

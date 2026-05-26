@@ -41,3 +41,7 @@ export type {
   IdbNullCheckExpr,
   IdbFilterOp,
 } from "@prisma-next-idb/adapter-idb/runtime";
+
+// Multi-store transaction scope API (Phase 6.3)
+export { withMutationScope } from "../core/mutation-scope";
+export type { IdbQueryExecutorWithTransaction } from "../core/mutation-scope";
