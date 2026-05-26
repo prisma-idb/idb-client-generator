@@ -35,6 +35,7 @@ import type {
   IdbIndexGetPlan,
   IdbKeyGetPlan,
   IdbPutPlan,
+  IdbScanWritePlan,
   IdbUpdatePlan,
 } from "../src/core/plan-body";
 
@@ -643,5 +644,175 @@ describe("error handling", () => {
     expect(err.name).toBe("IdbExecuteError");
     expect(err.category).toBe("DRIVER");
     expect(err.severity).toBe("error");
+  });
+});
+
+// ── scan-write (put-merged) ────────────────────────────────────────────────────
+
+describe("scan-write (put-merged)", () => {
+  let db: IDBDatabase;
+
+  beforeEach(async () => {
+    db = await openTestDb(dbName(), [USERS_STORE]);
+    await seedStore(db, "users", [ALICE, BOB, CAROL]);
+  });
+  afterEach(() => db.close());
+
+  it("updates the first matching row (take:1) and returns it", async () => {
+    const plan: IdbScanWritePlan = {
+      meta: META,
+      kind: "scan-write",
+      storeName: "users",
+      write: "put-merged",
+      patch: { name: "ALICE" },
+      filter: (r) => r["id"] === "u1",
+      take: 1,
+    };
+    const rows = await executeIdbPlan(db, plan);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: "u1", name: "ALICE", email: "alice@example.com" });
+  });
+
+  it("preserves untouched fields when merging patch", async () => {
+    const plan: IdbScanWritePlan = {
+      meta: META,
+      kind: "scan-write",
+      storeName: "users",
+      write: "put-merged",
+      patch: { score: 99 },
+      filter: (r) => r["id"] === "u2",
+      take: 1,
+    };
+    const rows = await executeIdbPlan(db, plan);
+    expect(rows[0]).toMatchObject({ id: "u2", name: "Bob", email: "bob@example.com", score: 99 });
+  });
+
+  it("updates all matching rows when take is not set", async () => {
+    const plan: IdbScanWritePlan = {
+      meta: META,
+      kind: "scan-write",
+      storeName: "users",
+      write: "put-merged",
+      patch: { score: 0 },
+      filter: (r) => (r["score"] as number) < 25,
+    };
+    const rows = await executeIdbPlan(db, plan);
+    // BOB (score 10) and CAROL (score 20) match
+    expect(rows).toHaveLength(2);
+    expect(rows.every((r) => r["score"] === 0)).toBe(true);
+  });
+
+  it("returns empty array when no rows match", async () => {
+    const plan: IdbScanWritePlan = {
+      meta: META,
+      kind: "scan-write",
+      storeName: "users",
+      write: "put-merged",
+      patch: { score: 0 },
+      filter: (r) => r["id"] === "nonexistent",
+    };
+    const rows = await executeIdbPlan(db, plan);
+    expect(rows).toHaveLength(0);
+  });
+
+  it("persists merged rows to the store", async () => {
+    const plan: IdbScanWritePlan = {
+      meta: META,
+      kind: "scan-write",
+      storeName: "users",
+      write: "put-merged",
+      patch: { name: "ALICE" },
+      filter: (r) => r["id"] === "u1",
+    };
+    await executeIdbPlan(db, plan);
+
+    // Verify persistence via key-get
+    const verify = await executeIdbPlan(db, { meta: META, kind: "key-get", storeName: "users", key: "u1" });
+    expect(verify[0]).toMatchObject({ id: "u1", name: "ALICE" });
+  });
+});
+
+// ── scan-write (delete) ───────────────────────────────────────────────────────
+
+describe("scan-write (delete)", () => {
+  let db: IDBDatabase;
+
+  beforeEach(async () => {
+    db = await openTestDb(dbName(), [USERS_STORE]);
+    await seedStore(db, "users", [ALICE, BOB, CAROL]);
+  });
+  afterEach(() => db.close());
+
+  it("returns deleted rows and removes them from the store", async () => {
+    const plan: IdbScanWritePlan = {
+      meta: META,
+      kind: "scan-write",
+      storeName: "users",
+      write: "delete",
+      filter: (r) => r["id"] === "u1",
+    };
+    const rows = await executeIdbPlan(db, plan);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: "u1", name: "Alice" });
+
+    // Verify removal
+    const verify = await executeIdbPlan(db, { meta: META, kind: "key-get", storeName: "users", key: "u1" });
+    expect(verify).toHaveLength(0);
+  });
+
+  it("deletes all matching rows and returns them", async () => {
+    const plan: IdbScanWritePlan = {
+      meta: META,
+      kind: "scan-write",
+      storeName: "users",
+      write: "delete",
+      filter: (r) => (r["score"] as number) < 25,
+    };
+    const rows = await executeIdbPlan(db, plan);
+    // BOB (10) and CAROL (20) match
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r["id"]).sort()).toEqual(["u2", "u3"]);
+  });
+
+  it("returns empty array when no rows match", async () => {
+    const plan: IdbScanWritePlan = {
+      meta: META,
+      kind: "scan-write",
+      storeName: "users",
+      write: "delete",
+      filter: (r) => r["id"] === "nonexistent",
+    };
+    const rows = await executeIdbPlan(db, plan);
+    expect(rows).toHaveLength(0);
+  });
+
+  it("stops after take:1 deletion", async () => {
+    const plan: IdbScanWritePlan = {
+      meta: META,
+      kind: "scan-write",
+      storeName: "users",
+      write: "delete",
+      take: 1,
+    };
+    const rows = await executeIdbPlan(db, plan);
+    expect(rows).toHaveLength(1);
+
+    // Only one row removed — two remain
+    const all = await executeIdbPlan(db, { meta: META, kind: "cursor-scan", storeName: "users" });
+    expect(all).toHaveLength(2);
+  });
+
+  it("deletes all rows when no filter is set", async () => {
+    const plan: IdbScanWritePlan = {
+      meta: META,
+      kind: "scan-write",
+      storeName: "users",
+      write: "delete",
+    };
+    const rows = await executeIdbPlan(db, plan);
+    expect(rows).toHaveLength(3);
+
+    const all = await executeIdbPlan(db, { meta: META, kind: "cursor-scan", storeName: "users" });
+    expect(all).toHaveLength(0);
   });
 });

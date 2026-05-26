@@ -133,6 +133,30 @@ export interface IdbDeletePlan extends ExecutionPlan {
 }
 
 /**
+ * Cursor scan with in-place write for each matching row.
+ *
+ * Used for `update` (take:1), `updateAll`, `updateCount`, `deleteAll`,
+ * `deleteCount`. Opens a readwrite cursor and applies `write` to each
+ * row that passes `filter`:
+ *
+ * - `"put-merged"`: shallow-merges `patch` onto the row and calls
+ *   `cursor.update(merged)`. Yields merged rows.
+ * - `"delete"`: captures `cursor.value` then calls `cursor.delete()`.
+ *   Yields the deleted rows (so callers can echo them back).
+ *
+ * With `take`, the cursor stops after the first `take` matches (no
+ * `cursor.continue()` call after the limit is reached).
+ */
+export interface IdbScanWritePlan extends ExecutionPlan {
+  readonly kind: "scan-write";
+  readonly storeName: string;
+  readonly filter?: IdbRowFilter;
+  readonly take?: number;
+  readonly write: "put-merged" | "delete";
+  readonly patch?: Record<string, unknown>;
+}
+
+/**
  * All single-store atomic op types — valid both standalone and inside a batch.
  */
 export type IdbAtomicPlan =
@@ -141,7 +165,8 @@ export type IdbAtomicPlan =
   | IdbIndexGetPlan
   | IdbPutPlan
   | IdbUpdatePlan
-  | IdbDeletePlan;
+  | IdbDeletePlan
+  | IdbScanWritePlan;
 
 /**
  * Multi-op atomic batch executed inside a single IDB transaction.

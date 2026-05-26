@@ -22,6 +22,7 @@ import type {
   IdbIndexGetPlan,
   IdbKeyGetPlan,
   IdbPutPlan,
+  IdbScanWritePlan,
   IdbUpdatePlan,
 } from "../plan-body";
 import { IdbExecuteError } from "./error";
@@ -58,12 +59,16 @@ export function executeOpInTx(
       return execUpdate(store, plan, onComplete, onError);
     case "delete":
       return execDelete(store, plan, onComplete, onError);
+    case "scan-write":
+      return execScanWrite(store, plan, onComplete, onError);
   }
 }
 
 /** Returns the IDB transaction mode appropriate for a given atomic plan. */
 export function planTxMode(plan: IdbAtomicPlan): IDBTransactionMode {
-  return plan.kind === "put" || plan.kind === "update" || plan.kind === "delete" ? "readwrite" : "readonly";
+  return plan.kind === "put" || plan.kind === "update" || plan.kind === "delete" || plan.kind === "scan-write"
+    ? "readwrite"
+    : "readonly";
 }
 
 // ── Per-operation executors ──────────────────────────────────────────────────
@@ -228,6 +233,77 @@ function execDelete(store: IDBObjectStore, plan: IdbDeletePlan, onComplete: OnCo
       new IdbExecuteError(
         { code: "DELETE_FAILED", planKind: "delete", storeName: plan.storeName, cause: req.error },
         `IDB delete failed on store "${plan.storeName}": ${String(req.error)}`
+      )
+    );
+}
+
+function execScanWrite(store: IDBObjectStore, plan: IdbScanWritePlan, onComplete: OnComplete, onError: OnError): void {
+  // Cursor must be opened on a readwrite transaction (enforced by planTxMode).
+  const req = store.openCursor(null, "next");
+  const collected: Row[] = [];
+
+  req.onsuccess = () => {
+    const cursor = req.result as IDBCursorWithValue | null;
+
+    if (cursor === null) {
+      // Cursor exhausted — deliver all collected rows.
+      onComplete(collected);
+      return;
+    }
+
+    const row = cursor.value as Row;
+
+    // Skip rows that don't match the filter.
+    if (plan.filter !== undefined && !plan.filter(row)) {
+      cursor.continue();
+      return;
+    }
+
+    if (plan.write === "delete") {
+      // Capture the row value before deleting (so deleteAll can return it).
+      collected.push(row);
+      const delReq = cursor.delete();
+      delReq.onsuccess = () => {
+        if (plan.take !== undefined && collected.length >= plan.take) {
+          onComplete(collected);
+          return; // intentionally no cursor.continue() — transaction auto-commits
+        }
+        cursor.continue();
+      };
+      delReq.onerror = () =>
+        onError(
+          new IdbExecuteError(
+            { code: "DELETE_FAILED", planKind: "scan-write", storeName: plan.storeName, cause: delReq.error },
+            `IDB scan-write (delete) failed on store "${plan.storeName}": ${String(delReq.error)}`
+          )
+        );
+    } else {
+      // put-merged: shallow-merge patch onto existing row, write back in-place.
+      const merged: Row = { ...row, ...plan.patch };
+      const updReq = cursor.update(merged);
+      updReq.onsuccess = () => {
+        collected.push(merged);
+        if (plan.take !== undefined && collected.length >= plan.take) {
+          onComplete(collected);
+          return; // intentionally no cursor.continue()
+        }
+        cursor.continue();
+      };
+      updReq.onerror = () =>
+        onError(
+          new IdbExecuteError(
+            { code: "PUT_FAILED", planKind: "scan-write", storeName: plan.storeName, cause: updReq.error },
+            `IDB scan-write (put-merged) failed on store "${plan.storeName}": ${String(updReq.error)}`
+          )
+        );
+    }
+  };
+
+  req.onerror = () =>
+    onError(
+      new IdbExecuteError(
+        { code: "CURSOR_SCAN_FAILED", planKind: "scan-write", storeName: plan.storeName, cause: req.error },
+        `IDB scan-write cursor failed on store "${plan.storeName}": ${String(req.error)}`
       )
     );
 }
