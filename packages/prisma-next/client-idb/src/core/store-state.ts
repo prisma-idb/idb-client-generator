@@ -1,3 +1,5 @@
+import type { IdbFilterExpr } from "@prisma-next-idb/adapter-idb/runtime";
+
 /**
  * Immutable state carried by each {@link IdbStoreAccessorImpl} node in the
  * builder chain.
@@ -7,8 +9,13 @@
  * accessor safe to reuse across multiple query branches.
  */
 export interface IdbAccessorState {
-  /** Accumulated equality-filter predicates. All filters are ANDed together. */
-  readonly filters: ReadonlyArray<Record<string, unknown>>;
+  /**
+   * Accumulated filter expressions. Multiple `.where()` calls compose
+   * with AND semantics — the planner wraps them in an `andExpr` when
+   * lowering. Each entry is already either an `IdbFieldFilter`, a
+   * combinator, or a `null-check` node — never raw shorthand records.
+   */
+  readonly filters: ReadonlyArray<IdbFilterExpr>;
   /** Sort spec: field → direction. Applied as an in-memory comparator. */
   readonly orderBy?: Record<string, "asc" | "desc">;
   /** OFFSET (number of rows to skip). */

@@ -1,13 +1,14 @@
 import { AsyncIterableResult } from "@prisma-next/framework-components/runtime";
 import type { PlanMeta } from "@prisma-next/contract/types";
-import type { IdbQueryPlan } from "@prisma-next-idb/adapter-idb/runtime";
+import type { IdbFilterExpr, IdbQueryPlan } from "@prisma-next-idb/adapter-idb/runtime";
 import type {
   IdbCreateAst,
   IdbDeleteAst,
   IdbFindManyAst,
   IdbFindUniqueAst,
 } from "@prisma-next-idb/adapter-idb/runtime";
-import type { IdbRowComparator, IdbRowFilter } from "@prisma-next-idb/driver-idb/runtime";
+import { andExpr, evaluateFilter, shorthandToFilterExpr } from "@prisma-next-idb/adapter-idb/runtime";
+import type { IdbRowComparator } from "@prisma-next-idb/driver-idb/runtime";
 import {
   type CreateInput,
   type DefaultModelRow,
@@ -21,9 +22,15 @@ import {
   type WhereFilter,
   getStoreName,
 } from "./types";
+import { createModelAccessor, type IdbModelAccessor } from "./model-accessor";
 import { type IdbAccessorState, emptyAccessorState, mergeAccessorState } from "./store-state";
 import type { IdbQueryExecutor } from "./executor";
 import { loadRelation } from "./relation-loader";
+
+/** Callback form of `.where(fn)` — receives the typed model accessor proxy. */
+export type WhereCallback<TContract, ModelName extends string> = (
+  m: IdbModelAccessor<TContract, ModelName>
+) => IdbFilterExpr;
 
 // ── Interface ─────────────────────────────────────────────────────────────────
 
@@ -44,8 +51,22 @@ export interface IdbStoreAccessor<
   ModelName extends string,
   TIncludes extends IncludeSpec<TContract, ModelName> = NoIncludes,
 > {
-  /** Add an equality filter (ANDed with any previous `.where()` calls). */
-  where(filter: WhereFilter<TContract, ModelName>): IdbStoreAccessor<TContract, ModelName, TIncludes>;
+  /**
+   * Add a filter (ANDed with any previous `.where()` calls).
+   *
+   * Two forms:
+   *
+   * - **Shorthand**: `where({ field: value })` — multi-key shorthand
+   *   objects compose as AND. `null` values become null-checks rather
+   *   than literal-null equalities so absent fields match.
+   * - **Callback**: `where((m) => m.field.op(value))` — receives the
+   *   typed model accessor proxy and returns an `IdbFilterExpr` built
+   *   via the operator surface. Combinators (`and`, `or`, `not` from
+   *   `@prisma-next-idb/client-idb/orm`) compose nodes.
+   */
+  where(
+    filter: WhereFilter<TContract, ModelName> | WhereCallback<TContract, ModelName>
+  ): IdbStoreAccessor<TContract, ModelName, TIncludes>;
 
   /** Set the sort order. Replaces any previous `.orderBy()` call. */
   orderBy(spec: OrderBySpec<TContract, ModelName>): IdbStoreAccessor<TContract, ModelName, TIncludes>;
@@ -133,10 +154,18 @@ export class IdbStoreAccessorImpl<
 
   // ── Builder methods ───────────────────────────────────────────────────────
 
-  where(filter: WhereFilter<TContract, ModelName>): IdbStoreAccessor<TContract, ModelName, TIncludes> {
-    return this.#clone({
-      filters: [...this.#state.filters, filter as Record<string, unknown>],
-    });
+  where(
+    filter: WhereFilter<TContract, ModelName> | WhereCallback<TContract, ModelName>
+  ): IdbStoreAccessor<TContract, ModelName, TIncludes> {
+    const expr =
+      typeof filter === "function"
+        ? filter(createModelAccessor<TContract, ModelName>())
+        : shorthandToFilterExpr(filter as Record<string, unknown>);
+    // An empty shorthand object (or one with only undefined values) lifts
+    // to `undefined` — keep the existing filter list untouched so chained
+    // `.where({})` calls don't produce noisy AND nodes.
+    if (expr === undefined) return this.#clone({});
+    return this.#clone({ filters: [...this.#state.filters, expr] });
   }
 
   orderBy(spec: OrderBySpec<TContract, ModelName>): IdbStoreAccessor<TContract, ModelName, TIncludes> {
@@ -251,15 +280,14 @@ export class IdbStoreAccessorImpl<
   // ── Private helpers ───────────────────────────────────────────────────────
 
   #buildScanPlan<Row>(groupingKey: string): IdbQueryPlan<Row> {
-    const filter = this.#buildFilter();
+    const combined = this.#combinedFilterExpr();
+    const filter = combined !== undefined ? (row: Record<string, unknown>) => evaluateFilter(combined, row) : undefined;
     const comparator = this.#buildComparator();
     const meta = this.#planMeta(groupingKey);
     const ast: IdbFindManyAst = {
       kind: "findMany",
       modelName: this.#modelName,
-      ...(this.#state.filters.length > 0
-        ? { where: Object.assign({}, ...this.#state.filters) as Record<string, unknown> }
-        : {}),
+      ...(combined !== undefined ? { where: combined } : {}),
       ...(this.#state.orderBy !== undefined ? { orderBy: this.#state.orderBy as Record<string, "asc" | "desc"> } : {}),
       ...(this.#state.skip !== undefined ? { skip: this.#state.skip } : {}),
       ...(this.#state.take !== undefined ? { take: this.#state.take } : {}),
@@ -281,24 +309,18 @@ export class IdbStoreAccessorImpl<
     } as IdbQueryPlan<Row>;
   }
 
-  #buildFilter(): IdbRowFilter | undefined {
-    if (this.#state.filters.length === 0) return undefined;
+  /**
+   * Combine all accumulated filter expressions with AND.
+   *
+   * Returns `undefined` when no filter has been installed so the
+   * driver can skip building a row filter closure (a small perf and
+   * readability win on `.all()` paths).
+   */
+  #combinedFilterExpr(): IdbFilterExpr | undefined {
     const filters = this.#state.filters;
-    return (row: Record<string, unknown>): boolean => {
-      for (const predicate of filters) {
-        for (const [key, value] of Object.entries(predicate)) {
-          if (value === undefined) continue;
-          // null in the filter matches both null and undefined in stored rows —
-          // IDB may store absent fields as undefined rather than null.
-          if (value === null) {
-            if (row[key] !== null && row[key] !== undefined) return false;
-          } else if (row[key] !== value) {
-            return false;
-          }
-        }
-      }
-      return true;
-    };
+    if (filters.length === 0) return undefined;
+    if (filters.length === 1) return filters[0]!;
+    return andExpr(filters);
   }
 
   #buildComparator(): IdbRowComparator | undefined {
