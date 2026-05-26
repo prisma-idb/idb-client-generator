@@ -6,7 +6,22 @@ import type { IdbRuntimeAdapterInstance } from "../core/runtime-adapter-instance
 
 export type { IdbRuntimeAdapterInstance, IdbLowererContext } from "../core/runtime-adapter-instance";
 export type { IdbQueryPlan } from "../core/idb-query-plan";
-export type { IdbQueryAst, IdbFindManyAst, IdbFindUniqueAst, IdbCreateAst, IdbDeleteAst } from "../core/idb-query-ast";
+export type {
+  IdbQueryAst,
+  IdbFindManyAst,
+  IdbFindUniqueAst,
+  IdbCreateAst,
+  IdbDeleteAst,
+  IdbUpdateAst,
+  IdbUpdateAllAst,
+  IdbUpdateCountAst,
+  IdbUpsertAst,
+  IdbCreateAllAst,
+  IdbCreateCountAst,
+  IdbDeleteAllAst,
+  IdbDeleteCountAst,
+  IdbCountAst,
+} from "../core/idb-query-ast";
 export type {
   IdbFilterExpr,
   IdbFieldFilter,

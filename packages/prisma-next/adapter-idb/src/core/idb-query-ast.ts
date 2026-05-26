@@ -20,7 +20,20 @@ import type { IdbFilterExpr } from "./idb-filter-expr";
  * higher-level than the plan body types — they use model names, field names,
  * and filter shapes rather than store names and key ranges.
  */
-export type IdbQueryAst = IdbFindManyAst | IdbFindUniqueAst | IdbCreateAst | IdbDeleteAst;
+export type IdbQueryAst =
+  | IdbFindManyAst
+  | IdbFindUniqueAst
+  | IdbCreateAst
+  | IdbDeleteAst
+  | IdbUpdateAst
+  | IdbUpdateAllAst
+  | IdbUpdateCountAst
+  | IdbUpsertAst
+  | IdbCreateAllAst
+  | IdbCreateCountAst
+  | IdbDeleteAllAst
+  | IdbDeleteCountAst
+  | IdbCountAst;
 
 /** Full cursor scan with optional filtering, ordering, and pagination. */
 export interface IdbFindManyAst {
@@ -62,4 +75,72 @@ export interface IdbDeleteAst {
   readonly modelName: string;
   /** The key value of the record to delete. */
   readonly key: unknown;
+}
+
+/** Update the first matching record (cursor scan, take:1). Returns updated row or null. */
+export interface IdbUpdateAst {
+  readonly kind: "update";
+  readonly modelName: string;
+  readonly patch: Record<string, unknown>;
+  readonly where?: IdbFilterExpr;
+}
+
+/** Update all matching records. Returns updated rows as AsyncIterableResult. */
+export interface IdbUpdateAllAst {
+  readonly kind: "updateAll";
+  readonly modelName: string;
+  readonly patch: Record<string, unknown>;
+  readonly where?: IdbFilterExpr;
+}
+
+/** Update all matching records. Returns count only. */
+export interface IdbUpdateCountAst {
+  readonly kind: "updateCount";
+  readonly modelName: string;
+  readonly patch: Record<string, unknown>;
+  readonly where?: IdbFilterExpr;
+}
+
+/** Insert or update a single record depending on whether it already exists. */
+export interface IdbUpsertAst {
+  readonly kind: "upsert";
+  readonly modelName: string;
+  readonly create: Record<string, unknown>;
+  readonly update: Record<string, unknown>;
+  readonly where: Record<string, unknown>;
+}
+
+/** Batch insert multiple records. Returns inserted rows as AsyncIterableResult. */
+export interface IdbCreateAllAst {
+  readonly kind: "createAll";
+  readonly modelName: string;
+  readonly data: Record<string, unknown>[];
+}
+
+/** Batch insert multiple records. Returns count only. */
+export interface IdbCreateCountAst {
+  readonly kind: "createCount";
+  readonly modelName: string;
+  readonly data: Record<string, unknown>[];
+}
+
+/** Delete all matching records. Returns deleted rows as AsyncIterableResult. */
+export interface IdbDeleteAllAst {
+  readonly kind: "deleteAll";
+  readonly modelName: string;
+  readonly where?: IdbFilterExpr;
+}
+
+/** Delete all matching records. Returns count only. */
+export interface IdbDeleteCountAst {
+  readonly kind: "deleteCount";
+  readonly modelName: string;
+  readonly where?: IdbFilterExpr;
+}
+
+/** Count matching records. */
+export interface IdbCountAst {
+  readonly kind: "count";
+  readonly modelName: string;
+  readonly where?: IdbFilterExpr;
 }
