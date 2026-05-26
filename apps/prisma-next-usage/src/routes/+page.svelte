@@ -6,6 +6,7 @@
   import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card";
   import { Label } from "$lib/components/ui/label";
   import { Textarea } from "$lib/components/ui/textarea";
+  import { and, not, or } from "@prisma-next-idb/client-idb/orm";
   import { getDb, resetDb, resolveDbName } from "$lib/prisma/db";
   import type { PageData } from "./$types";
 
@@ -55,13 +56,7 @@
         orFn: unknown,
         notFn: unknown
       ) => Promise<unknown>;
-      // Combinator placeholders — replaced with real exports once Phase 6.1
-      // lands. Today they throw so authors get a clear error if they try
-      // to use them before the AST exists.
-      const placeholder = () => {
-        throw new Error("Filter combinators (and/or/not) require Phase 6.1");
-      };
-      let raw = await fn(orm, placeholder, placeholder, placeholder);
+      let raw = await fn(orm, and, or, not);
 
       // AsyncIterableResult: drain to an array so the JSON output is
       // useful. Duck-typed so we don't need a hard dep on the framework.
@@ -69,7 +64,13 @@
         raw = await (raw as { toArray(): Promise<unknown[]> }).toArray();
       }
       resultKind = "ok";
-      resultText = JSON.stringify(raw, null, 2);
+      // JSON.stringify(undefined) returns `undefined` (the actual
+      // value), which renders as an empty string and breaks any
+      // downstream JSON.parse. Normalise to JSON `null` so the output
+      // panel always shows valid JSON — `delete()`, void-returning
+      // setups, and IIFE seed scripts that don't return all collapse
+      // to the same harmless `null`.
+      resultText = JSON.stringify(raw === undefined ? null : raw, null, 2);
     } catch (err) {
       resultKind = "error";
       resultText = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
