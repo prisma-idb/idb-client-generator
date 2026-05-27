@@ -6,13 +6,16 @@ import { chainOrderByMetadata, type ChainablePackage } from "./chain-order";
 /**
  * Options for {@link generateContractSpace}.
  *
- * Defaults assume the canonical layout used by the demo app:
+ * All paths default to framework-conventional values but **should be
+ * overridden** when the project's layout differs. The defaults are:
  *
  * - migrations: `<cwd>/migrations/`
- * - contract: `<cwd>/src/lib/prisma/contract.json`
- * - output:   `<cwd>/src/lib/prisma/contract-space.generated.ts`
+ * - contract:   `<cwd>/src/lib/prisma/contract.json`
+ * - output:     `<cwd>/src/lib/prisma/contract-space.generated.ts`
  *
- * All paths may be overridden for non-canonical layouts.
+ * Pass explicit values (or the corresponding CLI flags) for any project
+ * that keeps its contract and generated files elsewhere — Next.js, Nuxt,
+ * plain Vite, etc. all typically use different paths.
  */
 export interface GenerateContractSpaceOptions {
   readonly cwd: string;
@@ -52,6 +55,19 @@ export async function generateContractSpace(opts: GenerateContractSpaceOptions):
 
   const packages = await loadPackages(appDir);
   validateChain(packages);
+
+  // Warn when no packages exist — the output module will have an empty
+  // migrations list and `hash: ""`, which breaks createAutoMigratingIdbClient
+  // on a fresh database (walkChain throws: "no migration with from === null").
+  // The user should run `prisma-next-idb generate-baseline` first.
+  if (packages.length === 0) {
+    process.stderr.write(
+      "Warning: no migration packages found in migrations/app/.\n" +
+        "The generated module will have an empty migrations list, which breaks\n" +
+        "`createAutoMigratingIdbClient` on a fresh database.\n" +
+        "Run `prisma-next-idb generate-baseline` first to create the initial migration.\n\n"
+    );
+  }
 
   // Emit the generated module. The head ref is derived inline.
   const outDir = dirname(outPath);
