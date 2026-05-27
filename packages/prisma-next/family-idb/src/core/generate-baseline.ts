@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import type { IdbMigrationPlanWithAuthoring } from "@prisma-next-idb/target-idb/migration";
 import { IdbMigrationPlanner } from "@prisma-next-idb/target-idb/migration";
 import { computeMigrationHash } from "@prisma-next/migration-tools/hash";
@@ -199,6 +199,22 @@ export async function generateBaseline(opts: GenerateBaselineOptions): Promise<n
   // The framework uses end-contract.json as the "from" snapshot when planning
   // the NEXT migration on top of this one.
   await writeFile(join(packageDir, "end-contract.json"), contractRaw, "utf-8");
+
+  // end-contract.d.ts — TypeScript declaration companion to end-contract.json.
+  // `prisma-next migration plan` copies this as `start-contract.d.ts` when
+  // planning the next migration; without it, `migration plan` throws ENOENT.
+  // The .d.ts lives at the same path stem as contract.json (contract.d.ts).
+  const contractDtsPath = contractPath.replace(/\.json$/i, ".d.ts");
+  try {
+    await copyFile(contractDtsPath, join(packageDir, "end-contract.d.ts"));
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+    process.stderr.write(
+      `Warning: contract.d.ts not found at ${contractDtsPath}.\n` +
+        "`prisma-next migration plan` will fail when generating the next migration.\n" +
+        "Run `prisma-next contract emit` first to generate contract.d.ts, then re-run generate-baseline.\n\n"
+    );
+  }
 
   process.stdout.write(
     `Generated baseline migration at migrations/app/${dirName}\n` +

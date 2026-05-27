@@ -106,6 +106,31 @@ describe("generateBaseline — happy path", () => {
     expect(existsSync(join(pkgDir, "end-contract.json"))).toBe(true);
   });
 
+  it("copies contract.d.ts to end-contract.d.ts when it exists alongside contract.json", async () => {
+    // Write a minimal contract.d.ts next to the contract.json the harness set up.
+    const contractDtsPath = join(cwd, "src", "lib", "prisma", "contract.d.ts");
+    await writeFile(contractDtsPath, "// generated contract types\nexport type StorageHash = string;\n", "utf-8");
+
+    await generateBaseline({ cwd });
+
+    const pkgDir = await findOnlyPackageDir(cwd);
+    expect(existsSync(join(pkgDir, "end-contract.d.ts"))).toBe(true);
+    const content = await readFile(join(pkgDir, "end-contract.d.ts"), "utf-8");
+    expect(content).toContain("generated contract types");
+  });
+
+  it("emits a warning but still succeeds when contract.d.ts is absent", async () => {
+    // No contract.d.ts in the default location — generate-baseline should warn but return 0.
+    const code = await generateBaseline({ cwd });
+    expect(code).toBe(0);
+    expect(capturedStderr).toContain("contract.d.ts not found");
+
+    const pkgDir = await findOnlyPackageDir(cwd);
+    // end-contract.d.ts is not written, but the other 4 files are still there.
+    expect(existsSync(join(pkgDir, "end-contract.d.ts"))).toBe(false);
+    expect(existsSync(join(pkgDir, "end-contract.json"))).toBe(true);
+  });
+
   it("uses a custom name slug when provided", async () => {
     await generateBaseline({ cwd, name: "init" });
 
