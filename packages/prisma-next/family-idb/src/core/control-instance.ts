@@ -8,50 +8,39 @@ import type {
   VerifyDatabaseResult,
   VerifyDatabaseSchemaResult,
 } from "@prisma-next/framework-components/control";
-import {
-  VERIFY_CODE_HASH_MISMATCH,
-  VERIFY_CODE_MARKER_MISSING,
-  VERIFY_CODE_TARGET_MISMATCH,
-} from "@prisma-next/framework-components/control";
-import { emptyManifest, markerToRecord } from "./manifest";
-import { extractManifestDriver } from "./manifest-driver";
-import type { IdbSchemaIR, IdbStoreIR } from "./schema-ir";
+import { APP_SPACE_ID, VERIFY_CODE_TARGET_MISMATCH } from "@prisma-next/framework-components/control";
+import type { IdbSchemaIR } from "./schema-ir";
 import { verifyIdbSchema } from "./schema-verify";
 import { validateContract } from "./validate";
 
-// IDB only ever has a single "app" space (no multi-tenancy).
-const APP_SPACE_ID = "app" as const;
+// ── Structured refusal helpers ────────────────────────────────────────────────
+// IndexedDB only exists in the browser; the CLI runs in Node.js. The control
+// plane's read/write methods therefore return structured failures rather
+// than reading from any kind of file-backed shadow.
+//
+// The refusal code shares a prefix (`IDB-CLI-`) so callers can branch on the
+// family without parsing the summary text.
 
-// ── Schema derivation ─────────────────────────────────────────────────────────
+const REFUSAL_CODE = "IDB-CLI-UNSUPPORTED" as const;
 
-function schemaFromContract(contract: ReturnType<typeof validateContract>): IdbSchemaIR {
-  const contractStores = (
-    contract.storage as {
-      stores: Record<
-        string,
-        {
-          keyPath: string;
-          autoIncrement?: boolean;
-          indexes?: Record<string, { keyPath: string; unique: boolean; multiEntry?: boolean }>;
-        }
-      >;
-    }
-  ).stores;
-
-  const stores: Record<string, IdbStoreIR> = {};
-  for (const [storeName, store] of Object.entries(contractStores)) {
-    stores[storeName] = {
-      keyPath: store.keyPath,
-      ...(store.autoIncrement !== undefined ? { autoIncrement: store.autoIncrement } : {}),
-      ...(store.indexes !== undefined && Object.keys(store.indexes).length > 0 ? { indexes: store.indexes } : {}),
-    };
-  }
-  return { stores };
+/**
+ * Single-string refusal message baked into `summary` because the framework
+ * `VerifyDatabaseResult` / `SignDatabaseResult` `meta` field is strict-shaped
+ * (`{ contractPath, configPath? }`) and doesn't accept extra explanation
+ * fields. The summary is the only free-form text field on every result.
+ */
+function refusalSummary(action: "verified" | "signed"): string {
+  return (
+    `IndexedDB cannot be ${action} from the CLI. ` +
+    "IndexedDB only exists in the browser; the CLI runs in Node.js, so there " +
+    "is no live database for it to inspect or update. Author migrations with " +
+    "`prisma-next migration new` / `migration plan`, validate the chain with " +
+    "`prisma-next-idb preflight`, and let `createAutoMigratingIdbClient` apply " +
+    "them the next time the app opens in a browser."
+  );
 }
 
 // ── exactOptionalPropertyTypes helpers ───────────────────────────────────────
-// The framework uses exactOptionalPropertyTypes:true, so we must never assign
-// `undefined` to a required-optional property. Use conditional spreads instead.
 
 function contractInfo(storageHash: string, profileHash: string | undefined) {
   return profileHash !== undefined ? ({ storageHash, profileHash } as const) : ({ storageHash } as const);
@@ -71,10 +60,19 @@ export type IdbControlFamilyInstance = ControlFamilyInstance<"idb", IdbSchemaIR>
 /**
  * Creates an IDB control family instance for the given control stack.
  *
- * IDB is a browser-only API, so all CLI control-plane operations read/write a
- * manifest JSON file on disk instead of connecting to a live database.
- * The caller must provide an {@link IdbManifestControlDriver} as the `driver`
- * parameter — see {@link IdbManifestControlDriverDescriptor}.
+ * **CLI surface (post-Phase 7.3) — refusals**: IndexedDB is a browser API,
+ * so the CLI cannot read or write the live database. Every method that
+ * would normally talk to a database (`verify`, `sign`, `readMarker`,
+ * `readAllMarkers`, `introspect`) returns a structured refusal pointing
+ * the user at the contract-space authoring + preflight workflow.
+ *
+ * The CLI-side `db init`, `db update`, and `db verify` commands therefore
+ * surface a uniform `IDB-CLI-UNSUPPORTED` envelope rather than silently
+ * succeeding against a file-backed shadow.
+ *
+ * **Active surface**: `deserializeContract` (pure) and `verifySchema` (pure
+ * function over an in-memory `IdbSchemaIR`) continue to work — neither
+ * needs a live database.
  *
  * @param _stack - The assembled control stack (unused; IDB has no adapter/extension layer).
  */
@@ -82,13 +80,13 @@ export function createIdbFamilyInstance(_stack: ControlStack<"idb", string>): Id
   return {
     familyId: "idb",
 
-    // ── deserializeContract ────────────────────────────────────────────────
+    // ── deserializeContract (active, pure) ─────────────────────────────────
 
     deserializeContract(contractJson: unknown): Contract {
       return validateContract(contractJson) as Contract;
     },
 
-    // ── verify ──────────────────────────────────────────────────────────────
+    // ── verify (CLI refusal) ───────────────────────────────────────────────
 
     async verify(options: {
       readonly driver: ControlDriverInstance<"idb", string>;
@@ -98,13 +96,10 @@ export function createIdbFamilyInstance(_stack: ControlStack<"idb", string>): Id
       readonly configPath?: string;
     }): Promise<VerifyDatabaseResult> {
       const start = Date.now();
-      const mDriver = extractManifestDriver(options.driver);
       const contract = validateContract(options.contract);
-
       const storageHash = (contract.storage as { storageHash: string }).storageHash;
       const profileHash = (contract as { profileHash?: string }).profileHash;
 
-      // Target ID check — IDB only supports the "idb" target.
       if (options.expectedTargetId !== "idb") {
         return {
           ok: false,
@@ -117,46 +112,18 @@ export function createIdbFamilyInstance(_stack: ControlStack<"idb", string>): Id
         };
       }
 
-      const manifest = await mDriver.readManifest();
-
-      if (!manifest?.marker) {
-        return {
-          ok: false,
-          code: VERIFY_CODE_MARKER_MISSING,
-          summary: "Manifest marker is missing — run `prisma-next db sign` first",
-          contract: contractInfo(storageHash, profileHash),
-          target: { expected: "idb", actual: "idb" },
-          meta: verifyMeta(options.contractPath, options.configPath),
-          timings: { total: Date.now() - start },
-        };
-      }
-
-      const markerHash = manifest.marker.storageHash;
-      if (markerHash !== storageHash) {
-        return {
-          ok: false,
-          code: VERIFY_CODE_HASH_MISMATCH,
-          summary: `Storage hash mismatch: contract has "${storageHash}", manifest has "${markerHash}"`,
-          contract: contractInfo(storageHash, profileHash),
-          marker: { storageHash: markerHash, profileHash: manifest.marker.profileHash },
-          target: { expected: "idb", actual: "idb" },
-          meta: verifyMeta(options.contractPath, options.configPath),
-          timings: { total: Date.now() - start },
-        };
-      }
-
       return {
-        ok: true,
-        summary: "Verification passed",
+        ok: false,
+        code: REFUSAL_CODE,
+        summary: refusalSummary("verified"),
         contract: contractInfo(storageHash, profileHash),
-        marker: { storageHash: markerHash, profileHash: manifest.marker.profileHash },
         target: { expected: "idb", actual: "idb" },
         meta: verifyMeta(options.contractPath, options.configPath),
         timings: { total: Date.now() - start },
       };
     },
 
-    // ── verifySchema ───────────────────────────────────────────────────────
+    // ── verifySchema (active, pure) ────────────────────────────────────────
 
     verifySchema(options: {
       readonly contract: unknown;
@@ -168,7 +135,7 @@ export function createIdbFamilyInstance(_stack: ControlStack<"idb", string>): Id
       return verifyIdbSchema(contract, options.schema, options.strict);
     },
 
-    // ── sign ─────────────────────────────────────────────────────────────────
+    // ── sign (CLI refusal) ──────────────────────────────────────────────────
 
     async sign(options: {
       readonly driver: ControlDriverInstance<"idb", string>;
@@ -177,111 +144,61 @@ export function createIdbFamilyInstance(_stack: ControlStack<"idb", string>): Id
       readonly configPath?: string;
     }): Promise<SignDatabaseResult> {
       const start = Date.now();
-      const mDriver = extractManifestDriver(options.driver);
       const contract = validateContract(options.contract);
-
       const storageHash = (contract.storage as { storageHash: string }).storageHash;
       const profileHash = (contract as { profileHash?: string }).profileHash ?? "";
 
-      const existing = await mDriver.readManifest();
-      const existingMarker = existing?.marker;
-
-      // CAS: no-op when hashes match.
-      if (existingMarker?.storageHash === storageHash && existingMarker?.profileHash === profileHash) {
-        return {
-          ok: true,
-          summary: "Manifest marker is already up-to-date",
-          contract: contractInfo(storageHash, profileHash),
-          target: { expected: "idb", actual: "idb" },
-          marker: { created: false, updated: false },
-          meta: signMeta(options.contractPath, options.configPath),
-          timings: { total: Date.now() - start },
-        };
-      }
-
-      const newMarker = {
-        storageHash,
-        profileHash,
-        updatedAt: new Date().toISOString(),
-        invariants: [] as readonly string[],
-        contractJson: null as unknown,
-        canonicalVersion: null as number | null,
-        appTag: null as string | null,
-        meta: {} as Record<string, unknown>,
-      };
-
-      await mDriver.writeManifest({
-        version: 1,
-        ...(existing?.idbVersion !== undefined ? { idbVersion: existing.idbVersion } : {}),
-        schema: schemaFromContract(contract),
-        marker: newMarker,
-      });
-
-      const created = !existingMarker;
-      const markerResult = existingMarker
-        ? ({
-            created: false,
-            updated: true,
-            previous: {
-              storageHash: existingMarker.storageHash,
-              profileHash: existingMarker.profileHash,
-            },
-          } as const)
-        : ({ created: true, updated: false } as const);
-
       return {
-        ok: true,
-        summary: created ? "Manifest marker created" : "Manifest marker updated",
+        ok: false,
+        summary: refusalSummary("signed"),
         contract: contractInfo(storageHash, profileHash),
         target: { expected: "idb", actual: "idb" },
-        marker: markerResult,
+        // `SignDatabaseResult.marker` is required; carry an "untouched"
+        // record so callers don't crash on null-deref.
+        marker: { created: false, updated: false },
         meta: signMeta(options.contractPath, options.configPath),
         timings: { total: Date.now() - start },
       };
     },
 
-    // ── readMarker ─────────────────────────────────────────────────────────
+    // ── readMarker / readAllMarkers (CLI refusal: return null/empty) ───────
+    // The framework typing requires `ContractMarkerRecord | null` here, not a
+    // structured envelope. Returning `null` is the existing semantics for
+    // "no marker on file"; we keep that contract so the CLI's downstream
+    // logic (e.g. db init's "create new marker" path) treats IDB as
+    // perpetually empty rather than erroring out of band.
 
-    async readMarker(options: {
+    async readMarker(_options: {
       readonly driver: ControlDriverInstance<"idb", string>;
       readonly space: string;
     }): Promise<ContractMarkerRecord | null> {
-      if (options.space !== APP_SPACE_ID) {
-        // IDB only has a single "app" space.
-        return null;
-      }
-      const mDriver = extractManifestDriver(options.driver);
-      const manifest = await mDriver.readManifest();
-      if (!manifest?.marker) return null;
-      return markerToRecord(manifest.marker);
+      return null;
     },
 
-    // ── readAllMarkers ─────────────────────────────────────────────────────
-
-    async readAllMarkers(options: {
+    async readAllMarkers(_options: {
       readonly driver: ControlDriverInstance<"idb", string>;
     }): Promise<ReadonlyMap<string, ContractMarkerRecord>> {
-      const mDriver = extractManifestDriver(options.driver);
-      const manifest = await mDriver.readManifest();
-      if (!manifest?.marker) return new Map();
-      return new Map([[APP_SPACE_ID, markerToRecord(manifest.marker)]]);
+      return new Map<string, ContractMarkerRecord>();
     },
 
-    // ── introspect ─────────────────────────────────────────────────────────
+    // ── introspect (CLI refusal: return empty schema) ──────────────────────
+    // The framework typing requires `IdbSchemaIR` (not a result envelope), so
+    // we return an empty schema. The structural refusal is communicated via
+    // the sibling `verify`/`sign` methods that the CLI actually surfaces to
+    // the user when running `db init` / `db update` / `db verify` against
+    // an IDB project.
 
-    async introspect(options: {
+    async introspect(_options: {
       readonly driver: ControlDriverInstance<"idb", string>;
       readonly contract?: unknown;
     }): Promise<IdbSchemaIR> {
-      const mDriver = extractManifestDriver(options.driver);
-      const manifest = await mDriver.readManifest();
-      return manifest?.schema ?? emptyManifest().schema;
+      return { stores: {} };
     },
   };
 }
 
-export type { ControlDriverInstance, SignDatabaseResult, VerifyDatabaseResult, VerifyDatabaseSchemaResult };
+// Suppress unused-import warning until we have a use case.
+void APP_SPACE_ID;
 
+export type { ControlDriverInstance, SignDatabaseResult, VerifyDatabaseResult, VerifyDatabaseSchemaResult };
 export type { IdbSchemaIR } from "./schema-ir";
-import { IdbManifestControlDriverDescriptor } from "./manifest-driver";
-export { IdbManifestControlDriverDescriptor };

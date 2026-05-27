@@ -5,11 +5,14 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    "./control": "./dist/control.mjs",
-    "./pack": "./dist/pack.mjs",
-    "./contract-ts": "./dist/contract-ts.mjs",
-    "./config-types": "./dist/config-types.mjs",
+    "./control": "./dist/exports/control.mjs",
+    "./pack": "./dist/exports/pack.mjs",
+    "./contract-ts": "./dist/exports/contract-ts.mjs",
+    "./config-types": "./dist/exports/config-types.mjs",
     "./package.json": "./package.json"
+  },
+  "bin": {
+    "prisma-next-idb": "./dist/bin/prisma-next-idb.mjs"
   },
   "scripts": {
     "build": "tsdown",
@@ -24,7 +27,9 @@
     "@prisma-next/contract": "^0.11.0",
     "@prisma-next/utils": "^0.11.0",
     "@prisma-next/framework-components": "^0.11.0",
+    "@prisma-next/migration-tools": "^0.11.0",
     "@prisma-next-idb/target-idb": "workspace:*",
+    "fake-indexeddb": "^6.2.5",
     "pathe": "^2.0.3"
   },
   "devDependencies": {

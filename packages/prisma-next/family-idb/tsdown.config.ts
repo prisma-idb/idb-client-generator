@@ -1,7 +1,13 @@
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
-  entry: ["src/exports/pack.ts", "src/exports/control.ts", "src/exports/contract-ts.ts", "src/exports/config-types.ts"],
+  entry: [
+    "src/exports/pack.ts",
+    "src/exports/control.ts",
+    "src/exports/contract-ts.ts",
+    "src/exports/config-types.ts",
+    "src/bin/prisma-next-idb.ts",
+  ],
   format: ["esm"],
   dts: {
     enabled: true,
