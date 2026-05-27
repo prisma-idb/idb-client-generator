@@ -1,6 +1,6 @@
 ## Status
 
-_Last reviewed: 2026-05-26 — Phase 6.3 done. See ["Review findings (2026-05-25)"](#review-findings-2026-05-25) for first-round audit notes (issues #1-#10) and ["Second-round review (2026-05-25, vendor cross-check)"](#second-round-review-2026-05-25-vendor-cross-check) for deeper audit against vendor reference (issues #11-#16). All issues #1-16 resolved. Known gap: `.where()` before write terminals not compile-time enforced (deferred post-6.2)._
+_Last reviewed: 2026-05-27 — Phase 7 done (migration package layer rewrite). See [`plans/`](plans/) for the per-phase plan docs (7.1–7.8). Phase 7 absorbs the architectural feedback from [`FEEDBACKS.md`](FEEDBACKS.md): manifest deleted, planner moved to design-time, browser walks `ContractSpace.migrations`, safe-default policy, space-keyed marker, `versionchange` handler, new `prisma-next-idb` CLI (`generate-contract-space`, `preflight`). Earlier review findings (issues #1-16, 2026-05-25) still resolved._
 
 | Phase | Description                                                                                       | Status                                                                                                                                                                                       |
 | ----- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -17,22 +17,30 @@ _Last reviewed: 2026-05-26 — Phase 6.3 done. See ["Review findings (2026-05-25
 | 6.5   | Include refinement (where/orderBy/take inside include)                                            | ❌ Not started                                                                                                                                                                               |
 | 6.6   | Aggregate / groupBy                                                                               | ❌ Not started                                                                                                                                                                               |
 | 6.7   | Select projection                                                                                 | ❌ Not started                                                                                                                                                                               |
-| 7     | Outbox sync                                                                                       | ❌ Not started                                                                                                                                                                               |
-| 8     | `contract infer` — infer IDB schema from live manifest                                            | ❌ Not started                                                                                                                                                                               |
+| 7     | Migration package layer rewrite (Group A + B feedback)                                            | ✅ Done — see [plans/](plans/) for the 8 per-phase docs (7.1–7.8)                                                                                                                            |
+| 7.1   | Foundation: `IdbMigration` base + `MigrationCLI` shim                                             | ✅ Done                                                                                                                                                                                      |
+| 7.2   | Planner refit: class-based `migration.ts` scaffold                                                | ✅ Done                                                                                                                                                                                      |
+| 7.3   | Runner refit + manifest demolition + control-instance refusal                                     | ✅ Done                                                                                                                                                                                      |
+| 7.4   | Browser runtime refit: walk `contractSpace.migrations`; safe policy; `versionchange`              | ✅ Done                                                                                                                                                                                      |
+| 7.5   | ContractSpace codegen (`prisma-next-idb generate-contract-space`)                                 | ✅ Done                                                                                                                                                                                      |
+| 7.6   | Migration preflight (`prisma-next-idb preflight`)                                                 | ✅ Done                                                                                                                                                                                      |
+| 7.7   | Migrate `apps/prisma-next-usage`                                                                  | ✅ Done — manifest deleted; baseline migration package on disk                                                                                                                               |
+| 7.8   | Cleanups closure + memory + this status                                                           | ✅ Done                                                                                                                                                                                      |
+| 8     | Outbox sync                                                                                       | ❌ Not started (was previously Phase 7; renumbered after migration-rewrite landed)                                                                                                           |
 
-### Test status (run 2026-05-26, after Phase 6.2)
+### Test status (run 2026-05-27, after Phase 7)
 
-| Package             | Tests pass | Tests fail | Notes                                                                                                  |
-| ------------------- | ---------: | ---------: | ------------------------------------------------------------------------------------------------------ |
-| `target-idb`        |         68 |          0 | +1 renderer regression for #14, +6 index-mutation regressions for #15                                  |
-| `driver-idb`        |         49 |          0 | +10 scan-write tests (put-merged and delete modes) for Phase 6.2                                       |
-| `adapter-idb`       |         29 |          0 | +18 filter-AST tests (operators, combinators, shorthand lift) for Phase 6.1                            |
-| `runtime-idb`       |         21 |          0 | Middleware tests updated to use `familyId` (Issue #16)                                                 |
-| `client-idb`        |         61 |          0 | +25 new tests for Phase 6.2 (update, updateAll/Count, upsert, createAll/Count, deleteAll/Count, count) |
-| `family-idb`        |         60 |          0 | Issue #4 fixed — missing stores now always fail                                                        |
-| `prisma-next-usage` |         61 |          0 | Playwright: +43 Phase 6.2 specs (9 new modelQueries files)                                             |
+| Package             | Tests pass | Tests fail | Notes                                                                                               |
+| ------------------- | ---------: | ---------: | --------------------------------------------------------------------------------------------------- |
+| `target-idb`        |         81 |          0 | +7 IdbMigration, +5 MigrationCLI (Phase 7.1); planner renderer updated for class-based output (7.2) |
+| `driver-idb`        |         57 |          0 | `versionchange` handler + space-keyed marker read fallback (Phases 7.3/7.4)                         |
+| `adapter-idb`       |         29 |          0 | unchanged                                                                                           |
+| `runtime-idb`       |         21 |          0 | unchanged                                                                                           |
+| `client-idb`        |         66 |          0 | `auto-migrate-evolution` rewritten for `contractSpace` walking + destructive-refuse default (7.4)   |
+| `family-idb`        |         52 |          0 | manifest tests removed (7.3); +6 codegen (7.5) + +4 preflight (7.6); control-instance refusal tests |
+| `prisma-next-usage` |         65 |          0 | Playwright unchanged; full app stack works end-to-end on `contractSpace` (7.7)                      |
 
-**Total: 349/349 tests passing (288 vitest + 61 Playwright).**
+**Total: 371/371 tests passing (306 vitest + 65 Playwright).**
 
 [Issue #1]: #issue-1--migrationrunner-missing-executeacrossspaces-blocks-cli-db-update
 [Issue #2]: #issue-2--sign-does-not-populate-manifestschema-from-contract

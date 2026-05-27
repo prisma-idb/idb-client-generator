@@ -372,6 +372,12 @@ importers:
       '@prisma-next-idb/target-idb':
         specifier: workspace:*
         version: link:../../packages/prisma-next/target-idb
+      '@prisma-next/contract':
+        specifier: ^0.11.0
+        version: 0.11.0
+      '@prisma-next/migration-tools':
+        specifier: ^0.11.0
+        version: 0.11.0
     devDependencies:
       '@fontsource-variable/inter':
         specifier: ^5.2.8
@@ -684,9 +690,15 @@ importers:
       '@prisma-next/framework-components':
         specifier: ^0.11.0
         version: 0.11.0
+      '@prisma-next/migration-tools':
+        specifier: ^0.11.0
+        version: 0.11.0
       '@prisma-next/utils':
         specifier: ^0.11.0
         version: 0.11.0
+      fake-indexeddb:
+        specifier: ^6.2.5
+        version: 6.2.5
       pathe:
         specifier: ^2.0.3
         version: 2.0.3
@@ -737,16 +749,37 @@ importers:
       '@prisma-next/framework-components':
         specifier: ^0.11.0
         version: 0.11.0
+      '@prisma-next/migration-tools':
+        specifier: ^0.11.0
+        version: 0.11.0
+      pathe:
+        specifier: ^2.0.3
+        version: 2.0.3
+    devDependencies:
       fake-indexeddb:
         specifier: ^6.2.5
         version: 6.2.5
-    devDependencies:
       tsdown:
         specifier: ^0.22.0
         version: 0.22.0(tsx@4.21.0)(typescript@6.0.3)
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
+      vitest:
+        specifier: ^4.1.5
+        version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.12.2)(msw@2.13.4(@types/node@24.12.2)(typescript@6.0.3))(vite@8.0.14(@types/node@24.12.2)(esbuild@0.28.0)(jiti@2.6.1)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  tests/prisma-next-idb-cli:
+    devDependencies:
+      '@prisma-next-idb/family-idb':
+        specifier: workspace:*
+        version: link:../../packages/prisma-next/family-idb
+      '@types/node':
+        specifier: ^24.10.9
+        version: 24.12.2
+      execa:
+        specifier: ^9.6.1
+        version: 9.6.1
       vitest:
         specifier: ^4.1.5
         version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.12.2)(msw@2.13.4(@types/node@24.12.2)(typescript@6.0.3))(vite@8.0.14(@types/node@24.12.2)(esbuild@0.28.0)(jiti@2.6.1)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
