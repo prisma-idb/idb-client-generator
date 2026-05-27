@@ -8,9 +8,6 @@
   import { Textarea } from "$lib/components/ui/textarea";
   import { and, not, or } from "@prisma-next-idb/client-idb/orm";
   import { getDb, resetDb, resolveDbName } from "$lib/prisma/db";
-  import type { PageData } from "./$types";
-
-  let { data }: { data: PageData } = $props();
 
   // The ORM client surface — bound to `db.orm` once loaded so query
   // expressions in the textarea can address `orm.users.all()`, etc.
@@ -28,7 +25,7 @@
 
   onMount(async () => {
     try {
-      const db = await getDb(data.contract);
+      const db = await getDb();
       orm = db.orm as Record<string, unknown>;
       transaction = db.withTransaction.bind(db) as typeof transaction;
     } catch (err) {
@@ -90,7 +87,7 @@
     running = true;
     try {
       await resetDb();
-      const db = await getDb(data.contract);
+      const db = await getDb();
       orm = db.orm as Record<string, unknown>;
       transaction = db.withTransaction.bind(db) as typeof transaction;
       resultKind = "idle";
