@@ -15,14 +15,32 @@ export const MARKER_STORE_NAME = "_prisma_next_marker";
 
 /**
  * Shape of a marker record stored in {@link MARKER_STORE_NAME}.
+ *
+ * Mirrors the framework's `ContractMarkerRecord` plus the `space` keying
+ * field. Writer (target-idb migration runner, Phase 7.3) keys records by
+ * `space` (`"app"` for the single app space) so the storage layout doesn't
+ * have to be migrated later if IDB extensions land.
+ *
+ * `updatedAt` is a JavaScript `Date` (not an ISO string) because IndexedDB
+ * serialises Dates natively via structured-clone.
+ *
+ * Non-key fields are optional for forward compatibility with future contract
+ * versions that may add or remove marker metadata.
  */
 export interface IdbMarkerRecord {
+  /** Contract-space identifier (`"app"` for the single app space). */
+  readonly space?: string;
   /** The `storageHash` from the contract that was last signed. */
   readonly storageHash: string;
   /** The `profileHash` from the contract that was last signed. */
-  readonly profileHash: string;
-  /** ISO-8601 timestamp of when the marker was written. */
-  readonly updatedAt: string;
+  readonly profileHash?: string;
+  /** Date the marker was last written. */
+  readonly updatedAt?: Date | string;
+  readonly invariants?: readonly string[];
+  readonly contractJson?: unknown;
+  readonly canonicalVersion?: number | null;
+  readonly appTag?: string | null;
+  readonly meta?: Record<string, unknown>;
 }
 
 /**

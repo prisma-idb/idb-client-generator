@@ -40,17 +40,13 @@ export class IdbRuntimeDriverInstance implements RuntimeDriverInstance<"idb", "i
     return new Promise((resolve, reject) => {
       const tx = db.transaction(MARKER_STORE_NAME, "readonly");
       const store = tx.objectStore(MARKER_STORE_NAME);
-      const req = store.get("default");
 
-      req.onsuccess = () => {
-        const record = req.result;
-        if (record === undefined || record === null) {
-          resolve(null);
-          return;
-        }
-        resolve(record as IdbMarkerRecord);
+      const appReq = store.get("app");
+      appReq.onsuccess = () => {
+        const result = appReq.result as IdbMarkerRecord | undefined;
+        resolve(result ?? null);
       };
-      req.onerror = () => reject(req.error);
+      appReq.onerror = () => reject(appReq.error);
 
       tx.oncomplete = () => {
         /* resolve already called */
@@ -127,7 +123,17 @@ function openIdbDatabase(dbName: string, version?: number): Promise<IDBDatabase>
     req.onupgradeneeded = handleUpgradeNeeded;
 
     req.onsuccess = () => {
-      resolve(req.result);
+      const db = req.result;
+      // Multi-tab safety: when another tab opens this database at a higher
+      // version, the IDB spec fires `versionchange` on every other open
+      // connection. If we don't close, the new tab's open request hangs
+      // indefinitely on `blocked`. Closing here releases the lock; the
+      // application layer can listen for `db.onclose` to surface a
+      // "please reload" toast if it cares.
+      db.onversionchange = () => {
+        db.close();
+      };
+      resolve(db);
     };
   });
 }
