@@ -6,8 +6,15 @@ import type { IdbIndexDefinition, IdbStoreDefinition } from "./idb-contract-type
 /** Name of the internal marker store. Must match {@link MARKER_STORE_NAME} in driver-idb. */
 export const IDB_MARKER_STORE = "_prisma_next_marker";
 
-/** Default keyPath for the marker store (single string key). */
-const MARKER_KEYPATH = "id";
+/**
+ * Default keyPath for the marker store.
+ *
+ * Keyed by `space` (per-contract-space, defaulting to `"app"`) rather than
+ * the legacy `"id"`/`"default"` shape so the storage layout doesn't need to
+ * be migrated later if IDB grows extension support. See ADR 021 +
+ * feedback issue #5.
+ */
+const MARKER_KEYPATH = "space";
 
 // ── Op kinds ──────────────────────────────────────────────────────────────────
 

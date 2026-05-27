@@ -54,78 +54,104 @@ function extractStorageHash(contract: Contract | null | unknown): string {
   return typeof hash === "string" ? hash : "unknown";
 }
 
-// ── TypeScript scaffold template ──────────────────────────────────────────────
+// ── TypeScript scaffold renderer ──────────────────────────────────────────────
 
-const EMPTY_MIGRATION_STUB = `\
-import type { IdbMigration } from "@prisma-next-idb/target-idb/migration";
+/**
+ * Render a class-based `migration.ts` scaffold from a planner-derived ops
+ * list plus the `describe()` identity bookends. The output is the
+ * canonical authoring surface — identical in shape to vendor's Postgres
+ * `renderCallsToTypeScript` (shebang → imports → class → describe →
+ * operations → MigrationCLI.run).
+ *
+ * @internal
+ */
+function renderMigrationTs(input: {
+  readonly fromHash: string | null;
+  readonly toHash: string;
+  readonly ops: readonly IdbDdlOp[];
+}): string {
+  const { fromHash, toHash, ops } = input;
 
-const migration: IdbMigration = {
-  operations: [
-    // Add IDB DDL operations here, e.g.:
-    // createObjectStoreOp("users", { keyPath: "id" }),
-    // createIndexOp("users", "email_idx", { keyPath: "email", unique: true }),
-  ],
-};
+  const factoryImports = collectFactoryImports(ops);
+  const importList = ["Migration", "MigrationCLI", ...factoryImports].join(", ");
 
-export default migration;
-`;
+  const operationsBlock =
+    ops.length === 0
+      ? [
+          "    return [",
+          "      // Add IDB DDL operations here (createObjectStoreOp, createIndexOp, ...).",
+          "    ];",
+        ].join("\n")
+      : ["    return [", ops.map((op) => `      ${renderOpCall(op)},`).join("\n"), "    ];"].join("\n");
 
-function renderDdlOpsTs(ops: readonly IdbDdlOp[]): string {
-  if (ops.length === 0) return EMPTY_MIGRATION_STUB;
+  return [
+    "#!/usr/bin/env -S npx tsx",
+    `import { ${importList} } from "@prisma-next-idb/target-idb/migration";`,
+    "",
+    "export default class M extends Migration {",
+    "  override describe() {",
+    "    return {",
+    `      from: ${JSON.stringify(fromHash)},`,
+    `      to: ${JSON.stringify(toHash)},`,
+    "    };",
+    "  }",
+    "",
+    "  override get operations() {",
+    operationsBlock,
+    "  }",
+    "}",
+    "",
+    "MigrationCLI.run(import.meta.url, M);",
+    "",
+  ].join("\n");
+}
 
-  const imports = new Set<string>();
-  const lines: string[] = [];
-
+function collectFactoryImports(ops: readonly IdbDdlOp[]): string[] {
+  const names = new Set<string>();
   for (const op of ops) {
     switch (op.kind) {
-      case "createObjectStore": {
-        imports.add("createObjectStoreOp");
-        const optsParts = [`keyPath: "${op.def.keyPath}"`];
-        if (op.def.autoIncrement !== undefined) {
-          optsParts.push(`autoIncrement: ${String(op.def.autoIncrement)}`);
-        }
-        lines.push(`    createObjectStoreOp("${op.storeName}", { ${optsParts.join(", ")} }),`);
+      case "createObjectStore":
+        names.add("createObjectStoreOp");
         break;
-      }
-      case "dropObjectStore": {
-        imports.add("dropObjectStoreOp");
-        lines.push(`    dropObjectStoreOp("${op.storeName}"),`);
+      case "dropObjectStore":
+        names.add("dropObjectStoreOp");
         break;
-      }
-      case "createIndex": {
-        imports.add("createIndexOp");
-        // IDB defaults `unique` to false when absent; the IR sometimes omits it
-        // after canonicalisation. Default to false in the rendered TS so the
-        // output is always valid.
-        const unique = op.def.unique ?? false;
-        const optsParts = [`keyPath: "${op.def.keyPath}"`, `unique: ${String(unique)}`];
-        if (op.def.multiEntry !== undefined) {
-          optsParts.push(`multiEntry: ${String(op.def.multiEntry)}`);
-        }
-        lines.push(`    createIndexOp("${op.storeName}", "${op.indexName}", { ${optsParts.join(", ")} }),`);
+      case "createIndex":
+        names.add("createIndexOp");
         break;
-      }
-      case "dropIndex": {
-        imports.add("dropIndexOp");
-        lines.push(`    dropIndexOp("${op.storeName}", "${op.indexName}"),`);
+      case "dropIndex":
+        names.add("dropIndexOp");
         break;
-      }
     }
   }
+  return [...names].sort();
+}
 
-  const importList = [...imports].sort().join(", ");
-  return `\
-import { ${importList} } from "@prisma-next-idb/target-idb/migration";
-import type { IdbMigration } from "@prisma-next-idb/target-idb/migration";
-
-const migration: IdbMigration = {
-  operations: [
-${lines.join("\n")}
-  ],
-};
-
-export default migration;
-`;
+function renderOpCall(op: IdbDdlOp): string {
+  switch (op.kind) {
+    case "createObjectStore": {
+      const optsParts = [`keyPath: ${JSON.stringify(op.def.keyPath)}`];
+      if (op.def.autoIncrement !== undefined) {
+        optsParts.push(`autoIncrement: ${op.def.autoIncrement}`);
+      }
+      return `createObjectStoreOp(${JSON.stringify(op.storeName)}, { ${optsParts.join(", ")} })`;
+    }
+    case "dropObjectStore":
+      return `dropObjectStoreOp(${JSON.stringify(op.storeName)})`;
+    case "createIndex": {
+      // IDB defaults `unique` to false when absent; the IR sometimes omits it
+      // after canonicalisation. Default to false in the rendered TS so the
+      // output is always valid.
+      const unique = op.def.unique ?? false;
+      const optsParts = [`keyPath: ${JSON.stringify(op.def.keyPath)}`, `unique: ${unique}`];
+      if (op.def.multiEntry !== undefined) {
+        optsParts.push(`multiEntry: ${op.def.multiEntry}`);
+      }
+      return `createIndexOp(${JSON.stringify(op.storeName)}, ${JSON.stringify(op.indexName)}, { ${optsParts.join(", ")} })`;
+    }
+    case "dropIndex":
+      return `dropIndexOp(${JSON.stringify(op.storeName)}, ${JSON.stringify(op.indexName)})`;
+  }
 }
 
 // ── Planner ───────────────────────────────────────────────────────────────────
@@ -136,10 +162,12 @@ export default migration;
  * `plan()` converts `fromContract` and `contract` into `IdbSchemaDiffInput`s,
  * diffs them using {@link diffIdbSchema}, and returns an
  * {@link IdbMigrationPlanWithAuthoring} that can be executed by
- * {@link IdbMigrationRunner} or rendered to a TypeScript migration file.
+ * {@link IdbMigrationRunner} or rendered to a TypeScript migration file via
+ * the class-based scaffold matching vendor's Postgres/Mongo authoring surface.
  *
  * The planner does NOT apply the policy — it always returns the full op set.
- * Policy enforcement happens in the runner.
+ * Policy enforcement happens in the runner (and in the browser-side
+ * auto-migrate, per Phase 7.4).
  */
 export class IdbMigrationPlanner implements MigrationPlanner<"idb", "idb"> {
   plan(options: {
@@ -190,31 +218,32 @@ export class IdbMigrationPlanner implements MigrationPlanner<"idb", "idb"> {
       ops.unshift(createMarkerStoreOp());
     }
 
-    const fromHash = extractStorageHash(fromContract);
+    const fromHash = fromContract !== null ? extractStorageHash(fromContract) : null;
     const toHash = extractStorageHash(contract);
 
     const plan: IdbMigrationPlanWithAuthoring = {
       targetId: "idb",
       // `null` means "no origin validation" — the runner skips the origin check.
-      origin: fromContract !== null ? { storageHash: fromHash } : null,
+      origin: fromHash !== null ? { storageHash: fromHash } : null,
       destination: { storageHash: toHash },
       operations: ops,
       renderTypeScript() {
-        return renderDdlOpsTs(ops);
+        return renderMigrationTs({ fromHash, toHash, ops });
       },
     };
 
     return { kind: "success", plan };
   }
 
-  emptyMigration(_context: MigrationScaffoldContext, _spaceId: string): MigrationPlanWithAuthoringSurface {
+  emptyMigration(context: MigrationScaffoldContext, _spaceId: string): MigrationPlanWithAuthoringSurface {
+    const { fromHash, toHash } = context;
     return {
       targetId: "idb",
-      origin: null,
-      destination: { storageHash: "pending" },
+      origin: fromHash !== null ? { storageHash: fromHash } : null,
+      destination: { storageHash: toHash },
       operations: [],
       renderTypeScript() {
-        return EMPTY_MIGRATION_STUB;
+        return renderMigrationTs({ fromHash, toHash, ops: [] });
       },
     };
   }

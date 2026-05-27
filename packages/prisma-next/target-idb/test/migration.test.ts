@@ -355,7 +355,7 @@ describe("IdbMigrationPlanner", () => {
     expect(result.kind).toBe("failure");
   });
 
-  it("renderTypeScript() returns non-empty source for a plan with ops", () => {
+  it("renderTypeScript() emits a class-based scaffold with MigrationCLI shim", () => {
     const contract = { storage: { storageHash: "x", stores: { users: { keyPath: "id" } } } };
     const result = planner.plan({
       contract,
@@ -367,8 +367,14 @@ describe("IdbMigrationPlanner", () => {
     });
     if (result.kind !== "success") throw new Error("expected success");
     const src = result.plan.renderTypeScript();
+    expect(src).toContain("export default class M extends Migration");
+    expect(src).toContain("override describe()");
+    expect(src).toContain("override get operations()");
+    expect(src).toContain("MigrationCLI.run(import.meta.url, M)");
     expect(src).toContain("createObjectStoreOp");
     expect(src).toContain("users");
+    expect(src).toContain('to: "x"');
+    expect(src).toContain("from: null");
   });
 
   it("renderTypeScript() defaults missing unique to false (regression)", () => {
@@ -404,7 +410,17 @@ describe("IdbMigrationPlanner", () => {
   it("emptyMigration() returns a stub plan with no ops", () => {
     const plan = planner.emptyMigration({ packageDir: "/tmp", fromHash: null, toHash: "x" }, "app");
     expect(plan.operations).toHaveLength(0);
-    expect(plan.renderTypeScript()).toContain("IdbMigration");
+    const src = plan.renderTypeScript();
+    expect(src).toContain("export default class M extends Migration");
+    expect(src).toContain("Add IDB DDL operations here");
+    expect(src).toContain("MigrationCLI.run(import.meta.url, M)");
+  });
+
+  it("emptyMigration() threads fromHash into describe()", () => {
+    const plan = planner.emptyMigration({ packageDir: "/tmp", fromHash: "sha256:prev", toHash: "sha256:next" }, "app");
+    const src = plan.renderTypeScript();
+    expect(src).toContain('from: "sha256:prev"');
+    expect(src).toContain('to: "sha256:next"');
   });
 });
 
