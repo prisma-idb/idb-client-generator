@@ -56,5 +56,10 @@ export const contract = defineContract({
         author: { to: "User", cardinality: "N:1", on: { local: ["authorId"], target: ["id"] } },
       },
     },
+    RandomStore: {
+      store: "random_store",
+      key: "id",
+      fields: { id: "String" },
+    },
   },
 });

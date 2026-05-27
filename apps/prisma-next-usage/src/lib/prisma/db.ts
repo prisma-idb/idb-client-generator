@@ -1,6 +1,5 @@
 import { createAutoMigratingIdbClient } from "@prisma-next-idb/client-idb/client-auto";
-import type { IdbContract } from "@prisma-next-idb/client-idb/orm";
-import type { ManifestLike } from "@prisma-next-idb/client-idb/client-auto";
+import { contractSpace } from "./contract-space.generated";
 
 const DEFAULT_DB_NAME = "prisma-next-usage";
 
@@ -26,16 +25,12 @@ export function resolveDbName(): string {
  * Returns the singleton IDB client for the resolved `dbName`, running
  * the auto-migration on first use. Caches by db name so the same page
  * load can switch databases via reset() below.
- *
- * Pass `manifest` when the server can provide `prisma-idb.manifest.json`
- * (e.g. via a page loader). When omitted, the runtime introspects the
- * live database to discover its current schema.
  */
-export async function getDb(contract: IdbContract, manifest?: ManifestLike): Promise<IdbClient> {
+export async function getDb(): Promise<IdbClient> {
   const dbName = resolveDbName();
   if (_client && _clientDbName === dbName) return _client;
   if (_client) await _client.close();
-  _client = await createAutoMigratingIdbClient({ contract, dbName, manifest });
+  _client = await createAutoMigratingIdbClient({ contractSpace, dbName });
   _clientDbName = dbName;
   return _client;
 }

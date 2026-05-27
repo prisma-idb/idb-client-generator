@@ -1,0 +1,12 @@
+[
+  {
+    "kind": "createObjectStore",
+    "id": "object-store.random_store.create",
+    "label": "Create object store \"random_store\"",
+    "operationClass": "additive",
+    "storeName": "random_store",
+    "def": {
+      "keyPath": "id"
+    }
+  }
+]

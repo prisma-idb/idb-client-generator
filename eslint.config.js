@@ -18,12 +18,14 @@ export default defineConfig([
   // reproducibility but shouldn't be linted (they use `{}` etc. by design).
   {
     ignores: [
+      // contract emit artifacts (contract.json + contract.d.ts)
       "**/src/lib/prisma/contract.d.ts",
       "**/src/lib/prisma/contract.json",
-      "**/migrations/**/end-contract.d.ts",
-      "**/migrations/**/end-contract.json",
-      "**/migrations/**/migration.json",
-      "**/migrations/**/ops.json",
+      // migration package artifacts — all *.d.ts and *.json files inside
+      // migrations/<space>/<pkg>/; migration.ts is intentionally left lintable
+      // since it's the human-editable scaffold.
+      "**/migrations/**/*.d.ts",
+      "**/migrations/**/*.json",
     ],
   },
   js.configs.recommended,

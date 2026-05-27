@@ -11,7 +11,7 @@ import type {
   StorageHashBase,
 } from "@prisma-next/contract/types";
 
-export type StorageHash = StorageHashBase<"sha256:9a439471a6c17853ccf264236b1ef6a4ab268c165938886dd63fab2309eeeff8">;
+export type StorageHash = StorageHashBase<"sha256:c1ad80d3bd2f9f5db48c5126fe1257ba9817ddc6ba0a8af9453e39f17d76dd30">;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash = ProfileHashBase<"sha256:9c3dc53697717de6a430cccc6a5b4738f956c513b7997012addca5048dfaa743">;
 
@@ -28,7 +28,6 @@ export type FieldOutputTypes = {
     readonly published: CodecTypes["idb/bool@1"]["output"];
     readonly publishedAt: CodecTypes["idb/date@1"]["output"] | null;
   };
-  readonly RandomStore: { readonly id: CodecTypes["idb/string@1"]["output"] };
   readonly User: {
     readonly id: CodecTypes["idb/string@1"]["output"];
     readonly name: CodecTypes["idb/string@1"]["output"];
@@ -49,7 +48,6 @@ export type FieldInputTypes = {
     readonly published: CodecTypes["idb/bool@1"]["input"];
     readonly publishedAt: CodecTypes["idb/date@1"]["input"] | null;
   };
-  readonly RandomStore: { readonly id: CodecTypes["idb/string@1"]["input"] };
   readonly User: {
     readonly id: CodecTypes["idb/string@1"]["input"];
     readonly name: CodecTypes["idb/string@1"]["input"];
@@ -71,7 +69,6 @@ type ContractBase = ContractType<
           readonly byAuthorId: { readonly keyPath: "authorId"; readonly unique: false };
         };
       };
-      readonly random_store: { readonly keyPath: "id"; readonly indexes: Record<string, never> };
       readonly users: {
         readonly keyPath: "id";
         readonly indexes: {
@@ -126,16 +123,6 @@ type ContractBase = ContractType<
       };
       readonly storage: { readonly storeName: "posts"; readonly keyPath: "id" };
     };
-    readonly RandomStore: {
-      readonly fields: {
-        readonly id: {
-          readonly nullable: false;
-          readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
-        };
-      };
-      readonly relations: Record<string, never>;
-      readonly storage: { readonly storeName: "random_store"; readonly keyPath: "id" };
-    };
     readonly User: {
       readonly fields: {
         readonly id: {
@@ -174,11 +161,7 @@ type ContractBase = ContractType<
 > & {
   readonly target: "idb";
   readonly targetFamily: "idb";
-  readonly roots: {
-    readonly users: "User";
-    readonly posts: "Post";
-    readonly random_store: "RandomStore";
-  };
+  readonly roots: { readonly users: "User"; readonly posts: "Post" };
   readonly capabilities: {
     readonly idb: {
       readonly compoundKeys: false;

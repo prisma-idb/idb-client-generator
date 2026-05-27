@@ -5,7 +5,6 @@
   "profileHash": "sha256:9c3dc53697717de6a430cccc6a5b4738f956c513b7997012addca5048dfaa743",
   "roots": {
     "posts": "Post",
-    "random_store": "RandomStore",
     "users": "User"
   },
   "models": {
@@ -76,22 +75,6 @@
         "storeName": "posts"
       }
     },
-    "RandomStore": {
-      "fields": {
-        "id": {
-          "nullable": false,
-          "type": {
-            "codecId": "idb/string@1",
-            "kind": "scalar"
-          }
-        }
-      },
-      "relations": {},
-      "storage": {
-        "keyPath": "id",
-        "storeName": "random_store"
-      }
-    },
     "User": {
       "fields": {
         "active": {
@@ -152,7 +135,7 @@
     }
   },
   "storage": {
-    "storageHash": "sha256:9a439471a6c17853ccf264236b1ef6a4ab268c165938886dd63fab2309eeeff8",
+    "storageHash": "sha256:c1ad80d3bd2f9f5db48c5126fe1257ba9817ddc6ba0a8af9453e39f17d76dd30",
     "stores": {
       "posts": {
         "indexes": {
@@ -160,9 +143,6 @@
             "keyPath": "authorId"
           }
         },
-        "keyPath": "id"
-      },
-      "random_store": {
         "keyPath": "id"
       },
       "users": {
