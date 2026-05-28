@@ -1,5 +1,5 @@
 {
-  "name": "prisma-next-usage",
+  "name": "@prisma-next-idb/prisma-next-usage",
   "private": true,
   "version": "0.0.1",
   "type": "module",
@@ -42,6 +42,7 @@
     "vite": "^8.0.7",
     "@prisma-next/contract": "^0.11.0",
     "@prisma-next-idb/adapter-idb": "workspace:*",
+    "@prisma-next-idb/driver-idb": "workspace:*",
     "@prisma-next-idb/family-idb": "workspace:*",
     "@prisma-next-idb/target-idb": "workspace:*"
   },
