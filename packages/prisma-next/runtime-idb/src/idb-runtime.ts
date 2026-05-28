@@ -108,6 +108,10 @@ function buildMiddlewareContext(contract: Record<string, unknown>): RuntimeMiddl
       warn: () => undefined,
       error: () => undefined,
     },
+    // Always "runtime": IdbTransactionScope.execute() bypasses the middleware
+    // chain entirely, so middleware is only ever invoked from the top-level
+    // execute() path, which is exactly the "runtime" scope. There is no IDB
+    // connection pool, so "connection" is not applicable either.
     scope: "runtime",
     contentHash: async (exec: ExecutionPlan) => {
       // Reduce the plan to its structural identity for hashing.
