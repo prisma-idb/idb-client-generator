@@ -45,9 +45,9 @@ const SAFE_POLICY: Required<MigrationPolicy> = {
  * Options for {@link createAutoMigratingIdbClient}.
  *
  * `contractSpace` is the bundled artefact produced at design time by
- * `prisma-next-idb generate-contract-space` (Phase 7.5). It carries the
- * canonical contract JSON, the ordered list of migration packages, and
- * the head ref the runtime walks toward.
+ * `prisma-next-idb generate-contract-space`. It carries the canonical
+ * contract JSON, the ordered list of migration packages, and the head
+ * ref the runtime walks toward.
  */
 export interface AutoMigrateClientOptions<TContract extends IdbContract> {
   readonly contractSpace: ContractSpace<TContract>;
@@ -208,8 +208,16 @@ function walkChain(input: {
   const pendingOps: IdbDdlOp[] = [];
   let destructiveDropped = 0;
   let cursor: string | null = input.markerHash;
+  const visited = new Set<string | null>();
 
   while (cursor !== input.headHash) {
+    if (visited.has(cursor)) {
+      throw new Error(
+        `Auto-migration chain contains a cycle at hash ${JSON.stringify(cursor)}. ` +
+          "Re-run `prisma-next-idb generate-contract-space` to rebuild a valid chain."
+      );
+    }
+    visited.add(cursor);
     const next = byFrom.get(cursor);
     if (!next) {
       throw new Error(
