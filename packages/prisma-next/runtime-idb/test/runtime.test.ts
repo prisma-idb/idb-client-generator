@@ -14,7 +14,12 @@
  * No real IndexedDB is involved (unlike driver-idb tests which use fake-indexeddb).
  */
 import type { IdbLowererContext, IdbRuntimeAdapterInstance, IdbQueryPlan } from "@prisma-next-idb/adapter-idb/runtime";
-import type { IdbMarkerRecord, IdbPlanBody, IdbRuntimeDriverInstance } from "@prisma-next-idb/driver-idb/runtime";
+import type {
+  IdbMarkerRecord,
+  IdbPlanBody,
+  IdbRuntimeDriverInstance,
+  IdbTransactionScope,
+} from "@prisma-next-idb/driver-idb/runtime";
 import { describe, expect, it, vi } from "vitest";
 import type { IdbMiddleware } from "../src/idb-middleware";
 import { createIdbRuntime } from "../src/idb-runtime";
@@ -74,9 +79,16 @@ interface MockDriverOptions {
   readMarker?: () => Promise<IdbMarkerRecord | null>;
   execute?: (plan: IdbPlanBody) => AsyncIterable<Record<string, unknown>>;
   close?: () => Promise<void>;
+  transaction?: (storeNames: string[], mode?: IDBTransactionMode) => Promise<IdbTransactionScope>;
 }
 
 function makeMockDriver(options: MockDriverOptions = {}): IdbRuntimeDriverInstance {
+  // Tests that don't exercise the transaction path get a stub that rejects.
+  // Calling `transaction()` on this mock would indicate a regression in the
+  // test's scoping assumptions, not a runtime concern.
+  const defaultTransaction = (): Promise<IdbTransactionScope> => {
+    throw new Error("Mock driver does not implement transaction(); pass `options.transaction` to enable.");
+  };
   return {
     familyId: "idb" as const,
     targetId: "idb" as const,
@@ -84,6 +96,7 @@ function makeMockDriver(options: MockDriverOptions = {}): IdbRuntimeDriverInstan
     readMarker: options.readMarker ?? (async () => null),
     execute: options.execute ?? ((_plan: IdbPlanBody) => rowsIterable({ id: 1 })),
     close: options.close ?? (async () => undefined),
+    transaction: options.transaction ?? defaultTransaction,
   } satisfies IdbRuntimeDriverInstance;
 }
 

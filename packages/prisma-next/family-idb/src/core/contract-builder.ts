@@ -178,6 +178,16 @@ function buildModels(models: Record<string, ModelDef>): Record<string, ContractM
 export function defineContract(input: DefineContractInput): Contract<IdbStorage> {
   const stores = buildStores(input.models);
 
+  // Mirror the capability surface that `prisma-next contract emit` writes
+  // into the JSON contract — keeps the two authoring paths byte-equivalent
+  // for the capabilities block. See ARCHITECTURE.md § "Key type: capabilities".
+  const capabilities = {
+    idb: {
+      ddlOnlyInUpgrade: true,
+      transactionalDDL: true,
+    },
+  };
+
   const storageHash = computeStorageHash({
     target: "idb",
     targetFamily: "idb",
@@ -187,7 +197,7 @@ export function defineContract(input: DefineContractInput): Contract<IdbStorage>
   const profileHash = computeProfileHash({
     target: "idb",
     targetFamily: "idb",
-    capabilities: {},
+    capabilities,
   });
 
   const storage: IdbStorage = { stores, storageHash };
@@ -198,7 +208,7 @@ export function defineContract(input: DefineContractInput): Contract<IdbStorage>
     roots: buildRoots(input.models),
     models: buildModels(input.models) as Contract<IdbStorage>["models"],
     storage,
-    capabilities: {},
+    capabilities,
     extensionPacks: {},
     meta: {},
     profileHash,

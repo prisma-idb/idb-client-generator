@@ -6,9 +6,9 @@
  * - IdbMigrationPlanner.plan(): success path, empty-diff, null fromContract
  * - IdbMigrationPlanner.emptyMigration(): returns stub plan
  * - IdbMigrationPlanner.plan(): invalid contract returns failure
- * - IdbMigrationRunner.execute(): applies DDL to a real IDB via fake-indexeddb
- * - IdbMigrationRunner.execute(): policy filtering skips destructive ops
- * - IdbMigrationRunner.execute(): rejects unknown op kinds
+ * - IdbMigrationRunner.execute(): always returns IDB-RUNNER-CLI-UNSUPPORTED refusal
+ * - IdbMigrationRunner.executeAcrossSpaces(): always returns IDB-RUNNER-CLI-UNSUPPORTED refusal
+ * - openAndUpgrade: applies DDL to a real IDB via fake-indexeddb
  * - IdbMigrationControlDriverDescriptor: creates driver with correct fields
  * - extractMigrationDriver: throws on missing fields
  * - renderTypeScript: generates valid TS source for generated ops
@@ -21,7 +21,7 @@ import { describe, expect, it } from "vitest";
 import { diffIdbSchema } from "../src/core/schema-diff";
 import { createIndexOp, createObjectStoreOp, dropIndexOp, dropObjectStoreOp } from "../src/core/migration-factories";
 import { IdbMigrationPlanner, contractToIdbSchema } from "../src/core/migration-planner";
-import { IdbMigrationRunner } from "../src/core/migration-runner";
+import { IdbMigrationRunner, openAndUpgrade } from "../src/core/migration-runner";
 import { IdbMigrationControlDriverDescriptor, extractMigrationDriver } from "../src/core/migration-driver";
 import type { IdbSchemaDiffInput } from "../src/core/schema-diff";
 import type { MigrationOperationPolicy } from "@prisma-next/framework-components/control";
@@ -35,10 +35,6 @@ function dbName(): string {
 
 const ALLOW_ALL: MigrationOperationPolicy = {
   allowedOperationClasses: ["additive", "widening", "destructive", "data"],
-};
-
-const ALLOW_ADDITIVE: MigrationOperationPolicy = {
-  allowedOperationClasses: ["additive"],
 };
 
 function makeDriver(name: string, version: number) {
@@ -449,32 +445,42 @@ describe("contractToIdbSchema", () => {
 describe("IdbMigrationRunner", () => {
   const runner = new IdbMigrationRunner();
 
-  it("creates a new object store in a fresh DB", async () => {
-    const name = dbName();
-    const driver = makeDriver(name, 1);
-    const ops = diffIdbSchema(null, { stores: { users: { keyPath: "id" } } });
-    const plan = {
-      targetId: "idb",
-      origin: null,
-      destination: { storageHash: "x" },
-      operations: ops,
-    };
+  it("execute() always returns IDB-RUNNER-CLI-UNSUPPORTED refusal", async () => {
     const result = await runner.execute({
-      plan,
-      driver,
+      plan: { targetId: "idb", origin: null, destination: { storageHash: "x" }, operations: [] },
+      driver: makeDriver(dbName(), 1),
       destinationContract: null,
       policy: ALLOW_ALL,
       frameworkComponents: [],
     });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.value.operationsExecuted).toBe(1);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.code).toBe("IDB-RUNNER-CLI-UNSUPPORTED");
+  });
 
-    // Verify the store was actually created
-    const openReq = indexedDB.open(name);
+  it("executeAcrossSpaces() always returns IDB-RUNNER-CLI-UNSUPPORTED refusal", async () => {
+    const result = await runner.executeAcrossSpaces({
+      driver: makeDriver(dbName(), 1),
+      perSpaceOptions: [],
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.code).toBe("IDB-RUNNER-CLI-UNSUPPORTED");
+  });
+});
+
+// ── openAndUpgrade (DDL apply) ────────────────────────────────────────────────
+
+describe("openAndUpgrade", () => {
+  it("creates a new object store in a fresh DB", async () => {
+    const name = dbName();
+    const ops = diffIdbSchema(null, { stores: { users: { keyPath: "id" } } });
+    await openAndUpgrade({ factory: indexedDB, dbName: name, targetVersion: 1, ops });
+
     const db = await new Promise<IDBDatabase>((res, rej) => {
-      openReq.onsuccess = (e) => res((e.target as IDBOpenDBRequest).result);
-      openReq.onerror = (e) => rej((e.target as IDBOpenDBRequest).error);
+      const req = indexedDB.open(name);
+      req.onsuccess = (e) => res((e.target as IDBOpenDBRequest).result);
+      req.onerror = (e) => rej((e.target as IDBOpenDBRequest).error);
     });
     expect(db.objectStoreNames.contains("users")).toBe(true);
     db.close();
@@ -482,17 +488,10 @@ describe("IdbMigrationRunner", () => {
 
   it("creates a store with an index", async () => {
     const name = dbName();
-    const driver = makeDriver(name, 1);
     const ops = diffIdbSchema(null, {
       stores: { posts: { keyPath: "id", indexes: { author_idx: { keyPath: "authorId", unique: false } } } },
     });
-    await runner.execute({
-      plan: { targetId: "idb", origin: null, destination: { storageHash: "x" }, operations: ops },
-      driver,
-      destinationContract: null,
-      policy: ALLOW_ALL,
-      frameworkComponents: [],
-    });
+    await openAndUpgrade({ factory: indexedDB, dbName: name, targetVersion: 1, ops });
 
     const db = await new Promise<IDBDatabase>((res, rej) => {
       const req = indexedDB.open(name);
@@ -505,80 +504,27 @@ describe("IdbMigrationRunner", () => {
     db.close();
   });
 
-  it("policy filtering: skips destructive ops with additive-only policy", async () => {
+  it("applies ops incrementally across version bumps", async () => {
     const name = dbName();
-    // First create the store
-    const driver1 = makeDriver(name, 1);
-    await runner.execute({
-      plan: {
-        targetId: "idb",
-        origin: null,
-        destination: { storageHash: "x" },
-        operations: diffIdbSchema(null, { stores: { old: { keyPath: "id" } } }),
-      },
-      driver: driver1,
-      destinationContract: null,
-      policy: ALLOW_ALL,
-      frameworkComponents: [],
+    await openAndUpgrade({
+      factory: indexedDB,
+      dbName: name,
+      targetVersion: 1,
+      ops: diffIdbSchema(null, { stores: { old: { keyPath: "id" } } }),
+    });
+    await openAndUpgrade({
+      factory: indexedDB,
+      dbName: name,
+      targetVersion: 2,
+      ops: diffIdbSchema({ stores: { old: { keyPath: "id" } } }, { stores: {} }),
     });
 
-    // Now try to drop it with additive-only policy
-    const driver2 = makeDriver(name, 2);
-    const dropOps = diffIdbSchema({ stores: { old: { keyPath: "id" } } }, { stores: {} });
-    const result = await runner.execute({
-      plan: { targetId: "idb", origin: null, destination: { storageHash: "y" }, operations: dropOps },
-      driver: driver2,
-      destinationContract: null,
-      policy: ALLOW_ADDITIVE,
-      frameworkComponents: [],
+    const db = await new Promise<IDBDatabase>((res, rej) => {
+      const req = indexedDB.open(name);
+      req.onsuccess = (e) => res((e.target as IDBOpenDBRequest).result);
+      req.onerror = (e) => rej((e.target as IDBOpenDBRequest).error);
     });
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    // 1 op planned, 0 executed (destructive was filtered)
-    expect(result.value.operationsPlanned).toBe(1);
-    expect(result.value.operationsExecuted).toBe(0);
-  });
-
-  it("returns ok with 0 executed for an empty plan", async () => {
-    const driver = makeDriver(dbName(), 1);
-    const result = await runner.execute({
-      plan: { targetId: "idb", origin: null, destination: { storageHash: "x" }, operations: [] },
-      driver,
-      destinationContract: null,
-      policy: ALLOW_ALL,
-      frameworkComponents: [],
-    });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.value.operationsExecuted).toBe(0);
-  });
-
-  it("returns NotOk for an op with unrecognised kind", async () => {
-    const driver = makeDriver(dbName(), 1);
-    const badOp = { id: "x", label: "x", operationClass: "additive" as const };
-    const result = await runner.execute({
-      plan: { targetId: "idb", origin: null, destination: { storageHash: "x" }, operations: [badOp] },
-      driver,
-      destinationContract: null,
-      policy: ALLOW_ALL,
-      frameworkComponents: [],
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.failure.code).toBe("IDB-RUNNER-001");
-  });
-
-  it("assertOk() on Ok returns the value", async () => {
-    const driver = makeDriver(dbName(), 1);
-    const result = await runner.execute({
-      plan: { targetId: "idb", origin: null, destination: { storageHash: "x" }, operations: [] },
-      driver,
-      destinationContract: null,
-      policy: ALLOW_ALL,
-      frameworkComponents: [],
-    });
-    const value = result.assertOk();
-    expect(value.operationsExecuted).toBe(0);
+    expect(db.objectStoreNames.contains("old")).toBe(false);
+    db.close();
   });
 });
