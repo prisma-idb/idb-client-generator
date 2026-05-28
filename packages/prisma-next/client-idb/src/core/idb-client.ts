@@ -25,8 +25,8 @@ export interface IdbClient<TContract extends IdbContract> {
    * commits on success or rolls back on error. Equivalent to calling
    * `withMutationScope(runtime, storeNames, fn)`.
    *
-   * Useful from the query-runner shell (Phase 6.3 tests) and from any
-   * caller that has an `IdbClient` but not the raw runtime reference.
+   * Useful from test harnesses and from any caller that has an `IdbClient`
+   * but not the raw runtime reference.
    */
   withTransaction<T>(storeNames: string[], fn: (scope: IdbTransactionScope) => Promise<T>): Promise<T>;
   verifyMarker(): Promise<boolean>;

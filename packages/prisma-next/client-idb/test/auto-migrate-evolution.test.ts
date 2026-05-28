@@ -1,7 +1,7 @@
 /**
- * Auto-migration across contract evolution, post-Phase 7.4.
+ * Auto-migration across contract evolution.
  *
- * `createAutoMigratingIdbClient` now consumes a bundled `ContractSpace`
+ * `createAutoMigratingIdbClient` consumes a bundled `ContractSpace`
  * (assembled at design time by `prisma-next-idb generate-contract-space`)
  * and walks its `migrations` array from the current marker to `headRef.hash`.
  * The browser-side path never re-runs the planner — it just applies the

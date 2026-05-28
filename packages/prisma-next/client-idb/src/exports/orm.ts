@@ -27,7 +27,7 @@ export type {
   SortDirection,
 } from "../core/types";
 
-// Filter operator API (Phase 6.1)
+// Filter operator combinators
 export { and, or, not } from "../core/filters";
 export type { IdbFieldAccessor, IdbModelAccessor } from "../core/model-accessor";
 // AST + factory re-exports so middleware authors don't need to reach into
@@ -42,6 +42,6 @@ export type {
   IdbFilterOp,
 } from "@prisma-next-idb/adapter-idb/runtime";
 
-// Multi-store transaction scope API (Phase 6.3)
+// Multi-store transaction scope API
 export { withMutationScope } from "../core/mutation-scope";
 export type { IdbQueryExecutorWithTransaction } from "../core/mutation-scope";

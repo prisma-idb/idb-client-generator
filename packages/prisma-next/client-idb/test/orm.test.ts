@@ -429,7 +429,7 @@ describe("IdbStoreAccessor — include (relations)", () => {
   });
 });
 
-// ── Phase 6.2 — Missing CRUD terminals ────────────────────────────────────────
+// ── CRUD terminals ────────────────────────────────────────────────────────────
 
 describe("IdbStoreAccessor — update", () => {
   let driver: IdbRuntimeDriverInstance;

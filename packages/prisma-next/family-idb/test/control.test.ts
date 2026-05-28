@@ -1,8 +1,8 @@
 /**
- * Tests for `createIdbFamilyInstance` after the Phase 7.3 refit.
+ * Tests for `createIdbFamilyInstance`.
  *
  * The CLI-side methods (`verify`, `sign`, `readMarker`, `readAllMarkers`,
- * `introspect`) now refuse with structured envelopes — IndexedDB is a
+ * `introspect`) refuse with structured envelopes — IndexedDB is a
  * browser API, so the Node-side CLI has no live database to read or
  * write. The active surface is `deserializeContract` and `verifySchema`,
  * both pure.

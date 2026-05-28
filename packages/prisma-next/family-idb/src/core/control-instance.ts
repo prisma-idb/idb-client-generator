@@ -60,15 +60,15 @@ export type IdbControlFamilyInstance = ControlFamilyInstance<"idb", IdbSchemaIR>
 /**
  * Creates an IDB control family instance for the given control stack.
  *
- * **CLI surface (post-Phase 7.3) — refusals**: IndexedDB is a browser API,
- * so the CLI cannot read or write the live database. Every method that
- * would normally talk to a database (`verify`, `sign`, `readMarker`,
- * `readAllMarkers`, `introspect`) returns a structured refusal pointing
- * the user at the contract-space authoring + preflight workflow.
+ * **CLI surface — refusals**: IndexedDB is a browser API, so the CLI cannot
+ * read or write the live database. Every method that would normally talk to a
+ * database (`verify`, `sign`, `readMarker`, `readAllMarkers`, `introspect`)
+ * returns a structured refusal pointing the user at the contract-space
+ * authoring + preflight workflow.
  *
  * The CLI-side `db init`, `db update`, and `db verify` commands therefore
  * surface a uniform `IDB-CLI-UNSUPPORTED` envelope rather than silently
- * succeeding against a file-backed shadow.
+ * succeeding.
  *
  * **Active surface**: `deserializeContract` (pure) and `verifySchema` (pure
  * function over an in-memory `IdbSchemaIR`) continue to work — neither

@@ -166,8 +166,8 @@ function renderOpCall(op: IdbDdlOp): string {
  * the class-based scaffold matching vendor's Postgres/Mongo authoring surface.
  *
  * The planner does NOT apply the policy — it always returns the full op set.
- * Policy enforcement happens in the runner (and in the browser-side
- * auto-migrate, per Phase 7.4).
+ * Policy enforcement happens in the runner and in the browser-side
+ * auto-migrate path.
  */
 export class IdbMigrationPlanner implements MigrationPlanner<"idb", "idb"> {
   plan(options: {

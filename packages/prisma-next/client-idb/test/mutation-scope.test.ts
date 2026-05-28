@@ -2,8 +2,7 @@
  * withMutationScope tests (client-idb).
  *
  * Tests `withMutationScope` and `IdbQueryExecutorWithTransaction` against
- * fake-indexeddb via `IdbRuntimeDriverInstance` (which satisfies the
- * transaction interface after Phase 6.3).
+ * fake-indexeddb via `IdbRuntimeDriverInstance`.
  *
  * Coverage:
  *   commit on success  — both stores written, results returned

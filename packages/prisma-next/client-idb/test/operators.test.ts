@@ -1,5 +1,5 @@
 /**
- * Phase 6.1: filter operator API integration tests.
+ * Filter operator API integration tests.
  *
  * Exercises the full stack: model accessor proxy → AST → store accessor
  * → cursor scan → evaluateFilter. Covers every operator on real

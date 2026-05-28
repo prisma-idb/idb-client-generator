@@ -16,13 +16,12 @@ export interface PreflightOptions {
  * instance inside an `upgradeneeded` callback. Reports per-step status to
  * stdout and the final outcome via exit code.
  *
- * **Why this exists**: prior to Phase 7, the runner did this validation on
- * every `db update` invocation — see `FEEDBACKS.md` §7. That had three
- * problems: (a) it validated against the wrong oracle (`fake-indexeddb`
- * disagrees with real browsers on edge cases); (b) it substituted a
- * runtime check for missing test coverage; (c) it shipped a test-only
- * package on a production path. Pulling the walk out into its own command
- * gives CI the gate without paying the workflow tax on every author.
+ * **Why this exists**: a dedicated preflight command avoids three failure modes
+ * of inlining this into `db update`: (a) `fake-indexeddb` disagrees with real
+ * browsers on some edge cases and is not a reliable production oracle; (b) it
+ * would substitute a runtime check for proper test coverage; (c) it would ship
+ * a test-only package on a production path. Running it in CI gives the gate
+ * without the workflow tax on every author.
  *
  * **Scope vs runtime**: this command catches "the chain doesn't apply
  * cleanly" — a structural issue. It does NOT catch "the chain produces

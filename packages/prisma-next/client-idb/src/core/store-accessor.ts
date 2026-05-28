@@ -176,6 +176,12 @@ export interface IdbStoreAccessor<
   /**
    * Count all rows matching the accumulated `.where()` filter.
    * With no filter, counts all rows in the store.
+   *
+   * **Note — `skip`/`take` are respected**: unlike Prisma's SQL `count()`,
+   * which ignores pagination, this implementation reuses the same cursor-scan
+   * plan as `all()`. That means `where(...).take(5).count()` returns at most 5,
+   * not the total number of matching rows. Use `where(...).count()` without
+   * `take`/`skip` when you need an unbounded total.
    */
   count(): Promise<number>;
 }

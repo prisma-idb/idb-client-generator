@@ -9,7 +9,7 @@
  * `sql-orm-client/mutation-executor.ts`, adapted for IDB's explicit
  * transaction scope API.
  *
- * Usage (Phase 6.4 nested writes):
+ * @example
  * ```ts
  * await withMutationScope(runtime, ["users", "posts"], async (scope) => {
  *   const userRow = await scope.execute({ kind: "put", storeName: "users", ... });
@@ -48,9 +48,8 @@ export interface IdbQueryExecutorWithTransaction extends IdbQueryExecutor {
  * - On success: awaits `scope.commit()` (waits for `tx.oncomplete`).
  * - On error: calls `scope.rollback()` and rethrows.
  *
- * The callback receives the low-level scope, not the ORM accessor. For Phase
- * 6.4 nested writes, `IdbMutationExecutor` uses the scope to insert/update
- * rows across stores atomically.
+ * The callback receives the low-level scope, not the ORM accessor.
+ * Use this for multi-store atomic writes that span several object stores.
  */
 export async function withMutationScope<T>(
   executor: IdbQueryExecutorWithTransaction,

@@ -17,9 +17,8 @@ export const MARKER_STORE_NAME = "_prisma_next_marker";
  * Shape of a marker record stored in {@link MARKER_STORE_NAME}.
  *
  * Mirrors the framework's `ContractMarkerRecord` plus the `space` keying
- * field. Writer (target-idb migration runner, Phase 7.3) keys records by
- * `space` (`"app"` for the single app space) so the storage layout doesn't
- * have to be migrated later if IDB extensions land.
+ * field. Records are keyed by `space` (`"app"` for the single app space) so
+ * the storage layout can accommodate future IDB extension spaces.
  *
  * `updatedAt` is a JavaScript `Date` (not an ISO string) because IndexedDB
  * serialises Dates natively via structured-clone.

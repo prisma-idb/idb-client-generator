@@ -4,8 +4,8 @@
  *
  * Uses `IdbMigrationPlanner` at test-setup time to compute the ops for
  * each `from → to` transition, then wraps them in `MigrationPackage`
- * shapes the way `prisma-next-idb generate-contract-space` (Phase 7.5)
- * would in a real project.
+ * shapes the way `prisma-next-idb generate-contract-space` would in a
+ * real project.
  */
 
 import type { Contract } from "@prisma-next/contract/types";

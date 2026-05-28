@@ -61,7 +61,7 @@ export class IdbRuntimeDriverInstance implements RuntimeDriverInstance<"idb", "i
    *
    * Awaits the live `IDBDatabase` connection before opening the transaction.
    * Used by `withMutationScope()` in `client-idb` to run cross-store writes
-   * atomically (Phase 6.3+).
+   * atomically.
    */
   async transaction(storeNames: string[], mode: IDBTransactionMode = "readwrite"): Promise<IdbTransactionScope> {
     const db = await this.db;

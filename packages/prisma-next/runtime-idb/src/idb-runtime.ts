@@ -57,7 +57,7 @@ export interface IdbRuntime {
    * never fires for reads inside a transaction). `commit()` resolves on
    * `tx.oncomplete`; `rollback()` calls `tx.abort()`.
    *
-   * Used by `withMutationScope()` in `client-idb` for Phase 6.3+.
+   * Used by `withMutationScope()` in `client-idb`.
    */
   transaction(storeNames: string[], mode?: IDBTransactionMode): Promise<IdbTransactionScope>;
   /**
