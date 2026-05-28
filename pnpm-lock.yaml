@@ -360,21 +360,9 @@ importers:
 
   apps/prisma-next-usage:
     dependencies:
-      '@prisma-next-idb/adapter-idb':
-        specifier: workspace:*
-        version: link:../../packages/prisma-next/adapter-idb
       '@prisma-next-idb/client-idb':
         specifier: workspace:*
         version: link:../../packages/prisma-next/client-idb
-      '@prisma-next-idb/family-idb':
-        specifier: workspace:*
-        version: link:../../packages/prisma-next/family-idb
-      '@prisma-next-idb/target-idb':
-        specifier: workspace:*
-        version: link:../../packages/prisma-next/target-idb
-      '@prisma-next/contract':
-        specifier: ^0.11.0
-        version: 0.11.0
       '@prisma-next/migration-tools':
         specifier: ^0.11.0
         version: 0.11.0
@@ -391,6 +379,21 @@ importers:
       '@playwright/test':
         specifier: latest
         version: 1.59.1
+      '@prisma-next-idb/adapter-idb':
+        specifier: workspace:*
+        version: link:../../packages/prisma-next/adapter-idb
+      '@prisma-next-idb/driver-idb':
+        specifier: workspace:*
+        version: link:../../packages/prisma-next/driver-idb
+      '@prisma-next-idb/family-idb':
+        specifier: workspace:*
+        version: link:../../packages/prisma-next/family-idb
+      '@prisma-next-idb/target-idb':
+        specifier: workspace:*
+        version: link:../../packages/prisma-next/target-idb
+      '@prisma-next/contract':
+        specifier: ^0.11.0
+        version: 0.11.0
       '@sveltejs/adapter-auto':
         specifier: latest
         version: 7.0.1(@sveltejs/kit@2.57.1(@opentelemetry/api@1.9.0)(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.4(@typescript-eslint/types@8.59.0))(vite@8.0.14(@types/node@24.12.2)(esbuild@0.28.0)(jiti@2.6.1)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)))(svelte@5.55.4(@typescript-eslint/types@8.59.0))(typescript@6.0.3)(vite@8.0.14(@types/node@24.12.2)(esbuild@0.28.0)(jiti@2.6.1)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)))

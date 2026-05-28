@@ -1,15 +1,15 @@
 ## Status
 
-_Last reviewed: 2026-05-27 — Phase 7 done (migration package layer rewrite). See [`plans/`](plans/) for the per-phase plan docs (7.1–7.8). Phase 7 absorbs the architectural feedback from [`FEEDBACKS.md`](FEEDBACKS.md): manifest deleted, planner moved to design-time, browser walks `ContractSpace.migrations`, safe-default policy, space-keyed marker, `versionchange` handler, new `prisma-next-idb` CLI (`generate-contract-space`, `preflight`). Earlier review findings (issues #1-16, 2026-05-25) still resolved._
+_Last reviewed: 2026-05-28 — second-pass audit on top of Phase 7. Phase 7 (migration package layer rewrite, 2026-05-27) addressed Group A + B of [`FEEDBACK.md`](FEEDBACK.md). This pass found three residual bugs left after Phase 7's main pass and several documentation drifts; see [§ Audit 2026-05-28](#audit-2026-05-28) below. All known fatal flaws are now fixed; the remaining items are feature gaps (Phase 6.4–6.7) and the open-ended outbox sync work._
 
 | Phase | Description                                                                                       | Status                                                                                                                                                                                       |
 | ----- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1     | Codec system (`target-idb`)                                                                       | ✅ Done                                                                                                                                                                                      |
 | 2     | Runtime driver (`driver-idb`)                                                                     | ✅ Done — Issue #11 (batch-with-update tx mode) fixed                                                                                                                                        |
 | 3     | Query lowering (`adapter-idb`)                                                                    | ✅ Done (passthrough; per-field codec encoding deferred — all codecs identity); Issue #13 (descriptor `.create()` codec wiring) fixed                                                        |
-| 4     | Control plane manifest operations (`family-idb`)                                                  | ✅ Done — Issues #1, #2, #4 resolved                                                                                                                                                         |
-| 5     | Migration infrastructure (`target-idb/control`)                                                   | ✅ Done — CLI `db update`/`db init` fully working and idempotent; Issues #14 (TS renderer `unique: undefined`) + #15 (index mutations) fixed                                                 |
-| 6     | IDB ORM lane (`client-idb`) + runtime (`runtime-idb`)                                             | 🚧 MVP done — all issues resolved; Phase 6.3 done                                                                                                                                            |
+| 4     | Control plane manifest operations (`family-idb`)                                                  | 🪦 Superseded by Phase 7 — manifest deleted, CLI returns `IDB-CLI-UNSUPPORTED` envelopes; the layer that survives is `schema-verify` (pure) + `deserializeContract` (pure)                   |
+| 5     | Migration infrastructure (`target-idb/control`)                                                   | ✅ Done — planner + DDL ops + schema diff + 4-file package layout; runner's `executeAcrossSpaces` returns refusal envelope (Phase 7.3)                                                       |
+| 6     | IDB ORM lane (`client-idb`) + runtime (`runtime-idb`)                                             | 🚧 MVP done — phases 6.1, 6.2, 6.3 shipped; 6.4–6.7 not started                                                                                                                              |
 | 6.1   | Filter expression AST + operator API                                                              | ✅ Done — `IdbFilterExpr` + evaluator + `IdbModelAccessor` proxy + `and/or/not`; shorthand `null` lifts to null-check                                                                        |
 | 6.2   | Missing CRUD terminals (update, upsert, createAll/Count, deleteAll/Count, updateAll/Count, count) | ✅ Done — vendor naming adopted; `IdbScanWritePlan` + `IdbBatchPlan` driver primitives; 9 new ORM methods; known gap: `.where()` enforcement not compile-time-checked                        |
 | 6.3   | Multi-store transaction support                                                                   | ✅ Done — `IdbTransactionScope` + `createTransactionScope` in driver; `withMutationScope` + `IdbQueryExecutorWithTransaction` in client; `IdbRuntime.transaction()` wired; Issue #6 resolved |
@@ -24,27 +24,101 @@ _Last reviewed: 2026-05-27 — Phase 7 done (migration package layer rewrite). S
 | 7.4   | Browser runtime refit: walk `contractSpace.migrations`; safe policy; `versionchange`              | ✅ Done                                                                                                                                                                                      |
 | 7.5   | ContractSpace codegen (`prisma-next-idb generate-contract-space`)                                 | ✅ Done                                                                                                                                                                                      |
 | 7.6   | Migration preflight (`prisma-next-idb preflight`)                                                 | ✅ Done                                                                                                                                                                                      |
-| 7.7   | Migrate `apps/prisma-next-usage`                                                                  | ✅ Done — manifest deleted; baseline migration package on disk                                                                                                                               |
+| 7.7   | Migrate `apps/prisma-next-usage`                                                                  | ✅ Done in code; **stale `prisma-next.config.ts` driver ref + leftover `prisma-idb.manifest.json` cleaned up in audit 2026-05-28** ([Issue #17])                                             |
 | 7.8   | Cleanups closure + memory + this status                                                           | ✅ Done                                                                                                                                                                                      |
-| 8     | Outbox sync                                                                                       | ❌ Not started (was previously Phase 7; renumbered after migration-rewrite landed)                                                                                                           |
+| 8     | Outbox sync                                                                                       | ❌ Not started (was Phase 7 in older docs; renumbered after the migration-rewrite landed)                                                                                                    |
 
-### Test status (run 2026-05-27, after Phase 7)
+### Test status (run 2026-05-28, after second-pass audit)
 
-| Package             | Tests pass | Tests fail | Notes                                                                                               |
-| ------------------- | ---------: | ---------: | --------------------------------------------------------------------------------------------------- |
-| `target-idb`        |         81 |          0 | +7 IdbMigration, +5 MigrationCLI (Phase 7.1); planner renderer updated for class-based output (7.2) |
-| `driver-idb`        |         57 |          0 | `versionchange` handler + space-keyed marker read fallback (Phases 7.3/7.4)                         |
-| `adapter-idb`       |         29 |          0 | unchanged                                                                                           |
-| `runtime-idb`       |         21 |          0 | unchanged                                                                                           |
-| `client-idb`        |         66 |          0 | `auto-migrate-evolution` rewritten for `contractSpace` walking + destructive-refuse default (7.4)   |
-| `family-idb`        |         52 |          0 | manifest tests removed (7.3); +6 codegen (7.5) + +4 preflight (7.6); control-instance refusal tests |
-| `prisma-next-usage` |         65 |          0 | Playwright unchanged; full app stack works end-to-end on `contractSpace` (7.7)                      |
+| Package                        | Tests pass | Tests fail | Notes                                                                                                                           |
+| ------------------------------ | ---------: | ---------: | ------------------------------------------------------------------------------------------------------------------------------- |
+| `target-idb`                   |         81 |          0 | +7 IdbMigration, +5 MigrationCLI (Phase 7.1); planner renderer updated for class-based output (7.2)                             |
+| `driver-idb`                   |         57 |          0 | `versionchange` handler installed in `openIdbDatabase` (7.4); marker `readMarker` reads `space="app"` only — no legacy fallback |
+| `adapter-idb`                  |         29 |          0 | unchanged                                                                                                                       |
+| `runtime-idb`                  |         21 |          0 | mock driver fixture updated for Phase 6.3 `transaction()` method ([Issue #19])                                                  |
+| `client-idb`                   |         66 |          0 | `auto-migrate-evolution` rewritten for `contractSpace` walking + destructive-refuse default (7.4)                               |
+| `family-idb`                   |         79 |          0 | manifest tests removed (7.3); codegen + baseline + preflight tests added; **+27 over the count PLAN.md had previously (52)**    |
+| `prisma-next-idb-cli` (tests/) |         20 |          0 | end-to-end CLI surface tests for `generate-baseline` / `generate-contract-space` / `preflight`                                  |
+| `prisma-next-usage`            |         65 |          0 | Playwright unchanged; full app stack works end-to-end on `contractSpace` (7.7)                                                  |
 
-**Total: 371/371 tests passing (306 vitest + 65 Playwright).**
+**Total: 418/418 tests passing (353 vitest + 65 Playwright).**
 
 [Issue #1]: #issue-1--migrationrunner-missing-executeacrossspaces-blocks-cli-db-update
 [Issue #2]: #issue-2--sign-does-not-populate-manifestschema-from-contract
 [Issue #4]: #issue-4--missing-stores-treated-as-warnings-in-lenient-schema-verify
+[Issue #17]: #issue-17--demo-app-config-references-deleted-idbmanifestcontroldriverdescriptor
+[Issue #18]: #issue-18--definecontract-emits-empty-capabilities-diverging-from-prisma-next-contract-emit
+[Issue #19]: #issue-19--runtime-idb-mock-driver-missing-transaction-method-fails-tsc-noemit
+
+---
+
+## Audit 2026-05-28
+
+Second-pass review on top of Phase 7. Cross-checked our six packages against the cloned vendor reference (`vendor/prisma-next/`), re-read every section of [`FEEDBACK.md`](FEEDBACK.md), ran every test (vitest + playwright), and exercised the CLI surfaces end-to-end. What follows is the **only** unaddressed material — Phase 7's eight sub-phases handled everything in FEEDBACK §1–8 cleanly, but a handful of cleanup edges escaped that pass.
+
+### ✅ FEEDBACK.md coverage check
+
+| FEEDBACK §  | Topic                                    | Status                                                                                                                                                           |
+| ----------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1           | Missing migration package layer          | ✅ Done — 4-file packages on disk, `migration.ts` self-emit shim, `MigrationCLI.run(...)`, `IdbMigration` base, ops/end-contract per package                     |
+| 2           | Planning at design time, not browser     | ✅ Done — `IdbMigrationPlanner` runs only in CLI / preflight; browser never imports it; `auto-migrate.ts` walks the bundled `contractSpace.migrations`           |
+| 3           | Delete the manifest                      | ✅ Done — `family-idb/manifest*` files deleted; control-instance returns `IDB-CLI-UNSUPPORTED` envelopes; in-DB marker is the only authoritative position record |
+| 4           | Safe default destructive policy          | ✅ Done — `SAFE_POLICY = { allowedOperationClasses: ["additive","widening"], onDestructive: "refuse" }` in `auto-migrate.ts`                                     |
+| 5           | Space-keyed marker (`"app"` from day 1)  | ✅ Done — `createMarkerStoreOp` uses `keyPath: "space"`, writes full `ContractMarkerRecord` shape (8 fields, was 3)                                              |
+| 6           | `executeAcrossSpaces` duck-typing        | ✅ Done — manifest IO removed entirely; `family-idb` no longer reads/writes any on-disk shadow                                                                   |
+| 7           | `fake-indexeddb` as standalone preflight | ✅ Done — `prisma-next-idb preflight` command; only legitimate runtime/CLI use of `fake-indexeddb`                                                               |
+| 8 (op note) | `versionchange` handler                  | ✅ Done — `openIdbDatabase` in `driver-idb` installs `db.onversionchange = () => db.close()`                                                                     |
+
+All Phase 7 sub-phases (7.1–7.8) shipped tests; the test suite went from 306 vitest before Phase 7 to **353 vitest + 65 Playwright = 418 total** after this audit's fixes.
+
+### ✅ Issue #17 — demo app config references deleted `IdbManifestControlDriverDescriptor` — FIXED
+
+**Symptom.** [apps/prisma-next-usage/prisma-next.config.ts](apps/prisma-next-usage/prisma-next.config.ts) (post-Phase 7.7) imported `IdbManifestControlDriverDescriptor` from `@prisma-next-idb/family-idb/control` and passed it as `driver:`. Phase 7.3 deleted that descriptor (along with the manifest-driver source files). The named import silently resolved to `undefined` — `prisma-next db verify` / `db init` / `db update` all returned `PN-CLI-4010 "Driver is required"` rather than the intended `IDB-CLI-UNSUPPORTED` refusal envelope.
+
+**Hidden because.** The TS config isn't included in `apps/prisma-next-usage/tsconfig.json`'s `include` list (it lives outside `src/`), so the broken import never produced a type error. The Playwright suite drives the in-browser path and doesn't touch the CLI. Only a manual `pnpm prisma-next db verify` invocation surfaces the failure.
+
+**Fix.** Switched `driver:` to import `default` from `@prisma-next-idb/driver-idb/control` (the stub `idbControlDriverDescriptor` whose `query()` / `close()` are no-ops). Set `db.connection: ":memory:"` since IDB ignores it. Also deleted the now-stale `apps/prisma-next-usage/prisma-idb.manifest.json` — left over from pre-Phase-7 and confusing as dead data in the repo.
+
+**Verification.** `pnpm prisma-next db verify` now returns the structured `IDB-CLI-UNSUPPORTED` envelope as designed.
+
+### ✅ Issue #18 — `defineContract` emits empty capabilities, diverging from `prisma-next contract emit` — FIXED
+
+**Symptom.** [family-idb/src/core/contract-builder.ts](family-idb/src/core/contract-builder.ts) `defineContract()` set `capabilities: {}` and passed `{}` to `computeProfileHash`. The CLI path (`prisma-next contract emit`) produces `capabilities: { idb: { ddlOnlyInUpgrade: true, transactionalDDL: true } }`. The two authoring paths therefore produced contracts with different `profileHash` values for byte-identical schema input.
+
+**Impact.** Latent today because (a) no runtime path reads `contract.capabilities`, and (b) the demo app uses `prisma-next contract emit` end-to-end. A user authoring entirely via TS (`defineContract → typescriptContract`) and a user authoring via the CLI emitter would have produced markers with divergent profileHashes against the same logical schema — a confusing data drift bug.
+
+**Fix.** `defineContract` now bakes in the same `{ idb: { ddlOnlyInUpgrade: true, transactionalDDL: true } }` capabilities literal both into the contract object and into `computeProfileHash`'s input. The two authoring paths are now byte-equivalent.
+
+### ✅ Issue #19 — `runtime-idb` mock driver missing `transaction` method (`tsc --noEmit` fails) — FIXED
+
+**Symptom.** [runtime-idb/test/runtime.test.ts:79](runtime-idb/test/runtime.test.ts#L79) `makeMockDriver()` returned an object without a `transaction` method. Phase 6.3 added `transaction(storeNames, mode?): Promise<IdbTransactionScope>` to `IdbRuntimeDriverInstance`; the test fixture wasn't updated.
+
+**Hidden because.** `vitest` runs through `esbuild`, which strips types but doesn't enforce them. `pnpm test` was green. A direct `pnpm exec tsc --noEmit` in the package surfaced two TS2741/TS1360 errors on the `satisfies` clause.
+
+**Fix.** Added a `transaction: defaultTransaction` field that throws "mock driver does not implement transaction()" — keeps existing tests behavior-unchanged but satisfies the interface. Tests still 21/21 green, and `tsc --noEmit` now passes cleanly.
+
+### Open: subtle / non-fatal issues left for follow-up
+
+These don't break anything today, but each is worth flagging for the next maintenance pass:
+
+1. **`IdbMigrationRunner.execute()` is dead in production**. Phase 7.4 routed the browser through `openAndUpgrade()` directly; Phase 7.3 made `executeAcrossSpaces()` a refusal envelope. The `execute()` method's only callers now are tests. It's defensively kept around so the runner still satisfies `MigrationRunner<"idb","idb">`, but the body could be reduced to the same refusal envelope.
+
+2. **`walkChain` in `client-idb/auto-migrate.ts` has no cycle detection**. It trusts that the bundled `contractSpace.migrations` was generated by `chainOrderByMetadata` (which does cycle-check). A hand-edited or maliciously constructed `contract-space.generated.ts` could push it into an infinite loop. A `visited` set guard there would be free defensive coverage.
+
+3. **`runtime-idb` `buildMiddlewareContext` hard-codes `scope: "runtime"`**. Phase 6.3's `IdbTransactionScope.execute()` bypasses the middleware chain, so this isn't an active bug for the cache middleware — but if a future middleware reads `ctx.scope` outside the cache use case, it'd see the wrong value. Track as a "fix when needed".
+
+4. **`count()` respects `skip`/`take` from the chain**. Our `count()` builds the same scan plan as `all()`, so `where(...).take(5).count()` counts at most 5. Vendor SQL's count ignores `take`/`skip`. The IDB semantics are arguably useful (you got the bounded iteration you asked for) but diverge from Prisma elsewhere. Document in the accessor's JSDoc.
+
+5. **`introspect`, `readMarker`, `readAllMarkers` "lying refusals"** in `family-idb/control-instance.ts` return `null` / empty schema rather than the `IDB-CLI-UNSUPPORTED` envelope the sibling methods use. The framework's `MigratableTargetFamilyInstance` typing forces these to return concrete values, not Result envelopes. Today's `null` / `{ stores: {} }` is technically correct ("nothing on disk"), but it can mislead framework code paths that branch on it. If the framework SPI grows a `unsupported` discriminator, switch over.
+
+6. **`driver-idb` `readMarker` only reads `space="app"`**. Pre-Phase-7 IDBs had records keyed `id="default"`. Browsers with such an old DB would read `null` here and treat the database as fresh — leading to a "create everything" plan that throws inside `upgradeneeded` when stores already exist. Memory file [`project-prisma-next-phase7.md`] claimed a `"default"` fallback exists; **the code does not**. For greenfield projects this is fine; for any user upgrading from pre-Phase-7 it's a breaking change. Either add the fallback (`store.get("app") ?? store.get("default")`) or document the breaking change in CHANGELOG and the memory note.
+
+### Recommended next steps (post-audit)
+
+1. **Phase 6.4** — Nested relation writes; the foundation (`withMutationScope` + `IdbBatchPlan`) is ready. Port `parseMutationInput`, `partitionByOwnership`, `createGraph`, `updateFirstGraph`, `IdbRelationMutator` from `sql-orm-client`.
+2. **Decide on the `readMarker` legacy fallback** (Issue #6 in this section). One-line code change vs. one-line documentation update — pick one.
+3. **Fold backfill + rename op execution** into the apply path. The Phase 7 design makes both _representable_ (any op in `ops.json` is applied verbatim), but the IDB runner doesn't yet have a code path to invoke developer-authored closures inside the apply transaction. Track as a separate phase once Phase 6.4 lands.
+4. **Phases 6.5–6.7** as previously scoped.
 
 ---
 

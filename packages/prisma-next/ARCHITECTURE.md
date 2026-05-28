@@ -67,12 +67,12 @@ User's app code
 
 **Entrypoints:**
 
-| Entrypoint     | Plane               | What it contains                                                                                                                            | Who imports it                                                  |
-| -------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `.` / `./pack` | neither (pure data) | `{ kind: 'target', familyId: 'idb', targetId: 'idb', version, capabilities }` as a typed const                                              | adapter `/pack`, family-idb, anyone needing the identity object |
-| `./control`    | control only        | `IDBMigrationRunner`, DDL op factories (`createObjectStore`, `createIndex`), schema diffing, marker ledger                                  | CLI, family-idb, migration tooling                              |
-| `./runtime`    | runtime only        | `RuntimeTargetDescriptor` with `codecs()` + `create()` factory                                                                              | Execution stack at query time                                   |
-| `./migration`  | control only        | Re-exports the DDL op factories (`createObjectStore`, `createIndex`, `dropObjectStore`, `createIDBIndex`) for user-authored migration files | User migration files                                            |
+| Entrypoint     | Plane               | What it contains                                                                                                                                                                                                                                                                                                                                                                                    | Who imports it                                                                        |
+| -------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `.` / `./pack` | neither (pure data) | `{ kind: 'target', familyId: 'idb', targetId: 'idb', version, capabilities }` as a typed const                                                                                                                                                                                                                                                                                                      | adapter `/pack`, family-idb, anyone needing the identity object                       |
+| `./control`    | control only        | Default export `IdbControlTargetDescriptor`. Carries `migrations: { createPlanner, createRunner, contractToSchema }` so the framework's CLI can plan and (in non-IDB families) apply migrations. The IDB runner's `executeAcrossSpaces` returns a refusal envelope (see `family-idb`).                                                                                                              | CLI, family-idb                                                                       |
+| `./runtime`    | runtime only        | `RuntimeTargetDescriptor` with `codecs()` + `create()` factory and `idbCodecLookup` for the adapter                                                                                                                                                                                                                                                                                                 | Execution stack at query time                                                         |
+| `./migration`  | control only        | Public API for authoring migration files: `Migration` base class (`IdbMigration` re-exported as `Migration`), `MigrationCLI.run` self-emit shim, DDL op factories (`createObjectStoreOp`, `createIndexOp`, `dropObjectStoreOp`, `dropIndexOp`), and the shared `openAndUpgrade` / `applyOneDdlOp` / `readMarker` / `writeMarker` apply helpers used by both browser auto-migrate and CLI preflight. | User-authored `migration.ts` files; `client-idb/auto-migrate`; `family-idb/preflight` |
 
 **Why `/pack` and `/control` are separate:**
 `/control` contains the migration runner and schema diffing. If these were bundled with `/pack`, every browser bundle importing the target would carry the entire migration system. By keeping them separate, only Node.js/CLI code ever imports `/control`.
@@ -205,11 +205,11 @@ Note: collect-then-yield (ADR 006) means `onRow` fires after all rows have alrea
 
 **Entrypoints:**
 
-| Entrypoint      | Plane        | What it contains                                                                                                                                                | Who imports it |
-| --------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| `./orm`         | runtime only | `idbOrm({ contract, executor })` factory + `IdbOrmClient` type + `IdbStoreAccessor` type. Bring-your-own runtime (you pass any `IdbQueryExecutor`).             | Advanced users |
-| `./client`      | runtime only | `createIdbClient({ contract, dbName, middleware? })` — assembles `driver + adapter + runtime + orm` and returns `{ orm, verifyMarker, close, [asyncDispose] }`. | Most user apps |
-| `./client-auto` | runtime only | `createAutoMigratingIdbClient({ contract, dbName, manifest? })` — same as `./client` but runs the migration planner+runner first if marker doesn't match.       | SPA / Path A   |
+| Entrypoint      | Plane        | What it contains                                                                                                                                                                                                                                                                      | Who imports it |
+| --------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| `./orm`         | runtime only | `idbOrm({ contract, executor })` factory + `IdbOrmClient` type + `IdbStoreAccessor` type. Bring-your-own runtime (you pass any `IdbQueryExecutor`).                                                                                                                                   | Advanced users |
+| `./client`      | runtime only | `createIdbClient({ contract, dbName, middleware? })` — assembles `driver + adapter + runtime + orm` and returns `{ orm, verifyMarker, close, [asyncDispose] }`.                                                                                                                       | Most user apps |
+| `./client-auto` | runtime only | `createAutoMigratingIdbClient({ contractSpace, dbName, policy? })` — same as `./client` but first walks `contractSpace.migrations` from the in-DB marker to `headRef.hash` and applies any pending packages. Policy defaults to safe (additive + widening only, destructive refused). | SPA / Path A   |
 
 **Key types:**
 
@@ -251,33 +251,73 @@ Each plan carries an optional `ast` field (`IdbQueryAst`) describing the query i
 
 **Entrypoints:**
 
-| Entrypoint       | Plane               | What it contains                                                                                                                                                                                                                                                                        | Who imports it                |
-| ---------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| `./control`      | control only        | Default export `IdbFamilyDescriptor` + `IdbManifestControlDriverDescriptor` + type re-exports (`IdbContract`, `IdbManifest`, `IdbSchemaIR`)                                                                                                                                             | `prisma-next.config.ts`, CLI  |
-| `./pack`         | neither (pure data) | The family's pure pack ref — passed to `defineContract({ family, ... })` so the contract is bound to the IDB family identity                                                                                                                                                            | `contract.ts` authoring files |
-| `./contract-ts`  | neither (pure data) | `defineContract(input)` — TypeScript-first authoring helper. Takes `{ family, target, models: { ModelName: { store, key, indexes?, relations? } } }`, derives the full `Contract<IdbStorage>` object with `storageHash` + `profileHash` computed, validates it, returns. No PSL needed. | `contract.ts` authoring files |
-| `./config-types` | control only        | `defineConfig()` re-export for `prisma-next.config.ts`, plus `typescriptContract()` helper that ties a TS-authored contract to its emitted `contract.json` path                                                                                                                         | `prisma-next.config.ts`       |
+| Entrypoint              | Plane               | What it contains                                                                                                                                                                                                                                                                                                                                     | Who imports it                |
+| ----------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `./control`             | control only        | Default export `IdbFamilyDescriptor` + type re-exports (`IdbContract`, `IdbSchemaIR`, `IdbStoreIR`, `IdbIndexIR`). Phase-7 family instance has no manifest driver — CLI methods return `IDB-CLI-UNSUPPORTED` envelopes; the active surface is `deserializeContract` (pure) and `verifySchema` (pure)                                                 | `prisma-next.config.ts`, CLI  |
+| `./pack`                | neither (pure data) | The family's pure pack ref — passed to `defineContract({ family, ... })` so the contract is bound to the IDB family identity                                                                                                                                                                                                                         | `contract.ts` authoring files |
+| `./contract-ts`         | neither (pure data) | `defineContract(input)` — TypeScript-first authoring helper. Takes `{ family, target, models: { ModelName: { store, key, indexes?, relations? } } }`, derives the full `Contract<IdbStorage>` object with `storageHash` + `profileHash` computed (capabilities baked in to match `prisma-next contract emit`), validates it, returns. No PSL needed. | `contract.ts` authoring files |
+| `./config-types`        | control only        | `defineConfig()` re-export for `prisma-next.config.ts`, plus `typescriptContract()` helper that ties a TS-authored contract to its emitted `contract.json` path                                                                                                                                                                                      | `prisma-next.config.ts`       |
+| `./bin/prisma-next-idb` | control only        | IDB-specific CLI binary (`prisma-next-idb` on `PATH` once published). Subcommands: `generate-baseline`, `generate-contract-space`, `preflight`. See [§ Migration package layout](#migration-package-layout) below.                                                                                                                                   | Project-level npm scripts     |
 
 **There is no `./runtime` entrypoint.** Runtime stack composition is done by `client-idb` via `createIdbClient()` (or `createAutoMigratingIdbClient()`).
 
-**Manifest format (`prisma-idb.manifest.json`):**
+**CLI surface, post-Phase 7 — refusal-only.** IndexedDB is a browser API; the CLI runs in Node.js with no live IDB to talk to. Every method on `IdbControlFamilyInstance` that would normally read or write a database returns a structured `IDB-CLI-UNSUPPORTED` envelope:
 
-```json
-{
-  "version": 1,
-  "idbVersion": 1,
-  "schema": { "stores": { "users": { "keyPath": "id", "indexes": { ... } } } },
-  "marker": {
-    "storageHash": "sha256:...",
-    "profileHash": "sha256:...",
-    "updatedAt": "2026-05-25T05:58:37.985Z",
-    "invariants": [], "contractJson": null,
-    "canonicalVersion": null, "appTag": null, "meta": {}
-  }
-}
+- `verify` / `sign` → `{ ok: false, code: 'IDB-CLI-UNSUPPORTED', summary: "IndexedDB cannot be { verified | signed } from the CLI…" }`
+- `readMarker` / `readAllMarkers` → `null` / empty map (the framework's typing requires concrete `ContractMarkerRecord | null` here; the refusal is communicated via the sibling `verify` / `sign`)
+- `introspect` → `{ stores: {} }` (same typing constraint; framework code that branches on this gets an "empty schema" answer)
+
+The active CLI surface for an IDB project is therefore narrow:
+
+- `prisma-next contract emit` — generates `contract.json` + `contract.d.ts` (pure)
+- `prisma-next migration new` / `migration plan` — scaffolds a migration package (pure)
+- `prisma-next-idb generate-baseline` — auto-creates the first migration from `contract.json` (pure file write)
+- `prisma-next-idb generate-contract-space` — bundles on-disk packages into `contract-space.generated.ts` (pure file write)
+- `prisma-next-idb preflight` — walks the chain empty→tip against a fresh `fake-indexeddb` instance (the only legitimate use of `fake-indexeddb` in the toolchain)
+
+**`prisma-next.config.ts` for an IDB project** still needs a `driver` value to satisfy the framework's config schema. Use the stub `idbControlDriverDescriptor` from `@prisma-next-idb/driver-idb/control` — it's a no-op whose `query()` / `close()` exist only to satisfy the type:
+
+```ts
+import idbFamily from "@prisma-next-idb/family-idb/control";
+import idbTarget from "@prisma-next-idb/target-idb/control";
+import idbAdapter from "@prisma-next-idb/adapter-idb/control";
+import idbDriver from "@prisma-next-idb/driver-idb/control";
+
+export default defineConfig({
+  family: idbFamily,
+  target: idbTarget,
+  adapter: idbAdapter,
+  driver: idbDriver,
+  db: { connection: ":memory:" }, // ignored; IDB resolves the name in the browser
+  contract: typescriptContract(contract, "src/lib/prisma/contract.json"),
+  migrations: { dir: "migrations" },
+});
 ```
 
-`version` is the **manifest file format** version (always `1`). `idbVersion` is the **IndexedDB version number** the runner last opened the database at — bumped on every successful `db update`. `schema` is the IR diff target (currently populated only when `db update` runs successfully — see PLAN.md Issue #2). `marker` mirrors what's written into the `_prisma_next_marker` store after each migration; `db sign` writes only the marker portion.
+### Migration package layout
+
+Phase 7 adopted the framework's standard `migrations/<space>/` shape. The on-disk artefacts are the canonical authoring surface; the runtime consumes them through a bundled `ContractSpace`:
+
+```
+<app>/
+├── migrations/
+│   └── app/
+│       └── 20260527T1635_baseline/
+│           ├── migration.json      ← MigrationMetadata (from, to, migrationHash, hints, …)
+│           ├── ops.json            ← canonical IdbDdlOp[] applied at upgrade time
+│           ├── end-contract.json   ← contract snapshot after this migration
+│           ├── end-contract.d.ts   ← .d.ts companion (used by next migration's start-contract)
+│           └── migration.ts        ← class M extends Migration { … }; MigrationCLI.run(…)
+└── src/lib/prisma/
+    ├── contract.prisma             ← (optional) PSL source
+    ├── contract.json               ← emitted by `prisma-next contract emit`
+    ├── contract.d.ts               ← emitted alongside contract.json
+    └── contract-space.generated.ts ← emitted by `prisma-next-idb generate-contract-space`
+```
+
+`contract-space.generated.ts` JSON-imports each package's `migration.json` + `ops.json` and assembles them via `contractSpaceFromJson<Contract>` into the in-memory `ContractSpace<Contract>` value the browser-side `createAutoMigratingIdbClient` consumes. There is **no `migrations/refs/head.json`** for the app space — the head ref is inlined into the generated module (derived from the last package's `to`). Extensions that contribute migrations to IDB would each own their own space under `migrations/<extension-id>/` and write a `refs/head.json` per the framework's extension layout.
+
+**There is no `prisma-idb.manifest.json`.** Phase 7 deleted the manifest entirely (see [FEEDBACK.md](FEEDBACK.md) §3 for rationale). The only authoritative position record is the in-DB marker row in `_prisma_next_marker`, keyed by `space` (`"app"` for the app contract space).
 
 **Depends on:** `target-idb` only. The family descriptor needs the target's `/pack` metadata to expose `idbTargetDescriptor` to the CLI. It does not depend on the adapter or driver — those are the user's runtime concern.
 
@@ -285,49 +325,77 @@ Each plan carries an optional `ast` field (`IdbQueryAst`) describing the query i
 
 ## Entrypoint Flow Diagrams
 
-### Control plane (CLI runs `db migrate`)
+### Authoring plane (developer evolves the contract)
 
 ```
-prisma.config.ts
-  └── imports family-idb/control
-        └── idbFamilyDescriptor + idbTargetDescriptor
-              │
-              ├── CLI calls familyInstance.validateContract(contractJson)
-              ├── CLI calls familyInstance.schemaVerify({ driver, contract })
-              │     └── driver-idb/control ← ControlDriverDescriptor.create(url) opens IDB
-              └── CLI calls familyInstance.runMigrations({ driver, plan })
-                    └── target-idb/control ← IDBMigrationRunner
-                          └── calls createObjectStore, createIndex
-                                inside the upgradeneeded callback
+developer edits src/lib/prisma/contract.server.ts (or contract.prisma)
+  │
+  ├── pnpm prisma-next contract emit
+  │     └── @prisma-next/emitter ← writes contract.json + contract.d.ts
+  │
+  ├── pnpm prisma-next migration new           (or migration plan)
+  │     └── framework writes migrations/app/<ts>_<slug>/{migration.json, ops.json,
+  │         end-contract.json, end-contract.d.ts, migration.ts}
+  │         migration.ts ends with `MigrationCLI.run(import.meta.url, M);`
+  │
+  ├── pnpm prisma-next-idb generate-contract-space
+  │     └── family-idb/bin ← writes src/lib/prisma/contract-space.generated.ts
+  │         which JSON-imports each package's metadata + ops + inlines the head ref
+  │
+  └── pnpm prisma-next-idb preflight  (optional CI gate)
+        └── family-idb/preflight ← walks the chain empty→tip against fake-indexeddb
 ```
 
-### Runtime plane (user calls `db.users.all()` or `db.users.create({…})`)
+The CLI never touches a live IndexedDB. `prisma-next db verify` / `db init` / `db update` all return `IDB-CLI-UNSUPPORTED` envelopes.
+
+### Browser plane (user opens the app for the first time, or after a contract change)
 
 ```
 User's app
-  ├── import { idbOrm } from "@prisma-next-idb/client-idb/orm"
-  ├── import { createIdbRuntime } from "@prisma-next-idb/runtime-idb/runtime"
-  └── import contract from "./prisma/idb-contract"
+  ├── import { createAutoMigratingIdbClient } from "@prisma-next-idb/client-idb/client-auto"
+  └── import { contractSpace } from "./prisma/contract-space.generated"
         │
-        ├── const runtime = createIdbRuntime({ adapter, driver, contract })
-        │     ├── runtime.verifyMarker()  // checks _prisma_next_marker store
-        │     ├── adapter-idb/runtime ← lower(plan, { contract }) → IdbPlanBody
-        │     └── driver-idb/runtime ← execute(planBody) → async iterable rows
+        └── createAutoMigratingIdbClient({ contractSpace, dbName: "my-app" })
+              │
+              ├── 1. open IDB at its current local version; read _prisma_next_marker[space="app"]
+              ├── 2. if marker.storageHash === contractSpace.headRef.hash, fast-path return
+              ├── 3. otherwise walkChain(marker → headRef.hash), collecting ops with policy filter
+              │     │
+              │     └── refuse if destructive ops dropped and policy.onDestructive === "refuse"
+              │
+              ├── 4. close, reopen at db.version + 1 → upgradeneeded fires
+              │     └── target-idb/migration ← applyOneDdlOp(db, tx, op) for each pending op
+              │
+              ├── 5. write the new marker to _prisma_next_marker[space="app"] in a fresh tx
+              │
+              └── 6. hand back createIdbClient({ contract: contractSpace.contractJson, dbName })
+```
+
+### Runtime plane (user calls `db.orm.users.all()` or `db.orm.users.create({…})`)
+
+```
+User's app
+  └── const client = await createAutoMigratingIdbClient({ contractSpace, dbName })
         │
-        └── const db = idbOrm({ contract, executor: runtime })
-              │
-              ├── db.users.create({ name: "Alice" })
-              │     └── builds IdbQueryPlan { idbPlan: IdbPutPlan, meta: { groupingKey: "idb-op-1" } }
-              │     └── runtime.execute(plan) → AsyncIterableResult<Row>
-              │
-              └── db.users.all()
-                    └── builds IdbQueryPlan { idbPlan: IdbCursorScanPlan }
-                    └── runtime.execute(plan)
-                          ├── adapter.lower(plan, { contract }) → IdbPlanBody
-                          ├── middleware.beforeExecute(planBody, ctx)
-                          ├── driver.execute(planBody) → yield rows
-                          │     └── middleware.onRow(row, planBody, ctx) per row
-                          └── middleware.afterExecute(planBody, ctx)
+        ├── client.orm = idbOrm({ contract, executor: runtime })
+        │     ├── runtime = createIdbRuntime({ adapter, driver, contract })
+        │     │     ├── adapter-idb/runtime ← lower(plan, { contract }) → IdbPlanBody
+        │     │     └── driver-idb/runtime  ← execute(planBody) → async iterable rows
+        │     └── runtime is structurally `IdbQueryExecutor`
+        │
+        ├── client.withTransaction(["users", "posts"], async (scope) => …)
+        │     └── runtime.transaction(stores, "readwrite") → IdbTransactionScope
+        │           └── scope.execute(plan) runs IdbAtomicPlans in the shared IDB tx,
+        │               bypassing the middleware chain so cache reads stay fresh
+        │
+        └── client.orm.users.create({ name: "Alice" })
+              └── builds IdbQueryPlan { idbPlan: IdbPutPlan, meta: { groupingKey: "idb-op-1" } }
+              └── runtime.execute(plan)
+                    ├── adapter.lower(plan, { contract }) → IdbPlanBody
+                    ├── middleware.beforeExecute(planBody, ctx)
+                    ├── driver.execute(planBody) → yield rows
+                    │     └── middleware.onRow(row, planBody, ctx) per row
+                    └── middleware.afterExecute(planBody, ctx)
 ```
 
 ---
@@ -358,31 +426,34 @@ runtime-idb depends on adapter-idb, driver-idb
 
 ## Key Terminology
 
-| Term                         | Meaning                                                                                                                                                                                                   |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Descriptor**               | A pure-data object that describes a layer (target/adapter/driver/family). Contains identity fields + factory methods. Never has mutable state.                                                            |
-| **Instance**                 | A live object created from a descriptor's `create()` method. Has the actual connection, open cursors, etc.                                                                                                |
-| **ControlFamilyDescriptor**  | The top-level descriptor for a family. The CLI calls `create(stack)` on it to get a family instance for migrations.                                                                                       |
-| **ControlDriverDescriptor**  | The driver's control-plane descriptor. Has `create(url)` to open a connection for CLI use.                                                                                                                |
-| **ControlAdapterDescriptor** | The adapter's control-plane descriptor. Has `scalarTypeDescriptors` mapping Prisma types to storage codec IDs.                                                                                            |
-| **RuntimeTargetDescriptor**  | Target's runtime descriptor. Has `codecs()` (codec registry) and `create()` (target instance factory). Used by the execution stack.                                                                       |
-| **RuntimeAdapterDescriptor** | Adapter's runtime descriptor. Has `create(stack)` and `lower(queryAST)`. Lowers Prisma queries to IDB plan bodies.                                                                                        |
-| **pack**                     | The plain identity object for a target: `{ kind, familyId, targetId, id, version, capabilities }`. The default export of any target package.                                                              |
-| **familyId**                 | Identifies the database family. For us: `'idb'`. For Mongo: `'mongo'`.                                                                                                                                    |
-| **targetId**                 | Identifies the specific target within a family. For a single-target family: same as `familyId`.                                                                                                           |
-| **capabilities**             | A typed object on the pack declaring what the target can/cannot do (e.g. `transactionalDDL`, `returning`, `compoundKeys`). The framework uses this to gate features.                                      |
-| **codec**                    | A serializer/deserializer for a single scalar type. e.g. a `DateTime` codec converts between JS `Date` and whatever IDB stores.                                                                           |
-| **codec registry**           | A collection of codecs for all scalar types the target supports. Returned by `RuntimeTargetDescriptor.codecs()`.                                                                                          |
-| **codec ID**                 | A versioned string ID for a codec, e.g. `idb/date@1`. The `@1` is the version — different versions of the same codec can coexist.                                                                         |
-| **scalarTypeDescriptors**    | The map on `ControlAdapterDescriptor` from Prisma type names (`'DateTime'`) to codec IDs (`'idb/date@1'`).                                                                                                |
-| **marker ledger**            | The system that tracks which migration has been applied to an IDB database. Stored as a special entry inside IDB itself.                                                                                  |
-| **upgradeneeded**            | The IDB callback that fires when `IDBFactory.open(name, newVersion)` is called with a version higher than the stored version. DDL (object store creation/deletion) can ONLY happen here.                  |
-| **opaque plan body**         | The output of `adapter.lower(queryAST)`. It's a data structure the driver knows how to execute, but the adapter doesn't need to know the driver's internals to produce it.                                |
-| **ORM client**               | The typed object returned by `idbOrm({ contract, executor })`. Maps contract roots to `IdbStoreAccessor` instances. The user-facing query API.                                                            |
-| **store accessor**           | A per-model typed query builder returned by the ORM client. Has methods like `create()`, `all()`, `where()`, `first()`, `findUnique()`, `delete()`.                                                       |
-| **groupingKey**              | A unique string (e.g. `"idb-op-1"`) attached to every plan emitted by the ORM. Propagates through sub-plans so middleware can correlate related operations.                                               |
-| **contract marker**          | A record in the `_prisma_next_marker` object store containing `storageHash`, `profileHash`, and `updatedAt`. Written by the migration runner, verified by `runtime.verifyMarker()`.                       |
-| **outbox sync**              | The bidirectional sync extension (separate from these packages). Client writes go to an outbox first; a background process syncs them to the server. Lives in a separate `extension-outbox-sync` package. |
+| Term                         | Meaning                                                                                                                                                                                                                                                                                                                            |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Descriptor**               | A pure-data object that describes a layer (target/adapter/driver/family). Contains identity fields + factory methods. Never has mutable state.                                                                                                                                                                                     |
+| **Instance**                 | A live object created from a descriptor's `create()` method. Has the actual connection, open cursors, etc.                                                                                                                                                                                                                         |
+| **ControlFamilyDescriptor**  | The top-level descriptor for a family. The CLI calls `create(stack)` on it to get a family instance for migrations.                                                                                                                                                                                                                |
+| **ControlDriverDescriptor**  | The driver's control-plane descriptor. Has `create(url)` to open a connection for CLI use.                                                                                                                                                                                                                                         |
+| **ControlAdapterDescriptor** | The adapter's control-plane descriptor. Has `scalarTypeDescriptors` mapping Prisma types to storage codec IDs.                                                                                                                                                                                                                     |
+| **RuntimeTargetDescriptor**  | Target's runtime descriptor. Has `codecs()` (codec registry) and `create()` (target instance factory). Used by the execution stack.                                                                                                                                                                                                |
+| **RuntimeAdapterDescriptor** | Adapter's runtime descriptor. Has `create(stack)` and `lower(queryAST)`. Lowers Prisma queries to IDB plan bodies.                                                                                                                                                                                                                 |
+| **pack**                     | The plain identity object for a target: `{ kind, familyId, targetId, id, version, capabilities }`. The default export of any target package.                                                                                                                                                                                       |
+| **familyId**                 | Identifies the database family. For us: `'idb'`. For Mongo: `'mongo'`.                                                                                                                                                                                                                                                             |
+| **targetId**                 | Identifies the specific target within a family. For a single-target family: same as `familyId`.                                                                                                                                                                                                                                    |
+| **capabilities**             | A typed object on the pack declaring what the target can/cannot do (e.g. `transactionalDDL`, `returning`, `compoundKeys`). The framework uses this to gate features.                                                                                                                                                               |
+| **codec**                    | A serializer/deserializer for a single scalar type. e.g. a `DateTime` codec converts between JS `Date` and whatever IDB stores.                                                                                                                                                                                                    |
+| **codec registry**           | A collection of codecs for all scalar types the target supports. Returned by `RuntimeTargetDescriptor.codecs()`.                                                                                                                                                                                                                   |
+| **codec ID**                 | A versioned string ID for a codec, e.g. `idb/date@1`. The `@1` is the version — different versions of the same codec can coexist.                                                                                                                                                                                                  |
+| **scalarTypeDescriptors**    | The map on `ControlAdapterDescriptor` from Prisma type names (`'DateTime'`) to codec IDs (`'idb/date@1'`).                                                                                                                                                                                                                         |
+| **marker store**             | The internal `_prisma_next_marker` object store that holds one `ContractMarkerRecord` per contract space (just `"app"` for now), keyed by `space`. Tracks which contract the database is currently in. Created by the planner's `createMarkerStoreOp` as the first op of the baseline migration.                                   |
+| **ContractSpace**            | The framework's `{ contractJson, migrations, headRef }` value the browser-side runtime walks. Built at design time by `prisma-next-idb generate-contract-space`; consumed by `createAutoMigratingIdbClient`.                                                                                                                       |
+| **MigrationCLI**             | Shim invoked from the last line of every `migration.ts` (`MigrationCLI.run(import.meta.url, M);`). When the file is run as `node migration.ts`, regenerates `ops.json` + `migration.json` from the migration class's current `operations` getter and `describe()`. When merely imported (by `contract-space.generated.ts`), no-op. |
+| **preflight**                | The `prisma-next-idb preflight` command that walks the chain empty→tip against a fresh `fake-indexeddb` instance — the only legitimate use of `fake-indexeddb` in the toolchain.                                                                                                                                                   |
+| **upgradeneeded**            | The IDB callback that fires when `IDBFactory.open(name, newVersion)` is called with a version higher than the stored version. DDL (object store creation/deletion) can ONLY happen here.                                                                                                                                           |
+| **opaque plan body**         | The output of `adapter.lower(queryAST)`. It's a data structure the driver knows how to execute, but the adapter doesn't need to know the driver's internals to produce it.                                                                                                                                                         |
+| **ORM client**               | The typed object returned by `idbOrm({ contract, executor })`. Maps contract roots to `IdbStoreAccessor` instances. The user-facing query API.                                                                                                                                                                                     |
+| **store accessor**           | A per-model typed query builder returned by the ORM client. Has methods like `create()`, `all()`, `where()`, `first()`, `findUnique()`, `delete()`.                                                                                                                                                                                |
+| **groupingKey**              | A unique string (e.g. `"idb-op-1"`) attached to every plan emitted by the ORM. Propagates through sub-plans so middleware can correlate related operations.                                                                                                                                                                        |
+| **contract marker**          | A record in the `_prisma_next_marker` object store containing `storageHash`, `profileHash`, and `updatedAt`. Written by the migration runner, verified by `runtime.verifyMarker()`.                                                                                                                                                |
+| **outbox sync**              | The bidirectional sync extension (separate from these packages). Client writes go to an outbox first; a background process syncs them to the server. Lives in a separate `extension-outbox-sync` package.                                                                                                                          |
 
 ---
 
@@ -406,29 +477,35 @@ packages/prisma-next/
 │   └── src/
 │       ├── core/
 │       │   ├── descriptor-meta.ts      ← { kind, familyId, targetId, capabilities }
-│       │   ├── capabilities.ts         ← IDB capability flags
-│       │   ├── migration-factories.ts  ← createObjectStore, createIndex, etc.
-│       │   ├── migration-runner.ts     ← IDBMigrationRunner (orchestrates upgradeneeded)
-│       │   ├── migration-planner.ts    ← contract→schema IR diffing + marker store op
-│       │   ├── schema-diff.ts          ← contract-to-contract diffing
-│       │   └── marker-ledger.ts        ← read/write applied migration version
+│       │   ├── codec-types.ts          ← codec ID + trait constants
+│       │   ├── codecs.ts               ← codec implementations (idb/string@1, idb/date@1, …)
+│       │   ├── idb-contract-types.ts   ← IdbStorage / IdbStoreDefinition / IdbIndexDefinition / type maps
+│       │   ├── idb-migration.ts        ← `IdbMigration` base class (extends framework Migration)
+│       │   ├── migration-cli.ts        ← `MigrationCLI.run` self-emit shim
+│       │   ├── migration-factories.ts  ← createObjectStoreOp / createIndexOp / drop variants / marker store op
+│       │   ├── migration-driver.ts     ← `IdbMigrationControlDriver` (carries factory + dbName + targetVersion)
+│       │   ├── migration-planner.ts    ← contract→schema IR diffing + class-based migration.ts renderer
+│       │   ├── migration-runner.ts     ← `IdbMigrationRunner` (execute() + refusal envelope for executeAcrossSpaces)
+│       │   ├── apply-ddl-op.ts         ← shared `applyOneDdlOp` / `openAndUpgrade` / `readMarker` / `writeMarker`
+│       │   └── schema-diff.ts          ← contract-to-contract diffing (with index-mutation handling)
 │       └── exports/
 │           ├── pack.ts        ← default export: idbTargetDescriptorMeta
-│           ├── control.ts     ← re-exports runner, factories, diff, ledger
-│           ├── runtime.ts     ← RuntimeTargetDescriptor (codecs + create)
-│           └── migration.ts   ← re-exports user-facing op factories
+│           ├── control.ts     ← IdbControlTargetDescriptor (binds the migrations capability)
+│           ├── runtime.ts     ← RuntimeTargetDescriptor (codecs + create) + idbCodecLookup
+│           └── migration.ts   ← re-exports authoring surface: Migration + MigrationCLI + DDL op factories + apply helpers
 │
 ├── adapter-idb/
 │   ├── package.json          ← exports: /control /runtime
 │   ├── tsconfig.json
 │   └── src/
 │       ├── core/
-│       │   ├── codecs.ts                 ← IDB codec implementations
+│       │   ├── descriptor-meta.ts        ← adapter identity (familyId/targetId/kind)
 │       │   ├── idb-adapter.ts            ← lower(plan, ctx) → IdbPlanBody
-│       │   ├── idb-query-ast.ts          ← IdbQueryAst (findMany / findUnique / create / delete)
+│       │   ├── idb-filter-expr.ts        ← IdbFilterExpr discriminated union + factories
+│       │   ├── filter-eval.ts            ← evaluateFilter(expr, row) → boolean
+│       │   ├── idb-query-ast.ts          ← IdbQueryAst (findMany / findUnique / create / delete / update / …)
 │       │   ├── idb-query-plan.ts         ← IdbQueryPlan shape
-│       │   ├── runtime-adapter-instance.ts ← IdbRuntimeAdapterInstance + IdbLowererContext
-│       │   └── introspect-schema.ts
+│       │   └── runtime-adapter-instance.ts ← IdbRuntimeAdapterInstance + IdbLowererContext
 │       └── exports/
 │           ├── control.ts    ← ControlAdapterDescriptor + scalarTypeDescriptors
 │           └── runtime.ts    ← RuntimeAdapterDescriptor + lower()
@@ -438,13 +515,14 @@ packages/prisma-next/
 │   ├── tsconfig.json
 │   └── src/
 │       ├── core/
-│       │   ├── driver-info.ts      ← version constant
-│       │   ├── plan-body.ts        ← IdbPlanBody union, MARKER_STORE_NAME, IdbMarkerRecord
-│       │   ├── idb-driver.ts       ← IdbRuntimeDriverInstance (open, execute, readMarker, close)
-│       │   └── execute/            ← plan body execution helpers
+│       │   ├── descriptor-meta.ts  ← driver identity
+│       │   ├── plan-body.ts        ← IdbPlanBody union, MARKER_STORE_NAME, IdbMarkerRecord, IdbScanWritePlan, IdbBatchPlan
+│       │   ├── idb-driver.ts       ← IdbRuntimeDriverInstance (open + onversionchange, execute, readMarker, transaction, close)
+│       │   ├── transaction-scope.ts ← IdbTransactionScope + createTransactionScope
+│       │   └── execute/            ← plan body execution helpers (callback-driven, event-loop-safe)
 │       └── exports/
-│           ├── control.ts    ← ControlDriverDescriptor + create(dbName)
-│           └── runtime.ts    ← createIDBRuntimeDriver() factory + IdbRuntimeDriverInstance
+│           ├── control.ts    ← idbControlDriverDescriptor (no-op stub; satisfies Config schema for IDB projects)
+│           └── runtime.ts    ← createIDBRuntimeDriver() factory + IdbRuntimeDriverInstance + IdbTransactionScope
 │
 ├── runtime-idb/
 │   ├── package.json          ← exports: ./runtime
@@ -453,37 +531,59 @@ packages/prisma-next/
 │   ├── test/
 │   │   └── runtime.test.ts
 │   └── src/
-│       ├── idb-runtime.ts       ← IdbRuntimeImpl (extends RuntimeCore), createIdbRuntime()
-│       ├── idb-middleware.ts    ← IdbMiddleware interface (family: "idb")
+│       ├── idb-runtime.ts       ← IdbRuntimeImpl (extends RuntimeCore), createIdbRuntime(), contentHash() for cache middleware
+│       ├── idb-middleware.ts    ← IdbMiddleware interface (familyId?: "idb")
 │       └── exports/
 │           └── runtime.ts       ← re-exports createIdbRuntime, IdbRuntime, IdbMiddleware
 │
 ├── client-idb/
-│   ├── package.json          ← exports: ./orm
+│   ├── package.json          ← exports: ./orm ./client ./client-auto
 │   ├── tsconfig.json
 │   ├── vitest.config.ts
 │   ├── test/
-│   │   └── orm.test.ts
+│   │   ├── auto-migrate-evolution.test.ts ← v1→v2→v3 evolution against contractSpace
+│   │   ├── mutation-scope.test.ts         ← withMutationScope multi-store atomicity
+│   │   ├── operators.test.ts              ← filter operator surface
+│   │   └── orm.test.ts                    ← ORM terminals end-to-end
 │   └── src/
 │       ├── core/
+│       │   ├── auto-migrate.ts     ← walkChain + openAndReadMarker + SAFE_POLICY (refuse destructive)
+│       │   ├── filters.ts          ← and / or / not user-facing helpers
+│       │   ├── idb-client.ts       ← createIdbClient() assembly + withTransaction
 │       │   ├── idb-orm.ts          ← idbOrm() factory, IdbOrmClient type
-│       │   ├── store-accessor.ts   ← IdbStoreAccessorImpl (create, all, where, first, findUnique, delete)
+│       │   ├── model-accessor.ts   ← createModelAccessor() Proxy for callback-form .where()
+│       │   ├── mutation-scope.ts   ← withMutationScope() + IdbQueryExecutorWithTransaction
+│       │   ├── store-accessor.ts   ← IdbStoreAccessorImpl (create, all, where, first, update, upsert, …)
 │       │   ├── executor.ts         ← IdbQueryExecutor interface
-│       │   ├── relation-loader.ts  ← include() / relation traversal
-│       │   ├── store-state.ts      ← per-store groupingKey counter
+│       │   ├── relation-loader.ts  ← include() / relation traversal (batch FK strategy)
+│       │   ├── store-state.ts      ← per-accessor filter/orderBy/skip/take state
 │       │   └── types.ts            ← IdbContract, WhereFilter, CreateInput, etc.
 │       └── exports/
-│           └── orm.ts              ← re-exports idbOrm, IdbOrmClient, IdbStoreAccessor, etc.
+│           ├── orm.ts              ← idbOrm + types
+│           ├── client.ts           ← createIdbClient (bring-your-own contract, no migration)
+│           └── client-auto.ts      ← createAutoMigratingIdbClient (walks contractSpace.migrations)
 │
 └── family-idb/
-    ├── package.json          ← exports: /control /pack
+    ├── package.json          ← exports: /control /pack /contract-ts /config-types + bin: prisma-next-idb
     ├── tsconfig.json
     └── src/
+        ├── bin/
+        │   └── prisma-next-idb.ts  ← CLI binary: generate-baseline | generate-contract-space | preflight
         ├── core/
-        │   ├── control-descriptor.ts   ← IDBFamilyDescriptor
-        │   ├── control-instance.ts     ← createIDBFamilyInstance()
-        │   └── idb-target-descriptor.ts ← built from target-idb/pack
+        │   ├── chain-order.ts          ← chainOrderByMetadata() — walk from→to edges to derive package order
+        │   ├── contract-builder.ts     ← defineContract() TS-first authoring
+        │   ├── contract-space-codegen.ts ← generate-contract-space implementation
+        │   ├── control-descriptor.ts   ← IdbFamilyDescriptor
+        │   ├── control-instance.ts     ← createIdbFamilyInstance() — refusal envelopes for CLI methods
+        │   ├── emission.ts             ← contract.d.ts emission plugin (used by prisma-next contract emit)
+        │   ├── generate-baseline.ts    ← generate-baseline implementation
+        │   ├── preflight.ts            ← preflight (walks chain against fake-indexeddb)
+        │   ├── schema-ir.ts            ← IdbSchemaIR / IdbStoreIR / IdbIndexIR
+        │   ├── schema-verify.ts        ← verifyIdbSchema (pure)
+        │   └── validate.ts             ← validateContract (pure)
         └── exports/
-            ├── control.ts   ← idbFamilyDescriptor, idbTargetDescriptor
-            └── pack.ts      ← pure family pack ref for contract.ts authoring
+            ├── control.ts       ← IdbFamilyDescriptor (default)
+            ├── pack.ts          ← pure family pack ref for contract authoring
+            ├── contract-ts.ts   ← defineContract
+            └── config-types.ts  ← defineConfig + typescriptContract
 ```
