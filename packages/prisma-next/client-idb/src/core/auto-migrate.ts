@@ -5,6 +5,7 @@ import type {
   MigrationPackage,
 } from "@prisma-next/framework-components/control";
 import { APP_SPACE_ID } from "@prisma-next/framework-components/control";
+import { computeMigrationHash } from "@prisma-next/migration-tools/hash";
 import { isIdbDdlOp, openAndUpgrade, readMarker, type IdbDdlOp } from "@prisma-next-idb/target-idb/migration";
 import { createIdbClient, type IdbClient } from "./idb-client";
 import type { IdbContract } from "./types";
@@ -224,6 +225,16 @@ function walkChain(input: {
         `Auto-migration chain broken: no migration package with from === ${JSON.stringify(cursor)}. ` +
           "Verify that contract-space.generated.ts is up to date by re-running " +
           "`prisma-next-idb generate-contract-space`."
+      );
+    }
+    const computedHash = computeMigrationHash(next.metadata, next.ops);
+    if (computedHash !== next.metadata.migrationHash) {
+      throw new Error(
+        `Migration package "${next.dirName}" failed integrity check: ` +
+          `stored migrationHash ${next.metadata.migrationHash} does not match ` +
+          `computed hash ${computedHash}. ` +
+          "The ops may have been edited after the package was generated. " +
+          "Re-run `prisma-next migration plan` to regenerate the package."
       );
     }
     for (const op of next.ops) {

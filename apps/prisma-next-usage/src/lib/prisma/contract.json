@@ -2,7 +2,7 @@
   "schemaVersion": "1",
   "targetFamily": "idb",
   "target": "idb",
-  "profileHash": "sha256:9c3dc53697717de6a430cccc6a5b4738f956c513b7997012addca5048dfaa743",
+  "profileHash": "sha256:c115cd9b68c3a59204e40249c979cb44ada95d3a5ccc8a3c7a20ae2008f97b83",
   "roots": {
     "posts": "Post",
     "random_store": "RandomStore",
@@ -144,7 +144,16 @@
           }
         }
       },
-      "relations": {},
+      "relations": {
+        "posts": {
+          "cardinality": "1:N",
+          "on": {
+            "localFields": ["id"],
+            "targetFields": ["authorId"]
+          },
+          "to": "Post"
+        }
+      },
       "storage": {
         "keyPath": "id",
         "storeName": "users"

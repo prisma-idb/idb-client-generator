@@ -13,7 +13,7 @@ import type {
 
 export type StorageHash = StorageHashBase<"sha256:9a439471a6c17853ccf264236b1ef6a4ab268c165938886dd63fab2309eeeff8">;
 export type ExecutionHash = ExecutionHashBase<string>;
-export type ProfileHash = ProfileHashBase<"sha256:9c3dc53697717de6a430cccc6a5b4738f956c513b7997012addca5048dfaa743">;
+export type ProfileHash = ProfileHashBase<"sha256:c115cd9b68c3a59204e40249c979cb44ada95d3a5ccc8a3c7a20ae2008f97b83">;
 
 export type CodecTypes = IdbCodecTypes;
 export type LaneCodecTypes = CodecTypes;
@@ -167,7 +167,16 @@ type ContractBase = ContractType<
           readonly type: { readonly kind: "scalar"; readonly codecId: "idb/date@1" };
         };
       };
-      readonly relations: Record<string, never>;
+      readonly relations: {
+        readonly posts: {
+          readonly to: "Post";
+          readonly cardinality: "1:N";
+          readonly on: {
+            readonly localFields: readonly ["id"];
+            readonly targetFields: readonly ["authorId"];
+          };
+        };
+      };
       readonly storage: { readonly storeName: "users"; readonly keyPath: "id" };
     };
   }

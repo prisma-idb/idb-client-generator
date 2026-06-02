@@ -22,6 +22,8 @@ import {
   type IncludeSpec,
   type IncludedRow,
   type KeyType,
+  type MutationCreateInput,
+  type MutationUpdateInput,
   type NoIncludes,
   type OrderBySpec,
   type PatchInput,
@@ -34,6 +36,12 @@ import { createModelAccessor, type IdbModelAccessor } from "./model-accessor";
 import { type IdbAccessorState, emptyAccessorState, mergeAccessorState } from "./store-state";
 import type { IdbQueryExecutor } from "./executor";
 import { loadRelation } from "./relation-loader";
+import {
+  executeNestedCreateMutation,
+  executeNestedUpdateMutation,
+  hasNestedMutationCallbacks,
+  requireTransactionExecutor,
+} from "./mutation-executor";
 
 /** Callback form of `.where(fn)` — receives the typed model accessor proxy. */
 export type WhereCallback<TContract, ModelName extends string> = (
@@ -109,8 +117,13 @@ export interface IdbStoreAccessor<
    *
    * The primary key field is optional in `data` — pass it to use a
    * client-generated ID (`cuid`, `uuid`) or omit it for auto-increment stores.
+   *
+   * Relation fields accept a mutation callback:
+   * `posts: (rel) => rel.create([...])` or `author: (rel) => rel.connect({ id })`.
+   * When any relation callback is present, all writes are wrapped in a single
+   * multi-store IDB transaction (requires IdbRuntime, not a plain executor).
    */
-  create(data: CreateInput<TContract, ModelName>): Promise<DefaultModelRow<TContract, ModelName>>;
+  create(data: MutationCreateInput<TContract, ModelName>): Promise<DefaultModelRow<TContract, ModelName>>;
 
   /** Look up a single row by primary key. Returns `null` if not found. */
   findUnique(key: KeyType<TContract, ModelName>): Promise<DefaultModelRow<TContract, ModelName> | null>;
@@ -121,8 +134,12 @@ export interface IdbStoreAccessor<
   /**
    * Update the first row matching the accumulated `.where()` filter.
    * Returns the merged row, or `null` if no row matches.
+   *
+   * Relation fields accept `connect` or `disconnect` callbacks. When any
+   * relation callback is present, all writes run in a single multi-store
+   * IDB transaction (requires IdbRuntime).
    */
-  update(patch: PatchInput<TContract, ModelName>): Promise<DefaultModelRow<TContract, ModelName> | null>;
+  update(patch: MutationUpdateInput<TContract, ModelName>): Promise<DefaultModelRow<TContract, ModelName> | null>;
 
   /**
    * Update all rows matching the accumulated `.where()` filter and return
@@ -306,8 +323,19 @@ export class IdbStoreAccessorImpl<
     return this.take(1).all().first();
   }
 
-  async create(data: CreateInput<TContract, ModelName>): Promise<DefaultModelRow<TContract, ModelName>> {
+  async create(data: MutationCreateInput<TContract, ModelName>): Promise<DefaultModelRow<TContract, ModelName>> {
     const record = data as Record<string, unknown>;
+
+    if (hasNestedMutationCallbacks(this.#contract, this.#modelName, record)) {
+      const row = await executeNestedCreateMutation({
+        executor: requireTransactionExecutor(this.#executor),
+        contract: this.#contract,
+        modelName: this.#modelName,
+        data: record,
+      });
+      return row as DefaultModelRow<TContract, ModelName>;
+    }
+
     const groupingKey = this.#newGroupingKey();
     const meta = this.#planMeta(groupingKey);
     const ast: IdbCreateAst = { kind: "create", modelName: this.#modelName, data: record };
@@ -320,7 +348,6 @@ export class IdbStoreAccessorImpl<
     for await (const row of this.#executor.execute(plan)) {
       return row as DefaultModelRow<TContract, ModelName>;
     }
-    // Fallback: driver yielded no rows (shouldn't happen for `put`).
     return record as DefaultModelRow<TContract, ModelName>;
   }
 
@@ -352,7 +379,22 @@ export class IdbStoreAccessorImpl<
     await this.#executor.execute(plan).toArray();
   }
 
-  async update(patch: PatchInput<TContract, ModelName>): Promise<DefaultModelRow<TContract, ModelName> | null> {
+  async update(
+    patch: MutationUpdateInput<TContract, ModelName>
+  ): Promise<DefaultModelRow<TContract, ModelName> | null> {
+    const patchRecord = patch as Record<string, unknown>;
+
+    if (hasNestedMutationCallbacks(this.#contract, this.#modelName, patchRecord)) {
+      const row = await executeNestedUpdateMutation({
+        executor: requireTransactionExecutor(this.#executor),
+        contract: this.#contract,
+        modelName: this.#modelName,
+        filters: this.#state.filters,
+        data: patchRecord,
+      });
+      return row as DefaultModelRow<TContract, ModelName> | null;
+    }
+
     const groupingKey = this.#newGroupingKey();
     const combined = this.#combinedFilterExpr();
     const filter = combined !== undefined ? (row: Record<string, unknown>) => evaluateFilter(combined, row) : undefined;
@@ -360,7 +402,7 @@ export class IdbStoreAccessorImpl<
     const ast: IdbUpdateAst = {
       kind: "update",
       modelName: this.#modelName,
-      patch: patch as Record<string, unknown>,
+      patch: patchRecord,
       ...(combined !== undefined ? { where: combined } : {}),
     };
     const plan: IdbQueryPlan<Record<string, unknown>> = {
@@ -371,7 +413,7 @@ export class IdbStoreAccessorImpl<
         kind: "scan-write",
         storeName: this.#storeName,
         write: "put-merged",
-        patch: patch as Record<string, unknown>,
+        patch: patchRecord,
         take: 1,
         ...(filter !== undefined ? { filter } : {}),
       },
@@ -429,7 +471,9 @@ export class IdbStoreAccessorImpl<
   }): Promise<DefaultModelRow<TContract, ModelName>> {
     const existing = await this.where(args.where).first();
     if (!existing) {
-      return this.create(args.create);
+      // A bare CreateInput (no relation callbacks) is always a valid
+      // MutationCreateInput; the generic intersection can't be proven here.
+      return this.create(args.create as MutationCreateInput<TContract, ModelName>);
     }
     const keyPath = getKeyPath(this.#contract, this.#modelName);
     const key = (existing as Record<string, unknown>)[keyPath] as IDBValidKey;

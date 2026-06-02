@@ -203,6 +203,129 @@ export type IncludedRow<
  */
 export type PatchInput<TContract, ModelName extends string> = Partial<DefaultModelRow<TContract, ModelName>>;
 
+// ── Relation mutation types ───────────────────────────────────────────────────
+
+/** Extracts the `to` model name for a named relation on a model. */
+type RelatedModelOf<TContract, ModelName extends string, RelName extends string> = TContract extends {
+  models: Record<ModelName, { relations: Record<RelName, { to: infer To extends string }> }>;
+}
+  ? To
+  : string;
+
+/** Nested-create descriptor: insert one or more related records. */
+export interface RelationMutationCreate<TContract, ModelName extends string> {
+  readonly kind: "create";
+  readonly data: readonly CreateInput<TContract, ModelName>[];
+}
+
+/** Nested-connect descriptor: link existing records to the parent via FK update. */
+export interface RelationMutationConnect {
+  readonly kind: "connect";
+  readonly criteria: readonly Record<string, unknown>[];
+}
+
+/**
+ * Nested-disconnect descriptor: unlink related records by setting FK to null.
+ * With no criteria, disconnects all child records from this parent.
+ */
+export interface RelationMutationDisconnect {
+  readonly kind: "disconnect";
+  readonly criteria?: readonly Record<string, unknown>[];
+}
+
+/** Discriminated union of all nested relation mutation descriptors. */
+export type IdbRelationMutation<TContract, ModelName extends string> =
+  | RelationMutationCreate<TContract, ModelName>
+  | RelationMutationConnect
+  | RelationMutationDisconnect;
+
+/** Relation mutator object passed to the user's relation callback. */
+export interface IdbRelationMutator<TContract, ModelName extends string> {
+  create(
+    data: CreateInput<TContract, ModelName> | readonly CreateInput<TContract, ModelName>[]
+  ): RelationMutationCreate<TContract, ModelName>;
+  connect(criteria: Record<string, unknown> | readonly Record<string, unknown>[]): RelationMutationConnect;
+  disconnect(criteria?: readonly Record<string, unknown>[]): RelationMutationDisconnect;
+}
+
+/**
+ * Maps each reference relation key to an optional mutation callback.
+ *
+ * When `ReferenceRelKeys` widens to `string` (a loosely-typed `IdbContract`
+ * with no emitted type maps), a naive mapped type would become an index
+ * signature `{ [k: string]: callback }` that incorrectly forces *every* field —
+ * scalars included — to be a relation callback, so even `create({ name: "x" })`
+ * would fail to type-check. The `string extends …` guard detects that case and
+ * contributes no constraint (`& unknown` is identity), leaving plain scalar
+ * payloads valid. Precisely-typed contracts (the emitted `contract.d.ts`)
+ * resolve `ReferenceRelKeys` to a finite union and get the full callback typing.
+ */
+type RelationMutationFields<TContract, ModelName extends string> =
+  string extends ReferenceRelKeys<TContract, ModelName>
+    ? unknown
+    : Partial<{
+        [K in ReferenceRelKeys<TContract, ModelName>]: (
+          mutator: IdbRelationMutator<TContract, RelatedModelOf<TContract, ModelName, K>>
+        ) => IdbRelationMutation<TContract, RelatedModelOf<TContract, ModelName, K>>;
+      }>;
+
+/**
+ * The `localFields` of all N:1 relations on a model — the FK fields that are
+ * owned by this model and can be supplied via a relation callback instead of
+ * as a scalar value. Resolves to `never` for loosely-typed contracts where
+ * cardinality is not preserved as a literal (e.g. `defineContract` in tests).
+ *
+ * Mirrors `ChildForeignKeyFieldNames` from `sql-orm-client`, simplified: instead
+ * of crawling all models for relations pointing *to* this one, we look at this
+ * model's own N:1 relations directly — same field set, one model.
+ */
+type N1LocalFieldNames<TContract, ModelName extends string> = {
+  [K in keyof ModelRelations<TContract, ModelName>]: ModelRelations<TContract, ModelName>[K] extends {
+    readonly cardinality: "N:1";
+    readonly on: { readonly localFields: infer Fields extends readonly string[] };
+  }
+    ? Fields[number]
+    : never;
+}[keyof ModelRelations<TContract, ModelName>] &
+  string;
+
+/**
+ * Like `CreateInput` but with N:1 FK fields made optional.
+ *
+ * An N:1 FK field (e.g. `authorId` on `Post`) can be supplied either as a
+ * scalar value or via a relation callback (`author: (rel) => rel.connect({id})`).
+ * Making it optional here lets callers omit it when using the callback form —
+ * the executor populates it from the related record before inserting.
+ *
+ * Mirrors `NestedCreateInput` from `sql-orm-client`.
+ */
+type NestedCreateInput<TContract, ModelName extends string> = Omit<
+  CreateInput<TContract, ModelName>,
+  N1LocalFieldNames<TContract, ModelName>
+> &
+  Partial<
+    Pick<
+      CreateInput<TContract, ModelName>,
+      N1LocalFieldNames<TContract, ModelName> & keyof CreateInput<TContract, ModelName>
+    >
+  >;
+
+/**
+ * Input shape for `create()` with optional relation callbacks.
+ * N:1 FK fields (e.g. `authorId`) are optional when using a relation callback.
+ * Relation fields accept a callback `(rel) => rel.create([...])` / `rel.connect(...)`.
+ */
+export type MutationCreateInput<TContract, ModelName extends string> = NestedCreateInput<TContract, ModelName> &
+  RelationMutationFields<TContract, ModelName>;
+
+/**
+ * Input shape for `update()` with optional relation callbacks.
+ * All scalar fields are optional (shallow merge); relation fields accept
+ * `connect` or `disconnect` callbacks.
+ */
+export type MutationUpdateInput<TContract, ModelName extends string> = PatchInput<TContract, ModelName> &
+  RelationMutationFields<TContract, ModelName>;
+
 // ── OrderBy spec ─────────────────────────────────────────────────────────────
 
 /** Sort direction for `orderBy()`. */

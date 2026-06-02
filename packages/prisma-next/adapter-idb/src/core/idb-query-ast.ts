@@ -33,7 +33,9 @@ export type IdbQueryAst =
   | IdbCreateCountAst
   | IdbDeleteAllAst
   | IdbDeleteCountAst
-  | IdbCountAst;
+  | IdbCountAst
+  | IdbNestedCreateAst
+  | IdbNestedUpdateAst;
 
 /** Full cursor scan with optional filtering, ordering, and pagination. */
 export interface IdbFindManyAst {
@@ -143,4 +145,23 @@ export interface IdbCountAst {
   readonly kind: "count";
   readonly modelName: string;
   readonly where?: IdbFilterExpr;
+}
+
+/** Create a record with one or more nested relation writes (atomic, multi-store). */
+export interface IdbNestedCreateAst {
+  readonly kind: "nestedCreate";
+  readonly modelName: string;
+  readonly data: Record<string, unknown>;
+  /** Names of relation fields that carried a mutation callback. */
+  readonly relations: readonly string[];
+}
+
+/** Update a record with one or more nested relation writes (atomic, multi-store). */
+export interface IdbNestedUpdateAst {
+  readonly kind: "nestedUpdate";
+  readonly modelName: string;
+  readonly data: Record<string, unknown>;
+  readonly where?: IdbFilterExpr;
+  /** Names of relation fields that carried a mutation callback. */
+  readonly relations: readonly string[];
 }

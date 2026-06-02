@@ -10,6 +10,7 @@
 
 import type { Contract } from "@prisma-next/contract/types";
 import type { ContractSpace, MigrationPackage } from "@prisma-next/framework-components/control";
+import { computeMigrationHash } from "@prisma-next/migration-tools/hash";
 import { IdbMigrationPlanner } from "@prisma-next-idb/target-idb/migration";
 
 function getStorageHash(contract: unknown): string {
@@ -47,22 +48,22 @@ export function buildContractSpaceFixture<TContract extends Contract>(
       throw new Error(`Planner failed for version ${index}: ${JSON.stringify(planResult.conflicts)}`);
     }
 
+    const ops = planResult.plan.operations;
+    const baseMetadata = {
+      from: previous === null ? null : getStorageHash(previous),
+      to: getStorageHash(current),
+      providedInvariants: [] as string[],
+      labels: [] as string[],
+      hints: { used: [] as string[], applied: [] as string[], plannerVersion: "2.0.0" },
+      createdAt: new Date(2026, 0, 1, 0, 0, index).toISOString(),
+    };
     migrations.push({
       dirName: `${String(index).padStart(4, "0")}_v${index + 1}`,
       metadata: {
-        from: previous === null ? null : getStorageHash(previous),
-        to: getStorageHash(current),
-        // The fixture omits the real `migrationHash` because the auto-migrate
-        // path doesn't validate it — only the chain `from`/`to` edges matter
-        // here. Real `ops.json` files produced by `MigrationCLI.run` carry
-        // a content-addressed `migrationHash`.
-        migrationHash: `sha256:fixture-${index}`,
-        providedInvariants: [],
-        labels: [],
-        hints: { used: [], applied: [], plannerVersion: "2.0.0" },
-        createdAt: new Date(2026, 0, 1, 0, 0, index).toISOString(),
+        ...baseMetadata,
+        migrationHash: computeMigrationHash(baseMetadata, ops),
       },
-      ops: planResult.plan.operations,
+      ops,
     });
 
     previous = current;

@@ -18,13 +18,20 @@ export type {
   KeyType,
   ModelKeyPath,
   CreateInput,
+  MutationCreateInput,
   PatchInput,
+  MutationUpdateInput,
   ReferenceRelKeys,
   IncludeSpec,
   NoIncludes,
   IncludedRow,
   OrderBySpec,
   SortDirection,
+  IdbRelationMutator,
+  IdbRelationMutation,
+  RelationMutationCreate,
+  RelationMutationConnect,
+  RelationMutationDisconnect,
 } from "../core/types";
 
 // Filter operator combinators
@@ -45,3 +52,11 @@ export type {
 // Multi-store transaction scope API
 export { withMutationScope } from "../core/mutation-scope";
 export type { IdbQueryExecutorWithTransaction } from "../core/mutation-scope";
+
+// Nested relation write helpers
+export {
+  createRelationMutator,
+  isRelationMutationDescriptor,
+  isRelationMutationCallback,
+} from "../core/relation-mutator";
+export { hasNestedMutationCallbacks } from "../core/mutation-executor";
