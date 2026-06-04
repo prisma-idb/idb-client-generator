@@ -1,0 +1,24 @@
+[
+  {
+    "kind": "createObjectStore",
+    "id": "object-store.posts.create",
+    "label": "Create object store \"posts\"",
+    "operationClass": "additive",
+    "storeName": "posts",
+    "def": {
+      "keyPath": "id"
+    }
+  },
+  {
+    "kind": "createIndex",
+    "id": "index.posts.byAuthorId.create",
+    "label": "Create index \"byAuthorId\" on \"posts\"",
+    "operationClass": "additive",
+    "storeName": "posts",
+    "indexName": "byAuthorId",
+    "def": {
+      "keyPath": "authorId",
+      "unique": false
+    }
+  }
+]

@@ -11,32 +11,6 @@
   },
   {
     "kind": "createObjectStore",
-    "id": "object-store.posts.create",
-    "label": "Create object store \"posts\"",
-    "operationClass": "additive",
-    "storeName": "posts",
-    "def": {
-      "indexes": {
-        "byAuthorId": {
-          "keyPath": "authorId"
-        }
-      },
-      "keyPath": "id"
-    }
-  },
-  {
-    "kind": "createIndex",
-    "id": "index.posts.byAuthorId.create",
-    "label": "Create index \"byAuthorId\" on \"posts\"",
-    "operationClass": "additive",
-    "storeName": "posts",
-    "indexName": "byAuthorId",
-    "def": {
-      "keyPath": "authorId"
-    }
-  },
-  {
-    "kind": "createObjectStore",
     "id": "object-store.random_store.create",
     "label": "Create object store \"random_store\"",
     "operationClass": "additive",
