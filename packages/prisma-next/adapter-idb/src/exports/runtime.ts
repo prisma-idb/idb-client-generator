@@ -21,6 +21,9 @@ export type {
   IdbDeleteAllAst,
   IdbDeleteCountAst,
   IdbCountAst,
+  IdbAggregateAst,
+  IdbGroupByAst,
+  IdbAggregateRequest,
 } from "../core/idb-query-ast";
 export type {
   IdbFilterExpr,

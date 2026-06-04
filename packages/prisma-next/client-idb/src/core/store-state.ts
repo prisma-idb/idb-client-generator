@@ -1,6 +1,50 @@
 import type { IdbFilterExpr } from "@prisma-next-idb/adapter-idb/runtime";
 
 /**
+ * One entry in {@link IdbAccessorState.includes} — describes how a single
+ * `.include()`d relation should be materialised.
+ *
+ * - `collection`: load the related rows, applying the refined `state`
+ *   (its `filters` / `orderBy` / `skip` / `take`) to the child scan.
+ *   `state` is `emptyAccessorState()` for an unrefined `.include(rel)`.
+ * - `scalar`: reduce the related rows to a single number (Phase 6.5 supports
+ *   `count`). The `state.filters` still constrain which children are counted.
+ *
+ * Mirrors the `IncludeExpr` / `IncludeScalar` split from
+ * `vendor/prisma-next/.../sql-orm-client`, collapsed to the two shapes IDB
+ * needs (no SQL column mapping, no `combine()` branches).
+ */
+export type IncludeEntry =
+  | { readonly kind: "collection"; readonly state: IdbAccessorState }
+  | { readonly kind: "scalar"; readonly fn: "count"; readonly state: IdbAccessorState };
+
+/**
+ * Marker returned by the child accessor's `.count()` terminal when it is
+ * called inside an `include()` refinement callback. Carries the refined
+ * child `state` so the relation loader counts only the matching children.
+ *
+ * Detected by {@link isIncludeScalar}; mirrors `IncludeScalar` from the
+ * vendor `sql-orm-client/include-descriptors.ts`.
+ */
+export interface IdbIncludeScalar {
+  readonly kind: "includeScalar";
+  readonly fn: "count";
+  readonly state: IdbAccessorState;
+}
+
+/** Build an {@link IdbIncludeScalar} marker for a `count()` reducer. */
+export function createIncludeScalar(state: IdbAccessorState): IdbIncludeScalar {
+  return { kind: "includeScalar", fn: "count", state };
+}
+
+/** Type guard: is `value` an {@link IdbIncludeScalar} marker? */
+export function isIncludeScalar(value: unknown): value is IdbIncludeScalar {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as { kind?: unknown; fn?: unknown };
+  return candidate.kind === "includeScalar" && candidate.fn === "count";
+}
+
+/**
  * Immutable state carried by each {@link IdbStoreAccessorImpl} node in the
  * builder chain.
  *
@@ -22,8 +66,18 @@ export interface IdbAccessorState {
   readonly skip?: number;
   /** LIMIT (maximum number of rows to return). */
   readonly take?: number;
-  /** Relations that have been `.include()`d — keys are relation names. */
-  readonly includes: Record<string, true>;
+  /**
+   * Relations that have been `.include()`d — keys are relation names, values
+   * describe how to materialise each (collection vs scalar count, plus any
+   * refinement state). See {@link IncludeEntry}.
+   */
+  readonly includes: Record<string, IncludeEntry>;
+  /**
+   * Fields kept by `.select()`. `undefined` means "all fields". When set,
+   * the materialised rows are projected down to these fields (plus any
+   * included relation keys) after the scan and relation loads complete.
+   */
+  readonly selectedFields?: ReadonlyArray<string>;
 }
 
 /** Create a fresh, empty accessor state (no filters, no ordering, no includes). */

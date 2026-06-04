@@ -1,7 +1,10 @@
 import type { ContractReferenceRelation } from "@prisma-next/contract/types";
 import type { IdbQueryPlan } from "@prisma-next-idb/adapter-idb/runtime";
+import { evaluateFilter } from "@prisma-next-idb/adapter-idb/runtime";
 import type { IdbRowFilter } from "@prisma-next-idb/driver-idb/runtime";
 import type { IdbQueryExecutor } from "./executor";
+import { buildRowComparator, combineFilterExprs } from "./query-shaping";
+import type { IncludeEntry } from "./store-state";
 import type { IdbContract } from "./types";
 
 /**
@@ -11,7 +14,16 @@ import type { IdbContract } from "./types";
  * The join is done with one cursor scan over the related store (with an
  * in-memory filter), then grouped/indexed in memory — avoiding N+1 queries.
  *
+ * The `entry` carries any `include()` refinement:
+ *
+ * - `collection` — the refined `where` further filters the child scan;
+ *   `orderBy` / `skip` / `take` are applied **per parent group** for `1:N`
+ *   relations (each parent's children are independently sorted and paginated).
+ * - `scalar` — the relation field becomes the `count` of matching children
+ *   (to-many only; `include()` rejects scalar refinements on to-one relations).
+ *
  * @param relName    - The relation key to load (e.g. `"posts"`, `"author"`).
+ * @param entry      - How to materialise the relation (collection vs scalar + refinement state).
  * @param rows       - The parent rows to attach related data to.
  * @param contract   - The resolved IDB contract.
  * @param modelName  - The source model name (owner of the relation).
@@ -19,6 +31,7 @@ import type { IdbContract } from "./types";
  */
 export async function loadRelation(
   relName: string,
+  entry: IncludeEntry,
   rows: Record<string, unknown>[],
   contract: IdbContract,
   modelName: string,
@@ -53,6 +66,8 @@ export async function loadRelation(
       ? String((relatedModel.storage as { storeName: unknown })["storeName"])
       : relatedModelName;
 
+  const isScalar = entry.kind === "scalar";
+
   // Collect all distinct local-field values to drive the in-memory filter.
   const localValues = new Set<unknown>();
   for (const row of rows) {
@@ -61,16 +76,20 @@ export async function loadRelation(
   }
 
   // Short-circuit: if all local values are null/undefined, attach empties.
+  // (Scalar counts are 0; to-many is [], to-one is null.)
   if (localValues.size === 0) {
     return rows.map((row) => ({
       ...row,
-      [relName]: cardinality === "1:N" ? [] : null,
+      [relName]: isScalar ? 0 : cardinality === "1:N" ? [] : null,
     }));
   }
 
-  // One scan: load all related rows whose foreignField value appears in localValues.
+  // One scan: load related rows whose foreignField is in localValues AND that
+  // satisfy any refined `where` carried on the include entry.
   const capturedForeignField = foreignField;
-  const filter: IdbRowFilter = (row: Record<string, unknown>): boolean => localValues.has(row[capturedForeignField]);
+  const refinedWhere = combineFilterExprs(entry.state.filters);
+  const filter: IdbRowFilter = (row: Record<string, unknown>): boolean =>
+    localValues.has(row[capturedForeignField]) && (refinedWhere === undefined || evaluateFilter(refinedWhere, row));
 
   const storageHash = contract.storage.storageHash;
   const planMeta = { target: "idb", storageHash, lane: "idb-orm", annotations: { groupingKey } } as const;
@@ -87,7 +106,7 @@ export async function loadRelation(
   // ── Merge ──────────────────────────────────────────────────────────────────
 
   if (cardinality === "1:N") {
-    // Group related rows by their foreignField value, attach arrays.
+    // Group related rows by their foreignField value.
     const grouped = new Map<unknown, Record<string, unknown>[]>();
     for (const rrow of relatedRows) {
       const gk = rrow[capturedForeignField];
@@ -95,19 +114,37 @@ export async function loadRelation(
       group.push(rrow);
       grouped.set(gk, group);
     }
-    return rows.map((row) => ({
-      ...row,
-      [relName]: grouped.get(row[localField]) ?? [],
-    }));
-  } else {
-    // N:1 / 1:1: index related rows by their foreignField value, attach singles.
-    const indexed = new Map<unknown, Record<string, unknown>>();
-    for (const rrow of relatedRows) {
-      indexed.set(rrow[capturedForeignField], rrow);
+
+    if (isScalar) {
+      // Scalar reducer (Phase 6.5: count) — attach the per-parent child count.
+      return rows.map((row) => ({
+        ...row,
+        [relName]: (grouped.get(row[localField]) ?? []).length,
+      }));
     }
-    return rows.map((row) => ({
-      ...row,
-      [relName]: indexed.get(row[localField]) ?? null,
-    }));
+
+    // Collection: apply refined orderBy / skip / take per parent group.
+    const comparator = buildRowComparator(entry.state.orderBy);
+    const skip = entry.state.skip ?? 0;
+    const take = entry.state.take;
+    return rows.map((row) => {
+      let group = grouped.get(row[localField]) ?? [];
+      if (comparator !== undefined) group = [...group].sort(comparator);
+      if (skip > 0 || take !== undefined) {
+        group = group.slice(skip, take !== undefined ? skip + take : undefined);
+      }
+      return { ...row, [relName]: group };
+    });
   }
+
+  // N:1 / 1:1: index related rows by their foreignField value, attach singles.
+  // A refined `where` that excludes the related row yields `null` here.
+  const indexed = new Map<unknown, Record<string, unknown>>();
+  for (const rrow of relatedRows) {
+    indexed.set(rrow[capturedForeignField], rrow);
+  }
+  return rows.map((row) => ({
+    ...row,
+    [relName]: indexed.get(row[localField]) ?? null,
+  }));
 }

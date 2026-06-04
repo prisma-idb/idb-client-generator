@@ -5,7 +5,9 @@ import type {
   MigrationPackage,
 } from "@prisma-next/framework-components/control";
 import { APP_SPACE_ID } from "@prisma-next/framework-components/control";
-import { computeMigrationHash } from "@prisma-next/migration-tools/hash";
+// Browser-safe (WebCrypto) hash — the framework's `@prisma-next/migration-tools/hash`
+// uses `node:crypto` and throws in the browser (PLAN Issue #23 regression).
+import { computeMigrationHash } from "./migration-hash";
 import { isIdbDdlOp, openAndUpgrade, readMarker, type IdbDdlOp } from "@prisma-next-idb/target-idb/migration";
 import { createIdbClient, type IdbClient } from "./idb-client";
 import type { IdbContract } from "./types";
@@ -149,7 +151,7 @@ export async function autoMigrate(input: {
   if (markerHash === targetHash) return;
 
   // 3: collect pending ops from chain walk.
-  const { pendingOps, destructiveDropped } = walkChain({
+  const { pendingOps, destructiveDropped } = await walkChain({
     markerHash,
     headHash: targetHash,
     migrations: contractSpace.migrations,
@@ -194,12 +196,12 @@ interface WalkResult {
  * misconfigured `contractSpace` inputs fail loudly rather than silently
  * leaving the DB at an intermediate state.
  */
-function walkChain(input: {
+async function walkChain(input: {
   readonly markerHash: string | null;
   readonly headHash: string;
   readonly migrations: readonly MigrationPackage[];
   readonly policy: Required<MigrationPolicy>;
-}): WalkResult {
+}): Promise<WalkResult> {
   const byFrom = new Map<string | null, MigrationPackage>();
   for (const pkg of input.migrations) {
     byFrom.set(pkg.metadata.from, pkg);
@@ -227,7 +229,7 @@ function walkChain(input: {
           "`prisma-next-idb generate-contract-space`."
       );
     }
-    const computedHash = computeMigrationHash(next.metadata, next.ops);
+    const computedHash = await computeMigrationHash(next.metadata, next.ops);
     if (computedHash !== next.metadata.migrationHash) {
       throw new Error(
         `Migration package "${next.dirName}" failed integrity check: ` +

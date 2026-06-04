@@ -5,7 +5,10 @@ export { idbOrm } from "../core/idb-orm";
 export type { IdbOrmClient, IdbOrmOptions } from "../core/idb-orm";
 
 // Accessor interface (useful for annotating function parameters / return types)
-export type { IdbStoreAccessor, WhereCallback } from "../core/store-accessor";
+export type { IdbStoreAccessor, WhereCallback, IdbIncludeRefinementAccessor } from "../core/store-accessor";
+
+// Grouped-aggregate accessor returned by `accessor.groupBy(...)`
+export type { IdbGroupedAccessor, GroupedResultRow } from "../core/grouped-accessor";
 
 // Executor interface (needed to type the executor passed to idbOrm)
 export type { IdbQueryExecutor } from "../core/executor";
@@ -22,17 +25,30 @@ export type {
   PatchInput,
   MutationUpdateInput,
   ReferenceRelKeys,
+  RelatedModelOf,
   IncludeSpec,
+  IncludeMarker,
+  IncludeFields,
   NoIncludes,
   IncludedRow,
+  SelectedRow,
   OrderBySpec,
   SortDirection,
+  AggregateFn,
+  NumericFieldNames,
+  IdbAggregateSelector,
+  IdbAggregateSpec,
+  IdbAggregateResult,
+  IdbAggregateBuilder,
   IdbRelationMutator,
   IdbRelationMutation,
   RelationMutationCreate,
   RelationMutationConnect,
   RelationMutationDisconnect,
 } from "../core/types";
+
+// Include-scalar marker (returned by a refinement `count()`)
+export type { IdbIncludeScalar } from "../core/store-state";
 
 // Filter operator combinators
 export { and, or, not } from "../core/filters";

@@ -2,6 +2,7 @@ import { AsyncIterableResult } from "@prisma-next/framework-components/runtime";
 import type { PlanMeta } from "@prisma-next/contract/types";
 import type { IdbFilterExpr, IdbQueryPlan } from "@prisma-next-idb/adapter-idb/runtime";
 import type {
+  IdbAggregateAst,
   IdbCountAst,
   IdbCreateAst,
   IdbCreateAllAst,
@@ -9,18 +10,20 @@ import type {
   IdbDeleteAllAst,
   IdbFindManyAst,
   IdbFindUniqueAst,
+  IdbQueryAst,
   IdbUpdateAst,
   IdbUpdateAllAst,
   IdbUpsertAst,
 } from "@prisma-next-idb/adapter-idb/runtime";
-import { andExpr, evaluateFilter, shorthandToFilterExpr } from "@prisma-next-idb/adapter-idb/runtime";
-import type { IdbRowComparator } from "@prisma-next-idb/driver-idb/runtime";
+import { evaluateFilter, shorthandToFilterExpr } from "@prisma-next-idb/adapter-idb/runtime";
 import {
   type CreateInput,
   type DefaultModelRow,
+  type IdbAggregateBuilder,
+  type IdbAggregateResult,
+  type IdbAggregateSpec,
   type IdbContract,
   type IncludeSpec,
-  type IncludedRow,
   type KeyType,
   type MutationCreateInput,
   type MutationUpdateInput,
@@ -28,12 +31,31 @@ import {
   type OrderBySpec,
   type PatchInput,
   type ReferenceRelKeys,
+  type RelatedModelOf,
+  type SelectedRow,
   type WhereFilter,
   getKeyPath,
+  getRelation,
   getStoreName,
 } from "./types";
 import { createModelAccessor, type IdbModelAccessor } from "./model-accessor";
-import { type IdbAccessorState, emptyAccessorState, mergeAccessorState } from "./store-state";
+import {
+  type IdbAccessorState,
+  type IdbIncludeScalar,
+  type IncludeEntry,
+  createIncludeScalar,
+  emptyAccessorState,
+  isIncludeScalar,
+  mergeAccessorState,
+} from "./store-state";
+import { buildRowComparator, combineFilterExprs } from "./query-shaping";
+import {
+  assertValidAggregateSpec,
+  computeAggregateSpec,
+  createAggregateBuilder,
+  toAggregateRequests,
+} from "./aggregate-builder";
+import { type IdbGroupedAccessor, createGroupedAccessor } from "./grouped-accessor";
 import type { IdbQueryExecutor } from "./executor";
 import { loadRelation } from "./relation-loader";
 import {
@@ -48,6 +70,37 @@ export type WhereCallback<TContract, ModelName extends string> = (
   m: IdbModelAccessor<TContract, ModelName>
 ) => IdbFilterExpr;
 
+/** Tuple of one-or-more field names of a model (for `select()` / `groupBy()`). */
+type FieldTuple<TContract, ModelName extends string> = readonly [
+  keyof DefaultModelRow<TContract, ModelName> & string,
+  ...(keyof DefaultModelRow<TContract, ModelName> & string)[],
+];
+
+/**
+ * The child accessor handed to an `include()` refinement callback.
+ *
+ * Exposes the chainable narrowing methods (`where` / `orderBy` / `take` /
+ * `skip`) plus the scalar `count()` reducer. Mirrors the vendor
+ * `IncludeRefinementCollection`: chainable methods return the same refinement
+ * surface so `count()` stays reachable after a `where()`, and `count()` returns
+ * an {@link IdbIncludeScalar} marker rather than the async terminal `count()`
+ * found on the top-level accessor.
+ */
+export interface IdbIncludeRefinementAccessor<TContract, ModelName extends string> {
+  where(
+    filter: WhereFilter<TContract, ModelName> | WhereCallback<TContract, ModelName>
+  ): IdbIncludeRefinementAccessor<TContract, ModelName>;
+  orderBy(spec: OrderBySpec<TContract, ModelName>): IdbIncludeRefinementAccessor<TContract, ModelName>;
+  take(n: number): IdbIncludeRefinementAccessor<TContract, ModelName>;
+  skip(n: number): IdbIncludeRefinementAccessor<TContract, ModelName>;
+  count(): IdbIncludeScalar;
+}
+
+/** Refinement callback type for a given relation key `K`. */
+type IncludeRefineFn<TContract, ModelName extends string, K extends string, R> = (
+  collection: IdbIncludeRefinementAccessor<TContract, RelatedModelOf<TContract, ModelName, K>>
+) => R;
+
 // ── Interface ─────────────────────────────────────────────────────────────────
 
 /**
@@ -61,11 +114,15 @@ export type WhereCallback<TContract, ModelName extends string> = (
  * @template ModelName   - The model (store) this accessor targets.
  * @template TIncludes   - Tracks which relations have been included via
  *   `.include()` calls, so the return type widens progressively.
+ * @template TSelected   - Field names kept by `.select()`. `never` (the
+ *   default) means "all fields"; otherwise the row narrows to these fields
+ *   (plus any included relations).
  */
 export interface IdbStoreAccessor<
   TContract,
   ModelName extends string,
   TIncludes extends IncludeSpec<TContract, ModelName> = NoIncludes,
+  TSelected extends string = never,
 > {
   /**
    * Add a filter (ANDed with any previous `.where()` calls).
@@ -82,35 +139,106 @@ export interface IdbStoreAccessor<
    */
   where(
     filter: WhereFilter<TContract, ModelName> | WhereCallback<TContract, ModelName>
-  ): IdbStoreAccessor<TContract, ModelName, TIncludes>;
+  ): IdbStoreAccessor<TContract, ModelName, TIncludes, TSelected>;
 
   /** Set the sort order. Replaces any previous `.orderBy()` call. */
-  orderBy(spec: OrderBySpec<TContract, ModelName>): IdbStoreAccessor<TContract, ModelName, TIncludes>;
+  orderBy(spec: OrderBySpec<TContract, ModelName>): IdbStoreAccessor<TContract, ModelName, TIncludes, TSelected>;
 
   /** Limit the number of rows returned. */
-  take(n: number): IdbStoreAccessor<TContract, ModelName, TIncludes>;
+  take(n: number): IdbStoreAccessor<TContract, ModelName, TIncludes, TSelected>;
 
   /** Skip the first `n` rows (OFFSET). */
-  skip(n: number): IdbStoreAccessor<TContract, ModelName, TIncludes>;
+  skip(n: number): IdbStoreAccessor<TContract, ModelName, TIncludes, TSelected>;
 
   /**
    * Include a reference relation in the returned rows.
    *
    * The relation is loaded via a single batch cursor scan after the main
    * query — O(1) round trips to IDB per included relation regardless of
-   * the number of parent rows.
+   * the number of parent rows. The return type gains the relation field
+   * automatically.
    *
-   * The return type gains the relation field automatically.
+   * An optional refinement callback narrows the loaded relation:
+   *
+   * - return the (chained) collection to apply `where` / `orderBy` /
+   *   `take` / `skip` to the related rows (per-parent for `1:N`);
+   * - return `collection.count()` to reduce a to-many relation to the
+   *   number of matching children (the field becomes a `number`).
+   *
+   * @example
+   * ```ts
+   * db.users.include("posts", (posts) => posts.where({ published: true }).take(5))
+   * db.users.include("posts", (posts) => posts.count())
+   * ```
    */
   include<K extends ReferenceRelKeys<TContract, ModelName>>(
-    relation: K
-  ): IdbStoreAccessor<TContract, ModelName, TIncludes & Record<K, true>>;
+    relation: K,
+    refineFn?: IncludeRefineFn<
+      TContract,
+      ModelName,
+      K,
+      IdbIncludeRefinementAccessor<TContract, RelatedModelOf<TContract, ModelName, K>>
+    >
+  ): IdbStoreAccessor<TContract, ModelName, TIncludes & Record<K, true>, TSelected>;
+  include<K extends ReferenceRelKeys<TContract, ModelName>>(
+    relation: K,
+    refineFn: IncludeRefineFn<TContract, ModelName, K, IdbIncludeScalar>
+  ): IdbStoreAccessor<TContract, ModelName, TIncludes & Record<K, "scalar">, TSelected>;
+
+  /**
+   * Project the row down to a subset of scalar fields. Any previously
+   * `.include()`d relations are preserved on the result; only the scalar
+   * fields are narrowed.
+   *
+   * @example
+   * ```ts
+   * const summaries = await db.users.select("id", "email").all();
+   * // typeof summaries[number] === { id: string; email: string }
+   * ```
+   */
+  select<Fields extends FieldTuple<TContract, ModelName>>(
+    ...fields: Fields
+  ): IdbStoreAccessor<TContract, ModelName, TIncludes, Fields[number]>;
 
   /** Return all matching rows as an async iterable (also awaitable as `Row[]`). */
-  all(): AsyncIterableResult<IncludedRow<TContract, ModelName, TIncludes>>;
+  all(): AsyncIterableResult<SelectedRow<TContract, ModelName, TIncludes, TSelected>>;
 
   /** Return the first matching row, or `null` if none match. */
-  first(): Promise<IncludedRow<TContract, ModelName, TIncludes> | null>;
+  first(): Promise<SelectedRow<TContract, ModelName, TIncludes, TSelected> | null>;
+
+  /**
+   * Run an in-memory aggregate (count/sum/avg/min/max) over the rows matching
+   * the accumulated `.where()` filter. Returns one result object keyed by the
+   * aliases supplied in the spec.
+   *
+   * @example
+   * ```ts
+   * const stats = await db.posts.where({ published: true }).aggregate((agg) => ({
+   *   total: agg.count(),
+   *   avgViews: agg.avg("views"),
+   * }));
+   * ```
+   */
+  aggregate<Spec extends IdbAggregateSpec>(
+    fn: (agg: IdbAggregateBuilder<TContract, ModelName>) => Spec
+  ): Promise<IdbAggregateResult<Spec>>;
+
+  /**
+   * Switch to grouped-aggregate mode. The returned {@link IdbGroupedAccessor}'s
+   * `.aggregate(...)` terminal produces one row per group with the chosen key
+   * fields plus the requested aggregates.
+   *
+   * @example
+   * ```ts
+   * const byUser = await db.posts
+   *   .where({ published: true })
+   *   .groupBy("authorId")
+   *   .aggregate((agg) => ({ count: agg.count(), totalViews: agg.sum("views") }));
+   * ```
+   */
+  groupBy<Fields extends FieldTuple<TContract, ModelName>>(
+    ...fields: Fields
+  ): IdbGroupedAccessor<TContract, ModelName, Fields>;
 
   /**
    * Insert a record into the store and return the stored row.
@@ -209,30 +337,35 @@ export interface IdbStoreAccessor<
  * Concrete immutable query builder.
  *
  * Internal details:
- * - All state is in `#state` (filters, orderBy, skip, take, includes).
+ * - All state is in `#state` (filters, orderBy, skip, take, includes, selectedFields).
  * - Builder methods clone via `#clone()` — O(1) copies since state is
  *   structurally shared.
  * - `all()` materialises the main rows first, then batch-loads each included
- *   relation before yielding (necessary for batch FK strategy).
+ *   relation, then applies any `.select()` projection before yielding.
+ * - `#includeRefinementMode` flips `count()` from an async terminal to an
+ *   {@link IdbIncludeScalar} marker so it can be used inside `include()`.
  */
 export class IdbStoreAccessorImpl<
   TContract extends IdbContract,
   ModelName extends string,
   TIncludes extends IncludeSpec<TContract, ModelName> = NoIncludes,
-> implements IdbStoreAccessor<TContract, ModelName, TIncludes> {
+  TSelected extends string = never,
+> implements IdbStoreAccessor<TContract, ModelName, TIncludes, TSelected> {
   readonly #contract: TContract;
   readonly #modelName: ModelName;
   readonly #executor: IdbQueryExecutor;
   readonly #storeName: string;
   readonly #state: IdbAccessorState;
   readonly #newGroupingKey: () => string;
+  readonly #includeRefinementMode: boolean;
 
   constructor(
     contract: TContract,
     modelName: ModelName,
     executor: IdbQueryExecutor,
     state?: IdbAccessorState,
-    newGroupingKey?: () => string
+    newGroupingKey?: () => string,
+    includeRefinementMode = false
   ) {
     this.#contract = contract;
     this.#modelName = modelName;
@@ -242,13 +375,14 @@ export class IdbStoreAccessorImpl<
     // Default: per-instance counter (single client; avoids module-level interleaving).
     let _key = 0;
     this.#newGroupingKey = newGroupingKey ?? (() => `idb-op-${++_key}`);
+    this.#includeRefinementMode = includeRefinementMode;
   }
 
   // ── Builder methods ───────────────────────────────────────────────────────
 
   where(
     filter: WhereFilter<TContract, ModelName> | WhereCallback<TContract, ModelName>
-  ): IdbStoreAccessor<TContract, ModelName, TIncludes> {
+  ): IdbStoreAccessor<TContract, ModelName, TIncludes, TSelected> {
     const expr =
       typeof filter === "function"
         ? filter(createModelAccessor<TContract, ModelName>())
@@ -260,23 +394,43 @@ export class IdbStoreAccessorImpl<
     return this.#clone({ filters: [...this.#state.filters, expr] });
   }
 
-  orderBy(spec: OrderBySpec<TContract, ModelName>): IdbStoreAccessor<TContract, ModelName, TIncludes> {
+  orderBy(spec: OrderBySpec<TContract, ModelName>): IdbStoreAccessor<TContract, ModelName, TIncludes, TSelected> {
     return this.#clone({ orderBy: spec as Record<string, "asc" | "desc"> });
   }
 
-  take(n: number): IdbStoreAccessor<TContract, ModelName, TIncludes> {
+  take(n: number): IdbStoreAccessor<TContract, ModelName, TIncludes, TSelected> {
     return this.#clone({ take: n });
   }
 
-  skip(n: number): IdbStoreAccessor<TContract, ModelName, TIncludes> {
+  skip(n: number): IdbStoreAccessor<TContract, ModelName, TIncludes, TSelected> {
     return this.#clone({ skip: n });
   }
 
   include<K extends ReferenceRelKeys<TContract, ModelName>>(
-    relation: K
-  ): IdbStoreAccessor<TContract, ModelName, TIncludes & Record<K, true>> {
+    relation: K,
+    refineFn?: IncludeRefineFn<
+      TContract,
+      ModelName,
+      K,
+      IdbIncludeRefinementAccessor<TContract, RelatedModelOf<TContract, ModelName, K>>
+    >
+  ): IdbStoreAccessor<TContract, ModelName, TIncludes & Record<K, true>, TSelected>;
+  include<K extends ReferenceRelKeys<TContract, ModelName>>(
+    relation: K,
+    refineFn: IncludeRefineFn<TContract, ModelName, K, IdbIncludeScalar>
+  ): IdbStoreAccessor<TContract, ModelName, TIncludes & Record<K, "scalar">, TSelected>;
+  include<K extends ReferenceRelKeys<TContract, ModelName>>(
+    relation: K,
+    refineFn?: IncludeRefineFn<
+      TContract,
+      ModelName,
+      K,
+      IdbIncludeRefinementAccessor<TContract, RelatedModelOf<TContract, ModelName, K>> | IdbIncludeScalar
+    >
+  ): IdbStoreAccessor<TContract, ModelName, IncludeSpec<TContract, ModelName>, TSelected> {
+    const entry = this.#resolveIncludeEntry(relation, refineFn);
     const newState = mergeAccessorState(this.#state, {
-      includes: { ...this.#state.includes, [relation]: true as const },
+      includes: { ...this.#state.includes, [relation]: entry },
     });
     // The new instance is identical at runtime; the narrowed TIncludes type is
     // only a compile-time distinction — so an `as unknown as` cast is safe.
@@ -285,13 +439,27 @@ export class IdbStoreAccessorImpl<
       this.#modelName,
       this.#executor,
       newState,
-      this.#newGroupingKey
-    ) as unknown as IdbStoreAccessorImpl<TContract, ModelName, TIncludes & Record<K, true>>;
+      this.#newGroupingKey,
+      this.#includeRefinementMode
+    ) as unknown as IdbStoreAccessor<TContract, ModelName, IncludeSpec<TContract, ModelName>, TSelected>;
+  }
+
+  select<Fields extends FieldTuple<TContract, ModelName>>(
+    ...fields: Fields
+  ): IdbStoreAccessor<TContract, ModelName, TIncludes, Fields[number]> {
+    // Runtime is identical; only TSelected narrows. Cast bridges the type-level
+    // projection (the clone preserves TIncludes / contract / executor).
+    return this.#clone({ selectedFields: fields as readonly string[] }) as unknown as IdbStoreAccessor<
+      TContract,
+      ModelName,
+      TIncludes,
+      Fields[number]
+    >;
   }
 
   // ── Execution methods ─────────────────────────────────────────────────────
 
-  all(): AsyncIterableResult<IncludedRow<TContract, ModelName, TIncludes>> {
+  all(): AsyncIterableResult<SelectedRow<TContract, ModelName, TIncludes, TSelected>> {
     const groupingKey = this.#newGroupingKey();
     // Capture the private fields needed inside the generator. Private names
     // must be accessed on `this`, so we bind the methods to keep them callable
@@ -299,8 +467,9 @@ export class IdbStoreAccessorImpl<
     const buildScanPlan = this.#buildScanPlan.bind(this);
     const executorExecute = this.#executor.execute.bind(this.#executor);
     const applyIncludes = this.#applyIncludes.bind(this);
+    const projectRows = this.#projectRows.bind(this);
     return new AsyncIterableResult(
-      (async function* (): AsyncGenerator<IncludedRow<TContract, ModelName, TIncludes>, void, unknown> {
+      (async function* (): AsyncGenerator<SelectedRow<TContract, ModelName, TIncludes, TSelected>, void, unknown> {
         // 1. Run the main cursor scan and materialise rows.
         const scanPlan = buildScanPlan<Record<string, unknown>>(groupingKey);
         const rows: Record<string, unknown>[] = [];
@@ -308,19 +477,49 @@ export class IdbStoreAccessorImpl<
           rows.push(row);
         }
 
-        // 2. Batch-load any included relations.
+        // 2. Batch-load any included relations (uses full rows — FK fields intact).
         const withIncludes = await applyIncludes(rows, groupingKey);
 
-        // 3. Yield the merged rows.
-        for (const row of withIncludes) {
-          yield row as IncludedRow<TContract, ModelName, TIncludes>;
+        // 3. Apply any `.select()` projection, then yield.
+        for (const row of projectRows(withIncludes)) {
+          yield row as SelectedRow<TContract, ModelName, TIncludes, TSelected>;
         }
       })()
     );
   }
 
-  async first(): Promise<IncludedRow<TContract, ModelName, TIncludes> | null> {
+  async first(): Promise<SelectedRow<TContract, ModelName, TIncludes, TSelected> | null> {
     return this.take(1).all().first();
+  }
+
+  async aggregate<Spec extends IdbAggregateSpec>(
+    fn: (agg: IdbAggregateBuilder<TContract, ModelName>) => Spec
+  ): Promise<IdbAggregateResult<Spec>> {
+    const spec = fn(createAggregateBuilder<TContract, ModelName>());
+    assertValidAggregateSpec(spec, "aggregate()");
+    const combined = this.#combinedFilterExpr();
+    const ast: IdbAggregateAst = {
+      kind: "aggregate",
+      modelName: this.#modelName,
+      aggregates: toAggregateRequests(spec),
+      ...(combined !== undefined ? { where: combined } : {}),
+    };
+    const rows = await this.#materialize(this.#newGroupingKey(), ast);
+    return computeAggregateSpec(spec, rows) as IdbAggregateResult<Spec>;
+  }
+
+  groupBy<Fields extends FieldTuple<TContract, ModelName>>(
+    ...fields: Fields
+  ): IdbGroupedAccessor<TContract, ModelName, Fields> {
+    const combined = this.#combinedFilterExpr();
+    const materialize = (ast: IdbQueryAst): Promise<Record<string, unknown>[]> =>
+      this.#materialize(this.#newGroupingKey(), ast);
+    return createGroupedAccessor<TContract, ModelName, Fields>({
+      modelName: this.#modelName,
+      by: fields as readonly string[],
+      where: combined,
+      materialize,
+    });
   }
 
   async create(data: MutationCreateInput<TContract, ModelName>): Promise<DefaultModelRow<TContract, ModelName>> {
@@ -500,7 +699,7 @@ export class IdbStoreAccessorImpl<
     for await (const row of this.#executor.execute(plan)) {
       return row as DefaultModelRow<TContract, ModelName>;
     }
-    return existing;
+    return existing as DefaultModelRow<TContract, ModelName>;
   }
 
   createAll(data: CreateInput<TContract, ModelName>[]): AsyncIterableResult<DefaultModelRow<TContract, ModelName>> {
@@ -568,7 +767,20 @@ export class IdbStoreAccessorImpl<
     return (await this.deleteAll().toArray()).length;
   }
 
-  async count(): Promise<number> {
+  count(): Promise<number> {
+    if (this.#includeRefinementMode) {
+      // Inside an include() refinement, count() is a scalar-include marker that
+      // include() consumes synchronously — not the async terminal below. The
+      // IdbIncludeRefinementAccessor type surfaces the IdbIncludeScalar return;
+      // this cast bridges count()'s dual runtime role.
+      return createIncludeScalar(this.#state) as unknown as Promise<number>;
+    }
+    return this.#countTerminal();
+  }
+
+  // ── Private helpers ───────────────────────────────────────────────────────
+
+  async #countTerminal(): Promise<number> {
     const groupingKey = this.#newGroupingKey();
     const scanPlan = this.#buildScanPlan<Record<string, unknown>>(groupingKey);
     // Override the AST kind for middleware introspection — the idbPlan stays cursor-scan.
@@ -586,12 +798,76 @@ export class IdbStoreAccessorImpl<
     return n;
   }
 
-  // ── Private helpers ───────────────────────────────────────────────────────
+  /**
+   * Resolve an `include()` argument pair into an {@link IncludeEntry}: run the
+   * optional refinement against a fresh refinement-mode child accessor, then
+   * classify the result as a scalar count or a refined collection.
+   */
+  #resolveIncludeEntry(relation: string, refineFn: ((collection: never) => unknown) | undefined): IncludeEntry {
+    if (refineFn === undefined) {
+      return { kind: "collection", state: emptyAccessorState() };
+    }
+
+    const rel = getRelation(this.#contract, this.#modelName, relation);
+    const relatedModelName = rel?.to ?? relation;
+    const child = new IdbStoreAccessorImpl(
+      this.#contract,
+      relatedModelName,
+      this.#executor,
+      emptyAccessorState(),
+      this.#newGroupingKey,
+      /* includeRefinementMode */ true
+    );
+
+    const refined = (refineFn as (c: unknown) => unknown)(child);
+
+    if (isIncludeScalar(refined)) {
+      if (rel !== undefined && rel.cardinality !== "1:N") {
+        throw new Error(`include('${relation}'): count() is only supported for to-many (1:N) relations`);
+      }
+      return { kind: "scalar", fn: refined.fn, state: refined.state };
+    }
+
+    // Cross-instance private access is allowed within the class body.
+    if (refined instanceof IdbStoreAccessorImpl) {
+      return { kind: "collection", state: refined.#state };
+    }
+
+    throw new Error(
+      `include('${relation}') refinement must return the collection (for where/orderBy/take/skip) or a count() selector`
+    );
+  }
+
+  /**
+   * Materialise all rows matching the accumulated filters with no pagination —
+   * used by `aggregate()` / `groupBy()`. The supplied `ast` is attached to the
+   * scan plan so middleware can observe the aggregate intent.
+   */
+  async #materialize(groupingKey: string, ast: IdbQueryAst): Promise<Record<string, unknown>[]> {
+    const combined = this.#combinedFilterExpr();
+    const filter = combined !== undefined ? (row: Record<string, unknown>) => evaluateFilter(combined, row) : undefined;
+    const meta = this.#planMeta(groupingKey);
+    const plan: IdbQueryPlan<Record<string, unknown>> = {
+      meta,
+      ast,
+      idbPlan: {
+        meta,
+        kind: "cursor-scan",
+        storeName: this.#storeName,
+        ...(filter !== undefined ? { filter } : {}),
+      },
+    };
+    const rows: Record<string, unknown>[] = [];
+    for await (const row of this.#executor.execute(plan)) {
+      rows.push(row);
+    }
+    return rows;
+  }
 
   #buildScanPlan<Row>(groupingKey: string): IdbQueryPlan<Row> {
     const combined = this.#combinedFilterExpr();
     const filter = combined !== undefined ? (row: Record<string, unknown>) => evaluateFilter(combined, row) : undefined;
-    const comparator = this.#buildComparator();
+    const comparator = buildRowComparator(this.#state.orderBy);
     const meta = this.#planMeta(groupingKey);
     const ast: IdbFindManyAst = {
       kind: "findMany",
@@ -621,31 +897,12 @@ export class IdbStoreAccessorImpl<
   /**
    * Combine all accumulated filter expressions with AND.
    *
-   * Returns `undefined` when no filter has been installed so the
-   * driver can skip building a row filter closure (a small perf and
-   * readability win on `.all()` paths).
+   * Returns `undefined` when no filter has been installed so the driver can
+   * skip building a row filter closure (a small perf and readability win on
+   * `.all()` paths). Delegates to the shared {@link combineFilterExprs}.
    */
   #combinedFilterExpr(): IdbFilterExpr | undefined {
-    const filters = this.#state.filters;
-    if (filters.length === 0) return undefined;
-    if (filters.length === 1) return filters[0]!;
-    return andExpr(filters);
-  }
-
-  #buildComparator(): IdbRowComparator | undefined {
-    if (this.#state.orderBy === undefined) return undefined;
-    const orderBy = this.#state.orderBy;
-    return (a: Record<string, unknown>, b: Record<string, unknown>): number => {
-      for (const [field, dir] of Object.entries(orderBy)) {
-        const av = a[field];
-        const bv = b[field];
-        if (av === bv) continue;
-        // Values are primitives (strings, numbers, dates) in practice.
-        const cmp = (av as string | number) < (bv as string | number) ? -1 : 1;
-        return dir === "desc" ? -cmp : cmp;
-      }
-      return 0;
-    };
+    return combineFilterExprs(this.#state.filters);
   }
 
   async #applyIncludes(rows: Record<string, unknown>[], groupingKey: string): Promise<Record<string, unknown>[]> {
@@ -653,9 +910,28 @@ export class IdbStoreAccessorImpl<
     if (relNames.length === 0) return rows;
     let result = rows;
     for (const relName of relNames) {
-      result = await loadRelation(relName, result, this.#contract, this.#modelName, this.#executor, groupingKey);
+      const entry = this.#state.includes[relName]!;
+      result = await loadRelation(relName, entry, result, this.#contract, this.#modelName, this.#executor, groupingKey);
     }
     return result;
+  }
+
+  /**
+   * Apply a `.select()` projection (if any) to materialised rows. Keeps the
+   * selected scalar fields plus every included relation key (which `include()`
+   * attached during {@link #applyIncludes}); a no-op when nothing is selected.
+   */
+  #projectRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+    const selected = this.#state.selectedFields;
+    if (selected === undefined) return rows;
+    const keep = [...selected, ...Object.keys(this.#state.includes)];
+    return rows.map((row) => {
+      const out: Record<string, unknown> = {};
+      for (const field of keep) {
+        if (field in row) out[field] = row[field];
+      }
+      return out;
+    });
   }
 
   #planMeta(groupingKey: string): PlanMeta {
@@ -667,13 +943,14 @@ export class IdbStoreAccessorImpl<
     };
   }
 
-  #clone(overrides: Partial<IdbAccessorState>): IdbStoreAccessorImpl<TContract, ModelName, TIncludes> {
+  #clone(overrides: Partial<IdbAccessorState>): IdbStoreAccessorImpl<TContract, ModelName, TIncludes, TSelected> {
     return new IdbStoreAccessorImpl(
       this.#contract,
       this.#modelName,
       this.#executor,
       mergeAccessorState(this.#state, overrides),
-      this.#newGroupingKey
+      this.#newGroupingKey,
+      this.#includeRefinementMode
     );
   }
 }

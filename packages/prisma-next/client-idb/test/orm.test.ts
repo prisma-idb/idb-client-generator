@@ -429,6 +429,274 @@ describe("IdbStoreAccessor — include (relations)", () => {
   });
 });
 
+// ── Phase 6.5 / 6.6 / 6.7 fixtures ─────────────────────────────────────────────
+
+// Posts seeded with `published` + `views` so refinement / aggregate tests have
+// something to filter, order, and reduce over. Field values matter at runtime;
+// the contract stays loosely typed (defineContract) so any field name resolves.
+const R_POSTS = [
+  { id: "p1", title: "Alpha", authorId: "u1", published: true, views: 100 },
+  { id: "p2", title: "Beta", authorId: "u1", published: false, views: 50 },
+  { id: "p3", title: "Gamma", authorId: "u1", published: true, views: 75 },
+  { id: "p4", title: "Delta", authorId: "u2", published: true, views: 200 },
+  { id: "p5", title: "Epsilon", authorId: "u2", published: false, views: 0 },
+];
+
+function usersWithPostsContract() {
+  return makeTestContract(
+    { users: "User", posts: "Post" },
+    {
+      User: {
+        storeName: "users",
+        keyPath: "id",
+        relations: {
+          posts: { to: "Post", cardinality: "1:N", on: { localFields: ["id"], targetFields: ["authorId"] } },
+        },
+      },
+      Post: {
+        storeName: "posts",
+        keyPath: "id",
+        relations: {
+          author: { to: "User", cardinality: "N:1", on: { localFields: ["authorId"], targetFields: ["id"] } },
+        },
+      },
+    }
+  );
+}
+
+describe("IdbStoreAccessor — include refinement (Phase 6.5)", () => {
+  let driver: IdbRuntimeDriverInstance;
+  let executor: TestExecutor;
+
+  beforeEach(async () => {
+    const name = dbName();
+    const setupDb = await openTestDb(name, [USERS_STORE, POSTS_STORE]);
+    await seedStore(setupDb, "users", [ALICE, BOB]);
+    await seedStore(setupDb, "posts", R_POSTS);
+    setupDb.close();
+    driver = createIDBRuntimeDriver(name, 1).create();
+    executor = new TestExecutor(driver);
+  });
+
+  afterEach(async () => {
+    await driver.close();
+  });
+
+  function postsOf(row: unknown): Record<string, unknown>[] {
+    return (row as Record<string, unknown>)["posts"] as Record<string, unknown>[];
+  }
+  function findUser(rows: unknown[], id: string): unknown {
+    return rows.find((r) => (r as Record<string, unknown>)["id"] === id);
+  }
+
+  it("refined include filters child rows with where()", async () => {
+    const client = asRecord(idbOrm({ contract: usersWithPostsContract(), executor }));
+    const rows = await client["users"]!.include("posts", (p) => p.where({ published: true }))
+      .all()
+      .toArray();
+    expect(postsOf(findUser(rows, "u1"))).toHaveLength(2); // p1, p3
+    expect(postsOf(findUser(rows, "u2"))).toHaveLength(1); // p4
+  });
+
+  it("refined include applies orderBy + take per parent group", async () => {
+    const client = asRecord(idbOrm({ contract: usersWithPostsContract(), executor }));
+    const rows = await client["users"]!.include("posts", (p) => p.orderBy({ views: "desc" }).take(1))
+      .all()
+      .toArray();
+    const aliceTop = postsOf(findUser(rows, "u1"));
+    expect(aliceTop).toHaveLength(1);
+    expect(aliceTop[0]!["id"]).toBe("p1"); // 100 is alice's max
+    const bobTop = postsOf(findUser(rows, "u2"));
+    expect(bobTop[0]!["id"]).toBe("p4"); // 200 is bob's max
+  });
+
+  it("refined include composes where + orderBy", async () => {
+    const client = asRecord(idbOrm({ contract: usersWithPostsContract(), executor }));
+    const rows = await client["users"]!.include("posts", (p) => p.where({ published: true }).orderBy({ views: "asc" }))
+      .all()
+      .toArray();
+    const alice = postsOf(findUser(rows, "u1")).map((r) => r["id"]);
+    expect(alice).toEqual(["p3", "p1"]); // published, ascending by views (75, 100)
+  });
+
+  it("refined include skip paginates per parent group", async () => {
+    const client = asRecord(idbOrm({ contract: usersWithPostsContract(), executor }));
+    const rows = await client["users"]!.include("posts", (p) => p.orderBy({ views: "asc" }).skip(1))
+      .all()
+      .toArray();
+    const alice = postsOf(findUser(rows, "u1")).map((r) => r["id"]);
+    expect(alice).toEqual(["p3", "p1"]); // drop the lowest (p2=50), keep 75, 100
+  });
+
+  it("scalar count() include reduces a to-many relation to a number", async () => {
+    const client = asRecord(idbOrm({ contract: usersWithPostsContract(), executor }));
+    const rows = await client["users"]!.include("posts", (p) => p.count())
+      .all()
+      .toArray();
+    expect((findUser(rows, "u1") as Record<string, unknown>)["posts"]).toBe(3);
+    expect((findUser(rows, "u2") as Record<string, unknown>)["posts"]).toBe(2);
+  });
+
+  it("scalar count() include honours a refined where()", async () => {
+    const client = asRecord(idbOrm({ contract: usersWithPostsContract(), executor }));
+    const rows = await client["users"]!.include("posts", (p) => p.where({ published: true }).count())
+      .all()
+      .toArray();
+    expect((findUser(rows, "u1") as Record<string, unknown>)["posts"]).toBe(2);
+    expect((findUser(rows, "u2") as Record<string, unknown>)["posts"]).toBe(1);
+  });
+
+  it("scalar count() on a to-one relation throws", () => {
+    const client = asRecord(idbOrm({ contract: usersWithPostsContract(), executor }));
+    expect(() => client["posts"]!.include("author", (a) => a.count())).toThrow(/to-many/);
+  });
+
+  it("unrefined include still loads all child rows (regression)", async () => {
+    const client = asRecord(idbOrm({ contract: usersWithPostsContract(), executor }));
+    const rows = await client["users"]!.include("posts").all().toArray();
+    expect(postsOf(findUser(rows, "u1"))).toHaveLength(3);
+  });
+});
+
+describe("IdbStoreAccessor — aggregate / groupBy (Phase 6.6)", () => {
+  let driver: IdbRuntimeDriverInstance;
+  let executor: TestExecutor;
+
+  beforeEach(async () => {
+    const name = dbName();
+    const setupDb = await openTestDb(name, [POSTS_STORE]);
+    await seedStore(setupDb, "posts", R_POSTS);
+    setupDb.close();
+    driver = createIDBRuntimeDriver(name, 1).create();
+    executor = new TestExecutor(driver);
+  });
+
+  afterEach(async () => {
+    await driver.close();
+  });
+
+  function postsClient() {
+    const contract = makeTestContract({ posts: "Post" }, { Post: { storeName: "posts", keyPath: "id" } });
+    return asRecord(idbOrm({ contract, executor }));
+  }
+
+  it("aggregate() computes count/sum/avg/min/max over all rows", async () => {
+    const result = await postsClient()["posts"]!.aggregate((agg) => ({
+      total: agg.count(),
+      totalViews: agg.sum("views"),
+      avgViews: agg.avg("views"),
+      minViews: agg.min("views"),
+      maxViews: agg.max("views"),
+    }));
+    expect(result).toEqual({ total: 5, totalViews: 425, avgViews: 85, minViews: 0, maxViews: 200 });
+  });
+
+  it("aggregate() respects the accumulated where() filter", async () => {
+    const result = await postsClient()
+      ["posts"]!.where({ published: true })
+      .aggregate((agg) => ({ count: agg.count(), sum: agg.sum("views") }));
+    expect(result).toEqual({ count: 3, sum: 375 }); // p1 100 + p3 75 + p4 200
+  });
+
+  it("aggregate() over an empty set: count 0, reducers null", async () => {
+    const result = await postsClient()
+      ["posts"]!.where({ id: "does-not-exist" })
+      .aggregate((agg) => ({
+        count: agg.count(),
+        sum: agg.sum("views"),
+        avg: agg.avg("views"),
+        min: agg.min("views"),
+      }));
+    expect(result).toEqual({ count: 0, sum: null, avg: null, min: null });
+  });
+
+  it("aggregate() with an empty spec throws", async () => {
+    await expect(postsClient()["posts"]!.aggregate(() => ({}))).rejects.toThrow(/at least one/);
+  });
+
+  it("groupBy().aggregate() produces one row per group with the key field", async () => {
+    const rows = await postsClient()
+      ["posts"]!.groupBy("authorId")
+      .aggregate((agg) => ({ count: agg.count(), totalViews: agg.sum("views") }));
+    expect(rows).toHaveLength(2);
+    const byAuthor = Object.fromEntries(rows.map((r) => [(r as Record<string, unknown>)["authorId"], r]));
+    expect(byAuthor["u1"]).toEqual({ authorId: "u1", count: 3, totalViews: 225 });
+    expect(byAuthor["u2"]).toEqual({ authorId: "u2", count: 2, totalViews: 200 });
+  });
+
+  it("groupBy().aggregate() respects a preceding where()", async () => {
+    const rows = await postsClient()
+      ["posts"]!.where({ published: true })
+      .groupBy("authorId")
+      .aggregate((agg) => ({ count: agg.count(), totalViews: agg.sum("views") }));
+    const byAuthor = Object.fromEntries(rows.map((r) => [(r as Record<string, unknown>)["authorId"], r]));
+    expect(byAuthor["u1"]).toEqual({ authorId: "u1", count: 2, totalViews: 175 }); // p1 100 + p3 75
+    expect(byAuthor["u2"]).toEqual({ authorId: "u2", count: 1, totalViews: 200 }); // p4
+  });
+
+  it("groupBy().aggregate() with an empty spec throws", async () => {
+    await expect(
+      postsClient()
+        ["posts"]!.groupBy("authorId")
+        .aggregate(() => ({}))
+    ).rejects.toThrow(/at least one/);
+  });
+});
+
+describe("IdbStoreAccessor — select projection (Phase 6.7)", () => {
+  let driver: IdbRuntimeDriverInstance;
+  let executor: TestExecutor;
+
+  beforeEach(async () => {
+    const name = dbName();
+    const setupDb = await openTestDb(name, [USERS_STORE, POSTS_STORE]);
+    await seedStore(setupDb, "users", [ALICE, BOB]);
+    await seedStore(setupDb, "posts", R_POSTS);
+    setupDb.close();
+    driver = createIDBRuntimeDriver(name, 1).create();
+    executor = new TestExecutor(driver);
+  });
+
+  afterEach(async () => {
+    await driver.close();
+  });
+
+  it("select() narrows the row to the chosen fields", async () => {
+    const contract = makeTestContract({ posts: "Post" }, { Post: { storeName: "posts", keyPath: "id" } });
+    const client = asRecord(idbOrm({ contract, executor }));
+    const rows = await client["posts"]!.select("id", "title").all().toArray();
+    expect(rows).toHaveLength(5);
+    expect(Object.keys(rows[0] as Record<string, unknown>).sort()).toEqual(["id", "title"]);
+  });
+
+  it("select() composes with where()", async () => {
+    const contract = makeTestContract({ posts: "Post" }, { Post: { storeName: "posts", keyPath: "id" } });
+    const client = asRecord(idbOrm({ contract, executor }));
+    const rows = await client["posts"]!.where({ published: true }).select("id").all().toArray();
+    expect(rows).toHaveLength(3);
+    for (const row of rows) expect(Object.keys(row as Record<string, unknown>)).toEqual(["id"]);
+  });
+
+  it("select() preserves included relation fields", async () => {
+    const client = asRecord(idbOrm({ contract: usersWithPostsContract(), executor }));
+    const rows = await client["users"]!.include("posts").select("id", "name").all().toArray();
+    const alice = rows.find((r) => (r as Record<string, unknown>)["id"] === "u1") as Record<string, unknown>;
+    expect(Object.keys(alice).sort()).toEqual(["id", "name", "posts"]);
+    expect(alice["email"]).toBeUndefined();
+    expect(Array.isArray(alice["posts"])).toBe(true);
+  });
+
+  it("include() works even when the FK field is not selected", async () => {
+    // The local FK ("id") is stripped by select("name"), but relation loading
+    // runs before projection, so posts still resolve correctly.
+    const client = asRecord(idbOrm({ contract: usersWithPostsContract(), executor }));
+    const rows = await client["users"]!.select("name").include("posts").all().toArray();
+    const alice = rows.find((r) => (r as Record<string, unknown>)["name"] === "Alice") as Record<string, unknown>;
+    expect(Object.keys(alice).sort()).toEqual(["name", "posts"]);
+    expect((alice["posts"] as unknown[]).length).toBe(3);
+  });
+});
+
 // ── CRUD terminals ────────────────────────────────────────────────────────────
 
 describe("IdbStoreAccessor — update", () => {

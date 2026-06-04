@@ -168,31 +168,67 @@ type RelationRowType<TContract, ModelName extends string, RelKey extends string>
     : never
   : never;
 
+/**
+ * Per-relation include marker tracked at the type level.
+ *
+ * - `true` — the relation is loaded as rows (array for `1:N`, single/null
+ *   otherwise), optionally refined by a `where`/`orderBy`/`take` callback.
+ * - `"scalar"` — the relation is reduced to a `count()` (Phase 6.5), so the
+ *   row field becomes a `number` instead of related rows.
+ */
+export type IncludeMarker = true | "scalar";
+
 /** Which relations are included in the current accessor chain. */
 export type IncludeSpec<TContract, ModelName extends string> = Partial<
-  Record<ReferenceRelKeys<TContract, ModelName>, true>
+  Record<ReferenceRelKeys<TContract, ModelName>, IncludeMarker>
 >;
 
 /** Empty include spec — no relations included. */
 export type NoIncludes = Record<never, never>;
 
 /**
+ * The relation fields contributed by a set of `.include()` calls.
+ *
+ * A key is added only when its `TIncludes` marker is set; the field type is
+ * `number` for a scalar `count()` include and the cardinality-shaped related
+ * row(s) otherwise. Split out from {@link IncludedRow} so {@link SelectedRow}
+ * can re-use it on top of a projected (picked) scalar base.
+ */
+export type IncludeFields<TContract, ModelName extends string, TIncludes extends IncludeSpec<TContract, ModelName>> = {
+  -readonly [K in keyof TIncludes & string as TIncludes[K] extends IncludeMarker
+    ? K
+    : never]: TIncludes[K] extends "scalar" ? number : RelationRowType<TContract, ModelName, K>;
+};
+
+/**
  * A row type that merges the base model row with any included relation fields.
  *
  * The extra fields are only added when the corresponding key in `TIncludes` is
- * `true`, so the type stays narrow until `.include()` is called.
+ * set, so the type stays narrow until `.include()` is called.
  */
 export type IncludedRow<
   TContract,
   ModelName extends string,
   TIncludes extends IncludeSpec<TContract, ModelName>,
-> = DefaultModelRow<TContract, ModelName> & {
-  -readonly [K in keyof TIncludes & string as TIncludes[K] extends true ? K : never]: RelationRowType<
-    TContract,
-    ModelName,
-    K
-  >;
-};
+> = DefaultModelRow<TContract, ModelName> & IncludeFields<TContract, ModelName, TIncludes>;
+
+/**
+ * The row type after an optional `.select()` projection.
+ *
+ * When `TSelected` is `never` (no `.select()` call) the full {@link IncludedRow}
+ * is returned. Otherwise the scalar base is narrowed to the picked fields, with
+ * any included relation fields preserved (mirrors the vendor `select()` which
+ * keeps relations and narrows only scalar columns).
+ */
+export type SelectedRow<
+  TContract,
+  ModelName extends string,
+  TIncludes extends IncludeSpec<TContract, ModelName>,
+  TSelected extends string,
+> = [TSelected] extends [never]
+  ? IncludedRow<TContract, ModelName, TIncludes>
+  : Pick<DefaultModelRow<TContract, ModelName>, TSelected & keyof DefaultModelRow<TContract, ModelName>> &
+      IncludeFields<TContract, ModelName, TIncludes>;
 
 // ── Patch input ───────────────────────────────────────────────────────────────
 
@@ -206,7 +242,7 @@ export type PatchInput<TContract, ModelName extends string> = Partial<DefaultMod
 // ── Relation mutation types ───────────────────────────────────────────────────
 
 /** Extracts the `to` model name for a named relation on a model. */
-type RelatedModelOf<TContract, ModelName extends string, RelName extends string> = TContract extends {
+export type RelatedModelOf<TContract, ModelName extends string, RelName extends string> = TContract extends {
   models: Record<ModelName, { relations: Record<RelName, { to: infer To extends string }> }>;
 }
   ? To
@@ -336,6 +372,70 @@ export type OrderBySpec<TContract, ModelName extends string> = Partial<
   Record<string & keyof DefaultModelRow<TContract, ModelName>, SortDirection>
 >;
 
+// ── Aggregate / groupBy ───────────────────────────────────────────────────────
+
+/** The five aggregation functions, matching the vendor `AggregateFn`. */
+export type AggregateFn = "count" | "sum" | "avg" | "min" | "max";
+
+/**
+ * Fields eligible for numeric aggregation (`sum`/`avg`/`min`/`max`).
+ *
+ * For an emitted (precisely-typed) contract this narrows to the fields whose
+ * output type is assignable to `number`. For a loosely-typed `IdbContract`
+ * (no type maps — `DefaultModelRow` is `Record<string, unknown>`) the row key
+ * set widens to `string`, so we allow any field name rather than collapsing to
+ * `never`. Mirrors `NumericFieldNames` from `sql-orm-client`, trait-free.
+ */
+export type NumericFieldNames<TContract, ModelName extends string> = string extends keyof DefaultModelRow<
+  TContract,
+  ModelName
+>
+  ? string
+  : {
+      [K in keyof DefaultModelRow<TContract, ModelName> & string]: NonNullable<
+        DefaultModelRow<TContract, ModelName>[K]
+      > extends number
+        ? K
+        : never;
+    }[keyof DefaultModelRow<TContract, ModelName> & string];
+
+declare const idbAggregateResultBrand: unique symbol;
+
+/**
+ * A single aggregation selector produced by the {@link IdbAggregateBuilder}.
+ *
+ * The phantom `Result` brand carries the per-selector result type so
+ * {@link IdbAggregateResult} can map each alias back to its value type.
+ * Mirrors the vendor `AggregateSelector`.
+ */
+export interface IdbAggregateSelector<Result> {
+  readonly kind: "aggregate";
+  readonly fn: AggregateFn;
+  readonly field?: string;
+  readonly [idbAggregateResultBrand]?: Result;
+}
+
+/** A map of result aliases → aggregation selectors (the `aggregate()` spec). */
+export type IdbAggregateSpec = Record<string, IdbAggregateSelector<unknown>>;
+
+/** The result row shape for an {@link IdbAggregateSpec}: alias → value type. */
+export type IdbAggregateResult<Spec extends IdbAggregateSpec> = {
+  [K in keyof Spec]: Spec[K] extends IdbAggregateSelector<infer Result> ? Result : never;
+};
+
+/**
+ * The builder handed to an `.aggregate(agg => …)` callback. `count()` is always
+ * available; the field reducers are constrained to {@link NumericFieldNames}.
+ * Mirrors the vendor `AggregateBuilder`, minus the SQL column mapping.
+ */
+export interface IdbAggregateBuilder<TContract, ModelName extends string> {
+  count(): IdbAggregateSelector<number>;
+  sum<F extends NumericFieldNames<TContract, ModelName>>(field: F): IdbAggregateSelector<number | null>;
+  avg<F extends NumericFieldNames<TContract, ModelName>>(field: F): IdbAggregateSelector<number | null>;
+  min<F extends NumericFieldNames<TContract, ModelName>>(field: F): IdbAggregateSelector<number | null>;
+  max<F extends NumericFieldNames<TContract, ModelName>>(field: F): IdbAggregateSelector<number | null>;
+}
+
 // ── Model storage helpers ─────────────────────────────────────────────────────
 
 /**
@@ -354,4 +454,20 @@ export function getStoreName(contract: IdbContract, modelName: string): string {
 export function getKeyPath(contract: IdbContract, modelName: string): string {
   const model = contract.models[modelName];
   return (model?.storage as IdbModelStorage | undefined)?.keyPath ?? "id";
+}
+
+/**
+ * Resolve a model's named relation to a {@link ContractReferenceRelation} at
+ * runtime, or `undefined` when the relation is absent or an embedded relation
+ * (no `on` join block). Used by `include()` to find the related model name and
+ * cardinality before building the child-accessor refinement.
+ */
+export function getRelation(
+  contract: IdbContract,
+  modelName: string,
+  relName: string
+): ContractReferenceRelation | undefined {
+  const relation = contract.models[modelName]?.relations?.[relName];
+  if (relation === undefined || !("on" in relation)) return undefined;
+  return relation as ContractReferenceRelation;
 }

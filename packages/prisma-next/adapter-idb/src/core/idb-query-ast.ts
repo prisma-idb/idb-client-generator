@@ -34,6 +34,8 @@ export type IdbQueryAst =
   | IdbDeleteAllAst
   | IdbDeleteCountAst
   | IdbCountAst
+  | IdbAggregateAst
+  | IdbGroupByAst
   | IdbNestedCreateAst
   | IdbNestedUpdateAst;
 
@@ -145,6 +147,45 @@ export interface IdbCountAst {
   readonly kind: "count";
   readonly modelName: string;
   readonly where?: IdbFilterExpr;
+}
+
+/** One aggregation request inside an {@link IdbAggregateAst} / {@link IdbGroupByAst}. */
+export interface IdbAggregateRequest {
+  /** Aggregate function: `count` | `sum` | `avg` | `min` | `max`. */
+  readonly fn: string;
+  /** Target field for numeric reducers; absent for `count`. */
+  readonly field?: string;
+}
+
+/**
+ * In-memory aggregate over the matching rows (count/sum/avg/min/max).
+ *
+ * IDB has no aggregation API, so this is computed by the client after a cursor
+ * scan materialises the rows. The AST is attached to that scan plan so cache /
+ * logging middleware can observe the aggregate intent.
+ */
+export interface IdbAggregateAst {
+  readonly kind: "aggregate";
+  readonly modelName: string;
+  readonly where?: IdbFilterExpr;
+  /** Requested aggregates keyed by their result alias. */
+  readonly aggregates: Readonly<Record<string, IdbAggregateRequest>>;
+}
+
+/**
+ * In-memory grouped aggregate (`groupBy(...).aggregate(...)`).
+ *
+ * Like {@link IdbAggregateAst} but partitions the materialised rows by the
+ * `by` fields before reducing each group.
+ */
+export interface IdbGroupByAst {
+  readonly kind: "groupBy";
+  readonly modelName: string;
+  readonly where?: IdbFilterExpr;
+  /** Group key fields, in declaration order. */
+  readonly by: readonly string[];
+  /** Requested aggregates keyed by their result alias. */
+  readonly aggregates: Readonly<Record<string, IdbAggregateRequest>>;
 }
 
 /** Create a record with one or more nested relation writes (atomic, multi-store). */

@@ -1,6 +1,8 @@
 ## Status
 
-_Last reviewed: 2026-05-29 — third-pass audit. Phase 7 (migration package layer rewrite, 2026-05-27) addressed Group A + B of [`FEEDBACK.md`](FEEDBACK.md); the 2026-05-28 pass cleaned up the residual Phase-7 bugs. **This 2026-05-29 pass focused on the (then-uncommitted) Phase 6.4 nested-write work: it found and FIXED a build-breaking type-gate regression — `client-idb` was passing `vitest` but failing `tsc --noEmit` (the exact [Issue #19] pattern recurring; now [Issue #20], resolved below).** All six packages now pass both `vitest` and `tsc --noEmit`; `client-idb` lint (prettier + eslint) is clean on source. Remaining open items are five lower-priority faithfulness/robustness gaps ([Issue #21]–[Issue #25]), the still-pending feature work (Phase 6.5–6.7), and outbox sync. See [§ Audit 2026-05-29](#audit-2026-05-29)._
+_Last updated: 2026-06-02 — **Phases 6.5, 6.6, and 6.7 shipped** (include refinement, aggregate/groupBy, select projection), completing the Phase 6 ORM lane. While wiring the demo Playwright specs this pass also found and FIXED a pre-existing browser-only crash: the Phase-7 / Issue #23 integrity check imported `computeMigrationHash` from `@prisma-next/migration-tools/hash`, which uses `node:crypto` and threw `createHash is not a function` on every browser client init — breaking the entire demo app (and so masking the whole Playwright suite). Replaced with a byte-identical WebCrypto implementation ([§ Phase 6.5–6.7](#phase-65-67-include-refinement-aggregate-select-2026-06-02)). Verification: `client-idb` 99 vitest + `adapter-idb` 29 vitest, both `tsc --noEmit` clean, eslint/prettier clean, isolated-declaration build clean, **93/93 demo Playwright specs green (was 77; +16 new)**._
+
+_Prior context (2026-05-29 third-pass audit): Phase 7 (migration package layer rewrite, 2026-05-27) addressed Group A + B of [`FEEDBACK.md`](FEEDBACK.md); the 2026-05-28 pass cleaned up the residual Phase-7 bugs; the 2026-05-29 pass found and FIXED a build-breaking type-gate regression in Phase 6.4 ([Issue #20]). Remaining open items are four lower-priority faithfulness/robustness gaps ([Issue #21], [Issue #22], [Issue #24], [Issue #25]) and outbox sync. See [§ Audit 2026-05-29](#audit-2026-05-29)._
 
 | Phase | Description                                                                                       | Status                                                                                                                                                                                                                                                                                                                        |
 | ----- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -9,14 +11,14 @@ _Last reviewed: 2026-05-29 — third-pass audit. Phase 7 (migration package laye
 | 3     | Query lowering (`adapter-idb`)                                                                    | ✅ Done (passthrough; per-field codec encoding deferred — all codecs identity); Issue #13 (descriptor `.create()` codec wiring) fixed                                                                                                                                                                                         |
 | 4     | Control plane manifest operations (`family-idb`)                                                  | 🪦 Superseded by Phase 7 — manifest deleted, CLI returns `IDB-CLI-UNSUPPORTED` envelopes; the layer that survives is `schema-verify` (pure) + `deserializeContract` (pure)                                                                                                                                                    |
 | 5     | Migration infrastructure (`target-idb/control`)                                                   | ✅ Done — planner + DDL ops + schema diff + 4-file package layout; runner's `executeAcrossSpaces` returns refusal envelope (Phase 7.3)                                                                                                                                                                                        |
-| 6     | IDB ORM lane (`client-idb`) + runtime (`runtime-idb`)                                             | 🚧 MVP done — phases 6.1–6.4 shipped (6.4 type gate fixed in Audit 2026-05-29); 6.5–6.7 not started                                                                                                                                                                                                                           |
+| 6     | IDB ORM lane (`client-idb`) + runtime (`runtime-idb`)                                             | ✅ Done — phases 6.1–6.7 shipped (6.5–6.7 landed 2026-06-02; see [§ Phase 6.5–6.7](#phase-65-67-include-refinement-aggregate-select-2026-06-02))                                                                                                                                                                              |
 | 6.1   | Filter expression AST + operator API                                                              | ✅ Done — `IdbFilterExpr` + evaluator + `IdbModelAccessor` proxy + `and/or/not`; shorthand `null` lifts to null-check                                                                                                                                                                                                         |
 | 6.2   | Missing CRUD terminals (update, upsert, createAll/Count, deleteAll/Count, updateAll/Count, count) | ✅ Done — vendor naming adopted; `IdbScanWritePlan` + `IdbBatchPlan` driver primitives; 9 new ORM methods; known gap: `.where()` enforcement not compile-time-checked                                                                                                                                                         |
 | 6.3   | Multi-store transaction support                                                                   | ✅ Done — `IdbTransactionScope` + `createTransactionScope` in driver; `withMutationScope` + `IdbQueryExecutorWithTransaction` in client; `IdbRuntime.transaction()` wired; Issue #6 resolved                                                                                                                                  |
 | 6.4   | Nested relation writes (create/connect/disconnect)                                                | ✅ Done — `IdbRelationMutator` + `mutation-executor.ts` + `relation-mutator.ts`; `create()`/`update()` detect callbacks and open multi-store transactions; FK validation in `connect()`. 14 vitest + 3 Playwright spec files green; `tsc --noEmit` now clean ([Issue #20] fixed 2026-05-29). Still uncommitted at audit time. |
-| 6.5   | Include refinement (where/orderBy/take inside include)                                            | ❌ Not started                                                                                                                                                                                                                                                                                                                |
-| 6.6   | Aggregate / groupBy                                                                               | ❌ Not started                                                                                                                                                                                                                                                                                                                |
-| 6.7   | Select projection                                                                                 | ❌ Not started                                                                                                                                                                                                                                                                                                                |
+| 6.5   | Include refinement (where/orderBy/take inside include)                                            | ✅ Done (2026-06-02) — `include(rel, refineFn)`; refined child accessor builds `IncludeEntry`; per-parent orderBy/skip/take + refined where in `relation-loader`; scalar `count()` via refinement-mode `count()` → `IdbIncludeScalar`                                                                                         |
+| 6.6   | Aggregate / groupBy                                                                               | ✅ Done (2026-06-02) — `aggregate-builder.ts` (count/sum/avg/min/max + in-memory reducer) + `grouped-accessor.ts`; standalone `.aggregate()` + `.groupBy(...).aggregate()`; `IdbAggregateAst` / `IdbGroupByAst` attached to the materialising scan                                                                            |
+| 6.7   | Select projection                                                                                 | ✅ Done (2026-06-02) — `select(...)` adds `TSelected` type param + `selectedFields` state; projection runs after relation loads (FK fields survive includes); `SelectedRow` narrows the row type                                                                                                                              |
 | 7     | Migration package layer rewrite (Group A + B feedback)                                            | ✅ Done — see [plans/](plans/) for the 8 per-phase docs (7.1–7.8)                                                                                                                                                                                                                                                             |
 | 7.1   | Foundation: `IdbMigration` base + `MigrationCLI` shim                                             | ✅ Done                                                                                                                                                                                                                                                                                                                       |
 | 7.2   | Planner refit: class-based `migration.ts` scaffold                                                | ✅ Done                                                                                                                                                                                                                                                                                                                       |
@@ -104,7 +106,9 @@ The vendor's `applyParentOwnedMutation` / `applyChildOwnedMutation` call `create
 
 ### ✅ Issue #23 — no apply-time integrity check against `migrationHash` — FIXED 2026-05-31
 
-`walkChain` in `auto-migrate.ts` now calls `computeMigrationHash(next.metadata, next.ops)` for each package and throws if it doesn't match `next.metadata.migrationHash`. Uses `computeMigrationHash` directly from `@prisma-next/migration-tools/hash` (added as dep) rather than `verifyMigrationHash`, which requires `OnDiskMigrationPackage` (adds `dirPath`) — a filesystem concern our in-memory `MigrationPackage` doesn't carry. The `_contract-space-fixture.ts` test helper was updated to compute real hashes instead of the `sha256:fixture-N` stubs it previously used (its comment admitted the stub was there because auto-migrate didn't validate — now it does). tsc clean, 80/80 green.
+`walkChain` in `auto-migrate.ts` now calls `computeMigrationHash(next.metadata, next.ops)` for each package and throws if it doesn't match `next.metadata.migrationHash`. The `_contract-space-fixture.ts` test helper was updated to compute real hashes instead of the `sha256:fixture-N` stubs it previously used (its comment admitted the stub was there because auto-migrate didn't validate — now it does).
+
+> **Superseded 2026-06-02 (browser-crypto fix).** The original 2026-05-31 fix imported `computeMigrationHash` from `@prisma-next/migration-tools/hash`, which uses `node:crypto`'s `createHash` and **threw in the browser** — see [§ Phase 6.5–6.7](#phase-65-67-include-refinement-aggregate-select-2026-06-02). It is now a byte-identical WebCrypto re-implementation in `client-idb/src/core/migration-hash.ts` (reuses the framework's `canonicalizeJson` + the same nested SHA-256/hex scheme), and `walkChain` is `async`. The integrity check is unchanged in meaning; only the digest primitive moved from Node crypto to WebCrypto so it runs in the browser. `auto-migrate-evolution.test.ts` (real fixture hashes) confirms the byte-for-byte match.
 
 ### 🟢 Issue #24 — `upsert` is non-atomic; child-owned `connect` diverges from vendor
 
@@ -131,6 +135,54 @@ Per ADR 002, the marker is written in a separate `readwrite` transaction _after_
 3. Add the recursive-nesting guard ([Issue #22]) and the `migrationHash` apply-time assertion ([Issue #23]).
 4. Resolve or delete the dead nested-write AST nodes ([Issue #21]).
 5. Then proceed to Phase 6.5–6.7 as previously scoped.
+
+---
+
+## Phase 6.5-6.7: Include refinement, aggregate, select (2026-06-02)
+
+Shipped the final three Phase-6 ORM features, ported as closely as possible from the vendor `sql-orm-client` reference (collapsed to IDB's all-in-memory model — no SQL compilation, no codec traits, no column mapping). This completes the Phase 6 ORM lane (6.1–6.7).
+
+### What shipped
+
+**Phase 6.5 — Include refinement.** `include(rel, refineFn?)` now takes an optional refinement callback (mirrors `sql-orm-client/collection.ts` `include()` + `include-descriptors.ts`).
+
+- `IdbAccessorState.includes` changed from `Record<string, true>` to `Record<string, IncludeEntry>` where `IncludeEntry` is `{ kind: "collection"; state }` or `{ kind: "scalar"; fn: "count"; state }` (`store-state.ts`).
+- The refinement callback receives a fresh child accessor in **include-refinement mode**; its chained `where`/`orderBy`/`take`/`skip` build the child `IdbAccessorState`. `include()` reads that state back (cross-instance private field access) to build the `IncludeEntry`.
+- Scalar `count()`: in refinement mode, `count()` returns an `IdbIncludeScalar` marker instead of the async terminal (the `IdbIncludeRefinementAccessor` type surfaces this; one documented cast bridges the dual role). The relation field becomes a `number`. Rejected at build time on to-one relations (matches vendor).
+- `relation-loader.ts` rewritten to take the `IncludeEntry`: refined `where` filters the child scan; `orderBy`/`skip`/`take` apply **per parent group** for `1:N`; scalar attaches per-parent child counts.
+
+**Phase 6.6 — Aggregate / groupBy.** Pure in-memory reduction (IDB has no aggregation API).
+
+- `aggregate-builder.ts` — `createAggregateBuilder()` (`count`/`sum`/`avg`/`min`/`max` selectors), `isAggregateSelector`, `reduceAggregate` (null over empty set, per Prisma + vendor `coerceAggregateValue`), `computeAggregateSpec`, `assertValidAggregateSpec`.
+- `grouped-accessor.ts` — `IdbGroupedAccessor` (port of `GroupedCollection`); `accessor.groupBy(...).aggregate(fn)` partitions materialised rows by a composite key and reduces each group. Standalone `accessor.aggregate(fn)` reduces the whole filtered set.
+- `IdbAggregateAst` / `IdbGroupByAst` added to `adapter-idb`'s `IdbQueryAst` union and **attached to the materialising cursor-scan plan** — so they're reachable for middleware (deliberately not dead code, cf. [Issue #21]).
+
+**Phase 6.7 — Select projection.** `select(...fields)` narrows the row shape (mirrors `selection-shaping.ts`).
+
+- Added a 4th type param `TSelected extends string = never` to `IdbStoreAccessor` / `IdbStoreAccessorImpl`, threaded through the chainable methods; `SelectedRow<…>` narrows the row to `Pick<DefaultModelRow, TSelected> & IncludeFields<…>`.
+- `selectedFields` stored in state; projection runs **after** relation loads in `all()`, so FK fields needed by `include()` survive the scan→load→project pipeline even when not selected (the IDB-simple equivalent of `augmentSelectionForJoinColumns`).
+- Shared helpers extracted to `query-shaping.ts` (`combineFilterExprs`, `buildRowComparator`) — used by both the store accessor and the relation loader (removed the duplicate private comparator/filter-combine logic).
+
+### ✅ Bonus fix — browser-only `createHash` crash in the auto-migrate integrity check
+
+While wiring the demo Playwright specs, **every** spec (including the pre-existing smoke suite) failed at fixture setup: the demo client never finished initialising. Root cause was a **pre-existing** regression, not the 6.5–6.7 work: the [Issue #23] integrity check (`auto-migrate.ts` `walkChain`) imported `computeMigrationHash` from `@prisma-next/migration-tools/hash`, which calls `node:crypto`'s `createHash`. In the browser that bundles to `(0, ia.createHash) is not a function`, thrown on every `createAutoMigratingIdbClient` call → the whole demo app was dead in any browser, and the failure was invisible to the node-only vitest suite (the exact "node API breaks the browser" class `FEEDBACK.md` warns about).
+
+**Fix.** New `client-idb/src/core/migration-hash.ts` re-implements the hash with **WebCrypto** (`crypto.subtle.digest("SHA-256", …)` → hex), reusing the framework's own `canonicalizeJson` and the identical nested-hash scheme, so it is **byte-identical** to the CLI-recorded `migrationHash` (the integrity check stays meaningful). `walkChain` is now `async` and awaits it. Confirmed identical by `auto-migrate-evolution.test.ts` (real fixture hashes) staying green, and by the demo app initialising and all 93 Playwright specs passing.
+
+### Tests
+
+| Suite                                 | Count                | Notes                                                                                             |
+| ------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------- |
+| `client-idb` vitest                   | 99 (was 80; **+19**) | 8 include-refinement, 7 aggregate/groupBy, 4 select — full stack via `fake-indexeddb`             |
+| `adapter-idb` vitest                  | 29                   | unchanged (AST additions are type-only)                                                           |
+| demo Playwright (`prisma-next-usage`) | 93 (was 77; **+16**) | `includeRefinement/{whereInsideInclude,scalarInclude}`, `modelQueries/{aggregate,groupBy,select}` |
+
+All `tsc --noEmit`, eslint, prettier, and isolated-declaration `tsdown` builds clean across `client-idb` + `adapter-idb`.
+
+### Files
+
+- `client-idb/src/core/`: **new** `aggregate-builder.ts`, `grouped-accessor.ts`, `query-shaping.ts`, `migration-hash.ts`; **edited** `store-accessor.ts`, `store-state.ts`, `types.ts`, `relation-loader.ts`, `auto-migrate.ts`, `exports/orm.ts`.
+- `adapter-idb/src/core/idb-query-ast.ts` + `exports/runtime.ts`: `IdbAggregateAst`, `IdbGroupByAst`, `IdbAggregateRequest`.
 
 ---
 
@@ -823,6 +875,8 @@ Port of `sql-orm-client/mutation-executor.ts`:
 
 ## Phase 6.5 — Include refinement
 
+> **Status: ✅ Done (2026-06-02).** See [§ Phase 6.5–6.7](#phase-65-67-include-refinement-aggregate-select-2026-06-02) for the as-built summary. The design below is the original plan; it was implemented largely as written.
+
 **Goal:** `include()` accepts an optional refinement callback. After this phase:
 
 ```ts
@@ -878,6 +932,8 @@ type IncludeEntry =
 ---
 
 ## Phase 6.6 — Aggregate / groupBy
+
+> **Status: ✅ Done (2026-06-02).** See [§ Phase 6.5–6.7](#phase-65-67-include-refinement-aggregate-select-2026-06-02) for the as-built summary. The design below is the original plan; it was implemented largely as written.
 
 **Goal:** Standalone aggregation and grouped aggregation. All in-memory (IDB has no aggregation API).
 
@@ -947,6 +1003,8 @@ This is a pure in-memory reduce over the matching rows (same as `count()` for Ph
 ---
 
 ## Phase 6.7 — Select projection
+
+> **Status: ✅ Done (2026-06-02).** See [§ Phase 6.5–6.7](#phase-65-67-include-refinement-aggregate-select-2026-06-02) for the as-built summary. The design below is the original plan; it was implemented largely as written.
 
 **Goal:** `select()` narrows the row shape returned. Post-materialization in-memory projection (IDB stores whole records).
 
