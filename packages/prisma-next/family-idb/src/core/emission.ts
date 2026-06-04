@@ -106,7 +106,18 @@ export const idbEmission = {
     }
 
     const storesType = stores.length > 0 ? `{ ${stores.join("; ")} }` : "Record<string, never>";
-    return `{ readonly stores: ${storesType}; readonly storageHash: ${storageHashTypeName} }`;
+
+    // v0.12.0: StorageBase now requires `namespaces`. Generate the literal type from
+    // the contract's storage namespaces so the emitted storage type satisfies StorageBase.
+    const nsEntries: string[] = [];
+    for (const [nsId, ns] of Object.entries(
+      (storage as unknown as { namespaces?: Record<string, { id: string }> }).namespaces ?? {}
+    ).sort(([a], [b]) => a.localeCompare(b))) {
+      nsEntries.push(`readonly ${serializeObjectKey(nsId)}: { readonly id: ${serializeValue(ns.id)} }`);
+    }
+    const namespacesType = nsEntries.length > 0 ? `{ ${nsEntries.join("; ")} }` : "Record<string, never>";
+
+    return `{ readonly stores: ${storesType}; readonly namespaces: ${namespacesType}; readonly storageHash: ${storageHashTypeName} }`;
   },
 
   /**
@@ -181,7 +192,9 @@ export const idbEmission = {
       `export type Contract = IdbContractWithTypeMaps<${contractBaseName}, ${typeMapsName}>;`,
       "",
       "export type Stores = Contract['storage']['stores'];",
-      "export type Models = Contract['models'];",
+      // v0.12.0: Contract no longer has a top-level `models` property; use
+      // ContractModelsMap<Contract> to extract the flattened model map instead.
+      "export type Models = ContractModelsMap<Contract>;",
     ].join("\n");
   },
 } as const satisfies EmissionSpi;

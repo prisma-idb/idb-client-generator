@@ -83,6 +83,7 @@ type ContractBase = Omit<
           };
         };
       };
+      readonly namespaces: { readonly __unbound__: { readonly id: "__unbound__" } };
       readonly storageHash: StorageHash;
     },
     {
@@ -329,4 +330,4 @@ type ContractBase = Omit<
 export type Contract = IdbContractWithTypeMaps<ContractBase, TypeMaps>;
 
 export type Stores = Contract["storage"]["stores"];
-export type Models = Contract["models"];
+export type Models = ContractModelsMap<Contract>;

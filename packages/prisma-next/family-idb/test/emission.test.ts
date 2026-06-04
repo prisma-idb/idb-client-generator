@@ -152,7 +152,7 @@ describe("idbEmission", () => {
       const result = idbEmission.getContractWrapper("ContractBase", "TypeMaps");
       expect(result).toContain("export type Contract = IdbContractWithTypeMaps<ContractBase, TypeMaps>;");
       expect(result).toContain("export type Stores = Contract['storage']['stores'];");
-      expect(result).toContain("export type Models = Contract['models'];");
+      expect(result).toContain("export type Models = ContractModelsMap<Contract>;");
     });
   });
 });

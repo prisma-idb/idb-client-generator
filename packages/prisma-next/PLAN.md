@@ -1,6 +1,8 @@
 ## Status
 
-_Last updated: 2026-06-02 — **Phases 6.5, 6.6, and 6.7 shipped** (include refinement, aggregate/groupBy, select projection), completing the Phase 6 ORM lane. While wiring the demo Playwright specs this pass also found and FIXED a pre-existing browser-only crash: the Phase-7 / Issue #23 integrity check imported `computeMigrationHash` from `@prisma-next/migration-tools/hash`, which uses `node:crypto` and threw `createHash is not a function` on every browser client init — breaking the entire demo app (and so masking the whole Playwright suite). Replaced with a byte-identical WebCrypto implementation ([§ Phase 6.5–6.7](#phase-65-67-include-refinement-aggregate-select-2026-06-02)). Verification: `client-idb` 99 vitest + `adapter-idb` 29 vitest, both `tsc --noEmit` clean, eslint/prettier clean, isolated-declaration build clean, **93/93 demo Playwright specs green (was 77; +16 new)**._
+_Last updated: 2026-06-04 — **v0.12.0 migration complete** (all 7 idb packages + demo app updated to `@prisma-next/*@0.12.0`). Major breaking changes: `Contract.models` removed (models live under `domain.namespaces.<ns>.models`; `contractModels()` helper added), `relation.to` changed from `string` to `CrossReference { namespace, model }`, `StorageBase` now requires `namespaces`, `MigrationRunner` SPI merged `MultiSpaceCapableRunner` into a single `execute({driver, perSpaceOptions})`, `RuntimeMiddlewareContext` gained `planExecutionId`. Demo contract re-emitted, old migration dirs replaced with a fresh baseline, `contract-space.generated.ts` regenerated. Verification: **477/477 tests passing (384 vitest + 93 Playwright)**, all packages `tsc --noEmit` clean._
+
+_Prior context (2026-06-02 — **Phases 6.5, 6.6, and 6.7 shipped**): Include refinement, aggregate/groupBy, select projection, completing the Phase 6 ORM lane. While wiring the demo Playwright specs this pass also found and FIXED a pre-existing browser-only crash: the Phase-7 / Issue #23 integrity check imported `computeMigrationHash` from `@prisma-next/migration-tools/hash`, which uses `node:crypto` and threw `createHash is not a function` on every browser client init — breaking the entire demo app. Replaced with a byte-identical WebCrypto implementation ([§ Phase 6.5–6.7](#phase-65-67-include-refinement-aggregate-select-2026-06-02))._
 
 _Prior context (2026-05-29 third-pass audit): Phase 7 (migration package layer rewrite, 2026-05-27) addressed Group A + B of [`FEEDBACK.md`](FEEDBACK.md); the 2026-05-28 pass cleaned up the residual Phase-7 bugs; the 2026-05-29 pass found and FIXED a build-breaking type-gate regression in Phase 6.4 ([Issue #20]). Remaining open items are four lower-priority faithfulness/robustness gaps ([Issue #21], [Issue #22], [Issue #24], [Issue #25]) and outbox sync. See [§ Audit 2026-05-29](#audit-2026-05-29)._
 
@@ -30,20 +32,20 @@ _Prior context (2026-05-29 third-pass audit): Phase 7 (migration package layer r
 | 7.8   | Cleanups closure + memory + this status                                                           | ✅ Done                                                                                                                                                                                                                                                                                                                       |
 | 8     | Outbox sync                                                                                       | ❌ Not started (was Phase 7 in older docs; renumbered after the migration-rewrite landed)                                                                                                                                                                                                                                     |
 
-### Test status (run 2026-05-28, after second-pass audit)
+### Test status (run 2026-06-04, after v0.12.0 migration)
 
-| Package                        | Tests pass | Tests fail | Notes                                                                                                                                      |
-| ------------------------------ | ---------: | ---------: | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `target-idb`                   |         81 |          0 | +7 IdbMigration, +5 MigrationCLI (Phase 7.1); planner renderer updated for class-based output (7.2)                                        |
-| `driver-idb`                   |         57 |          0 | `versionchange` handler installed in `openIdbDatabase` (7.4); marker `readMarker` reads `space="app"` only — no legacy fallback            |
-| `adapter-idb`                  |         29 |          0 | unchanged                                                                                                                                  |
-| `runtime-idb`                  |         21 |          0 | mock driver fixture updated for Phase 6.3 `transaction()` method ([Issue #19])                                                             |
-| `client-idb`                   |         80 |          0 | +14 mutation-executor tests (Phase 6.4); `auto-migrate-evolution` rewritten for `contractSpace` walking + destructive-refuse default (7.4) |
-| `family-idb`                   |         79 |          0 | manifest tests removed (7.3); codegen + baseline + preflight tests added; **+27 over the count PLAN.md had previously (52)**               |
-| `prisma-next-idb-cli` (tests/) |         20 |          0 | end-to-end CLI surface tests for `generate-baseline` / `generate-contract-space` / `preflight`                                             |
-| `prisma-next-usage`            |         77 |          0 | +12 nested-write Playwright specs (Phase 6.4); User.posts 1:N relation added to contract                                                   |
+| Package                        | Tests pass | Tests fail | Notes                                                                                          |
+| ------------------------------ | ---------: | ---------: | ---------------------------------------------------------------------------------------------- |
+| `target-idb`                   |         79 |          0 | runner tests consolidated for new `execute({driver, perSpaceOptions})` SPI                     |
+| `driver-idb`                   |         57 |          0 | unchanged                                                                                      |
+| `adapter-idb`                  |         29 |          0 | unchanged                                                                                      |
+| `runtime-idb`                  |         21 |          0 | `planExecutionId` added to mock `customCtx` fixtures                                           |
+| `client-idb`                   |         99 |          0 | +19 Phase 6.5–6.7; 0.12.0 types + `contractModels()` calls updated                             |
+| `family-idb`                   |         79 |          0 | `createRawIdbContract` replaces removed `@prisma-next/contract/testing`; raw contracts updated |
+| `prisma-next-idb-cli` (tests/) |         20 |          0 | end-to-end CLI surface tests for `generate-baseline` / `generate-contract-space` / `preflight` |
+| `prisma-next-usage`            |         93 |          0 | +16 Phase 6.5–6.7 Playwright specs; contract re-emitted + baseline regenerated under 0.12.0    |
 
-**Total: 443/443 tests passing (366 vitest + 77 Playwright). Phase 6.4 added 25 new tests.**
+**Total: 477/477 tests passing (384 vitest + 93 Playwright).**
 
 [Issue #1]: #issue-1--migrationrunner-missing-executeacrossspaces-blocks-cli-db-update
 [Issue #2]: #issue-2--sign-does-not-populate-manifestschema-from-contract
@@ -183,6 +185,89 @@ All `tsc --noEmit`, eslint, prettier, and isolated-declaration `tsdown` builds c
 
 - `client-idb/src/core/`: **new** `aggregate-builder.ts`, `grouped-accessor.ts`, `query-shaping.ts`, `migration-hash.ts`; **edited** `store-accessor.ts`, `store-state.ts`, `types.ts`, `relation-loader.ts`, `auto-migrate.ts`, `exports/orm.ts`.
 - `adapter-idb/src/core/idb-query-ast.ts` + `exports/runtime.ts`: `IdbAggregateAst`, `IdbGroupByAst`, `IdbAggregateRequest`.
+
+---
+
+## v0.12.0 migration (2026-06-04)
+
+Full migration of all 7 idb packages to `@prisma-next/*@0.12.0`. Every breaking change required a matching fix; the migration was applied in build-dependency order (target-idb → family-idb → runtime-idb → client-idb → adapter/driver check → demo app).
+
+### Breaking changes and fixes
+
+**1. Domain plane restructure — `Contract.models` removed**
+
+`Contract.models` no longer exists. Models now live under `contract.domain.namespaces.<ns>.models`. The framework ships a `contractModels(contract)` runtime helper that flattens all namespace models into a single map (de-namespacing), and a `ContractModelsMap<TContract>` type-level analogue.
+
+- `client-idb/src/core/types.ts` — added a local `ModelsOf<TContract>` helper (uses `ContractModelsMap`) so all model-level type helpers (`ModelKeyPath`, `ModelRelations`, `RelationRowType`, `RelatedModelOf`) work against the new shape without requiring a `TContract extends Contract` constraint. Updated `getStoreName()`, `getKeyPath()`, `getRelation()` to call `contractModels(contract)`.
+- `client-idb/src/core/relation-loader.ts` — uses `contractModels(contract)` for all model lookups.
+- `client-idb/src/core/mutation-executor.ts` — same.
+- `family-idb/src/core/validate.ts` — replaced `contract.models` with `contractModels(contract)`.
+- `family-idb/src/core/contract-builder.ts` — `defineContract()` now builds the `domain = { namespaces: { [ns]: { models } } }` structure. Removed top-level `models` from the emitted contract object.
+
+**2. `CrossReference` — `relation.to` changed from `string` to `{ namespace, model }`**
+
+- `client-idb/src/core/idb-orm.ts` — `IdbOrmClient` type now maps over `TContract["roots"]` entries (CrossReference objects). Runtime: `for (const [rootKey, ref] of Object.entries(contract.roots)) { … ref.model … }`.
+- `client-idb/src/core/store-accessor.ts` — `rel?.to.model` (was `rel?.to`).
+- `client-idb/src/core/relation-loader.ts` — `relatedModelName = relation.to.model`.
+- `client-idb/src/core/mutation-executor.ts` — same.
+- `family-idb/src/core/contract-builder.ts` — `buildRoots()` returns `Record<string, CrossReference>` using `crossRef(modelName)`; relation `to` field uses `crossRef(rel.to)`.
+- `types.ts` — `RelationRowType` matches `to: { model: infer To extends string }`.
+
+**3. `StorageBase` now requires `namespaces`**
+
+`StorageBase` gained a `namespaces: Record<string, StorageNamespace>` field (symmetric with `domain.namespaces`).
+
+- `family-idb/src/core/contract-builder.ts` — `storage = { stores, namespaces: { [ns]: { id: ns } }, storageHash }`.
+- Test fixtures (`family-idb/test/`) — updated inline raw contract objects to include `storage.namespaces`.
+
+**4. `MigrationRunner` SPI merge — `MultiSpaceCapableRunner` dissolved**
+
+`MultiSpaceCapableRunner` + the old `execute({plan, driver, ...})` shape were merged into a single `MigrationRunner.execute({driver, perSpaceOptions})`.
+
+- `target-idb/src/core/migration-runner.ts` — `IdbMigrationRunner` now implements only `MigrationRunner<"idb","idb">` (no `MultiSpaceCapableRunner`). The single `execute` returns the `IDB-RUNNER-CLI-UNSUPPORTED` refusal with `failingSpace` inlined on the failure object (no `MultiSpaceRunnerFailure` wrapper).
+- `target-idb/test/migration.test.ts` — consolidated two runner tests into one using `execute({ driver, perSpaceOptions: [] })`.
+
+**5. `RuntimeMiddlewareContext.planExecutionId` added**
+
+New required `string` field for per-execute correlation.
+
+- `runtime-idb/src/idb-runtime.ts` — `buildMiddlewareContext()` now includes `planExecutionId: crypto.randomUUID()`.
+- `runtime-idb/test/runtime.test.ts` — both `customCtx` mock literals updated to include `planExecutionId: "test-plan-exec"`.
+
+**6. `migrationHash` algorithm change — strips only `migrationHash` (not `hints`)**
+
+`hints` and `labels` were removed from the manifest schema in 0.12.0, so the hash now strips only `migrationHash` from metadata before hashing.
+
+- `client-idb/src/core/migration-hash.ts` — removed `delete stripped["hints"]`.
+
+**7. `@prisma-next/contract/testing` subpath removed**
+
+`createContract` from the testing subpath was deleted upstream.
+
+- `family-idb/test/_raw-contract.ts` (new) — `createRawIdbContract(stores, models?)` replacement that builds a valid 0.12.0-shape contract with `domain.namespaces.__unbound__` and computes real hashes.
+- `family-idb/test/control.test.ts`, `schema-verify.test.ts` — switched to `createRawIdbContract`.
+- `family-idb/test/emission.test.ts` — updated `makeRawWithStorage` and two inline raw contracts to include `domain.namespaces.__unbound__`.
+
+**8. Demo app contract regeneration**
+
+- `apps/prisma-next-usage/package.json` — `prisma-next` bumped to `^0.12.0`.
+- Ran `pnpm prisma-next contract emit` → new `contract.json` + `contract.d.ts` (storageHash `sha256:b05717321fba711de059ca6e508f0f2087f2eaca7de74beb8f969ac5f0c606d9`).
+- Deleted old migration dirs (`20260527T1635_baseline`, `20260527T1637_migration`); ran `prisma-next-idb generate-baseline` → fresh `20260603T0515_baseline` (7 ops, `from: null`).
+- Ran `prisma-next-idb generate-contract-space` → regenerated `contract-space.generated.ts`.
+
+### Tests (2026-06-04)
+
+| Package / Suite                |   Tests | Status |
+| ------------------------------ | ------: | ------ |
+| `adapter-idb`                  |      29 | ✅     |
+| `driver-idb`                   |      57 | ✅     |
+| `runtime-idb`                  |      21 | ✅     |
+| `target-idb`                   |      79 | ✅     |
+| `family-idb`                   |      79 | ✅     |
+| `client-idb`                   |      99 | ✅     |
+| `cli-tests`                    |      20 | ✅     |
+| Playwright (prisma-next-usage) |      93 | ✅     |
+| **Total**                      | **477** | ✅     |
 
 ---
 
