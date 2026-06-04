@@ -1,11 +1,11 @@
 import { createAutoMigratingIdbClient } from "@prisma-next-idb/client-idb/client-auto";
+import type { IdbClient } from "@prisma-next-idb/client-idb/client-auto";
+import type { Contract } from "./contract";
 import { contractSpace } from "./contract-space.generated";
 
 const DEFAULT_DB_NAME = "prisma-next-usage";
 
-type IdbClient = Awaited<ReturnType<typeof createAutoMigratingIdbClient>>;
-
-let _client: IdbClient | null = null;
+let _client: IdbClient<Contract> | null = null;
 let _clientDbName: string | null = null;
 
 /**
@@ -26,13 +26,14 @@ export function resolveDbName(): string {
  * the auto-migration on first use. Caches by db name so the same page
  * load can switch databases via reset() below.
  */
-export async function getDb(): Promise<IdbClient> {
+export async function getDb(): Promise<IdbClient<Contract>> {
   const dbName = resolveDbName();
   if (_client && _clientDbName === dbName) return _client;
   if (_client) await _client.close();
-  _client = await createAutoMigratingIdbClient({ contractSpace, dbName });
+  const fresh = await createAutoMigratingIdbClient({ contractSpace, dbName });
+  _client = fresh;
   _clientDbName = dbName;
-  return _client;
+  return fresh;
 }
 
 /**
