@@ -9,7 +9,7 @@ import {
   createMarkerStoreOp,
   createPostsStoreOp,
   createUsersStoreOp,
-  dropMissingStoreOp,
+  indexOnMissingStoreOp,
   setupTmpProject,
   writeContractJson,
   writePackage,
@@ -55,7 +55,7 @@ describe("prisma-next-idb preflight", () => {
     expect(stdout).toContain("Preflight passed");
   });
 
-  it("exits 1 with a clear error when a DDL op fails (drop non-existent store)", async () => {
+  it("exits 1 with a clear error when a DDL op fails (index on non-existent store)", async () => {
     const cwd = await setupTmpProject("preflight-bad-ddl");
     await writeContractJson(cwd, HASH_ADDPOSTS);
     await writePackage({
@@ -67,16 +67,16 @@ describe("prisma-next-idb preflight", () => {
     });
     await writePackage({
       cwd,
-      dirName: "0002_dropMissing",
+      dirName: "0002_badIndex",
       from: HASH_BASELINE,
       to: HASH_ADDPOSTS,
-      ops: [dropMissingStoreOp],
+      ops: [indexOnMissingStoreOp],
     });
 
     const { stdout, stderr, exitCode } = await cli(["preflight"], { cwd });
     expect(exitCode).toBe(1);
     expect(stdout).toContain("0001_baseline … ok");
-    expect(stdout).toContain("0002_dropMissing … FAILED");
+    expect(stdout).toContain("0002_badIndex … FAILED");
     expect(stderr).toContain("Preflight failed");
   });
 

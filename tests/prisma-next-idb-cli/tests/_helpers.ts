@@ -157,10 +157,18 @@ export const createPostsByAuthorIdIndexOp = {
   def: { keyPath: "authorId", unique: false },
 } as const;
 
-export const dropMissingStoreOp = {
-  kind: "dropObjectStore",
-  id: "object-store.does-not-exist.drop",
-  label: 'Drop object store "does-not-exist"',
-  operationClass: "destructive",
+/**
+ * A genuinely-broken op: create an index on a store that was never created.
+ * The apply path calls `tx.objectStore("does-not-exist")`, which throws
+ * NotFoundError. (Dropping a non-existent store is NOT a failure — the DDL
+ * apply path is idempotent for crash-recovery replay; see ADR 002 / Issue #25.)
+ */
+export const indexOnMissingStoreOp = {
+  kind: "createIndex",
+  id: "index.does-not-exist.byThing.create",
+  label: 'Create index "byThing" on "does-not-exist"',
+  operationClass: "additive",
   storeName: "does-not-exist",
+  indexName: "byThing",
+  def: { keyPath: "thing", unique: false },
 } as const;
