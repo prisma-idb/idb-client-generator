@@ -8,7 +8,9 @@ import { APP_SPACE_ID } from "@prisma-next/framework-components/control";
 // Browser-safe (WebCrypto) hash — the framework's `@prisma-next/migration-tools/hash`
 // uses `node:crypto` and throws in the browser (PLAN Issue #23 regression).
 import { computeMigrationHash } from "./migration-hash";
-import { isIdbDdlOp, openAndUpgrade, readMarker, type IdbDdlOp } from "@prisma-next-idb/target-idb/migration";
+// Import from `./runtime` (not `./migration`) so `MigrationCLI` → `node:fs`
+// is not bundled into the browser client.
+import { isIdbDdlOp, openAndUpgrade, readMarker, type IdbDdlOp } from "@prisma-next-idb/target-idb/runtime";
 import { createIdbClient, type IdbClient } from "./idb-client";
 import type { IdbContract } from "./types";
 
