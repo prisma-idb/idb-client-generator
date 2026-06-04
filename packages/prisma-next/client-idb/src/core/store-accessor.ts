@@ -809,7 +809,8 @@ export class IdbStoreAccessorImpl<
     }
 
     const rel = getRelation(this.#contract, this.#modelName, relation);
-    const relatedModelName = rel?.to ?? relation;
+    // v0.12.0: `relation.to` is a CrossReference `{ namespace, model }`.
+    const relatedModelName = rel?.to.model ?? relation;
     const child = new IdbStoreAccessorImpl(
       this.#contract,
       relatedModelName,

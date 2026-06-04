@@ -447,19 +447,6 @@ describe("IdbMigrationRunner", () => {
 
   it("execute() always returns IDB-RUNNER-CLI-UNSUPPORTED refusal", async () => {
     const result = await runner.execute({
-      plan: { targetId: "idb", origin: null, destination: { storageHash: "x" }, operations: [] },
-      driver: makeDriver(dbName(), 1),
-      destinationContract: null,
-      policy: ALLOW_ALL,
-      frameworkComponents: [],
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.failure.code).toBe("IDB-RUNNER-CLI-UNSUPPORTED");
-  });
-
-  it("executeAcrossSpaces() always returns IDB-RUNNER-CLI-UNSUPPORTED refusal", async () => {
-    const result = await runner.executeAcrossSpaces({
       driver: makeDriver(dbName(), 1),
       perSpaceOptions: [],
     });

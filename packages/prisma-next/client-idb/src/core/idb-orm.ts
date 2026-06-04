@@ -18,10 +18,12 @@ import { type IdbStoreAccessor, IdbStoreAccessorImpl } from "./store-accessor";
  * ```
  */
 export type IdbOrmClient<TContract extends Contract<IdbStorage>> = {
-  readonly [K in string & keyof TContract["roots"]]: TContract["roots"][K] extends string
-    ? TContract["roots"][K] extends keyof TContract["models"]
-      ? IdbStoreAccessor<TContract, TContract["roots"][K]>
-      : never
+  // v0.12.0: `roots` values are CrossReference `{ namespace, model }`, so the
+  // target model name is `roots[K].model` (was a bare model-name string).
+  readonly [K in string & keyof TContract["roots"]]: TContract["roots"][K] extends {
+    model: infer ModelName extends string;
+  }
+    ? IdbStoreAccessor<TContract, ModelName>
     : never;
 };
 
@@ -72,8 +74,9 @@ export function idbOrm<TContract extends IdbContract>(options: IdbOrmOptions<TCo
   const newGroupingKey = () => `idb-op-${++_key}`;
 
   const client: Record<string, IdbStoreAccessor<TContract, string>> = {};
-  for (const [rootKey, modelName] of Object.entries(contract.roots)) {
-    client[rootKey] = new IdbStoreAccessorImpl(contract, modelName, executor, undefined, newGroupingKey);
+  for (const [rootKey, ref] of Object.entries(contract.roots)) {
+    // v0.12.0: `roots` values are CrossReference `{ namespace, model }`.
+    client[rootKey] = new IdbStoreAccessorImpl(contract, ref.model, executor, undefined, newGroupingKey);
   }
 
   return client as unknown as IdbOrmClient<TContract>;

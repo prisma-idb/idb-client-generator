@@ -151,6 +151,7 @@ describe("createIdbRuntime", () => {
     const customCtx = {
       contract: { custom: true },
       mode: "permissive" as const,
+      planExecutionId: "test-plan-exec",
       now: () => 0,
       log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       contentHash: async () => "",
@@ -453,6 +454,7 @@ describe("constructor middleware context", () => {
     const customCtx = {
       contract: { custom: true },
       mode: "permissive" as const,
+      planExecutionId: "test-plan-exec",
       now: () => 42,
       log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       contentHash: async () => "",

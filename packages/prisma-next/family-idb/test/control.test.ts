@@ -9,9 +9,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { createContract } from "@prisma-next/contract/testing";
-import type { IdbStorage } from "@prisma-next-idb/target-idb/pack";
 import { createIdbFamilyInstance } from "../src/core/control-instance";
+import { createRawIdbContract } from "./_raw-contract";
 
 /** Build a raw contract object with the given IDB stores. */
 function rawContract(
@@ -20,12 +19,7 @@ function rawContract(
     { keyPath: string; autoIncrement?: boolean; indexes?: Record<string, { keyPath: string; unique: boolean }> }
   >
 ) {
-  return createContract<IdbStorage>({
-    target: "idb",
-    targetFamily: "idb",
-    storage: { stores },
-    models: {},
-  });
+  return createRawIdbContract(stores);
 }
 
 const REFUSAL_CODE = "IDB-CLI-UNSUPPORTED";

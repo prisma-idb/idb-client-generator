@@ -21,8 +21,8 @@ async function sha256Hex(input: string): Promise<string> {
  * integrity check (PLAN Issue #23 / ADR 199) throws `createHash is not a
  * function` on every client init and breaks the whole app. This version is
  * **byte-identical** to the framework's: it reuses the same `canonicalizeJson`
- * and the same nested SHA-256/hex scheme — strip `migrationHash` + `hints` from
- * the metadata, hash the canonicalized metadata and ops separately, then hash
+ * and the same nested SHA-256/hex scheme — strip `migrationHash` from the
+ * metadata, hash the canonicalized metadata and ops separately, then hash
  * the canonicalized pair of those two hashes, prefixed with `sha256:`. Reusing
  * the identical canonicalization + algorithm guarantees the result matches the
  * `migrationHash` the CLI recorded, so the integrity check stays meaningful.
@@ -34,9 +34,10 @@ export async function computeMigrationHash(
   metadata: MigrationPackage["metadata"],
   ops: MigrationPackage["ops"]
 ): Promise<string> {
+  // v0.12.0 strips only `migrationHash` before hashing (`hints`/`labels` were
+  // removed from the on-disk manifest schema entirely).
   const stripped: Record<string, unknown> = { ...metadata };
   delete stripped["migrationHash"];
-  delete stripped["hints"];
   const inner = await Promise.all([sha256Hex(canonicalizeJson(stripped)), sha256Hex(canonicalizeJson(ops))]);
   const outer = await sha256Hex(canonicalizeJson(inner));
   return `sha256:${outer}`;

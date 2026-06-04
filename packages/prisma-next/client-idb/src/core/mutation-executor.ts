@@ -22,6 +22,7 @@
 
 import type { PlanMeta } from "@prisma-next/contract/types";
 import type { ContractReferenceRelation } from "@prisma-next/contract/types";
+import { contractModels } from "@prisma-next/contract/types";
 import type { IdbAtomicPlan, IdbCursorScanPlan } from "@prisma-next-idb/driver-idb/runtime";
 import { evaluateFilter, shorthandToFilterExpr } from "@prisma-next-idb/adapter-idb/runtime";
 import type { IdbFilterExpr } from "@prisma-next-idb/adapter-idb/runtime";
@@ -84,7 +85,7 @@ function getRelationDefinitions(contract: IdbContract, modelName: string): Relat
   const cached = perContract.get(modelName);
   if (cached) return cached;
 
-  const model = contract.models[modelName];
+  const model = contractModels(contract)[modelName];
   if (!model) {
     perContract.set(modelName, []);
     return [];
@@ -95,10 +96,12 @@ function getRelationDefinitions(contract: IdbContract, modelName: string): Relat
     if (!rawRelation || typeof rawRelation !== "object" || !("on" in rawRelation)) continue;
 
     const relation = rawRelation as ContractReferenceRelation;
-    const relatedStoreName = getStoreName(contract, relation.to);
+    // v0.12.0: `relation.to` is a CrossReference `{ namespace, model }`.
+    const relatedModelName = relation.to.model;
+    const relatedStoreName = getStoreName(contract, relatedModelName);
     defs.push({
       relationName,
-      relatedModelName: relation.to,
+      relatedModelName,
       relatedStoreName,
       cardinality: relation.cardinality,
       localFields: relation.on.localFields,
@@ -545,6 +548,6 @@ function buildParentJoinFilter(parentValues: Map<string, unknown>): (row: Record
 // ── Key path helper ───────────────────────────────────────────────────────────
 
 function getKeyPath(contract: IdbContract, modelName: string): string {
-  const model = contract.models[modelName];
+  const model = contractModels(contract)[modelName];
   return (model?.storage as { keyPath?: string } | undefined)?.keyPath ?? "id";
 }

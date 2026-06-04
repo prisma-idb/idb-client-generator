@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createContract } from "@prisma-next/contract/testing";
-import type { IdbStorage } from "@prisma-next-idb/target-idb/pack";
 import { verifyIdbSchema } from "../src/core/schema-verify";
 import type { IdbSchemaIR } from "../src/core/schema-ir";
 import { validateContract } from "../src/core/validate";
+import { createRawIdbContract } from "./_raw-contract";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -17,14 +16,7 @@ function makeContract(
     }
   >
 ) {
-  return validateContract(
-    createContract<IdbStorage>({
-      target: "idb",
-      targetFamily: "idb",
-      storage: { stores },
-      models: {},
-    })
-  );
+  return validateContract(createRawIdbContract(stores));
 }
 
 function makeSchema(stores: IdbSchemaIR["stores"]): IdbSchemaIR {

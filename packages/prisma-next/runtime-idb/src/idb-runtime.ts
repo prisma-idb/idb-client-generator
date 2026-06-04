@@ -102,6 +102,10 @@ function buildMiddlewareContext(contract: Record<string, unknown>): RuntimeMiddl
   return {
     contract,
     mode: "permissive",
+    // v0.12.0: per-execute correlation id required on the middleware context.
+    // The default ctx is built once per runtime; consumers needing per-execute
+    // ids should supply their own `ctx`.
+    planExecutionId: crypto.randomUUID(),
     now: () => Date.now(),
     log: {
       info: () => undefined,

@@ -37,6 +37,16 @@
   },
   {
     "kind": "createObjectStore",
+    "id": "object-store.random_store.create",
+    "label": "Create object store \"random_store\"",
+    "operationClass": "additive",
+    "storeName": "random_store",
+    "def": {
+      "keyPath": "id"
+    }
+  },
+  {
+    "kind": "createObjectStore",
     "id": "object-store.users.create",
     "label": "Create object store \"users\"",
     "operationClass": "additive",

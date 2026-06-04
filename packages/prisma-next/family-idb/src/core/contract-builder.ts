@@ -1,5 +1,6 @@
 import { computeProfileHash, computeStorageHash } from "@prisma-next/contract/hashing";
-import type { Contract, ContractField } from "@prisma-next/contract/types";
+import type { ApplicationDomain, Contract, ContractField, CrossReference } from "@prisma-next/contract/types";
+import { UNBOUND_DOMAIN_NAMESPACE_ID, crossRef } from "@prisma-next/contract/types";
 import type {
   IdbIndexDefinition,
   IdbModelStorage,
@@ -80,12 +81,15 @@ function buildFields(fields: Record<string, FieldSpec>): Record<string, Contract
   return result;
 }
 
-// ── Helper: derive the `roots` map (storeName → ModelName) ───────────────────
+// ── Helper: derive the `roots` map (storeName → model CrossReference) ─────────
 
-function buildRoots(models: Record<string, ModelDef>): Record<string, string> {
-  const roots: Record<string, string> = {};
-  for (const [modelName, def] of Object.entries(models)) {
-    roots[def.store] = modelName;
+function buildRoots(models: Record<string, ModelDef>): Record<string, CrossReference> {
+  const roots: Record<string, CrossReference> = {};
+  for (const modelName of Object.keys(models)) {
+    const def = models[modelName]!;
+    // v0.12.0: roots values are CrossReference `{ namespace, model }`, not bare
+    // model-name strings. IDB has a single (unbound) namespace.
+    roots[def.store] = crossRef(modelName);
   }
   return roots;
 }
@@ -118,7 +122,7 @@ type ContractModelEntry = {
   readonly relations: Record<
     string,
     {
-      readonly to: string;
+      readonly to: CrossReference;
       readonly cardinality: "1:1" | "1:N" | "N:1";
       readonly on: { readonly localFields: readonly string[]; readonly targetFields: readonly string[] };
     }
@@ -132,7 +136,8 @@ function buildModels(models: Record<string, ModelDef>): Record<string, ContractM
     const relations: ContractModelEntry["relations"] = {};
     for (const [relName, rel] of Object.entries(def.relations ?? {})) {
       relations[relName] = {
-        to: rel.to,
+        // v0.12.0: relation `to` is a CrossReference, not a bare model-name string.
+        to: crossRef(rel.to),
         cardinality: rel.cardinality,
         on: { localFields: rel.on.local, targetFields: rel.on.target },
       };
@@ -188,10 +193,18 @@ export function defineContract(input: DefineContractInput): Contract<IdbStorage>
     },
   };
 
+  // v0.12.0 (ADR 221): both planes are namespace-keyed. IDB has no namespace
+  // concept, so everything lives under the single unbound namespace.
+  const ns = UNBOUND_DOMAIN_NAMESPACE_ID;
+  const storageBlock = {
+    stores,
+    namespaces: { [ns]: { id: ns } },
+  };
+
   const storageHash = computeStorageHash({
     target: "idb",
     targetFamily: "idb",
-    storage: { stores },
+    storage: storageBlock,
   });
 
   const profileHash = computeProfileHash({
@@ -200,13 +213,19 @@ export function defineContract(input: DefineContractInput): Contract<IdbStorage>
     capabilities,
   });
 
-  const storage: IdbStorage = { stores, storageHash };
+  const storage: IdbStorage = { ...storageBlock, storageHash };
+
+  // v0.12.0: models live under `domain.namespaces.<ns>.models`, not a top-level
+  // `models` field.
+  const domain = {
+    namespaces: { [ns]: { models: buildModels(input.models) } },
+  } as unknown as ApplicationDomain;
 
   const contract: Contract<IdbStorage> = {
     target: "idb",
     targetFamily: "idb",
     roots: buildRoots(input.models),
-    models: buildModels(input.models) as Contract<IdbStorage>["models"],
+    domain,
     storage,
     capabilities,
     extensionPacks: {},

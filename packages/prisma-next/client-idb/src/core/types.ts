@@ -1,14 +1,26 @@
-import type { ContractReferenceRelation } from "@prisma-next/contract/types";
+import type { Contract, ContractModelBase, ContractReferenceRelation, StorageBase } from "@prisma-next/contract/types";
+import { contractModels } from "@prisma-next/contract/types";
 import type {
   ExtractIdbFieldInputTypes,
   ExtractIdbFieldOutputTypes,
   IdbModelStorage,
   IdbStorage,
 } from "@prisma-next-idb/target-idb/pack";
-import type { Contract } from "@prisma-next/contract/types";
 
 // Re-export for consumers who only import from client-idb
 export type { IdbStorage };
+
+// ── Model-map extraction (v0.12.0 domain plane) ───────────────────────────────
+
+/**
+ * Extract the model map from a contract. v0.12.0 (ADR 221) moved models from a
+ * top-level `contract.models` field into `domain.namespaces.<ns>.models`; this
+ * recovers the `TModels` type parameter the contract carries for DSL inference.
+ *
+ * Falls back to a loose `Record<string, ContractModelBase>` for any
+ * non-`Contract` input (e.g. the loosely-typed `IdbContract`).
+ */
+type ModelsOf<TContract> = TContract extends Contract<StorageBase, infer M> ? M : Record<string, ContractModelBase>;
 
 // ── IdbContract convenience alias ─────────────────────────────────────────────
 
@@ -81,11 +93,11 @@ export type WhereFilter<TContract, ModelName extends string> = {
  * Used at the type level to exclude the key field from `CreateInput` and to
  * narrow the `findUnique` / `delete` key parameter type.
  */
-export type ModelKeyPath<TContract, ModelName extends string> = TContract extends {
-  models: Record<ModelName, { storage: { keyPath: infer P } }>;
-}
-  ? P extends string
-    ? P
+export type ModelKeyPath<TContract, ModelName extends string> = ModelName extends keyof ModelsOf<TContract>
+  ? ModelsOf<TContract>[ModelName] extends { storage: { keyPath: infer P } }
+    ? P extends string
+      ? P
+      : never
     : never
   : never;
 
@@ -121,11 +133,11 @@ export type CreateInput<TContract, ModelName extends string> = Omit<
 // ── Relations ─────────────────────────────────────────────────────────────────
 
 /** Extract the relations record for a model. */
-type ModelRelations<TContract, ModelName extends string> = TContract extends {
-  models: Record<ModelName, { relations: infer R }>;
-}
-  ? R extends Record<string, unknown>
-    ? R
+type ModelRelations<TContract, ModelName extends string> = ModelName extends keyof ModelsOf<TContract>
+  ? ModelsOf<TContract>[ModelName] extends { relations: infer R }
+    ? R extends Record<string, unknown>
+      ? R
+      : Record<string, never>
     : Record<string, never>
   : Record<string, never>;
 
@@ -158,7 +170,7 @@ type RelationRowType<TContract, ModelName extends string, RelKey extends string>
 >
   ? ModelRelations<TContract, ModelName>[RelKey] extends ContractReferenceRelation
     ? ModelRelations<TContract, ModelName>[RelKey] extends {
-        to: infer To extends string;
+        to: { model: infer To extends string };
         cardinality: infer C;
       }
       ? C extends "1:N"
@@ -242,10 +254,16 @@ export type PatchInput<TContract, ModelName extends string> = Partial<DefaultMod
 // ── Relation mutation types ───────────────────────────────────────────────────
 
 /** Extracts the `to` model name for a named relation on a model. */
-export type RelatedModelOf<TContract, ModelName extends string, RelName extends string> = TContract extends {
-  models: Record<ModelName, { relations: Record<RelName, { to: infer To extends string }> }>;
-}
-  ? To
+export type RelatedModelOf<
+  TContract,
+  ModelName extends string,
+  RelName extends string,
+> = ModelName extends keyof ModelsOf<TContract>
+  ? ModelsOf<TContract>[ModelName] extends {
+      relations: Record<RelName, { to: { model: infer To extends string } }>;
+    }
+    ? To
+    : string
   : string;
 
 /** Nested-create descriptor: insert one or more related records. */
@@ -443,7 +461,7 @@ export interface IdbAggregateBuilder<TContract, ModelName extends string> {
  * Falls back to the model name if `storeName` is absent.
  */
 export function getStoreName(contract: IdbContract, modelName: string): string {
-  const model = contract.models[modelName];
+  const model = contractModels(contract)[modelName];
   return (model?.storage as IdbModelStorage | undefined)?.storeName ?? modelName;
 }
 
@@ -452,7 +470,7 @@ export function getStoreName(contract: IdbContract, modelName: string): string {
  * Falls back to `"id"` (the invariant key name for all syncable IDB models).
  */
 export function getKeyPath(contract: IdbContract, modelName: string): string {
-  const model = contract.models[modelName];
+  const model = contractModels(contract)[modelName];
   return (model?.storage as IdbModelStorage | undefined)?.keyPath ?? "id";
 }
 
@@ -467,7 +485,7 @@ export function getRelation(
   modelName: string,
   relName: string
 ): ContractReferenceRelation | undefined {
-  const relation = contract.models[modelName]?.relations?.[relName];
+  const relation = contractModels(contract)[modelName]?.relations?.[relName];
   if (relation === undefined || !("on" in relation)) return undefined;
   return relation as ContractReferenceRelation;
 }

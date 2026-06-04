@@ -1,4 +1,5 @@
 import type { ContractReferenceRelation } from "@prisma-next/contract/types";
+import { contractModels } from "@prisma-next/contract/types";
 import type { IdbQueryPlan } from "@prisma-next-idb/adapter-idb/runtime";
 import { evaluateFilter } from "@prisma-next-idb/adapter-idb/runtime";
 import type { IdbRowFilter } from "@prisma-next-idb/driver-idb/runtime";
@@ -40,7 +41,8 @@ export async function loadRelation(
 ): Promise<Record<string, unknown>[]> {
   if (rows.length === 0) return rows;
 
-  const model = contract.models[modelName];
+  const models = contractModels(contract);
+  const model = models[modelName];
   if (model === undefined) return rows;
 
   const rawRelation = model.relations[relName];
@@ -51,13 +53,15 @@ export async function loadRelation(
   if (!("on" in rawRelation)) return rows;
 
   const relation = rawRelation as ContractReferenceRelation;
-  const { to: relatedModelName, cardinality, on } = relation;
+  const { cardinality, on } = relation;
+  // v0.12.0: `relation.to` is a CrossReference `{ namespace, model }`.
+  const relatedModelName = relation.to.model;
 
   const localField = on.localFields[0];
   const foreignField = on.targetFields[0];
   if (localField === undefined || foreignField === undefined) return rows;
 
-  const relatedModel = contract.models[relatedModelName];
+  const relatedModel = models[relatedModelName];
   if (relatedModel === undefined) return rows;
 
   // Resolve the related object store name from the model's storage metadata.

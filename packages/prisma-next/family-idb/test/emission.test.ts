@@ -1,4 +1,5 @@
 import type { ContractModel } from "@prisma-next/contract/types";
+import { contractModels } from "@prisma-next/contract/types";
 import { describe, expect, it } from "vitest";
 import { idbEmission } from "../src/core/emission";
 import { validateContract } from "../src/core/validate";
@@ -29,7 +30,8 @@ function makeRawWithStorage(storage: Record<string, unknown>) {
     target: "idb",
     targetFamily: "idb",
     roots: {},
-    models: {},
+    // v0.12.0: models live under `domain.namespaces.<ns>` (ADR 221).
+    domain: { namespaces: { __unbound__: { models: {} } } },
     storage,
     capabilities: {},
     extensionPacks: {},
@@ -109,7 +111,7 @@ describe("idbEmission", () => {
 
   describe("generateModelStorageType", () => {
     it("serializes a model's IDB storage metadata", () => {
-      const model = minimalIdbContract.models["Post"]!;
+      const model = contractModels(minimalIdbContract)["Post"]!;
       const result = idbEmission.generateModelStorageType("Post", model);
       expect(result).toBe("{ readonly storeName: 'posts'; readonly keyPath: 'id' }");
     });
@@ -207,8 +209,12 @@ describe("validateContract", () => {
       target: "idb",
       targetFamily: "idb",
       roots: {},
-      models: {
-        Post: { fields: {}, storage: { storeName: "ghost-store", keyPath: "id" } },
+      domain: {
+        namespaces: {
+          __unbound__: {
+            models: { Post: { fields: {}, relations: {}, storage: { storeName: "ghost-store", keyPath: "id" } } },
+          },
+        },
       },
       storage: { stores: { posts: { keyPath: "id" } }, storageHash: "sha256:x" },
       capabilities: {},
@@ -224,8 +230,12 @@ describe("validateContract", () => {
       target: "idb",
       targetFamily: "idb",
       roots: {},
-      models: {
-        Post: { fields: {}, storage: { keyPath: "id" } },
+      domain: {
+        namespaces: {
+          __unbound__: {
+            models: { Post: { fields: {}, relations: {}, storage: { keyPath: "id" } } },
+          },
+        },
       },
       storage: { stores: { posts: { keyPath: "id" } }, storageHash: "sha256:x" },
       capabilities: {},
