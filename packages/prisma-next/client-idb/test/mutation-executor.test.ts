@@ -387,3 +387,78 @@ describe("executeNestedUpdateMutation", () => {
     expect(p2?.["authorId"]).toBe("u1");
   });
 });
+
+// ── child-owned connect matches ALL rows (PLAN Issue #24) ────────────────────
+
+describe("executeNestedUpdateMutation — 1:N connect matches all", () => {
+  let db: IDBDatabase;
+  let executor: TestExecutorWithTransaction;
+
+  beforeEach(async () => {
+    const name = nextDbName();
+    db = await openTestDb(name);
+    executor = new TestExecutorWithTransaction(createIDBRuntimeDriver(name).create());
+  });
+  afterEach(() => db.close());
+
+  it("connect with a non-unique criterion connects every matching child", async () => {
+    const orm = idbOrm({ contract, executor });
+    await orm["users"]!.create({ id: "u1", name: "Alice" } as never);
+    // Two posts share a non-unique `title`; a third does not match.
+    await orm["posts"]!.create({ id: "p1", title: "shared" } as never);
+    await orm["posts"]!.create({ id: "p2", title: "shared" } as never);
+    await orm["posts"]!.create({ id: "p3", title: "other" } as never);
+
+    const { fieldFilter } = await import("@prisma-next-idb/adapter-idb/runtime");
+    await executeNestedUpdateMutation({
+      executor,
+      contract,
+      modelName: "User",
+      filters: [fieldFilter("id", "eq", "u1")],
+      data: { posts: (rel: RelMutator) => rel.connect([{ title: "shared" }]) } as Record<string, unknown>,
+    });
+
+    const posts = await getAllRows(db, "posts");
+    expect(posts.find((p) => p["id"] === "p1")?.["authorId"]).toBe("u1");
+    expect(posts.find((p) => p["id"] === "p2")?.["authorId"]).toBe("u1");
+    // Non-matching child is untouched.
+    expect(posts.find((p) => p["id"] === "p3")?.["authorId"]).toBeUndefined();
+  });
+});
+
+// ── upsert is atomic when the executor supports transactions (Issue #24) ─────
+
+describe("upsert — atomic path (transaction-capable executor)", () => {
+  let db: IDBDatabase;
+  let executor: TestExecutorWithTransaction;
+
+  beforeEach(async () => {
+    const name = nextDbName();
+    db = await openTestDb(name);
+    executor = new TestExecutorWithTransaction(createIDBRuntimeDriver(name).create());
+  });
+  afterEach(() => db.close());
+
+  it("inserts when no row matches, then updates the same row on re-upsert", async () => {
+    const orm = idbOrm({ contract, executor });
+
+    const created = await orm["users"]!.upsert({
+      where: { id: "u1" },
+      create: { id: "u1", name: "Alice" },
+      update: { name: "Updated" },
+    } as never);
+    expect(created).toMatchObject({ id: "u1", name: "Alice" });
+
+    const updated = await orm["users"]!.upsert({
+      where: { id: "u1" },
+      create: { id: "u1", name: "Alice" },
+      update: { name: "Updated" },
+    } as never);
+    expect(updated).toMatchObject({ id: "u1", name: "Updated" });
+
+    // Exactly one row — the second upsert updated rather than inserted.
+    const users = await getAllRows(db, "users");
+    expect(users).toHaveLength(1);
+    expect(users[0]?.["name"]).toBe("Updated");
+  });
+});

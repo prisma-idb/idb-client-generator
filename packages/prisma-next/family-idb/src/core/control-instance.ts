@@ -8,7 +8,7 @@ import type {
   VerifyDatabaseResult,
   VerifyDatabaseSchemaResult,
 } from "@prisma-next/framework-components/control";
-import { APP_SPACE_ID, VERIFY_CODE_TARGET_MISMATCH } from "@prisma-next/framework-components/control";
+import { VERIFY_CODE_TARGET_MISMATCH } from "@prisma-next/framework-components/control";
 import type { IdbSchemaIR } from "./schema-ir";
 import { verifyIdbSchema } from "./schema-verify";
 import { validateContract } from "./validate";
@@ -196,9 +196,6 @@ export function createIdbFamilyInstance(_stack: ControlStack<"idb", string>): Id
     },
   };
 }
-
-// Suppress unused-import warning until we have a use case.
-void APP_SPACE_ID;
 
 export type { ControlDriverInstance, SignDatabaseResult, VerifyDatabaseResult, VerifyDatabaseSchemaResult };
 export type { IdbSchemaIR } from "./schema-ir";

@@ -1,6 +1,6 @@
 ## Status
 
-_Last updated: 2026-06-04 — **pre-presentation review pass** ([§ Audit 2026-06-04](#audit-2026-06-04--pre-presentation-review)). Fresh fatal-flaw sweep against the vendor reference + `FEEDBACK.md` ahead of presenting to Prisma's engineers. Found and fixed one genuine fatal flaw — the two-phase marker write could wedge a database permanently after a crash because `applyOneDdlOp` was not idempotent, and **ADR 002 documented a false "IDB guarantees idempotency" claim** ([Issue #25], now fixed + ADR corrected). Also closed the recursive-nested-write `DataCloneError` footgun ([Issue #22]). All migration apply paths now replay-safe. **Verification: 391 vitest passing (367 across the 6 packages + 24 CLI e2e; +3 regression tests this pass — target-idb 81, client-idb 100) + 93 Playwright; all changed packages `tsc --noEmit` clean.** (The CLI e2e suite count was corrected 20 → 24 — the earlier figure in the table below was stale.) No other fatal flaws found: the architecture is faithful to the framework and FEEDBACK §1–8 remain fully addressed._
+_Last updated: 2026-06-04 — **pre-presentation review pass** ([§ Audit 2026-06-04](#audit-2026-06-04--pre-presentation-review)). Fresh fatal-flaw sweep against the vendor reference + `FEEDBACK.md` ahead of presenting to Prisma's engineers. Found and fixed one genuine fatal flaw — the two-phase marker write could wedge a database permanently after a crash because `applyOneDdlOp` was not idempotent, and **ADR 002 documented a false "IDB guarantees idempotency" claim** ([Issue #25], now fixed + ADR corrected). Also closed the recursive-nested-write `DataCloneError` footgun ([Issue #22]). All migration apply paths now replay-safe. A **follow-up cleanup pass** then closed the entire remaining issue ledger except Phase 8 outbox: deleted the dead nested-write AST nodes ([Issue #21]), made `upsert` atomic + child-owned `connect` match-all ([Issue #24]), added the `openAndUpgrade` `onblocked` handler, and removed a dead import. The only item left open is the framework-SPI-blocked `introspect`/`readMarker` "lying refusals" (needs an upstream `unsupported` discriminator). **Verification: 393 vitest passing (369 across the 6 packages + 24 CLI e2e; +5 regression tests this pass — target-idb 81, client-idb 102) + 93 Playwright; all changed packages `tsc --noEmit` clean.** (The CLI e2e suite count was corrected 20 → 24 — the earlier figure in the table below was stale.) No other fatal flaws found: the architecture is faithful to the framework and FEEDBACK §1–8 remain fully addressed._
 
 _Prior context (2026-06-04 — **v0.12.0 migration complete**) (all 7 idb packages + demo app updated to `@prisma-next/*@0.12.0`). Major breaking changes: `Contract.models` removed (models live under `domain.namespaces.<ns>.models`; `contractModels()` helper added), `relation.to` changed from `string` to `CrossReference { namespace, model }`, `StorageBase` now requires `namespaces`, `MigrationRunner` SPI merged `MultiSpaceCapableRunner` into a single `execute({driver, perSpaceOptions})`, `RuntimeMiddlewareContext` gained `planExecutionId`. Demo contract re-emitted, old migration dirs replaced with a fresh baseline, `contract-space.generated.ts` regenerated. Verification: **477/477 tests passing (384 vitest + 93 Playwright)**, all packages `tsc --noEmit` clean._
 
@@ -42,12 +42,12 @@ _Prior context (2026-05-29 third-pass audit): Phase 7 (migration package layer r
 | `driver-idb`                   |         57 |          0 | unchanged                                                                                                              |
 | `adapter-idb`                  |         29 |          0 | unchanged                                                                                                              |
 | `runtime-idb`                  |         21 |          0 | `planExecutionId` added to mock `customCtx` fixtures                                                                   |
-| `client-idb`                   |        100 |          0 | +1 recursive-nesting guard test (Issue #22); +19 Phase 6.5–6.7; 0.12.0 types + `contractModels()` calls updated        |
+| `client-idb`                   |        102 |          0 | +3 this pass (recursive-nesting guard #22, atomic upsert + connect-all #24); +19 Phase 6.5–6.7; 0.12.0 types updated   |
 | `family-idb`                   |         79 |          0 | `createRawIdbContract` replaces removed `@prisma-next/contract/testing`; raw contracts updated                         |
 | `prisma-next-idb-cli` (tests/) |         24 |          0 | end-to-end CLI surface tests for `generate-baseline` / `generate-contract-space` / `preflight`                         |
 | `prisma-next-usage`            |         93 |          0 | +16 Phase 6.5–6.7 Playwright specs; contract re-emitted + baseline regenerated under 0.12.0                            |
 
-**Total: 484/484 tests passing (391 vitest + 93 Playwright).**
+**Total: 486/486 tests passing (393 vitest + 93 Playwright).**
 
 [Issue #1]: #issue-1--migrationrunner-missing-executeacrossspaces-blocks-cli-db-update
 [Issue #2]: #issue-2--sign-does-not-populate-manifestschema-from-contract
@@ -92,11 +92,19 @@ This was tracked as a 🟢 "tradeoff" ([Issue #25]) but is a genuine fatal flaw,
 - **Driver transaction liveness, the `versionchange` multi-tab handler, FK wiring, cycle detection, destructive-default-refuse policy, and CLI `IDB-…-UNSUPPORTED` refusal envelopes** all remain as previously audited.
 - **FEEDBACK.md §1–8 + the operational `versionchange` note remain fully addressed** (no regressions from the v0.12.0 migration).
 
-### Remaining open (non-fatal, unchanged)
+### 🧹 Remaining cleanups — all closed this pass (follow-up commit)
 
-- [Issue #21] (dead nested-write AST nodes), [Issue #24] (non-atomic `upsert`; child-owned `connect` matches-one) — both documented faithfulness/cleanup notes, not correctness bugs for today's contracts. Left as-is.
+After the fatal-flaw fix, the rest of the open ledger (everything except Phase 8 outbox) was cleaned up:
+
+- **[Issue #21] — dead nested-write AST nodes — DELETED.** `IdbNestedCreateAst` / `IdbNestedUpdateAst` were unreachable (nested writes run in a `withMutationScope` transaction that bypasses the middleware chain by design — Issue #6, matching the vendor). Removed from the `IdbQueryAst` union and `idb-query-ast.ts`, with a comment recording _why_ there is intentionally no nested-write AST.
+- **[Issue #24a] — non-atomic `upsert` — FIXED.** `upsert()` now runs find-then-write inside a single `withMutationScope` readwrite transaction when the executor supports transactions (always true for `IdbRuntime` → `createIdbClient` / `createAutoMigratingIdbClient`), removing the check-then-act window and matching the vendor's single-statement upsert. A bare bring-your-own `IdbQueryExecutor` (no `transaction()`) keeps the previous two-step fallback so the `./orm` "any executor" contract is preserved. Regression: "upsert — atomic path" test.
+- **[Issue #24b] — child-owned `connect` matches-one — FIXED.** Dropped the `take: 1` from the 1:N child-owned `connect` scan-write so it sets the FK on **every** row matching the criterion, matching the vendor's `executeUpdateCount` (identical to before for the normal unique criterion). Regression: "1:N connect matches all" test.
+- **`openAndUpgrade` `onblocked` handler — ADDED.** A stray third-party connection holding the DB at an older version would otherwise hang the upgrade forever; it now rejects with an actionable message. (Unreachable in normal operation — runtime connections self-close on `versionchange` — but free insurance.)
+- **`control-instance.ts` dead `void APP_SPACE_ID` import — REMOVED.**
+
+The only genuinely-still-open item is the `introspect` / `readMarker` / `readAllMarkers` "lying refusals" — these return `null` / `{ stores: {} }` because the framework SPI types them as concrete `ContractMarkerRecord | null` / `IdbSchemaIR`, not result envelopes. The values returned are correct ("nothing on a live DB the CLI can't reach"), and the refusal is surfaced via the sibling `verify` / `sign`. Resolving it properly needs an upstream `unsupported` discriminator on those SPI return types — tracked as a framework-level question, not an IDB-side bug.
+
 - Phase 8 (outbox sync) — intentionally unstarted.
-- Minor robustness nit (not fixed): `openAndUpgrade` has no `onblocked` handler, so a stray non-prisma connection holding the DB open could hang the upgrade. The driver's runtime connections all self-close on `versionchange`, so this is unreachable in normal operation; noted for a future hardening pass.
 
 ---
 
@@ -136,9 +144,9 @@ Third-pass review, triggered by an external request to vet the IDB packages agai
 
 **Process takeaway.** CI already runs `pnpm check` (`.github/workflows/build.yml`), and `turbo.json`'s `check` task `dependsOn: ["^build"]`, so **this would have failed the CI typecheck job on push** — the type gate exists. The trap is purely _local_: `pnpm test` runs through `vitest`/`esbuild` (strips types) and `pnpm build` runs through `tsdown` (isolated-declarations, emits `.d.ts` without failing on type errors), so **neither local command catches this** — only `pnpm check`/`tsc` does. To avoid pushing a red-CI commit, run `pnpm check` locally before committing Phase work (or add `tsc --noEmit` to the husky/lint-staged pre-commit). This was the third recurrence of the [Issue #19] pattern.
 
-### 🟡 Issue #21 — nested-write AST nodes are dead code
+### ✅ Issue #21 — nested-write AST nodes are dead code — FIXED (deleted) 2026-06-04
 
-`adapter-idb/src/core/idb-query-ast.ts` gained `IdbNestedCreateAst` and `IdbNestedUpdateAst` (added to the `IdbQueryAst` union), but `store-accessor.ts` never emits them: when `hasNestedMutationCallbacks` is true, `create()`/`update()` call `executeNestedCreateMutation` / `executeNestedUpdateMutation` directly and return, bypassing the plan/`ast` path entirely. Consequence: nested writes are invisible to middleware (the AST is never attached, and `withMutationScope.execute()` bypasses the `RuntimeCore` middleware chain by design — Issue #6). This matches the vendor (transactions bypass per-op middleware there too), so it is not a correctness bug — but the two AST types are currently unreachable. Either wire them into the plan meta (so a cache/logging middleware can at least _observe_ that a nested write happened, even if it can't intercept each sub-op) or delete them.
+`adapter-idb/src/core/idb-query-ast.ts` had `IdbNestedCreateAst` and `IdbNestedUpdateAst` in the `IdbQueryAst` union, but `store-accessor.ts` never emitted them: when `hasNestedMutationCallbacks` is true, `create()`/`update()` call `executeNestedCreateMutation` / `executeNestedUpdateMutation` directly, which run inside a `withMutationScope` transaction that bypasses the `RuntimeCore` middleware chain by design (Issue #6 — matches the vendor, where transactions also bypass per-op middleware). The two types were therefore unreachable. **Resolution: deleted** (the cleaner of the two options the feedback offered — wiring would have required a fake observation path that doesn't match the vendor). A comment in `idb-query-ast.ts` now records why there is intentionally no nested-write AST node.
 
 ### ✅ Issue #22 — recursive nested writes throw a cryptic `DataCloneError` — FIXED 2026-06-04
 
@@ -152,12 +160,12 @@ The vendor's `applyParentOwnedMutation` / `applyChildOwnedMutation` call `create
 
 > **Superseded 2026-06-02 (browser-crypto fix).** The original 2026-05-31 fix imported `computeMigrationHash` from `@prisma-next/migration-tools/hash`, which uses `node:crypto`'s `createHash` and **threw in the browser** — see [§ Phase 6.5–6.7](#phase-65-67-include-refinement-aggregate-select-2026-06-02). It is now a byte-identical WebCrypto re-implementation in `client-idb/src/core/migration-hash.ts` (reuses the framework's `canonicalizeJson` + the same nested SHA-256/hex scheme), and `walkChain` is `async`. The integrity check is unchanged in meaning; only the digest primitive moved from Node crypto to WebCrypto so it runs in the browser. `auto-migrate-evolution.test.ts` (real fixture hashes) confirms the byte-for-byte match.
 
-### 🟢 Issue #24 — `upsert` is non-atomic; child-owned `connect` diverges from vendor
+### ✅ Issue #24 — `upsert` is non-atomic; child-owned `connect` diverges from vendor — FIXED 2026-06-04
 
-Two faithfulness notes, neither a correctness bug for today's contracts:
+Both faithfulness gaps closed:
 
-- `upsert()` runs `where().first()` in one transaction, then the put/update in a **second** transaction — a check-then-act race window. The vendor's relational upsert is a single statement. For browser single-user IDB this is low-risk, but worth a doc note (or wrapping both in one `withMutationScope`).
-- Child-owned `connect` uses `scan-write { take: 1 }` (connects the **first** matching child per criterion), whereas the vendor's `executeUpdateCount` connects **all** rows matching the criterion. Identical for unique-key criteria (the normal case); divergent for non-unique criteria. Document the "connect matches one" semantics or drop the `take: 1`.
+- **`upsert()` atomicity.** Now runs find-then-write inside a single `withMutationScope` readwrite transaction whenever the executor supports transactions (always true for `IdbRuntime` via `createIdbClient` / `createAutoMigratingIdbClient`), eliminating the check-then-act window and matching the vendor's single-statement upsert. A bare bring-your-own `IdbQueryExecutor` (no `transaction()`) retains the previous two-step path so the `./orm` "any executor" contract still holds. Regression: `mutation-executor.test.ts` "upsert — atomic path".
+- **Child-owned `connect`.** Dropped the `scan-write { take: 1 }` cap, so a 1:N `connect` sets the FK on **every** row matching the criterion — matching the vendor's `executeUpdateCount` (identical to the old behavior for the normal unique-key criterion). Regression: `mutation-executor.test.ts` "1:N connect matches all".
 
 ### ✅ Issue #25 — two-phase marker write has no crash-recovery guard — FIXED 2026-06-04
 

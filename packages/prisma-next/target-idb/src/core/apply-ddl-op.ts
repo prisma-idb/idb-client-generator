@@ -201,5 +201,19 @@ export function openAndUpgrade(input: {
       const err = (event.target as IDBOpenDBRequest).error;
       reject(err ?? new Error("IDB: migration open request failed without an error object"));
     };
+
+    // Another open connection at an older version is holding the upgrade back.
+    // Runtime connections self-close on `versionchange` (see driver-idb), so
+    // this should be unreachable in normal operation — but a stray third-party
+    // connection on the same database name would otherwise hang the upgrade
+    // forever. Fail fast with an actionable message instead.
+    request.onblocked = () => {
+      reject(
+        new Error(
+          `IDB: migration of "${input.dbName}" is blocked — another connection is open at an older ` +
+            "version and did not close. Close other tabs/connections to this database and retry."
+        )
+      );
+    };
   });
 }

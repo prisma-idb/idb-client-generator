@@ -35,9 +35,7 @@ export type IdbQueryAst =
   | IdbDeleteCountAst
   | IdbCountAst
   | IdbAggregateAst
-  | IdbGroupByAst
-  | IdbNestedCreateAst
-  | IdbNestedUpdateAst;
+  | IdbGroupByAst;
 
 /** Full cursor scan with optional filtering, ordering, and pagination. */
 export interface IdbFindManyAst {
@@ -188,21 +186,9 @@ export interface IdbGroupByAst {
   readonly aggregates: Readonly<Record<string, IdbAggregateRequest>>;
 }
 
-/** Create a record with one or more nested relation writes (atomic, multi-store). */
-export interface IdbNestedCreateAst {
-  readonly kind: "nestedCreate";
-  readonly modelName: string;
-  readonly data: Record<string, unknown>;
-  /** Names of relation fields that carried a mutation callback. */
-  readonly relations: readonly string[];
-}
-
-/** Update a record with one or more nested relation writes (atomic, multi-store). */
-export interface IdbNestedUpdateAst {
-  readonly kind: "nestedUpdate";
-  readonly modelName: string;
-  readonly data: Record<string, unknown>;
-  readonly where?: IdbFilterExpr;
-  /** Names of relation fields that carried a mutation callback. */
-  readonly relations: readonly string[];
-}
+// Note: nested create/update (relation-callback writes) deliberately do NOT
+// carry an AST node. They execute inside a single `withMutationScope`
+// transaction, which bypasses the RuntimeCore middleware chain by design
+// (see PLAN Issue #6 — matches the vendor, where transactions also bypass
+// per-op middleware). An AST here would be unreachable, so it is intentionally
+// absent rather than dead. (Was PLAN Issue #21.)

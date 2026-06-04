@@ -404,7 +404,10 @@ async function applyChildOwnedMutation(
       }
       const filter = buildCriterionFilter(criterion as Record<string, unknown>);
       const meta = makePlanMeta(contract);
-      // scan-write + put-merged: find the matching child row and set its FK fields.
+      // scan-write + put-merged: set the FK fields on every child row matching
+      // the criterion. No `take` cap — the vendor's relational connect
+      // (`executeUpdateCount`) connects all matching rows; for the normal
+      // unique-key criterion that is exactly one row anyway. (PLAN Issue #24.)
       await scope.execute({
         meta,
         kind: "scan-write",
@@ -412,7 +415,6 @@ async function applyChildOwnedMutation(
         write: "put-merged",
         patch: setValues,
         filter,
-        take: 1,
       });
     }
     return;

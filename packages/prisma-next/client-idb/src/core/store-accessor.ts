@@ -64,6 +64,7 @@ import {
   hasNestedMutationCallbacks,
   requireTransactionExecutor,
 } from "./mutation-executor";
+import { withMutationScope, type IdbQueryExecutorWithTransaction } from "./mutation-scope";
 
 /** Callback form of `.where(fn)` — receives the typed model accessor proxy. */
 export type WhereCallback<TContract, ModelName extends string> = (
@@ -668,33 +669,55 @@ export class IdbStoreAccessorImpl<
     update: PatchInput<TContract, ModelName>;
     where: WhereFilter<TContract, ModelName>;
   }): Promise<DefaultModelRow<TContract, ModelName>> {
+    const keyPath = getKeyPath(this.#contract, this.#modelName);
+    const whereExpr = shorthandToFilterExpr(args.where as Record<string, unknown>);
+    const matches = (row: Record<string, unknown>): boolean =>
+      whereExpr === undefined || evaluateFilter(whereExpr, row);
+    const meta = this.#planMeta(this.#newGroupingKey());
+    const createRecord = args.create as Record<string, unknown>;
+    const patchRecord = args.update as Record<string, unknown>;
+    const storeName = this.#storeName;
+
+    // Atomic path: when the executor supports transactions (always true for
+    // IdbRuntime, i.e. createIdbClient / createAutoMigratingIdbClient), run the
+    // find-then-write in a single readwrite transaction so there is no
+    // check-then-act race window. Mirrors the vendor's single-statement upsert.
+    const exec = this.#executor as IdbQueryExecutor & Partial<Pick<IdbQueryExecutorWithTransaction, "transaction">>;
+    if (typeof exec.transaction === "function") {
+      return withMutationScope(exec as IdbQueryExecutorWithTransaction, [storeName], async (scope) => {
+        const found = await scope.execute({ meta, kind: "cursor-scan", storeName, filter: matches, take: 1 });
+        const existing = found[0];
+        if (existing === undefined) {
+          const rows = await scope.execute({ meta, kind: "put", storeName, record: createRecord });
+          return (rows[0] ?? createRecord) as DefaultModelRow<TContract, ModelName>;
+        }
+        const key = existing[keyPath] as IDBValidKey;
+        const rows = await scope.execute({ meta, kind: "update", storeName, key, patch: patchRecord });
+        return (rows[0] ?? existing) as DefaultModelRow<TContract, ModelName>;
+      });
+    }
+
+    // Fallback (non-atomic): a bare bring-your-own `IdbQueryExecutor` with no
+    // transaction support. A check-then-act window exists here, but it is the
+    // only path available without `transaction()`. Real clients never hit it.
     const existing = await this.where(args.where).first();
     if (!existing) {
       // A bare CreateInput (no relation callbacks) is always a valid
       // MutationCreateInput; the generic intersection can't be proven here.
       return this.create(args.create as MutationCreateInput<TContract, ModelName>);
     }
-    const keyPath = getKeyPath(this.#contract, this.#modelName);
     const key = (existing as Record<string, unknown>)[keyPath] as IDBValidKey;
-    const groupingKey = this.#newGroupingKey();
-    const meta = this.#planMeta(groupingKey);
     const ast: IdbUpsertAst = {
       kind: "upsert",
       modelName: this.#modelName,
-      create: args.create as Record<string, unknown>,
-      update: args.update as Record<string, unknown>,
+      create: createRecord,
+      update: patchRecord,
       where: args.where as Record<string, unknown>,
     };
     const plan: IdbQueryPlan<Record<string, unknown>> = {
       meta,
       ast,
-      idbPlan: {
-        meta,
-        kind: "update",
-        storeName: this.#storeName,
-        key,
-        patch: args.update as Record<string, unknown>,
-      },
+      idbPlan: { meta, kind: "update", storeName, key, patch: patchRecord },
     };
     for await (const row of this.#executor.execute(plan)) {
       return row as DefaultModelRow<TContract, ModelName>;
