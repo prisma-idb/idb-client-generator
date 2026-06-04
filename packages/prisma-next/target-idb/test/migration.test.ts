@@ -514,4 +514,54 @@ describe("openAndUpgrade", () => {
     expect(db.objectStoreNames.contains("old")).toBe(false);
     db.close();
   });
+
+  // Regression for PLAN Issue #25 / ADR 002: the two-phase marker write leaves a
+  // window where the schema is advanced but the marker still points at the old
+  // hash (tab killed between the version-change commit and the marker `put`). On
+  // recovery the chain walk re-collects the already-applied ops and replays them.
+  // applyOneDdlOp must be idempotent or the version-change tx aborts and wedges
+  // the DB forever. This replays the full baseline op set at a higher version.
+  it("re-applying already-applied ops is idempotent (crash-recovery replay)", async () => {
+    const name = dbName();
+    const ops = diffIdbSchema(null, {
+      stores: {
+        users: { keyPath: "id", indexes: { by_email: { keyPath: "email", unique: true } } },
+      },
+    });
+    await openAndUpgrade({ factory: indexedDB, dbName: name, targetVersion: 1, ops });
+
+    // Replay the identical ops at a bumped version — simulates a recovery run
+    // after the marker write was lost. Must NOT throw ConstraintError.
+    await expect(openAndUpgrade({ factory: indexedDB, dbName: name, targetVersion: 2, ops })).resolves.toBeTypeOf(
+      "number"
+    );
+
+    const db = await new Promise<IDBDatabase>((res, rej) => {
+      const req = indexedDB.open(name);
+      req.onsuccess = (e) => res((e.target as IDBOpenDBRequest).result);
+      req.onerror = (e) => rej((e.target as IDBOpenDBRequest).error);
+    });
+    expect(db.objectStoreNames.contains("users")).toBe(true);
+    const store = db.transaction("users", "readonly").objectStore("users");
+    expect(store.indexNames.contains("by_email")).toBe(true);
+    db.close();
+  });
+
+  // Dropping a store/index that is already gone must also be a no-op so a
+  // destructive migration can likewise be replayed after a lost marker write.
+  it("re-applying drops is idempotent", async () => {
+    const name = dbName();
+    await openAndUpgrade({
+      factory: indexedDB,
+      dbName: name,
+      targetVersion: 1,
+      ops: diffIdbSchema(null, { stores: { tmp: { keyPath: "id" } } }),
+    });
+    const dropOps = diffIdbSchema({ stores: { tmp: { keyPath: "id" } } }, { stores: {} });
+    await openAndUpgrade({ factory: indexedDB, dbName: name, targetVersion: 2, ops: dropOps });
+    // Replay the drop — store is already gone.
+    await expect(
+      openAndUpgrade({ factory: indexedDB, dbName: name, targetVersion: 3, ops: dropOps })
+    ).resolves.toBeTypeOf("number");
+  });
 });

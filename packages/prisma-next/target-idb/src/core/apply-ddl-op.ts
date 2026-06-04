@@ -12,10 +12,24 @@ import { IDB_MARKER_STORE, type IdbDdlOp } from "./migration-factories";
  * Shared by the runner (target-idb), the browser auto-migrate path
  * (client-idb), and the preflight CLI (family-idb) so all three apply paths
  * use a single, byte-identical implementation.
+ *
+ * **Idempotency.** Each op is guarded by an existence check so re-applying an
+ * already-applied op is a no-op rather than a throw. This is the load-bearing
+ * guarantee behind the two-phase marker write (ADR 002): if a tab is killed in
+ * the window between the version-change transaction committing and the marker
+ * `put` landing, the schema is advanced but the marker still points at the old
+ * hash. On the next open, the chain walk re-collects the already-applied ops
+ * and replays them here. Without the guards, `createObjectStore` /
+ * `createIndex` throw `ConstraintError` on the existing store/index, the
+ * version-change transaction aborts, and the database is permanently wedged
+ * (every subsequent open repeats the failed upgrade). Contrary to a common
+ * assumption, IndexedDB itself offers **no** "already exists" tolerance — these
+ * guards are what make replay safe. (Was PLAN Issue #25.)
  */
 export function applyOneDdlOp(db: IDBDatabase, tx: IDBTransaction, op: IdbDdlOp): void {
   switch (op.kind) {
     case "createObjectStore": {
+      if (db.objectStoreNames.contains(op.storeName)) return;
       db.createObjectStore(op.storeName, {
         keyPath: op.def.keyPath,
         ...(op.def.autoIncrement !== undefined && { autoIncrement: op.def.autoIncrement }),
@@ -23,11 +37,13 @@ export function applyOneDdlOp(db: IDBDatabase, tx: IDBTransaction, op: IdbDdlOp)
       return;
     }
     case "dropObjectStore": {
+      if (!db.objectStoreNames.contains(op.storeName)) return;
       db.deleteObjectStore(op.storeName);
       return;
     }
     case "createIndex": {
       const store = tx.objectStore(op.storeName);
+      if (store.indexNames.contains(op.indexName)) return;
       store.createIndex(op.indexName, op.def.keyPath, {
         unique: op.def.unique,
         ...(op.def.multiEntry !== undefined && { multiEntry: op.def.multiEntry }),
@@ -36,6 +52,7 @@ export function applyOneDdlOp(db: IDBDatabase, tx: IDBTransaction, op: IdbDdlOp)
     }
     case "dropIndex": {
       const store = tx.objectStore(op.storeName);
+      if (!store.indexNames.contains(op.indexName)) return;
       store.deleteIndex(op.indexName);
       return;
     }

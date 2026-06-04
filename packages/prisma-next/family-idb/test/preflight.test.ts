@@ -77,12 +77,19 @@ const createPosts = {
   def: { keyPath: "id" },
 };
 
-const dropMissingStore = {
-  kind: "dropObjectStore",
-  id: "object-store.missing.drop",
-  label: 'Drop object store "missing"',
-  operationClass: "destructive",
+// A genuinely-broken op: create an index on a store that was never created.
+// `applyOneDdlOp` calls `tx.objectStore("missing-store")`, which throws
+// NotFoundError. (Note: dropping a non-existent store is NOT a failure — the
+// DDL apply path is idempotent for crash-recovery replay, see ADR 002 / Issue
+// #25 — so we exercise a real structural break here instead.)
+const indexOnMissingStore = {
+  kind: "createIndex",
+  id: "index.missing-store.byThing.create",
+  label: 'Create index "byThing" on "missing-store"',
+  operationClass: "additive",
   storeName: "missing-store",
+  indexName: "byThing",
+  def: { keyPath: "thing", unique: false },
 };
 
 describe("runPreflight", () => {
@@ -109,7 +116,7 @@ describe("runPreflight", () => {
     expect(code).toBe(0);
   });
 
-  it("returns 1 when a DDL op fails (dropping a non-existent store)", async () => {
+  it("returns 1 when a DDL op fails (index on a non-existent store)", async () => {
     await writePackage({
       dirName: "0001_baseline",
       from: null,
@@ -120,7 +127,7 @@ describe("runPreflight", () => {
       dirName: "0002_bad",
       from: "sha256:A",
       to: "sha256:B",
-      ops: [dropMissingStore],
+      ops: [indexOnMissingStore],
     });
 
     const code = await runPreflight({ cwd });
