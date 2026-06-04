@@ -135,7 +135,7 @@
   function select(preset: Preset) {
     onSelect(preset.query);
     navigator.clipboard.writeText(preset.query).catch(() => {});
-    loaded = preset.label;
+    loaded = preset.query;
     setTimeout(() => {
       loaded = null;
     }, 1500);
@@ -152,12 +152,12 @@
       <div class="flex flex-wrap gap-1.5">
         {#each group.presets as preset (preset.label)}
           <Button
-            variant={loaded === preset.label ? "secondary" : "outline"}
+            variant={loaded === preset.query ? "secondary" : "outline"}
             size="sm"
             class="h-7 text-xs"
             onclick={() => select(preset)}
           >
-            {loaded === preset.label ? "✓ Loaded" : preset.label}
+            {loaded === preset.query ? "✓ Loaded" : preset.label}
           </Button>
         {/each}
       </div>
