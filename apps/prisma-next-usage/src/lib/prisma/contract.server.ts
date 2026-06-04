@@ -38,25 +38,21 @@ export const contract = defineContract({
         byEmail: { keyPath: "email", unique: true },
         byScore: { keyPath: "score", unique: false },
       },
-      relations: {
-        posts: { to: "Post", cardinality: "1:N", on: { local: ["id"], target: ["authorId"] } },
-      },
     },
     Post: {
       store: "posts",
       key: "id",
       fields: {
         id: "String",
-        authorId: "String",
         title: "String",
         content: "String?",
-        views: "Int",
         published: "Boolean",
-        publishedAt: "DateTime?",
+        views: "Int",
+        authorId: "String",
+        createdAt: "DateTime",
       },
-      indexes: { byAuthorId: { keyPath: "authorId", unique: false } },
-      relations: {
-        author: { to: "User", cardinality: "N:1", on: { local: ["authorId"], target: ["id"] } },
+      indexes: {
+        byAuthorId: { keyPath: "authorId", unique: false },
       },
     },
     RandomStore: {

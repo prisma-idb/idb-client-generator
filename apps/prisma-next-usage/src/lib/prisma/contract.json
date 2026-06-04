@@ -37,6 +37,13 @@
                   "kind": "scalar"
                 }
               },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/date@1",
+                  "kind": "scalar"
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -48,13 +55,6 @@
                 "nullable": false,
                 "type": {
                   "codecId": "idb/bool@1",
-                  "kind": "scalar"
-                }
-              },
-              "publishedAt": {
-                "nullable": true,
-                "type": {
-                  "codecId": "idb/date@1",
                   "kind": "scalar"
                 }
               },
@@ -73,19 +73,7 @@
                 }
               }
             },
-            "relations": {
-              "author": {
-                "cardinality": "N:1",
-                "on": {
-                  "localFields": ["authorId"],
-                  "targetFields": ["id"]
-                },
-                "to": {
-                  "model": "User",
-                  "namespace": "__unbound__"
-                }
-              }
-            },
+            "relations": {},
             "storage": {
               "keyPath": "id",
               "storeName": "posts"
@@ -159,19 +147,7 @@
                 }
               }
             },
-            "relations": {
-              "posts": {
-                "cardinality": "1:N",
-                "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["authorId"]
-                },
-                "to": {
-                  "model": "Post",
-                  "namespace": "__unbound__"
-                }
-              }
-            },
+            "relations": {},
             "storage": {
               "keyPath": "id",
               "storeName": "users"

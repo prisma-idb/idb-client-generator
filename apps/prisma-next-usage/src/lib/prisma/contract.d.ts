@@ -23,12 +23,12 @@ export type LaneCodecTypes = CodecTypes;
 export type FieldOutputTypes = {
   readonly Post: {
     readonly id: CodecTypes["idb/string@1"]["output"];
-    readonly authorId: CodecTypes["idb/string@1"]["output"];
     readonly title: CodecTypes["idb/string@1"]["output"];
     readonly content: CodecTypes["idb/string@1"]["output"] | null;
-    readonly views: CodecTypes["idb/int32@1"]["output"];
     readonly published: CodecTypes["idb/bool@1"]["output"];
-    readonly publishedAt: CodecTypes["idb/date@1"]["output"] | null;
+    readonly views: CodecTypes["idb/int32@1"]["output"];
+    readonly authorId: CodecTypes["idb/string@1"]["output"];
+    readonly createdAt: CodecTypes["idb/date@1"]["output"];
   };
   readonly RandomStore: { readonly id: CodecTypes["idb/string@1"]["output"] };
   readonly User: {
@@ -44,12 +44,12 @@ export type FieldOutputTypes = {
 export type FieldInputTypes = {
   readonly Post: {
     readonly id: CodecTypes["idb/string@1"]["input"];
-    readonly authorId: CodecTypes["idb/string@1"]["input"];
     readonly title: CodecTypes["idb/string@1"]["input"];
     readonly content: CodecTypes["idb/string@1"]["input"] | null;
-    readonly views: CodecTypes["idb/int32@1"]["input"];
     readonly published: CodecTypes["idb/bool@1"]["input"];
-    readonly publishedAt: CodecTypes["idb/date@1"]["input"] | null;
+    readonly views: CodecTypes["idb/int32@1"]["input"];
+    readonly authorId: CodecTypes["idb/string@1"]["input"];
+    readonly createdAt: CodecTypes["idb/date@1"]["input"];
   };
   readonly RandomStore: { readonly id: CodecTypes["idb/string@1"]["input"] };
   readonly User: {
@@ -93,10 +93,6 @@ type ContractBase = Omit<
             readonly nullable: false;
             readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
           };
-          readonly authorId: {
-            readonly nullable: false;
-            readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
-          };
           readonly title: {
             readonly nullable: false;
             readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
@@ -105,32 +101,24 @@ type ContractBase = Omit<
             readonly nullable: true;
             readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
           };
-          readonly views: {
-            readonly nullable: false;
-            readonly type: { readonly kind: "scalar"; readonly codecId: "idb/int32@1" };
-          };
           readonly published: {
             readonly nullable: false;
             readonly type: { readonly kind: "scalar"; readonly codecId: "idb/bool@1" };
           };
-          readonly publishedAt: {
-            readonly nullable: true;
+          readonly views: {
+            readonly nullable: false;
+            readonly type: { readonly kind: "scalar"; readonly codecId: "idb/int32@1" };
+          };
+          readonly authorId: {
+            readonly nullable: false;
+            readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
+          };
+          readonly createdAt: {
+            readonly nullable: false;
             readonly type: { readonly kind: "scalar"; readonly codecId: "idb/date@1" };
           };
         };
-        readonly relations: {
-          readonly author: {
-            readonly to: {
-              readonly namespace: "__unbound__" & NamespaceId;
-              readonly model: "User";
-            };
-            readonly cardinality: "N:1";
-            readonly on: {
-              readonly localFields: readonly ["authorId"];
-              readonly targetFields: readonly ["id"];
-            };
-          };
-        };
+        readonly relations: Record<string, never>;
         readonly storage: { readonly storeName: "posts"; readonly keyPath: "id" };
       };
       readonly RandomStore: {
@@ -174,19 +162,7 @@ type ContractBase = Omit<
             readonly type: { readonly kind: "scalar"; readonly codecId: "idb/date@1" };
           };
         };
-        readonly relations: {
-          readonly posts: {
-            readonly to: {
-              readonly namespace: "__unbound__" & NamespaceId;
-              readonly model: "Post";
-            };
-            readonly cardinality: "1:N";
-            readonly on: {
-              readonly localFields: readonly ["id"];
-              readonly targetFields: readonly ["authorId"];
-            };
-          };
-        };
+        readonly relations: Record<string, never>;
         readonly storage: { readonly storeName: "users"; readonly keyPath: "id" };
       };
     }
@@ -213,10 +189,6 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
               };
-              readonly authorId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
-              };
               readonly title: {
                 readonly nullable: false;
                 readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
@@ -225,32 +197,24 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
               };
-              readonly views: {
-                readonly nullable: false;
-                readonly type: { readonly kind: "scalar"; readonly codecId: "idb/int32@1" };
-              };
               readonly published: {
                 readonly nullable: false;
                 readonly type: { readonly kind: "scalar"; readonly codecId: "idb/bool@1" };
               };
-              readonly publishedAt: {
-                readonly nullable: true;
+              readonly views: {
+                readonly nullable: false;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "idb/int32@1" };
+              };
+              readonly authorId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
                 readonly type: { readonly kind: "scalar"; readonly codecId: "idb/date@1" };
               };
             };
-            readonly relations: {
-              readonly author: {
-                readonly to: {
-                  readonly namespace: "__unbound__" & NamespaceId;
-                  readonly model: "User";
-                };
-                readonly cardinality: "N:1";
-                readonly on: {
-                  readonly localFields: readonly ["authorId"];
-                  readonly targetFields: readonly ["id"];
-                };
-              };
-            };
+            readonly relations: Record<string, never>;
             readonly storage: { readonly storeName: "posts"; readonly keyPath: "id" };
           };
           readonly RandomStore: {
@@ -294,19 +258,7 @@ type ContractBase = Omit<
                 readonly type: { readonly kind: "scalar"; readonly codecId: "idb/date@1" };
               };
             };
-            readonly relations: {
-              readonly posts: {
-                readonly to: {
-                  readonly namespace: "__unbound__" & NamespaceId;
-                  readonly model: "Post";
-                };
-                readonly cardinality: "1:N";
-                readonly on: {
-                  readonly localFields: readonly ["id"];
-                  readonly targetFields: readonly ["authorId"];
-                };
-              };
-            };
+            readonly relations: Record<string, never>;
             readonly storage: { readonly storeName: "users"; readonly keyPath: "id" };
           };
         };

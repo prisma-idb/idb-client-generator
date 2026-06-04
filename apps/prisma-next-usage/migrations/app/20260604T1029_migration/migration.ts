@@ -1,5 +1,5 @@
 #!/usr/bin/env -S npx tsx
-import { Migration, MigrationCLI, createIndexOp, createObjectStoreOp } from "@prisma-next-idb/target-idb/migration";
+import { Migration, MigrationCLI, createObjectStoreOp, createIndexOp } from "@prisma-next-idb/target-idb/migration";
 
 export default class M extends Migration {
   override describe() {
