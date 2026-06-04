@@ -8,6 +8,7 @@
   import { Textarea } from "$lib/components/ui/textarea";
   import { and, not, or } from "@prisma-next-idb/client-idb/orm";
   import { getDb, resetDb, resolveDbName } from "$lib/prisma/db";
+  import QueryPresets from "$lib/components/query-presets.svelte";
 
   // The ORM client surface — bound to `db.orm` once loaded so query
   // expressions in the textarea can address `orm.users.all()`, etc.
@@ -112,6 +113,19 @@
       <code>?db=&lt;name&gt;</code> to isolate the database per test run.
     </p>
   </header>
+
+  <Card>
+    <CardHeader>
+      <CardTitle>Quick Queries</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <QueryPresets
+        onSelect={(q) => {
+          query = q;
+        }}
+      />
+    </CardContent>
+  </Card>
 
   <Card>
     <CardHeader>
