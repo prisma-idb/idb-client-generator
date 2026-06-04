@@ -197,6 +197,26 @@ describe("executeNestedCreateMutation — 1:N child create", () => {
     const posts = await getAllRows(db, "posts");
     expect(posts[0]?.["authorId"]).toBe("u1");
   });
+
+  // PLAN Issue #22: a relation callback nested inside an already-nested record
+  // is unsupported. The guard must throw a descriptive error rather than letting
+  // IDB's structured-clone surface an opaque DataCloneError.
+  it("rejects recursive nesting with a descriptive error (not DataCloneError)", async () => {
+    await expect(
+      executeNestedCreateMutation({
+        executor,
+        contract,
+        modelName: "User",
+        data: {
+          id: "u1",
+          name: "Alice",
+          posts: (rel: RelMutator) =>
+            // Inner record itself carries a relation callback → recursive nesting.
+            rel.create([{ id: "p1", title: "Post", author: () => undefined } as Record<string, unknown>]),
+        } as Record<string, unknown>,
+      })
+    ).rejects.toThrow(/[Rr]ecursive nested writes are not supported/);
+  });
 });
 
 // ── executeNestedCreateMutation — N:1 parent-owned ───────────────────────────

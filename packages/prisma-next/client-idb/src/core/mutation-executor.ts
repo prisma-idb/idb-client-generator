@@ -486,10 +486,30 @@ async function insertSingleRow(
   modelName: string,
   data: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
+  assertNoNestedCallbacks(modelName, data);
   const storeName = getStoreName(contract, modelName);
   const meta = makePlanMeta(contract);
   const rows = await scope.execute({ meta, kind: "put", storeName, record: data });
   return rows[0] ?? data;
+}
+
+/**
+ * Recursive nesting (a relation callback inside an already-nested create) is
+ * not supported in Phase 6.4. Without this guard the callback function would be
+ * handed to `store.put(...)`, where IDB's structured-clone throws an opaque
+ * `DataCloneError` ("could not be cloned") that gives the developer no hint
+ * about the real cause. Surface a precise error instead. (PLAN Issue #22.)
+ */
+function assertNoNestedCallbacks(modelName: string, data: Record<string, unknown>): void {
+  for (const [field, value] of Object.entries(data)) {
+    if (typeof value === "function") {
+      throw new Error(
+        `Recursive nested writes are not supported: field "${field}" on a nested "${modelName}" ` +
+          "record is a relation callback. Only one level of relation nesting is supported — " +
+          "flatten the inner relation into a separate create/connect call."
+      );
+    }
+  }
 }
 
 async function findRowByCriterion(
