@@ -159,12 +159,6 @@ export async function generateBaseline(opts: GenerateBaselineOptions): Promise<n
   const baseMetadata = {
     from: null as string | null,
     to: toHash,
-    hints: {
-      used: [] as string[],
-      applied: [] as string[],
-      plannerVersion: "2.0.0",
-    },
-    labels: [] as string[],
     providedInvariants: Array.from(deriveProvidedInvariants(ops)),
     createdAt: timestamp.toISOString(),
   };

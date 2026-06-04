@@ -20,5 +20,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "${configDir}/dist-tsc"
-  }
+  },
+  "include": ["src"],
+  "exclude": ["dist", "dist-tsc", "node_modules"]
 }
