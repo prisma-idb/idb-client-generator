@@ -5,6 +5,7 @@
   "description": "Regression tests for the `prisma-next-idb` CLI binary (generate-contract-space, preflight). Drives the published binary via execa and asserts on stdout/stderr/exit codes/files.",
   "type": "module",
   "scripts": {
+    "check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },

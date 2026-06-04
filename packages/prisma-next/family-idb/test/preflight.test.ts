@@ -43,9 +43,7 @@ async function writePackage(opts: {
       to: opts.to,
       migrationHash: `sha256:hash-${opts.dirName}`,
       providedInvariants: [],
-      labels: [],
       createdAt: "2026-01-01T00:00:00.000Z",
-      hints: { used: [], applied: [], plannerVersion: "2.0.0" },
     }),
     "utf-8"
   );

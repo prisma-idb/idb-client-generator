@@ -9,11 +9,16 @@
  *   `<cwd>/migrations/app/<dirName>/`.
  * - `writeContractJson(cwd, storageHash)` — write a minimal
  *   `src/lib/prisma/contract.json` with the given hash.
+ * - `writeRawContractJson(cwd, contract)` — write an arbitrary object as
+ *   `src/lib/prisma/contract.json`; used when commands need a full contract
+ *   (e.g. generate-baseline, which calls the migration planner).
+ * - `getMigrationDirs(cwd)` — return sorted directory names under
+ *   `<cwd>/migrations/app/`.
  * - `setupTmpProject()` — mkdtemp + minimal directory scaffolding;
  *   returns the project cwd.
  */
 
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -60,6 +65,19 @@ export async function writeContractJson(cwd: string, storageHash: string): Promi
   );
 }
 
+export async function writeRawContractJson(cwd: string, contract: unknown): Promise<void> {
+  await writeFile(join(cwd, "src", "lib", "prisma", "contract.json"), JSON.stringify(contract, null, 2), "utf-8");
+}
+
+export async function getMigrationDirs(cwd: string): Promise<string[]> {
+  const appDir = join(cwd, "migrations", "app");
+  const entries = await readdir(appDir, { withFileTypes: true });
+  return entries
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name)
+    .sort();
+}
+
 export interface PackageInput {
   readonly cwd: string;
   readonly dirName: string;
@@ -81,9 +99,7 @@ export async function writePackage(p: PackageInput): Promise<void> {
         to: p.to,
         migrationHash: p.migrationHash ?? `sha256:hash-${p.dirName}`,
         providedInvariants: p.providedInvariants ?? [],
-        labels: [],
         createdAt: "2026-01-01T00:00:00.000Z",
-        hints: { used: [], applied: [], plannerVersion: "2.0.0" },
       },
       null,
       2
@@ -129,6 +145,16 @@ export const createCommentsStoreOp = {
   operationClass: "additive",
   storeName: "comments",
   def: { keyPath: "id" },
+} as const;
+
+export const createPostsByAuthorIdIndexOp = {
+  kind: "createIndex",
+  id: "index.posts.byAuthorId.create",
+  label: 'Create index "byAuthorId" on "posts"',
+  operationClass: "additive",
+  storeName: "posts",
+  indexName: "byAuthorId",
+  def: { keyPath: "authorId", unique: false },
 } as const;
 
 export const dropMissingStoreOp = {

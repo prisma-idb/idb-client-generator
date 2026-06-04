@@ -709,6 +709,9 @@ importers:
         specifier: ^2.0.3
         version: 2.0.3
     devDependencies:
+      '@types/node':
+        specifier: ^24.10.9
+        version: 24.12.2
       tsdown:
         specifier: ^0.22.0
         version: 0.22.0(tsx@4.21.0)(typescript@6.0.3)
@@ -762,6 +765,9 @@ importers:
         specifier: ^2.0.3
         version: 2.0.3
     devDependencies:
+      '@types/node':
+        specifier: ^24.10.9
+        version: 24.12.2
       fake-indexeddb:
         specifier: ^6.2.5
         version: 6.2.5

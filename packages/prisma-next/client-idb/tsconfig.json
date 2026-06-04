@@ -2,6 +2,8 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": ["../tsconfig.base.json"],
   "compilerOptions": {
-    "lib": ["ES2022", "DOM"]
-  }
+    "lib": ["ES2022", "DOM", "esnext.disposable"]
+  },
+  "include": ["src", "test"],
+  "exclude": ["dist", "dist-tsc", "node_modules"]
 }

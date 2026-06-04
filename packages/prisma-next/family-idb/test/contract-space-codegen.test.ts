@@ -59,9 +59,7 @@ async function writePackage(opts: {
     to: opts.to,
     migrationHash: opts.migrationHash ?? `sha256:hash-${opts.dirName}`,
     providedInvariants: opts.invariants ?? [],
-    labels: [],
     createdAt: new Date(2026, 0, 1).toISOString(),
-    hints: { used: [], applied: [], plannerVersion: "2.0.0" },
   };
   await writeFile(join(dir, "migration.json"), JSON.stringify(metadata), "utf-8");
   await writeFile(join(dir, "ops.json"), "[]", "utf-8");

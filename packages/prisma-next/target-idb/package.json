@@ -29,6 +29,7 @@
     "pathe": "^2.0.3"
   },
   "devDependencies": {
+    "@types/node": "^24.12.2",
     "fake-indexeddb": "^6.2.5",
     "tsdown": "^0.22.0",
     "typescript": "^6.0.3",

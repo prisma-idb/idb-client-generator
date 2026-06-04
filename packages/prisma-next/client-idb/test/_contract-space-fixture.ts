@@ -53,8 +53,6 @@ export function buildContractSpaceFixture<TContract extends Contract>(
       from: previous === null ? null : getStorageHash(previous),
       to: getStorageHash(current),
       providedInvariants: [] as string[],
-      labels: [] as string[],
-      hints: { used: [] as string[], applied: [] as string[], plannerVersion: "2.0.0" },
       createdAt: new Date(2026, 0, 1, 0, 0, index).toISOString(),
     };
     migrations.push({

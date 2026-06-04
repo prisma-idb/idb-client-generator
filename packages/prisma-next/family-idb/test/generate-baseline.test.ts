@@ -162,13 +162,11 @@ describe("generateBaseline — migration.json", () => {
     expect(meta.migrationHash.length).toBeGreaterThan(0);
   });
 
-  it("has required metadata fields (hints, labels, createdAt)", async () => {
+  it("has createdAt as an ISO string", async () => {
     await generateBaseline({ cwd });
     const meta = await readMeta(cwd);
-    expect(meta.hints).toBeDefined();
-    expect(meta.hints.plannerVersion).toBe("2.0.0");
-    expect(Array.isArray(meta.labels)).toBe(true);
     expect(typeof meta.createdAt).toBe("string");
+    expect(() => new Date(meta.createdAt)).not.toThrow();
   });
 });
 
@@ -336,8 +334,6 @@ interface ParsedMetadata {
   from: string | null;
   to: string;
   migrationHash: string;
-  hints: { plannerVersion: string; used: string[]; applied: string[] };
-  labels: string[];
   createdAt: string;
   providedInvariants: string[];
 }
