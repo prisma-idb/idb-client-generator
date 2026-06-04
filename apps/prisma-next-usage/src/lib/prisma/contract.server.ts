@@ -38,6 +38,9 @@ export const contract = defineContract({
         byEmail: { keyPath: "email", unique: true },
         byScore: { keyPath: "score", unique: false },
       },
+      relations: {
+        posts: { to: "Post", cardinality: "1:N", on: { local: ["id"], target: ["authorId"] } },
+      },
     },
     Post: {
       store: "posts",
@@ -53,6 +56,9 @@ export const contract = defineContract({
       },
       indexes: {
         byAuthorId: { keyPath: "authorId", unique: false },
+      },
+      relations: {
+        author: { to: "User", cardinality: "N:1", on: { local: ["authorId"], target: ["id"] } },
       },
     },
     RandomStore: {

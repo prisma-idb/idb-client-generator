@@ -118,7 +118,19 @@ type ContractBase = Omit<
             readonly type: { readonly kind: "scalar"; readonly codecId: "idb/date@1" };
           };
         };
-        readonly relations: Record<string, never>;
+        readonly relations: {
+          readonly author: {
+            readonly to: {
+              readonly namespace: "__unbound__" & NamespaceId;
+              readonly model: "User";
+            };
+            readonly cardinality: "N:1";
+            readonly on: {
+              readonly localFields: readonly ["authorId"];
+              readonly targetFields: readonly ["id"];
+            };
+          };
+        };
         readonly storage: { readonly storeName: "posts"; readonly keyPath: "id" };
       };
       readonly RandomStore: {
@@ -162,7 +174,19 @@ type ContractBase = Omit<
             readonly type: { readonly kind: "scalar"; readonly codecId: "idb/date@1" };
           };
         };
-        readonly relations: Record<string, never>;
+        readonly relations: {
+          readonly posts: {
+            readonly to: {
+              readonly namespace: "__unbound__" & NamespaceId;
+              readonly model: "Post";
+            };
+            readonly cardinality: "1:N";
+            readonly on: {
+              readonly localFields: readonly ["id"];
+              readonly targetFields: readonly ["authorId"];
+            };
+          };
+        };
         readonly storage: { readonly storeName: "users"; readonly keyPath: "id" };
       };
     }
@@ -214,7 +238,19 @@ type ContractBase = Omit<
                 readonly type: { readonly kind: "scalar"; readonly codecId: "idb/date@1" };
               };
             };
-            readonly relations: Record<string, never>;
+            readonly relations: {
+              readonly author: {
+                readonly to: {
+                  readonly namespace: "__unbound__" & NamespaceId;
+                  readonly model: "User";
+                };
+                readonly cardinality: "N:1";
+                readonly on: {
+                  readonly localFields: readonly ["authorId"];
+                  readonly targetFields: readonly ["id"];
+                };
+              };
+            };
             readonly storage: { readonly storeName: "posts"; readonly keyPath: "id" };
           };
           readonly RandomStore: {
@@ -258,7 +294,19 @@ type ContractBase = Omit<
                 readonly type: { readonly kind: "scalar"; readonly codecId: "idb/date@1" };
               };
             };
-            readonly relations: Record<string, never>;
+            readonly relations: {
+              readonly posts: {
+                readonly to: {
+                  readonly namespace: "__unbound__" & NamespaceId;
+                  readonly model: "Post";
+                };
+                readonly cardinality: "1:N";
+                readonly on: {
+                  readonly localFields: readonly ["id"];
+                  readonly targetFields: readonly ["authorId"];
+                };
+              };
+            };
             readonly storage: { readonly storeName: "users"; readonly keyPath: "id" };
           };
         };
