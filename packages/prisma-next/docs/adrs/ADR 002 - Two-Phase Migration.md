@@ -42,15 +42,19 @@ There are two reasons:
 
 **Separation of concerns.** The version-change transaction exists to change the schema. Writing data inside it mixes DDL and DML concerns in a single callback. Separating them makes the runner easier to reason about: phase 1 is schema-only, phase 2 is data-only.
 
-**Race window is acceptable.** There is a short window between phase 1 completing and phase 2 completing where the schema exists but the marker doesn't. If the process crashes in this window, `verifyMarker()` returns `false` and queries are blocked. The next migration run will re-open at the same `targetVersion` (no-op in IDB's `upgradeneeded`), then re-attempt the marker write. This is safe: DDL ops are idempotent under "store already exists" semantics (IDB's own guarantee), and the marker write is a simple `put`.
+**Race window is recoverable.** There is a short window between phase 1 completing and phase 2 completing where the schema exists but the marker doesn't. If the process crashes in this window, `verifyMarker()` returns `false` (and on the next auto-migrate the marker still reads the old hash). The next migration run re-collects the already-applied ops from the chain walk and replays them inside a fresh `upgradeneeded`, then re-attempts the marker write.
+
+This recovery is only safe because **`applyOneDdlOp` is explicitly idempotent** — each op is guarded by an existence check (`db.objectStoreNames.contains(...)` / `store.indexNames.contains(...)`) so a replayed `createObjectStore`/`createIndex` is a no-op instead of a throw.
+
+> **Correction (2026-06-04).** An earlier version of this ADR claimed DDL ops are "idempotent under 'store already exists' semantics (IDB's own guarantee)". That is **false** — IndexedDB's `createObjectStore` and `createIndex` throw `ConstraintError` when the target already exists; there is no such guarantee. Before the guards were added (PLAN Issue #25), a crash in the phase-1/phase-2 window left the database **permanently wedged**: every subsequent open replayed the create ops, aborted the version-change transaction on `ConstraintError`, and failed identically forever. The idempotency now lives in `applyOneDdlOp` (`target-idb/src/core/apply-ddl-op.ts`), covered by the "crash-recovery replay" regression tests in `target-idb/test/migration.test.ts`.
 
 ## Failure modes
 
-| Failure point                     | Result                                                                         | Recovery                                                                                  |
-| --------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| Crash during DDL (phase 1)        | IDB rolls back the version-change transaction; database remains at old version | Next run retries from phase 1                                                             |
-| Crash between phase 1 and phase 2 | Database is at new version; marker is absent or stale                          | `verifyMarker()` blocks queries; next migration run re-enters phase 2 only (DDL is no-op) |
-| Crash during phase 2              | Marker write aborted                                                           | Same as above                                                                             |
+| Failure point                     | Result                                                                         | Recovery                                                                                                          |
+| --------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| Crash during DDL (phase 1)        | IDB rolls back the version-change transaction; database remains at old version | Next run retries from phase 1                                                                                     |
+| Crash between phase 1 and phase 2 | Database is at new version; marker is absent or stale                          | Next migration run replays the collected ops (idempotent no-op via the existence guards) and re-writes the marker |
+| Crash during phase 2              | Marker write aborted                                                           | Same as above                                                                                                     |
 
 ## What we deliberately did not do
 

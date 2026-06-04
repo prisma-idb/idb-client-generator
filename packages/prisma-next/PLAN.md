@@ -1,6 +1,8 @@
 ## Status
 
-_Last updated: 2026-06-04 — **v0.12.0 migration complete** (all 7 idb packages + demo app updated to `@prisma-next/*@0.12.0`). Major breaking changes: `Contract.models` removed (models live under `domain.namespaces.<ns>.models`; `contractModels()` helper added), `relation.to` changed from `string` to `CrossReference { namespace, model }`, `StorageBase` now requires `namespaces`, `MigrationRunner` SPI merged `MultiSpaceCapableRunner` into a single `execute({driver, perSpaceOptions})`, `RuntimeMiddlewareContext` gained `planExecutionId`. Demo contract re-emitted, old migration dirs replaced with a fresh baseline, `contract-space.generated.ts` regenerated. Verification: **477/477 tests passing (384 vitest + 93 Playwright)**, all packages `tsc --noEmit` clean._
+_Last updated: 2026-06-04 — **pre-presentation review pass** ([§ Audit 2026-06-04](#audit-2026-06-04--pre-presentation-review)). Fresh fatal-flaw sweep against the vendor reference + `FEEDBACK.md` ahead of presenting to Prisma's engineers. Found and fixed one genuine fatal flaw — the two-phase marker write could wedge a database permanently after a crash because `applyOneDdlOp` was not idempotent, and **ADR 002 documented a false "IDB guarantees idempotency" claim** ([Issue #25], now fixed + ADR corrected). Also closed the recursive-nested-write `DataCloneError` footgun ([Issue #22]). All migration apply paths now replay-safe. **Verification: 391 vitest passing (367 across the 6 packages + 24 CLI e2e; +3 regression tests this pass — target-idb 81, client-idb 100) + 93 Playwright; all changed packages `tsc --noEmit` clean.** (The CLI e2e suite count was corrected 20 → 24 — the earlier figure in the table below was stale.) No other fatal flaws found: the architecture is faithful to the framework and FEEDBACK §1–8 remain fully addressed._
+
+_Prior context (2026-06-04 — **v0.12.0 migration complete**) (all 7 idb packages + demo app updated to `@prisma-next/*@0.12.0`). Major breaking changes: `Contract.models` removed (models live under `domain.namespaces.<ns>.models`; `contractModels()` helper added), `relation.to` changed from `string` to `CrossReference { namespace, model }`, `StorageBase` now requires `namespaces`, `MigrationRunner` SPI merged `MultiSpaceCapableRunner` into a single `execute({driver, perSpaceOptions})`, `RuntimeMiddlewareContext` gained `planExecutionId`. Demo contract re-emitted, old migration dirs replaced with a fresh baseline, `contract-space.generated.ts` regenerated. Verification: **477/477 tests passing (384 vitest + 93 Playwright)**, all packages `tsc --noEmit` clean._
 
 _Prior context (2026-06-02 — **Phases 6.5, 6.6, and 6.7 shipped**): Include refinement, aggregate/groupBy, select projection, completing the Phase 6 ORM lane. While wiring the demo Playwright specs this pass also found and FIXED a pre-existing browser-only crash: the Phase-7 / Issue #23 integrity check imported `computeMigrationHash` from `@prisma-next/migration-tools/hash`, which uses `node:crypto` and threw `createHash is not a function` on every browser client init — breaking the entire demo app. Replaced with a byte-identical WebCrypto implementation ([§ Phase 6.5–6.7](#phase-65-67-include-refinement-aggregate-select-2026-06-02))._
 
@@ -34,18 +36,18 @@ _Prior context (2026-05-29 third-pass audit): Phase 7 (migration package layer r
 
 ### Test status (run 2026-06-04, after v0.12.0 migration)
 
-| Package                        | Tests pass | Tests fail | Notes                                                                                          |
-| ------------------------------ | ---------: | ---------: | ---------------------------------------------------------------------------------------------- |
-| `target-idb`                   |         79 |          0 | runner tests consolidated for new `execute({driver, perSpaceOptions})` SPI                     |
-| `driver-idb`                   |         57 |          0 | unchanged                                                                                      |
-| `adapter-idb`                  |         29 |          0 | unchanged                                                                                      |
-| `runtime-idb`                  |         21 |          0 | `planExecutionId` added to mock `customCtx` fixtures                                           |
-| `client-idb`                   |         99 |          0 | +19 Phase 6.5–6.7; 0.12.0 types + `contractModels()` calls updated                             |
-| `family-idb`                   |         79 |          0 | `createRawIdbContract` replaces removed `@prisma-next/contract/testing`; raw contracts updated |
-| `prisma-next-idb-cli` (tests/) |         20 |          0 | end-to-end CLI surface tests for `generate-baseline` / `generate-contract-space` / `preflight` |
-| `prisma-next-usage`            |         93 |          0 | +16 Phase 6.5–6.7 Playwright specs; contract re-emitted + baseline regenerated under 0.12.0    |
+| Package                        | Tests pass | Tests fail | Notes                                                                                                                  |
+| ------------------------------ | ---------: | ---------: | ---------------------------------------------------------------------------------------------------------------------- |
+| `target-idb`                   |         81 |          0 | +2 crash-recovery replay tests (Issue #25); runner tests consolidated for new `execute({driver, perSpaceOptions})` SPI |
+| `driver-idb`                   |         57 |          0 | unchanged                                                                                                              |
+| `adapter-idb`                  |         29 |          0 | unchanged                                                                                                              |
+| `runtime-idb`                  |         21 |          0 | `planExecutionId` added to mock `customCtx` fixtures                                                                   |
+| `client-idb`                   |        100 |          0 | +1 recursive-nesting guard test (Issue #22); +19 Phase 6.5–6.7; 0.12.0 types + `contractModels()` calls updated        |
+| `family-idb`                   |         79 |          0 | `createRawIdbContract` replaces removed `@prisma-next/contract/testing`; raw contracts updated                         |
+| `prisma-next-idb-cli` (tests/) |         24 |          0 | end-to-end CLI surface tests for `generate-baseline` / `generate-contract-space` / `preflight`                         |
+| `prisma-next-usage`            |         93 |          0 | +16 Phase 6.5–6.7 Playwright specs; contract re-emitted + baseline regenerated under 0.12.0                            |
 
-**Total: 477/477 tests passing (384 vitest + 93 Playwright).**
+**Total: 484/484 tests passing (391 vitest + 93 Playwright).**
 
 [Issue #1]: #issue-1--migrationrunner-missing-executeacrossspaces-blocks-cli-db-update
 [Issue #2]: #issue-2--sign-does-not-populate-manifestschema-from-contract
@@ -59,6 +61,42 @@ _Prior context (2026-05-29 third-pass audit): Phase 7 (migration package layer r
 [Issue #23]: #issue-23--no-apply-time-integrity-check-against-migrationhash
 [Issue #24]: #issue-24--upsert-is-non-atomic-and-child-owned-connect-diverges-from-vendor
 [Issue #25]: #issue-25--two-phase-marker-write-has-no-crash-recovery-guard
+
+---
+
+## Audit 2026-06-04 — pre-presentation review
+
+Fifth-pass review, ahead of presenting the IDB packages to Prisma's engineers. Goal: a fresh fatal-flaw / bug / un-implemented-code sweep across all six packages (excluding Phase 8 outbox, which is intentionally unstarted), cross-checked against the cloned vendor reference (`vendor/prisma-next/`), the ADRs, and `FEEDBACK.md`. Method: re-read the full migration apply path (browser `auto-migrate` → shared `apply-ddl-op` → CLI `preflight`), the nested-write executor against the vendor's `sql-orm-client/mutation-executor.ts`, the driver transaction-liveness model, the `migrationHash` write/verify symmetry across the Node/WebCrypto boundary, the family-idb codegen, and the demo app's generated artefacts; ran every package's `vitest` + `tsc --noEmit`.
+
+### 🔴 Fatal flaw found and fixed — non-idempotent DDL apply could wedge a DB permanently
+
+The single material finding. `applyOneDdlOp` applied each DDL op unconditionally (`db.createObjectStore(...)`, `store.createIndex(...)`). Combined with the two-phase marker write (ADR 002 — marker `put` happens in a separate tx _after_ the version-change tx commits), this created a permanent-wedge failure mode:
+
+1. A tab is killed in the window between the upgrade committing and the marker `put` landing → schema is at the new version, marker still reads the old `storageHash`.
+2. Next open: `walkChain` reads the stale marker and re-collects the **already-applied** ops; `openAndUpgrade` reopens at `version + 1` and replays them.
+3. `createObjectStore` on the existing store throws `ConstraintError` → the version-change transaction aborts → the open request errors → **every subsequent open repeats this and fails identically forever.**
+
+This was tracked as a 🟢 "tradeoff" ([Issue #25]) but is a genuine fatal flaw, made worse because **ADR 002 documented a _false_ safety guarantee** — it claimed DDL ops are "idempotent under 'store already exists' semantics (IDB's own guarantee)". IndexedDB provides no such guarantee. A Prisma engineer reading ADR 002 against the spec would have flagged this immediately.
+
+**Fix.** `applyOneDdlOp` is now explicitly idempotent — each op guards on an existence check (`objectStoreNames.contains` / `indexNames.contains`, and the inverse for drops). Replaying an already-applied op is a no-op, so the recovery run ADR 002 describes now actually works. Because all three apply paths (browser auto-migrate, CLI runner, preflight) share this one function, the fix lands everywhere at once. ADR 002's false claim + failure-mode table were corrected. Regression: two `target-idb` tests replay the full op set (and a drop set) at a bumped version against `fake-indexeddb` and assert no throw.
+
+### 🟡 Footgun closed — recursive nested write `DataCloneError`
+
+[Issue #22]: nesting a relation callback inside an already-nested record passed a function to `store.put(...)`, surfacing IDB's opaque `DataCloneError`. `insertSingleRow` now guards with `assertNoNestedCallbacks` and throws a precise "recursive nested writes are not supported" message. Regression test added. (Important for the live demo — an opaque structured-clone error mid-presentation would read as a framework bug.)
+
+### ✅ Confirmed-good (re-verified this pass)
+
+- **`migrationHash` write/verify symmetry is sound across the Node↔browser boundary.** `generate-baseline` (and `migration plan`) write the hash via the framework's `@prisma-next/migration-tools/hash` (`node:crypto`); the browser verifies via the WebCrypto re-implementation in `client-idb/src/core/migration-hash.ts`. Read both line-by-line: identical canonicalization (`canonicalizeJson`), identical nested SHA-256/hex scheme, identical `migrationHash`-only strip, identical `sha256:` prefix. `auto-migrate-evolution.test.ts` (real fixture hashes) is the live guard.
+- **The demo app's generated `contract-space.generated.ts` + on-disk migration packages are current and chain-consistent** (baseline `from: null` with the marker store as op 0, then the `posts` migration; head ref derived from the last package's `to`).
+- **`schema-diff` ordering is correct and faithful** — creates-before-drops, stores-before-indexes, drop+create for in-place-unalterable index mutations, and an explicit throw on unsupported store-level (`keyPath`/`autoIncrement`) mutations rather than a silent no-op.
+- **Driver transaction liveness, the `versionchange` multi-tab handler, FK wiring, cycle detection, destructive-default-refuse policy, and CLI `IDB-…-UNSUPPORTED` refusal envelopes** all remain as previously audited.
+- **FEEDBACK.md §1–8 + the operational `versionchange` note remain fully addressed** (no regressions from the v0.12.0 migration).
+
+### Remaining open (non-fatal, unchanged)
+
+- [Issue #21] (dead nested-write AST nodes), [Issue #24] (non-atomic `upsert`; child-owned `connect` matches-one) — both documented faithfulness/cleanup notes, not correctness bugs for today's contracts. Left as-is.
+- Phase 8 (outbox sync) — intentionally unstarted.
+- Minor robustness nit (not fixed): `openAndUpgrade` has no `onblocked` handler, so a stray non-prisma connection holding the DB open could hang the upgrade. The driver's runtime connections all self-close on `versionchange`, so this is unreachable in normal operation; noted for a future hardening pass.
 
 ---
 
@@ -102,9 +140,11 @@ Third-pass review, triggered by an external request to vet the IDB packages agai
 
 `adapter-idb/src/core/idb-query-ast.ts` gained `IdbNestedCreateAst` and `IdbNestedUpdateAst` (added to the `IdbQueryAst` union), but `store-accessor.ts` never emits them: when `hasNestedMutationCallbacks` is true, `create()`/`update()` call `executeNestedCreateMutation` / `executeNestedUpdateMutation` directly and return, bypassing the plan/`ast` path entirely. Consequence: nested writes are invisible to middleware (the AST is never attached, and `withMutationScope.execute()` bypasses the `RuntimeCore` middleware chain by design — Issue #6). This matches the vendor (transactions bypass per-op middleware there too), so it is not a correctness bug — but the two AST types are currently unreachable. Either wire them into the plan meta (so a cache/logging middleware can at least _observe_ that a nested write happened, even if it can't intercept each sub-op) or delete them.
 
-### 🟡 Issue #22 — recursive nested writes throw a cryptic `DataCloneError`
+### ✅ Issue #22 — recursive nested writes throw a cryptic `DataCloneError` — FIXED 2026-06-04
 
-The vendor's `applyParentOwnedMutation` / `applyChildOwnedMutation` call `createGraph` **recursively**, so nested-within-nested writes work to arbitrary depth. Our IDB port deliberately calls `insertSingleRow` instead ([mutation-executor.ts:359](client-idb/src/core/mutation-executor.ts#L359), [:415](client-idb/src/core/mutation-executor.ts#L415)) and documents "recursive nesting is not supported in Phase 6.4." That is a fine scope cut — but the failure mode is bad: a user who nests a relation callback inside a nested create passes a **function** as a field value, which `insertSingleRow` hands to `store.put(...)`; IDB's structured-clone throws an opaque `DataCloneError` instead of a clear "recursive nested writes are not supported" message. Add an explicit guard in `insertSingleRow` (or in `parseMutationInput` for the nested payload) that detects a relation-callback field and throws a descriptive error.
+The vendor's `applyParentOwnedMutation` / `applyChildOwnedMutation` call `createGraph` **recursively**, so nested-within-nested writes work to arbitrary depth. Our IDB port deliberately calls `insertSingleRow` instead and documents "recursive nesting is not supported in Phase 6.4." That is a fine scope cut — but the failure mode was bad: a user who nested a relation callback inside a nested create passed a **function** as a field value, which `insertSingleRow` handed to `store.put(...)`; IDB's structured-clone threw an opaque `DataCloneError` instead of a clear message.
+
+**Fix.** `insertSingleRow` now calls `assertNoNestedCallbacks(modelName, data)` ([mutation-executor.ts](client-idb/src/core/mutation-executor.ts)), which scans the record for any function-valued field and throws a descriptive _"Recursive nested writes are not supported: field `X` … is a relation callback"_ error before the `put`. Regression test in `client-idb/test/mutation-executor.test.ts` ("rejects recursive nesting with a descriptive error").
 
 ### ✅ Issue #23 — no apply-time integrity check against `migrationHash` — FIXED 2026-05-31
 
@@ -119,9 +159,13 @@ Two faithfulness notes, neither a correctness bug for today's contracts:
 - `upsert()` runs `where().first()` in one transaction, then the put/update in a **second** transaction — a check-then-act race window. The vendor's relational upsert is a single statement. For browser single-user IDB this is low-risk, but worth a doc note (or wrapping both in one `withMutationScope`).
 - Child-owned `connect` uses `scan-write { take: 1 }` (connects the **first** matching child per criterion), whereas the vendor's `executeUpdateCount` connects **all** rows matching the criterion. Identical for unique-key criteria (the normal case); divergent for non-unique criteria. Document the "connect matches one" semantics or drop the `take: 1`.
 
-### 🟢 Issue #25 — two-phase marker write has no crash-recovery guard
+### ✅ Issue #25 — two-phase marker write has no crash-recovery guard — FIXED 2026-06-04
 
-Per ADR 002, the marker is written in a separate `readwrite` transaction _after_ the version-change upgrade commits (`openAndUpgrade` → `onsuccess` → `writeMarker`). If the tab is killed in the window between the upgrade committing and the marker write landing, the schema is advanced but the marker still points at the old `storageHash`. On the next open, `walkChain` re-collects the already-applied ops and `applyOneDdlOp` calls `db.createObjectStore(...)` on a store that already exists → the version-change transaction aborts → the DB is wedged. This is the documented ADR-002 tradeoff, but there is no recovery: `applyOneDdlOp` is not idempotent. Either make the DDL ops tolerant (`if (!db.objectStoreNames.contains(name)) …`) or write the marker inside the same `versionchange` transaction (IDB _can_ write to a normal object store inside `upgradeneeded`, so the "two-phase" split may not even be necessary — worth revisiting ADR 002).
+Per ADR 002, the marker is written in a separate `readwrite` transaction _after_ the version-change upgrade commits (`openAndUpgrade` → `onsuccess` → `writeMarker`). If the tab is killed in the window between the upgrade committing and the marker write landing, the schema is advanced but the marker still points at the old `storageHash`. On the next open, `walkChain` re-collects the already-applied ops and `applyOneDdlOp` calls `db.createObjectStore(...)` on a store that already exists → the version-change transaction aborts → **the DB is wedged permanently** (every subsequent open repeats the failed upgrade).
+
+This was upgraded from 🟢 to a genuine fatal flaw on closer inspection: **ADR 002 actively documented a _false_ safety guarantee** — it claimed DDL ops are "idempotent under 'store already exists' semantics (IDB's own guarantee)". IndexedDB offers no such guarantee; `createObjectStore`/`createIndex` throw `ConstraintError` on an existing target.
+
+**Fix.** `applyOneDdlOp` ([apply-ddl-op.ts](target-idb/src/core/apply-ddl-op.ts)) is now explicitly idempotent — every op is guarded by an existence check (`db.objectStoreNames.contains(...)` for stores, `store.indexNames.contains(...)` for indexes; drops guard the inverse). Replaying an already-applied op is now a no-op, so the post-crash recovery run that ADR 002 describes actually works. ADR 002's false claim and failure-mode table were corrected. Two regression tests added in `target-idb/test/migration.test.ts` ("crash-recovery replay" + idempotent drops) replay the full op set at a bumped version against `fake-indexeddb` and assert no throw. The alternative (writing the marker inside the `versionchange` transaction) remains a possible future simplification but is a larger ADR-002 change; the idempotency guard is the minimal, ADR-aligned fix.
 
 ### ✅ Confirmed-good (re-verified this pass)
 
