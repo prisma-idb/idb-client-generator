@@ -73,24 +73,39 @@ jobs:
       - name: Checkout PR base
         run: git checkout --force ${{ github.event.pull_request.base.sha }}
 
-      - name: Patch base generator tsconfig for HEAD TypeScript
-        # The base may use deprecated TS options (baseUrl, moduleResolution=node) that
-        # TS 6+ treats as errors unless ignoreDeprecations is set. This adds the flag
-        # without touching generated output — it only affects the build tool, not results.
-        run: |
-          node -e "
-            const fs = require('fs');
-            const p = 'packages/generator/tsconfig.json';
-            const cfg = JSON.parse(fs.readFileSync(p, 'utf8'));
-            cfg.compilerOptions = cfg.compilerOptions ?? {};
-            cfg.compilerOptions.ignoreDeprecations = '6.0';
-            fs.writeFileSync(p, JSON.stringify(cfg, null, 2));
-          "
+      - name: Install base dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Rebuild generator at PR base
-        # Reuses HEAD's node_modules — no pnpm install or playwright download needed.
-        working-directory: packages/generator
-        run: pnpm build
+      - name: Ensure Playwright browser is available for base
+        working-directory: apps/benchmark
+        # playwright minor versions often share the same chromium revision — check first
+        # so we skip the download (and avoid a known CI hang) when it's already cached.
+        # If the revision differs, attempt a 90 s download then fall back to symlinking
+        # HEAD's binary so the benchmark still runs rather than blocking indefinitely.
+        run: |
+          REVISION=$(node -e "
+            const {registry} = require('./node_modules/playwright-core/lib/server/registry/index.js');
+            const exec = registry.findExecutable('chromium-headless-shell')
+                      || registry.findExecutable('chromium');
+            process.stdout.write(String(exec.revision));
+          " 2>/dev/null)
+
+          BROWSER_DIR="$HOME/.cache/ms-playwright/chromium_headless_shell-$REVISION"
+          echo "Base playwright needs: chromium_headless_shell-$REVISION"
+
+          if [ -d "$BROWSER_DIR" ]; then
+            echo "Already cached — skipping download."
+          else
+            echo "Not cached. Attempting download (90s timeout)..."
+            timeout 90 pnpm exec playwright install chromium && echo "Downloaded." || {
+              echo "Download failed/timed out. Symlinking HEAD chromium as fallback..."
+              HEAD_DIR=$(ls "$HOME/.cache/ms-playwright" | grep "^chromium_headless_shell-" | head -1)
+              if [ -n "$HEAD_DIR" ]; then
+                ln -sf "$HOME/.cache/ms-playwright/$HEAD_DIR" "$BROWSER_DIR"
+                echo "Symlinked: $HEAD_DIR -> chromium_headless_shell-$REVISION"
+              fi
+            }
+          fi
 
       - name: Generate benchmark clients (PR base)
         working-directory: apps/benchmark
@@ -112,7 +127,7 @@ jobs:
       - name: Restore PR head
         run: |
           git checkout --force ${{ github.sha }}
-          cd packages/generator && pnpm build
+          pnpm install --frozen-lockfile
 
       - name: Compare benchmarks
         working-directory: apps/benchmark
