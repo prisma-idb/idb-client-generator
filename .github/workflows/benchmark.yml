@@ -47,7 +47,7 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
 
-      - name: Install Playwright Browser (PR head)
+      - name: Install Playwright Browser
         working-directory: apps/benchmark
         run: pnpm exec playwright install --with-deps chromium
 
@@ -73,14 +73,24 @@ jobs:
       - name: Checkout PR base
         run: git checkout --force ${{ github.event.pull_request.base.sha }}
 
-      - name: Install base dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Patch base generator tsconfig for HEAD TypeScript
+        # The base may use deprecated TS options (baseUrl, moduleResolution=node) that
+        # TS 6+ treats as errors unless ignoreDeprecations is set. This adds the flag
+        # without touching generated output — it only affects the build tool, not results.
+        run: |
+          node -e "
+            const fs = require('fs');
+            const p = 'packages/generator/tsconfig.json';
+            const cfg = JSON.parse(fs.readFileSync(p, 'utf8'));
+            cfg.compilerOptions = cfg.compilerOptions ?? {};
+            cfg.compilerOptions.ignoreDeprecations = '6.0';
+            fs.writeFileSync(p, JSON.stringify(cfg, null, 2));
+          "
 
-      - name: Sync Playwright browser for base
-        working-directory: apps/benchmark
-        # System deps were already installed above; only syncs the browser binary if the
-        # Playwright version changed between base and head (no-op when versions match).
-        run: pnpm exec playwright install chromium
+      - name: Rebuild generator at PR base
+        # Reuses HEAD's node_modules — no pnpm install or playwright download needed.
+        working-directory: packages/generator
+        run: pnpm build
 
       - name: Generate benchmark clients (PR base)
         working-directory: apps/benchmark
@@ -99,10 +109,10 @@ jobs:
           NEXT_PUBLIC_POSTHOG_HOST: "https://us.i.posthog.com"
         run: pnpm benchmark:ci
 
-      - name: Restore PR head checkout
+      - name: Restore PR head
         run: |
           git checkout --force ${{ github.sha }}
-          pnpm install --frozen-lockfile
+          cd packages/generator && pnpm build
 
       - name: Compare benchmarks
         working-directory: apps/benchmark
