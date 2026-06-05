@@ -1,4 +1,4 @@
-import { Model } from "src/fileCreators/types";
+import { Model } from "../../../../types";
 import CodeBlockWriter from "code-block-writer";
 import { toCamelCase } from "../../../../../helpers/utils";
 
