@@ -78,20 +78,15 @@ jobs:
 
       - name: Ensure Playwright browser is available for base
         working-directory: apps/benchmark
-        # playwright minor versions often share the same chromium revision — check first
-        # so we skip the download (and avoid a known CI hang) when it's already cached.
-        # If the revision differs, attempt a 90 s download then fall back to symlinking
-        # HEAD's binary so the benchmark still runs rather than blocking indefinitely.
+        # Use --dry-run to read the expected install location without downloading.
+        # Minor playwright versions often share the same chromium revision, so the
+        # directory already exists from the HEAD install → skip entirely.
+        # If it genuinely differs, attempt a 90s download then symlink HEAD's binary
+        # as a fallback so CI never hangs indefinitely.
         run: |
-          REVISION=$(node -e "
-            const {registry} = require('./node_modules/playwright-core/lib/server/registry/index.js');
-            const exec = registry.findExecutable('chromium-headless-shell')
-                      || registry.findExecutable('chromium');
-            process.stdout.write(String(exec.revision));
-          " 2>/dev/null)
-
-          BROWSER_DIR="$HOME/.cache/ms-playwright/chromium_headless_shell-$REVISION"
-          echo "Base playwright needs: chromium_headless_shell-$REVISION"
+          BROWSER_DIR=$(pnpm exec playwright install --dry-run chromium 2>&1 \
+            | awk '/Install location:.*chromium_headless_shell/{print $NF}' | head -1)
+          echo "Base playwright needs: $BROWSER_DIR"
 
           if [ -d "$BROWSER_DIR" ]; then
             echo "Already cached — skipping download."
@@ -101,8 +96,9 @@ jobs:
               echo "Download failed/timed out. Symlinking HEAD chromium as fallback..."
               HEAD_DIR=$(ls "$HOME/.cache/ms-playwright" | grep "^chromium_headless_shell-" | head -1)
               if [ -n "$HEAD_DIR" ]; then
+                mkdir -p "$(dirname "$BROWSER_DIR")"
                 ln -sf "$HOME/.cache/ms-playwright/$HEAD_DIR" "$BROWSER_DIR"
-                echo "Symlinked: $HEAD_DIR -> chromium_headless_shell-$REVISION"
+                echo "Symlinked: $HEAD_DIR -> $BROWSER_DIR"
               fi
             }
           fi
