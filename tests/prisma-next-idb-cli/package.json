@@ -13,6 +13,6 @@
     "@prisma-next-idb/family-idb": "workspace:*",
     "@types/node": "^24.10.9",
     "execa": "^9.6.1",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.8"
   }
 }
