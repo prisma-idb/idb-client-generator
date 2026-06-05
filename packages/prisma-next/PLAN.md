@@ -8,31 +8,32 @@ _Prior context (2026-06-02 — **Phases 6.5, 6.6, and 6.7 shipped**): Include re
 
 _Prior context (2026-05-29 third-pass audit): Phase 7 (migration package layer rewrite, 2026-05-27) addressed Group A + B of [`FEEDBACK.md`](FEEDBACK.md); the 2026-05-28 pass cleaned up the residual Phase-7 bugs; the 2026-05-29 pass found and FIXED a build-breaking type-gate regression in Phase 6.4 ([Issue #20]). Remaining open items are four lower-priority faithfulness/robustness gaps ([Issue #21], [Issue #22], [Issue #24], [Issue #25]) and outbox sync. See [§ Audit 2026-05-29](#audit-2026-05-29)._
 
-| Phase | Description                                                                                       | Status                                                                                                                                                                                                                                                                                                                        |
-| ----- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1     | Codec system (`target-idb`)                                                                       | ✅ Done                                                                                                                                                                                                                                                                                                                       |
-| 2     | Runtime driver (`driver-idb`)                                                                     | ✅ Done — Issue #11 (batch-with-update tx mode) fixed                                                                                                                                                                                                                                                                         |
-| 3     | Query lowering (`adapter-idb`)                                                                    | ✅ Done (passthrough; per-field codec encoding deferred — all codecs identity); Issue #13 (descriptor `.create()` codec wiring) fixed                                                                                                                                                                                         |
-| 4     | Control plane manifest operations (`family-idb`)                                                  | 🪦 Superseded by Phase 7 — manifest deleted, CLI returns `IDB-CLI-UNSUPPORTED` envelopes; the layer that survives is `schema-verify` (pure) + `deserializeContract` (pure)                                                                                                                                                    |
-| 5     | Migration infrastructure (`target-idb/control`)                                                   | ✅ Done — planner + DDL ops + schema diff + 4-file package layout; runner's `executeAcrossSpaces` returns refusal envelope (Phase 7.3)                                                                                                                                                                                        |
-| 6     | IDB ORM lane (`client-idb`) + runtime (`runtime-idb`)                                             | ✅ Done — phases 6.1–6.7 shipped (6.5–6.7 landed 2026-06-02; see [§ Phase 6.5–6.7](#phase-65-67-include-refinement-aggregate-select-2026-06-02))                                                                                                                                                                              |
-| 6.1   | Filter expression AST + operator API                                                              | ✅ Done — `IdbFilterExpr` + evaluator + `IdbModelAccessor` proxy + `and/or/not`; shorthand `null` lifts to null-check                                                                                                                                                                                                         |
-| 6.2   | Missing CRUD terminals (update, upsert, createAll/Count, deleteAll/Count, updateAll/Count, count) | ✅ Done — vendor naming adopted; `IdbScanWritePlan` + `IdbBatchPlan` driver primitives; 9 new ORM methods; known gap: `.where()` enforcement not compile-time-checked                                                                                                                                                         |
-| 6.3   | Multi-store transaction support                                                                   | ✅ Done — `IdbTransactionScope` + `createTransactionScope` in driver; `withMutationScope` + `IdbQueryExecutorWithTransaction` in client; `IdbRuntime.transaction()` wired; Issue #6 resolved                                                                                                                                  |
-| 6.4   | Nested relation writes (create/connect/disconnect)                                                | ✅ Done — `IdbRelationMutator` + `mutation-executor.ts` + `relation-mutator.ts`; `create()`/`update()` detect callbacks and open multi-store transactions; FK validation in `connect()`. 14 vitest + 3 Playwright spec files green; `tsc --noEmit` now clean ([Issue #20] fixed 2026-05-29). Still uncommitted at audit time. |
-| 6.5   | Include refinement (where/orderBy/take inside include)                                            | ✅ Done (2026-06-02) — `include(rel, refineFn)`; refined child accessor builds `IncludeEntry`; per-parent orderBy/skip/take + refined where in `relation-loader`; scalar `count()` via refinement-mode `count()` → `IdbIncludeScalar`                                                                                         |
-| 6.6   | Aggregate / groupBy                                                                               | ✅ Done (2026-06-02) — `aggregate-builder.ts` (count/sum/avg/min/max + in-memory reducer) + `grouped-accessor.ts`; standalone `.aggregate()` + `.groupBy(...).aggregate()`; `IdbAggregateAst` / `IdbGroupByAst` attached to the materialising scan                                                                            |
-| 6.7   | Select projection                                                                                 | ✅ Done (2026-06-02) — `select(...)` adds `TSelected` type param + `selectedFields` state; projection runs after relation loads (FK fields survive includes); `SelectedRow` narrows the row type                                                                                                                              |
-| 7     | Migration package layer rewrite (Group A + B feedback)                                            | ✅ Done — see [plans/](plans/) for the 8 per-phase docs (7.1–7.8)                                                                                                                                                                                                                                                             |
-| 7.1   | Foundation: `IdbMigration` base + `MigrationCLI` shim                                             | ✅ Done                                                                                                                                                                                                                                                                                                                       |
-| 7.2   | Planner refit: class-based `migration.ts` scaffold                                                | ✅ Done                                                                                                                                                                                                                                                                                                                       |
-| 7.3   | Runner refit + manifest demolition + control-instance refusal                                     | ✅ Done                                                                                                                                                                                                                                                                                                                       |
-| 7.4   | Browser runtime refit: walk `contractSpace.migrations`; safe policy; `versionchange`              | ✅ Done                                                                                                                                                                                                                                                                                                                       |
-| 7.5   | ContractSpace codegen (`prisma-next-idb generate-contract-space`)                                 | ✅ Done                                                                                                                                                                                                                                                                                                                       |
-| 7.6   | Migration preflight (`prisma-next-idb preflight`)                                                 | ✅ Done                                                                                                                                                                                                                                                                                                                       |
-| 7.7   | Migrate `apps/prisma-next-usage`                                                                  | ✅ Done in code; **stale `prisma-next.config.ts` driver ref + leftover `prisma-idb.manifest.json` cleaned up in audit 2026-05-28** ([Issue #17])                                                                                                                                                                              |
-| 7.8   | Cleanups closure + memory + this status                                                           | ✅ Done                                                                                                                                                                                                                                                                                                                       |
-| 8     | Outbox sync                                                                                       | ❌ Not started (was Phase 7 in older docs; renumbered after the migration-rewrite landed)                                                                                                                                                                                                                                     |
+| Phase | Description                                                                                       | Status                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ----- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | Codec system (`target-idb`)                                                                       | ✅ Done                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 2     | Runtime driver (`driver-idb`)                                                                     | ✅ Done — Issue #11 (batch-with-update tx mode) fixed                                                                                                                                                                                                                                                                                                                                                                      |
+| 3     | Query lowering (`adapter-idb`)                                                                    | ✅ Done (passthrough; per-field codec encoding deferred — all codecs identity); Issue #13 (descriptor `.create()` codec wiring) fixed                                                                                                                                                                                                                                                                                      |
+| 4     | Control plane manifest operations (`family-idb`)                                                  | 🪦 Superseded by Phase 7 — manifest deleted, CLI returns `IDB-CLI-UNSUPPORTED` envelopes; the layer that survives is `schema-verify` (pure) + `deserializeContract` (pure)                                                                                                                                                                                                                                                 |
+| 5     | Migration infrastructure (`target-idb/control`)                                                   | ✅ Done — planner + DDL ops + schema diff + 4-file package layout; runner's `executeAcrossSpaces` returns refusal envelope (Phase 7.3)                                                                                                                                                                                                                                                                                     |
+| 6     | IDB ORM lane (`client-idb`) + runtime (`runtime-idb`)                                             | ✅ Done — phases 6.1–6.7 shipped (6.5–6.7 landed 2026-06-02; see [§ Phase 6.5–6.7](#phase-65-67-include-refinement-aggregate-select-2026-06-02))                                                                                                                                                                                                                                                                           |
+| 6.1   | Filter expression AST + operator API                                                              | ✅ Done — `IdbFilterExpr` + evaluator + `IdbModelAccessor` proxy + `and/or/not`; shorthand `null` lifts to null-check                                                                                                                                                                                                                                                                                                      |
+| 6.2   | Missing CRUD terminals (update, upsert, createAll/Count, deleteAll/Count, updateAll/Count, count) | ✅ Done — vendor naming adopted; `IdbScanWritePlan` + `IdbBatchPlan` driver primitives; 9 new ORM methods; known gap: `.where()` enforcement not compile-time-checked                                                                                                                                                                                                                                                      |
+| 6.3   | Multi-store transaction support                                                                   | ✅ Done — `IdbTransactionScope` + `createTransactionScope` in driver; `withMutationScope` + `IdbQueryExecutorWithTransaction` in client; `IdbRuntime.transaction()` wired; Issue #6 resolved                                                                                                                                                                                                                               |
+| 6.4   | Nested relation writes (create/connect/disconnect)                                                | ✅ Done — `IdbRelationMutator` + `mutation-executor.ts` + `relation-mutator.ts`; `create()`/`update()` detect callbacks and open multi-store transactions; FK validation in `connect()`. 14 vitest + 3 Playwright spec files green; `tsc --noEmit` now clean ([Issue #20] fixed 2026-05-29). Still uncommitted at audit time. Scalar FK validation + full referential action enforcement on delete completed in Phase 6.8. |
+| 6.5   | Include refinement (where/orderBy/take inside include)                                            | ✅ Done (2026-06-02) — `include(rel, refineFn)`; refined child accessor builds `IncludeEntry`; per-parent orderBy/skip/take + refined where in `relation-loader`; scalar `count()` via refinement-mode `count()` → `IdbIncludeScalar`                                                                                                                                                                                      |
+| 6.6   | Aggregate / groupBy                                                                               | ✅ Done (2026-06-02) — `aggregate-builder.ts` (count/sum/avg/min/max + in-memory reducer) + `grouped-accessor.ts`; standalone `.aggregate()` + `.groupBy(...).aggregate()`; `IdbAggregateAst` / `IdbGroupByAst` attached to the materialising scan                                                                                                                                                                         |
+| 6.7   | Select projection                                                                                 | ✅ Done (2026-06-02) — `select(...)` adds `TSelected` type param + `selectedFields` state; projection runs after relation loads (FK fields survive includes); `SelectedRow` narrows the row type                                                                                                                                                                                                                           |
+| 6.8   | FK validation + referential action enforcement                                                    | ❌ Not started — `IdbReferentialAction` in `IdbModelStorage`; `onDelete?` in `RelationDef`; scalar FK validation on create/update; cascade/setNull/setDefault/restrict on delete via `withMutationScope`. See [ADR 009](docs/adrs/ADR%20009%20-%20FK%20Validation%20and%20Referential%20Action%20Enforcement.md).                                                                                                          |
+| 7     | Migration package layer rewrite (Group A + B feedback)                                            | ✅ Done — see [plans/](plans/) for the 8 per-phase docs (7.1–7.8)                                                                                                                                                                                                                                                                                                                                                          |
+| 7.1   | Foundation: `IdbMigration` base + `MigrationCLI` shim                                             | ✅ Done                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 7.2   | Planner refit: class-based `migration.ts` scaffold                                                | ✅ Done                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 7.3   | Runner refit + manifest demolition + control-instance refusal                                     | ✅ Done                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 7.4   | Browser runtime refit: walk `contractSpace.migrations`; safe policy; `versionchange`              | ✅ Done                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 7.5   | ContractSpace codegen (`prisma-next-idb generate-contract-space`)                                 | ✅ Done                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 7.6   | Migration preflight (`prisma-next-idb preflight`)                                                 | ✅ Done                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 7.7   | Migrate `apps/prisma-next-usage`                                                                  | ✅ Done in code; **stale `prisma-next.config.ts` driver ref + leftover `prisma-idb.manifest.json` cleaned up in audit 2026-05-28** ([Issue #17])                                                                                                                                                                                                                                                                           |
+| 7.8   | Cleanups closure + memory + this status                                                           | ✅ Done                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 8     | Outbox sync                                                                                       | ❌ Not started (was Phase 7 in older docs; renumbered after the migration-rewrite landed)                                                                                                                                                                                                                                                                                                                                  |
 
 ### Test status (run 2026-06-04, after v0.12.0 migration)
 
@@ -1008,6 +1009,8 @@ Port of `sql-orm-client/mutation-executor.ts`:
 
 `create()` and `update()` detect relation callbacks via `hasNestedMutationCallbacks()`. When detected, wrap in `withMutationScope()` (collecting all required store names from the contract's relation graph).
 
+Phase 6.4's `connect()` validates FK existence for parent-owned nested writes. Full scalar FK validation and referential action enforcement on delete are implemented in [Phase 6.8](#phase-68--fk-validation-and-referential-action-enforcement).
+
 ---
 
 ## Phase 6.5 — Include refinement
@@ -1187,6 +1190,120 @@ The family descriptor needs to gain the `PslContractInferCapable` capability. Th
 - IDB cannot infer field types — `manifest.schema` stores only store/index structure, not the shape of records stored in each store. The output would produce `fields: {}` for each model (or omit fields) and the user would need to add them manually.
 - Unlike SQL/Mongo, there is no "live database" to connect to from Node.js — the manifest file IS the schema source. So this is pure manifest → contract translation, not a live introspection.
 - The output format follows whatever `prisma-next contract infer` emits for SQL families (PSL or JSON) — check the framework's `PslContractInferCapable` interface for the expected return type.
+
+---
+
+## Phase 6.8 — FK validation and referential action enforcement
+
+**Goal:** Eliminate dangling FK references. Every write that touches a FK field must validate the referenced record exists; every delete must enforce the declared `onDelete` action on child records. See [ADR 009](docs/adrs/ADR%20009%20-%20FK%20Validation%20and%20Referential%20Action%20Enforcement.md).
+
+### Reference
+
+Legacy `packages/generator/src/fileCreators/.../api/delete.ts` — full cascade/setNull/setDefault/restrict implementation via Prisma DMMF `field.relationOnDelete`. The pattern is identical; the data source changes from DMMF to `IdbModelStorage.relations`.
+
+SQL ORM: referential actions are enforced at the database level via DDL (`ON DELETE CASCADE`). IDB has no equivalent, so the ORM must enforce them explicitly — same as MongoDB.
+
+### Step 1 — Extend `IdbModelStorage` (`target-idb/src/core/idb-contract-types.ts`)
+
+```ts
+export type IdbReferentialAction = "cascade" | "setNull" | "setDefault" | "restrict" | "noAction";
+
+export type IdbRelationStorage = {
+  readonly onDelete?: IdbReferentialAction; // omitted = 'restrict'
+};
+
+// Add to IdbModelStorage:
+export type IdbModelStorage = {
+  readonly storeName: string;
+  readonly keyPath: string;
+  readonly relations?: Record<string, IdbRelationStorage>; // keyed by relation name
+};
+```
+
+Export `IdbReferentialAction` and `IdbRelationStorage` from `target-idb/src/exports/pack.ts`.
+
+### Step 2 — Expose `onDelete` in `RelationDef` (`family-idb/src/core/contract-builder.ts`)
+
+```ts
+export type RelationDef = {
+  readonly to: string;
+  readonly cardinality: "1:1" | "1:N" | "N:1";
+  readonly on: { readonly local: readonly string[]; readonly target: readonly string[] };
+  readonly onDelete?: IdbReferentialAction; // new; omitted = 'restrict'
+};
+```
+
+Update `buildModels()` (and the `storage` assembly) to write `onDelete` into `IdbModelStorage.relations[relName]` when specified.
+
+### Step 3 — Scalar FK validation on create/update (`client-idb/src/core/mutation-executor.ts`)
+
+Add `validateScalarForeignKeys(scope, contract, modelName, scalarData)`:
+
+1. For every N:1 relation on `modelName` (where the local model holds the FK): check whether `localFields[0]` is present and non-null in `scalarData`.
+2. If yes, open a cursor-scan on the related store filtered by the FK value against `targetFields[0]`.
+3. If no matching row is found, throw `"FK validation failed: no <RelatedModel> with <targetField>='<value>'"`.
+
+Call this from `insertSingleRow` and `updateFirstGraph` before the `put`/`update` plan is executed. Since these already run inside `withMutationScope` for nested writes, the related store must be included in the store list collected by `collectStoreNames`.
+
+Update `collectStoreNames` to also include stores for N:1 relations whose FK fields appear in the scalar data (non-null).
+
+### Step 4 — Referential action enforcement on delete (`client-idb/src/core/mutation-executor.ts`)
+
+Add `executeNestedDeleteMutation(options: { executor, contract, modelName, key })`:
+
+1. Walk all relations on `modelName` to find **child** models — 1:N relations where `cardinality === '1:N'` (the related model holds the FK pointing back to this one).
+2. For each child relation, read `(contractModels(contract)[modelName].storage as IdbModelStorage).relations?.[relName]?.onDelete ?? 'restrict'`.
+3. Based on the action:
+   - **`cascade`**: `scope.execute({ kind: 'scan-write', write: 'delete', ... })` on the child store, filtered by the parent FK value.
+   - **`setNull`**: `scope.execute({ kind: 'scan-write', write: 'put-merged', patch: { [fkField]: null }, ... })` on the child store.
+   - **`setDefault`**: `scope.execute({ kind: 'scan-write', write: 'put-merged', patch: { [fkField]: <default> }, ... })`. IDB has no server-side defaults; for Phase 6.8, emit a runtime error if `setDefault` is declared without a way to derive the default — defer default-value support to a follow-up.
+   - **`restrict`** (default when `onDelete` is omitted): cursor-scan the child store; if any rows are found, throw `"Cannot delete <Model>: <ChildModel> records still reference it"`.
+   - **`noAction`**: skip — proceed without touching child records. Caller explicitly accepts responsibility for orphaned FKs.
+4. Collect all affected child store names upfront; wrap everything in `withMutationScope(executor, [parentStore, ...childStores], ...)`.
+
+Update `store-accessor.ts` `delete()` / `deleteAll()` / `deleteCount()` to call `executeNestedDeleteMutation` when the model has any 1:N relations. The check is cheap (one `getRelationDefinitions` call, same cache used by Phase 6.4).
+
+For `deleteAll()` / `deleteCount()`: apply referential actions per deleted row inside the same multi-store transaction (iterate the matching rows, run `executeNestedDeleteMutation` for each within the scope).
+
+### Step 5 — Tests
+
+**`client-idb/test/referential-actions.test.ts`** (new, via `fake-indexeddb`):
+
+| Test                                            | What it covers                                       |
+| ----------------------------------------------- | ---------------------------------------------------- |
+| `cascade` — deleting parent deletes children    | `onDelete: 'cascade'` on a 1:N relation              |
+| `cascade` — parent with no children             | `delete()` succeeds cleanly                          |
+| `cascade` — only related children deleted       | Multiple parents; only the target's children cascade |
+| `setNull` — FK set to null on parent delete     | `onDelete: 'setNull'`                                |
+| `restrict` — throws when children exist         | `onDelete: 'restrict'`                               |
+| `restrict` — succeeds when no children          | `onDelete: 'restrict'`, no dependents                |
+| Scalar FK validation — rejects bad FK on create | Non-existent referenced record throws                |
+| Scalar FK validation — accepts valid FK         | Referenced record exists; create succeeds            |
+| Scalar FK validation — null FK skips check      | `userId: null` is valid (optional relation)          |
+| `deleteAll` with cascade                        | Multiple rows deleted; children cascade per row      |
+
+**`apps/prisma-next-usage/tests/referentialActions/`** (new Playwright spec files):
+
+- `cascade.spec.ts`
+- `restrict.spec.ts`
+
+Mirror the pattern from `apps/usage/tests/schema/ReferentialActions/` (the legacy generator's existing coverage).
+
+### Demo app schema
+
+Add a `@relation(onDelete: Cascade)` relation to the demo app's Prisma schema (or equivalent `RelationDef` in `defineContract()`), regenerate the contract, and wire up the Playwright specs.
+
+### Files changed
+
+| File                                                        | Change                                                                                     |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `target-idb/src/core/idb-contract-types.ts`                 | Add `IdbReferentialAction`, `IdbRelationStorage`; extend `IdbModelStorage`                 |
+| `target-idb/src/exports/pack.ts`                            | Re-export new types                                                                        |
+| `family-idb/src/core/contract-builder.ts`                   | Add `onDelete?` to `RelationDef`; write into `IdbModelStorage.relations`                   |
+| `client-idb/src/core/mutation-executor.ts`                  | Add `validateScalarForeignKeys`, `executeNestedDeleteMutation`; update `collectStoreNames` |
+| `client-idb/src/core/store-accessor.ts`                     | Update `delete()` / `deleteAll()` / `deleteCount()` to call `executeNestedDeleteMutation`  |
+| `client-idb/test/referential-actions.test.ts`               | New — vitest coverage via `fake-indexeddb`                                                 |
+| `apps/prisma-next-usage/tests/referentialActions/*.spec.ts` | New — Playwright integration specs                                                         |
 
 ---
 
