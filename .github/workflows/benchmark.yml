@@ -20,14 +20,14 @@ env:
   BENCHMARK_MEASURED_RUNS: "30"
 
 jobs:
-  benchmark-head:
+  benchmark-pr-compare:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -47,11 +47,11 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
 
-      - name: Install Playwright Browser
+      - name: Install Playwright Browser (PR head)
         working-directory: apps/benchmark
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Generate benchmark clients
+      - name: Generate benchmark clients (PR head)
         working-directory: apps/benchmark
         run: pnpm generate
         env:
@@ -70,45 +70,19 @@ jobs:
           mkdir -p "$RUNNER_TEMP/benchmark-results"
           pnpm benchmark:ci
 
-      - name: Upload head benchmark result
-        uses: actions/upload-artifact@v4
-        with:
-          name: benchmark-result-head
-          path: ${{ runner.temp }}/benchmark-results/current.json
-          retention-days: 1
+      - name: Checkout PR base
+        run: git checkout --force ${{ github.event.pull_request.base.sha }}
 
-  benchmark-base:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-          cache: pnpm
-
-      - name: Install package dependencies
+      - name: Install base dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Restore Playwright browser cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
-
-      - name: Install Playwright Browser
+      - name: Sync Playwright browser for base
         working-directory: apps/benchmark
-        run: pnpm exec playwright install --with-deps chromium
+        # System deps were already installed above; only syncs the browser binary if the
+        # Playwright version changed between base and head (no-op when versions match).
+        run: pnpm exec playwright install chromium
 
-      - name: Generate benchmark clients
+      - name: Generate benchmark clients (PR base)
         working-directory: apps/benchmark
         run: pnpm generate
         env:
@@ -123,52 +97,12 @@ jobs:
           BENCHMARK_RESULT_PATH: ${{ runner.temp }}/benchmark-results/baseline.json
           NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: ""
           NEXT_PUBLIC_POSTHOG_HOST: "https://us.i.posthog.com"
+        run: pnpm benchmark:ci
+
+      - name: Restore PR head checkout
         run: |
-          mkdir -p "$RUNNER_TEMP/benchmark-results"
-          pnpm benchmark:ci
-
-      - name: Upload base benchmark result
-        uses: actions/upload-artifact@v4
-        with:
-          name: benchmark-result-base
-          path: ${{ runner.temp }}/benchmark-results/baseline.json
-          retention-days: 1
-
-  benchmark-compare:
-    if: github.event_name == 'pull_request'
-    needs: [benchmark-head, benchmark-base]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: write
-      pull-requests: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-          cache: pnpm
-
-      - name: Install package dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Download head benchmark result
-        uses: actions/download-artifact@v4
-        with:
-          name: benchmark-result-head
-          path: ${{ runner.temp }}/benchmark-results
-
-      - name: Download base benchmark result
-        uses: actions/download-artifact@v4
-        with:
-          name: benchmark-result-base
-          path: ${{ runner.temp }}/benchmark-results
+          git checkout --force ${{ github.sha }}
+          pnpm install --frozen-lockfile
 
       - name: Compare benchmarks
         working-directory: apps/benchmark
@@ -196,8 +130,7 @@ jobs:
         working-directory: apps/benchmark
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          pnpm benchmark:comment --body-file "$RUNNER_TEMP/benchmark-results/report.md"
+        run: pnpm benchmark:comment --body-file "$RUNNER_TEMP/benchmark-results/report.md"
 
       - name: Upload benchmark artifacts
         if: ${{ !cancelled() }}
