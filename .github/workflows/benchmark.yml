@@ -70,37 +70,36 @@ jobs:
           mkdir -p "$RUNNER_TEMP/benchmark-results"
           pnpm benchmark:ci
 
+      - name: Save HEAD chromium directory
+        run: |
+          HEAD_CHROMIUM=$(ls ~/.cache/ms-playwright | grep '^chromium_headless_shell-' | head -1)
+          echo "HEAD_CHROMIUM=$HEAD_CHROMIUM" >> $GITHUB_ENV
+
       - name: Checkout PR base
         run: git checkout --force ${{ github.event.pull_request.base.sha }}
 
       - name: Install base dependencies
-        run: pnpm install --frozen-lockfile
+        # PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 prevents playwright 1.x postinstall hooks
+        # from running, which would otherwise delete HEAD's chromium revision as "unused".
+        run: PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 pnpm install --frozen-lockfile
 
       - name: Ensure Playwright browser is available for base
         working-directory: apps/benchmark
-        # Use --dry-run to read the expected install location without downloading.
-        # Minor playwright versions often share the same chromium revision, so the
-        # directory already exists from the HEAD install → skip entirely.
-        # If it genuinely differs, attempt a 90s download then symlink HEAD's binary
-        # as a fallback so CI never hangs indefinitely.
+        # HEAD's browser is still intact (PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD prevented deletion).
+        # If base needs a different revision, symlink HEAD's binary — same chromium engine,
+        # close enough for benchmark comparison purposes.
         run: |
           BROWSER_DIR=$(pnpm exec playwright install --dry-run chromium 2>&1 \
             | awk '/Install location:.*chromium_headless_shell/{print $NF}' | head -1)
           echo "Base playwright needs: $BROWSER_DIR"
 
           if [ -d "$BROWSER_DIR" ]; then
-            echo "Already cached — skipping download."
+            echo "Already present — skipping."
           else
-            echo "Not cached. Attempting download (90s timeout)..."
-            timeout 90 pnpm exec playwright install chromium && echo "Downloaded." || {
-              echo "Download failed/timed out. Symlinking HEAD chromium as fallback..."
-              HEAD_DIR=$(ls "$HOME/.cache/ms-playwright" | grep "^chromium_headless_shell-" | head -1)
-              if [ -n "$HEAD_DIR" ]; then
-                mkdir -p "$(dirname "$BROWSER_DIR")"
-                ln -sf "$HOME/.cache/ms-playwright/$HEAD_DIR" "$BROWSER_DIR"
-                echo "Symlinked: $HEAD_DIR -> $BROWSER_DIR"
-              fi
-            }
+            echo "Different revision. Symlinking HEAD chromium ($HEAD_CHROMIUM)..."
+            mkdir -p "$(dirname "$BROWSER_DIR")"
+            ln -sf "$HOME/.cache/ms-playwright/$HEAD_CHROMIUM" "$BROWSER_DIR"
+            echo "Symlinked: $HEAD_CHROMIUM -> $BROWSER_DIR"
           fi
 
       - name: Generate benchmark clients (PR base)
