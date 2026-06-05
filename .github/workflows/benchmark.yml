@@ -74,6 +74,7 @@ jobs:
         run: |
           git checkout --force ${{ github.event.pull_request.base.sha }}
           pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
           pushd apps/benchmark
           DATABASE_URL="postgresql://placeholder@localhost:5432/placeholder" pnpm generate
           BENCHMARK_DATASET_SIZE="${{ env.BENCHMARK_DATASET_SIZE }}" \
