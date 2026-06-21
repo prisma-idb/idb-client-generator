@@ -1,6 +1,6 @@
 {
   "name": "@prisma-next-idb/target-idb",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Prisma Next IDB family — target pack (identity, migration runner, DDL op factories)",
   "license": "MIT",
   "files": ["dist"],
