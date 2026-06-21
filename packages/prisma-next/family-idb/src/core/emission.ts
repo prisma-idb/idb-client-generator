@@ -111,9 +111,12 @@ export const idbEmission = {
     // the contract's storage namespaces so the emitted storage type satisfies StorageBase.
     const nsEntries: string[] = [];
     for (const [nsId, ns] of Object.entries(
-      (storage as unknown as { namespaces?: Record<string, { id: string }> }).namespaces ?? {}
+      (storage as unknown as { namespaces?: Record<string, { id: string; entries?: Record<string, unknown> }> })
+        .namespaces ?? {}
     ).sort(([a], [b]) => a.localeCompare(b))) {
-      nsEntries.push(`readonly ${serializeObjectKey(nsId)}: { readonly id: ${serializeValue(ns.id)} }`);
+      nsEntries.push(
+        `readonly ${serializeObjectKey(nsId)}: { readonly id: ${serializeValue(ns.id)}; readonly entries: ${serializeValue(ns.entries ?? {})} }`
+      );
     }
     const namespacesType = nsEntries.length > 0 ? `{ ${nsEntries.join("; ")} }` : "Record<string, never>";
 

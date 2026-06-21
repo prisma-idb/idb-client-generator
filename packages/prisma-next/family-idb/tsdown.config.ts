@@ -5,6 +5,7 @@ export default defineConfig({
     "src/exports/pack.ts",
     "src/exports/control.ts",
     "src/exports/contract-ts.ts",
+    "src/exports/contract-psl.ts",
     "src/exports/config-types.ts",
     "src/bin/prisma-next-idb.ts",
   ],
