@@ -4,6 +4,7 @@ import { UNBOUND_DOMAIN_NAMESPACE_ID, crossRef } from "@prisma-next/contract/typ
 import type {
   IdbIndexDefinition,
   IdbModelStorage,
+  IdbReferentialAction,
   IdbStorage,
   IdbStoreDefinition,
 } from "@prisma-next-idb/target-idb/pack";
@@ -40,6 +41,7 @@ export type RelationDef = {
     readonly local: readonly string[];
     readonly target: readonly string[];
   };
+  readonly onDelete?: IdbReferentialAction;
 };
 
 export type IndexDef = {
@@ -134,6 +136,7 @@ function buildModels(models: Record<string, ModelDef>): Record<string, ContractM
   const result: Record<string, ContractModelEntry> = {};
   for (const [modelName, def] of Object.entries(models)) {
     const relations: ContractModelEntry["relations"] = {};
+    const relationsStorage: Record<string, { onDelete: IdbReferentialAction }> = {};
     for (const [relName, rel] of Object.entries(def.relations ?? {})) {
       relations[relName] = {
         // v0.12.0: relation `to` is a CrossReference, not a bare model-name string.
@@ -141,12 +144,15 @@ function buildModels(models: Record<string, ModelDef>): Record<string, ContractM
         cardinality: rel.cardinality,
         on: { localFields: rel.on.local, targetFields: rel.on.target },
       };
+      if (rel.onDelete !== undefined) {
+        relationsStorage[relName] = { onDelete: rel.onDelete };
+      }
     }
-    result[modelName] = {
-      fields: buildFields(def.fields),
-      relations,
-      storage: { storeName: def.store, keyPath: def.key },
-    };
+    const storage: IdbModelStorage =
+      Object.keys(relationsStorage).length > 0
+        ? { storeName: def.store, keyPath: def.key, relations: relationsStorage }
+        : { storeName: def.store, keyPath: def.key };
+    result[modelName] = { fields: buildFields(def.fields), relations, storage };
   }
   return result;
 }

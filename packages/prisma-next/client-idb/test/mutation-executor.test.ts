@@ -7,6 +7,7 @@
  *   executeNestedCreateMutation — N:1 nested connect
  *   executeNestedUpdateMutation — N:1 connect + disconnect, 1:N disconnect
  *   atomicity — rollback when nested write fails
+ *   scalar FK validation — create/update with FK fields validated against target store
  */
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -22,6 +23,7 @@ import {
   executeNestedCreateMutation,
   executeNestedUpdateMutation,
   hasNestedMutationCallbacks,
+  hasScalarFkFields,
 } from "../src/core/mutation-executor";
 
 // ── Test contract ─────────────────────────────────────────────────────────────
@@ -460,5 +462,107 @@ describe("upsert — atomic path (transaction-capable executor)", () => {
     const users = await getAllRows(db, "users");
     expect(users).toHaveLength(1);
     expect(users[0]?.["name"]).toBe("Updated");
+  });
+});
+
+// ── hasScalarFkFields ─────────────────────────────────────────────────────────
+
+describe("hasScalarFkFields", () => {
+  it("returns true when a N:1 localField is present and non-null", () => {
+    expect(hasScalarFkFields(contract, "Post", { id: "p1", authorId: "u1", title: "T" })).toBe(true);
+  });
+
+  it("returns false when the FK field is null", () => {
+    expect(hasScalarFkFields(contract, "Post", { id: "p1", authorId: null, title: "T" })).toBe(false);
+  });
+
+  it("returns false when the FK field is absent", () => {
+    expect(hasScalarFkFields(contract, "Post", { id: "p1", title: "T" })).toBe(false);
+  });
+
+  it("returns false for a model with no N:1 relations", () => {
+    expect(hasScalarFkFields(contract, "User", { id: "u1", name: "Alice" })).toBe(false);
+  });
+});
+
+// ── scalar FK validation — create ─────────────────────────────────────────────
+
+describe("scalar FK validation — create()", () => {
+  let db: IDBDatabase;
+  let executor: TestExecutorWithTransaction;
+
+  beforeEach(async () => {
+    const name = nextDbName();
+    db = await openTestDb(name);
+    executor = new TestExecutorWithTransaction(createIDBRuntimeDriver(name).create());
+  });
+  afterEach(() => db.close());
+
+  it("create with valid FK succeeds and stores the record", async () => {
+    const orm = idbOrm({ contract, executor });
+    await orm["users"]!.create({ id: "u1", name: "Alice" } as never);
+    const post = await orm["posts"]!.create({ id: "p1", title: "Hello", authorId: "u1" } as never);
+    expect(post).toMatchObject({ id: "p1", authorId: "u1" });
+    const posts = await getAllRows(db, "posts");
+    expect(posts).toHaveLength(1);
+  });
+
+  it("create with nonexistent FK throws a descriptive FK violation error", async () => {
+    const orm = idbOrm({ contract, executor });
+    await expect(orm["posts"]!.create({ id: "p1", title: "Hello", authorId: "nonexistent" } as never)).rejects.toThrow(
+      /FK violation.*author.*nonexistent/i
+    );
+  });
+
+  it("create with null FK field skips validation and stores the record", async () => {
+    const orm = idbOrm({ contract, executor });
+    const post = await orm["posts"]!.create({ id: "p1", title: "Hello", authorId: null } as never);
+    expect(post).toMatchObject({ id: "p1", authorId: null });
+  });
+
+  it("create without FK field present skips validation and stores the record", async () => {
+    const orm = idbOrm({ contract, executor });
+    const post = await orm["posts"]!.create({ id: "p1", title: "Hello" } as never);
+    expect(post).toMatchObject({ id: "p1" });
+  });
+});
+
+// ── scalar FK validation — update ─────────────────────────────────────────────
+
+describe("scalar FK validation — update()", () => {
+  let db: IDBDatabase;
+  let executor: TestExecutorWithTransaction;
+
+  beforeEach(async () => {
+    const name = nextDbName();
+    db = await openTestDb(name);
+    executor = new TestExecutorWithTransaction(createIDBRuntimeDriver(name).create());
+  });
+  afterEach(() => db.close());
+
+  it("update with valid FK succeeds and updates the record", async () => {
+    const orm = idbOrm({ contract, executor });
+    await orm["users"]!.create({ id: "u1", name: "Alice" } as never);
+    await orm["users"]!.create({ id: "u2", name: "Bob" } as never);
+    await orm["posts"]!.create({ id: "p1", title: "Hello", authorId: "u1" } as never);
+    const updated = await orm["posts"]!.where({ id: "p1" } as never).update({ authorId: "u2" } as never);
+    expect(updated).toMatchObject({ id: "p1", authorId: "u2" });
+  });
+
+  it("update with nonexistent FK throws a descriptive FK violation error", async () => {
+    const orm = idbOrm({ contract, executor });
+    await orm["users"]!.create({ id: "u1", name: "Alice" } as never);
+    await orm["posts"]!.create({ id: "p1", title: "Hello", authorId: "u1" } as never);
+    await expect(orm["posts"]!.where({ id: "p1" } as never).update({ authorId: "ghost" } as never)).rejects.toThrow(
+      /FK violation.*author.*ghost/i
+    );
+  });
+
+  it("update setting FK to null skips validation", async () => {
+    const orm = idbOrm({ contract, executor });
+    await orm["users"]!.create({ id: "u1", name: "Alice" } as never);
+    await orm["posts"]!.create({ id: "p1", title: "Hello", authorId: "u1" } as never);
+    const updated = await orm["posts"]!.where({ id: "p1" } as never).update({ authorId: null } as never);
+    expect(updated).toMatchObject({ id: "p1", authorId: null });
   });
 });

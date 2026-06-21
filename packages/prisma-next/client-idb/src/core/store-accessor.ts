@@ -59,9 +59,15 @@ import { type IdbGroupedAccessor, createGroupedAccessor } from "./grouped-access
 import type { IdbQueryExecutor } from "./executor";
 import { loadRelation } from "./relation-loader";
 import {
+  executeDeleteAllWithReferentialActions,
+  executeDeleteWithReferentialActions,
   executeNestedCreateMutation,
   executeNestedUpdateMutation,
+  executeScalarCreateWithFkValidation,
+  executeScalarUpdateWithFkValidation,
+  hasEnforceableChildRelations,
   hasNestedMutationCallbacks,
+  hasScalarFkFields,
   requireTransactionExecutor,
 } from "./mutation-executor";
 import { withMutationScope, type IdbQueryExecutorWithTransaction } from "./mutation-scope";
@@ -536,6 +542,16 @@ export class IdbStoreAccessorImpl<
       return row as DefaultModelRow<TContract, ModelName>;
     }
 
+    if (hasScalarFkFields(this.#contract, this.#modelName, record)) {
+      const row = await executeScalarCreateWithFkValidation({
+        executor: requireTransactionExecutor(this.#executor),
+        contract: this.#contract,
+        modelName: this.#modelName,
+        data: record,
+      });
+      return row as DefaultModelRow<TContract, ModelName>;
+    }
+
     const groupingKey = this.#newGroupingKey();
     const meta = this.#planMeta(groupingKey);
     const ast: IdbCreateAst = { kind: "create", modelName: this.#modelName, data: record };
@@ -567,6 +583,15 @@ export class IdbStoreAccessorImpl<
   }
 
   async delete(key: KeyType<TContract, ModelName>): Promise<void> {
+    if (hasEnforceableChildRelations(this.#contract, this.#modelName)) {
+      await executeDeleteWithReferentialActions({
+        executor: requireTransactionExecutor(this.#executor),
+        contract: this.#contract,
+        modelName: this.#modelName,
+        key: key as IDBValidKey,
+      });
+      return;
+    }
     const groupingKey = this.#newGroupingKey();
     const meta = this.#planMeta(groupingKey);
     const ast: IdbDeleteAst = { kind: "delete", modelName: this.#modelName, key };
@@ -586,6 +611,17 @@ export class IdbStoreAccessorImpl<
 
     if (hasNestedMutationCallbacks(this.#contract, this.#modelName, patchRecord)) {
       const row = await executeNestedUpdateMutation({
+        executor: requireTransactionExecutor(this.#executor),
+        contract: this.#contract,
+        modelName: this.#modelName,
+        filters: this.#state.filters,
+        data: patchRecord,
+      });
+      return row as DefaultModelRow<TContract, ModelName> | null;
+    }
+
+    if (hasScalarFkFields(this.#contract, this.#modelName, patchRecord)) {
+      const row = await executeScalarUpdateWithFkValidation({
         executor: requireTransactionExecutor(this.#executor),
         contract: this.#contract,
         modelName: this.#modelName,
@@ -755,9 +791,27 @@ export class IdbStoreAccessorImpl<
   }
 
   deleteAll(): AsyncIterableResult<DefaultModelRow<TContract, ModelName>> {
-    const groupingKey = this.#newGroupingKey();
     const combined = this.#combinedFilterExpr();
     const filter = combined !== undefined ? (row: Record<string, unknown>) => evaluateFilter(combined, row) : undefined;
+
+    if (hasEnforceableChildRelations(this.#contract, this.#modelName)) {
+      const contract = this.#contract;
+      const modelName = this.#modelName;
+      const executor = requireTransactionExecutor(this.#executor);
+      return new AsyncIterableResult(
+        (async function* (): AsyncGenerator<DefaultModelRow<TContract, ModelName>, void, unknown> {
+          const rows = await executeDeleteAllWithReferentialActions({
+            executor,
+            contract,
+            modelName,
+            ...(filter !== undefined ? { filter } : {}),
+          });
+          for (const row of rows) yield row as DefaultModelRow<TContract, ModelName>;
+        })()
+      );
+    }
+
+    const groupingKey = this.#newGroupingKey();
     const meta = this.#planMeta(groupingKey);
     const ast: IdbDeleteAllAst = {
       kind: "deleteAll",

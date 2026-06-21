@@ -6,6 +6,8 @@ export type {
   IdbContractWithTypeMaps,
   IdbIndexDefinition,
   IdbModelStorage,
+  IdbReferentialAction,
+  IdbRelationStorage,
   IdbStoreDefinition,
   IdbStorage,
   IdbTypeMaps,

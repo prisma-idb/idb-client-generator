@@ -38,15 +38,25 @@ export type IdbIndexDefinition = {
   readonly multiEntry?: boolean;
 };
 
+/** Referential action executed on child rows when a parent row is deleted. */
+export type IdbReferentialAction = "cascade" | "setNull" | "setDefault" | "restrict" | "noAction";
+
+/** Per-relation storage metadata attached to {@link IdbModelStorage}. */
+export type IdbRelationStorage = {
+  readonly onDelete?: IdbReferentialAction;
+};
+
 /**
  * Per-model storage metadata stored in `contract.models[ModelName].storage`.
  *
  * Tells the runtime (and the generated client) which object store owns this model
- * and which field is its primary key.
+ * and which field is its primary key. `relations` carries per-relation enforcement
+ * metadata (e.g. `onDelete`) mirroring the SQL target's FK constraint metadata.
  */
 export type IdbModelStorage = {
   readonly storeName: string;
   readonly keyPath: string;
+  readonly relations?: Record<string, IdbRelationStorage>;
 };
 
 /**

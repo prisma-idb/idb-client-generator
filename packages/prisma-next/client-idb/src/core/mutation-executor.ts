@@ -26,6 +26,7 @@ import { contractModels } from "@prisma-next/contract/types";
 import type { IdbAtomicPlan, IdbCursorScanPlan } from "@prisma-next-idb/driver-idb/runtime";
 import { evaluateFilter, shorthandToFilterExpr } from "@prisma-next-idb/adapter-idb/runtime";
 import type { IdbFilterExpr } from "@prisma-next-idb/adapter-idb/runtime";
+import type { IdbReferentialAction } from "@prisma-next-idb/target-idb/pack";
 import type { IdbQueryExecutor } from "./executor";
 import { withMutationScope, type IdbQueryExecutorWithTransaction } from "./mutation-scope";
 import { createRelationMutator, isRelationMutationCallback, isRelationMutationDescriptor } from "./relation-mutator";
@@ -572,4 +573,266 @@ function buildParentJoinFilter(parentValues: Map<string, unknown>): (row: Record
 function getKeyPath(contract: IdbContract, modelName: string): string {
   const model = contractModels(contract)[modelName];
   return (model?.storage as { keyPath?: string } | undefined)?.keyPath ?? "id";
+}
+
+// ── Referential action helpers ────────────────────────────────────────────────
+
+function getOnDelete(contract: IdbContract, modelName: string, relationName: string): IdbReferentialAction {
+  const model = contractModels(contract)[modelName];
+  const storage = model?.storage as { relations?: Record<string, { onDelete?: string }> } | undefined;
+  return (storage?.relations?.[relationName]?.onDelete ?? "restrict") as IdbReferentialAction;
+}
+
+function isDeleteEnforcementRelation(contract: IdbContract, modelName: string, def: RelationDefinition): boolean {
+  if (def.cardinality === "1:N") return true;
+  if (def.cardinality === "1:1") {
+    const keyPath = getKeyPath(contract, modelName);
+    return def.localFields.length > 0 && def.localFields[0] === keyPath;
+  }
+  return false;
+}
+
+// ── Scalar FK validation ──────────────────────────────────────────────────────
+
+/**
+ * Returns true if `data` contains at least one non-null value for a localField
+ * of a N:1 relation — indicating scalar FK fields that need existence validation.
+ */
+export function hasScalarFkFields(contract: IdbContract, modelName: string, data: Record<string, unknown>): boolean {
+  for (const def of getRelationDefinitions(contract, modelName)) {
+    if (def.cardinality !== "N:1") continue;
+    for (const localField of def.localFields) {
+      if (localField in data && data[localField] !== null && data[localField] !== undefined) return true;
+    }
+  }
+  return false;
+}
+
+function collectScalarFkStoreNames(contract: IdbContract, modelName: string, data: Record<string, unknown>): string[] {
+  const stores = new Set([getStoreName(contract, modelName)]);
+  for (const def of getRelationDefinitions(contract, modelName)) {
+    if (def.cardinality !== "N:1") continue;
+    const hasFkField = def.localFields.some((f) => f in data && data[f] !== null && data[f] !== undefined);
+    if (hasFkField) stores.add(def.relatedStoreName);
+  }
+  return [...stores];
+}
+
+async function validateScalarFks(
+  scope: IdbTransactionScope,
+  contract: IdbContract,
+  modelName: string,
+  data: Record<string, unknown>
+): Promise<void> {
+  const meta = makePlanMeta(contract);
+  for (const def of getRelationDefinitions(contract, modelName)) {
+    if (def.cardinality !== "N:1") continue;
+    for (let i = 0; i < def.localFields.length; i++) {
+      const localField = def.localFields[i]!;
+      const targetField = def.targetFields[i]!;
+      const value = data[localField];
+      if (!(localField in data) || value === null || value === undefined) continue;
+      const filter = (row: Record<string, unknown>): boolean => row[targetField] === value;
+      const plan: IdbCursorScanPlan = {
+        meta,
+        kind: "cursor-scan",
+        storeName: def.relatedStoreName,
+        filter,
+        take: 1,
+      };
+      const rows = await scope.execute(plan as IdbAtomicPlan);
+      if (rows.length === 0) {
+        throw new Error(
+          `FK violation on relation '${def.relationName}': no ${def.relatedModelName} with ${targetField}='${String(value)}'`
+        );
+      }
+    }
+  }
+}
+
+export async function executeScalarCreateWithFkValidation(options: {
+  executor: IdbQueryExecutorWithTransaction;
+  contract: IdbContract;
+  modelName: string;
+  data: Record<string, unknown>;
+}): Promise<Record<string, unknown>> {
+  const { executor, contract, modelName, data } = options;
+  const storeNames = collectScalarFkStoreNames(contract, modelName, data);
+  return withMutationScope(executor, storeNames, async (scope) => {
+    await validateScalarFks(scope, contract, modelName, data);
+    return insertSingleRow(scope, contract, modelName, data);
+  });
+}
+
+export async function executeScalarUpdateWithFkValidation(options: {
+  executor: IdbQueryExecutorWithTransaction;
+  contract: IdbContract;
+  modelName: string;
+  filters: readonly IdbFilterExpr[];
+  data: Record<string, unknown>;
+}): Promise<Record<string, unknown> | null> {
+  const { executor, contract, modelName, filters, data } = options;
+  const storeNames = collectScalarFkStoreNames(contract, modelName, data);
+  return withMutationScope(executor, storeNames, async (scope) => {
+    await validateScalarFks(scope, contract, modelName, data);
+    const storeName = getStoreName(contract, modelName);
+    const meta = makePlanMeta(contract);
+    const combined =
+      filters.length === 0 ? undefined : filters.length === 1 ? filters[0]! : { kind: "and" as const, exprs: filters };
+    const filter =
+      combined !== undefined ? (row: Record<string, unknown>): boolean => evaluateFilter(combined, row) : undefined;
+    const rows = await scope.execute({
+      meta,
+      kind: "scan-write",
+      storeName,
+      write: "put-merged",
+      patch: data,
+      take: 1,
+      ...(filter !== undefined ? { filter } : {}),
+    } as IdbAtomicPlan);
+    return rows[0] ?? null;
+  });
+}
+
+// ── Delete referential action enforcement ─────────────────────────────────────
+
+/**
+ * Returns true if the model has at least one child relation (1:N or parent-side
+ * 1:1) whose `onDelete` action requires enforcement (anything except `noAction`).
+ * Since the default is `restrict`, any model with 1:N/1:1 relations that do not
+ * explicitly set `noAction` returns true.
+ */
+export function hasEnforceableChildRelations(contract: IdbContract, modelName: string): boolean {
+  for (const def of getRelationDefinitions(contract, modelName)) {
+    if (!isDeleteEnforcementRelation(contract, modelName, def)) continue;
+    if (getOnDelete(contract, modelName, def.relationName) !== "noAction") return true;
+  }
+  return false;
+}
+
+function collectDeleteStoreNames(contract: IdbContract, modelName: string): string[] {
+  const stores = new Set([getStoreName(contract, modelName)]);
+  for (const def of getRelationDefinitions(contract, modelName)) {
+    if (!isDeleteEnforcementRelation(contract, modelName, def)) continue;
+    if (getOnDelete(contract, modelName, def.relationName) !== "noAction") {
+      stores.add(def.relatedStoreName);
+    }
+  }
+  return [...stores];
+}
+
+async function applyReferentialActionsForRow(
+  scope: IdbTransactionScope,
+  contract: IdbContract,
+  modelName: string,
+  row: Record<string, unknown>
+): Promise<void> {
+  const meta = makePlanMeta(contract);
+  for (const def of getRelationDefinitions(contract, modelName)) {
+    if (!isDeleteEnforcementRelation(contract, modelName, def)) continue;
+    const action = getOnDelete(contract, modelName, def.relationName);
+    if (action === "noAction") continue;
+
+    // Build the filter matching children of this parent row.
+    const pairs = def.localFields.map((lf, i) => ({ childField: def.targetFields[i]!, parentValue: row[lf] }));
+    const childFilter = (child: Record<string, unknown>): boolean =>
+      pairs.every(({ childField, parentValue }) => child[childField] === parentValue);
+
+    if (action === "restrict") {
+      const found = await scope.execute({
+        meta,
+        kind: "cursor-scan",
+        storeName: def.relatedStoreName,
+        filter: childFilter,
+        take: 1,
+      } as IdbAtomicPlan);
+      if (found.length > 0) {
+        const keyPath = getKeyPath(contract, modelName);
+        throw new Error(
+          `Cannot delete ${modelName} '${String(row[keyPath])}': child records exist on relation '${def.relationName}'. ` +
+            "Use onDelete: 'cascade', 'setNull', or 'noAction'."
+        );
+      }
+      continue;
+    }
+
+    if (action === "cascade") {
+      await scope.execute({
+        meta,
+        kind: "scan-write",
+        storeName: def.relatedStoreName,
+        write: "delete",
+        filter: childFilter,
+      } as IdbAtomicPlan);
+      continue;
+    }
+
+    if (action === "setNull") {
+      const patch: Record<string, unknown> = {};
+      for (const targetField of def.targetFields) patch[targetField] = null;
+      await scope.execute({
+        meta,
+        kind: "scan-write",
+        storeName: def.relatedStoreName,
+        write: "put-merged",
+        patch,
+        filter: childFilter,
+      } as IdbAtomicPlan);
+      continue;
+    }
+
+    if (action === "setDefault") {
+      throw new Error(
+        `setDefault referential action is not supported on relation '${def.relationName}': ` +
+          "IDB contracts do not track field defaults. Use 'cascade', 'setNull', or 'noAction' instead."
+      );
+    }
+  }
+}
+
+export async function executeDeleteWithReferentialActions(options: {
+  executor: IdbQueryExecutorWithTransaction;
+  contract: IdbContract;
+  modelName: string;
+  key: IDBValidKey;
+}): Promise<void> {
+  const { executor, contract, modelName, key } = options;
+  const storeNames = collectDeleteStoreNames(contract, modelName);
+  await withMutationScope(executor, storeNames, async (scope) => {
+    const storeName = getStoreName(contract, modelName);
+    const meta = makePlanMeta(contract);
+    const rows = await scope.execute({ meta, kind: "key-get", storeName, key } as IdbAtomicPlan);
+    const row = rows[0];
+    if (!row) return [];
+    await applyReferentialActionsForRow(scope, contract, modelName, row);
+    await scope.execute({ meta, kind: "delete", storeName, key } as IdbAtomicPlan);
+    return [];
+  });
+}
+
+export async function executeDeleteAllWithReferentialActions(options: {
+  executor: IdbQueryExecutorWithTransaction;
+  contract: IdbContract;
+  modelName: string;
+  filter?: (row: Record<string, unknown>) => boolean;
+}): Promise<Record<string, unknown>[]> {
+  const { executor, contract, modelName, filter } = options;
+  const storeNames = collectDeleteStoreNames(contract, modelName);
+  return withMutationScope(executor, storeNames, async (scope) => {
+    const storeName = getStoreName(contract, modelName);
+    const meta = makePlanMeta(contract);
+    const keyPath = getKeyPath(contract, modelName);
+    const rows = await scope.execute({
+      meta,
+      kind: "cursor-scan",
+      storeName,
+      ...(filter !== undefined ? { filter } : {}),
+    } as IdbAtomicPlan);
+    for (const row of rows) {
+      await applyReferentialActionsForRow(scope, contract, modelName, row);
+      const key = row[keyPath] as IDBValidKey;
+      await scope.execute({ meta, kind: "delete", storeName, key } as IdbAtomicPlan);
+    }
+    return rows;
+  });
 }

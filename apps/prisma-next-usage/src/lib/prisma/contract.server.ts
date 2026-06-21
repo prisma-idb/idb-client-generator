@@ -39,7 +39,7 @@ export const contract = defineContract({
         byScore: { keyPath: "score", unique: false },
       },
       relations: {
-        posts: { to: "Post", cardinality: "1:N", on: { local: ["id"], target: ["authorId"] } },
+        posts: { to: "Post", cardinality: "1:N", on: { local: ["id"], target: ["authorId"] }, onDelete: "cascade" },
       },
     },
     Post: {
