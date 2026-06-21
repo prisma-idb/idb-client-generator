@@ -9,6 +9,9 @@ import { expect, test } from "../helpers";
 
 test.describe("aggregate()", () => {
   test.beforeEach(async ({ runner }) => {
+    await runner.run(
+      `orm.users.create({ id: "u1", name: "Alice", email: "alice@test.com", bio: null, score: 1, active: true, joinedAt: new Date() })`
+    );
     // views: 100, 50, 75, 200, 0 → sum 425, avg 85, min 0, max 200
     const posts: Array<[string, number, boolean]> = [
       ["p1", 100, true],

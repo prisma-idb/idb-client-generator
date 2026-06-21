@@ -11,6 +11,9 @@ import { expect, test } from "../helpers";
 test.describe("select()", () => {
   test("narrows the row to the chosen fields", async ({ runner }) => {
     await runner.run(
+      `orm.users.create({ id: "u1", name: "Alice", email: "alice@test.com", bio: null, score: 1, active: true, joinedAt: new Date() })`
+    );
+    await runner.run(
       `orm.posts.create({ id: "p1", authorId: "u1", title: "Hi", content: null, views: 3, published: true, publishedAt: null })`
     );
     const rows = (await runner.run(`orm.posts.select("id", "title").all()`)) as Array<Record<string, unknown>>;
@@ -20,6 +23,9 @@ test.describe("select()", () => {
   });
 
   test("composes with where()", async ({ runner }) => {
+    await runner.run(
+      `orm.users.create({ id: "u1", name: "Alice", email: "alice@test.com", bio: null, score: 1, active: true, joinedAt: new Date() })`
+    );
     await runner.run(
       `orm.posts.create({ id: "p1", authorId: "u1", title: "A", content: null, views: 1, published: true, publishedAt: null })`
     );

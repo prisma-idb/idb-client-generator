@@ -15,6 +15,12 @@ function byAuthor(rows: GroupRow[]): Record<string, GroupRow> {
 
 test.describe("groupBy().aggregate()", () => {
   test.beforeEach(async ({ runner }) => {
+    await runner.run(
+      `orm.users.create({ id: "u1", name: "Alice", email: "alice@test.com", bio: null, score: 1, active: true, joinedAt: new Date() })`
+    );
+    await runner.run(
+      `orm.users.create({ id: "u2", name: "Bob", email: "bob@test.com", bio: null, score: 2, active: true, joinedAt: new Date() })`
+    );
     // u1: 100 + 50 + 75 = 225 (p1,p3 published) | u2: 200 + 0 = 200 (p4 published)
     const posts: Array<[string, string, number, boolean]> = [
       ["p1", "u1", 100, true],
