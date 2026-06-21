@@ -1,0 +1,54 @@
+[
+  {
+    "kind": "createObjectStore",
+    "id": "object-store.board.create",
+    "label": "Create object store \"board\"",
+    "operationClass": "additive",
+    "storeName": "board",
+    "def": {
+      "indexes": {
+        "userId": {
+          "keyPath": "userId"
+        }
+      },
+      "keyPath": "id"
+    }
+  },
+  {
+    "kind": "createIndex",
+    "id": "index.board.userId.create",
+    "label": "Create index \"userId\" on \"board\"",
+    "operationClass": "additive",
+    "storeName": "board",
+    "indexName": "userId",
+    "def": {
+      "keyPath": "userId"
+    }
+  },
+  {
+    "kind": "createObjectStore",
+    "id": "object-store.todo.create",
+    "label": "Create object store \"todo\"",
+    "operationClass": "additive",
+    "storeName": "todo",
+    "def": {
+      "indexes": {
+        "boardId": {
+          "keyPath": "boardId"
+        }
+      },
+      "keyPath": "id"
+    }
+  },
+  {
+    "kind": "createIndex",
+    "id": "index.todo.boardId.create",
+    "label": "Create index \"boardId\" on \"todo\"",
+    "operationClass": "additive",
+    "storeName": "todo",
+    "indexName": "boardId",
+    "def": {
+      "keyPath": "boardId"
+    }
+  }
+]

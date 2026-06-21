@@ -15,9 +15,8 @@
     "test:e2e": "playwright install && playwright test",
     "test": "pnpm test:e2e",
     "contract:emit": "prisma-next contract emit",
-    "migration:plan": "prisma-next migration plan",
-    "migration:new": "prisma-next migration new",
     "migration:baseline": "prisma-next-idb generate-baseline",
+    "migration:generate": "prisma-next-idb generate-migration",
     "migration:generate-space": "prisma-next-idb generate-contract-space",
     "migration:preflight": "prisma-next-idb preflight"
   },
