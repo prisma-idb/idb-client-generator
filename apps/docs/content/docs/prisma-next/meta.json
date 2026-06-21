@@ -1,0 +1,17 @@
+{
+  "pages": [
+    "---Overview---",
+    "index",
+    "---Guides---",
+    "getting-started",
+    "schema",
+    "client",
+    "migrations",
+    "---Reference---",
+    "api"
+  ],
+  "root": true,
+  "title": "Prisma Next",
+  "description": "The next-gen IDB client with migration support (beta)",
+  "icon": "Zap"
+}

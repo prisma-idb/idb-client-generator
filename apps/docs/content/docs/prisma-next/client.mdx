@@ -1,0 +1,53 @@
+---
+title: Client
+description: Open an auto-migrating IndexedDB client for browser code
+icon: Database
+---
+
+`createAutoMigratingIdbClient` takes a bundled `contractSpace` and opens the database, applying any pending migrations before resolving.
+
+```ts
+import { createAutoMigratingIdbClient } from "@prisma-next-idb/client-idb/client-auto";
+import type { IdbClient } from "@prisma-next-idb/client-idb/client-auto";
+import type { Contract } from "./prisma/contract";
+import { contractSpace } from "./prisma/contract-space.generated";
+
+type Db = IdbClient<Contract>;
+
+let db: Promise<Db> | null = null;
+
+export function getDb(): Promise<Db> {
+  return (db ??= createAutoMigratingIdbClient({ contractSpace, dbName: "my-app" }));
+}
+```
+
+The promise is cached so the database only opens once. Call `getDb()` from any browser-side code.
+
+## Destructive migrations
+
+By default, the client refuses to apply migrations that drop object stores or indexes. Opt in explicitly after reviewing the migration:
+
+```ts
+createAutoMigratingIdbClient({
+  contractSpace,
+  dbName: "my-app",
+  policy: { onDestructive: "allow" },
+});
+```
+
+Local IndexedDB may contain data that exists only on the user's device — drafts, cached state, offline work. Only allow destructive operations when you are certain the data can be discarded.
+
+## Client shape
+
+| Property / method       | Description                                           |
+| ----------------------- | ----------------------------------------------------- |
+| `db.orm`                | Typed model accessors                                 |
+| `db.verifyMarker()`     | Check that the open database matches the contract     |
+| `db.withTransaction(…)` | Low-level transaction scope for advanced integrations |
+| `db.close()`            | Close the underlying IndexedDB connection             |
+
+<Cards>
+  <Card title="Querying" href="/docs/prisma-next/api/querying" />
+  <Card title="Writing" href="/docs/prisma-next/api/writing" />
+  <Card title="Migrations" href="/docs/prisma-next/migrations" />
+</Cards>

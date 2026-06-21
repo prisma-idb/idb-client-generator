@@ -1,0 +1,124 @@
+---
+title: Quick Start
+description: Install, configure, and open the client in a new project
+icon: Rocket
+---
+
+## Installation
+
+Install the runtime packages:
+
+```bash
+npm install @prisma-next-idb/client-idb @prisma-next/migration-tools
+```
+
+Install the dev tools:
+
+```bash
+npm install --save-dev prisma-next prisma-next-idb @prisma-next/contract \
+  @prisma-next-idb/family-idb @prisma-next-idb/target-idb \
+  @prisma-next-idb/adapter-idb @prisma-next-idb/driver-idb
+```
+
+## Schema
+
+Create `src/lib/prisma/schema.prisma`. No `generator` block is needed.
+
+```prisma
+model User {
+  id    String  @id
+  name  String
+  email String? @unique
+  todos Todo[]
+}
+
+model Todo {
+  id     String  @id
+  title  String
+  done   Boolean
+  userId String
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+```
+
+## Configure
+
+Create `prisma-next.config.ts`:
+
+```ts
+import { defineConfig } from "@prisma-next-idb/family-idb/config-types";
+import { prismaIdbContract } from "@prisma-next-idb/family-idb/contract-psl";
+import idbFamily from "@prisma-next-idb/family-idb/control";
+import idbTarget from "@prisma-next-idb/target-idb/control";
+import idbAdapter from "@prisma-next-idb/adapter-idb/control";
+import idbDriver from "@prisma-next-idb/driver-idb/control";
+
+export default defineConfig({
+  family: idbFamily,
+  target: idbTarget,
+  adapter: idbAdapter,
+  driver: idbDriver,
+  db: { connection: ":memory:" },
+  contract: prismaIdbContract("src/lib/prisma/schema.prisma"),
+  migrations: { dir: "migrations" },
+});
+```
+
+## Scripts
+
+Add these to `package.json`:
+
+```json
+{
+  "scripts": {
+    "contract:emit": "prisma-next contract emit",
+    "migration:baseline": "prisma-next-idb generate-baseline",
+    "migration:generate": "prisma-next-idb generate-migration",
+    "migration:generate-space": "prisma-next-idb generate-contract-space",
+    "migration:preflight": "prisma-next-idb preflight"
+  }
+}
+```
+
+If your contract is not at the default path (`src/lib/prisma/contract.json`), add `--contract <path>` to each script.
+
+## Bootstrap
+
+Run once on a fresh project:
+
+```bash
+npm run contract:emit
+npm run migration:baseline
+npm run migration:generate-space
+npm run migration:preflight
+```
+
+This writes `contract.json`, `contract.d.ts`, `contract-space.generated.ts`, and the first migration package under `migrations/app/`. Commit all of them.
+
+## Open the client
+
+```ts
+import { createAutoMigratingIdbClient } from "@prisma-next-idb/client-idb/client-auto";
+import type { IdbClient } from "@prisma-next-idb/client-idb/client-auto";
+import type { Contract } from "./lib/prisma/contract";
+import { contractSpace } from "./lib/prisma/contract-space.generated";
+
+type Db = IdbClient<Contract>;
+
+let db: Promise<Db> | null = null;
+
+export function getDb(): Promise<Db> {
+  return (db ??= createAutoMigratingIdbClient({ contractSpace, dbName: "my-app" }));
+}
+```
+
+`createAutoMigratingIdbClient` applies any pending migrations before resolving. Call `getDb()` from browser code whenever you need the client.
+
+## Next
+
+<Cards>
+  <Card title="Schema & Config" href="/docs/prisma-next/schema" />
+  <Card title="Migrations" href="/docs/prisma-next/migrations" />
+  <Card title="Client" href="/docs/prisma-next/client" />
+  <Card title="Querying" href="/docs/prisma-next/api/querying" />
+</Cards>
