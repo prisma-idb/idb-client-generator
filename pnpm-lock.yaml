@@ -360,6 +360,70 @@ importers:
         specifier: ^7.4.1
         version: 7.4.1
 
+  apps/prisma-next-idb-kanban-example:
+    dependencies:
+      '@prisma-next-idb/client-idb':
+        specifier: workspace:*
+        version: link:../../packages/prisma-next/client-idb
+      '@prisma-next/migration-tools':
+        specifier: ^0.14.0
+        version: 0.14.0(typescript@6.0.3)
+    devDependencies:
+      '@playwright/test':
+        specifier: ^1.60.0
+        version: 1.60.0
+      '@prisma-next-idb/adapter-idb':
+        specifier: workspace:*
+        version: link:../../packages/prisma-next/adapter-idb
+      '@prisma-next-idb/driver-idb':
+        specifier: workspace:*
+        version: link:../../packages/prisma-next/driver-idb
+      '@prisma-next-idb/family-idb':
+        specifier: workspace:*
+        version: link:../../packages/prisma-next/family-idb
+      '@prisma-next-idb/target-idb':
+        specifier: workspace:*
+        version: link:../../packages/prisma-next/target-idb
+      '@prisma-next/contract':
+        specifier: ^0.14.0
+        version: 0.14.0(typescript@6.0.3)
+      '@sveltejs/adapter-auto':
+        specifier: ^7.0.1
+        version: 7.0.1(@sveltejs/kit@2.63.0(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.1(@typescript-eslint/types@8.60.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)))(svelte@5.56.1(@typescript-eslint/types@8.60.1))(typescript@6.0.3)(vite@8.0.16(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)))
+      '@sveltejs/kit':
+        specifier: ^2.63.0
+        version: 2.63.0(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.1(@typescript-eslint/types@8.60.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)))(svelte@5.56.1(@typescript-eslint/types@8.60.1))(typescript@6.0.3)(vite@8.0.16(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^7.1.2
+        version: 7.1.2(svelte@5.56.1(@typescript-eslint/types@8.60.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
+      '@tailwindcss/typography':
+        specifier: ^0.5.19
+        version: 0.5.19(tailwindcss@4.3.0)
+      '@tailwindcss/vite':
+        specifier: ^4.3.0
+        version: 4.3.0(vite@8.0.16(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
+      '@types/node':
+        specifier: ^24.10.9
+        version: 24.12.4
+      prisma-next:
+        specifier: ^0.14.0
+        version: 0.14.0(typanion@3.14.0)(typescript@6.0.3)
+      svelte:
+        specifier: ^5.56.1
+        version: 5.56.1(@typescript-eslint/types@8.60.1)
+      svelte-check:
+        specifier: ^4.6.0
+        version: 4.6.0(picomatch@4.0.4)(svelte@5.56.1(@typescript-eslint/types@8.60.1))(typescript@6.0.3)
+      tailwindcss:
+        specifier: ^4.3.0
+        version: 4.3.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.0.16
+        version: 8.0.16(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)
+
   apps/prisma-next-usage:
     dependencies:
       '@prisma-next-idb/client-idb':
@@ -699,6 +763,9 @@ importers:
         specifier: ^0.14.0
         version: 0.14.0(typescript@6.0.3)
       '@prisma-next/migration-tools':
+        specifier: ^0.14.0
+        version: 0.14.0(typescript@6.0.3)
+      '@prisma-next/psl-parser':
         specifier: ^0.14.0
         version: 0.14.0(typescript@6.0.3)
       '@prisma-next/utils':
@@ -2619,6 +2686,15 @@ packages:
       typescript:
         optional: true
 
+  '@prisma-next/psl-parser@0.14.0':
+    resolution: {integrity: sha512-XKumV4Bfy3KHoD3IsWVSDtzFjXKL5zENASbbfIXXpwll3AVgU4rtVKuJIH5fwUOYpcCUdLE8ZaNw6vcwLuse3w==}
+    engines: {node: '>=24'}
+    peerDependencies:
+      typescript: '>=5.9'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   '@prisma-next/psl-printer@0.14.0':
     resolution: {integrity: sha512-qVTjwpO9uvITSsMg/mtdk0Py7ITsQRpPjmidSi9ByoPE6OGBGF3/BaUbOjRiZ340i39Npg83jT4rLreH1GOFjg==}
     engines: {node: '>=24'}
@@ -3503,6 +3579,10 @@ packages:
         optional: true
       typescript:
         optional: true
+
+  '@sveltejs/load-config@0.1.1':
+    resolution: {integrity: sha512-BXXm+VOH/9X4N7Dd1iZ2MqA1h7M+9i2noI8QYuLDY8QcN2WHYn7D/VK/+IJNfcAmRw7ACNJ538UT9GXIhnBTiA==}
+    engines: {node: '>= 18.0.0'}
 
   '@sveltejs/vite-plugin-svelte@7.1.2':
     resolution: {integrity: sha512-DrUBA2UXRfDmUX/ZTiEopd3X40yavsJF1FX2RygcuIScHL7o5YX1fMvoYnDhjeJQC4weCOklirpNWlcb2NiSeA==}
@@ -8752,6 +8832,14 @@ packages:
       svelte: ^4.0.0 || ^5.0.0-next.0
       typescript: '>=5.0.0'
 
+  svelte-check@4.6.0:
+    resolution: {integrity: sha512-KhVnDFDSid57mmZtHz8gfW8AAGylOZ0vPnOIzVmAL+urzwK8sBYXRss953gD8T0OdgAQ11mdWhE6uadmtOz8TQ==}
+    engines: {node: '>= 18.0.0'}
+    hasBin: true
+    peerDependencies:
+      svelte: ^4.0.0 || ^5.0.0-next.0
+      typescript: '>=5.0.0'
+
   svelte-eslint-parser@1.7.1:
     resolution: {integrity: sha512-mmwwKL9L/MB0QyBKdfyWxGjDuQfEyzxWy5S9Kkd0O/V5XD57MQ33KQtXrO6vKLuP6PIt8CRozvOX1mxpcRTqUg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0, pnpm: 10.34.1}
@@ -11434,6 +11522,13 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
+  '@prisma-next/psl-parser@0.14.0(typescript@6.0.3)':
+    dependencies:
+      '@prisma-next/framework-components': 0.14.0(typescript@6.0.3)
+      '@prisma-next/utils': 0.14.0(typescript@6.0.3)
+    optionalDependencies:
+      typescript: 6.0.3
+
   '@prisma-next/psl-printer@0.14.0(typescript@6.0.3)':
     dependencies:
       '@prisma-next/framework-components': 0.14.0(typescript@6.0.3)
@@ -12294,6 +12389,8 @@ snapshots:
       vite: 8.0.16(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)
     optionalDependencies:
       typescript: 6.0.3
+
+  '@sveltejs/load-config@0.1.1': {}
 
   '@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.1(@typescript-eslint/types@8.60.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))':
     dependencies:
@@ -18357,6 +18454,19 @@ snapshots:
   svelte-check@4.5.0(picomatch@4.0.4)(svelte@5.56.1(@typescript-eslint/types@8.60.1))(typescript@6.0.3):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
+      chokidar: 4.0.3
+      fdir: 6.5.0(picomatch@4.0.4)
+      picocolors: 1.1.1
+      sade: 1.8.1
+      svelte: 5.56.1(@typescript-eslint/types@8.60.1)
+      typescript: 6.0.3
+    transitivePeerDependencies:
+      - picomatch
+
+  svelte-check@4.6.0(picomatch@4.0.4)(svelte@5.56.1(@typescript-eslint/types@8.60.1))(typescript@6.0.3):
+    dependencies:
+      '@jridgewell/trace-mapping': 0.3.31
+      '@sveltejs/load-config': 0.1.1
       chokidar: 4.0.3
       fdir: 6.5.0(picomatch@4.0.4)
       picocolors: 1.1.1
