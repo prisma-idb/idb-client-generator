@@ -8,13 +8,14 @@ on:
       - "packages/generator/**"
       - ".github/workflows/release.yml"
 
-permissions:
-  id-token: write # Required for OIDC
-  contents: write # Required for release-it to commit and tag
+permissions: {}
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Required for OIDC
+      contents: write # Required for release-it to commit and tag
 
     steps:
       - name: Checkout

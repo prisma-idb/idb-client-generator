@@ -9,14 +9,15 @@ on:
       - ".changeset/**"
       - ".github/workflows/release-prisma-next.yml"
 
-permissions:
-  id-token: write # OIDC token for npm provenance + passwordless publish
-  contents: write # changesets/action needs to push the version-bump commit
-  pull-requests: write # changesets/action needs to open the release PR
+permissions: {}
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC token for npm provenance + passwordless publish
+      contents: write # changesets/action needs to push the version-bump commit
+      pull-requests: write # changesets/action needs to open the release PR
 
     steps:
       - uses: actions/checkout@v7
