@@ -12,7 +12,7 @@
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test:e2e": "playwright install && playwright test",
     "test": "pnpm test:e2e",
-    "migration:new": "prisma-next migration new",
+    "migration:generate": "prisma-next-idb generate-migration",
     "migration:generate-space": "prisma-next-idb generate-contract-space",
     "migration:preflight": "prisma-next-idb preflight"
   },

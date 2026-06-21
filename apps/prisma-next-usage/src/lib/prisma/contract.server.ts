@@ -59,6 +59,22 @@ export const contract = defineContract({
       },
       relations: {
         author: { to: "User", cardinality: "N:1", on: { local: ["authorId"], target: ["id"] } },
+        tags: { to: "Tag", cardinality: "1:N", on: { local: ["id"], target: ["postId"] }, onDelete: "cascade" },
+      },
+    },
+    Tag: {
+      store: "tags",
+      key: "id",
+      fields: {
+        id: "String",
+        name: "String",
+        postId: "String",
+      },
+      indexes: {
+        byPostId: { keyPath: "postId", unique: false },
+      },
+      relations: {
+        post: { to: "Post", cardinality: "N:1", on: { local: ["postId"], target: ["id"] } },
       },
     },
     RandomStore: {

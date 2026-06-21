@@ -4,6 +4,10 @@
   "target": "idb",
   "profileHash": "sha256:e97a15c6c5e8cd6446e4f48dc464af667a10a0a4ecb533c9624bbab58233a14d",
   "roots": {
+    "posts": {
+      "model": "Post",
+      "namespace": "__unbound__"
+    },
     "random_store": {
       "model": "RandomStore",
       "namespace": "__unbound__"
@@ -17,6 +21,76 @@
     "namespaces": {
       "__unbound__": {
         "models": {
+          "Post": {
+            "fields": {
+              "authorId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "content": {
+                "nullable": true,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/date@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "published": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "title": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "views": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/int32@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "author": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": ["authorId"],
+                  "targetFields": ["id"]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "__unbound__"
+                }
+              }
+            },
+            "storage": {
+              "keyPath": "id",
+              "storeName": "posts"
+            }
+          },
           "RandomStore": {
             "fields": {
               "id": {
@@ -85,9 +159,26 @@
                 }
               }
             },
-            "relations": {},
+            "relations": {
+              "posts": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": ["id"],
+                  "targetFields": ["authorId"]
+                },
+                "to": {
+                  "model": "Post",
+                  "namespace": "__unbound__"
+                }
+              }
+            },
             "storage": {
               "keyPath": "id",
+              "relations": {
+                "posts": {
+                  "onDelete": "cascade"
+                }
+              },
               "storeName": "users"
             }
           }
@@ -98,11 +189,20 @@
   "storage": {
     "namespaces": {
       "__unbound__": {
+        "entries": {},
         "id": "__unbound__"
       }
     },
-    "storageHash": "sha256:46a587fce453e2298b888ce5307312ac010fafb203b9f0ab188eb4fb6be17bc0",
+    "storageHash": "sha256:6e7f133567af57688f9750c1c8281785032b1d999366ab78ea34f6fe6064d5a6",
     "stores": {
+      "posts": {
+        "indexes": {
+          "byAuthorId": {
+            "keyPath": "authorId"
+          }
+        },
+        "keyPath": "id"
+      },
       "random_store": {
         "keyPath": "id"
       },

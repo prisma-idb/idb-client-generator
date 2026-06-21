@@ -12,7 +12,7 @@ import type {
   StorageHashBase,
 } from "@prisma-next/contract/types";
 
-export type StorageHash = StorageHashBase<"sha256:e8f91dccffdb18ae207ff36b9238a31e7ff38bf0b54079f0a3b0de97b81dda21">;
+export type StorageHash = StorageHashBase<"sha256:6e7f133567af57688f9750c1c8281785032b1d999366ab78ea34f6fe6064d5a6">;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash = ProfileHashBase<"sha256:e97a15c6c5e8cd6446e4f48dc464af667a10a0a4ecb533c9624bbab58233a14d">;
 
@@ -31,11 +31,6 @@ export type FieldOutputTypes = {
       readonly createdAt: CodecTypes["idb/date@1"]["output"];
     };
     readonly RandomStore: { readonly id: CodecTypes["idb/string@1"]["output"] };
-    readonly Tag: {
-      readonly id: CodecTypes["idb/string@1"]["output"];
-      readonly name: CodecTypes["idb/string@1"]["output"];
-      readonly postId: CodecTypes["idb/string@1"]["output"];
-    };
     readonly User: {
       readonly id: CodecTypes["idb/string@1"]["output"];
       readonly name: CodecTypes["idb/string@1"]["output"];
@@ -59,11 +54,6 @@ export type FieldInputTypes = {
       readonly createdAt: CodecTypes["idb/date@1"]["input"];
     };
     readonly RandomStore: { readonly id: CodecTypes["idb/string@1"]["input"] };
-    readonly Tag: {
-      readonly id: CodecTypes["idb/string@1"]["input"];
-      readonly name: CodecTypes["idb/string@1"]["input"];
-      readonly postId: CodecTypes["idb/string@1"]["input"];
-    };
     readonly User: {
       readonly id: CodecTypes["idb/string@1"]["input"];
       readonly name: CodecTypes["idb/string@1"]["input"];
@@ -87,12 +77,6 @@ type ContractBase = Omit<
         };
       };
       readonly random_store: { readonly keyPath: "id"; readonly indexes: Record<string, never> };
-      readonly tags: {
-        readonly keyPath: "id";
-        readonly indexes: {
-          readonly byPostId: { readonly keyPath: "postId"; readonly unique: false };
-        };
-      };
       readonly users: {
         readonly keyPath: "id";
         readonly indexes: {
@@ -113,7 +97,6 @@ type ContractBase = Omit<
   readonly roots: {
     readonly users: { readonly namespace: "__unbound__" & NamespaceId; readonly model: "User" };
     readonly posts: { readonly namespace: "__unbound__" & NamespaceId; readonly model: "Post" };
-    readonly tags: { readonly namespace: "__unbound__" & NamespaceId; readonly model: "Tag" };
     readonly random_store: {
       readonly namespace: "__unbound__" & NamespaceId;
       readonly model: "RandomStore";
@@ -166,17 +149,6 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ["id"];
                 };
               };
-              readonly tags: {
-                readonly to: {
-                  readonly namespace: "__unbound__" & NamespaceId;
-                  readonly model: "Tag";
-                };
-                readonly cardinality: "1:N";
-                readonly on: {
-                  readonly localFields: readonly ["id"];
-                  readonly targetFields: readonly ["postId"];
-                };
-              };
             };
             readonly storage: { readonly storeName: "posts"; readonly keyPath: "id" };
           };
@@ -189,36 +161,6 @@ type ContractBase = Omit<
             };
             readonly relations: Record<string, never>;
             readonly storage: { readonly storeName: "random_store"; readonly keyPath: "id" };
-          };
-          readonly Tag: {
-            readonly fields: {
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
-              };
-              readonly name: {
-                readonly nullable: false;
-                readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
-              };
-              readonly postId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
-              };
-            };
-            readonly relations: {
-              readonly post: {
-                readonly to: {
-                  readonly namespace: "__unbound__" & NamespaceId;
-                  readonly model: "Post";
-                };
-                readonly cardinality: "N:1";
-                readonly on: {
-                  readonly localFields: readonly ["postId"];
-                  readonly targetFields: readonly ["id"];
-                };
-              };
-            };
-            readonly storage: { readonly storeName: "tags"; readonly keyPath: "id" };
           };
           readonly User: {
             readonly fields: {

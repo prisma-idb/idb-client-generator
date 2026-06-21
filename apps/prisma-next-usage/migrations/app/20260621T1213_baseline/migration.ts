@@ -5,13 +5,15 @@ export default class M extends Migration {
   override describe() {
     return {
       from: null,
-      to: "sha256:46a587fce453e2298b888ce5307312ac010fafb203b9f0ab188eb4fb6be17bc0",
+      to: "sha256:6e7f133567af57688f9750c1c8281785032b1d999366ab78ea34f6fe6064d5a6",
     };
   }
 
   override get operations() {
     return [
       createObjectStoreOp("_prisma_next_marker", { keyPath: "space" }),
+      createObjectStoreOp("posts", { keyPath: "id" }),
+      createIndexOp("posts", "byAuthorId", { keyPath: "authorId", unique: false }),
       createObjectStoreOp("random_store", { keyPath: "id" }),
       createObjectStoreOp("users", { keyPath: "id" }),
       createIndexOp("users", "byEmail", { keyPath: "email", unique: true }),

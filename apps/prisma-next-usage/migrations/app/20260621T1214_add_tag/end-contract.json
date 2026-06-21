@@ -12,6 +12,10 @@
       "model": "RandomStore",
       "namespace": "__unbound__"
     },
+    "tags": {
+      "model": "Tag",
+      "namespace": "__unbound__"
+    },
     "users": {
       "model": "User",
       "namespace": "__unbound__"
@@ -73,9 +77,37 @@
                 }
               }
             },
-            "relations": {},
+            "relations": {
+              "author": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": ["authorId"],
+                  "targetFields": ["id"]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "__unbound__"
+                }
+              },
+              "tags": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": ["id"],
+                  "targetFields": ["postId"]
+                },
+                "to": {
+                  "model": "Tag",
+                  "namespace": "__unbound__"
+                }
+              }
+            },
             "storage": {
               "keyPath": "id",
+              "relations": {
+                "tags": {
+                  "onDelete": "cascade"
+                }
+              },
               "storeName": "posts"
             }
           },
@@ -93,6 +125,48 @@
             "storage": {
               "keyPath": "id",
               "storeName": "random_store"
+            }
+          },
+          "Tag": {
+            "fields": {
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "postId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "post": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": ["postId"],
+                  "targetFields": ["id"]
+                },
+                "to": {
+                  "model": "Post",
+                  "namespace": "__unbound__"
+                }
+              }
+            },
+            "storage": {
+              "keyPath": "id",
+              "storeName": "tags"
             }
           },
           "User": {
@@ -147,9 +221,26 @@
                 }
               }
             },
-            "relations": {},
+            "relations": {
+              "posts": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": ["id"],
+                  "targetFields": ["authorId"]
+                },
+                "to": {
+                  "model": "Post",
+                  "namespace": "__unbound__"
+                }
+              }
+            },
             "storage": {
               "keyPath": "id",
+              "relations": {
+                "posts": {
+                  "onDelete": "cascade"
+                }
+              },
               "storeName": "users"
             }
           }
@@ -160,10 +251,11 @@
   "storage": {
     "namespaces": {
       "__unbound__": {
+        "entries": {},
         "id": "__unbound__"
       }
     },
-    "storageHash": "sha256:b05717321fba711de059ca6e508f0f2087f2eaca7de74beb8f969ac5f0c606d9",
+    "storageHash": "sha256:e8f91dccffdb18ae207ff36b9238a31e7ff38bf0b54079f0a3b0de97b81dda21",
     "stores": {
       "posts": {
         "indexes": {
@@ -174,6 +266,14 @@
         "keyPath": "id"
       },
       "random_store": {
+        "keyPath": "id"
+      },
+      "tags": {
+        "indexes": {
+          "byPostId": {
+            "keyPath": "postId"
+          }
+        },
         "keyPath": "id"
       },
       "users": {

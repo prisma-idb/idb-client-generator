@@ -1,0 +1,28 @@
+[
+  {
+    "kind": "createObjectStore",
+    "id": "object-store.tags.create",
+    "label": "Create object store \"tags\"",
+    "operationClass": "additive",
+    "storeName": "tags",
+    "def": {
+      "indexes": {
+        "byPostId": {
+          "keyPath": "postId"
+        }
+      },
+      "keyPath": "id"
+    }
+  },
+  {
+    "kind": "createIndex",
+    "id": "index.tags.byPostId.create",
+    "label": "Create index \"byPostId\" on \"tags\"",
+    "operationClass": "additive",
+    "storeName": "tags",
+    "indexName": "byPostId",
+    "def": {
+      "keyPath": "postId"
+    }
+  }
+]
