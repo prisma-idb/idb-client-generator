@@ -28,18 +28,18 @@
     "@eslint/compat": "^2.1.0",
     "@eslint/js": "^9.39.4",
     "eslint": "^9.39.4",
-    "eslint-config-next": "^16.2.7",
+    "eslint-config-next": "^16.2.9",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-svelte": "^3.19.0",
     "globals": "^17.6.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.7",
-    "prettier": "^3.8.3",
-    "prettier-plugin-svelte": "^4.1.0",
+    "prettier": "^3.8.4",
+    "prettier-plugin-svelte": "^4.1.1",
     "prettier-plugin-tailwindcss": "^0.8.0",
-    "turbo": "^2.9.16",
+    "turbo": "^2.9.18",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.60.1"
+    "typescript-eslint": "^8.61.1"
   },
   "lint-staged": {
     "*.{js,ts,svelte,tsx,jsx,mjs}": ["prettier --write", "eslint --fix"],

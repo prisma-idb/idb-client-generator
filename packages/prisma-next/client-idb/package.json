@@ -30,8 +30,8 @@
   "devDependencies": {
     "@prisma-next-idb/family-idb": "workspace:*",
     "fake-indexeddb": "^6.2.5",
-    "tsdown": "^0.22.1",
+    "tsdown": "^0.22.3",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.9"
   }
 }

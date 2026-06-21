@@ -23,12 +23,12 @@
   "dependencies": {
     "@prisma/generator-helper": "^7.8.0",
     "code-block-writer": "^13.0.3",
-    "prettier": "^3.8.3"
+    "prettier": "^3.8.4"
   },
   "devDependencies": {
     "@prisma/internals": "^7.8.0",
     "@release-it/conventional-changelog": "^11.0.1",
-    "@types/node": "^24.10.9",
+    "@types/node": "^24.13.2",
     "release-it": "^20.2.0",
     "typescript": "^6.0.3"
   },

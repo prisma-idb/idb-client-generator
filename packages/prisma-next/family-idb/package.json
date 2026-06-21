@@ -35,9 +35,9 @@
     "pathe": "^2.0.3"
   },
   "devDependencies": {
-    "@types/node": "^24.10.9",
-    "tsdown": "^0.22.1",
+    "@types/node": "^24.13.2",
+    "tsdown": "^0.22.3",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.9"
   }
 }

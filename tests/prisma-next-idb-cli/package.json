@@ -11,8 +11,8 @@
   },
   "devDependencies": {
     "@prisma-next-idb/family-idb": "workspace:*",
-    "@types/node": "^24.10.9",
+    "@types/node": "^24.13.2",
     "execa": "^9.6.1",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.9"
   }
 }
