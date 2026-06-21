@@ -3,6 +3,17 @@
   "version": "0.0.1",
   "description": "Prisma Next IDB family — adapter (lowers query AST to opaque IDB plan body)",
   "license": "MIT",
+  "files": ["dist"],
+  "keywords": ["prisma", "prisma-next", "indexeddb", "offline-first", "idb"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/prisma-idb/idb-client-generator.git",
+    "directory": "packages/prisma-next/adapter-idb"
+  },
+  "homepage": "https://prisma-idb.dev/",
+  "bugs": {
+    "url": "https://github.com/prisma-idb/idb-client-generator/issues"
+  },
   "type": "module",
   "exports": {
     "./control": "./dist/control.mjs",

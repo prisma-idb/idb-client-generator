@@ -22,9 +22,14 @@
     "clean": "turbo clean && rm -rf node_modules",
     "preview": "turbo run preview",
     "run:ci": "pnpm format && pnpm generate && pnpm lint && pnpm check && pnpm build",
-    "prepare": "husky"
+    "prepare": "husky",
+    "changeset": "changeset",
+    "version:prisma-next": "changeset version",
+    "release:prisma-next": "pnpm build --filter=@prisma-next-idb/* && changeset publish"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^0.7.0",
+    "@changesets/cli": "^2.31.0",
     "@eslint/compat": "^2.1.0",
     "@eslint/js": "^9.39.4",
     "eslint": "^9.39.4",

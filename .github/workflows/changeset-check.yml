@@ -1,0 +1,30 @@
+name: Changeset check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/prisma-next/**"
+      - ".changeset/**"
+
+jobs:
+  changeset:
+    name: Changeset required
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check for changeset
+        run: pnpm changeset status --since=origin/main

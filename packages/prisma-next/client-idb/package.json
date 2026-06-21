@@ -3,6 +3,17 @@
   "version": "0.0.1",
   "description": "Prisma Next IDB family — ORM client (idbOrm typed query builder)",
   "license": "MIT",
+  "files": ["dist"],
+  "keywords": ["prisma", "prisma-next", "indexeddb", "offline-first", "idb", "orm"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/prisma-idb/idb-client-generator.git",
+    "directory": "packages/prisma-next/client-idb"
+  },
+  "homepage": "https://prisma-idb.dev/",
+  "bugs": {
+    "url": "https://github.com/prisma-idb/idb-client-generator/issues"
+  },
   "type": "module",
   "exports": {
     "./orm": "./dist/orm.mjs",
