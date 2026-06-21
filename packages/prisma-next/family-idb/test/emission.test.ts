@@ -1,5 +1,5 @@
 import type { ContractModel } from "@prisma-next/contract/types";
-import { contractModels } from "@prisma-next/contract/types";
+import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
 import { describe, expect, it } from "vitest";
 import { idbEmission } from "../src/core/emission";
 import { validateContract } from "../src/core/validate";
@@ -111,7 +111,7 @@ describe("idbEmission", () => {
 
   describe("generateModelStorageType", () => {
     it("serializes a model's IDB storage metadata", () => {
-      const model = contractModels(minimalIdbContract)["Post"]!;
+      const model = domainModelsAtDefaultNamespace(minimalIdbContract.domain)["Post"]!;
       const result = idbEmission.generateModelStorageType("Post", model);
       expect(result).toBe("{ readonly storeName: 'posts'; readonly keyPath: 'id' }");
     });

@@ -65,132 +65,28 @@ export type FieldInputTypes = {
 export type TypeMaps = IdbTypeMaps<CodecTypes, FieldOutputTypes, FieldInputTypes>;
 
 type ContractBase = Omit<
-  ContractType<
-    {
-      readonly stores: {
-        readonly posts: {
-          readonly keyPath: "id";
-          readonly indexes: {
-            readonly byAuthorId: { readonly keyPath: "authorId"; readonly unique: false };
-          };
-        };
-        readonly random_store: { readonly keyPath: "id"; readonly indexes: Record<string, never> };
-        readonly users: {
-          readonly keyPath: "id";
-          readonly indexes: {
-            readonly byEmail: { readonly keyPath: "email"; readonly unique: true };
-            readonly byScore: { readonly keyPath: "score"; readonly unique: false };
-          };
+  ContractType<{
+    readonly stores: {
+      readonly posts: {
+        readonly keyPath: "id";
+        readonly indexes: {
+          readonly byAuthorId: { readonly keyPath: "authorId"; readonly unique: false };
         };
       };
-      readonly namespaces: { readonly __unbound__: { readonly id: "__unbound__" } };
-      readonly storageHash: StorageHash;
-    },
-    {
-      readonly Post: {
-        readonly fields: {
-          readonly id: {
-            readonly nullable: false;
-            readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
-          };
-          readonly title: {
-            readonly nullable: false;
-            readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
-          };
-          readonly content: {
-            readonly nullable: true;
-            readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
-          };
-          readonly published: {
-            readonly nullable: false;
-            readonly type: { readonly kind: "scalar"; readonly codecId: "idb/bool@1" };
-          };
-          readonly views: {
-            readonly nullable: false;
-            readonly type: { readonly kind: "scalar"; readonly codecId: "idb/int32@1" };
-          };
-          readonly authorId: {
-            readonly nullable: false;
-            readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
-          };
-          readonly createdAt: {
-            readonly nullable: false;
-            readonly type: { readonly kind: "scalar"; readonly codecId: "idb/date@1" };
-          };
+      readonly random_store: { readonly keyPath: "id"; readonly indexes: Record<string, never> };
+      readonly users: {
+        readonly keyPath: "id";
+        readonly indexes: {
+          readonly byEmail: { readonly keyPath: "email"; readonly unique: true };
+          readonly byScore: { readonly keyPath: "score"; readonly unique: false };
         };
-        readonly relations: {
-          readonly author: {
-            readonly to: {
-              readonly namespace: "__unbound__" & NamespaceId;
-              readonly model: "User";
-            };
-            readonly cardinality: "N:1";
-            readonly on: {
-              readonly localFields: readonly ["authorId"];
-              readonly targetFields: readonly ["id"];
-            };
-          };
-        };
-        readonly storage: { readonly storeName: "posts"; readonly keyPath: "id" };
       };
-      readonly RandomStore: {
-        readonly fields: {
-          readonly id: {
-            readonly nullable: false;
-            readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
-          };
-        };
-        readonly relations: Record<string, never>;
-        readonly storage: { readonly storeName: "random_store"; readonly keyPath: "id" };
-      };
-      readonly User: {
-        readonly fields: {
-          readonly id: {
-            readonly nullable: false;
-            readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
-          };
-          readonly name: {
-            readonly nullable: false;
-            readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
-          };
-          readonly email: {
-            readonly nullable: false;
-            readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
-          };
-          readonly bio: {
-            readonly nullable: true;
-            readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
-          };
-          readonly score: {
-            readonly nullable: false;
-            readonly type: { readonly kind: "scalar"; readonly codecId: "idb/int32@1" };
-          };
-          readonly active: {
-            readonly nullable: false;
-            readonly type: { readonly kind: "scalar"; readonly codecId: "idb/bool@1" };
-          };
-          readonly joinedAt: {
-            readonly nullable: false;
-            readonly type: { readonly kind: "scalar"; readonly codecId: "idb/date@1" };
-          };
-        };
-        readonly relations: {
-          readonly posts: {
-            readonly to: {
-              readonly namespace: "__unbound__" & NamespaceId;
-              readonly model: "Post";
-            };
-            readonly cardinality: "1:N";
-            readonly on: {
-              readonly localFields: readonly ["id"];
-              readonly targetFields: readonly ["authorId"];
-            };
-          };
-        };
-        readonly storage: { readonly storeName: "users"; readonly keyPath: "id" };
-      };
-    }
-  >,
+    };
+    readonly namespaces: {
+      readonly __unbound__: { readonly id: "__unbound__"; readonly entries: Record<string, never> };
+    };
+    readonly storageHash: StorageHash;
+  }>,
   "roots" | "domain"
 > & {
   readonly target: "idb";

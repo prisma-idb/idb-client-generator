@@ -48,7 +48,7 @@ export function buildContractSpaceFixture<TContract extends Contract>(
       throw new Error(`Planner failed for version ${index}: ${JSON.stringify(planResult.conflicts)}`);
     }
 
-    const ops = planResult.plan.operations;
+    const ops = planResult.plan.operations as unknown as MigrationPackage["ops"];
     const baseMetadata = {
       from: previous === null ? null : getStorageHash(previous),
       to: getStorageHash(current),

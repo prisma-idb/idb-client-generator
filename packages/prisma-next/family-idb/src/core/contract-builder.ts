@@ -204,7 +204,7 @@ export function defineContract(input: DefineContractInput): Contract<IdbStorage>
   const ns = UNBOUND_DOMAIN_NAMESPACE_ID;
   const storageBlock = {
     stores,
-    namespaces: { [ns]: { id: ns } },
+    namespaces: { [ns]: { id: ns, entries: {} } },
   };
 
   const storageHash = computeStorageHash({

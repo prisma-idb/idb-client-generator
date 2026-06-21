@@ -1,5 +1,5 @@
 import type { Contract } from "@prisma-next/contract/types";
-import { contractModels } from "@prisma-next/contract/types";
+import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
 import { ContractValidationError } from "@prisma-next/contract/contract-validation-error";
 import { validateContractDomain } from "@prisma-next/contract/validate-domain";
 import type { IdbModelStorage, IdbStorage } from "@prisma-next-idb/target-idb/pack";
@@ -36,10 +36,13 @@ function validateIdbStorage(contract: Contract): void {
     }
   }
 
-  // Validate model → store references. v0.12.0: models live under
-  // `domain.namespaces.<ns>.models`; `contractModels()` resolves them.
+  // Validate model → store references. Models live under
+  // `domain.namespaces.<ns>.models`; resolved via `domainModelsAtDefaultNamespace`.
   const storeNames = new Set(Object.keys(storage.stores));
-  const models = contractModels(contract) as Record<string, { storage?: Partial<IdbModelStorage> }>;
+  const models = domainModelsAtDefaultNamespace(contract.domain) as Record<
+    string,
+    { storage?: Partial<IdbModelStorage> }
+  >;
 
   for (const [modelName, model] of Object.entries(models)) {
     const storeName = model.storage?.storeName;

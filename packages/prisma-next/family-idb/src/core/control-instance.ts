@@ -1,4 +1,4 @@
-import type { Contract, ContractMarkerRecord } from "@prisma-next/contract/types";
+import type { Contract, ContractMarkerRecord, LedgerEntryRecord } from "@prisma-next/contract/types";
 import type { TargetBoundComponentDescriptor } from "@prisma-next/framework-components/components";
 import type {
   ControlDriverInstance,
@@ -179,6 +179,13 @@ export function createIdbFamilyInstance(_stack: ControlStack<"idb", string>): Id
       readonly driver: ControlDriverInstance<"idb", string>;
     }): Promise<ReadonlyMap<string, ContractMarkerRecord>> {
       return new Map<string, ContractMarkerRecord>();
+    },
+
+    async readLedger(_options: {
+      readonly driver: ControlDriverInstance<"idb", string>;
+      readonly space?: string;
+    }): Promise<readonly LedgerEntryRecord[]> {
+      return [];
     },
 
     // ── introspect (CLI refusal: return empty schema) ──────────────────────

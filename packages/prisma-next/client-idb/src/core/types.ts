@@ -1,5 +1,5 @@
-import type { Contract, ContractModelBase, ContractReferenceRelation, StorageBase } from "@prisma-next/contract/types";
-import { contractModels } from "@prisma-next/contract/types";
+import type { Contract, ContractModelBase, ContractReferenceRelation } from "@prisma-next/contract/types";
+import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
 import type {
   ExtractIdbFieldInputTypes,
   ExtractIdbFieldOutputTypes,
@@ -13,14 +13,20 @@ export type { IdbStorage };
 // ── Model-map extraction (v0.12.0 domain plane) ───────────────────────────────
 
 /**
- * Extract the model map from a contract. v0.12.0 (ADR 221) moved models from a
- * top-level `contract.models` field into `domain.namespaces.<ns>.models`; this
- * recovers the `TModels` type parameter the contract carries for DSL inference.
+ * Extract the model map from a contract by traversing the domain namespace.
  *
- * Falls back to a loose `Record<string, ContractModelBase>` for any
- * non-`Contract` input (e.g. the loosely-typed `IdbContract`).
+ * 0.14.0: `Contract` dropped the 2nd `TModels` type parameter; models are now
+ * accessed via `domain.namespaces[ns].models`. For a single-namespace contract
+ * (the only IDB case) this resolves to the typed model map; falls back to
+ * `Record<string, ContractModelBase>` for un-typed/multi-namespace inputs.
  */
-type ModelsOf<TContract> = TContract extends Contract<StorageBase, infer M> ? M : Record<string, ContractModelBase>;
+type ModelsOf<TContract> = TContract extends { readonly domain: { readonly namespaces: infer NS } }
+  ? NS[keyof NS] extends { readonly models: infer M }
+    ? M extends Record<string, ContractModelBase>
+      ? M
+      : Record<string, ContractModelBase>
+    : Record<string, ContractModelBase>
+  : Record<string, ContractModelBase>;
 
 // ── IdbContract convenience alias ─────────────────────────────────────────────
 
@@ -461,7 +467,7 @@ export interface IdbAggregateBuilder<TContract, ModelName extends string> {
  * Falls back to the model name if `storeName` is absent.
  */
 export function getStoreName(contract: IdbContract, modelName: string): string {
-  const model = contractModels(contract)[modelName];
+  const model = domainModelsAtDefaultNamespace(contract.domain)[modelName];
   return (model?.storage as IdbModelStorage | undefined)?.storeName ?? modelName;
 }
 
@@ -470,7 +476,7 @@ export function getStoreName(contract: IdbContract, modelName: string): string {
  * Falls back to `"id"` (the invariant key name for all syncable IDB models).
  */
 export function getKeyPath(contract: IdbContract, modelName: string): string {
-  const model = contractModels(contract)[modelName];
+  const model = domainModelsAtDefaultNamespace(contract.domain)[modelName];
   return (model?.storage as IdbModelStorage | undefined)?.keyPath ?? "id";
 }
 
@@ -485,7 +491,7 @@ export function getRelation(
   modelName: string,
   relName: string
 ): ContractReferenceRelation | undefined {
-  const relation = contractModels(contract)[modelName]?.relations?.[relName];
+  const relation = domainModelsAtDefaultNamespace(contract.domain)[modelName]?.relations?.[relName];
   if (relation === undefined || !("on" in relation)) return undefined;
   return relation as ContractReferenceRelation;
 }

@@ -243,12 +243,6 @@ describe("IdbMigrationControlDriverDescriptor", () => {
     expect(driver.targetVersion).toBe(1);
   });
 
-  it("query() returns empty rows (no-op stub)", async () => {
-    const driver = makeDriver("test-db", 1);
-    const result = await driver.query("unused");
-    expect(result.rows).toHaveLength(0);
-  });
-
   it("close() resolves without error", async () => {
     const driver = makeDriver("test-db", 1);
     await expect(driver.close()).resolves.toBeUndefined();

@@ -52,14 +52,6 @@ export const IdbMigrationControlDriverDescriptor = {
       dbName,
       factory,
       targetVersion,
-      // The migration driver has no control-query surface — all work happens
-      // through the IDBFactory / upgradeneeded callback.
-      query<Row = Record<string, unknown>>(
-        _sql: string,
-        _params?: readonly unknown[]
-      ): Promise<{ readonly rows: Row[] }> {
-        return Promise.resolve({ rows: [] as Row[] });
-      },
       async close() {},
     };
   },

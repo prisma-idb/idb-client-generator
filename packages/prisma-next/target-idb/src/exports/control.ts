@@ -2,6 +2,7 @@ import type { Contract } from "@prisma-next/contract/types";
 import type { TargetBoundComponentDescriptor } from "@prisma-next/framework-components/components";
 import type {
   ContractSerializer,
+  ControlAdapterInstance,
   ControlFamilyInstance,
   ControlTargetInstance,
   MigratableTargetDescriptor,
@@ -30,7 +31,7 @@ const idbContractSerializer: ContractSerializer<Contract> = {
 };
 
 const idbMigrationsCapability = {
-  createPlanner(_family: ControlFamilyInstance<"idb", unknown>) {
+  createPlanner(_adapter: ControlAdapterInstance<"idb", "idb">) {
     return new IdbMigrationPlanner();
   },
   createRunner(_family: ControlFamilyInstance<"idb", unknown>) {

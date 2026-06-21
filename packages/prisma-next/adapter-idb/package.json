@@ -20,7 +20,7 @@
   "dependencies": {
     "@prisma-next-idb/driver-idb": "workspace:*",
     "@prisma-next-idb/target-idb": "workspace:*",
-    "@prisma-next/framework-components": "^0.12.0"
+    "@prisma-next/framework-components": "^0.14.0"
   },
   "devDependencies": {
     "tsdown": "^0.22.1",

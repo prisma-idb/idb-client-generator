@@ -1,5 +1,5 @@
 import type { ContractReferenceRelation } from "@prisma-next/contract/types";
-import { contractModels } from "@prisma-next/contract/types";
+import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
 import type { IdbQueryPlan } from "@prisma-next-idb/adapter-idb/runtime";
 import { evaluateFilter } from "@prisma-next-idb/adapter-idb/runtime";
 import type { IdbRowFilter } from "@prisma-next-idb/driver-idb/runtime";
@@ -41,7 +41,7 @@ export async function loadRelation(
 ): Promise<Record<string, unknown>[]> {
   if (rows.length === 0) return rows;
 
-  const models = contractModels(contract);
+  const models = domainModelsAtDefaultNamespace(contract.domain);
   const model = models[modelName];
   if (model === undefined) return rows;
 
@@ -54,7 +54,7 @@ export async function loadRelation(
 
   const relation = rawRelation as ContractReferenceRelation;
   const { cardinality, on } = relation;
-  // v0.12.0: `relation.to` is a CrossReference `{ namespace, model }`.
+  // `relation.to` is a CrossReference `{ namespace, model }`.
   const relatedModelName = relation.to.model;
 
   const localField = on.localFields[0];

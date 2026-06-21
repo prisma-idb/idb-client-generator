@@ -22,7 +22,7 @@
 
 import type { PlanMeta } from "@prisma-next/contract/types";
 import type { ContractReferenceRelation } from "@prisma-next/contract/types";
-import { contractModels } from "@prisma-next/contract/types";
+import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
 import type { IdbAtomicPlan, IdbCursorScanPlan } from "@prisma-next-idb/driver-idb/runtime";
 import { evaluateFilter, shorthandToFilterExpr } from "@prisma-next-idb/adapter-idb/runtime";
 import type { IdbFilterExpr } from "@prisma-next-idb/adapter-idb/runtime";
@@ -86,7 +86,7 @@ function getRelationDefinitions(contract: IdbContract, modelName: string): Relat
   const cached = perContract.get(modelName);
   if (cached) return cached;
 
-  const model = contractModels(contract)[modelName];
+  const model = domainModelsAtDefaultNamespace(contract.domain)[modelName];
   if (!model) {
     perContract.set(modelName, []);
     return [];
@@ -97,7 +97,7 @@ function getRelationDefinitions(contract: IdbContract, modelName: string): Relat
     if (!rawRelation || typeof rawRelation !== "object" || !("on" in rawRelation)) continue;
 
     const relation = rawRelation as ContractReferenceRelation;
-    // v0.12.0: `relation.to` is a CrossReference `{ namespace, model }`.
+    // `relation.to` is a CrossReference `{ namespace, model }`.
     const relatedModelName = relation.to.model;
     const relatedStoreName = getStoreName(contract, relatedModelName);
     defs.push({
@@ -571,14 +571,14 @@ function buildParentJoinFilter(parentValues: Map<string, unknown>): (row: Record
 // ── Key path helper ───────────────────────────────────────────────────────────
 
 function getKeyPath(contract: IdbContract, modelName: string): string {
-  const model = contractModels(contract)[modelName];
+  const model = domainModelsAtDefaultNamespace(contract.domain)[modelName];
   return (model?.storage as { keyPath?: string } | undefined)?.keyPath ?? "id";
 }
 
 // ── Referential action helpers ────────────────────────────────────────────────
 
 function getOnDelete(contract: IdbContract, modelName: string, relationName: string): IdbReferentialAction {
-  const model = contractModels(contract)[modelName];
+  const model = domainModelsAtDefaultNamespace(contract.domain)[modelName];
   const storage = model?.storage as { relations?: Record<string, { onDelete?: string }> } | undefined;
   return (storage?.relations?.[relationName]?.onDelete ?? "restrict") as IdbReferentialAction;
 }

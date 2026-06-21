@@ -68,7 +68,7 @@ export class MigrationCLI {
       // No prior metadata — fresh emit.
     }
 
-    const { opsJson, metadataJson } = buildMigrationArtifacts(instance, existing);
+    const { opsJson, metadataJson } = await buildMigrationArtifacts(instance, existing);
 
     if (values["dry-run"]) {
       process.stdout.write(`--- migration.json ---\n${metadataJson}\n`);

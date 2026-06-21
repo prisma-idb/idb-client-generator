@@ -58,9 +58,9 @@ describe("IdbMigration", () => {
     expect(m.destination).toEqual({ storageHash: "sha256:test-to-hash" });
   });
 
-  it("can be consumed by buildMigrationArtifacts to produce valid ops.json", () => {
+  it("can be consumed by buildMigrationArtifacts to produce valid ops.json", async () => {
     const m = new TestMigration();
-    const { opsJson, metadataJson } = buildMigrationArtifacts(m, null);
+    const { opsJson, metadataJson } = await buildMigrationArtifacts(m, null);
 
     const opsParsed = JSON.parse(opsJson) as unknown[];
     expect(opsParsed).toHaveLength(2);

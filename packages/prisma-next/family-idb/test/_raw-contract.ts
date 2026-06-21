@@ -23,7 +23,7 @@ export function createRawIdbContract(
   models: Record<string, unknown> = {}
 ): Contract<IdbStorage> {
   const ns = UNBOUND_DOMAIN_NAMESPACE_ID;
-  const storageBlock = { stores, namespaces: { [ns]: { id: ns } } };
+  const storageBlock = { stores, namespaces: { [ns]: { id: ns, entries: {} } } };
   const capabilities = { idb: { ddlOnlyInUpgrade: true, transactionalDDL: true } };
   const storageHash = computeStorageHash({ target: "idb", targetFamily: "idb", storage: storageBlock });
   const profileHash = computeProfileHash({ target: "idb", targetFamily: "idb", capabilities });
