@@ -148,11 +148,11 @@ describe("idbEmission", () => {
   });
 
   describe("getContractWrapper", () => {
-    it("wraps the base contract with IdbContractWithTypeMaps and adds Stores/Models", () => {
+    it("wraps the base contract with IdbContractWithTypeMaps and adds Stores", () => {
       const result = idbEmission.getContractWrapper("ContractBase", "TypeMaps");
       expect(result).toContain("export type Contract = IdbContractWithTypeMaps<ContractBase, TypeMaps>;");
       expect(result).toContain("export type Stores = Contract['storage']['stores'];");
-      expect(result).toContain("export type Models = ContractModelsMap<Contract>;");
+      expect(result).not.toContain("ContractModelsMap");
     });
   });
 });

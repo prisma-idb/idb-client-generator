@@ -7,6 +7,9 @@
  * - `generate-baseline` — auto-generate the first migration package
  *   (`from: null`) from the current `contract.json`.  Only valid on a
  *   fresh project with no migrations yet.
+ * - `generate-migration` — plan and write the next incremental migration
+ *   package by diffing the head migration's `end-contract.json` against the
+ *   current `contract.json`. Requires at least one migration to already exist.
  * - `generate-contract-space` — re-write
  *   `<project>/src/lib/prisma/contract-space.generated.ts` (or the path
  *   specified by `--out`) from the on-disk `migrations/app/` packages.
@@ -22,6 +25,13 @@
  *   1. prisma-next contract emit               # generate contract.json
  *   2. prisma-next-idb generate-baseline       # create migrations/app/<ts>_baseline/
  *   3. prisma-next-idb generate-contract-space # bundle into contract-space.generated.ts
+ *   4. prisma-next-idb preflight               # (optional) validate chain in CI
+ *
+ * Adding a subsequent migration:
+ *   1. prisma-next contract emit               # update contract.json after schema change
+ *   2. prisma-next-idb generate-migration \   # plan incremental migration
+ *        --name <slug>                         # e.g. --name add_posts
+ *   3. prisma-next-idb generate-contract-space # re-bundle contract-space.generated.ts
  *   4. prisma-next-idb preflight               # (optional) validate chain in CI
  */
 import { parseArgs } from "node:util";
@@ -43,7 +53,7 @@ interface ParsedFlags {
   migrationsDir: string | undefined;
   /** Output path for `generate-contract-space`. */
   out: string | undefined;
-  /** Slug suffix for the baseline dir name (generate-baseline only). */
+  /** Slug suffix for the migration directory name. */
   name: string | undefined;
 }
 
@@ -86,6 +96,19 @@ async function main(): Promise<number> {
         ...(flags.name !== undefined && { name: flags.name }),
       });
     }
+    case "generate-migration": {
+      if (flags.name === undefined) {
+        process.stderr.write("generate-migration: --name <slug> is required.\n");
+        return 2;
+      }
+      const { generateMigration } = await import("../core/generate-migration");
+      return generateMigration({
+        cwd: process.cwd(),
+        name: flags.name,
+        ...(flags.contract !== undefined && { contractPath: flags.contract }),
+        ...(flags.migrationsDir !== undefined && { migrationsDir: flags.migrationsDir }),
+      });
+    }
     case "generate-contract-space":
       return generateContractSpace({
         cwd: process.cwd(),
@@ -122,6 +145,7 @@ function printHelp(): void {
       "\n" +
       "Commands:\n" +
       "  generate-baseline         Create the initial migration package from contract.json\n" +
+      "  generate-migration        Plan the next incremental migration (requires --name)\n" +
       "  generate-contract-space   Regenerate contract-space.generated.ts\n" +
       "  preflight                 Validate the migration chain against fake-indexeddb\n" +
       "  help                      Show this message\n" +
@@ -133,6 +157,9 @@ function printHelp(): void {
       "Flags (generate-baseline only):\n" +
       "  --name <slug>             Directory slug (default: baseline)\n" +
       "\n" +
+      "Flags (generate-migration only):\n" +
+      "  --name <slug>             Directory slug, e.g. add_posts (required)\n" +
+      "\n" +
       "Flags (generate-contract-space only):\n" +
       "  --out <path>              Output file path (default: src/lib/prisma/contract-space.generated.ts)\n" +
       "\n" +
@@ -143,6 +170,12 @@ function printHelp(): void {
       "  3. prisma-next-idb generate-contract-space \\         # bundle into contract-space.generated.ts\n" +
       "       --contract src/prisma/contract.json \\           #   (same override if needed)\n" +
       "       --out src/prisma/contract-space.generated.ts\n" +
+      "  4. prisma-next-idb preflight                         # validate chain (CI)\n" +
+      "\n" +
+      "Adding a subsequent migration:\n" +
+      "  1. prisma-next contract emit                          # update contract.json\n" +
+      "  2. prisma-next-idb generate-migration --name <slug>  # plan incremental migration\n" +
+      "  3. prisma-next-idb generate-contract-space           # re-bundle contract-space\n" +
       "  4. prisma-next-idb preflight                         # validate chain (CI)\n"
   );
 }

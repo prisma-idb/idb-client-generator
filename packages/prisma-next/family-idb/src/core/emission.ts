@@ -114,8 +114,10 @@ export const idbEmission = {
       (storage as unknown as { namespaces?: Record<string, { id: string; entries?: Record<string, unknown> }> })
         .namespaces ?? {}
     ).sort(([a], [b]) => a.localeCompare(b))) {
+      const entriesObj = ns.entries ?? {};
+      const entriesType = Object.keys(entriesObj).length === 0 ? "Record<string, never>" : serializeValue(entriesObj);
       nsEntries.push(
-        `readonly ${serializeObjectKey(nsId)}: { readonly id: ${serializeValue(ns.id)}; readonly entries: ${serializeValue(ns.entries ?? {})} }`
+        `readonly ${serializeObjectKey(nsId)}: { readonly id: ${serializeValue(ns.id)}; readonly entries: ${entriesType} }`
       );
     }
     const namespacesType = nsEntries.length > 0 ? `{ ${nsEntries.join("; ")} }` : "Record<string, never>";
@@ -195,9 +197,6 @@ export const idbEmission = {
       `export type Contract = IdbContractWithTypeMaps<${contractBaseName}, ${typeMapsName}>;`,
       "",
       "export type Stores = Contract['storage']['stores'];",
-      // v0.12.0: Contract no longer has a top-level `models` property; use
-      // ContractModelsMap<Contract> to extract the flattened model map instead.
-      "export type Models = ContractModelsMap<Contract>;",
     ].join("\n");
   },
 } as const satisfies EmissionSpi;

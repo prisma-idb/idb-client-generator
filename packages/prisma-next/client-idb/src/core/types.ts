@@ -50,12 +50,16 @@ export type IdbContract = Contract<IdbStorage>;
  * Falls back to `Record<string, unknown>` when type maps are absent (plain
  * `IdbContract` or when the model name is not in the type maps).
  */
+// FieldOutputTypes = { __unbound__: { User: {...} } } — union over namespace values
+// to get the flat model map, then look up ModelName.
+type NsFieldOutputTypes<TContract> = ExtractIdbFieldOutputTypes<TContract>[keyof ExtractIdbFieldOutputTypes<TContract>];
+
 type ResolvedOutputRow<TContract, ModelName extends string> = string extends keyof ExtractIdbFieldOutputTypes<TContract>
   ? Record<string, unknown>
-  : ModelName extends keyof ExtractIdbFieldOutputTypes<TContract>
-    ? {
-        -readonly [K in keyof ExtractIdbFieldOutputTypes<TContract>[ModelName]]: ExtractIdbFieldOutputTypes<TContract>[ModelName][K];
-      }
+  : NsFieldOutputTypes<TContract> extends Record<string, unknown>
+    ? ModelName extends keyof NsFieldOutputTypes<TContract>
+      ? { -readonly [K in keyof NsFieldOutputTypes<TContract>[ModelName]]: NsFieldOutputTypes<TContract>[ModelName][K] }
+      : Record<string, unknown>
     : Record<string, unknown>;
 
 /**
@@ -64,12 +68,14 @@ type ResolvedOutputRow<TContract, ModelName extends string> = string extends key
  * Mirrors `ResolvedOutputRow` but uses `fieldInputTypes` — the input types
  * used for `create()`, `where()`, and mutation payloads.
  */
+type NsFieldInputTypes<TContract> = ExtractIdbFieldInputTypes<TContract>[keyof ExtractIdbFieldInputTypes<TContract>];
+
 type ResolvedInputRow<TContract, ModelName extends string> = string extends keyof ExtractIdbFieldInputTypes<TContract>
   ? Record<string, unknown>
-  : ModelName extends keyof ExtractIdbFieldInputTypes<TContract>
-    ? {
-        -readonly [K in keyof ExtractIdbFieldInputTypes<TContract>[ModelName]]: ExtractIdbFieldInputTypes<TContract>[ModelName][K];
-      }
+  : NsFieldInputTypes<TContract> extends Record<string, unknown>
+    ? ModelName extends keyof NsFieldInputTypes<TContract>
+      ? { -readonly [K in keyof NsFieldInputTypes<TContract>[ModelName]]: NsFieldInputTypes<TContract>[ModelName][K] }
+      : Record<string, unknown>
     : Record<string, unknown>;
 
 // ── Public row types ──────────────────────────────────────────────────────────
