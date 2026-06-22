@@ -12,7 +12,7 @@ Releases use [Changesets](https://github.com/changesets/changesets). All six pac
 
    The prompt asks which packages changed and the bump level (`patch`/`minor`/`major`). Commit the generated `.changeset/<slug>.md` file.
 
-2. **Merge to `main`.** The `release-prisma-next` workflow opens a **"chore: release prisma-next packages"** PR that bumps versions, writes `CHANGELOG.md` entries (with PR links and contributor @-mentions), and deletes the changeset file.
+2. **Merge to `main`.** The `release` workflow opens a **"chore: release packages"** PR that bumps versions, writes `CHANGELOG.md` entries (with PR links and contributor @-mentions), and deletes the changeset file.
 
 3. **Merge the release PR.** The workflow re-runs, finds no pending changesets, and publishes all six packages to npm with provenance attestation.
 
@@ -33,7 +33,7 @@ Publishing uses GitHub Actions OIDC — no stored npm token needed. Configure ea
 2. Fill in:
    - **Organization or user**: `prisma-idb`
    - **Repository**: `idb-client-generator`
-   - **Workflow filename**: `release-prisma-next.yml`
+   - **Workflow filename**: `release.yml`
 3. Save — repeat for all six packages.
 
 > **First publish**: trusted publisher config requires the package to already exist. For the initial publish, `npm login` locally and run `pnpm --filter=@prisma-next-idb/* publish`, then immediately configure trusted publishers.
@@ -47,11 +47,14 @@ Two things block merging a `packages/prisma-next/**` PR without a changeset:
 
 ## Releasing `packages/generator`
 
-The generator uses `release-it`. Run from the package directory:
+The generator uses Changesets, the same as the `@prisma-next-idb/*` packages.
 
-```bash
-cd packages/generator
-pnpm release
-```
+1. **Author a changeset** (bump level reflects the nature of the change):
 
-The `release.yml` workflow fires automatically on push to `main` when `packages/generator/**` changes.
+   ```bash
+   pnpm changeset
+   ```
+
+2. **Merge to `main`.** The `release` workflow opens a release PR that bumps the version and writes a `CHANGELOG.md` entry.
+
+3. **Merge the release PR.** The workflow re-runs and publishes to npm with provenance attestation.

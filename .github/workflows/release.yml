@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - "packages/generator/**"
+      - "packages/prisma-next/**"
+      - ".changeset/**"
       - ".github/workflows/release.yml"
 
 permissions: {}
@@ -14,20 +16,19 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write # Required for OIDC
-      contents: write # Required for release-it to commit and tag
+      id-token: write
+      contents: write
+      pull-requests: write
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "lts/*"
           cache: "pnpm"
@@ -36,18 +37,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build
-        run: pnpm run --filter @prisma-idb/idb-client-generator build
+      - name: Build packages
+        run: pnpm build --filter=@prisma-next-idb/* --filter=@prisma-idb/idb-client-generator
 
-      - name: Configure Git
-        run: |
-          git config user.name "${GITHUB_ACTOR}"
-          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
-
-      - name: Create GitHub Release
-        run: pnpm run --filter @prisma-idb/idb-client-generator release
+      - name: Create release PR or publish
+        uses: changesets/action@v1
+        with:
+          publish: pnpm changeset publish
+          title: "chore: release packages"
+          commit: "chore: release packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish to npm
-        run: pnpm publish --filter @prisma-idb/idb-client-generator --tag latest --no-git-checks
+          NPM_CONFIG_PROVENANCE: true
