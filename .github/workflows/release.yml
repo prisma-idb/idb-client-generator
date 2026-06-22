@@ -8,25 +8,26 @@ on:
       - "packages/generator/**"
       - ".github/workflows/release.yml"
 
-permissions:
-  id-token: write # Required for OIDC
-  contents: write # Required for release-it to commit and tag
+permissions: {}
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Required for OIDC
+      contents: write # Required for release-it to commit and tag
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "lts/*"
           cache: "pnpm"

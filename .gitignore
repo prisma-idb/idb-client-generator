@@ -18,3 +18,5 @@ out
 /.cache/benchmark-act/
 
 todo.md
+
+/vendor/

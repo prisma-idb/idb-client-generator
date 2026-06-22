@@ -32,7 +32,8 @@
     },
     "check": {
       "outputs": [],
-      "env": ["PUBLIC_POSTHOG_PROJECT_TOKEN", "PUBLIC_POSTHOG_HOST"]
+      "env": ["PUBLIC_POSTHOG_PROJECT_TOKEN", "PUBLIC_POSTHOG_HOST"],
+      "dependsOn": ["^build"]
     },
     "test": {
       "dependsOn": ["generate", "^build"],

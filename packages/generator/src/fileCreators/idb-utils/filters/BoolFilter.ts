@@ -1,4 +1,4 @@
-import type { Model } from "src/fileCreators/types";
+import type { Model } from "../../types";
 import type CodeBlockWriter from "code-block-writer";
 
 export function addBoolFilter(writer: CodeBlockWriter, models: readonly Model[]) {

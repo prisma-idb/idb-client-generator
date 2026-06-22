@@ -13,6 +13,21 @@ const gitignorePath = fileURLToPath(new URL("./.gitignore", import.meta.url));
 export default defineConfig([
   includeIgnoreFile(gitignorePath),
   { ignores: ["**/src/lib/components/ui/**"] },
+  // Prisma Next emits generated contract & migration artifacts under the
+  // app's prisma/ and migrations/ folders. They're checked in for
+  // reproducibility but shouldn't be linted (they use `{}` etc. by design).
+  {
+    ignores: [
+      // contract emit artifacts (contract.json + contract.d.ts)
+      "**/src/lib/prisma/contract.d.ts",
+      "**/src/lib/prisma/contract.json",
+      // migration package artifacts — all *.d.ts and *.json files inside
+      // migrations/<space>/<pkg>/; migration.ts is intentionally left lintable
+      // since it's the human-editable scaffold.
+      "**/migrations/**/*.d.ts",
+      "**/migrations/**/*.json",
+    ],
+  },
   js.configs.recommended,
   ...ts.configs.recommended,
   ...svelte.configs.recommended,

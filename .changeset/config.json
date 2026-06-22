@@ -1,0 +1,25 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config/schema.json",
+  "changelog": [
+    "@changesets/changelog-github",
+    {
+      "repo": "prisma-idb/idb-client-generator"
+    }
+  ],
+  "commit": false,
+  "fixed": [
+    [
+      "@prisma-next-idb/target-idb",
+      "@prisma-next-idb/driver-idb",
+      "@prisma-next-idb/adapter-idb",
+      "@prisma-next-idb/runtime-idb",
+      "@prisma-next-idb/client-idb",
+      "@prisma-next-idb/family-idb"
+    ]
+  ],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": []
+}

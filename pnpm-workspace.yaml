@@ -1,17 +1,31 @@
 packages:
   - packages/*
+  - packages/prisma-next/*
   - apps/*
   - tests/*
 
-onlyBuiltDependencies:
-  - "@prisma/client"
-  - "@prisma/engines"
-  - esbuild
-  - prisma
-  - sharp
+allowBuilds:
+  "@prisma/engines": true
+  "@prisma/client": true
+  "@tailwindcss/oxide": true
+  core-js: true
+  esbuild: true
+  msw: true
+  prisma: true
+  protobufjs: true
+  sharp: true
+  unrs-resolver: true
+
+minimumReleaseAgeExclude:
+  - undici@7.28.0
+
+peerDependencyRules:
+  allowedVersions:
+    tailwindcss: "4"
+    vite: "8"
+    workbox-build: "7.4.0"
 
 overrides:
-  "@hono/node-server@<1.19.10": ">=1.19.10"
   "@hono/node-server@<1.19.13": ">=1.19.13"
   "@types/node": "^24.10.9"
   "cookie@<0.7.0": ">=0.7.0"
@@ -19,15 +33,14 @@ overrides:
   "devalue@<5.6.4": ">=5.6.4"
   drizzle-orm@<0.45.2: ">=0.45.2"
   effect@<3.20.0: ">=3.20.0"
-  "hono@<4.11.10": ">=4.11.10"
-  "hono@<4.12.4": ">=4.12.4"
   "hono@<4.12.7": ">=4.12.7"
+  "js-yaml@>=4.0.0 <=4.1.1": "^4.1.2"
   kysely@<=0.28.13: ">=0.28.14"
   lodash-es@<=4.17.23: ">=4.18.0"
-  lodash-es@>=4.0.0 <=4.17.23: ">=4.18.0"
   lodash@<=4.17.23: ">=4.18.0"
-  "lodash@>=4.0.0 <=4.17.22": ">=4.17.23"
-  lodash@>=4.0.0 <=4.17.23: ">=4.18.0"
+  postcss@<8.5.10: ^8.5.10
   "serialize-javascript@<=7.0.2": ">=7.0.3"
   tmp@<=0.2.3: ">=0.2.4"
   "undici@<6.24.0": ">=6.24.0"
+  undici@>=7.0.0 <7.28.0: ^7.28.0
+  uuid@<11.1.1: ^11.1.1

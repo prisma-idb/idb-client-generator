@@ -23,14 +23,14 @@
   "dependencies": {
     "@prisma/generator-helper": "^7.8.0",
     "code-block-writer": "^13.0.3",
-    "prettier": "^3.8.3"
+    "prettier": "^3.8.4"
   },
   "devDependencies": {
     "@prisma/internals": "^7.8.0",
-    "@release-it/conventional-changelog": "^10.0.6",
-    "@types/node": "^24.12.2",
-    "release-it": "^19.2.4",
-    "typescript": "^5.9.3"
+    "@release-it/conventional-changelog": "^11.0.1",
+    "@types/node": "^24.13.2",
+    "release-it": "^20.2.0",
+    "typescript": "^6.0.3"
   },
   "peerDependencies": {
     "@paralleldrive/cuid2": "^3.0.0",

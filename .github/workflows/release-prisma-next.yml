@@ -1,0 +1,48 @@
+name: Release (prisma-next)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "packages/prisma-next/**"
+      - ".changeset/**"
+      - ".github/workflows/release-prisma-next.yml"
+
+permissions: {}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC token for npm provenance + passwordless publish
+      contents: write # changesets/action needs to push the version-bump commit
+      pull-requests: write # changesets/action needs to open the release PR
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build prisma-next packages
+        run: pnpm build --filter=@prisma-next-idb/*
+
+      - name: Create release PR or publish
+        uses: changesets/action@v1
+        with:
+          publish: pnpm changeset publish --provenance
+          title: "chore: release prisma-next packages"
+          commit: "chore: release prisma-next packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

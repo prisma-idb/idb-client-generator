@@ -4,13 +4,24 @@
 
 > You already write Prisma on the server. Now write it in the browser.
 
-A Prisma generator that creates a type-safe IndexedDB client with the API you already know — plus an optional sync engine that handles conflict resolution, ownership, and offline-first data for you.
+Type-safe IndexedDB with the Prisma API you already know — offline-first, no server required.
 
-**[Documentation](https://prisma-idb.dev/) · [Live Demo](https://kanban.prisma-idb.dev/) · [npm](https://www.npmjs.com/package/@prisma-idb/idb-client-generator)**
+**[Documentation](https://prisma-idb.dev/) · [Live Demo](https://kanban.prisma-idb.dev/)**
 
 ---
 
-## The difference
+## Two flavors
+
+|                  | Generator (stable)                                                                                   | prisma-next driver stack (new)                                                                    |
+| ---------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **Package**      | [`@prisma-idb/idb-client-generator`](https://www.npmjs.com/package/@prisma-idb/idb-client-generator) | [`@prisma-next-idb/family-idb`](https://www.npmjs.com/package/@prisma-next-idb/family-idb)        |
+| **How it works** | Prisma generator — runs `prisma generate`, emits a typed client                                      | prisma-next driver + adapter + target stack for IndexedDB                                         |
+| **Status**       | Stable, published                                                                                    | `0.1.0`, follows [prisma-next](https://www.prisma.io/blog/prisma-next-call-for-extension-authors) |
+| **Source**       | `packages/generator`                                                                                 | `packages/prisma-next/*`                                                                          |
+
+---
+
+## The difference (vs raw IndexedDB)
 
 Even with the [`idb`](https://github.com/jakearchibald/idb) library, querying across relations means manual index lookups, joins in application code, and zero type safety:
 
@@ -43,24 +54,9 @@ const posts = await idb.post.findMany({
 
 Same API as Prisma Client. Fully typed. Works offline.
 
-## And when you need sync...
+---
 
-Most IndexedDB libraries stop at CRUD. This one includes a bidirectional sync engine that handles the hard parts:
-
-```prisma
-generator prismaIDB {
-  provider   = "idb-client-generator"
-  output     = "./prisma-idb"
-  outboxSync = true    // ← one flag
-  rootModel  = "User"
-}
-```
-
-- **Outbox pattern** — mutations queue locally, push reliably with retry and batching
-- **Ownership DAG** — authorization is structural, every record traces back to its owner
-- **Conflict resolution** — server-authoritative changelog materialization on pull
-
-## Quick Start
+## Generator quick start
 
 ### Install
 
@@ -86,7 +82,7 @@ model Todo {
 }
 ```
 
-### Generate & Use
+### Generate & use
 
 ```bash
 pnpm exec prisma generate
@@ -97,43 +93,52 @@ import { PrismaIDBClient } from "./prisma-idb";
 
 const idb = await PrismaIDBClient.createClient();
 
-// Create
-await idb.todo.create({
-  data: { title: "Ship it", done: false },
-});
+await idb.todo.create({ data: { title: "Ship it", done: false } });
 
-// Read
-const todos = await idb.todo.findMany({
-  where: { done: false },
-});
+const todos = await idb.todo.findMany({ where: { done: false } });
 
-// Update
-await idb.todo.update({
-  where: { id: todoId },
-  data: { done: true },
-});
+await idb.todo.update({ where: { id: todoId }, data: { done: true } });
 
-// Delete
-await idb.todo.delete({
-  where: { id: todoId },
-});
+await idb.todo.delete({ where: { id: todoId } });
 ```
 
-## Features
+### Optional sync engine
 
-- **Prisma-compatible API** — `create`, `findMany`, `findUnique`, `update`, `delete`, `upsert`, and more
-- **Full type safety** — generated from your Prisma schema with complete autocomplete
-- **Relations** — `include` and `select` work as expected
-- **Offline-first** — all data in IndexedDB, zero network dependency
-- **Optional sync** — bidirectional server sync with conflict resolution and authorization
-- **Client-generated IDs** — `cuid` or `uuid`, no server round-trip for creates
+```prisma
+generator prismaIDB {
+  provider   = "idb-client-generator"
+  output     = "./prisma-idb"
+  outboxSync = true    // ← one flag
+  rootModel  = "User"
+}
+```
+
+- **Outbox pattern** — mutations queue locally, push reliably with retry and batching
+- **Ownership DAG** — authorization is structural, every record traces back to its owner
+- **Conflict resolution** — server-authoritative changelog materialization on pull
+
+---
+
+## prisma-next driver stack quick start
+
+> Implements the [prisma-next](https://www.prisma.io/blog/prisma-next-call-for-extension-authors) driver + adapter + target architecture for IndexedDB. No codegen — runtime only.
+
+```bash
+pnpm add @prisma-next-idb/family-idb
+```
+
+See the [documentation](https://prisma-idb.dev/) for full setup.
+
+---
 
 ## Resources
 
 - [Documentation](https://prisma-idb.dev/)
 - [Live Kanban Demo](https://kanban.prisma-idb.dev/)
-- [npm Package](https://www.npmjs.com/package/@prisma-idb/idb-client-generator)
-- [Example App Source](./apps/pidb-kanban-example)
+- [Generator on npm](https://www.npmjs.com/package/@prisma-idb/idb-client-generator)
+- [Extension family on npm](https://www.npmjs.com/package/@prisma-next-idb/family-idb)
+- [Generator example app](./apps/usage)
+- [Extension framework example app](./apps/prisma-next-idb-kanban-example)
 
 ## Contributing
 

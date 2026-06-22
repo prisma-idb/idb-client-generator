@@ -1,0 +1,74 @@
+---
+title: Schema & Config
+description: Write PSL and point Prisma Next at the IDB target
+icon: FileCode
+---
+
+Prisma Next IDB reads PSL directly. No `generator` block and no Prisma Client needed.
+
+## Schema
+
+```prisma
+model User {
+  id    String  @id
+  name  String
+  email String? @unique
+  todos Todo[]
+}
+
+model Todo {
+  id     String  @id
+  title  String
+  done   Boolean
+  userId String
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], name: "byUser")
+}
+```
+
+Supported scalar types: `String`, `Int`, `Float`, `Boolean`, `DateTime`, `BigInt`, `Decimal`, `Json`, `Bytes`.
+
+## IDB rules
+
+- Each model needs one scalar `@id` field or a single-field `@@id([field])`.
+- Compound primary keys are not supported.
+- Compound indexes are not supported.
+- Relation fields must declare `@relation(fields: [...], references: [...])` on the foreign-key side.
+- Use `@@map("storeName")` to control the IndexedDB object store name. The store name is also the key under `db.orm`.
+
+```prisma
+model Todo {
+  id    String @id
+  title String
+
+  @@map("todos")
+}
+```
+
+```ts
+const todos = await db.orm.todos.all();
+```
+
+## Config
+
+```ts
+import { defineConfig } from "@prisma-next-idb/family-idb/config-types";
+import { prismaIdbContract } from "@prisma-next-idb/family-idb/contract-psl";
+import idbFamily from "@prisma-next-idb/family-idb/control";
+import idbTarget from "@prisma-next-idb/target-idb/control";
+import idbAdapter from "@prisma-next-idb/adapter-idb/control";
+import idbDriver from "@prisma-next-idb/driver-idb/control";
+
+export default defineConfig({
+  family: idbFamily,
+  target: idbTarget,
+  adapter: idbAdapter,
+  driver: idbDriver,
+  db: { connection: ":memory:" },
+  contract: prismaIdbContract("src/lib/prisma/schema.prisma"),
+  migrations: { dir: "migrations" },
+});
+```
+
+`connection` is present because the Prisma Next framework requires it. The IDB target does not use it. The `prismaIdbContract` path is the source schema; `contract emit` reads it and writes `contract.json` and `contract.d.ts` alongside it.

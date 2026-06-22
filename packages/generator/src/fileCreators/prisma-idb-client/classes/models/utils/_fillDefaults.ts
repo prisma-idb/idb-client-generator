@@ -1,4 +1,4 @@
-import { Field, Model } from "src/fileCreators/types";
+import { Field, Model } from "../../../../types";
 import CodeBlockWriter from "code-block-writer";
 
 export function addFillDefaultsFunction(writer: CodeBlockWriter, model: Model) {

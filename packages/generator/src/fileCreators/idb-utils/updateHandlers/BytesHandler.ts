@@ -1,4 +1,4 @@
-import { Model } from "src/fileCreators/types";
+import { Model } from "../../types";
 import type CodeBlockWriter from "code-block-writer";
 
 export function addBytesUpdateHandler(writer: CodeBlockWriter, models: readonly Model[]) {

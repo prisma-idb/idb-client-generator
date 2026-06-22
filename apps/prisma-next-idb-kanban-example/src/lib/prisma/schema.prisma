@@ -1,0 +1,25 @@
+model User {
+  id     String  @id
+  name   String
+  email  String? @unique
+  boards Board[]
+}
+
+model Board {
+  id        String   @id
+  name      String
+  createdAt DateTime
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  todos     Todo[]
+}
+
+model Todo {
+  id          String   @id
+  title       String
+  description String?
+  isCompleted Boolean
+  createdAt   DateTime
+  boardId     String
+  board       Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+}

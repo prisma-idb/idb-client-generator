@@ -1,0 +1,236 @@
+{
+  "schemaVersion": "1",
+  "targetFamily": "idb",
+  "target": "idb",
+  "profileHash": "sha256:e97a15c6c5e8cd6446e4f48dc464af667a10a0a4ecb533c9624bbab58233a14d",
+  "roots": {
+    "posts": {
+      "model": "Post",
+      "namespace": "__unbound__"
+    },
+    "random_store": {
+      "model": "RandomStore",
+      "namespace": "__unbound__"
+    },
+    "users": {
+      "model": "User",
+      "namespace": "__unbound__"
+    }
+  },
+  "domain": {
+    "namespaces": {
+      "__unbound__": {
+        "models": {
+          "Post": {
+            "fields": {
+              "authorId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "content": {
+                "nullable": true,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/date@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "published": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "title": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "views": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/int32@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "author": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": ["authorId"],
+                  "targetFields": ["id"]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "__unbound__"
+                }
+              }
+            },
+            "storage": {
+              "keyPath": "id",
+              "storeName": "posts"
+            }
+          },
+          "RandomStore": {
+            "fields": {
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "keyPath": "id",
+              "storeName": "random_store"
+            }
+          },
+          "User": {
+            "fields": {
+              "active": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "bio": {
+                "nullable": true,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "email": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "joinedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/date@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "score": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/int32@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "posts": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": ["id"],
+                  "targetFields": ["authorId"]
+                },
+                "to": {
+                  "model": "Post",
+                  "namespace": "__unbound__"
+                }
+              }
+            },
+            "storage": {
+              "keyPath": "id",
+              "relations": {
+                "posts": {
+                  "onDelete": "cascade"
+                }
+              },
+              "storeName": "users"
+            }
+          }
+        }
+      }
+    }
+  },
+  "storage": {
+    "namespaces": {
+      "__unbound__": {
+        "entries": {},
+        "id": "__unbound__"
+      }
+    },
+    "storageHash": "sha256:6e7f133567af57688f9750c1c8281785032b1d999366ab78ea34f6fe6064d5a6",
+    "stores": {
+      "posts": {
+        "indexes": {
+          "byAuthorId": {
+            "keyPath": "authorId"
+          }
+        },
+        "keyPath": "id"
+      },
+      "random_store": {
+        "keyPath": "id"
+      },
+      "users": {
+        "indexes": {
+          "byEmail": {
+            "keyPath": "email",
+            "unique": true
+          },
+          "byScore": {
+            "keyPath": "score"
+          }
+        },
+        "keyPath": "id"
+      }
+    }
+  },
+  "capabilities": {
+    "idb": {
+      "ddlOnlyInUpgrade": true,
+      "transactionalDDL": true
+    }
+  },
+  "extensionPacks": {},
+  "meta": {},
+  "_generated": {
+    "warning": "⚠️  GENERATED FILE - DO NOT EDIT",
+    "message": "This file is automatically generated by \"prisma-next contract emit\".",
+    "regenerate": "To regenerate, run: prisma-next contract emit"
+  }
+}

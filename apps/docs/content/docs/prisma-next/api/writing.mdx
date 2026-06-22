@@ -1,0 +1,85 @@
+---
+title: Writing
+description: Create, update, upsert, and delete rows
+icon: Pencil
+---
+
+## Create
+
+```ts
+const user = await db.orm.user.create({
+  id: crypto.randomUUID(),
+  name: "Alice",
+  email: "alice@example.com",
+});
+```
+
+## Create many
+
+```ts
+const rows = await db.orm.todo
+  .createAll([
+    { id: crypto.randomUUID(), title: "One", done: false, userId },
+    { id: crypto.randomUUID(), title: "Two", done: false, userId },
+  ])
+  .toArray();
+```
+
+Use `createCount()` when you only need the number of inserted rows.
+
+## Update one
+
+`update()` updates the first row matching the current filter.
+
+```ts
+const todo = await db.orm.todo.where({ id: todoId }).update({ done: true });
+```
+
+It returns the updated row, or `null` if nothing matched.
+
+## Update many
+
+```ts
+const updated = await db.orm.todo.where({ userId }).updateAll({ done: true }).toArray();
+```
+
+Use `updateCount()` when you only need the number of changed rows.
+
+## Upsert
+
+```ts
+const user = await db.orm.user.upsert({
+  where: { id: "user_1" },
+  create: { id: "user_1", name: "Alice", email: null },
+  update: { name: "Alice Smith" },
+});
+```
+
+## Delete by primary key
+
+```ts
+await db.orm.todo.delete(todoId);
+```
+
+## Delete many
+
+```ts
+const deleted = await db.orm.todo.where({ done: true }).deleteAll().toArray();
+```
+
+Use `deleteCount()` when you only need the number of deleted rows.
+
+## Relation writes
+
+Relation fields can use callbacks for nested creates and connects.
+
+```ts
+const todo = await db.orm.todo.create({
+  id: crypto.randomUUID(),
+  title: "Write docs",
+  done: false,
+  user: (user) => user.connect({ id: userId }),
+});
+```
+
+Nested relation writes run in a multi-store IndexedDB transaction.

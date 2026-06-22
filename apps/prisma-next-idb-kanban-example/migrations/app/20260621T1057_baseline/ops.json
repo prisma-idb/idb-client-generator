@@ -1,0 +1,40 @@
+[
+  {
+    "kind": "createObjectStore",
+    "id": "object-store._prisma_next_marker.create",
+    "label": "Create internal marker store \"_prisma_next_marker\"",
+    "operationClass": "additive",
+    "storeName": "_prisma_next_marker",
+    "def": {
+      "keyPath": "space"
+    }
+  },
+  {
+    "kind": "createObjectStore",
+    "id": "object-store.user.create",
+    "label": "Create object store \"user\"",
+    "operationClass": "additive",
+    "storeName": "user",
+    "def": {
+      "indexes": {
+        "email_unique": {
+          "keyPath": "email",
+          "unique": true
+        }
+      },
+      "keyPath": "id"
+    }
+  },
+  {
+    "kind": "createIndex",
+    "id": "index.user.email_unique.create",
+    "label": "Create index \"email_unique\" on \"user\"",
+    "operationClass": "additive",
+    "storeName": "user",
+    "indexName": "email_unique",
+    "def": {
+      "keyPath": "email",
+      "unique": true
+    }
+  }
+]

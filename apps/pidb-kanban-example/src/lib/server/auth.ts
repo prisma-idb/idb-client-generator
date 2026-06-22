@@ -17,5 +17,8 @@ export const auth = betterAuth({
     },
   },
   secret: ENV.BETTER_AUTH_SECRET,
+  rateLimit: {
+    enabled: !process.env.CI,
+  },
   plugins: [sveltekitCookies(getRequestEvent), anonymous()],
 });

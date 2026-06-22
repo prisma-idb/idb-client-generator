@@ -1,0 +1,49 @@
+{
+  "name": "@prisma-next-idb/target-idb",
+  "version": "0.1.0",
+  "description": "Prisma Next IDB family — target pack (identity, migration runner, DDL op factories)",
+  "license": "MIT",
+  "files": ["dist"],
+  "keywords": ["prisma", "prisma-next", "indexeddb", "offline-first", "idb"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/prisma-idb/idb-client-generator.git",
+    "directory": "packages/prisma-next/target-idb"
+  },
+  "homepage": "https://prisma-idb.dev/",
+  "bugs": {
+    "url": "https://github.com/prisma-idb/idb-client-generator/issues"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./dist/pack.mjs",
+    "./pack": "./dist/pack.mjs",
+    "./control": "./dist/control.mjs",
+    "./runtime": "./dist/runtime.mjs",
+    "./migration": "./dist/migration.mjs",
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/pack.mjs",
+  "module": "./dist/pack.mjs",
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "prettier --check . && eslint .",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@prisma-next/contract": "^0.14.0",
+    "@prisma-next/framework-components": "^0.14.0",
+    "@prisma-next/migration-tools": "^0.14.0",
+    "pathe": "^2.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.2",
+    "fake-indexeddb": "^6.2.5",
+    "tsdown": "^0.22.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  }
+}

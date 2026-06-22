@@ -1,0 +1,252 @@
+{
+  "schemaVersion": "1",
+  "targetFamily": "idb",
+  "target": "idb",
+  "profileHash": "sha256:e97a15c6c5e8cd6446e4f48dc464af667a10a0a4ecb533c9624bbab58233a14d",
+  "roots": {
+    "board": {
+      "model": "Board",
+      "namespace": "__unbound__"
+    },
+    "todo": {
+      "model": "Todo",
+      "namespace": "__unbound__"
+    },
+    "user": {
+      "model": "User",
+      "namespace": "__unbound__"
+    }
+  },
+  "domain": {
+    "namespaces": {
+      "__unbound__": {
+        "models": {
+          "Board": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/date@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "todos": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": ["id"],
+                  "targetFields": ["boardId"]
+                },
+                "to": {
+                  "model": "Todo",
+                  "namespace": "__unbound__"
+                }
+              },
+              "user": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": ["userId"],
+                  "targetFields": ["id"]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "__unbound__"
+                }
+              }
+            },
+            "storage": {
+              "keyPath": "id",
+              "relations": {
+                "user": {
+                  "onDelete": "cascade"
+                }
+              },
+              "storeName": "board"
+            }
+          },
+          "Todo": {
+            "fields": {
+              "boardId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/date@1",
+                  "kind": "scalar"
+                }
+              },
+              "description": {
+                "nullable": true,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "isCompleted": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "title": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "board": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": ["boardId"],
+                  "targetFields": ["id"]
+                },
+                "to": {
+                  "model": "Board",
+                  "namespace": "__unbound__"
+                }
+              }
+            },
+            "storage": {
+              "keyPath": "id",
+              "relations": {
+                "board": {
+                  "onDelete": "cascade"
+                }
+              },
+              "storeName": "todo"
+            }
+          },
+          "User": {
+            "fields": {
+              "email": {
+                "nullable": true,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "boards": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": ["id"],
+                  "targetFields": ["userId"]
+                },
+                "to": {
+                  "model": "Board",
+                  "namespace": "__unbound__"
+                }
+              }
+            },
+            "storage": {
+              "keyPath": "id",
+              "storeName": "user"
+            }
+          }
+        }
+      }
+    }
+  },
+  "storage": {
+    "namespaces": {
+      "__unbound__": {
+        "entries": {},
+        "id": "__unbound__"
+      }
+    },
+    "storageHash": "sha256:3960fb5561eb9dfea1e51a4fbcb3f1b717d275317e32e95db2949d0737770425",
+    "stores": {
+      "board": {
+        "indexes": {
+          "userId": {
+            "keyPath": "userId"
+          }
+        },
+        "keyPath": "id"
+      },
+      "todo": {
+        "indexes": {
+          "boardId": {
+            "keyPath": "boardId"
+          }
+        },
+        "keyPath": "id"
+      },
+      "user": {
+        "indexes": {
+          "email_unique": {
+            "keyPath": "email",
+            "unique": true
+          }
+        },
+        "keyPath": "id"
+      }
+    }
+  },
+  "capabilities": {
+    "idb": {
+      "ddlOnlyInUpgrade": true,
+      "transactionalDDL": true
+    }
+  },
+  "extensionPacks": {},
+  "meta": {},
+  "_generated": {
+    "warning": "⚠️  GENERATED FILE - DO NOT EDIT",
+    "message": "This file is automatically generated by \"prisma-next contract emit\".",
+    "regenerate": "To regenerate, run: prisma-next contract emit"
+  }
+}

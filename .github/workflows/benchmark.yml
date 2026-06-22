@@ -25,27 +25,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: lts/*
           cache: pnpm
 
       - name: Install package dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Generate benchmark clients
-        working-directory: apps/benchmark
-        run: pnpm generate
-        env:
-          DATABASE_URL: "postgresql://placeholder@localhost:5432/placeholder"
 
       - name: Restore Playwright browser cache
         uses: actions/cache@v4
@@ -57,7 +51,13 @@ jobs:
         working-directory: apps/benchmark
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Run current benchmark suite (PR head)
+      - name: Generate benchmark clients (PR head)
+        working-directory: apps/benchmark
+        run: pnpm generate
+        env:
+          DATABASE_URL: "postgresql://placeholder@localhost:5432/placeholder"
+
+      - name: Run benchmark suite (PR head)
         working-directory: apps/benchmark
         env:
           BENCHMARK_DATASET_SIZE: ${{ env.BENCHMARK_DATASET_SIZE }}
@@ -70,22 +70,56 @@ jobs:
           mkdir -p "$RUNNER_TEMP/benchmark-results"
           pnpm benchmark:ci
 
-      - name: Run baseline benchmark suite (PR base)
+      - name: Save HEAD chromium directory
         run: |
-          git checkout --force ${{ github.event.pull_request.base.sha }}
-          pnpm install --frozen-lockfile
-          pushd apps/benchmark
-          DATABASE_URL="postgresql://placeholder@localhost:5432/placeholder" pnpm generate
-          BENCHMARK_DATASET_SIZE="${{ env.BENCHMARK_DATASET_SIZE }}" \
-          BENCHMARK_WARMUP_RUNS="${{ env.BENCHMARK_WARMUP_RUNS }}" \
-          BENCHMARK_MEASURED_RUNS="${{ env.BENCHMARK_MEASURED_RUNS }}" \
-          BENCHMARK_RESULT_PATH="$RUNNER_TEMP/benchmark-results/baseline.json" \
-          NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN="" \
-          NEXT_PUBLIC_POSTHOG_HOST="https://us.i.posthog.com" \
-          pnpm benchmark:ci
-          popd
+          HEAD_CHROMIUM=$(ls ~/.cache/ms-playwright | grep '^chromium_headless_shell-' | head -1)
+          echo "HEAD_CHROMIUM=$HEAD_CHROMIUM" >> $GITHUB_ENV
 
-      - name: Restore PR head checkout
+      - name: Checkout PR base
+        run: git checkout --force ${{ github.event.pull_request.base.sha }}
+
+      - name: Install base dependencies
+        # PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 prevents playwright 1.x postinstall hooks
+        # from running, which would otherwise delete HEAD's chromium revision as "unused".
+        run: PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 pnpm install --frozen-lockfile
+
+      - name: Ensure Playwright browser is available for base
+        working-directory: apps/benchmark
+        # HEAD's browser is still intact (PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD prevented deletion).
+        # If base needs a different revision, symlink HEAD's binary — same chromium engine,
+        # close enough for benchmark comparison purposes.
+        run: |
+          BROWSER_DIR=$(pnpm exec playwright install --dry-run chromium 2>&1 \
+            | awk '/Install location:.*chromium_headless_shell/{print $NF}' | head -1)
+          echo "Base playwright needs: $BROWSER_DIR"
+
+          if [ -d "$BROWSER_DIR" ]; then
+            echo "Already present — skipping."
+          else
+            echo "Different revision. Symlinking HEAD chromium ($HEAD_CHROMIUM)..."
+            mkdir -p "$(dirname "$BROWSER_DIR")"
+            ln -sf "$HOME/.cache/ms-playwright/$HEAD_CHROMIUM" "$BROWSER_DIR"
+            echo "Symlinked: $HEAD_CHROMIUM -> $BROWSER_DIR"
+          fi
+
+      - name: Generate benchmark clients (PR base)
+        working-directory: apps/benchmark
+        run: pnpm generate
+        env:
+          DATABASE_URL: "postgresql://placeholder@localhost:5432/placeholder"
+
+      - name: Run benchmark suite (PR base)
+        working-directory: apps/benchmark
+        env:
+          BENCHMARK_DATASET_SIZE: ${{ env.BENCHMARK_DATASET_SIZE }}
+          BENCHMARK_WARMUP_RUNS: ${{ env.BENCHMARK_WARMUP_RUNS }}
+          BENCHMARK_MEASURED_RUNS: ${{ env.BENCHMARK_MEASURED_RUNS }}
+          BENCHMARK_RESULT_PATH: ${{ runner.temp }}/benchmark-results/baseline.json
+          NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: ""
+          NEXT_PUBLIC_POSTHOG_HOST: "https://us.i.posthog.com"
+        run: pnpm benchmark:ci
+
+      - name: Restore PR head
         run: |
           git checkout --force ${{ github.sha }}
           pnpm install --frozen-lockfile
@@ -116,12 +150,11 @@ jobs:
         working-directory: apps/benchmark
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          pnpm benchmark:comment --body-file "$RUNNER_TEMP/benchmark-results/report.md"
+        run: pnpm benchmark:comment --body-file "$RUNNER_TEMP/benchmark-results/report.md"
 
       - name: Upload benchmark artifacts
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-results
           path: ${{ runner.temp }}/benchmark-results/
@@ -132,27 +165,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: lts/*
           cache: pnpm
 
       - name: Install package dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Generate benchmark clients
-        working-directory: apps/benchmark
-        run: pnpm generate
-        env:
-          DATABASE_URL: "postgresql://placeholder@localhost:5432/placeholder"
 
       - name: Restore Playwright browser cache
         uses: actions/cache@v4
@@ -163,6 +190,12 @@ jobs:
       - name: Install Playwright Browser
         working-directory: apps/benchmark
         run: pnpm exec playwright install --with-deps chromium
+
+      - name: Generate benchmark clients
+        working-directory: apps/benchmark
+        run: pnpm generate
+        env:
+          DATABASE_URL: "postgresql://placeholder@localhost:5432/placeholder"
 
       - name: Run benchmark suite
         working-directory: apps/benchmark
@@ -194,7 +227,7 @@ jobs:
 
       - name: Upload benchmark artifacts
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-results-main
           path: ${{ runner.temp }}/benchmark-results/

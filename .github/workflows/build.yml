@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/
       - name: Lint all packages
         run: pnpm lint
@@ -22,13 +22,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/
 
       - name: Generate BETTER_AUTH_SECRET
         run: echo "BETTER_AUTH_SECRET=$(openssl rand -base64 32 | tr '/+=' '_-')" >> $GITHUB_ENV
 
-      - name: Run svelte-check
+      - name: Run typecheck commands
         run: pnpm check
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5433/postgres"
@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/
 
       - name: Run schema generation tests
@@ -70,8 +70,8 @@ jobs:
           - 5434:5432
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: lts/*
       - name: Set DATABASE_URL environment variable
@@ -89,11 +89,46 @@ jobs:
           GOOGLE_CLIENT_SECRET: "placeholder"
           PUBLIC_POSTHOG_PROJECT_TOKEN: "placeholder"
           PUBLIC_POSTHOG_HOST: "https://us.i.posthog.com"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-sync
           path: apps/pidb-kanban-example/playwright-report/
+          retention-days: 30
+
+  test-prisma-next:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/
+
+      - name: Run prisma-next unit tests
+        run: pnpm test:prisma-next
+
+  test-prisma-next-e2e:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/
+
+      - name: Install Playwright Browsers
+        working-directory: apps/prisma-next-usage
+        run: pnpm exec playwright install --with-deps
+
+      - name: Run prisma-next E2E tests
+        run: pnpm test:prisma-next-e2e
+
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-prisma-next
+          path: apps/prisma-next-usage/playwright-report/
           retention-days: 30
 
   test-client:
@@ -119,8 +154,8 @@ jobs:
           - 5433:5432
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: lts/*
       - name: Set DATABASE_URL environment variable
@@ -131,7 +166,7 @@ jobs:
         run: pnpm exec playwright install --with-deps
       - name: Run Client Playwright tests
         run: pnpm test:client
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-client

@@ -1,0 +1,54 @@
+{
+  "name": "@prisma-next-idb/family-idb",
+  "version": "0.1.0",
+  "description": "Prisma Next IDB family — control-plane descriptor and family instance (CLI/config integration)",
+  "license": "MIT",
+  "files": ["dist"],
+  "keywords": ["prisma", "prisma-next", "indexeddb", "offline-first", "idb", "cli"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/prisma-idb/idb-client-generator.git",
+    "directory": "packages/prisma-next/family-idb"
+  },
+  "homepage": "https://prisma-idb.dev/",
+  "bugs": {
+    "url": "https://github.com/prisma-idb/idb-client-generator/issues"
+  },
+  "type": "module",
+  "exports": {
+    "./control": "./dist/exports/control.mjs",
+    "./pack": "./dist/exports/pack.mjs",
+    "./contract-ts": "./dist/exports/contract-ts.mjs",
+    "./contract-psl": "./dist/exports/contract-psl.mjs",
+    "./config-types": "./dist/exports/config-types.mjs",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "prisma-next-idb": "./dist/bin/prisma-next-idb.mjs"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "prettier --check . && eslint .",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@prisma-next-idb/target-idb": "workspace:*",
+    "@prisma-next/config": "^0.14.0",
+    "@prisma-next/contract": "^0.14.0",
+    "@prisma-next/framework-components": "^0.14.0",
+    "@prisma-next/migration-tools": "^0.14.0",
+    "@prisma-next/psl-parser": "^0.14.0",
+    "@prisma-next/utils": "^0.14.0",
+    "fake-indexeddb": "^6.2.5",
+    "pathe": "^2.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.2",
+    "tsdown": "^0.22.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  }
+}

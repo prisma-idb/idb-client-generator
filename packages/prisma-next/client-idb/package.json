@@ -1,0 +1,48 @@
+{
+  "name": "@prisma-next-idb/client-idb",
+  "version": "0.1.0",
+  "description": "Prisma Next IDB family — ORM client (idbOrm typed query builder)",
+  "license": "MIT",
+  "files": ["dist"],
+  "keywords": ["prisma", "prisma-next", "indexeddb", "offline-first", "idb", "orm"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/prisma-idb/idb-client-generator.git",
+    "directory": "packages/prisma-next/client-idb"
+  },
+  "homepage": "https://prisma-idb.dev/",
+  "bugs": {
+    "url": "https://github.com/prisma-idb/idb-client-generator/issues"
+  },
+  "type": "module",
+  "exports": {
+    "./orm": "./dist/orm.mjs",
+    "./client": "./dist/client.mjs",
+    "./client-auto": "./dist/client-auto.mjs",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "prettier --check . && eslint .",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@prisma-next-idb/adapter-idb": "workspace:*",
+    "@prisma-next-idb/driver-idb": "workspace:*",
+    "@prisma-next-idb/runtime-idb": "workspace:*",
+    "@prisma-next-idb/target-idb": "workspace:*",
+    "@prisma-next/contract": "^0.14.0",
+    "@prisma-next/framework-components": "^0.14.0",
+    "@prisma-next/migration-tools": "^0.14.0"
+  },
+  "devDependencies": {
+    "@prisma-next-idb/family-idb": "workspace:*",
+    "fake-indexeddb": "^6.2.5",
+    "tsdown": "^0.22.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  }
+}
