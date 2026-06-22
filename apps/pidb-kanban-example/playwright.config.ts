@@ -9,5 +9,4 @@ export default defineConfig({
   reporter: "html",
   fullyParallel: true,
   workers: process.env.CI ? 1 : undefined,
-  timeout: 60000,
 });

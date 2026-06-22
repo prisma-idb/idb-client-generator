@@ -27,6 +27,11 @@
       : null;
 
     if (!sessionData && !existingUser) {
+      // Force-refetch before treating as unauthenticated: the useSession() cache
+      // may still be stale immediately after signIn() (e.g. anonymous sign-in race).
+      const freshSession = await authClient.getSession();
+      if (freshSession?.data?.user) return;
+
       const firstUser = await client.user.findFirst();
       if (firstUser) return;
 
