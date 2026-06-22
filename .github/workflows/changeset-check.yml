@@ -5,38 +5,41 @@ on:
     branches: [main]
 
 jobs:
+  check-paths:
+    runs-on: ubuntu-latest
+    outputs:
+      needed: ${{ steps.detect.outputs.needed }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: detect
+        run: |
+          if git diff --name-only origin/main...HEAD | grep -qE '^(packages/prisma-next/|\.changeset/)'; then
+            echo "needed=true" >> $GITHUB_OUTPUT
+          else
+            echo "needed=false" >> $GITHUB_OUTPUT
+          fi
+
   changeset:
     name: Changeset required
-    if: "!startsWith(github.head_ref, 'changeset-release/')"
+    needs: check-paths
+    if: needs.check-paths.outputs.needed == 'true' && !startsWith(github.head_ref, 'changeset-release/')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Check if changeset is needed
-        id: check-paths
-        run: |
-          if git diff --name-only origin/main...HEAD | grep -qE '^(packages/prisma-next/|\.changeset/)'; then
-            echo "needed=true" >> $GITHUB_OUTPUT
-          else
-            echo "needed=false" >> $GITHUB_OUTPUT
-            echo "No prisma-next changes — skipping changeset check."
-          fi
-
       - uses: pnpm/action-setup@v6
-        if: steps.check-paths.outputs.needed == 'true'
 
       - uses: actions/setup-node@v6
-        if: steps.check-paths.outputs.needed == 'true'
         with:
           node-version: "lts/*"
           cache: "pnpm"
 
       - name: Install dependencies
-        if: steps.check-paths.outputs.needed == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Check for changeset
-        if: steps.check-paths.outputs.needed == 'true'
         run: pnpm changeset status --since=origin/main
