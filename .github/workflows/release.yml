@@ -50,4 +50,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to npm
-        run: pnpm publish --filter @prisma-idb/idb-client-generator --tag latest --no-git-checks
+        run: pnpm publish --filter @prisma-idb/idb-client-generator --tag latest --no-git-checks --force
