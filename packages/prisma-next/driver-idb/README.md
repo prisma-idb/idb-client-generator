@@ -1,6 +1,6 @@
 # `@prisma-next-idb/driver-idb`
 
-> Part of the [`@prisma-next-idb`](https://prisma-idb.dev/) family — IndexedDB support for the Prisma extension framework.
+> Part of the [`@prisma-next-idb`](https://prisma-idb.dev/) driver stack — IndexedDB for [prisma-next](https://www.prisma.io/blog/prisma-next-call-for-extension-authors).
 
 **driver-idb** wraps the raw `window.indexedDB` API and exposes typed read/write primitives to the execution stack above it.
 

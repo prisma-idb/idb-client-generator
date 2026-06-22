@@ -1,8 +1,8 @@
 # `@prisma-next-idb/runtime-idb`
 
-> Part of the [`@prisma-next-idb`](https://prisma-idb.dev/) family — IndexedDB support for the Prisma extension framework.
+> Part of the [`@prisma-next-idb`](https://prisma-idb.dev/) driver stack — IndexedDB for [prisma-next](https://www.prisma.io/blog/prisma-next-call-for-extension-authors).
 
-**runtime-idb** is the `RuntimeCore` subclass that wires together the adapter and driver into a complete Prisma extension runtime.
+**runtime-idb** is the `RuntimeCore` subclass that wires together the adapter and driver into a complete prisma-next runtime.
 
 ## Stack position
 

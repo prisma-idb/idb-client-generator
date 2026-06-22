@@ -1,6 +1,6 @@
 # `@prisma-next-idb/client-idb`
 
-> Part of the [`@prisma-next-idb`](https://prisma-idb.dev/) family — IndexedDB support for the Prisma extension framework.
+> Part of the [`@prisma-next-idb`](https://prisma-idb.dev/) driver stack — IndexedDB for [prisma-next](https://www.prisma.io/blog/prisma-next-call-for-extension-authors).
 
 **client-idb** is the ORM layer — the `idbOrm` typed query builder that end users and framework integrations call directly.
 

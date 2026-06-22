@@ -1,6 +1,6 @@
 # `@prisma-next-idb/adapter-idb`
 
-> Part of the [`@prisma-next-idb`](https://prisma-idb.dev/) family — IndexedDB support for the Prisma extension framework.
+> Part of the [`@prisma-next-idb`](https://prisma-idb.dev/) driver stack — IndexedDB for [prisma-next](https://www.prisma.io/blog/prisma-next-call-for-extension-authors).
 
 **adapter-idb** is the translation layer. It lowers the Prisma query AST into an opaque IDB plan body that the driver can execute.
 
