@@ -1,6 +1,7 @@
 {
   "name": "@prisma-idb/usage",
   "version": "0.0.1",
+  "private": true,
   "type": "module",
   "prisma": {
     "schema": "./src/prisma/schema.prisma"
