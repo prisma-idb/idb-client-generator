@@ -1,6 +1,6 @@
 {
   "name": "@prisma-next-idb/driver-idb",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Prisma Next IDB family — driver (wraps window.indexedDB for the execution stack)",
   "license": "MIT",
   "files": ["dist"],
