@@ -1,8 +1,7 @@
 {
   "name": "@prisma-idb/idb-client-generator",
   "description": "Prisma generator for a type-safe IndexedDB client with optional sync",
-  "version": "0.0.0-semantically-released",
-  "private": true,
+  "version": "0.38.0",
   "main": "dist/generator.js",
   "license": "MIT",
   "bin": {
@@ -18,7 +17,6 @@
     "prepack": "pnpm build",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "release": "release-it",
     "prepare": "tsc"
   },
   "dependencies": {
@@ -28,9 +26,7 @@
   },
   "devDependencies": {
     "@prisma/internals": "^7.8.0",
-    "@release-it/conventional-changelog": "^11.0.1",
     "@types/node": "^24.13.2",
-    "release-it": "^20.2.0",
     "typescript": "^6.0.3"
   },
   "peerDependencies": {
