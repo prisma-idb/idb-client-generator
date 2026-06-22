@@ -55,7 +55,7 @@ export class TodosState {
           setCursor: (cursor) => this.setCursor(cursor),
         },
         schedule: {
-          intervalMs: 10000,
+          intervalMs: 60000,
           backoffMs: 30000,
         },
       });
