@@ -8,6 +8,7 @@
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { computeMigrationHash } from "@prisma-next/migration-tools/hash";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runPreflight } from "../src/core/preflight";
 
@@ -33,17 +34,23 @@ async function writePackage(opts: {
   from: string | null;
   to: string;
   ops: readonly unknown[];
+  migrationHash?: string;
 }): Promise<void> {
   const dir = join(cwd, "migrations", "app", opts.dirName);
   await mkdir(dir, { recursive: true });
+  const baseMetadata = {
+    from: opts.from,
+    to: opts.to,
+    providedInvariants: [],
+    createdAt: "2026-01-01T00:00:00.000Z",
+  };
+  const migrationHash =
+    opts.migrationHash ?? computeMigrationHash(baseMetadata, opts.ops as Parameters<typeof computeMigrationHash>[1]);
   await writeFile(
     join(dir, "migration.json"),
     JSON.stringify({
-      from: opts.from,
-      to: opts.to,
-      migrationHash: `sha256:hash-${opts.dirName}`,
-      providedInvariants: [],
-      createdAt: "2026-01-01T00:00:00.000Z",
+      ...baseMetadata,
+      migrationHash,
     }),
     "utf-8"
   );
@@ -149,5 +156,17 @@ describe("runPreflight", () => {
     });
 
     await expect(runPreflight({ cwd })).rejects.toThrow(/chain broken/i);
+  });
+
+  it("throws when a migration package hash no longer matches its ops", async () => {
+    await writePackage({
+      dirName: "0001_baseline",
+      from: null,
+      to: "sha256:A",
+      ops: [createMarker, createUsers],
+      migrationHash: "sha256:tampered",
+    });
+
+    await expect(runPreflight({ cwd })).rejects.toThrow(/migration hash mismatch/i);
   });
 });
