@@ -37,6 +37,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check prisma-next descriptors
+        run: pnpm check:prisma-next-descriptors
+
       - name: Build packages
         run: pnpm build --filter=@prisma-next-idb/* --filter=@prisma-idb/idb-client-generator
 
