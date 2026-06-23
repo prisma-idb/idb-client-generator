@@ -35,6 +35,15 @@ jobs:
             tests/schema-gen
             pnpm-lock.yaml
 
+      - id: generator_client
+        name: Check generator client test paths
+        uses: ./.github/actions/paths-changed
+        with:
+          paths: |
+            packages/generator
+            apps/usage
+            pnpm-lock.yaml
+
       - id: generator_sync
         name: Check generator sync test paths
         uses: ./.github/actions/paths-changed
@@ -69,15 +78,6 @@ jobs:
           paths: |
             packages/prisma-next
             apps/prisma-next-idb-kanban-example
-            pnpm-lock.yaml
-
-      - id: generator_client
-        name: Check generator client test paths
-        uses: ./.github/actions/paths-changed
-        with:
-          paths: |
-            packages/generator
-            apps/usage
             pnpm-lock.yaml
 
   lint:
@@ -119,6 +119,44 @@ jobs:
 
       - name: Run schema generation tests
         run: pnpm test:generator-schema
+
+  test-generator-client:
+    needs: changes
+    if: needs.changes.outputs.generator_client == 'true'
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - name: Set DATABASE_URL environment variable
+        run: echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5433/postgres" >> $GITHUB_ENV
+      - uses: ./.github/actions/
+      - name: Install Playwright Browsers
+        working-directory: apps/usage
+        run: pnpm exec playwright install --with-deps
+      - name: Run generator client Playwright tests
+        run: pnpm test:generator-client
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-generator-client
+          path: apps/usage/playwright-report/
+          retention-days: 30
 
   test-generator-sync:
     needs: changes
@@ -227,44 +265,6 @@ jobs:
           path: apps/prisma-next-idb-kanban-example/playwright-report/
           retention-days: 30
 
-  test-generator-client:
-    needs: changes
-    if: needs.changes.outputs.generator_client == 'true'
-    timeout-minutes: 60
-    runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres
-        env:
-          POSTGRES_DB: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5433:5432
-
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-      - name: Set DATABASE_URL environment variable
-        run: echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5433/postgres" >> $GITHUB_ENV
-      - uses: ./.github/actions/
-      - name: Install Playwright Browsers
-        working-directory: apps/usage
-        run: pnpm exec playwright install --with-deps
-      - name: Run generator client Playwright tests
-        run: pnpm test:generator-client
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        if: ${{ !cancelled() }}
-        with:
-          name: playwright-report-generator-client
-          path: apps/usage/playwright-report/
-          retention-days: 30
-
   ci-required:
     name: CI required
     needs:
@@ -272,11 +272,11 @@ jobs:
       - lint
       - typecheck
       - test-generator-schema
+      - test-generator-client
       - test-generator-sync
       - test-prisma-next
       - test-prisma-next-e2e
       - test-prisma-next-kanban-e2e
-      - test-generator-client
     if: ${{ always() }}
     runs-on: ubuntu-latest
 
@@ -288,6 +288,8 @@ jobs:
           TYPECHECK_RESULT: ${{ needs.typecheck.result }}
           GENERATOR_SCHEMA_REQUIRED: ${{ needs.changes.outputs.generator_schema }}
           GENERATOR_SCHEMA_RESULT: ${{ needs['test-generator-schema'].result }}
+          GENERATOR_CLIENT_REQUIRED: ${{ needs.changes.outputs.generator_client }}
+          GENERATOR_CLIENT_RESULT: ${{ needs['test-generator-client'].result }}
           GENERATOR_SYNC_REQUIRED: ${{ needs.changes.outputs.generator_sync }}
           GENERATOR_SYNC_RESULT: ${{ needs['test-generator-sync'].result }}
           PRISMA_NEXT_UNIT_REQUIRED: ${{ needs.changes.outputs.prisma_next_unit }}
@@ -296,8 +298,6 @@ jobs:
           PRISMA_NEXT_E2E_RESULT: ${{ needs['test-prisma-next-e2e'].result }}
           PRISMA_NEXT_KANBAN_E2E_REQUIRED: ${{ needs.changes.outputs.prisma_next_kanban_e2e }}
           PRISMA_NEXT_KANBAN_E2E_RESULT: ${{ needs['test-prisma-next-kanban-e2e'].result }}
-          GENERATOR_CLIENT_REQUIRED: ${{ needs.changes.outputs.generator_client }}
-          GENERATOR_CLIENT_RESULT: ${{ needs['test-generator-client'].result }}
         run: |
           set -euo pipefail
 
@@ -327,10 +327,10 @@ jobs:
           require_success "Lint" "$LINT_RESULT"
           require_success "Typecheck" "$TYPECHECK_RESULT"
           require_conditional_success "Generator schema tests" "$GENERATOR_SCHEMA_REQUIRED" "$GENERATOR_SCHEMA_RESULT"
+          require_conditional_success "Generator client tests" "$GENERATOR_CLIENT_REQUIRED" "$GENERATOR_CLIENT_RESULT"
           require_conditional_success "Generator sync tests" "$GENERATOR_SYNC_REQUIRED" "$GENERATOR_SYNC_RESULT"
           require_conditional_success "Prisma Next unit tests" "$PRISMA_NEXT_UNIT_REQUIRED" "$PRISMA_NEXT_UNIT_RESULT"
           require_conditional_success "Prisma Next E2E tests" "$PRISMA_NEXT_E2E_REQUIRED" "$PRISMA_NEXT_E2E_RESULT"
           require_conditional_success "Prisma Next kanban E2E tests" "$PRISMA_NEXT_KANBAN_E2E_REQUIRED" "$PRISMA_NEXT_KANBAN_E2E_RESULT"
-          require_conditional_success "Generator client tests" "$GENERATOR_CLIENT_REQUIRED" "$GENERATOR_CLIENT_RESULT"
 
           echo "Required CI checks are satisfied."
