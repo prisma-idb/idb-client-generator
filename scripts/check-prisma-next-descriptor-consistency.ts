@@ -46,7 +46,7 @@ const descriptorGroups: readonly DescriptorGroup[] = [
   },
 ];
 
-const semverPattern = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
+const semverPattern = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 const versionPatterns: readonly RegExp[] = [/\bversion\s*:\s*["']([^"']+)["']/g, /\bversion\s*=\s*["']([^"']+)["']/g];
 
 function lineNumberAt(source: string, index: number): number {
