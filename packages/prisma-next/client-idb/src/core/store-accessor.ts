@@ -558,7 +558,7 @@ export class IdbStoreAccessorImpl<
     const plan: IdbQueryPlan<Record<string, unknown>> = {
       meta,
       ast,
-      idbPlan: { meta, kind: "put", storeName: this.#storeName, record },
+      idbPlan: { meta, kind: "add", storeName: this.#storeName, record },
     };
     // The IDB driver echoes the stored record back as the single result row.
     for await (const row of this.#executor.execute(plan)) {
@@ -724,7 +724,7 @@ export class IdbStoreAccessorImpl<
         const found = await scope.execute({ meta, kind: "cursor-scan", storeName, filter: matches, take: 1 });
         const existing = found[0];
         if (existing === undefined) {
-          const rows = await scope.execute({ meta, kind: "put", storeName, record: createRecord });
+          const rows = await scope.execute({ meta, kind: "add", storeName, record: createRecord });
           return (rows[0] ?? createRecord) as DefaultModelRow<TContract, ModelName>;
         }
         const key = existing[keyPath] as IDBValidKey;
@@ -773,7 +773,7 @@ export class IdbStoreAccessorImpl<
         meta,
         kind: "batch",
         storeNames: [this.#storeName],
-        ops: records.map((record) => ({ meta, kind: "put" as const, storeName: this.#storeName, record })),
+        ops: records.map((record) => ({ meta, kind: "add" as const, storeName: this.#storeName, record })),
       },
     };
     const executorExecute = this.#executor.execute.bind(this.#executor);

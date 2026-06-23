@@ -119,6 +119,46 @@ describe("auto-migrate across contract evolution", () => {
     await c1b.close();
   });
 
+  it("uses the factory override for both migration and runtime queries", async () => {
+    const fake: { IDBFactory: new () => IDBFactory } = await import("fake-indexeddb");
+    const customFactory = new fake.IDBFactory();
+    (globalThis as unknown as { indexedDB: IDBFactory }).indexedDB = new fake.IDBFactory();
+
+    const name = dbName();
+    const space1 = buildContractSpaceFixture([v1]);
+    const client = await createAutoMigratingIdbClient({
+      contractSpace: space1,
+      dbName: name,
+      factory: customFactory,
+    });
+
+    await asRecord(client.orm)["users"]!.create({ id: "u1", email: "alice@example.com" });
+    expect(await asRecord(client.orm)["users"]!.all().toArray()).toHaveLength(1);
+    await client.close();
+  });
+
+  it("rejects instead of treating IDB open errors as a fresh install", async () => {
+    const request = {
+      error: new DOMException("marker open failed", "AbortError"),
+      onerror: null as ((event: Event) => void) | null,
+      onsuccess: null as ((event: Event) => void) | null,
+    };
+    const failingFactory = {
+      open: () => {
+        queueMicrotask(() => request.onerror?.(new Event("error")));
+        return request as unknown as IDBOpenDBRequest;
+      },
+    } as unknown as IDBFactory;
+
+    await expect(
+      createAutoMigratingIdbClient({
+        contractSpace: buildContractSpaceFixture([v1]),
+        dbName: dbName(),
+        factory: failingFactory,
+      })
+    ).rejects.toThrow(/marker open failed/i);
+  });
+
   it("destructive op refuses by default; opt-in allows it", async () => {
     // Author drops the byEmail index.
     const v3Loosened = defineContract({
