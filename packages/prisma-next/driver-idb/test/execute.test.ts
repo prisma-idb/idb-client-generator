@@ -19,7 +19,8 @@
  *   key-get     — hit, miss
  *   index-get   — match, empty
  *   cursor-scan — full, filter, skip, take, skip+take, comparator, direction
- *   put         — create, overwrite
+ *   add         — create-only insert
+ *   put         — overwrite
  *   delete      — existing key, non-existent key
  *   batch       — multi-op single-tx, multi-store
  *   errors      — unknown store → IdbExecuteError.STORE_NOT_FOUND
@@ -30,6 +31,7 @@ import { executeIdbPlan } from "../src/core/execute/index";
 import { createIDBRuntimeDriver } from "../src/exports/runtime";
 import type {
   IdbBatchPlan,
+  IdbAddPlan,
   IdbCursorScanPlan,
   IdbDeletePlan,
   IdbIndexGetPlan,
@@ -301,6 +303,58 @@ describe("cursor-scan", () => {
     const emails = rows.map((r) => r["email"] as string);
     expect(emails).toContain("alice@example.com");
     expect(emails).toContain("bob@example.com");
+  });
+});
+
+// ── add ───────────────────────────────────────────────────────────────────────
+
+describe("add", () => {
+  let db: IDBDatabase;
+
+  beforeEach(async () => {
+    db = await openTestDb(dbName(), [USERS_STORE]);
+  });
+  afterEach(() => db.close());
+
+  it("inserts a new record and echoes it back", async () => {
+    const plan: IdbAddPlan = {
+      meta: META,
+      kind: "add",
+      storeName: "users",
+      record: ALICE,
+    };
+    const rows = await executeIdbPlan(db, plan);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toEqual(ALICE);
+
+    const getRows = await executeIdbPlan(db, {
+      meta: META,
+      kind: "key-get",
+      storeName: "users",
+      key: "u1",
+    });
+    expect(getRows[0]).toEqual(ALICE);
+  });
+
+  it("rejects when the primary key already exists", async () => {
+    await seedStore(db, "users", [ALICE]);
+    const duplicate = { ...ALICE, score: 99 };
+    const plan: IdbAddPlan = {
+      meta: META,
+      kind: "add",
+      storeName: "users",
+      record: duplicate,
+    };
+
+    await expect(executeIdbPlan(db, plan)).rejects.toMatchObject({ code: "ADD_FAILED" });
+
+    const getRows = await executeIdbPlan(db, {
+      meta: META,
+      kind: "key-get",
+      storeName: "users",
+      key: "u1",
+    });
+    expect(getRows[0]).toEqual(ALICE);
   });
 });
 

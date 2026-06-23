@@ -6,6 +6,7 @@ export type {
   IdbPlanBody,
   IdbAtomicPlan,
   IdbBatchPlan,
+  IdbAddPlan,
   IdbCursorScanPlan,
   IdbKeyGetPlan,
   IdbIndexGetPlan,
@@ -46,12 +47,13 @@ export { createTransactionScope } from "../core/transaction-scope";
  */
 export function createIDBRuntimeDriver(
   dbName: string,
-  version?: number
+  version?: number,
+  options?: { readonly factory?: IDBFactory }
 ): RuntimeDriverDescriptor<"idb", "idb", void, IdbRuntimeDriverInstance> {
   return {
     ...idbDriverDescriptorMeta,
     create(): IdbRuntimeDriverInstance {
-      return new IdbRuntimeDriverInstance(dbName, version);
+      return new IdbRuntimeDriverInstance(dbName, version, options?.factory);
     },
   };
 }
