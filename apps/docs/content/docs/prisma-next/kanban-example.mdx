@@ -1,0 +1,55 @@
+---
+title: Kanban Example
+description: A local Svelte app using Prisma Next IDB, explicit migrations, and a barebones PWA shell
+icon: LayoutDashboard
+---
+
+The Prisma Next kanban example is a small local-only app. It keeps the demo focused on the browser database: no auth, no sync worker, and no server API.
+
+Live app: [next-kanban.prisma-idb.dev](https://next-kanban.prisma-idb.dev/)
+Source: [`apps/prisma-next-idb-kanban-example`](https://github.com/prisma-idb/idb-client-generator/tree/main/apps/prisma-next-idb-kanban-example)
+
+## What it shows
+
+- A committed migration chain under `migrations/app`
+- `createAutoMigratingIdbClient` opening IndexedDB and applying pending migrations
+- Chainable typed ORM calls like `where(...).update(...)`, `include(...)`, `all()`, and `toArray()`
+- Local relations across users, boards, and todos
+- A minimal PWA manifest and service worker so the app shell works offline after the first load
+
+## Run it
+
+From the repository root:
+
+```bash
+pnpm --filter @prisma-next-idb/kanban-example dev
+```
+
+For a production check:
+
+```bash
+pnpm --filter @prisma-next-idb/kanban-example check
+pnpm --filter @prisma-next-idb/kanban-example build
+```
+
+## Offline behavior
+
+The PWA setup intentionally stays small. The service worker precaches the built app shell and static files, then caches same-origin GET requests as they are fetched.
+
+IndexedDB data already lives on the device. Once the browser has loaded the app and installed the service worker, the kanban UI can reopen offline and continue reading or writing local data.
+
+## Where to look
+
+| File                              | Purpose                                     |
+| --------------------------------- | ------------------------------------------- |
+| `src/lib/prisma/db.ts`            | Opens the auto-migrating IDB client         |
+| `src/lib/stores/kanban.svelte.ts` | Uses the typed ORM from Svelte state        |
+| `src/service-worker.ts`           | Caches the app shell and same-origin assets |
+| `static/manifest.webmanifest`     | Provides the installable PWA metadata       |
+
+<Cards>
+  <Card title="Live App" href="https://next-kanban.prisma-idb.dev/" />
+  <Card title="Client" href="/docs/prisma-next/client" />
+  <Card title="Migrations" href="/docs/prisma-next/migrations" />
+  <Card title="Writing API" href="/docs/prisma-next/api/writing" />
+</Cards>
