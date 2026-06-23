@@ -112,3 +112,13 @@ const stats = await db.orm.task.aggregate((agg) => ({
   avgPriority: agg.avg("priority"),
 }));
 ```
+
+## Group by
+
+```ts
+const byUser = await db.orm.todo.groupBy("userId").aggregate((agg) => ({
+  total: agg.count(),
+}));
+```
+
+`groupBy()` returns one aggregate row per distinct group key.
