@@ -7,6 +7,7 @@
     "schema": "./src/prisma/schema.prisma"
   },
   "scripts": {
+    "prepare": "svelte-kit sync || echo ''",
     "dev": "vite dev --host",
     "build": "vite build",
     "preview": "vite preview --host",
@@ -15,7 +16,7 @@
     "format": "prettier --write .",
     "lint": "prettier --check . && eslint .",
     "test": "playwright test",
-    "generate": "prisma generate"
+    "generate": "svelte-kit sync && prisma generate"
   },
   "devDependencies": {
     "@internationalized/date": "^3.12.2",
