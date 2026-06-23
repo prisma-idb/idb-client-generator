@@ -1,42 +1,41 @@
-# sv
+# Prisma Next IDB Usage
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A SvelteKit app that exercises the Prisma Next IDB family packages end-to-end. It serves as the E2E test host for the `@prisma-next-idb/*` packages and doubles as a minimal reference for how to wire up the client, run migrations, and query IndexedDB with the Prisma Next ORM API.
 
-## Creating a project
+Sync support is not yet included in this app — it is actively being worked on and will be added once the outbox/sync layer lands in the prisma-next IDB family.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## What is included
 
-```sh
-# create a new project
-npx sv create my-app
-```
+- Local data stored in IndexedDB via the Prisma Next IDB runtime
+- Auto-migrating client setup demonstrating the ContractSpace-driven migration flow
+- Chainable ORM usage through the `idbOrm` query builder
+- Playwright E2E tests covering the core CRUD and migration paths
 
-To recreate this project with the same configuration:
+## Development
 
-```sh
-# recreate this project
-pnpm dlx sv@0.15.3 create --template minimal --types ts --add playwright tailwindcss="plugins:none" --install pnpm prisma-next-usage
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+From the repository root:
 
 ```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+pnpm --filter @prisma-next-idb/usage dev
 ```
 
-## Building
-
-To create a production version of your app:
+## Validation
 
 ```sh
-npm run build
+pnpm --filter @prisma-next-idb/usage check
+pnpm --filter @prisma-next-idb/usage build
+pnpm --filter @prisma-next-idb/usage test:e2e
 ```
 
-You can preview the production build with `npm run preview`.
+## Prisma Next workflow
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+```sh
+pnpm --filter @prisma-next-idb/usage migration:generate
+pnpm --filter @prisma-next-idb/usage migration:generate-space
+pnpm --filter @prisma-next-idb/usage migration:preflight
+```
+
+## Links
+
+- Docs: https://prisma-idb.dev/docs/prisma-next/usage
+- Source: https://github.com/prisma-idb/idb-client-generator/tree/main/apps/prisma-next-usage
