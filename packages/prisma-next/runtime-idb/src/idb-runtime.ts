@@ -1,6 +1,7 @@
 import type { CodecCallContext } from "@prisma-next/framework-components/codec";
 import {
   AsyncIterableResult,
+  checkMiddlewareCompatibility,
   RuntimeCore,
   type ExecutionPlan,
   type RuntimeExecuteOptions,
@@ -183,7 +184,11 @@ class IdbRuntimeImpl extends RuntimeCore<IdbQueryPlan, IdbPlanBody, IdbMiddlewar
 
   constructor(options: IdbRuntimeOptions) {
     const ctx = options.ctx ?? buildMiddlewareContext(options.contract);
-    super({ middleware: [...(options.middleware ?? [])], ctx });
+    const middleware = [...(options.middleware ?? [])];
+    for (const mw of middleware) {
+      checkMiddlewareCompatibility(mw, "idb", "idb");
+    }
+    super({ middleware, ctx });
     this.#adapter = options.adapter;
     this.#driver = options.driver;
     this.#contract = options.contract;

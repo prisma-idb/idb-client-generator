@@ -147,6 +147,23 @@ describe("createIdbRuntime", () => {
     expect(runtime).toBeDefined();
   });
 
+  it("rejects middleware for a different family", () => {
+    const mw = {
+      name: "wrong-family",
+      familyId: "sql",
+      beforeExecute: vi.fn(),
+    } as unknown as IdbMiddleware;
+
+    expect(() =>
+      createIdbRuntime({
+        adapter: makeMockAdapter(),
+        driver: makeMockDriver(),
+        contract: TEST_CONTRACT,
+        middleware: [mw],
+      })
+    ).toThrow(/requires family 'sql'.*family 'idb'/i);
+  });
+
   it("accepts an optional ctx override", () => {
     const customCtx = {
       contract: { custom: true },
