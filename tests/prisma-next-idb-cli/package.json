@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Regression tests for the `prisma-next-idb` CLI binary (generate-contract-space, preflight). Drives the published binary via execa and asserts on stdout/stderr/exit codes/files.",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "check": "tsc --noEmit",

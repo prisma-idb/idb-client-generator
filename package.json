@@ -56,7 +56,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/prisma-idb/idb-client-generator.git",
-    "directory": "packages/generator"
+    "url": "git+https://github.com/prisma-idb/idb-client-generator.git"
   }
 }
