@@ -55,15 +55,15 @@
   <div class="grid grid-cols-3 gap-2 text-sm md:min-w-80">
     <div class="rounded-md border bg-card px-3 py-2">
       <div class="text-muted-foreground text-xs">Users</div>
-      <div class="font-semibold">{kanban.users.length}</div>
+      <div class="font-semibold" data-testid="users-count">{kanban.users.length}</div>
     </div>
     <div class="rounded-md border bg-card px-3 py-2">
       <div class="text-muted-foreground text-xs">Boards</div>
-      <div class="font-semibold">{kanban.boards.length}</div>
+      <div class="font-semibold" data-testid="boards-count">{kanban.boards.length}</div>
     </div>
     <div class="rounded-md border bg-card px-3 py-2">
       <div class="text-muted-foreground text-xs">Done</div>
-      <div class="font-semibold">{kanban.completedTodos}/{kanban.todos.length}</div>
+      <div class="font-semibold" data-testid="done-count">{kanban.completedTodos}/{kanban.todos.length}</div>
     </div>
   </div>
 </header>

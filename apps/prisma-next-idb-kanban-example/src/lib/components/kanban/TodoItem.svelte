@@ -20,7 +20,7 @@
   }
 </script>
 
-<article class="rounded-md border bg-background p-3 shadow-xs">
+<article class="rounded-md border bg-background p-3 shadow-xs" data-testid="todo-item">
   <div class="flex items-start gap-2">
     <Button
       size="icon-sm"
@@ -50,11 +50,17 @@
     </div>
   </div>
   <div class="mt-2 flex justify-end gap-2">
-    <Button size="sm" variant="secondary" onclick={save} disabled={kanban.busy}>
+    <Button size="sm" variant="secondary" onclick={save} disabled={kanban.busy} aria-label="Save todo">
       <SaveIcon />
       Save
     </Button>
-    <Button size="sm" variant="destructive" onclick={() => kanban.deleteTodo(todo.id)} disabled={kanban.busy}>
+    <Button
+      size="sm"
+      variant="destructive"
+      onclick={() => kanban.deleteTodo(todo.id)}
+      disabled={kanban.busy}
+      aria-label="Delete todo"
+    >
       <Trash2Icon />
       Delete
     </Button>

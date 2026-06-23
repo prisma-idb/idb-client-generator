@@ -32,14 +32,20 @@
   }
 </script>
 
-<Card.Root class="max-h-[calc(100svh-230px)] rounded-md py-4">
+<Card.Root class="max-h-[calc(100svh-230px)] rounded-md py-4" data-testid="board-card">
   <Card.Header class="gap-3 px-4">
     <div class="flex items-center gap-2">
       <Input bind:value={boardName} class="h-8 font-medium" aria-label={`Board name ${board.name}`} />
-      <Button size="icon-sm" variant="secondary" onclick={saveBoard} disabled={kanban.busy}>
+      <Button size="icon-sm" variant="secondary" onclick={saveBoard} disabled={kanban.busy} aria-label="Save board">
         <SaveIcon />
       </Button>
-      <Button size="icon-sm" variant="destructive" onclick={() => kanban.deleteBoard(board.id)} disabled={kanban.busy}>
+      <Button
+        size="icon-sm"
+        variant="destructive"
+        onclick={() => kanban.deleteBoard(board.id)}
+        disabled={kanban.busy}
+        aria-label="Delete board"
+      >
         <Trash2Icon />
       </Button>
     </div>
@@ -58,9 +64,14 @@
     </div>
 
     <form class="space-y-2 border-t pt-3" onsubmit={addTodo}>
-      <Input bind:value={draftTitle} placeholder="New todo" required />
-      <Textarea bind:value={draftDescription} rows={2} placeholder="Description" />
-      <Button class="w-full" type="submit" disabled={kanban.busy || !draftTitle.trim()}>
+      <Input bind:value={draftTitle} placeholder="New todo" required data-testid="todo-title-input" />
+      <Textarea bind:value={draftDescription} rows={2} placeholder="Description" data-testid="todo-description-input" />
+      <Button
+        class="w-full"
+        type="submit"
+        disabled={kanban.busy || !draftTitle.trim()}
+        data-testid="create-todo-submit"
+      >
         <PlusIcon />
         Add todo
       </Button>

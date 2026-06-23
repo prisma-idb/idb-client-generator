@@ -68,8 +68,8 @@
 
     <form class="space-y-2 border-t pt-3" onsubmit={createUser}>
       <Input bind:value={newName} placeholder="User name" required data-testid="user-name-input" />
-      <Input bind:value={newEmail} placeholder="Email, optional" type="email" />
-      <Button class="w-full" type="submit" disabled={kanban.busy || !newName.trim()}>
+      <Input bind:value={newEmail} placeholder="Email, optional" type="email" data-testid="user-email-input" />
+      <Button class="w-full" type="submit" disabled={kanban.busy || !newName.trim()} data-testid="create-user-submit">
         <UserPlusIcon />
         Create user
       </Button>

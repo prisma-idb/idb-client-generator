@@ -34,8 +34,9 @@
         bind:value={newBoardName}
         placeholder={kanban.activeUser ? "New board name" : "Select a user first"}
         disabled={!kanban.activeUser || kanban.busy}
+        data-testid="board-name-input"
       />
-      <Button type="submit" disabled={!kanban.activeUser || kanban.busy}>
+      <Button type="submit" disabled={!kanban.activeUser || kanban.busy} data-testid="create-board-submit">
         <PlusIcon />
         Board
       </Button>

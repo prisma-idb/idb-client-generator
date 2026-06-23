@@ -24,6 +24,7 @@ pnpm --filter @prisma-next-idb/kanban-example dev
 ```sh
 pnpm --filter @prisma-next-idb/kanban-example check
 pnpm --filter @prisma-next-idb/kanban-example build
+pnpm --filter @prisma-next-idb/kanban-example test:e2e
 ```
 
 ## Prisma Next workflow
