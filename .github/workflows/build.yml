@@ -13,20 +13,21 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      schema_gen: ${{ steps.schema_gen.outputs.changed }}
-      sync: ${{ steps.sync.outputs.changed }}
+      generator_schema: ${{ steps.generator_schema.outputs.changed }}
+      generator_sync: ${{ steps.generator_sync.outputs.changed }}
       prisma_next_unit: ${{ steps.prisma_next_unit.outputs.changed }}
       prisma_next_e2e: ${{ steps.prisma_next_e2e.outputs.changed }}
-      client: ${{ steps.client.outputs.changed }}
+      prisma_next_kanban_e2e: ${{ steps.prisma_next_kanban_e2e.outputs.changed }}
+      generator_client: ${{ steps.generator_client.outputs.changed }}
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           fetch-depth: 0
           persist-credentials: false
 
-      - id: schema_gen
-        name: Check default generator schema test paths
+      - id: generator_schema
+        name: Check generator schema test paths
         uses: ./.github/actions/paths-changed
         with:
           paths: |
@@ -34,8 +35,17 @@ jobs:
             tests/schema-gen
             pnpm-lock.yaml
 
-      - id: sync
-        name: Check default generator sync test paths
+      - id: generator_client
+        name: Check generator client test paths
+        uses: ./.github/actions/paths-changed
+        with:
+          paths: |
+            packages/generator
+            apps/usage
+            pnpm-lock.yaml
+
+      - id: generator_sync
+        name: Check generator sync test paths
         uses: ./.github/actions/paths-changed
         with:
           paths: |
@@ -49,6 +59,7 @@ jobs:
         with:
           paths: |
             packages/prisma-next
+            tests/prisma-next-idb-cli
             pnpm-lock.yaml
 
       - id: prisma_next_e2e
@@ -60,20 +71,20 @@ jobs:
             apps/prisma-next-usage
             pnpm-lock.yaml
 
-      - id: client
-        name: Check default generator client test paths
+      - id: prisma_next_kanban_e2e
+        name: Check Prisma Next kanban E2E test paths
         uses: ./.github/actions/paths-changed
         with:
           paths: |
-            packages/generator
-            apps/usage
+            packages/prisma-next
+            apps/prisma-next-idb-kanban-example
             pnpm-lock.yaml
 
   lint:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: ./.github/actions/
       - name: Lint all packages
         run: pnpm lint
@@ -82,7 +93,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: ./.github/actions/
 
       - name: Generate BETTER_AUTH_SECRET
@@ -97,105 +108,21 @@ jobs:
           PUBLIC_POSTHOG_PROJECT_TOKEN: "placeholder"
           PUBLIC_POSTHOG_HOST: "https://us.i.posthog.com"
 
-  test-schema-gen:
+  test-generator-schema:
     needs: changes
-    if: needs.changes.outputs.schema_gen == 'true'
+    if: needs.changes.outputs.generator_schema == 'true'
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: ./.github/actions/
 
       - name: Run schema generation tests
-        run: pnpm test:schema-gen
+        run: pnpm test:generator-schema
 
-  test-sync:
+  test-generator-client:
     needs: changes
-    if: needs.changes.outputs.sync == 'true'
-    timeout-minutes: 60
-    runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres
-        env:
-          POSTGRES_DB: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5434:5432
-
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
-      - name: Set DATABASE_URL environment variable
-        run: echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5434/postgres" >> $GITHUB_ENV
-      - uses: ./.github/actions/
-      - name: Install Playwright Browsers
-        working-directory: apps/pidb-kanban-example
-        run: pnpm exec playwright install --with-deps
-      - name: Generate BETTER_AUTH_SECRET
-        run: echo "BETTER_AUTH_SECRET=$(openssl rand -base64 32 | tr '/+=' '_-')" >> $GITHUB_ENV
-      - name: Run Sync Playwright tests
-        run: pnpm test:sync
-        env:
-          GOOGLE_CLIENT_ID: "placeholder"
-          GOOGLE_CLIENT_SECRET: "placeholder"
-          PUBLIC_POSTHOG_PROJECT_TOKEN: "placeholder"
-          PUBLIC_POSTHOG_HOST: "https://us.i.posthog.com"
-      - uses: actions/upload-artifact@v7
-        if: ${{ !cancelled() }}
-        with:
-          name: playwright-report-sync
-          path: apps/pidb-kanban-example/playwright-report/
-          retention-days: 30
-
-  test-prisma-next:
-    needs: changes
-    if: needs.changes.outputs.prisma_next_unit == 'true'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/
-
-      - name: Run prisma-next unit tests
-        run: pnpm test:prisma-next
-
-  test-prisma-next-e2e:
-    needs: changes
-    if: needs.changes.outputs.prisma_next_e2e == 'true'
-    timeout-minutes: 60
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/
-
-      - name: Install Playwright Browsers
-        working-directory: apps/prisma-next-usage
-        run: pnpm exec playwright install --with-deps
-
-      - name: Run prisma-next E2E tests
-        run: pnpm test:prisma-next-e2e
-
-      - uses: actions/upload-artifact@v7
-        if: ${{ !cancelled() }}
-        with:
-          name: playwright-report-prisma-next
-          path: apps/prisma-next-usage/playwright-report/
-          retention-days: 30
-
-  test-client:
-    needs: changes
-    if: needs.changes.outputs.client == 'true'
+    if: needs.changes.outputs.generator_client == 'true'
     timeout-minutes: 60
     runs-on: ubuntu-latest
 
@@ -215,23 +142,127 @@ jobs:
           - 5433:5432
 
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - name: Set DATABASE_URL environment variable
         run: echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5433/postgres" >> $GITHUB_ENV
       - uses: ./.github/actions/
       - name: Install Playwright Browsers
         working-directory: apps/usage
         run: pnpm exec playwright install --with-deps
-      - name: Run Client Playwright tests
-        run: pnpm test:client
-      - uses: actions/upload-artifact@v7
+      - name: Run generator client Playwright tests
+        run: pnpm test:generator-client
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: ${{ !cancelled() }}
         with:
-          name: playwright-report-client
+          name: playwright-report-generator-client
           path: apps/usage/playwright-report/
+          retention-days: 30
+
+  test-generator-sync:
+    needs: changes
+    if: needs.changes.outputs.generator_sync == 'true'
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5434:5432
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - name: Set DATABASE_URL environment variable
+        run: echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5434/postgres" >> $GITHUB_ENV
+      - uses: ./.github/actions/
+      - name: Install Playwright Browsers
+        working-directory: apps/pidb-kanban-example
+        run: pnpm exec playwright install --with-deps
+      - name: Generate BETTER_AUTH_SECRET
+        run: echo "BETTER_AUTH_SECRET=$(openssl rand -base64 32 | tr '/+=' '_-')" >> $GITHUB_ENV
+      - name: Run Sync Playwright tests
+        run: pnpm test:generator-sync
+        env:
+          GOOGLE_CLIENT_ID: "placeholder"
+          GOOGLE_CLIENT_SECRET: "placeholder"
+          PUBLIC_POSTHOG_PROJECT_TOKEN: "placeholder"
+          PUBLIC_POSTHOG_HOST: "https://us.i.posthog.com"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-generator-sync
+          path: apps/pidb-kanban-example/playwright-report/
+          retention-days: 30
+
+  test-prisma-next:
+    needs: changes
+    if: needs.changes.outputs.prisma_next_unit == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: ./.github/actions/
+
+      - name: Run Prisma Next unit tests
+        run: pnpm test:prisma-next
+
+  test-prisma-next-e2e:
+    needs: changes
+    if: needs.changes.outputs.prisma_next_e2e == 'true'
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: ./.github/actions/
+
+      - name: Install Playwright Browsers
+        working-directory: apps/prisma-next-usage
+        run: pnpm exec playwright install --with-deps
+
+      - name: Run Prisma Next E2E tests
+        run: pnpm test:prisma-next-e2e
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-prisma-next
+          path: apps/prisma-next-usage/playwright-report/
+          retention-days: 30
+
+  test-prisma-next-kanban-e2e:
+    needs: changes
+    if: needs.changes.outputs.prisma_next_kanban_e2e == 'true'
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/
+
+      - name: Install Playwright Browsers
+        working-directory: apps/prisma-next-idb-kanban-example
+        run: pnpm exec playwright install --with-deps
+
+      - name: Run Prisma Next kanban E2E tests
+        run: pnpm test:prisma-next-kanban-e2e
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-prisma-next-kanban
+          path: apps/prisma-next-idb-kanban-example/playwright-report/
           retention-days: 30
 
   ci-required:
@@ -240,11 +271,12 @@ jobs:
       - changes
       - lint
       - typecheck
-      - test-schema-gen
-      - test-sync
+      - test-generator-schema
+      - test-generator-client
+      - test-generator-sync
       - test-prisma-next
       - test-prisma-next-e2e
-      - test-client
+      - test-prisma-next-kanban-e2e
     if: ${{ always() }}
     runs-on: ubuntu-latest
 
@@ -254,16 +286,18 @@ jobs:
           CHANGES_RESULT: ${{ needs.changes.result }}
           LINT_RESULT: ${{ needs.lint.result }}
           TYPECHECK_RESULT: ${{ needs.typecheck.result }}
-          SCHEMA_GEN_REQUIRED: ${{ needs.changes.outputs.schema_gen }}
-          SCHEMA_GEN_RESULT: ${{ needs['test-schema-gen'].result }}
-          SYNC_REQUIRED: ${{ needs.changes.outputs.sync }}
-          SYNC_RESULT: ${{ needs['test-sync'].result }}
+          GENERATOR_SCHEMA_REQUIRED: ${{ needs.changes.outputs.generator_schema }}
+          GENERATOR_SCHEMA_RESULT: ${{ needs['test-generator-schema'].result }}
+          GENERATOR_CLIENT_REQUIRED: ${{ needs.changes.outputs.generator_client }}
+          GENERATOR_CLIENT_RESULT: ${{ needs['test-generator-client'].result }}
+          GENERATOR_SYNC_REQUIRED: ${{ needs.changes.outputs.generator_sync }}
+          GENERATOR_SYNC_RESULT: ${{ needs['test-generator-sync'].result }}
           PRISMA_NEXT_UNIT_REQUIRED: ${{ needs.changes.outputs.prisma_next_unit }}
           PRISMA_NEXT_UNIT_RESULT: ${{ needs['test-prisma-next'].result }}
           PRISMA_NEXT_E2E_REQUIRED: ${{ needs.changes.outputs.prisma_next_e2e }}
           PRISMA_NEXT_E2E_RESULT: ${{ needs['test-prisma-next-e2e'].result }}
-          CLIENT_REQUIRED: ${{ needs.changes.outputs.client }}
-          CLIENT_RESULT: ${{ needs['test-client'].result }}
+          PRISMA_NEXT_KANBAN_E2E_REQUIRED: ${{ needs.changes.outputs.prisma_next_kanban_e2e }}
+          PRISMA_NEXT_KANBAN_E2E_RESULT: ${{ needs['test-prisma-next-kanban-e2e'].result }}
         run: |
           set -euo pipefail
 
@@ -292,10 +326,11 @@ jobs:
           require_success "Path detection" "$CHANGES_RESULT"
           require_success "Lint" "$LINT_RESULT"
           require_success "Typecheck" "$TYPECHECK_RESULT"
-          require_conditional_success "Schema generation tests" "$SCHEMA_GEN_REQUIRED" "$SCHEMA_GEN_RESULT"
-          require_conditional_success "Default generator sync tests" "$SYNC_REQUIRED" "$SYNC_RESULT"
+          require_conditional_success "Generator schema tests" "$GENERATOR_SCHEMA_REQUIRED" "$GENERATOR_SCHEMA_RESULT"
+          require_conditional_success "Generator client tests" "$GENERATOR_CLIENT_REQUIRED" "$GENERATOR_CLIENT_RESULT"
+          require_conditional_success "Generator sync tests" "$GENERATOR_SYNC_REQUIRED" "$GENERATOR_SYNC_RESULT"
           require_conditional_success "Prisma Next unit tests" "$PRISMA_NEXT_UNIT_REQUIRED" "$PRISMA_NEXT_UNIT_RESULT"
           require_conditional_success "Prisma Next E2E tests" "$PRISMA_NEXT_E2E_REQUIRED" "$PRISMA_NEXT_E2E_RESULT"
-          require_conditional_success "Default generator client tests" "$CLIENT_REQUIRED" "$CLIENT_RESULT"
+          require_conditional_success "Prisma Next kanban E2E tests" "$PRISMA_NEXT_KANBAN_E2E_REQUIRED" "$PRISMA_NEXT_KANBAN_E2E_RESULT"
 
           echo "Required CI checks are satisfied."

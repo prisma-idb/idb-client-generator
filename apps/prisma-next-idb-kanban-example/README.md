@@ -1,42 +1,43 @@
-# sv
+# Prisma Next IDB Kanban
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A local-only Svelte kanban board backed by Prisma Next IDB.
 
-## Creating a project
+The example demonstrates explicit Prisma Next migration packages, the browser IndexedDB runtime, and a tiny PWA shell that works offline after the app has loaded once.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## What is included
 
-```sh
-# create a new project
-npx sv create my-app
-```
+- Local users, boards, and todos stored in IndexedDB
+- Auto-migrating client setup in `src/lib/prisma/db.ts`
+- Chainable ORM usage in `src/lib/stores/kanban.svelte.ts`
+- Barebones PWA metadata and service worker caching
 
-To recreate this project with the same configuration:
+## Development
 
-```sh
-# recreate this project
-pnpm dlx sv@0.16.1 create --template minimal --types ts --add prettier eslint playwright tailwindcss="plugins:typography" --install pnpm prisma-next-idb-kanban-example
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+From the repository root:
 
 ```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+pnpm --filter @prisma-next-idb/kanban-example dev
 ```
 
-## Building
-
-To create a production version of your app:
+## Validation
 
 ```sh
-npm run build
+pnpm --filter @prisma-next-idb/kanban-example check
+pnpm --filter @prisma-next-idb/kanban-example build
+pnpm --filter @prisma-next-idb/kanban-example test:e2e
 ```
 
-You can preview the production build with `npm run preview`.
+## Prisma Next workflow
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+```sh
+pnpm --filter @prisma-next-idb/kanban-example contract:emit
+pnpm --filter @prisma-next-idb/kanban-example migration:generate
+pnpm --filter @prisma-next-idb/kanban-example migration:generate-space
+pnpm --filter @prisma-next-idb/kanban-example migration:preflight
+```
+
+## Links
+
+- Live app: https://next-kanban.prisma-idb.dev/
+- Docs: https://prisma-idb.dev/docs/prisma-next/kanban-example
+- Source: https://github.com/prisma-idb/idb-client-generator/tree/main/apps/prisma-next-idb-kanban-example

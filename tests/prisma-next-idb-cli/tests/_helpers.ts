@@ -22,6 +22,7 @@ import { mkdir, mkdtemp, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { computeMigrationHash } from "@prisma-next/migration-tools/hash";
 import { execa } from "execa";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
@@ -91,15 +92,21 @@ export interface PackageInput {
 export async function writePackage(p: PackageInput): Promise<void> {
   const dir = join(p.cwd, "migrations", "app", p.dirName);
   await mkdir(dir, { recursive: true });
+  const baseMetadata = {
+    from: p.from,
+    to: p.to,
+    providedInvariants: p.providedInvariants ?? [],
+    createdAt: "2026-01-01T00:00:00.000Z",
+  };
+  const migrationHash =
+    p.migrationHash ?? computeMigrationHash(baseMetadata, p.ops as Parameters<typeof computeMigrationHash>[1]);
+
   await writeFile(
     join(dir, "migration.json"),
     JSON.stringify(
       {
-        from: p.from,
-        to: p.to,
-        migrationHash: p.migrationHash ?? `sha256:hash-${p.dirName}`,
-        providedInvariants: p.providedInvariants ?? [],
-        createdAt: "2026-01-01T00:00:00.000Z",
+        ...baseMetadata,
+        migrationHash,
       },
       null,
       2

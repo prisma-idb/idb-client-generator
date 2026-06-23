@@ -1,5 +1,5 @@
 {
-  "name": "@prisma-next-idb/prisma-next-usage",
+  "name": "@prisma-next-idb/usage",
   "private": true,
   "version": "0.0.4",
   "type": "module",

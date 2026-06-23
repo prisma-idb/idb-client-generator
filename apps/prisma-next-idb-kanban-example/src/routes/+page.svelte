@@ -15,12 +15,12 @@
 </script>
 
 <svelte:head>
-  <title>Prisma Next IDB Kanban</title>
+  <title>Prisma Next IDB Kanban | Prisma IDB</title>
   <meta name="description" content="Local kanban board backed directly by the prisma-next IndexedDB ORM." />
 </svelte:head>
 
 <main class="min-h-svh">
-  <section class="mx-auto flex min-h-svh w-full max-w-[1500px] flex-col gap-5 px-4 py-4 md:px-6 lg:px-8">
+  <section class="mx-auto flex min-h-svh w-full max-w-375 flex-col gap-5 px-4 py-4 md:px-6 lg:px-8">
     <AppHeader />
 
     {#if kanban.status === "opening"}

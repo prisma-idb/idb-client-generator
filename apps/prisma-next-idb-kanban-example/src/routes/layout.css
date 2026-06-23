@@ -1,35 +1,60 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn-svelte/tailwind.css";
-@import "@fontsource-variable/inter";
+@import "@fontsource-variable/geist";
 
 @plugin "@tailwindcss/typography";
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.982 0.012 86);
-  --foreground: oklch(0.19 0.026 248);
-  --card: oklch(0.998 0.004 95);
-  --card-foreground: oklch(0.19 0.026 248);
-  --popover: oklch(0.998 0.004 95);
-  --popover-foreground: oklch(0.19 0.026 248);
-  --primary: oklch(0.38 0.095 190);
-  --primary-foreground: oklch(0.985 0.01 96);
-  --secondary: oklch(0.93 0.025 78);
-  --secondary-foreground: oklch(0.26 0.038 235);
-  --muted: oklch(0.94 0.014 86);
-  --muted-foreground: oklch(0.47 0.025 248);
-  --accent: oklch(0.78 0.14 78);
-  --accent-foreground: oklch(0.21 0.03 248);
-  --destructive: oklch(0.58 0.21 24);
-  --border: oklch(0.86 0.018 84);
-  --input: oklch(0.86 0.018 84);
-  --ring: oklch(0.57 0.104 190);
-  --radius: 0.55rem;
+  --background: hsl(0 0% 96%);
+  --foreground: hsl(0 0% 3.9%);
+  --card: hsl(0 0% 98%);
+  --card-foreground: hsl(0 0% 3.9%);
+  --popover: hsl(0 0% 98%);
+  --popover-foreground: hsl(0 0% 15%);
+  --primary: hsl(32 100% 50%);
+  --primary-foreground: hsl(0 0% 4%);
+  --secondary: hsl(0 0% 92.5%);
+  --secondary-foreground: hsl(0 0% 9%);
+  --muted: hsl(0 0% 91%);
+  --muted-foreground: hsl(0 0% 42%);
+  --accent: hsl(198 64% 20%);
+  --accent-foreground: hsl(0 0% 98%);
+  --destructive: hsl(7 79% 45%);
+  --border: hsl(0 0% 74% / 55%);
+  --input: hsl(0 0% 74% / 55%);
+  --ring: hsl(32 100% 50%);
+  --radius: 0.48rem;
+  --surface-wash: hsl(32 100% 50% / 0.055);
+  --surface-lift: hsl(0 0% 100% / 0.45);
+}
+
+.dark {
+  --background: hsl(0 0% 3%);
+  --foreground: hsl(0 0% 94%);
+  --card: hsl(0 0% 7.5%);
+  --card-foreground: hsl(0 0% 95%);
+  --popover: hsl(0 0% 8%);
+  --popover-foreground: hsl(0 0% 92%);
+  --primary: hsl(32 100% 50%);
+  --primary-foreground: hsl(0 0% 4%);
+  --secondary: hsl(0 0% 18%);
+  --secondary-foreground: hsl(0 0% 92%);
+  --muted: hsl(0 0% 17%);
+  --muted-foreground: hsl(0 0% 74%);
+  --accent: hsl(198 45% 62%);
+  --accent-foreground: hsl(0 0% 4%);
+  --destructive: hsl(7 82% 62%);
+  --border: hsl(0 0% 40% / 24%);
+  --input: hsl(0 0% 40% / 28%);
+  --ring: hsl(32 100% 50%);
+  --surface-wash: hsl(32 100% 50% / 0.045);
+  --surface-lift: hsl(0 0% 100% / 0.035);
 }
 
 @theme inline {
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -68,6 +93,11 @@
 
   body {
     @apply bg-background text-foreground min-h-svh antialiased;
+
+    background-image:
+      linear-gradient(180deg, var(--surface-wash), transparent 22rem),
+      linear-gradient(0deg, var(--surface-lift), transparent 36rem);
+    background-size: auto, auto;
   }
 
   button,
