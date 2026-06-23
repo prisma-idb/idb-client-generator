@@ -21,7 +21,7 @@ jobs:
       generator_client: ${{ steps.generator_client.outputs.changed }}
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -84,7 +84,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: ./.github/actions/
       - name: Lint all packages
         run: pnpm lint
@@ -93,7 +93,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: ./.github/actions/
 
       - name: Generate BETTER_AUTH_SECRET
@@ -114,7 +114,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: ./.github/actions/
 
       - name: Run schema generation tests
@@ -142,10 +142,7 @@ jobs:
           - 5434:5432
 
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - name: Set DATABASE_URL environment variable
         run: echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5434/postgres" >> $GITHUB_ENV
       - uses: ./.github/actions/
@@ -161,7 +158,7 @@ jobs:
           GOOGLE_CLIENT_SECRET: "placeholder"
           PUBLIC_POSTHOG_PROJECT_TOKEN: "placeholder"
           PUBLIC_POSTHOG_HOST: "https://us.i.posthog.com"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-generator-sync
@@ -174,7 +171,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: ./.github/actions/
 
       - name: Run Prisma Next unit tests
@@ -187,7 +184,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: ./.github/actions/
 
       - name: Install Playwright Browsers
@@ -197,7 +194,7 @@ jobs:
       - name: Run Prisma Next E2E tests
         run: pnpm test:prisma-next-e2e
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-prisma-next
@@ -211,7 +208,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/
 
       - name: Install Playwright Browsers
@@ -221,7 +220,7 @@ jobs:
       - name: Run Prisma Next kanban E2E tests
         run: pnpm test:prisma-next-kanban-e2e
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-prisma-next-kanban
@@ -250,10 +249,7 @@ jobs:
           - 5433:5432
 
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - name: Set DATABASE_URL environment variable
         run: echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5433/postgres" >> $GITHUB_ENV
       - uses: ./.github/actions/
@@ -262,7 +258,7 @@ jobs:
         run: pnpm exec playwright install --with-deps
       - name: Run generator client Playwright tests
         run: pnpm test:generator-client
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-generator-client
