@@ -14,7 +14,7 @@
     "test:client": "turbo run test --filter=@prisma-idb/usage",
     "test:sync": "turbo run test --filter=@prisma-idb/pidb-kanban-example",
     "test:schema-gen": "turbo run test --filter=@prisma-idb/schema-gen-tests",
-    "test:prisma-next": "turbo run test --filter=@prisma-next-idb/adapter-idb --filter=@prisma-next-idb/client-idb --filter=@prisma-next-idb/driver-idb --filter=@prisma-next-idb/family-idb --filter=@prisma-next-idb/runtime-idb --filter=@prisma-next-idb/target-idb",
+    "test:prisma-next": "turbo run test --filter=@prisma-next-idb/adapter-idb --filter=@prisma-next-idb/client-idb --filter=@prisma-next-idb/driver-idb --filter=@prisma-next-idb/family-idb --filter=@prisma-next-idb/runtime-idb --filter=@prisma-next-idb/target-idb --filter=@prisma-next-idb/cli-tests",
     "test:prisma-next-e2e": "turbo run test --filter=@prisma-next-idb/prisma-next-usage",
     "test:prisma-next-kanban-e2e": "turbo run test --filter=@prisma-next-idb/kanban-example",
     "test:benchmark": "turbo run test --filter=@prisma-idb/benchmark",

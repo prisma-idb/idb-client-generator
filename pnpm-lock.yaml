@@ -881,6 +881,9 @@ importers:
       '@prisma-next-idb/family-idb':
         specifier: workspace:*
         version: link:../../packages/prisma-next/family-idb
+      '@prisma-next/migration-tools':
+        specifier: ^0.14.0
+        version: 0.14.0(typescript@6.0.3)
       '@types/node':
         specifier: ^24.10.9
         version: 24.13.2

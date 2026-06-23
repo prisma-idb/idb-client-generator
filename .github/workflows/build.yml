@@ -50,6 +50,7 @@ jobs:
         with:
           paths: |
             packages/prisma-next
+            tests/prisma-next-idb-cli
             pnpm-lock.yaml
 
       - id: prisma_next_e2e
