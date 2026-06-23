@@ -6,7 +6,8 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev --no-cache",
-    "check": "turbo run check",
+    "check": "pnpm check:prisma-next-descriptors && turbo run check",
+    "check:prisma-next-descriptors": "tsx scripts/check-prisma-next-descriptor-consistency.ts",
     "lint": "turbo run lint",
     "format": "turbo run format --no-cache",
     "test": "turbo run test",
@@ -32,6 +33,7 @@
     "@changesets/cli": "^2.31.0",
     "@eslint/compat": "^2.1.0",
     "@eslint/js": "^9.39.4",
+    "@types/node": "^24.13.2",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.9",
     "eslint-config-prettier": "^10.1.8",
@@ -42,6 +44,7 @@
     "prettier": "^3.8.4",
     "prettier-plugin-svelte": "^4.1.1",
     "prettier-plugin-tailwindcss": "^0.8.0",
+    "tsx": "^4.22.4",
     "turbo": "^2.9.18",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.61.1"

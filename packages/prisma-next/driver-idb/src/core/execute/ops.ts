@@ -16,6 +16,7 @@
  * so write durability is guaranteed before rows are delivered.
  */
 import type {
+  IdbAddPlan,
   IdbAtomicPlan,
   IdbCursorScanPlan,
   IdbDeletePlan,
@@ -53,6 +54,8 @@ export function executeOpInTx(
       return execIndexGet(store, plan, onComplete, onError);
     case "cursor-scan":
       return execCursorScan(store, plan, onComplete, onError);
+    case "add":
+      return execAdd(store, plan, onComplete, onError);
     case "put":
       return execPut(store, plan, onComplete, onError);
     case "update":
@@ -66,7 +69,11 @@ export function executeOpInTx(
 
 /** Returns the IDB transaction mode appropriate for a given atomic plan. */
 export function planTxMode(plan: IdbAtomicPlan): IDBTransactionMode {
-  return plan.kind === "put" || plan.kind === "update" || plan.kind === "delete" || plan.kind === "scan-write"
+  return plan.kind === "add" ||
+    plan.kind === "put" ||
+    plan.kind === "update" ||
+    plan.kind === "delete" ||
+    plan.kind === "scan-write"
     ? "readwrite"
     : "readonly";
 }
@@ -178,6 +185,21 @@ function execCursorScan(
           cause: req.error,
         },
         `IDB cursor-scan failed on store "${plan.storeName}": ${String(req.error)}`
+      )
+    );
+}
+
+function execAdd(store: IDBObjectStore, plan: IdbAddPlan, onComplete: OnComplete, onError: OnError): void {
+  // Use the optional out-of-line key when provided; otherwise IDB derives the
+  // key from the record via the store's keyPath.
+  const req = plan.key !== undefined ? store.add(plan.record, plan.key) : store.add(plan.record);
+  // Echo the record back — IDB has no RETURNING clause.
+  req.onsuccess = () => onComplete([plan.record]);
+  req.onerror = () =>
+    onError(
+      new IdbExecuteError(
+        { code: "ADD_FAILED", planKind: "add", storeName: plan.storeName, cause: req.error },
+        `IDB add failed on store "${plan.storeName}": ${String(req.error)}`
       )
     );
 }

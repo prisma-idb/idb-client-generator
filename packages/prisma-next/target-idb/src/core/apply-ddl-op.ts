@@ -170,6 +170,19 @@ export function openAndUpgrade(input: {
   return new Promise((resolve, reject) => {
     const request = input.factory.open(input.dbName, input.targetVersion);
 
+    // `onblocked` fires when another connection is open at an older version and
+    // hasn't closed yet. The open request is still live — it will proceed once
+    // the blocking connection closes. Rejecting here would abandon a request
+    // that would have succeeded, so we just warn and let it resolve naturally.
+    // A stale connection from a previous same-page navigation (e.g. the
+    // openAndReadMarker call above us) closes within the same microtask flush;
+    // another tab holding an open connection is the only scenario where this
+    // would hang indefinitely, so we set a timeout as a last resort.
+    let blockedTimer: ReturnType<typeof setTimeout> | undefined;
+    const clearBlocked = () => {
+      if (blockedTimer !== undefined) clearTimeout(blockedTimer);
+    };
+
     request.onupgradeneeded = (event) => {
       const target = event.target as IDBOpenDBRequest;
       const db = target.result;
@@ -186,6 +199,7 @@ export function openAndUpgrade(input: {
     };
 
     request.onsuccess = async (event) => {
+      clearBlocked();
       const db = (event.target as IDBOpenDBRequest).result;
       try {
         if (input.marker !== undefined) {
@@ -198,22 +212,24 @@ export function openAndUpgrade(input: {
     };
 
     request.onerror = (event) => {
+      clearBlocked();
       const err = (event.target as IDBOpenDBRequest).error;
       reject(err ?? new Error("IDB: migration open request failed without an error object"));
     };
 
-    // Another open connection at an older version is holding the upgrade back.
-    // Runtime connections self-close on `versionchange` (see driver-idb), so
-    // this should be unreachable in normal operation — but a stray third-party
-    // connection on the same database name would otherwise hang the upgrade
-    // forever. Fail fast with an actionable message instead.
     request.onblocked = () => {
-      reject(
-        new Error(
-          `IDB: migration of "${input.dbName}" is blocked — another connection is open at an older ` +
-            "version and did not close. Close other tabs/connections to this database and retry."
-        )
+      console.warn(
+        `[prisma-next] Migration of "${input.dbName}" is waiting for another connection to close. ` +
+          "If you have the app open in another tab, close it to proceed."
       );
+      blockedTimer = setTimeout(() => {
+        reject(
+          new Error(
+            `IDB: migration of "${input.dbName}" is blocked — another connection is open at an older ` +
+              "version and did not close within 30 s. Close other tabs/connections to this database and retry."
+          )
+        );
+      }, 30_000);
     };
   });
 }

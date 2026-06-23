@@ -14,6 +14,8 @@ const user = await db.orm.user.create({
 });
 ```
 
+`create()` inserts a new row. It throws if the primary key already exists; use `upsert()` when existing rows should be updated.
+
 ## Create many
 
 ```ts

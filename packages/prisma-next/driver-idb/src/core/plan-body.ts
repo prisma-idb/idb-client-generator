@@ -101,11 +101,27 @@ export interface IdbIndexGetPlan extends ExecutionPlan {
 }
 
 /**
- * Upsert a single record via `store.put(record[, key])`.
+ * Insert a single record via `store.add(record[, key])`.
  *
- * Used for `create` and `upsert` where the full merged record is already
- * known. The driver echoes `record` back as the result row — IDB does not
- * have RETURNING.
+ * Used for Prisma `create` semantics. IndexedDB rejects `add()` when the
+ * primary key already exists, which preserves the "create never overwrites"
+ * contract expected by callers.
+ *
+ * `key` is only needed for out-of-line key stores (`keyPath: null`).
+ */
+export interface IdbAddPlan extends ExecutionPlan {
+  readonly kind: "add";
+  readonly storeName: string;
+  readonly record: Record<string, unknown>;
+  readonly key?: IDBValidKey;
+}
+
+/**
+ * Upsert or replace a single record via `store.put(record[, key])`.
+ *
+ * Used for upsert paths where the full replacement record is already known.
+ * The driver echoes `record` back as the result row — IDB does not have
+ * RETURNING.
  *
  * `key` is only needed for out-of-line key stores (`keyPath: null`).
  */
@@ -180,6 +196,7 @@ export type IdbAtomicPlan =
   | IdbCursorScanPlan
   | IdbKeyGetPlan
   | IdbIndexGetPlan
+  | IdbAddPlan
   | IdbPutPlan
   | IdbUpdatePlan
   | IdbDeletePlan

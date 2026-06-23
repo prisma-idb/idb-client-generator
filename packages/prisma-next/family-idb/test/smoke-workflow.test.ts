@@ -404,4 +404,27 @@ describe("end-to-end workflow smoke test", () => {
     expect(ordered[0]!.metadata.to).toBe(v1.storageHash);
     expect(ordered[1]!.metadata.to).toBe(v2.storageHash);
   }, 60_000); // 60s — full workflow including fake-indexeddb preflight
+
+  it("refuses to generate the next migration when the head package is internally inconsistent", async () => {
+    const v1 = emitContract(SCHEMA_V1);
+    await writeFile(contractJsonPath(cwd), v1.contractJson, "utf-8");
+    await writeFile(contractDtsPath(cwd), v1.contractDts, "utf-8");
+    expect(await generateBaseline({ cwd })).toBe(0);
+
+    const dirs = await listMigrationDirs(cwd);
+    const baselineDir = dirs[0]!;
+    const baselineMeta = await readMeta(cwd, baselineDir);
+    await writeFile(
+      join(pkgPath(cwd, baselineDir), "migration.json"),
+      JSON.stringify({ ...baselineMeta, to: "sha256:wrong-head-hash" }, null, 2),
+      "utf-8"
+    );
+
+    const v2 = emitContract(SCHEMA_V2);
+    await writeFile(contractJsonPath(cwd), v2.contractJson, "utf-8");
+    await writeFile(contractDtsPath(cwd), v2.contractDts, "utf-8");
+
+    await expect(generateMigration({ cwd, name: "add_todo" })).resolves.toBe(1);
+    await expect(listMigrationDirs(cwd)).resolves.toEqual([baselineDir]);
+  });
 });

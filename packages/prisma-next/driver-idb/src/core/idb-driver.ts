@@ -15,8 +15,8 @@ export class IdbRuntimeDriverInstance implements RuntimeDriverInstance<"idb", "i
    */
   readonly db: Promise<IDBDatabase>;
 
-  constructor(dbName: string, version?: number) {
-    this.db = openIdbDatabase(dbName, version);
+  constructor(dbName: string, version?: number, factory?: IDBFactory) {
+    this.db = openIdbDatabase(dbName, version, factory);
   }
 
   async close(): Promise<void> {
@@ -104,9 +104,9 @@ export class IdbRuntimeDriverInstance implements RuntimeDriverInstance<"idb", "i
  * per ADR 001: the migration runner owns version bumping; the runtime just connects
  * to whatever schema is already in place.
  */
-function openIdbDatabase(dbName: string, version?: number): Promise<IDBDatabase> {
+function openIdbDatabase(dbName: string, version?: number, factory: IDBFactory = indexedDB): Promise<IDBDatabase> {
   return new Promise<IDBDatabase>((resolve, reject) => {
-    const req = indexedDB.open(dbName, version);
+    const req = factory.open(dbName, version);
 
     req.onerror = () => {
       reject(req.error);

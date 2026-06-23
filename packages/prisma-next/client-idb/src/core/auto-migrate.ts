@@ -118,6 +118,7 @@ export async function createAutoMigratingIdbClient<TContract extends IdbContract
   return createIdbClient({
     contract: options.contractSpace.contractJson,
     dbName: options.dbName,
+    factory,
   });
 }
 
@@ -271,22 +272,31 @@ function openAndReadMarker(
   dbName: string,
   factory: IDBFactory
 ): Promise<{ currentVersion: number; markerHash: string | null }> {
-  return new Promise((resolve) => {
-    const req = factory.open(dbName);
-    req.onsuccess = async () => {
+  return new Promise((resolve, reject) => {
+    let req: IDBOpenDBRequest;
+    try {
+      req = factory.open(dbName);
+    } catch (err) {
+      reject(err);
+      return;
+    }
+
+    req.onsuccess = () => {
       const db = req.result;
       const currentVersion = db.version;
-      try {
-        const record = await readMarker(db, APP_SPACE_ID);
-        resolve({ currentVersion, markerHash: record?.storageHash ?? null });
-      } finally {
-        db.close();
-      }
+      void (async () => {
+        try {
+          const record = await readMarker(db, APP_SPACE_ID);
+          resolve({ currentVersion, markerHash: record?.storageHash ?? null });
+        } catch (err) {
+          reject(err);
+        } finally {
+          db.close();
+        }
+      })();
     };
     req.onerror = () => {
-      // Open failed — treat as fresh install. Version 0 means the first
-      // upgrade opens at version 1.
-      resolve({ currentVersion: 0, markerHash: null });
+      reject(req.error ?? new Error(`IDB open failed while reading marker for "${dbName}"`));
     };
   });
 }

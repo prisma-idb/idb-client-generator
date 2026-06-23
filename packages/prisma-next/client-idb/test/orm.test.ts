@@ -204,6 +204,18 @@ describe("IdbStoreAccessor — create / read", () => {
     expect(result).toMatchObject({ id: "u1", name: "Alice" });
   });
 
+  it("create() rejects instead of overwriting an existing primary key", async () => {
+    const client = makeClient();
+    await client["users"]!.create({ id: "u1", name: "Alice", email: "alice@example.com" });
+
+    await expect(
+      client["users"]!.create({ id: "u1", name: "Updated", email: "updated@example.com" })
+    ).rejects.toMatchObject({ code: "ADD_FAILED" });
+
+    const stored = await client["users"]!.findUnique("u1");
+    expect(stored).toMatchObject({ id: "u1", name: "Alice", email: "alice@example.com" });
+  });
+
   it("all() returns all records", async () => {
     const name = dbName();
     const setupDb = await openTestDb(name, [USERS_STORE]);

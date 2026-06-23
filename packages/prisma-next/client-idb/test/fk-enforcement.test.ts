@@ -144,6 +144,34 @@ const cascadeContract = defineContract({
   },
 });
 
+const fkSideCascadeContract = defineContract({
+  family: idbFamilyPack,
+  target: idbTargetPack,
+  models: {
+    User: {
+      store: "users",
+      key: "id",
+      fields: { id: "String", name: "String" },
+      relations: {
+        posts: { to: "Post", cardinality: "1:N", on: { local: ["id"], target: ["authorId"] } },
+      },
+    },
+    Post: {
+      store: "posts",
+      key: "id",
+      fields: { id: "String", authorId: "String", title: "String" },
+      relations: {
+        author: {
+          to: "User",
+          cardinality: "N:1",
+          on: { local: ["authorId"], target: ["id"] },
+          onDelete: "cascade",
+        },
+      },
+    },
+  },
+});
+
 describe("delete — cascade", () => {
   let db: IDBDatabase;
   let executor: TestExecutorWithTransaction;
@@ -182,6 +210,17 @@ describe("delete — cascade", () => {
     const orm = idbOrm({ contract: cascadeContract, executor });
     await orm["users"]!.delete("ghost" as never);
     expect(await getAllRows(db, "users")).toHaveLength(0);
+  });
+
+  it("honors onDelete stored on the FK-side relation", async () => {
+    const orm = idbOrm({ contract: fkSideCascadeContract, executor });
+    await orm["users"]!.create({ id: "u1", name: "Alice" } as never);
+    await orm["posts"]!.create({ id: "p1", title: "Post", authorId: "u1" } as never);
+
+    await orm["users"]!.delete("u1" as never);
+
+    expect(await getAllRows(db, "users")).toHaveLength(0);
+    expect(await getAllRows(db, "posts")).toHaveLength(0);
   });
 });
 

@@ -10,7 +10,7 @@
  *
  * Transaction modes:
  *   - Atomic read plans  (key-get, index-get, cursor-scan): `readonly`
- *   - Atomic write plans (put, delete):                      `readwrite`
+ *   - Atomic write plans (add, put, delete):                 `readwrite`
  *   - Batch plans:        `readwrite` if any op is a write, `readonly` otherwise
  */
 import type { IdbAtomicPlan, IdbBatchPlan, IdbPlanBody } from "../plan-body";
@@ -90,7 +90,12 @@ function executeAtomicPlan(db: IDBDatabase, plan: IdbAtomicPlan): Promise<Row[]>
 function executeBatchPlan(db: IDBDatabase, plan: IdbBatchPlan): Promise<Row[]> {
   return new Promise<Row[]>((resolve, reject) => {
     const mode: IDBTransactionMode = plan.ops.some(
-      (op) => op.kind === "put" || op.kind === "delete" || op.kind === "update" || op.kind === "scan-write"
+      (op) =>
+        op.kind === "add" ||
+        op.kind === "put" ||
+        op.kind === "delete" ||
+        op.kind === "update" ||
+        op.kind === "scan-write"
     )
       ? "readwrite"
       : "readonly";

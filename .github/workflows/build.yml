@@ -6,9 +6,69 @@ on:
   pull_request:
     branches: [main]
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      schema_gen: ${{ steps.schema_gen.outputs.changed }}
+      sync: ${{ steps.sync.outputs.changed }}
+      prisma_next_unit: ${{ steps.prisma_next_unit.outputs.changed }}
+      prisma_next_e2e: ${{ steps.prisma_next_e2e.outputs.changed }}
+      client: ${{ steps.client.outputs.changed }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - id: schema_gen
+        name: Check default generator schema test paths
+        uses: ./.github/actions/paths-changed
+        with:
+          paths: |
+            packages/generator
+            tests/schema-gen
+            pnpm-lock.yaml
+
+      - id: sync
+        name: Check default generator sync test paths
+        uses: ./.github/actions/paths-changed
+        with:
+          paths: |
+            packages/generator
+            apps/pidb-kanban-example
+            pnpm-lock.yaml
+
+      - id: prisma_next_unit
+        name: Check Prisma Next unit test paths
+        uses: ./.github/actions/paths-changed
+        with:
+          paths: |
+            packages/prisma-next
+            pnpm-lock.yaml
+
+      - id: prisma_next_e2e
+        name: Check Prisma Next E2E test paths
+        uses: ./.github/actions/paths-changed
+        with:
+          paths: |
+            packages/prisma-next
+            apps/prisma-next-usage
+            pnpm-lock.yaml
+
+      - id: client
+        name: Check default generator client test paths
+        uses: ./.github/actions/paths-changed
+        with:
+          paths: |
+            packages/generator
+            apps/usage
+            pnpm-lock.yaml
+
   lint:
     runs-on: ubuntu-latest
 
@@ -38,6 +98,8 @@ jobs:
           PUBLIC_POSTHOG_HOST: "https://us.i.posthog.com"
 
   test-schema-gen:
+    needs: changes
+    if: needs.changes.outputs.schema_gen == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -48,11 +110,10 @@ jobs:
         run: pnpm test:schema-gen
 
   test-sync:
+    needs: changes
+    if: needs.changes.outputs.sync == 'true'
     timeout-minutes: 60
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: write
 
     services:
       postgres:
@@ -97,6 +158,8 @@ jobs:
           retention-days: 30
 
   test-prisma-next:
+    needs: changes
+    if: needs.changes.outputs.prisma_next_unit == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -107,11 +170,10 @@ jobs:
         run: pnpm test:prisma-next
 
   test-prisma-next-e2e:
+    needs: changes
+    if: needs.changes.outputs.prisma_next_e2e == 'true'
     timeout-minutes: 60
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: write
 
     steps:
       - uses: actions/checkout@v7
@@ -132,11 +194,10 @@ jobs:
           retention-days: 30
 
   test-client:
+    needs: changes
+    if: needs.changes.outputs.client == 'true'
     timeout-minutes: 60
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: write
 
     services:
       postgres:
@@ -172,3 +233,69 @@ jobs:
           name: playwright-report-client
           path: apps/usage/playwright-report/
           retention-days: 30
+
+  ci-required:
+    name: CI required
+    needs:
+      - changes
+      - lint
+      - typecheck
+      - test-schema-gen
+      - test-sync
+      - test-prisma-next
+      - test-prisma-next-e2e
+      - test-client
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check required CI results
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          LINT_RESULT: ${{ needs.lint.result }}
+          TYPECHECK_RESULT: ${{ needs.typecheck.result }}
+          SCHEMA_GEN_REQUIRED: ${{ needs.changes.outputs.schema_gen }}
+          SCHEMA_GEN_RESULT: ${{ needs['test-schema-gen'].result }}
+          SYNC_REQUIRED: ${{ needs.changes.outputs.sync }}
+          SYNC_RESULT: ${{ needs['test-sync'].result }}
+          PRISMA_NEXT_UNIT_REQUIRED: ${{ needs.changes.outputs.prisma_next_unit }}
+          PRISMA_NEXT_UNIT_RESULT: ${{ needs['test-prisma-next'].result }}
+          PRISMA_NEXT_E2E_REQUIRED: ${{ needs.changes.outputs.prisma_next_e2e }}
+          PRISMA_NEXT_E2E_RESULT: ${{ needs['test-prisma-next-e2e'].result }}
+          CLIENT_REQUIRED: ${{ needs.changes.outputs.client }}
+          CLIENT_RESULT: ${{ needs['test-client'].result }}
+        run: |
+          set -euo pipefail
+
+          require_success() {
+            local name="$1"
+            local result="$2"
+
+            if [ "$result" != "success" ]; then
+              echo "$name ended with: $result"
+              exit 1
+            fi
+          }
+
+          require_conditional_success() {
+            local name="$1"
+            local required="$2"
+            local result="$3"
+
+            if [ "$required" = "true" ]; then
+              require_success "$name" "$result"
+            else
+              echo "$name was not required for these paths."
+            fi
+          }
+
+          require_success "Path detection" "$CHANGES_RESULT"
+          require_success "Lint" "$LINT_RESULT"
+          require_success "Typecheck" "$TYPECHECK_RESULT"
+          require_conditional_success "Schema generation tests" "$SCHEMA_GEN_REQUIRED" "$SCHEMA_GEN_RESULT"
+          require_conditional_success "Default generator sync tests" "$SYNC_REQUIRED" "$SYNC_RESULT"
+          require_conditional_success "Prisma Next unit tests" "$PRISMA_NEXT_UNIT_REQUIRED" "$PRISMA_NEXT_UNIT_RESULT"
+          require_conditional_success "Prisma Next E2E tests" "$PRISMA_NEXT_E2E_REQUIRED" "$PRISMA_NEXT_E2E_RESULT"
+          require_conditional_success "Default generator client tests" "$CLIENT_REQUIRED" "$CLIENT_RESULT"
+
+          echo "Required CI checks are satisfied."

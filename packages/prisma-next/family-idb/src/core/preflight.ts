@@ -1,6 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { IDBFactory } from "fake-indexeddb";
 import type { MigrationMetadata } from "@prisma-next/migration-tools/metadata";
+import { computeMigrationHash } from "@prisma-next/migration-tools/hash";
 import { chainOrderByMetadata, type ChainablePackage } from "./chain-order";
 import { applyOneDdlOp, isIdbDdlOp, type IdbDdlOp } from "@prisma-next-idb/target-idb/migration";
 import { join } from "pathe";
@@ -94,6 +95,13 @@ async function loadPackages(appDir: string): Promise<LoadedPackage[]> {
         throw new Error(`Non-IDB op found in ${dirName}/ops.json: ${JSON.stringify(op)}`);
       }
       ops.push(op as IdbDdlOp);
+    }
+    const computedHash = computeMigrationHash(metadata, ops as unknown as Parameters<typeof computeMigrationHash>[1]);
+    if (computedHash !== metadata.migrationHash) {
+      throw new Error(
+        `Migration hash mismatch in ${dirName}: stored migrationHash ${metadata.migrationHash} ` +
+          `does not match computed hash ${computedHash}`
+      );
     }
     unordered.set(dirName, { dirName, metadata, ops });
   }

@@ -104,6 +104,25 @@ export async function generateMigration(opts: GenerateMigrationOptions): Promise
     throw err;
   }
 
+  const headEndStorageHash = readStorageHash(fromContractJson);
+  if (headEndStorageHash === null) {
+    process.stderr.write(
+      `generate-migration: head migration ${head.dirName}/end-contract.json is missing storage.storageHash.\n` +
+        "Re-emit the head migration before generating the next package.\n"
+    );
+    return 1;
+  }
+
+  if (head.metadata.to !== headEndStorageHash) {
+    process.stderr.write(
+      `generate-migration: head migration ${head.dirName} is inconsistent.\n` +
+        `  migration.json to:        ${head.metadata.to}\n` +
+        `  end-contract storageHash: ${headEndStorageHash}\n` +
+        "Re-emit or repair the head migration before generating the next package.\n"
+    );
+    return 1;
+  }
+
   // ── 3. Read the current contract.json as the destination ─────────────────────
 
   let contractRaw: string;
@@ -202,4 +221,12 @@ export async function generateMigration(opts: GenerateMigrationOptions): Promise
   );
 
   return 0;
+}
+
+function readStorageHash(contract: unknown): string | null {
+  if (typeof contract !== "object" || contract === null) return null;
+  const storage = (contract as { readonly storage?: unknown }).storage;
+  if (typeof storage !== "object" || storage === null) return null;
+  const hash = (storage as { readonly storageHash?: unknown }).storageHash;
+  return typeof hash === "string" && hash.length > 0 ? hash : null;
 }

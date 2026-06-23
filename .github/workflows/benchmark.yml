@@ -3,8 +3,18 @@ name: Benchmark Regression
 on:
   push:
     branches: [main]
+    paths:
+      - "apps/benchmark/**"
+      - "packages/generator/**"
+      - "scripts/benchmark-local.sh"
+      - ".github/workflows/benchmark.yml"
   pull_request:
     branches: [main]
+    paths:
+      - "apps/benchmark/**"
+      - "packages/generator/**"
+      - "scripts/benchmark-local.sh"
+      - ".github/workflows/benchmark.yml"
 
 concurrency:
   group: benchmark-${{ github.ref }}

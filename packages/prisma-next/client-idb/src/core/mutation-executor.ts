@@ -6,7 +6,7 @@
  *
  * - No column/field mapping — IDB field names ARE the storage keys.
  * - No `applyMutationDefaults` — IDB has no server-side defaults.
- * - `insertSingleRow` → `scope.execute({ kind: "put", ... })`.
+ * - `insertSingleRow` → `scope.execute({ kind: "add", ... })`.
  * - `findRowByCriterion` / `findFirstByFilters` → `scope.execute({ kind: "cursor-scan", ... })`.
  *   IDB allows reads inside a readwrite transaction; the transaction scope accepts
  *   all `IdbAtomicPlan` types including `cursor-scan`.
@@ -492,7 +492,7 @@ async function insertSingleRow(
   assertNoNestedCallbacks(modelName, data);
   const storeName = getStoreName(contract, modelName);
   const meta = makePlanMeta(contract);
-  const rows = await scope.execute({ meta, kind: "put", storeName, record: data });
+  const rows = await scope.execute({ meta, kind: "add", storeName, record: data });
   return rows[0] ?? data;
 }
 
@@ -577,10 +577,38 @@ function getKeyPath(contract: IdbContract, modelName: string): string {
 
 // ── Referential action helpers ────────────────────────────────────────────────
 
-function getOnDelete(contract: IdbContract, modelName: string, relationName: string): IdbReferentialAction {
+function getStoredOnDelete(
+  contract: IdbContract,
+  modelName: string,
+  relationName: string
+): IdbReferentialAction | undefined {
   const model = domainModelsAtDefaultNamespace(contract.domain)[modelName];
   const storage = model?.storage as { relations?: Record<string, { onDelete?: string }> } | undefined;
-  return (storage?.relations?.[relationName]?.onDelete ?? "restrict") as IdbReferentialAction;
+  return storage?.relations?.[relationName]?.onDelete as IdbReferentialAction | undefined;
+}
+
+function sameFields(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((field, index) => field === b[index]);
+}
+
+function getOnDeleteForDeleteRelation(
+  contract: IdbContract,
+  modelName: string,
+  def: RelationDefinition
+): IdbReferentialAction {
+  const direct = getStoredOnDelete(contract, modelName, def.relationName);
+  if (direct !== undefined) return direct;
+
+  for (const inverse of getRelationDefinitions(contract, def.relatedModelName)) {
+    if (inverse.relatedModelName !== modelName) continue;
+    if (!sameFields(inverse.localFields, def.targetFields)) continue;
+    if (!sameFields(inverse.targetFields, def.localFields)) continue;
+
+    const inverseAction = getStoredOnDelete(contract, def.relatedModelName, inverse.relationName);
+    if (inverseAction !== undefined) return inverseAction;
+  }
+
+  return "restrict";
 }
 
 function isDeleteEnforcementRelation(contract: IdbContract, modelName: string, def: RelationDefinition): boolean {
@@ -705,7 +733,7 @@ export async function executeScalarUpdateWithFkValidation(options: {
 export function hasEnforceableChildRelations(contract: IdbContract, modelName: string): boolean {
   for (const def of getRelationDefinitions(contract, modelName)) {
     if (!isDeleteEnforcementRelation(contract, modelName, def)) continue;
-    if (getOnDelete(contract, modelName, def.relationName) !== "noAction") return true;
+    if (getOnDeleteForDeleteRelation(contract, modelName, def) !== "noAction") return true;
   }
   return false;
 }
@@ -714,7 +742,7 @@ function collectDeleteStoreNames(contract: IdbContract, modelName: string): stri
   const stores = new Set([getStoreName(contract, modelName)]);
   for (const def of getRelationDefinitions(contract, modelName)) {
     if (!isDeleteEnforcementRelation(contract, modelName, def)) continue;
-    if (getOnDelete(contract, modelName, def.relationName) !== "noAction") {
+    if (getOnDeleteForDeleteRelation(contract, modelName, def) !== "noAction") {
       stores.add(def.relatedStoreName);
     }
   }
@@ -730,7 +758,7 @@ async function applyReferentialActionsForRow(
   const meta = makePlanMeta(contract);
   for (const def of getRelationDefinitions(contract, modelName)) {
     if (!isDeleteEnforcementRelation(contract, modelName, def)) continue;
-    const action = getOnDelete(contract, modelName, def.relationName);
+    const action = getOnDeleteForDeleteRelation(contract, modelName, def);
     if (action === "noAction") continue;
 
     // Build the filter matching children of this parent row.

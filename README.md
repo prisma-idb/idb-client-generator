@@ -8,18 +8,14 @@ Type-safe IndexedDB with the Prisma API you already know — offline-first, no s
 
 **[Documentation](https://prisma-idb.dev/) · [Live Demo](https://kanban.prisma-idb.dev/)**
 
----
-
 ## Two flavors
 
-|                  | Generator (stable)                                                                                   | prisma-next driver stack (new)                                                                    |
-| ---------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| **Package**      | [`@prisma-idb/idb-client-generator`](https://www.npmjs.com/package/@prisma-idb/idb-client-generator) | [`@prisma-next-idb/family-idb`](https://www.npmjs.com/package/@prisma-next-idb/family-idb)        |
-| **How it works** | Prisma generator — runs `prisma generate`, emits a typed client                                      | prisma-next driver + adapter + target stack for IndexedDB                                         |
-| **Status**       | Stable, published                                                                                    | `0.1.0`, follows [prisma-next](https://www.prisma.io/blog/prisma-next-call-for-extension-authors) |
-| **Source**       | `packages/generator`                                                                                 | `packages/prisma-next/*`                                                                          |
-
----
+|                  | Generator (stable)                                                                                   | prisma-next driver stack (new)                                                                            |
+| ---------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **Package**      | [`@prisma-idb/idb-client-generator`](https://www.npmjs.com/package/@prisma-idb/idb-client-generator) | [`@prisma-next-idb/client-idb`](https://www.npmjs.com/package/@prisma-next-idb/client-idb) + CLI packages |
+| **How it works** | Prisma generator — runs `prisma generate`, emits a typed client                                      | prisma-next driver + adapter + target stack for IndexedDB                                                 |
+| **Status**       | Stable, published                                                                                    | `0.1.x`, follows [prisma-next](https://www.prisma.io/blog/prisma-next-call-for-extension-authors)         |
+| **Source**       | `packages/generator`                                                                                 | `packages/prisma-next/*`                                                                                  |
 
 ## The difference (vs raw IndexedDB)
 
@@ -53,8 +49,6 @@ const posts = await idb.post.findMany({
 ```
 
 Same API as Prisma Client. Fully typed. Works offline.
-
----
 
 ## Generator quick start
 
@@ -117,19 +111,18 @@ generator prismaIDB {
 - **Ownership DAG** — authorization is structural, every record traces back to its owner
 - **Conflict resolution** — server-authoritative changelog materialization on pull
 
----
-
 ## prisma-next driver stack quick start
 
-> Implements the [prisma-next](https://www.prisma.io/blog/prisma-next-call-for-extension-authors) driver + adapter + target architecture for IndexedDB. No codegen — runtime only.
+> Implements the [prisma-next](https://www.prisma.io/blog/prisma-next-call-for-extension-authors) driver + adapter + target architecture for IndexedDB. Runtime queries use a bundled contract space; the CLI emits the contract and migration artifacts at build time.
 
 ```bash
-pnpm add @prisma-next-idb/family-idb
+pnpm add @prisma-next-idb/client-idb @prisma-next/migration-tools
+pnpm add -D prisma-next @prisma-next/contract \
+  @prisma-next-idb/family-idb @prisma-next-idb/target-idb \
+  @prisma-next-idb/adapter-idb @prisma-next-idb/driver-idb
 ```
 
-See the [documentation](https://prisma-idb.dev/) for full setup.
-
----
+The usual flow is `prisma-next contract emit`, `prisma-next-idb generate-baseline`, `prisma-next-idb generate-contract-space`, then `createAutoMigratingIdbClient({ contractSpace, dbName })` in browser code. See the [documentation](https://prisma-idb.dev/) for full setup.
 
 ## Resources
 
