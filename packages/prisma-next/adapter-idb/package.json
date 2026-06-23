@@ -1,6 +1,6 @@
 {
   "name": "@prisma-next-idb/adapter-idb",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Prisma Next IDB family — adapter (lowers query AST to opaque IDB plan body)",
   "license": "MIT",
   "files": ["dist"],
