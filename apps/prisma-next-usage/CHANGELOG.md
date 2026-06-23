@@ -1,4 +1,4 @@
-# @prisma-next-idb/prisma-next-usage
+# @prisma-next-idb/usage
 
 ## 0.0.4
 

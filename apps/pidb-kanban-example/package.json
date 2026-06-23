@@ -1,5 +1,5 @@
 {
-  "name": "@prisma-idb/pidb-kanban-example",
+  "name": "@prisma-idb/kanban-example",
   "private": true,
   "version": "0.0.1",
   "type": "module",

@@ -93,6 +93,7 @@
 
   body {
     @apply bg-background text-foreground min-h-svh antialiased;
+
     background-image:
       linear-gradient(180deg, var(--surface-wash), transparent 22rem),
       linear-gradient(0deg, var(--surface-lift), transparent 36rem);

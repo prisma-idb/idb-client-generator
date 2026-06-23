@@ -17,9 +17,9 @@ You are working on a Prisma generator that creates a familiar, type-safe client 
   ```
   This updates the generated clients in `apps/usage`, `apps/pidb-kanban-example`, and the `tests/generated` folder.
 - **Testing**:
-  - `pnpm test:schema-gen`: Validates generator output against snapshots in `tests/generator.test.ts`.
-  - `pnpm test:client`: Runs Playwright/Vitest tests in `apps/usage` to verify the generated client API.
-  - `pnpm test:sync`: Runs full-stack sync tests in `apps/pidb-kanban-example`.
+  - `pnpm test:generator-schema`: Validates generator output against snapshots in `tests/generator.test.ts`.
+  - `pnpm test:generator-client`: Runs Playwright/Vitest tests in `apps/usage` to verify the generated client API.
+  - `pnpm test:generator-sync`: Runs full-stack sync tests in `apps/pidb-kanban-example`.
 - **Debugging**: If the generated client is behaving unexpectedly, inspect the files in `tests/generated/prisma-idb/client/`.
 
 ## Coding Patterns & Conventions
@@ -53,6 +53,7 @@ You are working on a Prisma generator that creates a familiar, type-safe client 
 ## Generator Configuration
 
 When adding or modifying the generator in a `schema.prisma`:
+
 - `outboxSync`: (boolean) Enables the bidirectional sync system.
 - `rootModel`: (string) The anchor model for the ownership DAG (required if `outboxSync` is true).
 - `exclude`: (string[]) Models to skip during generation (usually auth or log models).
