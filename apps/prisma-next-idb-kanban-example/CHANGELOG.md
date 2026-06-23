@@ -1,5 +1,12 @@
 # @prisma-next-idb/kanban-example
 
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies [[`d7b767b`](https://github.com/prisma-idb/idb-client-generator/commit/d7b767b74dd113f9f8758ef7718c0272a8ddc247)]:
+  - @prisma-next-idb/client-idb@0.1.2
+
 ## 0.0.3
 
 ### Patch Changes

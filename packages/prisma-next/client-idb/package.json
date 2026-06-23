@@ -1,6 +1,6 @@
 {
   "name": "@prisma-next-idb/client-idb",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Prisma Next IDB family — ORM client (idbOrm typed query builder)",
   "license": "MIT",
   "files": ["dist"],

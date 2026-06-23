@@ -1,5 +1,15 @@
 # @prisma-next-idb/runtime-idb
 
+## 0.1.2
+
+### Patch Changes
+
+- [#201](https://github.com/prisma-idb/idb-client-generator/pull/201) [`d7b767b`](https://github.com/prisma-idb/idb-client-generator/commit/d7b767b74dd113f9f8758ef7718c0272a8ddc247) Thanks [@WhyAsh5114](https://github.com/WhyAsh5114)! - Better create operations using separate "add" plan instead of overwriting with "put", improved migration hash validation, better onDelete referential actions handling, improved auto-migration client behavior
+
+- Updated dependencies [[`d7b767b`](https://github.com/prisma-idb/idb-client-generator/commit/d7b767b74dd113f9f8758ef7718c0272a8ddc247)]:
+  - @prisma-next-idb/driver-idb@0.1.2
+  - @prisma-next-idb/adapter-idb@0.1.2
+
 ## 0.1.1
 
 ### Patch Changes
