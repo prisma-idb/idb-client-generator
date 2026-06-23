@@ -23,6 +23,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - id: schema_gen
         name: Check default generator schema test paths
