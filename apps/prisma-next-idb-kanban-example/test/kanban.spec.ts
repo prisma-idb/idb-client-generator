@@ -62,17 +62,26 @@ test("creates, edits, completes, persists, and deletes local records", async ({ 
 test("switches theme modes and persists explicit choices", async ({ page }) => {
   await openApp(page);
 
-  await page.getByRole("button", { name: "Use dark mode" }).click();
+  const toggle = page.getByTestId("theme-toggle");
+
+  // Cycle: system → light → dark
+  await toggle.click();
+  await toggle.click();
   await expect(page.locator("html")).toHaveClass(/dark/);
   await expect.poll(() => page.evaluate(() => document.documentElement.style.colorScheme)).toBe("dark");
 
   await page.reload();
+  await expect(page.getByText("Ready")).toBeVisible({ timeout: 15_000 });
   await expect(page.locator("html")).toHaveClass(/dark/);
 
-  await page.getByRole("button", { name: "Use light mode" }).click();
+  // Cycle: dark → system → light
+  await toggle.click();
+  await toggle.click();
   await expect(page.locator("html")).not.toHaveClass(/dark/);
 
-  await page.getByRole("button", { name: "Use system theme" }).click();
+  // Cycle: light → dark → system
+  await toggle.click();
+  await toggle.click();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("mode-watcher-mode"))).toBe("system");
 });
 

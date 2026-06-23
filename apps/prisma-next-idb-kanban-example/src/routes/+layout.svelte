@@ -1,7 +1,19 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import "./layout.css";
 
   let { children } = $props();
+  let swReady = $state(false);
+
+  onMount(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.ready.then(() => {
+        swReady = true;
+      });
+    } else {
+      swReady = true;
+    }
+  });
 </script>
 
 <svelte:head>
@@ -14,4 +26,11 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Prisma Kanban" />
 </svelte:head>
+
 {@render children()}
+
+{#if swReady}
+  <p class="text-muted-foreground/50 fixed right-3 bottom-3 select-none text-xs font-medium" aria-live="polite">
+    Ready
+  </p>
+{/if}

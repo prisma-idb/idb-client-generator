@@ -57,7 +57,14 @@
   });
 </script>
 
-<Button variant="outline" size="icon-sm" aria-label={labels[mode]} title={labels[mode]} onclick={cycleTheme}>
+<Button
+  variant="outline"
+  size="icon-sm"
+  aria-label={labels[mode]}
+  title={labels[mode]}
+  data-testid="theme-toggle"
+  onclick={cycleTheme}
+>
   {#if mode === "light"}
     <SunIcon />
   {:else if mode === "dark"}
