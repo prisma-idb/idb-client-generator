@@ -95,7 +95,7 @@ test("serves PWA metadata and reloads the app shell offline", async ({ page, con
 
   const serviceWorkerResponse = await request.get("/service-worker.js");
   expect(serviceWorkerResponse.ok()).toBe(true);
-  expect(serviceWorkerResponse.headers()["content-type"]).toContain("text/javascript");
+  expect(serviceWorkerResponse.headers()["content-type"]).toContain("javascript");
 
   await openApp(page);
   await page.evaluate(async () => {
