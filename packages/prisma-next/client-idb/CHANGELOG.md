@@ -1,5 +1,19 @@
 # @prisma-next-idb/client-idb
 
+## 0.2.0
+
+### Minor Changes
+
+- [#205](https://github.com/prisma-idb/idb-client-generator/pull/205) [`fcb4aca`](https://github.com/prisma-idb/idb-client-generator/commit/fcb4aca55f17b3940a6737b3588256429b62ac3c) Thanks [@WhyAsh5114](https://github.com/WhyAsh5114)! - Improved index utilisation on FK-targets and logical conditions; ported PSL parsing and schema verification to the updated @prisma-next APIs, and fixed schema-verify reporting the dotted contract path instead of the plain store name for index-level drift issues.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @prisma-next-idb/target-idb@0.2.0
+  - @prisma-next-idb/driver-idb@0.2.0
+  - @prisma-next-idb/adapter-idb@0.2.0
+  - @prisma-next-idb/runtime-idb@0.2.0
+
 ## 0.1.2
 
 ### Patch Changes
