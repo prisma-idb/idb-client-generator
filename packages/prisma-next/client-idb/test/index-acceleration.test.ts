@@ -212,6 +212,19 @@ describe("index-accelerated equality — main query", () => {
     const rows = await client["users"]!.where({ email: "alice@example.com" }).take(1).all().toArray();
     expect(rows).toEqual([{ id: "u1", name: "Alice", email: "alice@example.com", active: true }]);
   });
+
+  it("does not crash and falls back to full scan for eq-null on an indexed field", async () => {
+    const client = asRecord(idbOrm({ contract: userContract, executor: spy }));
+    // `IDBKeyRange.only(null)` throws — the raw AST builder (unlike the
+    // `.where({...})` shorthand, which converts null to a null-check) must
+    // not hand a null eq value to the index-acceleration path.
+    const rows = await client["users"]!.where(() => fieldFilter("email", "eq", null))
+      .all()
+      .toArray();
+    expect(rows).toEqual([]);
+    const plan = spy.captured[0]!.idbPlan;
+    expect((plan as { indexName?: string }).indexName).toBeUndefined();
+  });
 });
 
 // ── Relation-include index acceleration ───────────────────────────────────────
@@ -407,6 +420,36 @@ describe("index acceleration — OR multi-scan", () => {
     )
       .all()
       .toArray();
+    const userPlans = spy.captured.filter((p) => (p.idbPlan as { storeName?: string }).storeName === "users");
+    expect(userPlans).toHaveLength(1);
+    expect((userPlans[0]!.idbPlan as { indexName?: string }).indexName).toBeUndefined();
+  });
+
+  it("applies orderBy to the deduplicated union before take/skip", async () => {
+    const client = asRecord(idbOrm({ contract: userContract, executor: spy }));
+    // Union is produced in branch order (Carol, then Alice) — orderBy must
+    // re-sort before take(1) picks the first row, or this would wrongly
+    // return Carol.
+    const rows = await client["users"]!.where(() =>
+      or(fieldFilter("email", "eq", "carol@example.com"), fieldFilter("email", "eq", "alice@example.com"))
+    )
+      .orderBy({ name: "asc" })
+      .take(1)
+      .all()
+      .toArray();
+    expect((rows as { name: string }[]).map((r) => r.name)).toEqual(["Alice"]);
+  });
+
+  it("does not crash and falls back to full scan for an eq-null branch on an indexed field", async () => {
+    const client = asRecord(idbOrm({ contract: userContract, executor: spy }));
+    // `IDBKeyRange.only(null)` throws — a null-valued OR branch on an indexed
+    // field must not be accelerated.
+    const rows = await client["users"]!.where(() =>
+      or(fieldFilter("email", "eq", "alice@example.com"), fieldFilter("email", "eq", null))
+    )
+      .all()
+      .toArray();
+    expect((rows as { id: string }[]).map((r) => r.id).sort()).toEqual(["u1"]);
     const userPlans = spy.captured.filter((p) => (p.idbPlan as { storeName?: string }).storeName === "users");
     expect(userPlans).toHaveLength(1);
     expect((userPlans[0]!.idbPlan as { indexName?: string }).indexName).toBeUndefined();

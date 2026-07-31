@@ -496,14 +496,25 @@ export function getKeyPath(contract: IdbContract, modelName: string): string {
  * equality semantics on those are unsupported.
  */
 export function getIndexForField(contract: IdbContract, storeName: string, fieldName: string): string | undefined {
+  return buildFieldToIndexMap(contract, storeName)[fieldName];
+}
+
+/**
+ * Build a field → indexName lookup for every single-field, non-multi-entry
+ * index on `storeName`. Shared by {@link getIndexForField} (relation loader,
+ * single-field lookups) and {@link IdbStoreAccessorImpl} (top-level scans,
+ * which need the whole map to probe combined filter expressions).
+ */
+export function buildFieldToIndexMap(contract: IdbContract, storeName: string): Record<string, string> {
   const storeDef = contract.storage.stores[storeName];
-  if (storeDef?.indexes === undefined) return undefined;
+  const result: Record<string, string> = {};
+  if (storeDef?.indexes === undefined) return result;
   for (const [indexName, indexDef] of Object.entries(storeDef.indexes)) {
-    if (typeof indexDef.keyPath === "string" && indexDef.keyPath === fieldName && indexDef.multiEntry !== true) {
-      return indexName;
+    if (typeof indexDef.keyPath === "string" && indexDef.multiEntry !== true) {
+      result[indexDef.keyPath] = indexName;
     }
   }
-  return undefined;
+  return result;
 }
 
 /**

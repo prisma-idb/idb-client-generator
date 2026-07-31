@@ -104,27 +104,34 @@ export async function loadRelation(
   const fkIndexName =
     typeof IDBKeyRange !== "undefined" ? getIndexForField(contract, relatedStoreName, capturedForeignField) : undefined;
 
-  const relatedRows: Record<string, unknown>[] = [];
+  let relatedRows: Record<string, unknown>[];
   if (fkIndexName !== undefined) {
     const refinedFilter: IdbRowFilter | undefined =
       refinedWhere !== undefined ? (row: Record<string, unknown>) => evaluateFilter(refinedWhere, row) : undefined;
-    for (const value of localValues) {
-      const plan: IdbQueryPlan<Record<string, unknown>> = {
-        meta: planMeta,
-        idbPlan: {
+    // One index scan per distinct FK value — independent, so run concurrently.
+    const valueResults = await Promise.all(
+      Array.from(localValues, async (value) => {
+        const plan: IdbQueryPlan<Record<string, unknown>> = {
           meta: planMeta,
-          kind: "cursor-scan",
-          storeName: relatedStoreName,
-          indexName: fkIndexName,
-          range: IDBKeyRange.only(value as IDBValidKey),
-          ...(refinedFilter !== undefined ? { filter: refinedFilter } : {}),
-        },
-      };
-      for await (const row of executor.execute(plan)) {
-        relatedRows.push(row);
-      }
-    }
+          idbPlan: {
+            meta: planMeta,
+            kind: "cursor-scan",
+            storeName: relatedStoreName,
+            indexName: fkIndexName,
+            range: IDBKeyRange.only(value as IDBValidKey),
+            ...(refinedFilter !== undefined ? { filter: refinedFilter } : {}),
+          },
+        };
+        const rows: Record<string, unknown>[] = [];
+        for await (const row of executor.execute(plan)) {
+          rows.push(row);
+        }
+        return rows;
+      })
+    );
+    relatedRows = valueResults.flat();
   } else {
+    relatedRows = [];
     // No index: full store scan with an in-memory FK membership + refined-where filter.
     const filter: IdbRowFilter = (row: Record<string, unknown>): boolean =>
       localValues.has(row[capturedForeignField]) && (refinedWhere === undefined || evaluateFilter(refinedWhere, row));

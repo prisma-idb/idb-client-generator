@@ -43,6 +43,22 @@ function flattenAnd(filter: IdbFilterExpr): IdbFilterExpr[] {
   return filter.exprs.flatMap(flattenAnd);
 }
 
+/** Fold the leftover AND children (after peeling an indexed condition) back into a single filter, or `undefined` if none remain. */
+function foldRemainder(rest: IdbFilterExpr[]): IdbFilterExpr | undefined {
+  if (rest.length === 0) return undefined;
+  if (rest.length === 1) return rest[0]!;
+  return andExpr(rest);
+}
+
+/**
+ * `IDBKeyRange.only()` throws on `null`/`undefined` — an `eq` condition on
+ * one of those values can't be served by an index point-range scan and must
+ * fall back to a full scan.
+ */
+function isIndexableEqValue(value: unknown): boolean {
+  return value !== null && value !== undefined;
+}
+
 /**
  * Scan the combined filter expression for the first `eq` field condition whose
  * field has a matching IDB index (`fieldToIndexName[field]` is set).
@@ -64,7 +80,7 @@ export function extractIndexEqualityHint(
 
   if (filter.kind === "field" && filter.op === "eq") {
     const indexName = fieldToIndexName[filter.field];
-    if (indexName !== undefined) {
+    if (indexName !== undefined && isIndexableEqValue(filter.value)) {
       return { indexName, value: filter.value, remainingFilter: undefined };
     }
     return null;
@@ -76,10 +92,9 @@ export function extractIndexEqualityHint(
       const expr = flat[i]!;
       if (expr.kind === "field" && expr.op === "eq") {
         const indexName = fieldToIndexName[expr.field];
-        if (indexName !== undefined) {
+        if (indexName !== undefined && isIndexableEqValue(expr.value)) {
           const rest = flat.filter((_, j) => j !== i);
-          const remainingFilter = rest.length === 0 ? undefined : rest.length === 1 ? rest[0]! : andExpr(rest);
-          return { indexName, value: expr.value, remainingFilter };
+          return { indexName, value: expr.value, remainingFilter: foldRemainder(rest) };
         }
       }
     }
@@ -104,7 +119,7 @@ function tryExtractOrBranches(
   for (const expr of orNode.exprs) {
     if (expr.kind !== "field" || expr.op !== "eq") return null;
     const indexName = fieldToIndexName[expr.field];
-    if (indexName === undefined) return null;
+    if (indexName === undefined || !isIndexableEqValue(expr.value)) return null;
     branches.push({ indexName, value: expr.value });
   }
   return { branches, remainingFilter };
@@ -141,8 +156,7 @@ export function extractIndexOrHint(
     const orIdx = orIndices[0]!;
     const orNode = flat[orIdx]! as IdbOrExpr;
     const rest = flat.filter((_, j) => j !== orIdx);
-    const remaining = rest.length === 0 ? undefined : rest.length === 1 ? rest[0]! : andExpr(rest);
-    return tryExtractOrBranches(orNode, fieldToIndexName, remaining);
+    return tryExtractOrBranches(orNode, fieldToIndexName, foldRemainder(rest));
   }
 
   return null;

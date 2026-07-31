@@ -34,6 +34,7 @@ import {
   type RelatedModelOf,
   type SelectedRow,
   type WhereFilter,
+  buildFieldToIndexMap,
   getKeyPath,
   getRelation,
   getStoreName,
@@ -483,18 +484,22 @@ export class IdbStoreAccessorImpl<
     const applyIncludes = this.#applyIncludes.bind(this);
     const projectRows = this.#projectRows.bind(this);
     const combined = this.#combinedFilterExpr();
-    const fieldToIndexMap = typeof IDBKeyRange !== "undefined" ? this.#fieldToIndexMap() : undefined;
+    const fieldToIndexMap =
+      typeof IDBKeyRange !== "undefined" ? buildFieldToIndexMap(this.#contract, this.#storeName) : undefined;
+    const comparator = buildRowComparator(this.#state.orderBy);
     const skip = this.#state.skip;
     const take = this.#state.take;
     return new AsyncIterableResult(
       (async function* (): AsyncGenerator<SelectedRow<TContract, ModelName, TIncludes, TSelected>, void, unknown> {
         let rows: Record<string, unknown>[];
 
-        // OR multi-scan path: union N index point-range scans, deduplicate, then
-        // apply skip/take in-memory (pagination must happen after the union).
+        // OR multi-scan path: union N index point-range scans, deduplicate,
+        // re-apply orderBy (the union has no overall ordering), then apply
+        // skip/take in-memory (pagination must happen after the union).
         const orHint = fieldToIndexMap !== undefined ? extractIndexOrHint(combined, fieldToIndexMap) : null;
         if (orHint !== null) {
           rows = await executeOrRows(orHint, groupingKey, combined);
+          if (comparator !== undefined) rows.sort(comparator);
           if (skip !== undefined) rows = rows.slice(skip);
           if (take !== undefined) rows = rows.slice(0, take);
         } else {
@@ -882,7 +887,8 @@ export class IdbStoreAccessorImpl<
   async #countTerminal(): Promise<number> {
     const groupingKey = this.#newGroupingKey();
     const combined = this.#combinedFilterExpr();
-    const fieldToIndexMap = typeof IDBKeyRange !== "undefined" ? this.#fieldToIndexMap() : undefined;
+    const fieldToIndexMap =
+      typeof IDBKeyRange !== "undefined" ? buildFieldToIndexMap(this.#contract, this.#storeName) : undefined;
 
     // OR multi-scan path: count the deduped+filtered union.
     if (fieldToIndexMap !== undefined) {
@@ -993,7 +999,7 @@ export class IdbStoreAccessorImpl<
     // and use a cursor-scan over the index with a point range. This avoids
     // a full store scan when IDBKeyRange is available (browser / fake-indexeddb).
     if (typeof IDBKeyRange !== "undefined") {
-      const fieldToIndexName = fieldToIndexMap ?? this.#fieldToIndexMap();
+      const fieldToIndexName = fieldToIndexMap ?? buildFieldToIndexMap(this.#contract, this.#storeName);
       const hint = extractIndexEqualityHint(combined, fieldToIndexName);
       if (hint !== null) {
         const { indexName, value, remainingFilter } = hint;
@@ -1060,19 +1066,31 @@ export class IdbStoreAccessorImpl<
       ...(combined !== undefined ? { where: combined } : {}),
     };
 
-    for (const branch of hint.branches) {
-      const plan: IdbQueryPlan<Record<string, unknown>> = {
-        meta,
-        ast,
-        idbPlan: {
+    // Branches are independent index scans — run them concurrently, then
+    // merge/dedupe sequentially (first-branch-wins) so results stay
+    // deterministic regardless of completion order.
+    const branchResults = await Promise.all(
+      hint.branches.map(async (branch) => {
+        const plan: IdbQueryPlan<Record<string, unknown>> = {
           meta,
-          kind: "cursor-scan" as const,
-          storeName,
-          indexName: branch.indexName,
-          range: IDBKeyRange.only(branch.value as IDBValidKey),
-        },
-      };
-      for await (const row of this.#executor.execute(plan)) {
+          ast,
+          idbPlan: {
+            meta,
+            kind: "cursor-scan" as const,
+            storeName,
+            indexName: branch.indexName,
+            range: IDBKeyRange.only(branch.value as IDBValidKey),
+          },
+        };
+        const branchRows: Record<string, unknown>[] = [];
+        for await (const row of this.#executor.execute(plan)) {
+          branchRows.push(row);
+        }
+        return branchRows;
+      })
+    );
+    for (const branchRows of branchResults) {
+      for (const row of branchRows) {
         const pk = row[keyPath];
         if (!seen.has(pk)) {
           seen.add(pk);
@@ -1084,19 +1102,6 @@ export class IdbStoreAccessorImpl<
     if (hint.remainingFilter === undefined) return rows;
     const { remainingFilter } = hint;
     return rows.filter((row) => evaluateFilter(remainingFilter, row));
-  }
-
-  /** Build a field→indexName lookup map from this store's index definitions. */
-  #fieldToIndexMap(): Record<string, string> {
-    const storeDef = this.#contract.storage.stores[this.#storeName];
-    const result: Record<string, string> = {};
-    if (storeDef?.indexes === undefined) return result;
-    for (const [indexName, indexDef] of Object.entries(storeDef.indexes)) {
-      if (typeof indexDef.keyPath === "string" && indexDef.multiEntry !== true) {
-        result[indexDef.keyPath] = indexName;
-      }
-    }
-    return result;
   }
 
   /**
