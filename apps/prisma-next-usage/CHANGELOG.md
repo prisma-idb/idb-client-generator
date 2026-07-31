@@ -1,5 +1,12 @@
 # @prisma-next-idb/usage
 
+## 0.0.5
+
+### Patch Changes
+
+- Updated dependencies [[`fcb4aca`](https://github.com/prisma-idb/idb-client-generator/commit/fcb4aca55f17b3940a6737b3588256429b62ac3c)]:
+  - @prisma-next-idb/client-idb@0.2.0
+
 ## 0.0.4
 
 ### Patch Changes
