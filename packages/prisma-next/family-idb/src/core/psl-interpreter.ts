@@ -2,8 +2,7 @@ import type { ContractSourceDiagnostic, ContractSourceDiagnostics } from "@prism
 import { computeProfileHash, computeStorageHash } from "@prisma-next/contract/hashing";
 import type { ApplicationDomain, Contract, ContractField } from "@prisma-next/contract/types";
 import { UNBOUND_DOMAIN_NAMESPACE_ID, crossRef } from "@prisma-next/contract/types";
-import type { PslDocumentAst, PslField, PslModel } from "@prisma-next/framework-components/psl-ast";
-import { flatPslModels } from "@prisma-next/framework-components/psl-ast";
+import type { FieldSymbol, ModelSymbol, SymbolTable } from "@prisma-next/psl-parser";
 import type {
   IdbIndexDefinition,
   IdbModelStorage,
@@ -17,7 +16,7 @@ import { validateContract } from "./validate";
 
 // ── Scalar type → codec ID mapping ────────────────────────────────────────────
 
-const SCALAR_TO_CODEC_ID: Record<string, string> = {
+export const SCALAR_TO_CODEC_ID: Record<string, string> = {
   String: "idb/string@1",
   Int: "idb/int32@1",
   Float: "idb/double@1",
@@ -77,11 +76,11 @@ function lowerFirst(s: string): string {
 
 // ── Field helpers ──────────────────────────────────────────────────────────────
 
-function hasFieldAttribute(field: PslField, name: string): boolean {
+function hasFieldAttribute(field: FieldSymbol, name: string): boolean {
   return field.attributes.some((a) => a.name === name);
 }
 
-function getFieldAttribute(field: PslField, name: string) {
+function getFieldAttribute(field: FieldSymbol, name: string) {
   return field.attributes.find((a) => a.name === name);
 }
 
@@ -109,11 +108,12 @@ interface InterpretedModel {
 // ── Core interpreter ───────────────────────────────────────────────────────────
 
 function interpretModel(
-  model: PslModel,
+  model: ModelSymbol,
   modelNames: ReadonlySet<string>,
   sourceId: string,
   diagnostics: ContractSourceDiagnostic[]
 ): InterpretedModel | undefined {
+  const modelFields = Object.values(model.fields);
   // Derive store name from @@map or lowerFirst(modelName)
   const mapAttr = model.attributes.find((a) => a.name === "map");
   const storeName = parseStringArg(findPositionalArg(mapAttr?.args ?? [])) ?? lowerFirst(model.name);
@@ -147,7 +147,7 @@ function interpretModel(
     keyPath = fields[0];
   }
 
-  const idFields = model.fields.filter((f) => hasFieldAttribute(f, "id"));
+  const idFields = modelFields.filter((f) => hasFieldAttribute(f, "id"));
   if (idFields.length > 1) {
     diagnostics.push({
       code: "IDB_MULTIPLE_ID_FIELDS",
@@ -220,7 +220,7 @@ function interpretModel(
   const relationsStorage: Record<string, { onDelete?: IdbReferentialAction }> = {};
   const fksByTarget = new Map<string, { fieldName: string; localFields: string[]; targetFields: string[] }>();
 
-  for (const field of model.fields) {
+  for (const field of modelFields) {
     // Skip the @id field's optional marker — keyPath fields cannot be nullable in IDB
     if (field.name === idFieldName && field.optional) {
       diagnostics.push({
@@ -357,7 +357,8 @@ function interpretModel(
 // ── Main export ────────────────────────────────────────────────────────────────
 
 /**
- * Interprets a parsed PSL document AST and produces an IDB `Contract`.
+ * Interprets a PSL symbol table (`buildSymbolTable` from `@prisma-next/psl-parser`)
+ * and produces an IDB `Contract`.
  *
  * This is the IDB equivalent of `interpretPslDocumentToSqlContract` from the
  * SQL family. It handles IDB-specific constraints:
@@ -368,13 +369,13 @@ function interpretModel(
  * - Indexes map directly to `IDBObjectStore.createIndex()` calls
  */
 export function interpretPslDocumentToIdbContract(
-  ast: PslDocumentAst,
+  table: SymbolTable,
   sourceId: string
 ): Result<Contract<IdbStorage>, ContractSourceDiagnostics> {
   const diagnostics: ContractSourceDiagnostic[] = [];
 
   // IDB does not support namespace blocks
-  const explicitNamespaces = ast.namespaces.filter((ns) => ns.name !== "__unspecified__");
+  const explicitNamespaces = Object.values(table.topLevel.namespaces);
   for (const ns of explicitNamespaces) {
     diagnostics.push({
       code: "IDB_UNSUPPORTED_NAMESPACE_BLOCK",
@@ -384,7 +385,10 @@ export function interpretPslDocumentToIdbContract(
     });
   }
 
-  const allModels = flatPslModels(ast);
+  const allModels = [
+    ...Object.values(table.topLevel.models),
+    ...explicitNamespaces.flatMap((ns) => Object.values(ns.models)),
+  ];
   const modelNames = new Set(allModels.map((m) => m.name));
   const interpretedByName = new Map<string, InterpretedModel>();
 
@@ -401,7 +405,7 @@ export function interpretPslDocumentToIdbContract(
     const interp = interpretedByName.get(model.name);
     if (!interp) continue;
 
-    for (const field of model.fields) {
+    for (const field of Object.values(model.fields)) {
       if (!field.list || !modelNames.has(field.typeName)) continue;
 
       const targetInterp = interpretedByName.get(field.typeName);

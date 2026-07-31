@@ -487,6 +487,59 @@ export function getKeyPath(contract: IdbContract, modelName: string): string {
 }
 
 /**
+ * Find the IDB index name for `fieldName` on the given object store, searching
+ * `contract.storage.stores[storeName].indexes` by `keyPath` equality.
+ *
+ * Returns the index name (e.g. `"byEmail"`) when a single-field index whose
+ * `keyPath` equals `fieldName` exists, or `undefined` otherwise.
+ * Multi-entry and composite indexes (`keyPath` is an array) are skipped —
+ * equality semantics on those are unsupported.
+ */
+export function getIndexForField(contract: IdbContract, storeName: string, fieldName: string): string | undefined {
+  return buildFieldToIndexMap(contract, storeName)[fieldName];
+}
+
+/**
+ * Build a field → indexName lookup for every single-field, non-multi-entry
+ * index on `storeName`. Shared by {@link getIndexForField} (relation loader,
+ * single-field lookups) and {@link IdbStoreAccessorImpl} (top-level scans,
+ * which need the whole map to probe combined filter expressions).
+ */
+export function buildFieldToIndexMap(contract: IdbContract, storeName: string): Record<string, string> {
+  const storeDef = contract.storage.stores[storeName];
+  const result: Record<string, string> = {};
+  if (storeDef?.indexes === undefined) return result;
+  for (const [indexName, indexDef] of Object.entries(storeDef.indexes)) {
+    if (typeof indexDef.keyPath === "string" && indexDef.multiEntry !== true) {
+      result[indexDef.keyPath] = indexName;
+    }
+  }
+  return result;
+}
+
+/**
+ * Returns `true` when `value` is a valid {@link IDBValidKey} — i.e. a value
+ * that can be passed to `IDBKeyRange.only()` without throwing a DataError.
+ * Booleans, `NaN`, `BigInt`, plain objects, and `null`/`undefined` are not
+ * valid IDB keys (only number/string/Date/binary/Array are, per the
+ * IndexedDB spec). Arrays are validated recursively — an array containing
+ * any invalid element (e.g. a nested boolean) is itself not a valid key.
+ *
+ * Shared by the relation loader (filtering FK values before building
+ * `IDBKeyRange.only()` plans) and query-shaping (gating `eq` conditions for
+ * index/PK point-range acceleration).
+ */
+export function isValidIdbKey(value: unknown): value is IDBValidKey {
+  if (typeof value === "number") return !Number.isNaN(value);
+  if (typeof value === "string") return true;
+  if (value instanceof Date) return true;
+  if (value instanceof ArrayBuffer) return true;
+  if (ArrayBuffer.isView(value)) return true;
+  if (Array.isArray(value)) return value.every((v) => isValidIdbKey(v));
+  return false;
+}
+
+/**
  * Resolve a model's named relation to a {@link ContractReferenceRelation} at
  * runtime, or `undefined` when the relation is absent or an embedded relation
  * (no `on` join block). Used by `include()` to find the related model name and

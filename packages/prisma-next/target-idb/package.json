@@ -34,9 +34,9 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@prisma-next/contract": "^0.14.0",
-    "@prisma-next/framework-components": "^0.14.0",
-    "@prisma-next/migration-tools": "^0.14.0",
+    "@prisma-next/contract": "^0.16.0",
+    "@prisma-next/framework-components": "^0.16.0",
+    "@prisma-next/migration-tools": "^0.16.0",
     "pathe": "^2.0.3"
   },
   "devDependencies": {

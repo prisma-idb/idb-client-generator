@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@prisma-next-idb/client-idb": "workspace:*",
-    "@prisma-next/migration-tools": "^0.14.0"
+    "@prisma-next/migration-tools": "^0.16.0"
   },
   "devDependencies": {
     "@fontsource-variable/geist": "^5.2.9",
@@ -33,7 +33,7 @@
     "@prisma-next-idb/driver-idb": "workspace:*",
     "@prisma-next-idb/family-idb": "workspace:*",
     "@prisma-next-idb/target-idb": "workspace:*",
-    "@prisma-next/contract": "^0.14.0",
+    "@prisma-next/contract": "^0.16.0",
     "@sveltejs/adapter-auto": "^7.0.1",
     "@sveltejs/kit": "^2.66.0",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
