@@ -487,6 +487,26 @@ export function getKeyPath(contract: IdbContract, modelName: string): string {
 }
 
 /**
+ * Find the IDB index name for `fieldName` on the given object store, searching
+ * `contract.storage.stores[storeName].indexes` by `keyPath` equality.
+ *
+ * Returns the index name (e.g. `"byEmail"`) when a single-field index whose
+ * `keyPath` equals `fieldName` exists, or `undefined` otherwise.
+ * Multi-entry and composite indexes (`keyPath` is an array) are skipped —
+ * equality semantics on those are unsupported.
+ */
+export function getIndexForField(contract: IdbContract, storeName: string, fieldName: string): string | undefined {
+  const storeDef = contract.storage.stores[storeName];
+  if (storeDef?.indexes === undefined) return undefined;
+  for (const [indexName, indexDef] of Object.entries(storeDef.indexes)) {
+    if (typeof indexDef.keyPath === "string" && indexDef.keyPath === fieldName && indexDef.multiEntry !== true) {
+      return indexName;
+    }
+  }
+  return undefined;
+}
+
+/**
  * Resolve a model's named relation to a {@link ContractReferenceRelation} at
  * runtime, or `undefined` when the relation is absent or an embedded relation
  * (no `on` join block). Used by `include()` to find the related model name and

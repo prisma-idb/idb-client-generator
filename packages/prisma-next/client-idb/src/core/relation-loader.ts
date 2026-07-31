@@ -6,6 +6,7 @@ import type { IdbRowFilter } from "@prisma-next-idb/driver-idb/runtime";
 import type { IdbQueryExecutor } from "./executor";
 import { buildRowComparator, combineFilterExprs } from "./query-shaping";
 import type { IncludeEntry } from "./store-state";
+import { getIndexForField } from "./types";
 import type { IdbContract } from "./types";
 
 /**
@@ -88,23 +89,52 @@ export async function loadRelation(
     }));
   }
 
-  // One scan: load related rows whose foreignField is in localValues AND that
-  // satisfy any refined `where` carried on the include entry.
   const capturedForeignField = foreignField;
   const refinedWhere = combineFilterExprs(entry.state.filters);
-  const filter: IdbRowFilter = (row: Record<string, unknown>): boolean =>
-    localValues.has(row[capturedForeignField]) && (refinedWhere === undefined || evaluateFilter(refinedWhere, row));
 
   const storageHash = contract.storage.storageHash;
   const planMeta = { target: "idb", storageHash, lane: "idb-orm", annotations: { groupingKey } } as const;
-  const plan: IdbQueryPlan<Record<string, unknown>> = {
-    meta: planMeta,
-    idbPlan: { meta: planMeta, kind: "cursor-scan", storeName: relatedStoreName, filter },
-  };
+
+  // When an IDB index exists on `foreignField` and IDBKeyRange is available,
+  // run one IDBKeyRange.only() point-range scan per distinct FK value. Each
+  // scan visits only records with that exact FK, so no membership re-check is
+  // needed — only the refined `where` is applied as a row filter.
+  // This is correct for any key type; the old bound-range heuristic used
+  // JS lexicographic sort which produced wrong lo/hi for numeric keys.
+  const fkIndexName =
+    typeof IDBKeyRange !== "undefined" ? getIndexForField(contract, relatedStoreName, capturedForeignField) : undefined;
 
   const relatedRows: Record<string, unknown>[] = [];
-  for await (const row of executor.execute(plan)) {
-    relatedRows.push(row);
+  if (fkIndexName !== undefined) {
+    const refinedFilter: IdbRowFilter | undefined =
+      refinedWhere !== undefined ? (row: Record<string, unknown>) => evaluateFilter(refinedWhere, row) : undefined;
+    for (const value of localValues) {
+      const plan: IdbQueryPlan<Record<string, unknown>> = {
+        meta: planMeta,
+        idbPlan: {
+          meta: planMeta,
+          kind: "cursor-scan",
+          storeName: relatedStoreName,
+          indexName: fkIndexName,
+          range: IDBKeyRange.only(value as IDBValidKey),
+          ...(refinedFilter !== undefined ? { filter: refinedFilter } : {}),
+        },
+      };
+      for await (const row of executor.execute(plan)) {
+        relatedRows.push(row);
+      }
+    }
+  } else {
+    // No index: full store scan with an in-memory FK membership + refined-where filter.
+    const filter: IdbRowFilter = (row: Record<string, unknown>): boolean =>
+      localValues.has(row[capturedForeignField]) && (refinedWhere === undefined || evaluateFilter(refinedWhere, row));
+    const plan: IdbQueryPlan<Record<string, unknown>> = {
+      meta: planMeta,
+      idbPlan: { meta: planMeta, kind: "cursor-scan", storeName: relatedStoreName, filter },
+    };
+    for await (const row of executor.execute(plan)) {
+      relatedRows.push(row);
+    }
   }
 
   // ── Merge ──────────────────────────────────────────────────────────────────

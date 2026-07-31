@@ -48,7 +48,13 @@ import {
   isIncludeScalar,
   mergeAccessorState,
 } from "./store-state";
-import { buildRowComparator, combineFilterExprs } from "./query-shaping";
+import {
+  buildRowComparator,
+  combineFilterExprs,
+  extractIndexEqualityHint,
+  extractIndexOrHint,
+  type IndexOrHint,
+} from "./query-shaping";
 import {
   assertValidAggregateSpec,
   computeAggregateSpec,
@@ -472,22 +478,38 @@ export class IdbStoreAccessorImpl<
     // must be accessed on `this`, so we bind the methods to keep them callable
     // without aliasing `this` (no-this-alias).
     const buildScanPlan = this.#buildScanPlan.bind(this);
+    const executeOrRows = this.#executeOrRows.bind(this);
     const executorExecute = this.#executor.execute.bind(this.#executor);
     const applyIncludes = this.#applyIncludes.bind(this);
     const projectRows = this.#projectRows.bind(this);
+    const combined = this.#combinedFilterExpr();
+    const fieldToIndexMap = typeof IDBKeyRange !== "undefined" ? this.#fieldToIndexMap() : undefined;
+    const skip = this.#state.skip;
+    const take = this.#state.take;
     return new AsyncIterableResult(
       (async function* (): AsyncGenerator<SelectedRow<TContract, ModelName, TIncludes, TSelected>, void, unknown> {
-        // 1. Run the main cursor scan and materialise rows.
-        const scanPlan = buildScanPlan<Record<string, unknown>>(groupingKey);
-        const rows: Record<string, unknown>[] = [];
-        for await (const row of executorExecute(scanPlan)) {
-          rows.push(row);
+        let rows: Record<string, unknown>[];
+
+        // OR multi-scan path: union N index point-range scans, deduplicate, then
+        // apply skip/take in-memory (pagination must happen after the union).
+        const orHint = fieldToIndexMap !== undefined ? extractIndexOrHint(combined, fieldToIndexMap) : null;
+        if (orHint !== null) {
+          rows = await executeOrRows(orHint, groupingKey, combined);
+          if (skip !== undefined) rows = rows.slice(skip);
+          if (take !== undefined) rows = rows.slice(0, take);
+        } else {
+          // AND single-index path (or full scan — decided inside buildScanPlan).
+          const scanPlan = buildScanPlan<Record<string, unknown>>(groupingKey, fieldToIndexMap);
+          rows = [];
+          for await (const row of executorExecute(scanPlan)) {
+            rows.push(row);
+          }
         }
 
-        // 2. Batch-load any included relations (uses full rows — FK fields intact).
+        // Batch-load any included relations (uses full rows — FK fields intact).
         const withIncludes = await applyIncludes(rows, groupingKey);
 
-        // 3. Apply any `.select()` projection, then yield.
+        // Apply any `.select()` projection, then yield.
         for (const row of projectRows(withIncludes)) {
           yield row as SelectedRow<TContract, ModelName, TIncludes, TSelected>;
         }
@@ -859,7 +881,19 @@ export class IdbStoreAccessorImpl<
 
   async #countTerminal(): Promise<number> {
     const groupingKey = this.#newGroupingKey();
-    const scanPlan = this.#buildScanPlan<Record<string, unknown>>(groupingKey);
+    const combined = this.#combinedFilterExpr();
+    const fieldToIndexMap = typeof IDBKeyRange !== "undefined" ? this.#fieldToIndexMap() : undefined;
+
+    // OR multi-scan path: count the deduped+filtered union.
+    if (fieldToIndexMap !== undefined) {
+      const orHint = extractIndexOrHint(combined, fieldToIndexMap);
+      if (orHint !== null) {
+        const rows = await this.#executeOrRows(orHint, groupingKey, combined);
+        return rows.length;
+      }
+    }
+
+    const scanPlan = this.#buildScanPlan<Record<string, unknown>>(groupingKey, fieldToIndexMap);
     // Override the AST kind for middleware introspection — the idbPlan stays cursor-scan.
     const scanAst = scanPlan.ast;
     const ast: IdbCountAst = {
@@ -942,9 +976,8 @@ export class IdbStoreAccessorImpl<
     return rows;
   }
 
-  #buildScanPlan<Row>(groupingKey: string): IdbQueryPlan<Row> {
+  #buildScanPlan<Row>(groupingKey: string, fieldToIndexMap?: Record<string, string>): IdbQueryPlan<Row> {
     const combined = this.#combinedFilterExpr();
-    const filter = combined !== undefined ? (row: Record<string, unknown>) => evaluateFilter(combined, row) : undefined;
     const comparator = buildRowComparator(this.#state.orderBy);
     const meta = this.#planMeta(groupingKey);
     const ast: IdbFindManyAst = {
@@ -955,6 +988,39 @@ export class IdbStoreAccessorImpl<
       ...(this.#state.skip !== undefined ? { skip: this.#state.skip } : {}),
       ...(this.#state.take !== undefined ? { take: this.#state.take } : {}),
     };
+
+    // Attempt to peel an indexed equality condition from the combined filter
+    // and use a cursor-scan over the index with a point range. This avoids
+    // a full store scan when IDBKeyRange is available (browser / fake-indexeddb).
+    if (typeof IDBKeyRange !== "undefined") {
+      const fieldToIndexName = fieldToIndexMap ?? this.#fieldToIndexMap();
+      const hint = extractIndexEqualityHint(combined, fieldToIndexName);
+      if (hint !== null) {
+        const { indexName, value, remainingFilter } = hint;
+        const filter =
+          remainingFilter !== undefined
+            ? (row: Record<string, unknown>) => evaluateFilter(remainingFilter, row)
+            : undefined;
+        return {
+          meta,
+          ast,
+          idbPlan: {
+            meta,
+            kind: "cursor-scan" as const,
+            storeName: this.#storeName,
+            indexName,
+            range: IDBKeyRange.only(value as IDBValidKey),
+            ...(filter !== undefined ? { filter } : {}),
+            ...(comparator !== undefined ? { comparator } : {}),
+            ...(this.#state.skip !== undefined ? { skip: this.#state.skip } : {}),
+            ...(this.#state.take !== undefined ? { take: this.#state.take } : {}),
+          },
+        } as IdbQueryPlan<Row>;
+      }
+    }
+
+    // Fallback: full cursor scan.
+    const filter = combined !== undefined ? (row: Record<string, unknown>) => evaluateFilter(combined, row) : undefined;
     // exactOptionalPropertyTypes: spread conditionally to avoid `undefined`
     // values in optional fields.
     return {
@@ -970,6 +1036,67 @@ export class IdbStoreAccessorImpl<
         ...(this.#state.take !== undefined ? { take: this.#state.take } : {}),
       },
     } as IdbQueryPlan<Row>;
+  }
+
+  /**
+   * Execute one cursor-scan per OR branch, union the results, deduplicate by
+   * primary key, and apply `hint.remainingFilter` in-memory. Skip/take are
+   * NOT applied here — the caller slices the array after union so pagination
+   * is correct across branches.
+   */
+  async #executeOrRows(
+    hint: IndexOrHint,
+    groupingKey: string,
+    combined: IdbFilterExpr | undefined
+  ): Promise<Record<string, unknown>[]> {
+    const meta = this.#planMeta(groupingKey);
+    const storeName = this.#storeName;
+    const keyPath = getKeyPath(this.#contract, this.#modelName);
+    const seen = new Set<unknown>();
+    const rows: Record<string, unknown>[] = [];
+    const ast: IdbFindManyAst = {
+      kind: "findMany",
+      modelName: this.#modelName,
+      ...(combined !== undefined ? { where: combined } : {}),
+    };
+
+    for (const branch of hint.branches) {
+      const plan: IdbQueryPlan<Record<string, unknown>> = {
+        meta,
+        ast,
+        idbPlan: {
+          meta,
+          kind: "cursor-scan" as const,
+          storeName,
+          indexName: branch.indexName,
+          range: IDBKeyRange.only(branch.value as IDBValidKey),
+        },
+      };
+      for await (const row of this.#executor.execute(plan)) {
+        const pk = row[keyPath];
+        if (!seen.has(pk)) {
+          seen.add(pk);
+          rows.push(row);
+        }
+      }
+    }
+
+    if (hint.remainingFilter === undefined) return rows;
+    const { remainingFilter } = hint;
+    return rows.filter((row) => evaluateFilter(remainingFilter, row));
+  }
+
+  /** Build a field→indexName lookup map from this store's index definitions. */
+  #fieldToIndexMap(): Record<string, string> {
+    const storeDef = this.#contract.storage.stores[this.#storeName];
+    const result: Record<string, string> = {};
+    if (storeDef?.indexes === undefined) return result;
+    for (const [indexName, indexDef] of Object.entries(storeDef.indexes)) {
+      if (typeof indexDef.keyPath === "string" && indexDef.multiEntry !== true) {
+        result[indexDef.keyPath] = indexName;
+      }
+    }
+    return result;
   }
 
   /**
