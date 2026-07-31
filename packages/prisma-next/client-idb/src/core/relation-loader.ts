@@ -6,24 +6,8 @@ import type { IdbRowFilter } from "@prisma-next-idb/driver-idb/runtime";
 import type { IdbQueryExecutor } from "./executor";
 import { buildRowComparator, combineFilterExprs } from "./query-shaping";
 import type { IncludeEntry } from "./store-state";
-import { getIndexForField, getKeyPath } from "./types";
+import { getIndexForField, getKeyPath, isValidIdbKey } from "./types";
 import type { IdbContract } from "./types";
-
-/**
- * Returns `true` when `value` is a valid {@link IDBValidKey} — i.e. a value
- * that can be passed to {@link IDBKeyRange.only} without throwing a DataError.
- * Booleans, `NaN`, `BigInt`, plain objects, and `null` are not valid IDB keys
- * (only number/string/Date/binary/Array are, per the IndexedDB spec).
- */
-function isValidIDBKey(value: unknown): value is IDBValidKey {
-  if (typeof value === "number") return !Number.isNaN(value);
-  if (typeof value === "string") return true;
-  if (value instanceof Date) return true;
-  if (value instanceof ArrayBuffer) return true;
-  if (ArrayBuffer.isView(value)) return true;
-  if (Array.isArray(value)) return value.every((v) => isValidIDBKey(v));
-  return false;
-}
 
 /**
  * Batch-load a single named relation for all rows in `rows` and attach the
@@ -138,7 +122,7 @@ export async function loadRelation(
     // IDBKeyRange.only() throws DataError for invalid keys (boolean, NaN,
     // plain objects, etc.). Such values cannot be stored as IndexedDB keys,
     // so no related rows can match — filter them out before building plans.
-    const validValues = Array.from(localValues).filter(isValidIDBKey);
+    const validValues = Array.from(localValues).filter(isValidIdbKey);
 
     // One index (or, for a PK target, store-keyspace) scan per distinct FK
     // value — independent, so run concurrently.

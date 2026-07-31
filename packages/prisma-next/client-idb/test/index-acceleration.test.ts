@@ -290,6 +290,20 @@ describe("index-accelerated equality — main query", () => {
     const plan = spy.captured[0]!.idbPlan;
     expect((plan as { indexName?: string }).indexName).toBeUndefined();
   });
+
+  it("falls back to full scan without throwing for an array eq value containing an invalid element", async () => {
+    const client = asRecord(idbOrm({ contract: userContract, executor: spy }));
+    // Arrays are valid IDB keys, but only when every element is itself a
+    // valid key — IDBKeyRange.only(["a", true]) throws DataError because of
+    // the nested boolean. Key validation must recurse into array elements,
+    // not just accept any array wholesale.
+    const rows = await client["users"]!.where(() => fieldFilter("email", "eq", ["a", true]))
+      .all()
+      .toArray();
+    expect(rows).toEqual([]);
+    const plan = spy.captured[0]!.idbPlan;
+    expect((plan as { indexName?: string }).indexName).toBeUndefined();
+  });
 });
 
 // ── Relation-include index acceleration ───────────────────────────────────────

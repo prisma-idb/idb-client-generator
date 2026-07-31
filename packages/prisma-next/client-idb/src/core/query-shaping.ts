@@ -1,6 +1,7 @@
 import type { IdbFilterExpr, IdbOrExpr } from "@prisma-next-idb/adapter-idb/runtime";
 import { andExpr } from "@prisma-next-idb/adapter-idb/runtime";
 import type { IdbRowComparator } from "@prisma-next-idb/driver-idb/runtime";
+import { isValidIdbKey } from "./types";
 
 /** Describes an extractable indexed equality that can narrow a cursor scan. */
 export interface IndexEqualityHint {
@@ -57,31 +58,14 @@ function foldRemainder(rest: IdbFilterExpr[]): IdbFilterExpr | undefined {
 }
 
 /**
- * `IDBKeyRange.only()` throws on `null`/`undefined` — an `eq` condition on
- * one of those values can't be served by an index point-range scan and must
- * fall back to a full scan.
+ * `IDBKeyRange.only()` throws `DataError` for values that aren't valid
+ * IndexedDB keys (`null`/`undefined`, booleans, `NaN`, `BigInt`, plain
+ * objects, or arrays containing any of those) — an `eq` condition on such a
+ * value can't be served by an index point-range scan and must fall back to
+ * a full scan. Delegates to the shared {@link isValidIdbKey} check.
  */
 function isIndexableEqValue(value: unknown): boolean {
-  if (value === null || value === undefined) return false;
-  // IDBKeyRange.only() throws DataError for invalid keys (boolean, NaN,
-  // plain objects, etc.). Such values cannot be stored as IndexedDB keys,
-  // so an index scan would never match — fall back to a full scan.
-  if (typeof value === "boolean") return false;
-  if (typeof value === "number" && Number.isNaN(value)) return false;
-  // `BigInt` is a supported IDB scalar codec but not a valid IndexedDB key
-  // type (only number/string/Date/binary/Array are) — IDBKeyRange.only()
-  // throws DataError for it.
-  if (typeof value === "bigint") return false;
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    !(value instanceof Date) &&
-    !(value instanceof ArrayBuffer) &&
-    !ArrayBuffer.isView(value) &&
-    !Array.isArray(value)
-  )
-    return false;
-  return true;
+  return isValidIdbKey(value);
 }
 
 /**
