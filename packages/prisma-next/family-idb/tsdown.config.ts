@@ -15,6 +15,8 @@ export default defineConfig({
     sourcemap: true,
   },
   sourcemap: true,
-  skipNodeModulesBundle: true,
+  deps: {
+    skipNodeModulesBundle: true,
+  },
   tsconfig: "tsconfig.prod.json",
 });
