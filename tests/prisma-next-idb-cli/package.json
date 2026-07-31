@@ -13,8 +13,8 @@
   "devDependencies": {
     "@prisma-next-idb/family-idb": "workspace:*",
     "@prisma-next/migration-tools": "^0.16.0",
-    "@types/node": "^24.13.2",
+    "@types/node": "^24.13.3",
     "execa": "^9.6.1",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   }
 }
