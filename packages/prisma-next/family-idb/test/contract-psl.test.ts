@@ -1,15 +1,18 @@
-import { parsePslDocument } from "@prisma-next/psl-parser";
+import { buildSymbolTable } from "@prisma-next/psl-parser";
+import { parse } from "@prisma-next/psl-parser/syntax";
 import { UNBOUND_DOMAIN_NAMESPACE_ID } from "@prisma-next/contract/types";
 import { describe, expect, it } from "vitest";
-import { interpretPslDocumentToIdbContract } from "../src/core/psl-interpreter";
-
-function parse(schema: string) {
-  return parsePslDocument({ schema, sourceId: "test.prisma" });
-}
+import { interpretPslDocumentToIdbContract, SCALAR_TO_CODEC_ID } from "../src/core/psl-interpreter";
 
 function interpret(schema: string) {
-  const { ast } = parse(schema);
-  return interpretPslDocumentToIdbContract(ast, "test.prisma");
+  const { document, sourceFile } = parse(schema);
+  const { table } = buildSymbolTable({
+    document,
+    sourceFile,
+    scalarTypes: Object.keys(SCALAR_TO_CODEC_ID),
+    pslBlockDescriptors: {},
+  });
+  return interpretPslDocumentToIdbContract(table, "test.prisma");
 }
 
 const NS = UNBOUND_DOMAIN_NAMESPACE_ID;

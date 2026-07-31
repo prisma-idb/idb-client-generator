@@ -1,10 +1,57 @@
-import type {
-  SchemaIssue,
-  SchemaVerificationNode,
-  VerifyDatabaseSchemaResult,
-} from "@prisma-next/framework-components/control";
+import type { SchemaDiffIssue, VerifyDatabaseSchemaResult } from "@prisma-next/framework-components/control";
 import type { IdbContract } from "./validate";
 import type { IdbIndexIR, IdbSchemaIR, IdbStoreIR } from "./schema-ir";
+
+/**
+ * IDB's own presentation tree for `db verify` output. The framework's
+ * `VerifyDatabaseSchemaResult` (0.16.0, TML-3028/#921/#992) dropped the
+ * shared verification-tree vocabulary (`SchemaVerificationNode`) in favor of
+ * a flat `SchemaDiffIssue[]` produced by a generic `DiffableNode` tree
+ * differ. IDB's schema is only two levels deep (store → index), so adopting
+ * that generic differ isn't worth the ceremony — this keeps the richer
+ * pass/warn/fail tree as an IDB-local addition on top of the (still
+ * satisfied) `schema.issues` contract.
+ */
+interface SchemaVerificationNode {
+  readonly status: "pass" | "warn" | "fail";
+  readonly kind: string;
+  readonly name: string;
+  readonly contractPath: string;
+  readonly code: string;
+  readonly message: string;
+  readonly expected: unknown;
+  readonly actual: unknown;
+  readonly children: readonly SchemaVerificationNode[];
+}
+
+/** IDB's issue shape, extended with `path` so it satisfies `SchemaDiffIssue`. */
+type SchemaIssue = SchemaDiffIssue & {
+  readonly kind: string;
+  readonly table: string;
+  readonly column?: string;
+  readonly indexOrConstraint?: string;
+  readonly message: string;
+};
+
+/**
+ * `verifyIdbSchema`'s actual return shape: a strict superset of
+ * `VerifyDatabaseSchemaResult` that keeps the pass/warn/fail tree and node
+ * counts as IDB-local additions. Assignable anywhere a plain
+ * `VerifyDatabaseSchemaResult` is expected (see `control-instance.ts`).
+ */
+export interface IdbVerifyDatabaseSchemaResult extends Omit<VerifyDatabaseSchemaResult, "schema"> {
+  readonly schema: {
+    readonly issues: readonly SchemaIssue[];
+    readonly warnings?: { readonly issues: readonly SchemaIssue[] };
+    readonly root: SchemaVerificationNode;
+    readonly counts: {
+      readonly pass: number;
+      readonly warn: number;
+      readonly fail: number;
+      readonly totalNodes: number;
+    };
+  };
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -113,6 +160,7 @@ function verifyIndex(
       table: storePath,
       column: indexName,
       message: msg,
+      path: [storePath, indexName],
     });
     return failNode("index", indexName, indexPath, "missing_column", msg, contractIndex, undefined);
   }
@@ -122,7 +170,13 @@ function verifyIndex(
   // keyPath
   if (contractIndex.keyPath !== actualIndex.keyPath) {
     const msg = `Index "${indexName}" keyPath mismatch: expected "${contractIndex.keyPath}", got "${actualIndex.keyPath}"`;
-    issues.push({ kind: "index_mismatch", table: storePath, indexOrConstraint: indexName, message: msg });
+    issues.push({
+      kind: "index_mismatch",
+      table: storePath,
+      indexOrConstraint: indexName,
+      message: msg,
+      path: [storePath, indexName],
+    });
     children.push(
       failNode(
         "field",
@@ -141,7 +195,13 @@ function verifyIndex(
   // unique — treat undefined as false to match how multiEntry is handled
   if ((contractIndex.unique ?? false) !== (actualIndex.unique ?? false)) {
     const msg = `Index "${indexName}" unique mismatch: expected ${contractIndex.unique}, got ${actualIndex.unique}`;
-    issues.push({ kind: "index_mismatch", table: storePath, indexOrConstraint: indexName, message: msg });
+    issues.push({
+      kind: "index_mismatch",
+      table: storePath,
+      indexOrConstraint: indexName,
+      message: msg,
+      path: [storePath, indexName],
+    });
     children.push(
       failNode(
         "field",
@@ -162,7 +222,13 @@ function verifyIndex(
   const actualME = actualIndex.multiEntry ?? false;
   if (contractME !== actualME) {
     const msg = `Index "${indexName}" multiEntry mismatch: expected ${contractME}, got ${actualME}`;
-    issues.push({ kind: "index_mismatch", table: storePath, indexOrConstraint: indexName, message: msg });
+    issues.push({
+      kind: "index_mismatch",
+      table: storePath,
+      indexOrConstraint: indexName,
+      message: msg,
+      path: [storePath, indexName],
+    });
     children.push(
       failNode("field", "multiEntry", `${indexPath}.multiEntry`, "index_mismatch", msg, contractME, actualME)
     );
@@ -206,7 +272,7 @@ function verifyStore(
 
   if (actualStore === undefined) {
     const msg = `Object store "${storeName}" defined in contract is missing from manifest schema`;
-    issues.push({ kind: "missing_table", table: storeName, message: msg });
+    issues.push({ kind: "missing_table", table: storeName, message: msg, path: [storeName] });
     return failNode("collection", storeName, storePath, "missing_table", msg, contractStore, undefined);
   }
 
@@ -215,7 +281,7 @@ function verifyStore(
   // keyPath
   if (contractStore.keyPath !== actualStore.keyPath) {
     const msg = `Store "${storeName}" keyPath mismatch: expected "${contractStore.keyPath}", got "${actualStore.keyPath}"`;
-    issues.push({ kind: "primary_key_mismatch", table: storeName, message: msg });
+    issues.push({ kind: "primary_key_mismatch", table: storeName, message: msg, path: [storeName] });
     children.push(
       failNode(
         "field",
@@ -236,7 +302,7 @@ function verifyStore(
   const actualAI = actualStore.autoIncrement ?? false;
   if (contractAI !== actualAI) {
     const msg = `Store "${storeName}" autoIncrement mismatch: expected ${contractAI}, got ${actualAI}`;
-    issues.push({ kind: "type_mismatch", table: storeName, message: msg });
+    issues.push({ kind: "type_mismatch", table: storeName, message: msg, path: [storeName] });
     children.push(
       failNode("field", "autoIncrement", `${storePath}.autoIncrement`, "type_mismatch", msg, contractAI, actualAI)
     );
@@ -258,7 +324,13 @@ function verifyStore(
     if (!(indexName in contractIndexes)) {
       const msg = `Index "${indexName}" exists in manifest but is not in contract`;
       if (strict) {
-        issues.push({ kind: "extra_index", table: storeName, indexOrConstraint: indexName, message: msg });
+        issues.push({
+          kind: "extra_index",
+          table: storeName,
+          indexOrConstraint: indexName,
+          message: msg,
+          path: [storeName, indexName],
+        });
         children.push(
           failNode(
             "index",
@@ -336,7 +408,7 @@ export function verifyIdbSchema(
   contract: IdbContract,
   schema: IdbSchemaIR,
   strict: boolean
-): VerifyDatabaseSchemaResult {
+): IdbVerifyDatabaseSchemaResult {
   const start = Date.now();
   const issues: SchemaIssue[] = [];
   const storeNodes: SchemaVerificationNode[] = [];
@@ -366,7 +438,7 @@ export function verifyIdbSchema(
     if (!(storeName in contractStores)) {
       const msg = `Object store "${storeName}" exists in manifest but is not in contract`;
       if (strict) {
-        issues.push({ kind: "extra_table", table: storeName, message: msg });
+        issues.push({ kind: "extra_table", table: storeName, message: msg, path: [storeName] });
         storeNodes.push(
           failNode("collection", storeName, `storage.stores.${storeName}`, "extra_table", msg, undefined, actualStore)
         );

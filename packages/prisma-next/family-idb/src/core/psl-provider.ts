@@ -1,10 +1,12 @@
 import { readFile } from "node:fs/promises";
 import type { ContractConfig, ContractSourceDiagnostic } from "@prisma-next/config/config-types";
-import type { PslDiagnostic } from "@prisma-next/framework-components/psl-ast";
-import { parsePslDocument } from "@prisma-next/psl-parser";
+import { buildSymbolTable, rangeToPslSpan } from "@prisma-next/psl-parser";
+import { withSeedDiagnostics } from "@prisma-next/psl-parser/interpret";
+import type { ParseDiagnostic, SourceFile } from "@prisma-next/psl-parser/syntax";
+import { parse } from "@prisma-next/psl-parser/syntax";
 import { notOk, ok } from "@prisma-next/utils/result";
 import { extname, basename } from "pathe";
-import { interpretPslDocumentToIdbContract } from "./psl-interpreter";
+import { interpretPslDocumentToIdbContract, SCALAR_TO_CODEC_ID } from "./psl-interpreter";
 
 function defaultOutputFromSchemaPath(schemaPath: string): string {
   const ext = extname(schemaPath);
@@ -16,12 +18,16 @@ function defaultOutputFromSchemaPath(schemaPath: string): string {
   return `${base}.json`;
 }
 
-function mapPslDiagnostics(diagnostics: readonly PslDiagnostic[], sourceId: string): ContractSourceDiagnostic[] {
+function mapParseDiagnostics(
+  diagnostics: readonly ParseDiagnostic[],
+  sourceFile: SourceFile,
+  sourceId: string
+): ContractSourceDiagnostic[] {
   return diagnostics.map((d) => ({
     code: d.code as string,
     message: d.message,
     sourceId,
-    ...(d.span !== undefined ? { span: d.span } : {}),
+    span: rangeToPslSpan(d.range, sourceFile),
   }));
 }
 
@@ -78,37 +84,25 @@ export function prismaIdbContract(schemaPath: string, options?: PrismaIdbContrac
           });
         }
 
-        const {
-          ast,
-          diagnostics: parseDiagnostics,
-          ok: parseOk,
-        } = parsePslDocument({
-          schema,
-          sourceId: schemaPath,
+        const { document, sourceFile, diagnostics: parseDiagnostics } = parse(schema);
+        const { table, diagnostics: symbolDiagnostics } = buildSymbolTable({
+          document,
+          sourceFile,
+          scalarTypes: Object.keys(SCALAR_TO_CODEC_ID),
+          pslBlockDescriptors: {},
         });
 
-        const seedDiagnostics = mapPslDiagnostics(parseDiagnostics, schemaPath);
+        // Do not short-circuit on provider-level diagnostics — the fault-tolerant
+        // parser/symbol-table still produce a usable table, and the interpreter
+        // may surface its own diagnostics in the same response.
+        const seedDiagnostics = [
+          ...mapParseDiagnostics(parseDiagnostics, sourceFile, schemaPath),
+          ...mapParseDiagnostics(symbolDiagnostics, sourceFile, schemaPath),
+        ];
 
-        if (!parseOk) {
-          return notOk({
-            summary: `Failed to parse Prisma schema at "${schemaPath}"`,
-            diagnostics: seedDiagnostics,
-          });
-        }
-
-        const interpreted = interpretPslDocumentToIdbContract(ast, schemaPath);
+        const interpreted = withSeedDiagnostics(interpretPslDocumentToIdbContract(table, schemaPath), seedDiagnostics);
         if (!interpreted.ok) {
-          return notOk({
-            ...interpreted.failure,
-            diagnostics: [...seedDiagnostics, ...interpreted.failure.diagnostics],
-          });
-        }
-
-        if (seedDiagnostics.length > 0) {
-          return notOk({
-            summary: `PSL parse warnings in "${schemaPath}"`,
-            diagnostics: seedDiagnostics,
-          });
+          return interpreted;
         }
 
         return ok(interpreted.value);

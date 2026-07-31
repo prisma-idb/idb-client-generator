@@ -18,8 +18,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Contract } from "@prisma-next/contract/types";
-import { parsePslDocument } from "@prisma-next/psl-parser";
-import { interpretPslDocumentToIdbContract } from "../src/core/psl-interpreter";
+import { buildSymbolTable } from "@prisma-next/psl-parser";
+import { parse } from "@prisma-next/psl-parser/syntax";
+import { interpretPslDocumentToIdbContract, SCALAR_TO_CODEC_ID } from "../src/core/psl-interpreter";
 import { idbEmission } from "../src/core/emission";
 import { generateBaseline } from "../src/core/generate-baseline";
 import { generateMigration } from "../src/core/generate-migration";
@@ -73,8 +74,14 @@ interface ContractArtifacts {
 }
 
 function emitContract(schema: string, sourceId = "schema.prisma"): ContractArtifacts {
-  const { ast } = parsePslDocument({ schema, sourceId });
-  const result = interpretPslDocumentToIdbContract(ast, sourceId);
+  const { document, sourceFile } = parse(schema);
+  const { table } = buildSymbolTable({
+    document,
+    sourceFile,
+    scalarTypes: Object.keys(SCALAR_TO_CODEC_ID),
+    pslBlockDescriptors: {},
+  });
+  const result = interpretPslDocumentToIdbContract(table, sourceId);
   if (!result.ok) {
     throw new Error(
       `Contract interpretation failed:\n${result.failure.diagnostics.map((d) => `  [${d.code}] ${d.message}`).join("\n")}`
