@@ -376,8 +376,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/prisma-next/client-idb
       '@prisma-next/migration-tools':
-        specifier: ^0.14.0
-        version: 0.14.0(typescript@6.0.3)
+        specifier: ^0.16.0
+        version: 0.16.0(typescript@6.0.3)
     devDependencies:
       '@fontsource-variable/geist':
         specifier: ^5.2.9
@@ -401,8 +401,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/prisma-next/target-idb
       '@prisma-next/contract':
-        specifier: ^0.14.0
-        version: 0.14.0(typescript@6.0.3)
+        specifier: ^0.16.0
+        version: 0.16.0(typescript@6.0.3)
       '@sveltejs/adapter-auto':
         specifier: ^7.0.1
         version: 7.0.1(@sveltejs/kit@2.66.0(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.3(@typescript-eslint/types@8.61.1))(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)))(svelte@5.56.3(@typescript-eslint/types@8.61.1))(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)))
@@ -426,7 +426,7 @@ importers:
         version: 2.1.1
       prettier-plugin-tailwindcss:
         specifier: ^0.8.0
-        version: 0.8.0(prettier-plugin-svelte@4.1.1(prettier@3.8.4)(svelte@5.56.3(@typescript-eslint/types@8.61.1)))(prettier@3.8.4)
+        version: 0.8.0(prettier-plugin-svelte@4.1.1(prettier@3.9.6)(svelte@5.56.3(@typescript-eslint/types@8.61.1)))(prettier@3.8.4)
       prisma-next:
         specifier: ^0.14.0
         version: 0.14.0(typanion@3.14.0)(typescript@6.0.3)
@@ -464,8 +464,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/prisma-next/client-idb
       '@prisma-next/migration-tools':
-        specifier: ^0.14.0
-        version: 0.14.0(typescript@6.0.3)
+        specifier: ^0.16.0
+        version: 0.16.0(typescript@6.0.3)
     devDependencies:
       '@fontsource-variable/inter':
         specifier: ^5.2.8
@@ -492,8 +492,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/prisma-next/target-idb
       '@prisma-next/contract':
-        specifier: ^0.14.0
-        version: 0.14.0(typescript@6.0.3)
+        specifier: ^0.16.0
+        version: 0.16.0(typescript@6.0.3)
       '@sveltejs/adapter-auto':
         specifier: latest
         version: 7.0.1(@sveltejs/kit@2.66.0(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.3(@typescript-eslint/types@8.61.1))(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)))(svelte@5.56.3(@typescript-eslint/types@8.61.1))(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)))
@@ -517,7 +517,7 @@ importers:
         version: 2.1.1
       prettier-plugin-tailwindcss:
         specifier: ^0.8.0
-        version: 0.8.0(prettier-plugin-svelte@4.1.1(prettier@3.8.4)(svelte@5.56.3(@typescript-eslint/types@8.61.1)))(prettier@3.8.4)
+        version: 0.8.0(prettier-plugin-svelte@4.1.1(prettier@3.9.6)(svelte@5.56.3(@typescript-eslint/types@8.61.1)))(prettier@3.8.4)
       prisma-next:
         specifier: ^0.14.0
         version: 0.14.0(typanion@3.14.0)(typescript@6.0.3)
@@ -884,8 +884,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/prisma-next/family-idb
       '@prisma-next/migration-tools':
-        specifier: ^0.14.0
-        version: 0.14.0(typescript@6.0.3)
+        specifier: ^0.16.0
+        version: 0.16.0(typescript@6.0.3)
       '@types/node':
         specifier: ^24.10.9
         version: 24.13.2
@@ -11028,7 +11028,7 @@ snapshots:
     dependencies:
       '@prisma-next/config': 0.14.0(typescript@6.0.3)
       '@prisma-next/utils': 0.14.0(typescript@6.0.3)
-      arktype: 2.2.1
+      arktype: 2.2.3
       c12: 3.3.4
       pathe: 2.0.3
     optionalDependencies:
@@ -11041,7 +11041,7 @@ snapshots:
       '@prisma-next/contract': 0.14.0(typescript@6.0.3)
       '@prisma-next/framework-components': 0.14.0(typescript@6.0.3)
       '@prisma-next/utils': 0.14.0(typescript@6.0.3)
-      arktype: 2.2.1
+      arktype: 2.2.3
     optionalDependencies:
       typescript: 6.0.3
 
@@ -11059,7 +11059,7 @@ snapshots:
     dependencies:
       '@prisma-next/utils': 0.14.0(typescript@6.0.3)
       '@standard-schema/spec': 1.1.0
-      arktype: 2.2.1
+      arktype: 2.2.3
     optionalDependencies:
       typescript: 6.0.3
 
@@ -11078,8 +11078,8 @@ snapshots:
       '@prisma-next/operations': 0.14.0(typescript@6.0.3)
       '@prisma-next/ts-render': 0.14.0(typescript@6.0.3)
       '@prisma-next/utils': 0.14.0(typescript@6.0.3)
-      arktype: 2.2.1
-      prettier: 3.8.4
+      arktype: 2.2.3
+      prettier: 3.9.6
     optionalDependencies:
       typescript: 6.0.3
 
@@ -11097,7 +11097,7 @@ snapshots:
       '@prisma-next/ts-render': 0.14.0(typescript@6.0.3)
       '@prisma-next/utils': 0.14.0(typescript@6.0.3)
       '@standard-schema/spec': 1.1.0
-      arktype: 2.2.1
+      arktype: 2.2.3
     optionalDependencies:
       typescript: 6.0.3
 
@@ -11117,9 +11117,9 @@ snapshots:
       '@prisma-next/contract': 0.14.0(typescript@6.0.3)
       '@prisma-next/framework-components': 0.14.0(typescript@6.0.3)
       '@prisma-next/utils': 0.14.0(typescript@6.0.3)
-      arktype: 2.2.1
+      arktype: 2.2.3
       pathe: 2.0.3
-      prettier: 3.8.4
+      prettier: 3.9.6
     optionalDependencies:
       typescript: 6.0.3
 
@@ -16684,11 +16684,23 @@ snapshots:
       prettier: 3.8.4
       svelte: 5.56.3(@typescript-eslint/types@8.61.1)
 
+  prettier-plugin-svelte@4.1.1(prettier@3.9.6)(svelte@5.56.3(@typescript-eslint/types@8.61.1)):
+    dependencies:
+      prettier: 3.9.6
+      svelte: 5.56.3(@typescript-eslint/types@8.61.1)
+    optional: true
+
   prettier-plugin-tailwindcss@0.8.0(prettier-plugin-svelte@4.1.1(prettier@3.8.4)(svelte@5.56.3(@typescript-eslint/types@8.61.1)))(prettier@3.8.4):
     dependencies:
       prettier: 3.8.4
     optionalDependencies:
       prettier-plugin-svelte: 4.1.1(prettier@3.8.4)(svelte@5.56.3(@typescript-eslint/types@8.61.1))
+
+  prettier-plugin-tailwindcss@0.8.0(prettier-plugin-svelte@4.1.1(prettier@3.9.6)(svelte@5.56.3(@typescript-eslint/types@8.61.1)))(prettier@3.8.4):
+    dependencies:
+      prettier: 3.8.4
+    optionalDependencies:
+      prettier-plugin-svelte: 4.1.1(prettier@3.9.6)(svelte@5.56.3(@typescript-eslint/types@8.61.1))
 
   prettier@2.8.8: {}
 

@@ -25,7 +25,7 @@
     "@prisma-next-idb/driver-idb": "workspace:*",
     "@prisma-next-idb/family-idb": "workspace:*",
     "@prisma-next-idb/target-idb": "workspace:*",
-    "@prisma-next/contract": "^0.14.0",
+    "@prisma-next/contract": "^0.16.0",
     "@sveltejs/adapter-auto": "latest",
     "@sveltejs/kit": "^2.66.0",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
@@ -48,6 +48,6 @@
   },
   "dependencies": {
     "@prisma-next-idb/client-idb": "workspace:*",
-    "@prisma-next/migration-tools": "^0.14.0"
+    "@prisma-next/migration-tools": "^0.16.0"
   }
 }
