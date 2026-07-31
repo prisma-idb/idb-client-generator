@@ -4,7 +4,7 @@ import { buildSymbolTable, rangeToPslSpan } from "@prisma-next/psl-parser";
 import { withSeedDiagnostics } from "@prisma-next/psl-parser/interpret";
 import type { ParseDiagnostic, SourceFile } from "@prisma-next/psl-parser/syntax";
 import { parse } from "@prisma-next/psl-parser/syntax";
-import { notOk, ok } from "@prisma-next/utils/result";
+import { notOk } from "@prisma-next/utils/result";
 import { extname, basename } from "pathe";
 import { interpretPslDocumentToIdbContract, SCALAR_TO_CODEC_ID } from "./psl-interpreter";
 
@@ -101,11 +101,10 @@ export function prismaIdbContract(schemaPath: string, options?: PrismaIdbContrac
         ];
 
         const interpreted = withSeedDiagnostics(interpretPslDocumentToIdbContract(table, schemaPath), seedDiagnostics);
-        if (!interpreted.ok) {
-          return interpreted;
-        }
-
-        return ok(interpreted.value);
+        // Return the full Result so seed diagnostics (parse + symbol-table
+        // findings) survive the success path — the config loader surfaces
+        // them alongside the contract.
+        return interpreted;
       },
     },
     output: options?.output ?? defaultOutputFromSchemaPath(schemaPath),

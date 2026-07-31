@@ -159,6 +159,20 @@ describe("verifyIdbSchema — index issues", () => {
     expect(result.schema.issues.some((i) => i.kind === "index_mismatch")).toBe(true);
   });
 
+  it("uses the plain store name for table/path on index-level issues, matching store-level issues", () => {
+    const contract = makeContract({
+      users: { keyPath: "id", indexes: { byEmail: { keyPath: "email", unique: true } } },
+    });
+    const schema = makeSchema({
+      users: { keyPath: "id", indexes: { byEmail: { keyPath: "emailAddress", unique: true } } },
+    });
+    const result = verifyIdbSchema(contract, schema, false);
+
+    const indexIssue = result.schema.issues.find((i) => i.kind === "index_mismatch")!;
+    expect(indexIssue.table).toBe("users");
+    expect(indexIssue.path).toEqual(["users", "byEmail"]);
+  });
+
   it("warns on extra manifest index in lenient mode", () => {
     const contract = makeContract({
       users: { keyPath: "id" },

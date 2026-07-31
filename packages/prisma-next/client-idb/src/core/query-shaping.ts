@@ -4,8 +4,13 @@ import type { IdbRowComparator } from "@prisma-next-idb/driver-idb/runtime";
 
 /** Describes an extractable indexed equality that can narrow a cursor scan. */
 export interface IndexEqualityHint {
-  /** The IDB index name (e.g. `"byEmail"`). */
-  readonly indexName: string;
+  /**
+   * The IDB index name (e.g. `"byEmail"`), or `undefined` when the condition
+   * is on the store's own primary key — a store's keyPath is always
+   * point-range-queryable directly (`IDBObjectStore.openCursor(range)`),
+   * without a named `IDBIndex`.
+   */
+  readonly indexName: string | undefined;
   /** The equality value to pass to `IDBKeyRange.only()`. */
   readonly value: unknown;
   /** The remainder of the filter after the indexed condition is peeled off. */
@@ -19,7 +24,8 @@ export interface IndexEqualityHint {
  * `remainingFilter`.
  */
 export interface IndexOrHint {
-  readonly branches: ReadonlyArray<{ readonly indexName: string; readonly value: unknown }>;
+  /** `indexName` is `undefined` for a branch on the store's own primary key — see {@link IndexEqualityHint}. */
+  readonly branches: ReadonlyArray<{ readonly indexName: string | undefined; readonly value: unknown }>;
   /** AND conditions that wrapped the OR — applied in-memory after the union. */
   readonly remainingFilter: IdbFilterExpr | undefined;
 }
@@ -56,12 +62,33 @@ function foldRemainder(rest: IdbFilterExpr[]): IdbFilterExpr | undefined {
  * fall back to a full scan.
  */
 function isIndexableEqValue(value: unknown): boolean {
-  return value !== null && value !== undefined;
+  if (value === null || value === undefined) return false;
+  // IDBKeyRange.only() throws DataError for invalid keys (boolean, NaN,
+  // plain objects, etc.). Such values cannot be stored as IndexedDB keys,
+  // so an index scan would never match — fall back to a full scan.
+  if (typeof value === "boolean") return false;
+  if (typeof value === "number" && Number.isNaN(value)) return false;
+  // `BigInt` is a supported IDB scalar codec but not a valid IndexedDB key
+  // type (only number/string/Date/binary/Array are) — IDBKeyRange.only()
+  // throws DataError for it.
+  if (typeof value === "bigint") return false;
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    !(value instanceof Date) &&
+    !(value instanceof ArrayBuffer) &&
+    !ArrayBuffer.isView(value) &&
+    !Array.isArray(value)
+  )
+    return false;
+  return true;
 }
 
 /**
  * Scan the combined filter expression for the first `eq` field condition whose
- * field has a matching IDB index (`fieldToIndexName[field]` is set).
+ * field either has a matching IDB index (`fieldToIndexName[field]` is set) or
+ * *is* the store's own primary key (`keyPath`) — a store's keyPath is always
+ * point-range-queryable directly, no named index required.
  *
  * When found, the indexed condition is peeled off and returned as an
  * {@link IndexEqualityHint}; any remaining conditions are preserved in
@@ -74,13 +101,14 @@ function isIndexableEqValue(value: unknown): boolean {
  */
 export function extractIndexEqualityHint(
   filter: IdbFilterExpr | undefined,
-  fieldToIndexName: Record<string, string>
+  fieldToIndexName: Record<string, string>,
+  keyPath: string
 ): IndexEqualityHint | null {
   if (filter === undefined) return null;
 
   if (filter.kind === "field" && filter.op === "eq") {
     const indexName = fieldToIndexName[filter.field];
-    if (indexName !== undefined && isIndexableEqValue(filter.value)) {
+    if ((indexName !== undefined || filter.field === keyPath) && isIndexableEqValue(filter.value)) {
       return { indexName, value: filter.value, remainingFilter: undefined };
     }
     return null;
@@ -92,7 +120,7 @@ export function extractIndexEqualityHint(
       const expr = flat[i]!;
       if (expr.kind === "field" && expr.op === "eq") {
         const indexName = fieldToIndexName[expr.field];
-        if (indexName !== undefined && isIndexableEqValue(expr.value)) {
+        if ((indexName !== undefined || expr.field === keyPath) && isIndexableEqValue(expr.value)) {
           const rest = flat.filter((_, j) => j !== i);
           return { indexName, value: expr.value, remainingFilter: foldRemainder(rest) };
         }
@@ -112,14 +140,15 @@ export function extractIndexEqualityHint(
 function tryExtractOrBranches(
   orNode: IdbOrExpr,
   fieldToIndexName: Record<string, string>,
+  keyPath: string,
   remainingFilter: IdbFilterExpr | undefined
 ): IndexOrHint | null {
   if (orNode.exprs.length === 0) return null;
-  const branches: { indexName: string; value: unknown }[] = [];
+  const branches: { indexName: string | undefined; value: unknown }[] = [];
   for (const expr of orNode.exprs) {
     if (expr.kind !== "field" || expr.op !== "eq") return null;
     const indexName = fieldToIndexName[expr.field];
-    if (indexName === undefined || !isIndexableEqValue(expr.value)) return null;
+    if ((indexName === undefined && expr.field !== keyPath) || !isIndexableEqValue(expr.value)) return null;
     branches.push({ indexName, value: expr.value });
   }
   return { branches, remainingFilter };
@@ -138,12 +167,13 @@ function tryExtractOrBranches(
  */
 export function extractIndexOrHint(
   filter: IdbFilterExpr | undefined,
-  fieldToIndexName: Record<string, string>
+  fieldToIndexName: Record<string, string>,
+  keyPath: string
 ): IndexOrHint | null {
   if (filter === undefined) return null;
 
   if (filter.kind === "or") {
-    return tryExtractOrBranches(filter, fieldToIndexName, undefined);
+    return tryExtractOrBranches(filter, fieldToIndexName, keyPath, undefined);
   }
 
   if (filter.kind === "and") {
@@ -156,7 +186,7 @@ export function extractIndexOrHint(
     const orIdx = orIndices[0]!;
     const orNode = flat[orIdx]! as IdbOrExpr;
     const rest = flat.filter((_, j) => j !== orIdx);
-    return tryExtractOrBranches(orNode, fieldToIndexName, foldRemainder(rest));
+    return tryExtractOrBranches(orNode, fieldToIndexName, keyPath, foldRemainder(rest));
   }
 
   return null;

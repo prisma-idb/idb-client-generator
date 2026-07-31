@@ -148,6 +148,7 @@ function verifyIndex(
   indexName: string,
   contractIndex: { keyPath: string; unique: boolean; multiEntry?: boolean },
   actualIndex: IdbIndexIR | undefined,
+  storeName: string,
   storePath: string,
   issues: SchemaIssue[]
 ): SchemaVerificationNode {
@@ -157,10 +158,10 @@ function verifyIndex(
     const msg = `Index "${indexName}" defined in contract is missing from manifest schema`;
     issues.push({
       kind: "missing_column",
-      table: storePath,
+      table: storeName,
       column: indexName,
       message: msg,
-      path: [storePath, indexName],
+      path: [storeName, indexName],
     });
     return failNode("index", indexName, indexPath, "missing_column", msg, contractIndex, undefined);
   }
@@ -172,10 +173,10 @@ function verifyIndex(
     const msg = `Index "${indexName}" keyPath mismatch: expected "${contractIndex.keyPath}", got "${actualIndex.keyPath}"`;
     issues.push({
       kind: "index_mismatch",
-      table: storePath,
+      table: storeName,
       indexOrConstraint: indexName,
       message: msg,
-      path: [storePath, indexName],
+      path: [storeName, indexName],
     });
     children.push(
       failNode(
@@ -197,10 +198,10 @@ function verifyIndex(
     const msg = `Index "${indexName}" unique mismatch: expected ${contractIndex.unique}, got ${actualIndex.unique}`;
     issues.push({
       kind: "index_mismatch",
-      table: storePath,
+      table: storeName,
       indexOrConstraint: indexName,
       message: msg,
-      path: [storePath, indexName],
+      path: [storeName, indexName],
     });
     children.push(
       failNode(
@@ -224,10 +225,10 @@ function verifyIndex(
     const msg = `Index "${indexName}" multiEntry mismatch: expected ${contractME}, got ${actualME}`;
     issues.push({
       kind: "index_mismatch",
-      table: storePath,
+      table: storeName,
       indexOrConstraint: indexName,
       message: msg,
-      path: [storePath, indexName],
+      path: [storeName, indexName],
     });
     children.push(
       failNode("field", "multiEntry", `${indexPath}.multiEntry`, "index_mismatch", msg, contractME, actualME)
@@ -316,7 +317,7 @@ function verifyStore(
 
   for (const [indexName, contractIndex] of Object.entries(contractIndexes)) {
     const actualIndex = actualIndexes[indexName];
-    children.push(verifyIndex(indexName, contractIndex, actualIndex, storePath, issues));
+    children.push(verifyIndex(indexName, contractIndex, actualIndex, storeName, storePath, issues));
   }
 
   // extra indexes in manifest (only relevant in strict mode)

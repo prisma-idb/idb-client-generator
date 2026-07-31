@@ -104,6 +104,9 @@ const relContract = defineContract({
       store: "users",
       key: "id",
       fields: { id: "String", name: "String" },
+      // No secondary index declared on `id` — the N:1 `Post.author` include
+      // below relies on the relation loader recognizing the store's own
+      // primary key as point-range-queryable without a named index.
       relations: {
         posts: { to: "Post", cardinality: "1:N", on: { local: ["id"], target: ["authorId"] } },
       },
@@ -176,6 +179,20 @@ describe("index-accelerated equality — main query", () => {
     expect((plan as { indexName?: string }).indexName).toBe("byEmail");
   });
 
+  it("uses a point-range scan against the store's own keyPath for equality on the primary key (no named index needed)", async () => {
+    const client = asRecord(idbOrm({ contract: userContract, executor: spy }));
+    const rows = await client["users"]!.where({ id: "u1" }).all().toArray();
+    expect(rows).toEqual([{ id: "u1", name: "Alice", email: "alice@example.com", active: true }]);
+
+    const plan = spy.captured[0]!.idbPlan as { indexName?: string; range?: IDBKeyRange };
+    // `id` is the store's own keyPath — no secondary index is declared on it,
+    // but it must still resolve to a point-range scan, not a full-store scan.
+    expect(plan.indexName).toBeUndefined();
+    expect(plan.range).toBeDefined();
+    expect(plan.range!.lower).toEqual(plan.range!.upper);
+    expect(plan.range!.lower).toBe("u1");
+  });
+
   it("returns empty array when no record matches the indexed equality", async () => {
     const client = asRecord(idbOrm({ contract: userContract, executor: spy }));
     const rows = await client["users"]!.where({ email: "nobody@example.com" }).all().toArray();
@@ -219,6 +236,54 @@ describe("index-accelerated equality — main query", () => {
     // `.where({...})` shorthand, which converts null to a null-check) must
     // not hand a null eq value to the index-acceleration path.
     const rows = await client["users"]!.where(() => fieldFilter("email", "eq", null))
+      .all()
+      .toArray();
+    expect(rows).toEqual([]);
+    const plan = spy.captured[0]!.idbPlan;
+    expect((plan as { indexName?: string }).indexName).toBeUndefined();
+  });
+
+  it("falls back to full scan without throwing for a boolean eq value", async () => {
+    const client = asRecord(idbOrm({ contract: userContract, executor: spy }));
+    // `IDBKeyRange.only(true)` throws DataError. The index-acceleration gate
+    // must reject non-key-valid values so they fall back to a full scan.
+    // Use the raw AST builder so the value is not normalised by the
+    // `.where({…})` shorthand.
+    const rows = await client["users"]!.where(() => fieldFilter("email", "eq", true))
+      .all()
+      .toArray();
+    expect(rows).toEqual([]);
+    const plan = spy.captured[0]!.idbPlan;
+    expect((plan as { indexName?: string }).indexName).toBeUndefined();
+  });
+
+  it("falls back to full scan without throwing for a NaN eq value", async () => {
+    const client = asRecord(idbOrm({ contract: userContract, executor: spy }));
+    // `IDBKeyRange.only(NaN)` throws DataError.
+    const rows = await client["users"]!.where(() => fieldFilter("email", "eq", NaN))
+      .all()
+      .toArray();
+    expect(rows).toEqual([]);
+    const plan = spy.captured[0]!.idbPlan;
+    expect((plan as { indexName?: string }).indexName).toBeUndefined();
+  });
+
+  it("falls back to full scan without throwing for a plain-object eq value", async () => {
+    const client = asRecord(idbOrm({ contract: userContract, executor: spy }));
+    // `IDBKeyRange.only({})` throws DataError.
+    const rows = await client["users"]!.where(() => fieldFilter("email", "eq", {}))
+      .all()
+      .toArray();
+    expect(rows).toEqual([]);
+    const plan = spy.captured[0]!.idbPlan;
+    expect((plan as { indexName?: string }).indexName).toBeUndefined();
+  });
+
+  it("falls back to full scan without throwing for a BigInt eq value", async () => {
+    const client = asRecord(idbOrm({ contract: userContract, executor: spy }));
+    // BigInt is a supported IDB scalar codec but not a valid IndexedDB key
+    // type — IDBKeyRange.only(1n) throws DataError.
+    const rows = await client["users"]!.where(() => fieldFilter("email", "eq", 1n))
       .all()
       .toArray();
     expect(rows).toEqual([]);
@@ -294,6 +359,52 @@ describe("index-accelerated include — relation loader", () => {
       expect(range).toBeDefined();
       expect(range!.lower).toEqual(range!.upper);
     }
+  });
+
+  it("uses a point-range scan against the store's own keyPath for a PK-target FK (no named index needed)", async () => {
+    const client = asRecord(idbOrm({ contract: relContract, executor: spy }));
+    await client["posts"]!.include("author").all().toArray();
+    const authorPlans = spy.captured.filter((p) => (p.idbPlan as { storeName?: string }).storeName === "users");
+    // Two distinct authorId values in POSTS (u1, u2) → two point-range scans,
+    // NOT one full-store scan with an in-memory membership filter — an FK
+    // pointing at another store's PK must stay O(log N) per lookup, same as
+    // an FK pointing at a named secondary index.
+    expect(authorPlans).toHaveLength(2);
+    for (const plan of authorPlans) {
+      const idbPlan = plan.idbPlan as { indexName?: string; range?: IDBKeyRange; filter?: unknown };
+      // No named index — `users.id` is the store's own keyPath.
+      expect(idbPlan.indexName).toBeUndefined();
+      // But it's still a point-range scan, not a full-store filter scan.
+      expect(idbPlan.range).toBeDefined();
+      expect(idbPlan.range!.lower).toEqual(idbPlan.range!.upper);
+    }
+  });
+
+  it("falls back for an invalid FK value instead of throwing (indexed N:1 include)", async () => {
+    // authorId isn't a key on `posts` (only a regular field), so it can hold
+    // malformed data that would throw DataError if handed straight to
+    // IDBKeyRange.only() on the point-range scan against `users`' own keyPath.
+    const name = dbName();
+    const localDb = await openTestDb(name, [{ name: "users", keyPath: "id" }, POSTS_STORE]);
+    await seedStore(localDb, "users", [{ id: "u1", name: "Alice" }]);
+    await seedStore(localDb, "posts", [
+      { id: "p1", title: "Hello", authorId: "u1" },
+      { id: "p9", title: "Orphan", authorId: true },
+    ]);
+    localDb.close();
+    const localDriver = createIDBRuntimeDriver(name, 1).create();
+    const localSpy = new SpyExecutor(localDriver);
+    const client = asRecord(idbOrm({ contract: relContract, executor: localSpy }));
+
+    const rows = (await client["posts"]!.include("author").all().toArray()) as unknown as Array<{
+      id: string;
+      author: { id: string; name: string } | null;
+    }>;
+
+    expect(rows.find((r) => r.id === "p1")!.author).toEqual({ id: "u1", name: "Alice" });
+    expect(rows.find((r) => r.id === "p9")!.author).toBeNull();
+
+    await localDriver.close();
   });
 });
 
@@ -396,6 +507,23 @@ describe("index acceleration — OR multi-scan", () => {
     }
   });
 
+  it("uses point-range scans against the store's own keyPath for an OR on the primary key", async () => {
+    const client = asRecord(idbOrm({ contract: userContract, executor: spy }));
+    const rows = await client["users"]!.where(() => or(fieldFilter("id", "eq", "u1"), fieldFilter("id", "eq", "u2")))
+      .all()
+      .toArray();
+    expect((rows as { id: string }[]).map((r) => r.id).sort()).toEqual(["u1", "u2"]);
+
+    const userPlans = spy.captured.filter((p) => (p.idbPlan as { storeName?: string }).storeName === "users");
+    expect(userPlans).toHaveLength(2);
+    for (const plan of userPlans) {
+      const idbPlan = plan.idbPlan as { indexName?: string; range?: IDBKeyRange };
+      expect(idbPlan.indexName).toBeUndefined();
+      expect(idbPlan.range).toBeDefined();
+      expect(idbPlan.range!.lower).toEqual(idbPlan.range!.upper);
+    }
+  });
+
   it("applies remaining AND conditions after the OR union", async () => {
     const client = asRecord(idbOrm({ contract: userContract, executor: spy }));
     // Alice (active=true) and Bob (active=false) both match the OR on email;
@@ -453,5 +581,18 @@ describe("index acceleration — OR multi-scan", () => {
     const userPlans = spy.captured.filter((p) => (p.idbPlan as { storeName?: string }).storeName === "users");
     expect(userPlans).toHaveLength(1);
     expect((userPlans[0]!.idbPlan as { indexName?: string }).indexName).toBeUndefined();
+  });
+
+  it("applies skip and take pagination to count() on the OR multi-scan path", async () => {
+    const client = asRecord(idbOrm({ contract: userContract, executor: spy }));
+    // Three users total (Alice, Bob, Carol). OR matches Alice + Bob → 2 rows.
+    // skip(1) → 1 | take(1) → cap at 1 → count should be 1.
+    const rows = await client["users"]!.where(() =>
+      or(fieldFilter("email", "eq", "alice@example.com"), fieldFilter("email", "eq", "bob@example.com"))
+    )
+      .skip(1)
+      .take(1)
+      .count();
+    expect(rows).toBe(1);
   });
 });

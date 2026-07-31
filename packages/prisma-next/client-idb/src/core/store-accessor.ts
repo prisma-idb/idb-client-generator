@@ -486,6 +486,7 @@ export class IdbStoreAccessorImpl<
     const combined = this.#combinedFilterExpr();
     const fieldToIndexMap =
       typeof IDBKeyRange !== "undefined" ? buildFieldToIndexMap(this.#contract, this.#storeName) : undefined;
+    const keyPath = getKeyPath(this.#contract, this.#modelName);
     const comparator = buildRowComparator(this.#state.orderBy);
     const skip = this.#state.skip;
     const take = this.#state.take;
@@ -496,7 +497,7 @@ export class IdbStoreAccessorImpl<
         // OR multi-scan path: union N index point-range scans, deduplicate,
         // re-apply orderBy (the union has no overall ordering), then apply
         // skip/take in-memory (pagination must happen after the union).
-        const orHint = fieldToIndexMap !== undefined ? extractIndexOrHint(combined, fieldToIndexMap) : null;
+        const orHint = fieldToIndexMap !== undefined ? extractIndexOrHint(combined, fieldToIndexMap, keyPath) : null;
         if (orHint !== null) {
           rows = await executeOrRows(orHint, groupingKey, combined);
           if (comparator !== undefined) rows.sort(comparator);
@@ -890,12 +891,17 @@ export class IdbStoreAccessorImpl<
     const fieldToIndexMap =
       typeof IDBKeyRange !== "undefined" ? buildFieldToIndexMap(this.#contract, this.#storeName) : undefined;
 
-    // OR multi-scan path: count the deduped+filtered union.
+    // OR multi-scan path: count the deduped+filtered union, applying
+    // skip/take pagination so count() is consistent with the non-OR path.
     if (fieldToIndexMap !== undefined) {
-      const orHint = extractIndexOrHint(combined, fieldToIndexMap);
+      const keyPath = getKeyPath(this.#contract, this.#modelName);
+      const orHint = extractIndexOrHint(combined, fieldToIndexMap, keyPath);
       if (orHint !== null) {
         const rows = await this.#executeOrRows(orHint, groupingKey, combined);
-        return rows.length;
+        let n = rows.length;
+        if (this.#state.skip !== undefined) n = Math.max(0, n - this.#state.skip);
+        if (this.#state.take !== undefined) n = Math.min(this.#state.take, n);
+        return n;
       }
     }
 
@@ -1000,7 +1006,8 @@ export class IdbStoreAccessorImpl<
     // a full store scan when IDBKeyRange is available (browser / fake-indexeddb).
     if (typeof IDBKeyRange !== "undefined") {
       const fieldToIndexName = fieldToIndexMap ?? buildFieldToIndexMap(this.#contract, this.#storeName);
-      const hint = extractIndexEqualityHint(combined, fieldToIndexName);
+      const keyPath = getKeyPath(this.#contract, this.#modelName);
+      const hint = extractIndexEqualityHint(combined, fieldToIndexName, keyPath);
       if (hint !== null) {
         const { indexName, value, remainingFilter } = hint;
         const filter =
@@ -1014,7 +1021,7 @@ export class IdbStoreAccessorImpl<
             meta,
             kind: "cursor-scan" as const,
             storeName: this.#storeName,
-            indexName,
+            ...(indexName !== undefined ? { indexName } : {}),
             range: IDBKeyRange.only(value as IDBValidKey),
             ...(filter !== undefined ? { filter } : {}),
             ...(comparator !== undefined ? { comparator } : {}),
@@ -1078,7 +1085,7 @@ export class IdbStoreAccessorImpl<
             meta,
             kind: "cursor-scan" as const,
             storeName,
-            indexName: branch.indexName,
+            ...(branch.indexName !== undefined ? { indexName: branch.indexName } : {}),
             range: IDBKeyRange.only(branch.value as IDBValidKey),
           },
         };
