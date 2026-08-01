@@ -277,11 +277,7 @@ export function handleBooleanUpdateField<T, R extends Prisma.Result<T, object, "
   record: R,
   fieldName: keyof R,
   booleanUpdate:
-    | undefined
-    | boolean
-    | Prisma.BoolFieldUpdateOperationsInput
-    | null
-    | Prisma.NullableBoolFieldUpdateOperationsInput
+    undefined | boolean | Prisma.BoolFieldUpdateOperationsInput | null | Prisma.NullableBoolFieldUpdateOperationsInput
 ): void {
   if (booleanUpdate === undefined) return;
   if (typeof booleanUpdate === "boolean" || booleanUpdate === null) {

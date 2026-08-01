@@ -13,17 +13,7 @@
  */
 
 export type IdbFilterOp =
-  | "eq"
-  | "neq"
-  | "gt"
-  | "lt"
-  | "gte"
-  | "lte"
-  | "in"
-  | "notIn"
-  | "contains"
-  | "startsWith"
-  | "endsWith";
+  "eq" | "neq" | "gt" | "lt" | "gte" | "lte" | "in" | "notIn" | "contains" | "startsWith" | "endsWith";
 
 /** Comparison / membership predicate on a single field. */
 export interface IdbFieldFilter {

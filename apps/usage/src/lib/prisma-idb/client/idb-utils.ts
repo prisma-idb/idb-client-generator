@@ -656,11 +656,7 @@ export function handleIntUpdateField<T, R extends Prisma.Result<T, object, "find
   record: R,
   fieldName: keyof R,
   intUpdate:
-    | undefined
-    | number
-    | Prisma.IntFieldUpdateOperationsInput
-    | null
-    | Prisma.NullableIntFieldUpdateOperationsInput
+    undefined | number | Prisma.IntFieldUpdateOperationsInput | null | Prisma.NullableIntFieldUpdateOperationsInput
 ): void {
   if (intUpdate === undefined) return;
   if (typeof intUpdate === "number" || intUpdate === null) {

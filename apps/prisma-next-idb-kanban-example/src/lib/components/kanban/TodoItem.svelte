@@ -20,7 +20,7 @@
   }
 </script>
 
-<article class="rounded-md border bg-background p-3 shadow-xs" data-testid="todo-item">
+<article class="bg-background rounded-md border p-3 shadow-xs" data-testid="todo-item">
   <div class="flex items-start gap-2">
     <Button
       size="icon-sm"
