@@ -219,9 +219,9 @@ export type NoIncludes = Record<never, never>;
  * can re-use it on top of a projected (picked) scalar base.
  */
 export type IncludeFields<TContract, ModelName extends string, TIncludes extends IncludeSpec<TContract, ModelName>> = {
-  -readonly [K in keyof TIncludes & string as TIncludes[K] extends IncludeMarker
-    ? K
-    : never]: TIncludes[K] extends "scalar" ? number : RelationRowType<TContract, ModelName, K>;
+  -readonly [
+    K in keyof TIncludes & string as TIncludes[K] extends IncludeMarker ? K : never
+  ]: TIncludes[K] extends "scalar" ? number : RelationRowType<TContract, ModelName, K>;
 };
 
 /**
@@ -301,9 +301,7 @@ export interface RelationMutationDisconnect {
 
 /** Discriminated union of all nested relation mutation descriptors. */
 export type IdbRelationMutation<TContract, ModelName extends string> =
-  | RelationMutationCreate<TContract, ModelName>
-  | RelationMutationConnect
-  | RelationMutationDisconnect;
+  RelationMutationCreate<TContract, ModelName> | RelationMutationConnect | RelationMutationDisconnect;
 
 /** Relation mutator object passed to the user's relation callback. */
 export interface IdbRelationMutator<TContract, ModelName extends string> {

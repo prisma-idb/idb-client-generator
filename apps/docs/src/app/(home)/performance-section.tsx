@@ -32,9 +32,7 @@ interface BenchmarkSnapshot {
 }
 
 type SnapshotState =
-  | { status: "loading" }
-  | { status: "ready"; snapshot: BenchmarkSnapshot }
-  | { status: "unavailable" };
+  { status: "loading" } | { status: "ready"; snapshot: BenchmarkSnapshot } | { status: "unavailable" };
 
 type PerformanceBucket = "instant" | "quick" | "moderate";
 

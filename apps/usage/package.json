@@ -21,7 +21,7 @@
   "devDependencies": {
     "@internationalized/date": "^3.12.2",
     "@lucide/svelte": "^1.28.0",
-    "@playwright/test": "^1.62.0",
+    "@playwright/test": "^1.62.1",
     "@prisma-idb/idb-client-generator": "workspace:*",
     "@prisma/client": "^7.9.1",
     "@sveltejs/adapter-auto": "^7.0.1",
@@ -30,7 +30,7 @@
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4.3.3",
     "@types/eslint": "^9.6.1",
-    "@types/node": "^24.13.3",
+    "@types/node": "^24.10.9",
     "@types/pg": "^8.20.0",
     "bits-ui": "^2.18.1",
     "clsx": "^2.1.1",

@@ -30,7 +30,7 @@
 {@render children()}
 
 {#if swReady}
-  <p class="text-muted-foreground/50 fixed right-3 bottom-3 select-none text-xs font-medium" aria-live="polite">
+  <p class="text-muted-foreground/50 fixed right-3 bottom-3 text-xs font-medium select-none" aria-live="polite">
     Ready
   </p>
 {/if}

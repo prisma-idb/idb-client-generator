@@ -54,9 +54,7 @@ const result = await client.user.createMany(
 Process large datasets in batches:
 
 ```typescript
-const items = [
-  /* 10000 items */
-];
+const items = [/* 10000 items */];
 const batchSize = 100;
 
 for (let i = 0; i < items.length; i += batchSize) {

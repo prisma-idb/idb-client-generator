@@ -19,10 +19,10 @@
 </script>
 
 <section class="flex min-w-0 flex-col gap-4">
-  <div class="flex flex-col gap-3 rounded-md border bg-card p-3 md:flex-row md:items-center md:justify-between">
+  <div class="bg-card flex flex-col gap-3 rounded-md border p-3 md:flex-row md:items-center md:justify-between">
     <div>
       <div class="flex items-center gap-2 text-sm font-medium">
-        <ClipboardListIcon class="size-4 text-primary" />
+        <ClipboardListIcon class="text-primary size-4" />
         {kanban.activeUser ? `${kanban.activeUser.name}'s boards` : "Create a user to start"}
       </div>
       <p class="text-muted-foreground text-xs">Boards and todos are stored locally in IndexedDB.</p>
@@ -44,20 +44,20 @@
   </div>
 
   {#if kanban.activeUser && kanban.boards.length === 0}
-    <div class="grid min-h-80 place-items-center rounded-md border border-dashed bg-card/70 p-6 text-center">
+    <div class="bg-card/70 grid min-h-80 place-items-center rounded-md border border-dashed p-6 text-center">
       <div class="max-w-sm space-y-2">
-        <div class="mx-auto grid size-10 place-items-center rounded-md bg-secondary">
-          <LayoutDashboardIcon class="size-5 text-primary" />
+        <div class="bg-secondary mx-auto grid size-10 place-items-center rounded-md">
+          <LayoutDashboardIcon class="text-primary size-5" />
         </div>
         <h2 class="font-semibold">No boards yet</h2>
         <p class="text-muted-foreground text-sm">Create a board above, then add todos inside it.</p>
       </div>
     </div>
   {:else if !kanban.activeUser}
-    <div class="grid min-h-80 place-items-center rounded-md border border-dashed bg-card/70 p-6 text-center">
+    <div class="bg-card/70 grid min-h-80 place-items-center rounded-md border border-dashed p-6 text-center">
       <div class="max-w-sm space-y-2">
-        <div class="mx-auto grid size-10 place-items-center rounded-md bg-secondary">
-          <UsersIcon class="size-5 text-primary" />
+        <div class="bg-secondary mx-auto grid size-10 place-items-center rounded-md">
+          <UsersIcon class="text-primary size-5" />
         </div>
         <h2 class="font-semibold">Start with a local user</h2>
         <p class="text-muted-foreground text-sm">

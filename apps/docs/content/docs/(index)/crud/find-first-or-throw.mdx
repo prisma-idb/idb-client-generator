@@ -23,9 +23,7 @@ Returns the matching record or throws an error:
 
 ```typescript
 const user: User = await client.user.findFirstOrThrow({
-  where: {
-    /* ... */
-  },
+  where: {/* ... */},
 });
 // Type is User, not User | null
 ```

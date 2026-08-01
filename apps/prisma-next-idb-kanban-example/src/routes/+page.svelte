@@ -24,7 +24,7 @@
     <AppHeader />
 
     {#if kanban.status === "opening"}
-      <div class="grid min-h-80 place-items-center rounded-md border border-dashed bg-card/60">
+      <div class="bg-card/60 grid min-h-80 place-items-center rounded-md border border-dashed">
         <div class="text-muted-foreground flex items-center gap-2 text-sm">
           <LoaderCircleIcon class="size-4 animate-spin" />
           Opening IndexedDB
@@ -32,7 +32,7 @@
       </div>
     {:else}
       {#if kanban.errorMessage}
-        <div class="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <div class="border-destructive/30 bg-destructive/10 text-destructive rounded-md border px-3 py-2 text-sm">
           {kanban.errorMessage}
         </div>
       {/if}
