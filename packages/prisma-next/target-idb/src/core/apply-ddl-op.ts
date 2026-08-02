@@ -95,7 +95,7 @@ export type IdbMarkerRecord = ContractMarkerRecord & { readonly space: string };
  * All markers are written in the same transaction so a multi-space apply
  * (app + N extensions) commits or fails as one unit — writing them via N
  * separate transactions would reintroduce the partial-apply window this
- * batching is meant to close (see ADR 011 in `packages/prisma-next/docs/adrs/`).
+ * batching is meant to close (see ADR 010 in `packages/prisma-next/docs/adrs/`).
  *
  * Keyed by `space` (defaulting to `"app"` at the caller layer) so the
  * storage layout doesn't have to be migrated when IDB eventually grows
@@ -173,7 +173,7 @@ export function readMarker(db: IDBDatabase, space: string): Promise<IdbMarkerRec
  * Passing multiple `markers` is how a multi-space apply (app + extensions)
  * gets both DDL atomicity (all ops run in the one `upgradeneeded` transaction
  * this call triggers) and marker-write atomicity (all markers land in the one
- * batched transaction) — see ADR 011.
+ * batched transaction) — see ADR 010.
  *
  * Returns the number of ops applied. Throws on open-request error or DDL
  * application error.

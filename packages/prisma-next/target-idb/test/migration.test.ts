@@ -565,9 +565,9 @@ describe("openAndUpgrade", () => {
     ).resolves.toBeTypeOf("number");
   });
 
-  // ADR 011: combined multi-space apply passes N markers to a single
+  // ADR 010: combined multi-space apply passes N markers to a single
   // openAndUpgrade call instead of calling it N times.
-  describe("markers (ADR 011 — combined multi-space apply)", () => {
+  describe("markers (ADR 010 — combined multi-space apply)", () => {
     it("writes multiple markers from a single openAndUpgrade call", async () => {
       const name = dbName();
       const ops = [
@@ -601,7 +601,7 @@ describe("openAndUpgrade", () => {
 
     it("applies ops from disjoint stores in a single version bump regardless of op order", async () => {
       const name = dbName();
-      // Extension ops ordered before app ops (ADR 011's extensions-first,
+      // Extension ops ordered before app ops (ADR 010's extensions-first,
       // app-last convention) — must not throw despite the marker store
       // (created by an app op) not existing yet when the extension op runs;
       // both ops are in the same upgradeneeded transaction so DDL order

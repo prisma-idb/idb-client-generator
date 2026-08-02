@@ -72,7 +72,7 @@ export interface AutoMigrateClientOptions<TContract extends IdbContract> {
    *
    * Every space with pending work — the application space plus each
    * extension — is applied together in one combined `upgradeneeded`
-   * transaction and one batched marker-write transaction (ADR 011). Each
+   * transaction and one batched marker-write transaction (ADR 010). Each
    * space still gets its own marker row in `_prisma_next_marker`.
    */
   readonly extensions?: ReadonlyArray<IdbExtensionSpace>;
@@ -155,7 +155,7 @@ function mergePolicy(p?: MigrationPolicy): Required<MigrationPolicy> {
  * Collects pending ops from the app space and every extension space, then
  * applies all of them in a single combined `upgradeneeded` transaction
  * (one IDB version bump total) followed by one batched marker-write
- * transaction covering every space that migrated. See ADR 011 for details.
+ * transaction covering every space that migrated. See ADR 010 for details.
  *
  * @internal Prefer {@link createAutoMigratingIdbClient}.
  */
@@ -237,7 +237,7 @@ export async function autoMigrate(input: {
   if (pendingPerSpace.length === 0) return;
 
   // Combine every pending space into ONE upgradeneeded transaction (one IDB
-  // version bump total) and ONE batched marker-write transaction (ADR 011).
+  // version bump total) and ONE batched marker-write transaction (ADR 010).
   // This gives true cross-space atomicity — a failure partway through no
   // longer leaves some spaces migrated and others not — and cuts the number
   // of versionchange/blocked cycles a multi-tab user hits on cold start from
