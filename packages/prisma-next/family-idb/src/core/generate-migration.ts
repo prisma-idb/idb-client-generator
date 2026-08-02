@@ -14,6 +14,18 @@ export interface GenerateMigrationOptions {
   readonly contractPath?: string;
   /** Slug appended to the timestamped directory name. */
   readonly name: string;
+  /**
+   * Contract-space identifier this migration belongs to. Defaults to `"app"`.
+   *
+   * Non-`"app"` values switch to extension-space mode: the migration package
+   * is written directly under `migrationsDir` (no `app/` subdirectory), and
+   * `migrations/refs/head.json` is rewritten to the new head afterward —
+   * that pinned file is what the package's `exports/control.ts` (and
+   * `autoMigrate`'s descriptor self-consistency check) reads to know the
+   * space's current head. See `generateBaseline`'s `spaceId` doc for the
+   * full ADR 212 contract-space package layout rationale.
+   */
+  readonly spaceId?: string;
 }
 
 /**
@@ -25,20 +37,29 @@ export interface GenerateMigrationOptions {
  * correct `from` storage-hash so the chain remains linear.
  */
 export async function generateMigration(opts: GenerateMigrationOptions): Promise<number> {
+  const spaceId = opts.spaceId ?? "app";
+  const isAppSpace = spaceId === "app";
   const migrationsDir = opts.migrationsDir ?? join(opts.cwd, "migrations");
-  const appDir = join(migrationsDir, "app");
+  const targetDir = isAppSpace ? join(migrationsDir, "app") : migrationsDir;
+  const dirLabel = isAppSpace ? "migrations/app/" : "migrations/";
   const contractPath = opts.contractPath ?? join(opts.cwd, "src/lib/prisma/contract.json");
 
   // ── 1. Load and chain-order all existing migration packages ──────────────────
 
   let dirNames: string[];
   try {
-    const entries = await readdir(appDir, { withFileTypes: true });
-    dirNames = entries.filter((e) => e.isDirectory()).map((e) => e.name);
+    const entries = await readdir(targetDir, { withFileTypes: true });
+    dirNames = entries
+      .filter((e) => e.isDirectory())
+      // `refs/` holds the pinned head ref, not a migration package; `app/`
+      // is a sibling space's directory in the (non-standard) case an
+      // extension space happens to share `migrationsDir` with the app space.
+      .filter((e) => e.name !== "refs" && e.name !== "app")
+      .map((e) => e.name);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
       process.stderr.write(
-        "generate-migration: no migrations found at migrations/app/.\n" +
+        `generate-migration: no migrations found at ${dirLabel}.\n` +
           "Run `prisma-next-idb generate-baseline` first to create the initial migration.\n"
       );
       return 1;
@@ -48,7 +69,7 @@ export async function generateMigration(opts: GenerateMigrationOptions): Promise
 
   if (dirNames.length === 0) {
     process.stderr.write(
-      "generate-migration: migrations/app/ is empty.\n" +
+      `generate-migration: ${dirLabel} is empty.\n` +
         "Run `prisma-next-idb generate-baseline` first to create the initial migration.\n"
     );
     return 1;
@@ -57,7 +78,7 @@ export async function generateMigration(opts: GenerateMigrationOptions): Promise
   // Read migration.json for each package so chainOrderByMetadata can order them.
   const packages = new Map<string, { dirName: string; metadata: { from: string | null; to: string } }>();
   for (const dirName of dirNames) {
-    const metaPath = join(appDir, dirName, "migration.json");
+    const metaPath = join(targetDir, dirName, "migration.json");
     let metaRaw: string;
     try {
       metaRaw = await readFile(metaPath, "utf-8");
@@ -87,7 +108,7 @@ export async function generateMigration(opts: GenerateMigrationOptions): Promise
 
   // ── 2. Read the head migration's end-contract.json as fromContract ────────────
 
-  const headEndContractPath = join(appDir, head.dirName, "end-contract.json");
+  const headEndContractPath = join(targetDir, head.dirName, "end-contract.json");
   let fromContractRaw: string;
   let fromContractJson: unknown;
   try {
@@ -142,6 +163,9 @@ export async function generateMigration(opts: GenerateMigrationOptions): Promise
   }
 
   // ── 4. Plan the migration from head end-state → current contract ──────────────
+  // fromContract is never null here (this is the incremental path), so the
+  // planner never prepends the _prisma_next_marker op — no stripping needed
+  // for extension spaces, unlike generate-baseline's fromContract: null case.
 
   const fromSchema = contractToIdbSchema(fromContractJson);
   const planner = new IdbMigrationPlanner();
@@ -151,7 +175,7 @@ export async function generateMigration(opts: GenerateMigrationOptions): Promise
     policy: { allowedOperationClasses: ["additive", "widening", "destructive", "data"] },
     fromContract: fromContractJson as Contract,
     frameworkComponents: [],
-    spaceId: "app",
+    spaceId,
   });
 
   if (planResult.kind === "failure") {
@@ -177,12 +201,13 @@ export async function generateMigration(opts: GenerateMigrationOptions): Promise
 
   const timestamp = new Date();
   const dirName = formatMigrationDirName(timestamp, opts.name);
-  const packageDir = join(appDir, dirName);
+  const packageDir = join(targetDir, dirName);
 
+  const providedInvariants = Array.from(deriveProvidedInvariants(ops));
   const baseMetadata = {
     from: fromHash,
     to: toHash,
-    providedInvariants: Array.from(deriveProvidedInvariants(ops)),
+    providedInvariants,
     createdAt: timestamp.toISOString(),
   };
   const migrationHash = computeMigrationHash(
@@ -212,12 +237,32 @@ export async function generateMigration(opts: GenerateMigrationOptions): Promise
     );
   }
 
+  // refs/head.json — extension-space mode only. Must be rewritten to the new
+  // head on every incremental migration, or the space's pinned head goes
+  // stale: exports/control.ts (and autoMigrate's descriptor self-consistency
+  // check) would keep reporting the OLD hash even though a newer migration
+  // package now exists on disk.
+  if (!isAppSpace) {
+    const refsDir = join(migrationsDir, "refs");
+    await mkdir(refsDir, { recursive: true });
+    await writeFile(
+      join(refsDir, "head.json"),
+      JSON.stringify({ hash: toHash, invariants: providedInvariants }, null, 2),
+      "utf-8"
+    );
+  }
+
   process.stdout.write(
-    `Generated migration at migrations/app/${dirName}\n` +
+    `Generated migration at ${dirLabel}${dirName}\n` +
       `  from: ${fromHash}\n` +
       `  to:   ${toHash}\n` +
       `  ops:  ${ops.length} operation${ops.length === 1 ? "" : "s"}\n` +
-      `\nNext: run \`prisma-next-idb generate-contract-space\` to bundle into contract-space.generated.ts\n`
+      (isAppSpace
+        ? `\nNext: run \`prisma-next-idb generate-contract-space\` to bundle into contract-space.generated.ts\n`
+        : `\nAlso updated migrations/refs/head.json → ${toHash}\n` +
+          "exports/control.ts already JSON-imports migrations/refs/head.json, so it will pick up the new " +
+          `head automatically — just add the new migration package (migrations/${dirName}) to its ` +
+          "migrations array.\n")
   );
 
   return 0;

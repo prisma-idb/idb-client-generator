@@ -12,6 +12,8 @@
  * - `generate-migration` — plan and write the next incremental migration
  *   package by diffing the head migration's `end-contract.json` against the
  *   current `contract.json`. Requires at least one migration to already exist.
+ *   Also accepts `--space <id>` for extension-space incremental migrations —
+ *   updates `migrations/refs/head.json` to the new head afterward.
  * - `generate-contract-space` — re-write
  *   `<project>/src/lib/prisma/contract-space.generated.ts` (or the path
  *   specified by `--out`) from the on-disk `migrations/app/` packages.
@@ -114,6 +116,7 @@ async function main(): Promise<number> {
         name: flags.name,
         ...(flags.contract !== undefined && { contractPath: flags.contract }),
         ...(flags.migrationsDir !== undefined && { migrationsDir: flags.migrationsDir }),
+        ...(flags.space !== undefined && { spaceId: flags.space }),
       });
     }
     case "generate-contract-space":
@@ -161,12 +164,14 @@ function printHelp(): void {
       "  --contract <path>         Path to contract.json (default: src/lib/prisma/contract.json)\n" +
       "  --migrations-dir <path>   Path to migrations root (default: migrations/)\n" +
       "\n" +
+      "Flags (generate-baseline, generate-migration):\n" +
+      "  --space <id>              Contract-space id (default: app). Non-app values write directly\n" +
+      "                            under migrations/ (no app/ subdir) and pin/update\n" +
+      "                            migrations/refs/head.json — the ADR 212 contract-space package\n" +
+      "                            layout used by extension packages (e.g. sync-extension-idb).\n" +
+      "\n" +
       "Flags (generate-baseline only):\n" +
       "  --name <slug>             Directory slug (default: baseline)\n" +
-      "  --space <id>              Contract-space id (default: app). Non-app values write\n" +
-      "                            directly under migrations/ (no app/ subdir), skip the\n" +
-      "                            _prisma_next_marker op, and pin migrations/refs/head.json\n" +
-      "                            — the ADR 212 contract-space package layout for extensions.\n" +
       "\n" +
       "Flags (generate-migration only):\n" +
       "  --name <slug>             Directory slug, e.g. add_posts (required)\n" +
