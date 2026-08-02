@@ -28,6 +28,24 @@ export interface GenerateBaselineOptions {
    * Defaults to `"baseline"` → `<timestamp>_baseline/`.
    */
   readonly name?: string;
+  /**
+   * Contract-space identifier this baseline belongs to. Defaults to `"app"`.
+   *
+   * Passing a non-`"app"` value switches to **extension-space mode** (ADR 212
+   * contract-space package layout):
+   *
+   * - The migration package is written directly under `migrationsDir` (no
+   *   `app/` subdirectory — a contract-space package owns exactly one space,
+   *   so the space-id directory would add no information).
+   * - The `_prisma_next_marker` createObjectStore op the planner
+   *   unconditionally prepends for `fromContract: null` is stripped from
+   *   `ops.json` — the marker store belongs to the app space's own baseline;
+   *   an extension space must never try to recreate it (see ADR 010/011).
+   * - `migrations/refs/head.json` is written (hand-pinned per ADR 212;
+   *   app-space baselines don't need this file since the app's headRef is
+   *   derived by `generate-contract-space`, not read from a pinned ref).
+   */
+  readonly spaceId?: string;
 }
 
 /**
@@ -71,8 +89,14 @@ export interface GenerateBaselineOptions {
  * Exit codes: 0 on success; 1 on user-actionable error.
  */
 export async function generateBaseline(opts: GenerateBaselineOptions): Promise<number> {
+  const spaceId = opts.spaceId ?? "app";
+  const isAppSpace = spaceId === "app";
   const migrationsDir = opts.migrationsDir ?? join(opts.cwd, "migrations");
-  const appDir = join(migrationsDir, "app");
+  // App-space packages nest under migrations/app/ (today's on-disk convention
+  // for the consuming project). An extension-space package IS the contract
+  // space — its migrations sit directly under migrationsDir (ADR 212: "no
+  // <space-id> subdirectory inside migrations/").
+  const targetDir = isAppSpace ? join(migrationsDir, "app") : migrationsDir;
   const contractPath = opts.contractPath ?? join(opts.cwd, "src/lib/prisma/contract.json");
   const name = opts.name ?? "baseline";
 
@@ -82,20 +106,32 @@ export async function generateBaseline(opts: GenerateBaselineOptions): Promise<n
 
   let existingDirs: string[] = [];
   try {
-    const entries = await readdir(appDir, { withFileTypes: true });
-    existingDirs = entries.filter((e) => e.isDirectory()).map((e) => e.name);
+    const entries = await readdir(targetDir, { withFileTypes: true });
+    existingDirs = entries
+      .filter((e) => e.isDirectory())
+      // `refs/` holds the pinned head ref, not a migration package. `app/` is
+      // a sibling space's directory when it happens to share `migrationsDir`
+      // with an extension space (not the normal layout — a contract-space
+      // package owns exactly one space per ADR 212 — but defensive here so
+      // an app-space baseline doesn't false-positive an extension's guard).
+      .filter((e) => e.name !== "refs" && e.name !== "app")
+      .map((e) => e.name);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
-    // appDir doesn't exist — that's the expected state for a fresh project.
+    // targetDir doesn't exist — that's the expected state for a fresh project.
   }
 
   if (existingDirs.length > 0) {
+    const dirLabel = isAppSpace ? "migrations/app/" : "migrations/";
     process.stderr.write(
-      `generate-baseline: migrations/app/ already contains ${existingDirs.length} migration package(s):\n` +
+      `generate-baseline: ${dirLabel} already contains ${existingDirs.length} migration package(s):\n` +
         existingDirs.map((d) => `  ${d}`).join("\n") +
         "\n\n" +
         "Baseline generation is only for fresh projects with no migration history.\n" +
-        "Use `prisma-next migration plan` to add a new migration to the existing chain.\n"
+        (isAppSpace
+          ? "Use `prisma-next migration plan` to add a new migration to the existing chain.\n"
+          : "Extension-space incremental migrations aren't CLI-generated yet — hand-author the next " +
+            "package under migrations/ following the existing baseline's shape (ADR 212 Path B).\n")
     );
     return 1;
   }
@@ -121,7 +157,8 @@ export async function generateBaseline(opts: GenerateBaselineOptions): Promise<n
   // ── 3. Plan: fromContract=null → current contract ─────────────────────────────
   // `fromContract: null` tells the planner "fresh database — create everything".
   // The planner also prepends the internal _prisma_next_marker store creation
-  // for this case (see IdbMigrationPlanner.plan).
+  // for this case (see IdbMigrationPlanner.plan) — regardless of spaceId, so
+  // extension-space mode strips it back out below (step 3b).
 
   const planner = new IdbMigrationPlanner();
   const planResult = planner.plan({
@@ -130,7 +167,7 @@ export async function generateBaseline(opts: GenerateBaselineOptions): Promise<n
     policy: { allowedOperationClasses: ["additive", "widening", "destructive", "data"] },
     fromContract: null,
     frameworkComponents: [],
-    spaceId: "app",
+    spaceId,
   });
 
   if (planResult.kind === "failure") {
@@ -144,7 +181,15 @@ export async function generateBaseline(opts: GenerateBaselineOptions): Promise<n
 
   // Cast to the IDB-specific plan to access the typed operations.
   const plan = planResult.plan as IdbMigrationPlanWithAuthoring;
-  const ops = plan.operations;
+  // ── 3b. Extension-space mode: strip the marker-store creation op ─────────────
+  // The app space's own baseline creates _prisma_next_marker; an extension
+  // space applying its DDL in the same combined transaction (ADR 011) would
+  // hit ConstraintError trying to recreate a store that already exists.
+  const ops = isAppSpace
+    ? plan.operations
+    : plan.operations.filter(
+        (op) => !(op.kind === "createObjectStore" && (op as { storeName?: string }).storeName === "_prisma_next_marker")
+      );
   const toHash = plan.destination.storageHash;
 
   // ── 4. Build content-addressed migration metadata ─────────────────────────────
@@ -154,12 +199,13 @@ export async function generateBaseline(opts: GenerateBaselineOptions): Promise<n
 
   const timestamp = new Date();
   const dirName = formatMigrationDirName(timestamp, name);
-  const packageDir = join(appDir, dirName);
+  const packageDir = join(targetDir, dirName);
 
+  const providedInvariants = Array.from(deriveProvidedInvariants(ops));
   const baseMetadata = {
     from: null as string | null,
     to: toHash,
-    providedInvariants: Array.from(deriveProvidedInvariants(ops)),
+    providedInvariants,
     createdAt: timestamp.toISOString(),
   };
   // `computeMigrationHash` strips `migrationHash` before hashing, so it is safe
@@ -205,17 +251,37 @@ export async function generateBaseline(opts: GenerateBaselineOptions): Promise<n
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
     process.stderr.write(
       `Warning: contract.d.ts not found at ${contractDtsPath}.\n` +
-        "`prisma-next migration plan` will fail when generating the next migration.\n" +
+        (isAppSpace
+          ? "`prisma-next migration plan` will fail when generating the next migration.\n"
+          : "The next migration for this space will fail without it.\n") +
         "Run `prisma-next contract emit` first to generate contract.d.ts, then re-run generate-baseline.\n\n"
     );
   }
 
+  // refs/head.json — hand-pinned per ADR 212, extension-space packages only.
+  // `contractSpaceFromJson` (consumed by the package's exports/control.ts)
+  // reads this to build the space's headRef without re-deriving it.
+  if (!isAppSpace) {
+    const refsDir = join(migrationsDir, "refs");
+    await mkdir(refsDir, { recursive: true });
+    await writeFile(
+      join(refsDir, "head.json"),
+      JSON.stringify({ hash: toHash, invariants: providedInvariants }, null, 2),
+      "utf-8"
+    );
+  }
+
+  const dirLabel = isAppSpace ? `migrations/app/${dirName}` : `migrations/${dirName}`;
   process.stdout.write(
-    `Generated baseline migration at migrations/app/${dirName}\n` +
+    `Generated baseline migration at ${dirLabel}\n` +
       `  from: null  (fresh database — creates all stores from scratch)\n` +
       `  to:   ${toHash}\n` +
       `  ops:  ${ops.length} operation${ops.length === 1 ? "" : "s"}\n` +
-      `\nNext: run \`prisma-next-idb generate-contract-space\` to bundle into contract-space.generated.ts\n`
+      (isAppSpace
+        ? `\nNext: run \`prisma-next-idb generate-contract-space\` to bundle into contract-space.generated.ts\n`
+        : `\nAlso pinned migrations/refs/head.json → ${toHash}\n` +
+          "Next: wire src/exports/control.ts to JSON-import contract.json, " +
+          `migrations/${dirName}/{migration.json,ops.json}, and migrations/refs/head.json (ADR 212).\n`)
   );
 
   return 0;

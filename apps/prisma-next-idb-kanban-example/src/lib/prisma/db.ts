@@ -1,5 +1,6 @@
 import { createAutoMigratingIdbClient } from "@prisma-next-idb/client-idb/client-auto";
 import type { IdbClient } from "@prisma-next-idb/client-idb/client-auto";
+import { idbSyncExtension } from "@prisma-next-idb/sync-extension-idb/control";
 import type { Contract } from "./contract";
 import { contractSpace } from "./contract-space.generated";
 
@@ -16,6 +17,7 @@ export async function getDb(): Promise<DbClient> {
     clientPromise = createAutoMigratingIdbClient({
       contractSpace,
       dbName: DB_NAME,
+      extensions: [idbSyncExtension],
     });
   }
 

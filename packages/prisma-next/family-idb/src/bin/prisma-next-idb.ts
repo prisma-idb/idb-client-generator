@@ -6,7 +6,9 @@
  *
  * - `generate-baseline` — auto-generate the first migration package
  *   (`from: null`) from the current `contract.json`.  Only valid on a
- *   fresh project with no migrations yet.
+ *   fresh project with no migrations yet. Pass `--space <id>` to generate
+ *   an extension-space baseline (ADR 212 contract-space package layout)
+ *   instead of the default app-space one — see the `--space` flag docs below.
  * - `generate-migration` — plan and write the next incremental migration
  *   package by diffing the head migration's `end-contract.json` against the
  *   current `contract.json`. Requires at least one migration to already exist.
@@ -55,6 +57,8 @@ interface ParsedFlags {
   out: string | undefined;
   /** Slug suffix for the migration directory name. */
   name: string | undefined;
+  /** Contract-space id for `generate-baseline` (default: "app"). See ADR 212. */
+  space: string | undefined;
 }
 
 function parseFlags(): ParsedFlags {
@@ -66,6 +70,7 @@ function parseFlags(): ParsedFlags {
       "migrations-dir": { type: "string" },
       out: { type: "string" },
       name: { type: "string" },
+      space: { type: "string" },
     },
   });
   return {
@@ -76,6 +81,7 @@ function parseFlags(): ParsedFlags {
     migrationsDir: values["migrations-dir"] as string | undefined,
     out: values["out"] as string | undefined,
     name: values["name"] as string | undefined,
+    space: values["space"] as string | undefined,
   };
 }
 
@@ -94,6 +100,7 @@ async function main(): Promise<number> {
         ...(flags.contract !== undefined && { contractPath: flags.contract }),
         ...(flags.migrationsDir !== undefined && { migrationsDir: flags.migrationsDir }),
         ...(flags.name !== undefined && { name: flags.name }),
+        ...(flags.space !== undefined && { spaceId: flags.space }),
       });
     }
     case "generate-migration": {
@@ -156,6 +163,10 @@ function printHelp(): void {
       "\n" +
       "Flags (generate-baseline only):\n" +
       "  --name <slug>             Directory slug (default: baseline)\n" +
+      "  --space <id>              Contract-space id (default: app). Non-app values write\n" +
+      "                            directly under migrations/ (no app/ subdir), skip the\n" +
+      "                            _prisma_next_marker op, and pin migrations/refs/head.json\n" +
+      "                            — the ADR 212 contract-space package layout for extensions.\n" +
       "\n" +
       "Flags (generate-migration only):\n" +
       "  --name <slug>             Directory slug, e.g. add_posts (required)\n" +

@@ -300,6 +300,78 @@ describe("generateBaseline — error cases", () => {
   });
 });
 
+// ── spaceId option (extension-space mode, ADR 212) ────────────────────────────
+
+describe("generateBaseline — spaceId (extension-space mode)", () => {
+  it("writes the package directly under migrationsDir, not migrations/app/", async () => {
+    const code = await generateBaseline({ cwd, spaceId: "idb-sync" });
+    expect(code).toBe(0);
+
+    const entries = await readdir(join(cwd, "migrations"), { withFileTypes: true });
+    const dirs = entries.filter((e) => e.isDirectory() && e.name !== "refs");
+    expect(dirs).toHaveLength(1);
+    expect(dirs[0]!.name).toMatch(/^\d{8}T\d{4}_baseline$/);
+    // No migrations/app/ directory created in extension-space mode.
+    expect(existsSync(join(cwd, "migrations", "app"))).toBe(false);
+  });
+
+  it("does not include a _prisma_next_marker createObjectStore op", async () => {
+    await generateBaseline({ cwd, spaceId: "idb-sync" });
+    const ops = await readExtensionOps(cwd);
+    const markerOp = ops.find((op) => op.kind === "createObjectStore" && op.storeName === "_prisma_next_marker");
+    expect(markerOp).toBeUndefined();
+  });
+
+  it("still includes createObjectStore/createIndex ops for the space's own models", async () => {
+    await generateBaseline({ cwd, spaceId: "idb-sync" });
+    const ops = await readExtensionOps(cwd);
+    const usersOp = ops.find((op) => op.kind === "createObjectStore" && op.storeName === "users");
+    expect(usersOp).toBeDefined();
+    const indexOp = ops.find(
+      (op) => op.kind === "createIndex" && op.storeName === "users" && op.indexName === "byEmail"
+    );
+    expect(indexOp).toBeDefined();
+  });
+
+  it("pins migrations/refs/head.json with the contract's storageHash and providedInvariants", async () => {
+    await generateBaseline({ cwd, spaceId: "idb-sync" });
+    const headRefRaw = await readFile(join(cwd, "migrations", "refs", "head.json"), "utf-8");
+    const headRef = JSON.parse(headRefRaw) as { hash: string; invariants: string[] };
+    expect(headRef.hash).toBe(MINIMAL_CONTRACT.storage.storageHash);
+    expect(Array.isArray(headRef.invariants)).toBe(true);
+  });
+
+  it("does not write refs/head.json in app-space mode", async () => {
+    await generateBaseline({ cwd }); // default spaceId: "app"
+    expect(existsSync(join(cwd, "migrations", "refs", "head.json"))).toBe(false);
+  });
+
+  it("refuses if the migrations dir already has a package, ignoring refs/", async () => {
+    await generateBaseline({ cwd, spaceId: "idb-sync" });
+
+    const code = await generateBaseline({ cwd, spaceId: "idb-sync" });
+    expect(code).toBe(1);
+    expect(capturedStderr).toContain("already contains");
+    // Extension-space error message doesn't reference the app-only CLI flow.
+    expect(capturedStderr).not.toContain("prisma-next migration plan");
+  });
+
+  it("app-space and extension-space baselines can coexist under the same migrationsDir", async () => {
+    const appCode = await generateBaseline({ cwd });
+    expect(appCode).toBe(0);
+
+    const extCode = await generateBaseline({ cwd, spaceId: "idb-sync" });
+    expect(extCode).toBe(0);
+
+    const appEntries = await readdir(join(cwd, "migrations", "app"), { withFileTypes: true });
+    expect(appEntries.filter((e) => e.isDirectory())).toHaveLength(1);
+
+    const rootEntries = await readdir(join(cwd, "migrations"), { withFileTypes: true });
+    const extDirs = rootEntries.filter((e) => e.isDirectory() && e.name !== "app" && e.name !== "refs");
+    expect(extDirs).toHaveLength(1);
+  });
+});
+
 // ── Integration: generate-baseline → generate-contract-space ─────────────────
 
 describe("generateBaseline → generateContractSpace integration", () => {
@@ -370,4 +442,13 @@ async function readOps(cwd: string): Promise<ParsedOp[]> {
 async function readMigrationTs(cwd: string): Promise<string> {
   const pkgDir = await findOnlyPackageDir(cwd);
   return readFile(join(pkgDir, "migration.ts"), "utf-8");
+}
+
+/** Like {@link readOps} but for extension-space mode (package dir sits directly under migrations/). */
+async function readExtensionOps(cwd: string): Promise<ParsedOp[]> {
+  const migrationsDir = join(cwd, "migrations");
+  const entries = await readdir(migrationsDir, { withFileTypes: true });
+  const dirs = entries.filter((e) => e.isDirectory() && e.name !== "refs");
+  if (dirs.length !== 1) throw new Error(`Expected exactly 1 package dir, got ${dirs.length}`);
+  return JSON.parse(await readFile(join(migrationsDir, dirs[0]!.name, "ops.json"), "utf-8")) as ParsedOp[];
 }

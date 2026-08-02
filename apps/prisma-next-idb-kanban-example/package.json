@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@prisma-next-idb/client-idb": "workspace:*",
+    "@prisma-next-idb/sync-extension-idb": "workspace:*",
     "@prisma-next/migration-tools": "^0.16.0"
   },
   "devDependencies": {

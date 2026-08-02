@@ -21,6 +21,10 @@ export default defineConfig([
       // contract emit artifacts (contract.json + contract.d.ts)
       "**/src/lib/prisma/contract.d.ts",
       "**/src/lib/prisma/contract.json",
+      // same artifacts, ADR 212 contract-space package layout (extension
+      // packages keep contract source directly under src/, no lib/prisma/)
+      "**/src/contract.d.ts",
+      "**/src/contract.json",
       // migration package artifacts — all *.d.ts and *.json files inside
       // migrations/<space>/<pkg>/; migration.ts is intentionally left lintable
       // since it's the human-editable scaffold.

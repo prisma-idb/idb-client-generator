@@ -50,6 +50,9 @@ export type {
 // Include-scalar marker (returned by a refinement `count()`)
 export type { IdbIncludeScalar } from "../core/store-state";
 
+// Store name and key path helpers
+export { getStoreName, getKeyPath } from "../core/types";
+
 // Filter operator combinators
 export { and, or, not } from "../core/filters";
 export type { IdbFieldAccessor, IdbModelAccessor } from "../core/model-accessor";
