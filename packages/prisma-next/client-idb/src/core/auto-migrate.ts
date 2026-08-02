@@ -5,6 +5,7 @@ import type {
   MigrationPackage,
 } from "@prisma-next/framework-components/control";
 import { APP_SPACE_ID } from "@prisma-next/framework-components/control";
+import type { IdbExtensionSpace } from "@prisma-next-idb/family-idb/control";
 // Browser-safe (WebCrypto) hash — the framework's `@prisma-next/migration-tools/hash`
 // uses `node:crypto` and throws in the browser (PLAN Issue #23 regression).
 import { computeMigrationHash } from "./migration-hash";
@@ -53,6 +54,11 @@ const SAFE_POLICY: Required<MigrationPolicy> = {
  * `prisma-next-idb generate-contract-space`. It carries the canonical
  * contract JSON, the ordered list of migration packages, and the head
  * ref the runtime walks toward.
+ *
+ * `extensions` is an optional list of additional contract spaces contributed
+ * by IDB extensions (e.g. the sync extension). Each extension space migrates
+ * independently of the application space and writes its own marker row keyed
+ * by the extension's `spaceId`.
  */
 export interface AutoMigrateClientOptions<TContract extends IdbContract> {
   readonly contractSpace: ContractSpace<TContract>;
@@ -61,6 +67,14 @@ export interface AutoMigrateClientOptions<TContract extends IdbContract> {
   readonly policy?: MigrationPolicy;
   /** IDB factory override — primarily for tests. Defaults to `indexedDB`. */
   readonly factory?: IDBFactory;
+  /**
+   * Additional contract spaces from IDB extensions.
+   *
+   * Applied after the application space, in declaration order. Each space
+   * gets its own marker row in `_prisma_next_marker` and an independent
+   * `upgradeneeded` transaction.
+   */
+  readonly extensions?: ReadonlyArray<IdbExtensionSpace>;
 }
 
 /**
@@ -113,6 +127,7 @@ export async function createAutoMigratingIdbClient<TContract extends IdbContract
     dbName: options.dbName,
     policy,
     factory,
+    ...(options.extensions !== undefined ? { extensions: options.extensions } : {}),
   });
 
   return createIdbClient({
@@ -134,6 +149,10 @@ function mergePolicy(p?: MigrationPolicy): Required<MigrationPolicy> {
 /**
  * The migration loop. Exported for tests.
  *
+ * Walks the app space first, then each extension space in declaration order.
+ * Each space with pending ops gets its own `upgradeneeded` pass, incrementing
+ * the IDB version by 1 and writing a space-keyed marker row.
+ *
  * @internal Prefer {@link createAutoMigratingIdbClient}.
  */
 export async function autoMigrate(input: {
@@ -145,26 +164,49 @@ export async function autoMigrate(input: {
   readonly dbName: string;
   readonly policy: Required<MigrationPolicy>;
   readonly factory: IDBFactory;
+  readonly extensions?: ReadonlyArray<IdbExtensionSpace>;
 }): Promise<void> {
-  const { contractSpace, dbName, policy, factory } = input;
-  const targetHash = contractSpace.headRef.hash;
+  const { dbName, policy, factory } = input;
 
-  // 1 + 2: read current version and marker.
-  const { currentVersion, markerHash } = await openAndReadMarker(dbName, factory);
-  if (markerHash === targetHash) return;
+  // Build ordered list: app space first, then extensions in declaration order.
+  // App-first (not upstream ADR 212's extension-first convention) because
+  // `_prisma_next_marker` is created by the app baseline's own DDL ops, not by
+  // a decoupled framework bootstrap step — an extension migrating first would
+  // write its marker row into a store that doesn't exist yet. See ADR 010.
+  const spaces: Array<{ spaceId: string; contractSpace: ContractSpace<Contract> }> = [
+    { spaceId: APP_SPACE_ID, contractSpace: input.contractSpace },
+    ...(input.extensions ?? []),
+  ];
 
-  // 3: collect pending ops from chain walk.
-  const { pendingOps, destructiveDropped } = await walkChain({
-    markerHash,
-    headHash: targetHash,
-    migrations: contractSpace.migrations,
-    policy,
-  });
+  // Read current DB version once (all spaces share the same IDB database).
+  const { currentVersion: initialVersion } = await openAndReadMarker(dbName, factory, APP_SPACE_ID);
 
-  // 4: refuse if destructive ops were dropped under refuse policy.
-  if (destructiveDropped > 0 && policy.onDestructive === "refuse") {
+  // Collect pending work per space without applying yet, so we can surface
+  // all destructive violations before touching the database.
+  const pendingPerSpace: Array<{ spaceId: string; ops: IdbDdlOp[]; storageHash: string }> = [];
+  let totalDestructiveDropped = 0;
+
+  for (const space of spaces) {
+    const targetHash = space.contractSpace.headRef.hash;
+    const { markerHash } = await openAndReadMarker(dbName, factory, space.spaceId);
+    if (markerHash === targetHash) continue;
+
+    const { pendingOps, destructiveDropped } = await walkChain({
+      markerHash,
+      headHash: targetHash,
+      migrations: space.contractSpace.migrations,
+      policy,
+    });
+    totalDestructiveDropped += destructiveDropped;
+    if (pendingOps.length > 0) {
+      pendingPerSpace.push({ spaceId: space.spaceId, ops: pendingOps, storageHash: targetHash });
+    }
+  }
+
+  // Refuse if any space had destructive ops dropped under refuse policy.
+  if (totalDestructiveDropped > 0 && policy.onDestructive === "refuse") {
     throw new Error(
-      `Auto-migration refused: ${destructiveDropped} destructive operation(s) ` +
+      `Auto-migration refused: ${totalDestructiveDropped} destructive operation(s) ` +
         "in the pending chain would drop user data. To allow them, pass " +
         "`policy: { onDestructive: 'allow' }` to createAutoMigratingIdbClient. " +
         "Per-tab persistent state (drafts, offline queue, cached content) will " +
@@ -172,16 +214,22 @@ export async function autoMigrate(input: {
     );
   }
 
-  if (pendingOps.length === 0) return;
+  if (pendingPerSpace.length === 0) return;
 
-  // 5 + 6: apply ops in upgradeneeded, write marker afterwards.
-  await openAndUpgrade({
-    factory,
-    dbName,
-    targetVersion: currentVersion + 1,
-    ops: pendingOps,
-    marker: { space: APP_SPACE_ID, storageHash: targetHash },
-  });
+  // Apply each space's ops in its own upgradeneeded transaction, bumping the
+  // IDB version by 1 per space. Spaces are applied in the same order they
+  // were collected (app space first, then extensions).
+  let nextVersion = initialVersion;
+  for (const { spaceId, ops, storageHash } of pendingPerSpace) {
+    nextVersion += 1;
+    await openAndUpgrade({
+      factory,
+      dbName,
+      targetVersion: nextVersion,
+      ops,
+      marker: { space: spaceId, storageHash },
+    });
+  }
 }
 
 interface WalkResult {
@@ -265,12 +313,13 @@ async function walkChain(input: {
 
 /**
  * Open the database at its current local version (no version arg), read the
- * marker, then close the connection. Returns the current integer version so
- * the caller can compute `currentVersion + 1` for the upgrade re-open.
+ * marker for `spaceId`, then close the connection. Returns the current integer
+ * version so the caller can compute `currentVersion + 1` for the upgrade re-open.
  */
 function openAndReadMarker(
   dbName: string,
-  factory: IDBFactory
+  factory: IDBFactory,
+  spaceId: string
 ): Promise<{ currentVersion: number; markerHash: string | null }> {
   return new Promise((resolve, reject) => {
     let req: IDBOpenDBRequest;
@@ -286,7 +335,7 @@ function openAndReadMarker(
       const currentVersion = db.version;
       void (async () => {
         try {
-          const record = await readMarker(db, APP_SPACE_ID);
+          const record = await readMarker(db, spaceId);
           resolve({ currentVersion, markerHash: record?.storageHash ?? null });
         } catch (err) {
           reject(err);
