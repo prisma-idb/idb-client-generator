@@ -70,9 +70,10 @@ export interface AutoMigrateClientOptions<TContract extends IdbContract> {
   /**
    * Additional contract spaces from IDB extensions.
    *
-   * Applied after the application space, in declaration order. Each space
-   * gets its own marker row in `_prisma_next_marker` and an independent
-   * `upgradeneeded` transaction.
+   * Every space with pending work — the application space plus each
+   * extension — is applied together in one combined `upgradeneeded`
+   * transaction and one batched marker-write transaction (ADR 011). Each
+   * space still gets its own marker row in `_prisma_next_marker`.
    */
   readonly extensions?: ReadonlyArray<IdbExtensionSpace>;
 }
@@ -92,9 +93,11 @@ export interface AutoMigrateClientOptions<TContract extends IdbContract> {
  *    package's `ops` in chain order.
  * 4. Apply the policy filter. Refuse if any destructive op was filtered
  *    out and `onDestructive === 'refuse'`.
- * 5. Reopen at `db.version + 1` so `upgradeneeded` fires; apply every
- *    collected op inside the version-change transaction.
- * 6. Write the marker to `headRef.hash` in a separate readwrite tx.
+ * 5. If `extensions` are configured, repeat steps 1–4 for each extension
+ *    space, then combine every space's pending ops into ONE reopen at
+ *    `db.version + 1` so `upgradeneeded` fires once; apply every collected
+ *    op (all spaces) inside that single version-change transaction.
+ * 6. Write every migrated space's marker in one batched readwrite tx.
  * 7. Hand back the typed `IdbClient`.
  *
  * **What does NOT run in the browser**:
@@ -149,9 +152,10 @@ function mergePolicy(p?: MigrationPolicy): Required<MigrationPolicy> {
 /**
  * The migration loop. Exported for tests.
  *
- * Walks the app space first, then each extension space in declaration order.
- * Each space with pending ops gets its own `upgradeneeded` pass, incrementing
- * the IDB version by 1 and writing a space-keyed marker row.
+ * Collects pending ops from the app space and every extension space, then
+ * applies all of them in a single combined `upgradeneeded` transaction
+ * (one IDB version bump total) followed by one batched marker-write
+ * transaction covering every space that migrated. See ADR 011 for details.
  *
  * @internal Prefer {@link createAutoMigratingIdbClient}.
  */
@@ -168,15 +172,31 @@ export async function autoMigrate(input: {
 }): Promise<void> {
   const { dbName, policy, factory } = input;
 
-  // Build ordered list: app space first, then extensions in declaration order.
-  // App-first (not upstream ADR 212's extension-first convention) because
-  // `_prisma_next_marker` is created by the app baseline's own DDL ops, not by
-  // a decoupled framework bootstrap step — an extension migrating first would
-  // write its marker row into a store that doesn't exist yet. See ADR 010.
+  // Order here only affects the destructive-op collection loop below, not the
+  // final apply order (see the combined-apply step, which re-sorts to match
+  // upstream ADR 212's extension-first convention).
   const spaces: Array<{ spaceId: string; contractSpace: ContractSpace<Contract> }> = [
     { spaceId: APP_SPACE_ID, contractSpace: input.contractSpace },
     ...(input.extensions ?? []),
   ];
+
+  // Descriptor self-consistency (upstream ADR 212): a space's pinned headRef
+  // must match the hash actually embedded in its contractJson. Catches an
+  // extension author who edited the contract source without regenerating
+  // migrations/refs/head.json — fails loudly here instead of surfacing as a
+  // confusing chain-walk error deep inside walkChain.
+  for (const space of spaces) {
+    const declaredHash = space.contractSpace.contractJson.storage.storageHash;
+    const headHash = space.contractSpace.headRef.hash;
+    if (declaredHash !== headHash) {
+      throw new Error(
+        `Contract space "${space.spaceId}" is internally inconsistent: ` +
+          `contractJson.storage.storageHash (${declaredHash}) does not match ` +
+          `headRef.hash (${headHash}). The contract source likely changed without ` +
+          "regenerating migrations/refs/head.json for this space — rebuild its migration chain."
+      );
+    }
+  }
 
   // Read current DB version once (all spaces share the same IDB database).
   const { currentVersion: initialVersion } = await openAndReadMarker(dbName, factory, APP_SPACE_ID);
@@ -216,20 +236,32 @@ export async function autoMigrate(input: {
 
   if (pendingPerSpace.length === 0) return;
 
-  // Apply each space's ops in its own upgradeneeded transaction, bumping the
-  // IDB version by 1 per space. Spaces are applied in the same order they
-  // were collected (app space first, then extensions).
-  let nextVersion = initialVersion;
-  for (const { spaceId, ops, storageHash } of pendingPerSpace) {
-    nextVersion += 1;
-    await openAndUpgrade({
-      factory,
-      dbName,
-      targetVersion: nextVersion,
-      ops,
-      marker: { space: spaceId, storageHash },
-    });
-  }
+  // Combine every pending space into ONE upgradeneeded transaction (one IDB
+  // version bump total) and ONE batched marker-write transaction (ADR 011).
+  // This gives true cross-space atomicity — a failure partway through no
+  // longer leaves some spaces migrated and others not — and cuts the number
+  // of versionchange/blocked cycles a multi-tab user hits on cold start from
+  // N (one per space) to 1.
+  //
+  // DDL op order within the combined transaction is extensions
+  // (alphabetical-by-spaceId) first, app-space last, matching upstream
+  // ADR 212's convention. That ordering is safe here specifically because
+  // marker writes happen in the separate phase-2 transaction below, which
+  // only runs after every space's DDL — including the app space's
+  // `_prisma_next_marker` creation — has already committed in phase 1.
+  const orderedPending = [...pendingPerSpace].sort((a, b) => {
+    if (a.spaceId === APP_SPACE_ID) return 1;
+    if (b.spaceId === APP_SPACE_ID) return -1;
+    return a.spaceId.localeCompare(b.spaceId);
+  });
+
+  await openAndUpgrade({
+    factory,
+    dbName,
+    targetVersion: initialVersion + 1,
+    ops: orderedPending.flatMap((space) => space.ops),
+    markers: orderedPending.map((space) => ({ space: space.spaceId, storageHash: space.storageHash })),
+  });
 }
 
 interface WalkResult {

@@ -87,17 +87,26 @@ export interface MarkerWriteInput {
 export type IdbMarkerRecord = ContractMarkerRecord & { readonly space: string };
 
 /**
- * Write the contract marker into the `_prisma_next_marker` store using a
- * separate `readwrite` transaction. The marker store is created inside the
- * version-change transaction during the migration's first run (see
+ * Write one or more contract markers into the `_prisma_next_marker` store
+ * using a single `readwrite` transaction. The marker store is created inside
+ * the version-change transaction during the migration's first run (see
  * `createMarkerStoreOp`); subsequent runs reuse it.
+ *
+ * All markers are written in the same transaction so a multi-space apply
+ * (app + N extensions) commits or fails as one unit — writing them via N
+ * separate transactions would reintroduce the partial-apply window this
+ * batching is meant to close (see ADR 011 in `packages/prisma-next/docs/adrs/`).
  *
  * Keyed by `space` (defaulting to `"app"` at the caller layer) so the
  * storage layout doesn't have to be migrated when IDB eventually grows
  * extension support (see ADR 021 + feedback issue #5).
  */
-export function writeMarker(db: IDBDatabase, input: MarkerWriteInput): Promise<void> {
+export function writeMarkers(db: IDBDatabase, inputs: readonly MarkerWriteInput[]): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (inputs.length === 0) {
+      resolve();
+      return;
+    }
     if (!db.objectStoreNames.contains(IDB_MARKER_STORE)) {
       // Marker store missing — should never happen because the planner emits
       // its creation as the first op. Non-fatal so the runner can still
@@ -110,22 +119,28 @@ export function writeMarker(db: IDBDatabase, input: MarkerWriteInput): Promise<v
     }
     const tx = db.transaction(IDB_MARKER_STORE, "readwrite");
     const store = tx.objectStore(IDB_MARKER_STORE);
-    const record: IdbMarkerRecord = {
-      space: input.space,
-      storageHash: input.storageHash,
-      profileHash: input.profileHash ?? "",
-      updatedAt: new Date(),
-      invariants: input.invariants ?? [],
-      contractJson: input.contractJson ?? null,
-      canonicalVersion: input.canonicalVersion ?? null,
-      appTag: input.appTag ?? null,
-      meta: input.meta ?? {},
-    };
-    const putReq = store.put(record);
-    putReq.onerror = () => reject(putReq.error);
+    for (const input of inputs) {
+      const record: IdbMarkerRecord = {
+        space: input.space,
+        storageHash: input.storageHash,
+        profileHash: input.profileHash ?? "",
+        updatedAt: new Date(),
+        invariants: input.invariants ?? [],
+        contractJson: input.contractJson ?? null,
+        canonicalVersion: input.canonicalVersion ?? null,
+        appTag: input.appTag ?? null,
+        meta: input.meta ?? {},
+      };
+      store.put(record);
+    }
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
+}
+
+/** Convenience wrapper for the common single-marker case. See {@link writeMarkers}. */
+export function writeMarker(db: IDBDatabase, input: MarkerWriteInput): Promise<void> {
+  return writeMarkers(db, [input]);
 }
 
 /**
@@ -152,8 +167,13 @@ export function readMarker(db: IDBDatabase, space: string): Promise<IdbMarkerRec
 
 /**
  * Open `dbName` at `targetVersion`, apply `ops` inside the `upgradeneeded`
- * callback, optionally write the contract marker (in a separate readwrite
- * tx after `onsuccess`), then close the connection.
+ * callback, optionally write one or more contract markers (batched into a
+ * single readwrite tx after `onsuccess`), then close the connection.
+ *
+ * Passing multiple `markers` is how a multi-space apply (app + extensions)
+ * gets both DDL atomicity (all ops run in the one `upgradeneeded` transaction
+ * this call triggers) and marker-write atomicity (all markers land in the one
+ * batched transaction) — see ADR 011.
  *
  * Returns the number of ops applied. Throws on open-request error or DDL
  * application error.
@@ -163,7 +183,7 @@ export function openAndUpgrade(input: {
   readonly dbName: string;
   readonly targetVersion: number;
   readonly ops: readonly IdbDdlOp[];
-  readonly marker?: MarkerWriteInput;
+  readonly markers?: readonly MarkerWriteInput[];
   readonly onOperationStart?: (op: IdbDdlOp) => void;
   readonly onOperationComplete?: (op: IdbDdlOp) => void;
 }): Promise<number> {
@@ -202,8 +222,8 @@ export function openAndUpgrade(input: {
       clearBlocked();
       const db = (event.target as IDBOpenDBRequest).result;
       try {
-        if (input.marker !== undefined) {
-          await writeMarker(db, input.marker);
+        if (input.markers !== undefined && input.markers.length > 0) {
+          await writeMarkers(db, input.markers);
         }
       } finally {
         db.close();

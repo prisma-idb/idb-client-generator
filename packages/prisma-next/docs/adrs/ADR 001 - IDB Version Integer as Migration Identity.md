@@ -2,7 +2,7 @@
 
 ## Context
 
-The upstream framework (ADR 001 in `vendor/prisma-next`) models migrations as directed edges in a contract-hash graph: each migration moves from `fromHash` to `toHash`, and the runner refuses to apply if the database marker doesn't match `fromHash`. This gives deterministic, content-addressed drift detection.
+The upstream framework ([ADR 001 — Migrations as Edges](https://github.com/prisma/prisma-next/blob/main/docs/architecture%20docs/adrs/ADR%20001%20-%20Migrations%20as%20Edges.md)) models migrations as directed edges in a contract-hash graph: each migration moves from `fromHash` to `toHash`, and the runner refuses to apply if the database marker doesn't match `fromHash`. This gives deterministic, content-addressed drift detection.
 
 IndexedDB's DDL mechanism is mechanically incompatible with this model. The browser only triggers the `upgradeneeded` callback — the only place DDL is permitted — when `IDBFactory.open(name, version)` is called with an integer `version` higher than the stored version. There is no way to substitute a hash comparison at the browser API level. The integer is not optional; it is the only handle.
 

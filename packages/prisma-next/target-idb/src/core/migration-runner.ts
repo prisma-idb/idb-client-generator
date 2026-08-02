@@ -74,5 +74,5 @@ export class IdbMigrationRunner implements MigrationRunner<"idb", "idb"> {
 
 // Re-export helpers so target-idb/migration exposes them for downstream
 // consumers (client-idb auto-migrate, family-idb preflight).
-export { applyOneDdlOp, openAndUpgrade, writeMarker, readMarker } from "./apply-ddl-op";
+export { applyOneDdlOp, openAndUpgrade, writeMarker, writeMarkers, readMarker } from "./apply-ddl-op";
 export type { IdbMarkerRecord, MarkerWriteInput } from "./apply-ddl-op";

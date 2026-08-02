@@ -19,9 +19,15 @@
 
 import { describe, expect, it } from "vitest";
 import { diffIdbSchema } from "../src/core/schema-diff";
-import { createIndexOp, createObjectStoreOp, dropIndexOp, dropObjectStoreOp } from "../src/core/migration-factories";
+import {
+  createIndexOp,
+  createMarkerStoreOp,
+  createObjectStoreOp,
+  dropIndexOp,
+  dropObjectStoreOp,
+} from "../src/core/migration-factories";
 import { IdbMigrationPlanner, contractToIdbSchema } from "../src/core/migration-planner";
-import { IdbMigrationRunner, openAndUpgrade } from "../src/core/migration-runner";
+import { IdbMigrationRunner, openAndUpgrade, readMarker } from "../src/core/migration-runner";
 import { IdbMigrationControlDriverDescriptor, extractMigrationDriver } from "../src/core/migration-driver";
 import type { IdbSchemaDiffInput } from "../src/core/schema-diff";
 import type { MigrationOperationPolicy } from "@prisma-next/framework-components/control";
@@ -557,5 +563,98 @@ describe("openAndUpgrade", () => {
     await expect(
       openAndUpgrade({ factory: indexedDB, dbName: name, targetVersion: 3, ops: dropOps })
     ).resolves.toBeTypeOf("number");
+  });
+
+  // ADR 011: combined multi-space apply passes N markers to a single
+  // openAndUpgrade call instead of calling it N times.
+  describe("markers (ADR 011 — combined multi-space apply)", () => {
+    it("writes multiple markers from a single openAndUpgrade call", async () => {
+      const name = dbName();
+      const ops = [
+        createMarkerStoreOp(),
+        createObjectStoreOp("users", { keyPath: "id" }),
+        createObjectStoreOp("_idb_sync_outbox", { keyPath: "id" }),
+      ];
+      await openAndUpgrade({
+        factory: indexedDB,
+        dbName: name,
+        targetVersion: 1,
+        ops,
+        markers: [
+          { space: "app", storageHash: "sha256:app-hash" },
+          { space: "idb-sync", storageHash: "sha256:sync-hash" },
+        ],
+      });
+
+      const db = await new Promise<IDBDatabase>((res, rej) => {
+        const req = indexedDB.open(name);
+        req.onsuccess = (e) => res((e.target as IDBOpenDBRequest).result);
+        req.onerror = (e) => rej((e.target as IDBOpenDBRequest).error);
+      });
+      const appMarker = await readMarker(db, "app");
+      const syncMarker = await readMarker(db, "idb-sync");
+      db.close();
+
+      expect(appMarker?.storageHash).toBe("sha256:app-hash");
+      expect(syncMarker?.storageHash).toBe("sha256:sync-hash");
+    });
+
+    it("applies ops from disjoint stores in a single version bump regardless of op order", async () => {
+      const name = dbName();
+      // Extension ops ordered before app ops (ADR 011's extensions-first,
+      // app-last convention) — must not throw despite the marker store
+      // (created by an app op) not existing yet when the extension op runs;
+      // both ops are in the same upgradeneeded transaction so DDL order
+      // between disjoint stores doesn't matter.
+      const ops = [
+        createObjectStoreOp("_idb_sync_outbox", { keyPath: "id" }),
+        createMarkerStoreOp(),
+        createObjectStoreOp("users", { keyPath: "id" }),
+      ];
+      const result = await openAndUpgrade({
+        factory: indexedDB,
+        dbName: name,
+        targetVersion: 1,
+        ops,
+        markers: [
+          { space: "idb-sync", storageHash: "sha256:sync-hash" },
+          { space: "app", storageHash: "sha256:app-hash" },
+        ],
+      });
+      expect(result).toBe(3);
+
+      const db = await new Promise<IDBDatabase>((res, rej) => {
+        const req = indexedDB.open(name);
+        req.onsuccess = (e) => res((e.target as IDBOpenDBRequest).result);
+        req.onerror = (e) => rej((e.target as IDBOpenDBRequest).error);
+      });
+      expect(db.version).toBe(1);
+      expect(db.objectStoreNames.contains("_idb_sync_outbox")).toBe(true);
+      expect(db.objectStoreNames.contains("users")).toBe(true);
+      db.close();
+    });
+
+    it("an empty markers array is a no-op (no marker writes, no error)", async () => {
+      const name = dbName();
+      const ops = [createMarkerStoreOp(), createObjectStoreOp("users", { keyPath: "id" })];
+      await openAndUpgrade({ factory: indexedDB, dbName: name, targetVersion: 1, ops, markers: [] });
+
+      const db = await new Promise<IDBDatabase>((res, rej) => {
+        const req = indexedDB.open(name);
+        req.onsuccess = (e) => res((e.target as IDBOpenDBRequest).result);
+        req.onerror = (e) => rej((e.target as IDBOpenDBRequest).error);
+      });
+      const marker = await readMarker(db, "app");
+      db.close();
+      expect(marker).toBeNull();
+    });
+
+    it("omitting markers entirely behaves like an empty array", async () => {
+      const name = dbName();
+      const ops = [createMarkerStoreOp(), createObjectStoreOp("users", { keyPath: "id" })];
+      await expect(openAndUpgrade({ factory: indexedDB, dbName: name, targetVersion: 1, ops })).resolves.toBeTypeOf(
+        "number"
+      );
+    });
   });
 });

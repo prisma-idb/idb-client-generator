@@ -1,5 +1,9 @@
 # ADR 010 — Cross-Space Migration Ordering: App-Space Always First
 
+## Status
+
+**Superseded by [ADR 011 — Combined Single-Transaction Multi-Space Apply](./ADR%20011%20-%20Combined%20Single-Transaction%20Multi-Space%20Apply.md).** The per-space-transaction design this ADR analyzes (and the app-first ordering it required) has been replaced by a combined single-transaction apply. Kept as the historical record of _why_ app-first ordering was necessary under that design — the reasoning about the marker-store bootstrap dependency is still accurate background for ADR 011.
+
 ## Context
 
 Phase 7 added multi-space migration support (`createAutoMigratingIdbClient({ extensions: [...] })`) so IDB extensions like the sync extension can own their own contract space, disjoint from the application's. Upstream [ADR 212 — Contract spaces](https://github.com/prisma/prisma-next/blob/main/docs/architecture%20docs/adrs/ADR%20212%20-%20Contract%20spaces.md) is the framework's general model for this, and it states a specific cross-space ordering convention for the SQL family:
