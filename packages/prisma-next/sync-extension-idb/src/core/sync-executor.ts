@@ -142,11 +142,11 @@ function storeNamesOf(body: IdbPlanBody): string[] {
  * and AST. Returns `undefined` when the key cannot be determined statically
  * (e.g. scan-write operations that match by filter, not by key).
  */
-function extractKey(body: IdbPlanBody, ast: MutationAst): unknown {
+function extractKey(body: IdbPlanBody, ast: MutationAst, keyField: string): unknown {
   switch (ast.kind) {
     case "create":
       // Pull key from AST data — the codec hasn't run yet so the value is the raw JS type.
-      return ast.data["id"];
+      return ast.data[keyField];
     case "delete":
       return ast.key;
     case "update":
@@ -261,11 +261,7 @@ export class SyncInterceptorExecutor implements IdbQueryExecutor {
     // For operations where the key is unknowable statically (scan-writes,
     // upsert, bulk ops), extractKey returns undefined; version meta is omitted
     // but the outbox event is still written atomically.
-    let key = extractKey(plan.idbPlan, ast);
-    if (key === undefined && ast.kind === "create") {
-      const keyField = getKeyPath(contract, modelName);
-      key = ast.data[keyField];
-    }
+    const key = extractKey(plan.idbPlan, ast, getKeyPath(contract, modelName));
     return this.#buildBatchPlan(plan, modelName, operation, payload, key);
   }
 
