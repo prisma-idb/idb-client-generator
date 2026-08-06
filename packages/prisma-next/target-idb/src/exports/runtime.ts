@@ -1,6 +1,7 @@
 import type { RuntimeTargetDescriptor, RuntimeTargetInstance } from "@prisma-next/framework-components/execution";
 import { idbTargetDescriptorMeta } from "../core/descriptor-meta";
 export { idbCodecLookup } from "../core/codecs";
+export { decodeJsonRecord } from "../core/decode-json-record";
 
 // ── Browser-safe DDL apply helpers ────────────────────────────────────────────
 // These are re-exported here (in addition to the CLI-only `./migration` subpath)

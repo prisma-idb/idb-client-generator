@@ -738,7 +738,7 @@ export function hasEnforceableChildRelations(contract: IdbContract, modelName: s
   return false;
 }
 
-function collectDeleteStoreNames(contract: IdbContract, modelName: string): string[] {
+export function collectDeleteStoreNames(contract: IdbContract, modelName: string): string[] {
   const stores = new Set([getStoreName(contract, modelName)]);
   for (const def of getRelationDefinitions(contract, modelName)) {
     if (!isDeleteEnforcementRelation(contract, modelName, def)) continue;
@@ -749,7 +749,7 @@ function collectDeleteStoreNames(contract: IdbContract, modelName: string): stri
   return [...stores];
 }
 
-async function applyReferentialActionsForRow(
+export async function applyReferentialActionsForRow(
   scope: IdbTransactionScope,
   contract: IdbContract,
   modelName: string,

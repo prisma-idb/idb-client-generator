@@ -39,6 +39,9 @@ export interface SyncIdbClientOptions<TContract extends IdbContract> {
 }
 
 export interface SyncIdbClient<TContract extends IdbContract> {
+  /** The resolved IDB contract this client was created with. */
+  readonly contract: TContract;
+
   /**
    * Sync-aware ORM client.
    *
@@ -153,6 +156,7 @@ export function createSyncIdbClient<TContract extends IdbContract>(
   };
 
   const client: SyncIdbClient<TContract> = {
+    contract: options.contract,
     orm: syncOrm,
     withoutTracking: <T>(fn: (rawOrm: IdbOrmClient<TContract>) => Promise<T>) => fn(rawOrm),
     withTransaction,

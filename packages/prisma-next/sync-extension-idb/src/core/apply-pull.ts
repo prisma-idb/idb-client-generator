@@ -1,19 +1,35 @@
 /**
  * `applyPull` — apply server changelog entries to the local IDB.
  *
- * Uses `withoutTracking` so applied server changes do NOT generate outbox
- * events (they came from the server — tracking them would create a push loop).
+ * Applied server changes use raw driver plans (not the tracked ORM), so they
+ * do NOT generate outbox events — tracking them would create a push loop.
  *
  * Guards per log entry:
  * 1. **Staleness**: skip if `lastAppliedChangeId >= log.changelogId` (already newer).
  * 2. **Pending push**: skip if `localChangePending === true` (local mutation
  *    not yet confirmed synced — let it win to avoid last-write-wins races).
+ *
+ * The meta check, the record write (including any cascading referential
+ * actions for `delete`), and the meta update all run inside ONE
+ * `withTransaction` call spanning every store involved — closing the TOCTOU
+ * window between the meta read and the write. `delete` reuses the ORM's own
+ * `collectDeleteStoreNames`/`applyReferentialActionsForRow` helpers, which
+ * are plain functions over an `IdbTransactionScope` parameter (not tied to a
+ * transaction of their own), so cascade/setNull/restrict enforcement folds
+ * into the same scope instead of needing a separate transaction.
+ *
+ * `log.record` arrives as wire JSON (an HTTP pull payload sourced from a SQL
+ * remote), so it's run through `decodeJsonRecord` (ISO string → `Date`,
+ * digit string → `bigint`, base64 → `Uint8Array`, ...) before being written —
+ * IDB stores native JS values, not their JSON-safe wire forms.
  */
 
 import type { IdbAtomicPlan } from "@prisma-next-idb/driver-idb/runtime";
 import type { IdbContract } from "@prisma-next-idb/client-idb/orm";
+import { getStoreName, collectDeleteStoreNames, applyReferentialActionsForRow } from "@prisma-next-idb/client-idb/orm";
+import { decodeJsonRecord } from "@prisma-next-idb/target-idb/runtime";
 import type { SyncIdbClient } from "./sync-client";
-import type { LogWithRecord, ApplyPullResult } from "../types";
+import type { LogWithRecord, ApplyPullResult, VersionMetaRecord } from "../types";
 
 const VERSION_META = "_idb_sync_version_meta";
 
@@ -28,104 +44,89 @@ export async function applyPull<TContract extends IdbContract>(
   let applied = 0;
   let skipped = 0;
   let lastChangelogId: string | null = null;
+  const contract = syncClient.contract;
+
+  const rawOrmAny = syncClient.rawClient.orm as unknown as Record<string, unknown>;
 
   for (const log of logs) {
-    const metaId = versionMetaKey(log.model, log.keyPath);
+    if (!rawOrmAny[log.model]) {
+      skipped++;
+      continue;
+    }
+    if ((log.operation === "create" || log.operation === "update") && log.record === null) {
+      skipped++;
+      continue;
+    }
 
-    // Read VersionMeta and decide whether to apply.
-    let shouldApply = true;
+    const wasApplied = await applyLog(syncClient, contract, log);
 
-    await syncClient.withTransaction([VERSION_META], async (scope) => {
-      const rows = await scope.execute({
+    if (wasApplied) {
+      applied++;
+      if (lastChangelogId === null || log.changelogId > lastChangelogId) {
+        lastChangelogId = log.changelogId;
+      }
+    } else {
+      skipped++;
+    }
+  }
+
+  return { applied, skipped, lastChangelogId };
+}
+
+/**
+ * Meta check + record write + meta update in a single multi-store
+ * `withTransaction` call. `delete` additionally spans every store touched by
+ * an enforceable child relation (see `collectDeleteStoreNames`); for models
+ * with no such relations that list is just `[storeName]`, so this is the
+ * same single-store shape as `create`/`update` with no special-casing.
+ */
+async function applyLog<TContract extends IdbContract>(
+  syncClient: SyncIdbClient<TContract>,
+  contract: TContract,
+  log: LogWithRecord
+): Promise<boolean> {
+  const metaId = versionMetaKey(log.model, log.keyPath);
+  const storeName = getStoreName(contract, log.model);
+  const storeNames = log.operation === "delete" ? collectDeleteStoreNames(contract, log.model) : [storeName];
+  const decodedRecord = log.record !== null ? decodeJsonRecord(contract.domain, log.model, log.record) : null;
+
+  try {
+    return await syncClient.withTransaction([VERSION_META, ...storeNames], async (scope) => {
+      const metaRows = await scope.execute({
         kind: "key-get",
         storeName: VERSION_META,
         key: metaId,
       } as unknown as IdbAtomicPlan);
-      const meta = rows[0] as { lastAppliedChangeId: string | null; localChangePending: boolean } | undefined;
+      const meta = metaRows[0] as VersionMetaRecord | undefined;
 
       if (meta) {
-        if (meta.localChangePending) {
-          shouldApply = false;
-          return;
-        }
-        if (meta.lastAppliedChangeId !== null && meta.lastAppliedChangeId >= log.changelogId) {
-          shouldApply = false;
-          return;
-        }
+        if (meta.localChangePending) return false;
+        if (meta.lastAppliedChangeId !== null && meta.lastAppliedChangeId >= log.changelogId) return false;
       }
-    });
 
-    if (!shouldApply) {
-      skipped++;
-      continue;
-    }
-
-    // Apply the change via rawOrm (no outbox tracking).
-    // We erase types here because the raw ORM's generic types don't align with
-    // the dynamic model name dispatch we need. The underlying store accessors
-    // do accept Record<string, unknown> payloads at runtime.
-    const rawOrmAny = syncClient.rawClient.orm as unknown as Record<
-      string,
-      {
-        upsert: (args: {
-          create: Record<string, unknown>;
-          update: Record<string, unknown>;
-          where: Record<string, unknown>;
-        }) => Promise<unknown>;
-        delete: (key: unknown) => Promise<void>;
-      }
-    >;
-
-    const storeAccessor = rawOrmAny[log.model];
-    if (!storeAccessor) {
-      skipped++;
-      continue;
-    }
-
-    try {
-      if (log.operation === "create" || log.operation === "update") {
-        if (log.record === null) {
-          skipped++;
-          continue;
+      if (log.operation === "delete") {
+        const rows = await scope.execute({
+          kind: "key-get",
+          storeName,
+          key: log.keyPath as IDBValidKey,
+        } as unknown as IdbAtomicPlan);
+        const row = rows[0];
+        if (row) {
+          await applyReferentialActionsForRow(scope, contract, log.model, row);
+          await scope.execute({
+            kind: "delete",
+            storeName,
+            key: log.keyPath as IDBValidKey,
+          } as unknown as IdbAtomicPlan);
         }
-        // Upsert semantics: put the full server record regardless of local state.
-        await syncClient.withoutTracking(async (rawOrm) => {
-          const accessor = (
-            rawOrm as unknown as Record<
-              string,
-              {
-                upsert: (args: {
-                  create: Record<string, unknown>;
-                  update: Record<string, unknown>;
-                  where: Record<string, unknown>;
-                }) => Promise<unknown>;
-              }
-            >
-          )[log.model];
-          if (!accessor) return;
-          await accessor.upsert({
-            create: log.record!,
-            update: log.record!,
-            where: { id: log.keyPath },
-          });
-        });
-      } else if (log.operation === "delete") {
-        await syncClient.withoutTracking(async (rawOrm) => {
-          const accessor = (rawOrm as unknown as Record<string, { delete: (key: unknown) => Promise<void> }>)[
-            log.model
-          ];
-          if (!accessor) return;
-          await accessor.delete(log.keyPath);
-        });
+      } else {
+        await scope.execute({
+          kind: "put",
+          storeName,
+          record: decodedRecord!,
+        } as unknown as IdbAtomicPlan);
       }
-    } catch {
-      // If the apply fails (e.g. record not found for delete), skip silently.
-      skipped++;
-      continue;
-    }
 
-    // Update VersionMeta to record the applied changelogId.
-    await syncClient.withTransaction([VERSION_META], async (scope) => {
       await scope.execute({
         kind: "put",
         storeName: VERSION_META,
@@ -135,15 +136,14 @@ export async function applyPull<TContract extends IdbContract>(
           key: log.keyPath,
           lastAppliedChangeId: log.changelogId,
           localChangePending: false,
-        },
+        } satisfies VersionMetaRecord,
       } as unknown as IdbAtomicPlan);
+
+      return true;
     });
-
-    applied++;
-    if (lastChangelogId === null || log.changelogId > lastChangelogId) {
-      lastChangelogId = log.changelogId;
-    }
+  } catch {
+    // e.g. a `restrict` referential action or a write failure mid-transaction —
+    // skip silently, retry next pull.
+    return false;
   }
-
-  return { applied, skipped, lastChangelogId };
 }

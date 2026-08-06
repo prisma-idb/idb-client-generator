@@ -78,4 +78,8 @@ export {
   isRelationMutationDescriptor,
   isRelationMutationCallback,
 } from "../core/relation-mutator";
-export { hasNestedMutationCallbacks } from "../core/mutation-executor";
+export {
+  hasNestedMutationCallbacks,
+  collectDeleteStoreNames,
+  applyReferentialActionsForRow,
+} from "../core/mutation-executor";
