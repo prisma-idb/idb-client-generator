@@ -6,6 +6,7 @@ import type { ParseDiagnostic, SourceFile } from "@prisma-next/psl-parser/syntax
 import { parse } from "@prisma-next/psl-parser/syntax";
 import { notOk } from "@prisma-next/utils/result";
 import { extname, basename } from "pathe";
+import type { ContractProjection } from "./psl-interpreter";
 import { interpretPslDocumentToIdbContract, SCALAR_TO_CODEC_ID } from "./psl-interpreter";
 
 function defaultOutputFromSchemaPath(schemaPath: string): string {
@@ -33,6 +34,13 @@ function mapParseDiagnostics(
 
 export interface PrismaIdbContractOptions {
   readonly output?: string;
+  /**
+   * `"client"` projects out anything marked `@idb.exclude`/`@@idb.exclude`
+   * (ADR 012). Pass a distinct `output` alongside this so the client and
+   * full/server contracts don't collide on the same file.
+   * @default "full"
+   */
+  readonly projection?: ContractProjection;
 }
 
 /**
@@ -100,7 +108,14 @@ export function prismaIdbContract(schemaPath: string, options?: PrismaIdbContrac
           ...mapParseDiagnostics(symbolDiagnostics, sourceFile, schemaPath),
         ];
 
-        const interpreted = withSeedDiagnostics(interpretPslDocumentToIdbContract(table, schemaPath), seedDiagnostics);
+        const interpreted = withSeedDiagnostics(
+          interpretPslDocumentToIdbContract(
+            table,
+            schemaPath,
+            options?.projection !== undefined ? { projection: options.projection } : undefined
+          ),
+          seedDiagnostics
+        );
         // Return the full Result so seed diagnostics (parse + symbol-table
         // findings) survive the success path — the config loader surfaces
         // them alongside the contract.

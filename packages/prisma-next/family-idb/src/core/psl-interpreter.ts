@@ -37,6 +37,21 @@ const REFERENTIAL_ACTION_MAP: Record<string, IdbReferentialAction> = {
   NoAction: "noAction",
 };
 
+// ── Client contract projection (ADR 012) ───────────────────────────────────────
+
+/**
+ * `"full"` interprets the schema as-is (today's behavior, unchanged — this is
+ * the server-facing shape). `"client"` additionally strips anything marked
+ * `@idb.exclude`/`@@idb.exclude`, producing the projected client contract.
+ *
+ * Relation-entangled exclusions (a surviving model still relating to an
+ * excluded one, or a field-level exclude on a relation/FK field) are out of
+ * scope here — that's ADR 013's cascading FK projection, not yet
+ * implemented — so those cases are reported as diagnostics rather than
+ * silently producing a broken contract.
+ */
+export type ContractProjection = "full" | "client";
+
 // ── Attribute arg helpers ──────────────────────────────────────────────────────
 
 type AttributeArg = { kind: string; name?: string; value: string };
@@ -84,6 +99,12 @@ function getFieldAttribute(field: FieldSymbol, name: string) {
   return field.attributes.find((a) => a.name === name);
 }
 
+function hasModelAttribute(model: ModelSymbol, name: string): boolean {
+  return model.attributes.some((a) => a.name === name);
+}
+
+const IDB_EXCLUDE_ATTR = "idb.exclude";
+
 // ── Per-model interpretation result ───────────────────────────────────────────
 
 interface InterpretedModel {
@@ -111,9 +132,16 @@ function interpretModel(
   model: ModelSymbol,
   modelNames: ReadonlySet<string>,
   sourceId: string,
-  diagnostics: ContractSourceDiagnostic[]
+  diagnostics: ContractSourceDiagnostic[],
+  projection: ContractProjection,
+  excludedModelNames: ReadonlySet<string>
 ): InterpretedModel | undefined {
   const modelFields = Object.values(model.fields);
+  // Fields marked `@idb.exclude`. Empty (no-op) in "full" projection — the
+  // attribute only takes effect when projecting the client contract.
+  const excludedFieldNames = new Set(
+    projection === "client" ? modelFields.filter((f) => hasFieldAttribute(f, IDB_EXCLUDE_ATTR)).map((f) => f.name) : []
+  );
   // Derive store name from @@map or lowerFirst(modelName)
   const mapAttr = model.attributes.find((a) => a.name === "map");
   const storeName = parseStringArg(findPositionalArg(mapAttr?.args ?? [])) ?? lowerFirst(model.name);
@@ -181,6 +209,16 @@ function interpretModel(
     return undefined;
   }
 
+  if (excludedFieldNames.has(keyPath)) {
+    diagnostics.push({
+      code: "IDB_CANNOT_EXCLUDE_KEY_FIELD",
+      message: `Field "${model.name}.${keyPath}" is the model's @id key and cannot be marked @idb.exclude — the client contract needs a primary key for every included model.`,
+      sourceId,
+      span: model.span,
+    });
+    return undefined;
+  }
+
   // ── Build indexes ────────────────────────────────────────────────────────────
   const indexes: Record<string, IdbIndexDefinition> = {};
 
@@ -209,6 +247,15 @@ function interpretModel(
       continue;
     }
     const field = fields[0]!;
+    if (excludedFieldNames.has(field)) {
+      diagnostics.push({
+        code: "IDB_INDEX_ON_EXCLUDED_FIELD",
+        message: `Model "${model.name}" @@${attr.name}([${field}]) references "${field}", which is marked @idb.exclude. Remove the index or the exclusion.`,
+        sourceId,
+        span: attr.span,
+      });
+      continue;
+    }
     const nameRaw = findNamedArg(attr.args, "name") ?? findNamedArg(attr.args, "map");
     const indexName = parseStringArg(nameRaw) ?? (isUnique ? `${field}_unique` : field);
     indexes[indexName] = { keyPath: field, unique: isUnique };
@@ -233,12 +280,38 @@ function interpretModel(
 
     // Relation list field (backrelation) — skip for now, resolved in second pass
     if (field.list && modelNames.has(field.typeName)) {
+      if (excludedModelNames.has(field.typeName)) {
+        diagnostics.push({
+          code: "IDB_EXCLUDED_MODEL_HAS_RELATIONS",
+          message: `Field "${model.name}.${field.name}" is a relation to "${field.typeName}", which is marked @@idb.exclude. Excluding a model that's still referenced by a relation requires cascading FK projection (see ADR 013 — not yet implemented). Remove the relation or the exclusion.`,
+          sourceId,
+          span: field.span,
+        });
+      }
       continue;
     }
 
     // FK-side relation field: non-list, type is a model, has @relation
     const relationAttr = getFieldAttribute(field, "relation");
     if (!field.list && modelNames.has(field.typeName) && relationAttr) {
+      if (excludedFieldNames.has(field.name)) {
+        diagnostics.push({
+          code: "IDB_EXCLUDE_ON_RELATION_FIELD_UNSUPPORTED",
+          message: `Field "${model.name}.${field.name}" is a relation field and cannot be marked @idb.exclude directly. Exclude the target model with @@idb.exclude to drop the relation, or exclude a plain scalar field.`,
+          sourceId,
+          span: field.span,
+        });
+        continue;
+      }
+      if (excludedModelNames.has(field.typeName)) {
+        diagnostics.push({
+          code: "IDB_EXCLUDED_MODEL_HAS_RELATIONS",
+          message: `Field "${model.name}.${field.name}" is a relation to "${field.typeName}", which is marked @@idb.exclude. Excluding a model that's still referenced by a relation requires cascading FK projection (see ADR 013 — not yet implemented). Remove the relation or the exclusion.`,
+          sourceId,
+          span: field.span,
+        });
+        continue;
+      }
       const args = relationAttr.args;
       const localFieldsRaw = findNamedArg(args, "fields");
       const targetFieldsRaw = findNamedArg(args, "references");
@@ -258,6 +331,17 @@ function interpretModel(
         diagnostics.push({
           code: "IDB_INVALID_RELATION",
           message: `Relation field "${model.name}.${field.name}" must have the same number of fields and references.`,
+          sourceId,
+          span: field.span,
+        });
+        continue;
+      }
+
+      const excludedLocalField = localFields.find((f) => excludedFieldNames.has(f));
+      if (excludedLocalField !== undefined) {
+        diagnostics.push({
+          code: "IDB_CANNOT_EXCLUDE_RELATION_FIELD",
+          message: `Field "${model.name}.${excludedLocalField}" backs relation "${model.name}.${field.name}" and cannot be excluded independently — this requires cascading FK projection (see ADR 013 — not yet implemented).`,
           sourceId,
           span: field.span,
         });
@@ -317,6 +401,13 @@ function interpretModel(
     }
 
     // Scalar field
+    if (excludedFieldNames.has(field.name)) {
+      // Dropped from the client contract. Its type isn't validated here —
+      // a server-only field is free to use a type IDB doesn't support at
+      // all, since the client interpreter never needs to represent it.
+      continue;
+    }
+
     const codecId = SCALAR_TO_CODEC_ID[field.typeName];
     if (codecId === undefined) {
       diagnostics.push({
@@ -367,11 +458,23 @@ function interpretModel(
  * - No compound primary keys (IDB `keyPath` must be a single field)
  * - Relations are FK-side (`@relation`) + backrelation list fields
  * - Indexes map directly to `IDBObjectStore.createIndex()` calls
+ *
+ * `options.projection: "client"` additionally strips models/fields marked
+ * `@@idb.exclude`/`@idb.exclude`, producing the projected client contract
+ * (ADR 012). Call this twice — once per projection — to emit both the full
+ * and client `Contract`s from the same schema.
  */
+export interface InterpretPslOptions {
+  /** @default "full" */
+  readonly projection?: ContractProjection;
+}
+
 export function interpretPslDocumentToIdbContract(
   table: SymbolTable,
-  sourceId: string
+  sourceId: string,
+  options?: InterpretPslOptions
 ): Result<Contract<IdbStorage>, ContractSourceDiagnostics> {
+  const projection: ContractProjection = options?.projection ?? "full";
   const diagnostics: ContractSourceDiagnostic[] = [];
 
   // IDB does not support namespace blocks
@@ -385,16 +488,34 @@ export function interpretPslDocumentToIdbContract(
     });
   }
 
-  const allModels = [
+  const allModelsUnprojected = [
     ...Object.values(table.topLevel.models),
     ...explicitNamespaces.flatMap((ns) => Object.values(ns.models)),
   ];
-  const modelNames = new Set(allModels.map((m) => m.name));
+  // Full set, including excluded models — needed so field-type checks below
+  // still recognize a reference to an excluded model as "a relation", not an
+  // unsupported scalar type.
+  const modelNames = new Set(allModelsUnprojected.map((m) => m.name));
+
+  // Models marked `@@idb.exclude`. Empty (no-op) in "full" projection.
+  const excludedModelNames = new Set(
+    projection === "client"
+      ? allModelsUnprojected.filter((m) => hasModelAttribute(m, IDB_EXCLUDE_ATTR)).map((m) => m.name)
+      : []
+  );
+
+  // The models actually interpreted — excluded models are dropped entirely
+  // in "client" projection, never reaching `interpretModel`.
+  const allModels =
+    projection === "client"
+      ? allModelsUnprojected.filter((m) => !excludedModelNames.has(m.name))
+      : allModelsUnprojected;
+
   const interpretedByName = new Map<string, InterpretedModel>();
 
   // First pass: interpret each model individually
   for (const model of allModels) {
-    const result = interpretModel(model, modelNames, sourceId, diagnostics);
+    const result = interpretModel(model, modelNames, sourceId, diagnostics, projection, excludedModelNames);
     if (result) {
       interpretedByName.set(model.name, result);
     }
@@ -407,6 +528,9 @@ export function interpretPslDocumentToIdbContract(
 
     for (const field of Object.values(model.fields)) {
       if (!field.list || !modelNames.has(field.typeName)) continue;
+      // Already reported by the first pass (IDB_EXCLUDED_MODEL_HAS_RELATIONS)
+      // — don't double-report as an unresolved backrelation.
+      if (excludedModelNames.has(field.typeName)) continue;
 
       const targetInterp = interpretedByName.get(field.typeName);
       if (!targetInterp) continue;

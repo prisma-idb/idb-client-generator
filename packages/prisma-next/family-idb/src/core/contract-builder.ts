@@ -8,6 +8,7 @@ import type {
   IdbStorage,
   IdbStoreDefinition,
 } from "@prisma-next-idb/target-idb/pack";
+import type { ContractProjection } from "./psl-interpreter";
 import { validateContract } from "./validate";
 
 // ── Field type system ─────────────────────────────────────────────────────────
@@ -57,6 +58,10 @@ export type ModelDef = {
   readonly fields: Record<string, FieldSpec>;
   readonly indexes?: Record<string, IndexDef>;
   readonly relations?: Record<string, RelationDef>;
+  /** Server-only model — dropped when `defineContract` runs with `{ projection: "client" }`. See ADR 012. */
+  readonly exclude?: boolean;
+  /** Server-only fields on an otherwise-synced model — dropped in client projection. See ADR 012. */
+  readonly excludeFields?: readonly string[];
 };
 
 export type DefineContractInput = {
@@ -66,6 +71,74 @@ export type DefineContractInput = {
   readonly target: { readonly targetId: string; readonly id: string };
   readonly models: Record<string, ModelDef>;
 };
+
+export type DefineContractOptions = {
+  /** @default "full" */
+  readonly projection?: ContractProjection;
+};
+
+/**
+ * Drops `exclude: true` models and `excludeFields` entries for the client
+ * projection (ADR 012). Relation-entangled exclusions (a surviving model
+ * still relating to an excluded one, or excluding a field that backs a
+ * relation) throw — that's ADR 013's cascading FK projection, not yet
+ * implemented.
+ */
+function projectModelsForClient(models: Record<string, ModelDef>): Record<string, ModelDef> {
+  const excludedModelNames = new Set(
+    Object.entries(models)
+      .filter(([, def]) => def.exclude === true)
+      .map(([name]) => name)
+  );
+
+  const result: Record<string, ModelDef> = {};
+
+  for (const [modelName, def] of Object.entries(models)) {
+    if (excludedModelNames.has(modelName)) continue;
+
+    const excludedFields = new Set(def.excludeFields ?? []);
+
+    if (excludedFields.has(def.key)) {
+      throw new Error(
+        `defineContract: model "${modelName}" excludes its own key field "${def.key}" — the client contract needs a primary key for every included model.`
+      );
+    }
+
+    for (const [indexName, idx] of Object.entries(def.indexes ?? {})) {
+      if (excludedFields.has(idx.keyPath)) {
+        throw new Error(
+          `defineContract: model "${modelName}" index "${indexName}" references excluded field "${idx.keyPath}". Remove the index or the exclusion.`
+        );
+      }
+    }
+
+    const relations: Record<string, RelationDef> = {};
+    for (const [relName, rel] of Object.entries(def.relations ?? {})) {
+      if (excludedModelNames.has(rel.to)) {
+        throw new Error(
+          `defineContract: model "${modelName}" relation "${relName}" points at excluded model "${rel.to}". Excluding a model that's still referenced by a relation requires cascading FK projection (see ADR 013 — not yet implemented). Remove the relation or the exclusion.`
+        );
+      }
+      const excludedLocalField = rel.on.local.find((f) => excludedFields.has(f));
+      if (excludedLocalField !== undefined) {
+        throw new Error(
+          `defineContract: model "${modelName}" field "${excludedLocalField}" backs relation "${relName}" and cannot be excluded independently — this requires cascading FK projection (see ADR 013 — not yet implemented).`
+        );
+      }
+      relations[relName] = rel;
+    }
+
+    const fields: Record<string, FieldSpec> = {};
+    for (const [fieldName, spec] of Object.entries(def.fields)) {
+      if (excludedFields.has(fieldName)) continue;
+      fields[fieldName] = spec;
+    }
+
+    result[modelName] = { ...def, fields, relations };
+  }
+
+  return result;
+}
 
 // ── Helper: build ContractField entries from field specs ──────────────────────
 
@@ -186,8 +259,10 @@ function buildModels(models: Record<string, ModelDef>): Record<string, ContractM
  * });
  * ```
  */
-export function defineContract(input: DefineContractInput): Contract<IdbStorage> {
-  const stores = buildStores(input.models);
+export function defineContract(input: DefineContractInput, options?: DefineContractOptions): Contract<IdbStorage> {
+  const projection: ContractProjection = options?.projection ?? "full";
+  const models = projection === "client" ? projectModelsForClient(input.models) : input.models;
+  const stores = buildStores(models);
 
   // Mirror the capability surface that `prisma-next contract emit` writes
   // into the JSON contract — keeps the two authoring paths byte-equivalent
@@ -224,13 +299,13 @@ export function defineContract(input: DefineContractInput): Contract<IdbStorage>
   // v0.12.0: models live under `domain.namespaces.<ns>.models`, not a top-level
   // `models` field.
   const domain = {
-    namespaces: { [ns]: { models: buildModels(input.models) } },
+    namespaces: { [ns]: { models: buildModels(models) } },
   } as unknown as ApplicationDomain;
 
   const contract: Contract<IdbStorage> = {
     target: "idb",
     targetFamily: "idb",
-    roots: buildRoots(input.models),
+    roots: buildRoots(models),
     domain,
     storage,
     capabilities,
