@@ -322,6 +322,37 @@ describe("generateBaseline — spaceId (extension-space mode)", () => {
     expect(markerOp).toBeUndefined();
   });
 
+  it("migration.ts matches ops.json exactly — no marker op, same stores/indexes (drift regression)", async () => {
+    // generate-baseline used to render migration.ts from the planner's
+    // *unfiltered* plan.operations (via plan.renderTypeScript()) while
+    // ops.json/migration.json were written from the *filtered* `ops` that
+    // strips the marker-store op for extension spaces. The two files
+    // silently disagreed: ops.json was correct, but migration.ts still had
+    // the marker-store op. Since migration.ts is meant to be re-run (`node
+    // migration.ts`, the self-emit CLI) to reproduce ops.json/migration.json
+    // byte-for-byte, that drift meant re-running it would emit a *different*
+    // ops.json — with a different migrationHash — than what's committed.
+    // Both files are now rendered from the same filtered `ops`; assert they
+    // describe the same operations.
+    await generateBaseline({ cwd, spaceId: "idb-sync" });
+    const ops = await readExtensionOps(cwd);
+    const ts = await readExtensionMigrationTs(cwd);
+
+    expect(ts).not.toContain("_prisma_next_marker");
+
+    const storeNames = ops.filter((op) => op.kind === "createObjectStore").map((op) => op.storeName);
+    expect(storeNames.length).toBeGreaterThan(0);
+    for (const name of storeNames) {
+      expect(ts).toContain(`createObjectStoreOp(${JSON.stringify(name)}`);
+    }
+
+    const indexOps = ops.filter((op) => op.kind === "createIndex");
+    expect(indexOps.length).toBeGreaterThan(0);
+    for (const op of indexOps) {
+      expect(ts).toContain(`createIndexOp(${JSON.stringify(op.storeName)}, ${JSON.stringify(op.indexName)}`);
+    }
+  });
+
   it("still includes createObjectStore/createIndex ops for the space's own models", async () => {
     await generateBaseline({ cwd, spaceId: "idb-sync" });
     const ops = await readExtensionOps(cwd);
@@ -451,4 +482,13 @@ async function readExtensionOps(cwd: string): Promise<ParsedOp[]> {
   const dirs = entries.filter((e) => e.isDirectory() && e.name !== "refs");
   if (dirs.length !== 1) throw new Error(`Expected exactly 1 package dir, got ${dirs.length}`);
   return JSON.parse(await readFile(join(migrationsDir, dirs[0]!.name, "ops.json"), "utf-8")) as ParsedOp[];
+}
+
+/** Like {@link readMigrationTs} but for extension-space mode (package dir sits directly under migrations/). */
+async function readExtensionMigrationTs(cwd: string): Promise<string> {
+  const migrationsDir = join(cwd, "migrations");
+  const entries = await readdir(migrationsDir, { withFileTypes: true });
+  const dirs = entries.filter((e) => e.isDirectory() && e.name !== "refs");
+  if (dirs.length !== 1) throw new Error(`Expected exactly 1 package dir, got ${dirs.length}`);
+  return readFile(join(migrationsDir, dirs[0]!.name, "migration.ts"), "utf-8");
 }

@@ -1,6 +1,6 @@
 import { copyFile, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import type { IdbMigrationPlanWithAuthoring } from "@prisma-next-idb/target-idb/migration";
-import { IdbMigrationPlanner } from "@prisma-next-idb/target-idb/migration";
+import { IdbMigrationPlanner, renderMigrationTs } from "@prisma-next-idb/target-idb/migration";
 import { computeMigrationHash } from "@prisma-next/migration-tools/hash";
 import { formatMigrationDirName } from "@prisma-next/migration-tools/io";
 import { deriveProvidedInvariants } from "@prisma-next/migration-tools/invariants";
@@ -130,8 +130,8 @@ export async function generateBaseline(opts: GenerateBaselineOptions): Promise<n
         "Baseline generation is only for fresh projects with no migration history.\n" +
         (isAppSpace
           ? "Use `prisma-next migration plan` to add a new migration to the existing chain.\n"
-          : "Extension-space incremental migrations aren't CLI-generated yet — hand-author the next " +
-            "package under migrations/ following the existing baseline's shape (ADR 212 Path B).\n")
+          : "Use `prisma-next-idb generate-migration --name <slug> --space " +
+            `${spaceId}\` to add the next migration to this space's chain.\n`)
     );
     return 1;
   }
@@ -231,8 +231,11 @@ export async function generateBaseline(opts: GenerateBaselineOptions): Promise<n
 
   // migration.ts — human-editable class-based scaffold.  Running it with
   // `node migration.ts` self-emits updated ops.json + migration.json if the
-  // developer modifies the operations getter.
-  await writeFile(join(packageDir, "migration.ts"), plan.renderTypeScript(), "utf-8");
+  // developer modifies the operations getter. Rendered from the filtered
+  // `ops` (not `plan.renderTypeScript()`, which always renders
+  // `plan.operations`) so extension-space baselines don't re-emit the
+  // stripped marker-store op and drift from ops.json/migrationHash on rerun.
+  await writeFile(join(packageDir, "migration.ts"), renderMigrationTs({ fromHash: null, toHash, ops }), "utf-8");
 
   // end-contract.json — snapshot of the contract state after this migration.
   // For the baseline, this is identical to the current contract.json.
