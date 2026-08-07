@@ -51,7 +51,7 @@ import manifest from "../prisma-idb.manifest.json" with { type: "json" };
 const db = await createAutoMigratingIdbClient({ contract, dbName: "my-app", manifest });
 ```
 
-> **Note.** The command names above (`prisma-next db sign/verify`, `prisma-next migration new`, the `prisma-idb.manifest.json` bridge) predate the Phase 7 rewrite. The current IDB-specific CLI is `prisma-next-idb generate-baseline` / `generate-migration` / `generate-contract-space` / `preflight` (`family-idb/src/bin/prisma-next-idb.ts`) and there is no manifest file — the concepts below (Path B as the hand-authorable, git-tracked path; `migration.ts` as its editable source) still hold, just under different command names.
+> **Note.** The command names above (`prisma-next db sign/verify`, `prisma-next migration new`, the `prisma-idb.manifest.json` bridge) predate the Phase 7 rewrite. The current IDB-specific CLI is `prisma-next-idb generate-baseline` / `generate-migration` / `generate-contract-space` / `preflight` (`family-idb/src/bin/prisma-next-idb.ts`) and there is no manifest file — the concepts below (Path B as the hand-authorable, git-tracked path; `migration.ts` as its editable source) still hold, just under different command names. This applies to every remaining reference to `prisma-idb.manifest.json`, `prisma.config.ts`, and the `prisma-next db …`/`prisma-next migration …` commands for the rest of this document (the "Shared infrastructure" diagram, the `dbName` section, and the Consequences below) — they're kept as originally written since the manifest-vs-`storageHash` and `dbName`-as-space-boundary reasoning is unchanged, only the concrete filenames/commands are historical.
 
 ### `migration.ts` must round-trip exactly
 

@@ -156,6 +156,49 @@ describe("defineContract — @idb.exclude projection (ADR 012)", () => {
     ).toThrow(/cannot be excluded independently/);
   });
 
+  it("throws when a relation references an excluded unique field on the target model", () => {
+    expect(() =>
+      defineContract(
+        {
+          family: idbFamilyPack,
+          target: idbTargetPack,
+          models: {
+            User: {
+              store: "users",
+              key: "id",
+              fields: { id: "String", email: "String" },
+              excludeFields: ["email"],
+            },
+            Post: {
+              store: "posts",
+              key: "id",
+              fields: { id: "String", userEmail: "String" },
+              relations: {
+                user: { to: "User", cardinality: "N:1", on: { local: ["userEmail"], target: ["email"] } },
+              },
+            },
+          },
+        },
+        { projection: "client" }
+      )
+    ).toThrow(/references excluded field/);
+  });
+
+  it("throws when excludeFields references a field not declared on the model", () => {
+    expect(() =>
+      defineContract(
+        {
+          family: idbFamilyPack,
+          target: idbTargetPack,
+          models: {
+            User: { store: "users", key: "id", fields: { id: "String" }, excludeFields: ["typoField"] },
+          },
+        },
+        { projection: "client" }
+      )
+    ).toThrow(/unknown field/);
+  });
+
   it("excludes a self-contained model with no relations cleanly", () => {
     const contract = defineContract(
       {

@@ -59,7 +59,7 @@ A SvelteKit or Next.js app has one package straddling both sides, so "where does
 
 The schema source lives in a **third package**, depended on by both, depended on by neither of them. That package owns the `.prisma`/TS schema and runs `family-idb`'s emit step (the same two-pass interpretation this ADR already specifies) as its own build step, publishing both outputs under one package name with two subpath exports:
 
-```
+```text
 @myapp/schema/
   package.json
     "exports": {

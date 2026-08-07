@@ -134,7 +134,8 @@ function interpretModel(
   sourceId: string,
   diagnostics: ContractSourceDiagnostic[],
   projection: ContractProjection,
-  excludedModelNames: ReadonlySet<string>
+  excludedModelNames: ReadonlySet<string>,
+  excludedFieldNamesByModel: ReadonlyMap<string, ReadonlySet<string>>
 ): InterpretedModel | undefined {
   const modelFields = Object.values(model.fields);
   // Fields marked `@idb.exclude`. Empty (no-op) in "full" projection — the
@@ -348,6 +349,20 @@ function interpretModel(
         continue;
       }
 
+      const targetExcludedFields = excludedFieldNamesByModel.get(field.typeName);
+      const excludedTargetField = targetExcludedFields
+        ? targetFields.find((f) => targetExcludedFields.has(f))
+        : undefined;
+      if (excludedTargetField !== undefined) {
+        diagnostics.push({
+          code: "IDB_CANNOT_EXCLUDE_RELATION_FIELD",
+          message: `Field "${field.typeName}.${excludedTargetField}" is referenced by relation "${model.name}.${field.name}" and cannot be excluded independently — this requires cascading FK projection (see ADR 013 — not yet implemented).`,
+          sourceId,
+          span: field.span,
+        });
+        continue;
+      }
+
       const onDeleteRaw = findNamedArg(args, "onDelete");
       const onDelete = onDeleteRaw ? REFERENTIAL_ACTION_MAP[onDeleteRaw.trim()] : undefined;
 
@@ -402,6 +417,14 @@ function interpretModel(
 
     // Scalar field
     if (excludedFieldNames.has(field.name)) {
+      if (hasFieldAttribute(field, "unique")) {
+        diagnostics.push({
+          code: "IDB_INDEX_ON_EXCLUDED_FIELD",
+          message: `Field "${model.name}.${field.name}" is marked @unique but also @idb.exclude. Remove the @unique attribute or the exclusion.`,
+          sourceId,
+          span: field.span,
+        });
+      }
       // Dropped from the client contract. Its type isn't validated here —
       // a server-only field is free to use a type IDB doesn't support at
       // all, since the client interpreter never needs to represent it.
@@ -511,11 +534,36 @@ export function interpretPslDocumentToIdbContract(
       ? allModelsUnprojected.filter((m) => !excludedModelNames.has(m.name))
       : allModelsUnprojected;
 
+  // Field-level exclusions, keyed by model name, so a relation's `references:`
+  // fields can be checked against the *target* model's exclusions (a model
+  // may not itself be excluded but still have an excluded field a relation
+  // points at).
+  const excludedFieldNamesByModel = new Map<string, ReadonlySet<string>>(
+    projection === "client"
+      ? allModelsUnprojected.map((m) => [
+          m.name,
+          new Set(
+            Object.values(m.fields)
+              .filter((f) => hasFieldAttribute(f, IDB_EXCLUDE_ATTR))
+              .map((f) => f.name)
+          ),
+        ])
+      : []
+  );
+
   const interpretedByName = new Map<string, InterpretedModel>();
 
   // First pass: interpret each model individually
   for (const model of allModels) {
-    const result = interpretModel(model, modelNames, sourceId, diagnostics, projection, excludedModelNames);
+    const result = interpretModel(
+      model,
+      modelNames,
+      sourceId,
+      diagnostics,
+      projection,
+      excludedModelNames,
+      excludedFieldNamesByModel
+    );
     if (result) {
       interpretedByName.set(model.name, result);
     }

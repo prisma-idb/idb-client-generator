@@ -494,7 +494,7 @@ describe("interpretPslDocumentToIdbContract", () => {
       );
       expect(result.ok).toBe(false);
       if (result.ok) return;
-      expect(result.failure.diagnostics[0]!.code).toBe("IDB_CANNOT_EXCLUDE_KEY_FIELD");
+      expect(result.failure.diagnostics.map((d) => d.code)).toContain("IDB_CANNOT_EXCLUDE_KEY_FIELD");
     });
 
     it("errors when an @@index/@@unique references an excluded field", () => {
@@ -510,7 +510,22 @@ describe("interpretPslDocumentToIdbContract", () => {
       );
       expect(result.ok).toBe(false);
       if (result.ok) return;
-      expect(result.failure.diagnostics[0]!.code).toBe("IDB_INDEX_ON_EXCLUDED_FIELD");
+      expect(result.failure.diagnostics.map((d) => d.code)).toContain("IDB_INDEX_ON_EXCLUDED_FIELD");
+    });
+
+    it("errors when a field-level @unique is combined with @idb.exclude", () => {
+      const result = interpret(
+        `
+        model User {
+          id    String @id
+          email String @unique @idb.exclude
+        }
+      `,
+        "client"
+      );
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics.map((d) => d.code)).toContain("IDB_INDEX_ON_EXCLUDED_FIELD");
     });
 
     it("errors when a surviving model still relates to an excluded model (FK side)", () => {
@@ -552,7 +567,7 @@ describe("interpretPslDocumentToIdbContract", () => {
       );
       expect(result.ok).toBe(false);
       if (result.ok) return;
-      expect(result.failure.diagnostics[0]!.code).toBe("IDB_EXCLUDED_MODEL_HAS_RELATIONS");
+      expect(result.failure.diagnostics.map((d) => d.code)).toContain("IDB_EXCLUDED_MODEL_HAS_RELATIONS");
     });
 
     it("errors when excluding a scalar field that backs a relation's FK", () => {
@@ -572,7 +587,7 @@ describe("interpretPslDocumentToIdbContract", () => {
       );
       expect(result.ok).toBe(false);
       if (result.ok) return;
-      expect(result.failure.diagnostics[0]!.code).toBe("IDB_CANNOT_EXCLUDE_RELATION_FIELD");
+      expect(result.failure.diagnostics.map((d) => d.code)).toContain("IDB_CANNOT_EXCLUDE_RELATION_FIELD");
     });
 
     it("errors when @idb.exclude is placed directly on a relation field", () => {
@@ -592,7 +607,27 @@ describe("interpretPslDocumentToIdbContract", () => {
       );
       expect(result.ok).toBe(false);
       if (result.ok) return;
-      expect(result.failure.diagnostics[0]!.code).toBe("IDB_EXCLUDE_ON_RELATION_FIELD_UNSUPPORTED");
+      expect(result.failure.diagnostics.map((d) => d.code)).toContain("IDB_EXCLUDE_ON_RELATION_FIELD_UNSUPPORTED");
+    });
+
+    it("errors when a relation references an excluded unique field on the target model", () => {
+      const result = interpret(
+        `
+        model User {
+          id    String @id
+          email String @unique @idb.exclude
+        }
+        model Post {
+          id        String @id
+          userEmail String
+          user      User   @relation(fields: [userEmail], references: [email])
+        }
+      `,
+        "client"
+      );
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics.map((d) => d.code)).toContain("IDB_CANNOT_EXCLUDE_RELATION_FIELD");
     });
 
     it("excludes a self-contained model with no relations cleanly", () => {

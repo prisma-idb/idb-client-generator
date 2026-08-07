@@ -104,6 +104,15 @@ function projectModelsForClient(models: Record<string, ModelDef>): Record<string
       );
     }
 
+    for (const excludedField of excludedFields) {
+      if (excludedField === def.key) continue;
+      if (!(excludedField in def.fields)) {
+        throw new Error(
+          `defineContract: model "${modelName}" excludeFields references unknown field "${excludedField}" — it is not declared in "fields".`
+        );
+      }
+    }
+
     for (const [indexName, idx] of Object.entries(def.indexes ?? {})) {
       if (excludedFields.has(idx.keyPath)) {
         throw new Error(
@@ -123,6 +132,13 @@ function projectModelsForClient(models: Record<string, ModelDef>): Record<string
       if (excludedLocalField !== undefined) {
         throw new Error(
           `defineContract: model "${modelName}" field "${excludedLocalField}" backs relation "${relName}" and cannot be excluded independently — this requires cascading FK projection (see ADR 013 — not yet implemented).`
+        );
+      }
+      const targetExcludedFields = new Set(models[rel.to]?.excludeFields ?? []);
+      const excludedTargetField = rel.on.target.find((f) => targetExcludedFields.has(f));
+      if (excludedTargetField !== undefined) {
+        throw new Error(
+          `defineContract: model "${modelName}" relation "${relName}" references excluded field "${rel.to}.${excludedTargetField}" — this requires cascading FK projection (see ADR 013 — not yet implemented).`
         );
       }
       relations[relName] = rel;
