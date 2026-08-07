@@ -16,6 +16,7 @@
     "test:e2e:install": "playwright install",
     "test": "pnpm test:e2e",
     "contract:emit": "prisma-next contract emit",
+    "contract:emit:server": "prisma-next contract emit --config prisma-next.config.server.ts",
     "migration:baseline": "prisma-next-idb generate-baseline",
     "migration:generate": "prisma-next-idb generate-migration",
     "migration:generate-space": "prisma-next-idb generate-contract-space",

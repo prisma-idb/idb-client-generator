@@ -18,13 +18,16 @@ export default defineConfig([
   // reproducibility but shouldn't be linted (they use `{}` etc. by design).
   {
     ignores: [
-      // contract emit artifacts (contract.json + contract.d.ts)
-      "**/src/lib/prisma/contract.d.ts",
-      "**/src/lib/prisma/contract.json",
+      // contract emit artifacts (contract.json + contract.d.ts) — includes
+      // ADR 012 dual-projection outputs (contract.server.json/.d.ts, emitted
+      // alongside the default client contract.json/.d.ts from the same
+      // schema with `projection: "full"`)
+      "**/src/lib/prisma/contract*.d.ts",
+      "**/src/lib/prisma/contract*.json",
       // same artifacts, ADR 212 contract-space package layout (extension
       // packages keep contract source directly under src/, no lib/prisma/)
-      "**/src/contract.d.ts",
-      "**/src/contract.json",
+      "**/src/contract*.d.ts",
+      "**/src/contract*.json",
       // migration package artifacts — all *.d.ts and *.json files inside
       // migrations/<space>/<pkg>/; migration.ts is intentionally left lintable
       // since it's the human-editable scaffold.

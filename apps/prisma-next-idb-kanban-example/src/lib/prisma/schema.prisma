@@ -1,8 +1,20 @@
 model User {
-  id     String  @id
-  name   String
-  email  String? @unique
-  boards Board[]
+  id           String  @id
+  name         String
+  email        String? @unique
+  // Server-only: never synced to the client's IndexedDB (ADR 012).
+  passwordHash String  @idb.exclude
+  boards       Board[]
+}
+
+// Server-only audit trail. Excluded wholesale — no relations to any synced
+// model, so it needs none of ADR 013's cascading FK projection (ADR 012).
+model AuditLog {
+  id        String   @id
+  action    String
+  createdAt DateTime
+
+  @@idb.exclude
 }
 
 model Board {
