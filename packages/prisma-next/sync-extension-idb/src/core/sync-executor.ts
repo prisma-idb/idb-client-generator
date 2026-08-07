@@ -32,6 +32,7 @@ import type {
   IdbPlanBody,
 } from "@prisma-next-idb/driver-idb/runtime";
 import { getKeyPath, getStoreName } from "@prisma-next-idb/client-idb/orm";
+import type { OutboxEvent } from "../types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -55,21 +56,14 @@ function isMutationAst(ast: IdbQueryAst): ast is MutationAst {
 
 // ── Outbox record builders ────────────────────────────────────────────────────
 
-interface OutboxRecord {
-  id: string;
-  entityType: string;
-  operation: string;
-  payload: unknown;
-  createdAt: Date;
-  synced: boolean;
-  syncedAt: null;
-  lastAttemptedAt: null;
-  tries: number;
-  lastError: null;
-  retryable: boolean;
-}
+type OutboxRecord = OutboxEvent;
 
-function buildOutboxRecord(modelName: string, operation: string, payload: unknown): OutboxRecord {
+function buildOutboxRecord(
+  modelName: string,
+  operation: string,
+  payload: unknown,
+  versionMetaId: string | null
+): OutboxRecord {
   return {
     id: crypto.randomUUID(),
     entityType: modelName,
@@ -82,6 +76,7 @@ function buildOutboxRecord(modelName: string, operation: string, payload: unknow
     tries: 0,
     lastError: null,
     retryable: true,
+    versionMetaId,
   };
 }
 
@@ -89,13 +84,14 @@ function outboxAddOp(
   modelName: string,
   operation: string,
   payload: unknown,
+  versionMetaId: string | null,
   meta: IdbQueryPlan<unknown>["meta"]
 ): IdbAddPlan {
   return {
     meta,
     kind: "add",
     storeName: OUTBOX_STORE,
-    record: buildOutboxRecord(modelName, operation, payload) as unknown as Record<string, unknown>,
+    record: buildOutboxRecord(modelName, operation, payload, versionMetaId) as unknown as Record<string, unknown>,
   };
 }
 
@@ -276,7 +272,8 @@ export class SyncInterceptorExecutor implements IdbQueryExecutor {
     const originalOps = flattenToOps(plan.idbPlan);
     const originalStores = storeNamesOf(plan.idbPlan);
 
-    const extraOps: IdbAtomicPlan[] = [outboxAddOp(modelName, operation, payload, meta)];
+    const versionMetaId = key !== undefined ? versionMetaKey(modelName, key) : null;
+    const extraOps: IdbAtomicPlan[] = [outboxAddOp(modelName, operation, payload, versionMetaId, meta)];
     if (key !== undefined) {
       extraOps.push(versionMetaPutOp(modelName, key, meta));
     }

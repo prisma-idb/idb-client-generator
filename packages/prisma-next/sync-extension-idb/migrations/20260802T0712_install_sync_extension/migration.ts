@@ -11,10 +11,12 @@ export default class M extends Migration {
 
   override get operations() {
     return [
-      createObjectStoreOp("_prisma_next_marker", { keyPath: "space" }),
-      createObjectStoreOp("_idb_sync_outbox", { keyPath: "id" }),
-      createIndexOp("_idb_sync_outbox", "byCreatedAt", { keyPath: "createdAt", unique: false }),
-      createIndexOp("_idb_sync_outbox", "bySynced", { keyPath: "synced", unique: false }),
+      createObjectStoreOp("_idb_sync_outbox", {
+        keyPath: "id",
+        indexes: { byCreatedAt: { keyPath: "createdAt" }, bySynced: { keyPath: "synced" } },
+      }),
+      createIndexOp("_idb_sync_outbox", "byCreatedAt", { keyPath: "createdAt" }),
+      createIndexOp("_idb_sync_outbox", "bySynced", { keyPath: "synced" }),
       createObjectStoreOp("_idb_sync_version_meta", { keyPath: "id" }),
     ];
   }

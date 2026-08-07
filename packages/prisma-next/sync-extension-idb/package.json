@@ -16,8 +16,14 @@
   },
   "type": "module",
   "exports": {
-    "./control": "./dist/control.mjs",
-    "./client": "./dist/client.mjs",
+    "./control": {
+      "types": "./dist/control.d.mts",
+      "default": "./dist/control.mjs"
+    },
+    "./client": {
+      "types": "./dist/client.d.mts",
+      "default": "./dist/client.mjs"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {

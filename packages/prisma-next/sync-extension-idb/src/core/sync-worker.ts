@@ -16,9 +16,9 @@ export type SyncWorkerStatus = "idle" | "pushing" | "pulling" | "error" | "stopp
 export interface SyncWorkerOptions<TContract extends IdbContract> {
   readonly syncClient: SyncIdbClient<TContract>;
   /** Called with a batch of unsynced events. Must return per-event results. */
-  readonly pushHandler: (events: OutboxEvent[]) => Promise<PushResult[]>;
+  readonly pushHandler: (events: OutboxEvent[], signal: AbortSignal) => Promise<PushResult[]>;
   /** Called with the last applied changelog ID (null if none). Returns new logs. */
-  readonly pullHandler: (fromChangelogId: string | null) => Promise<LogWithRecord[]>;
+  readonly pullHandler: (fromChangelogId: string | null, signal: AbortSignal) => Promise<LogWithRecord[]>;
   /** Max events per push batch. Default 20. */
   readonly batchSize?: number;
   /** Milliseconds between sync cycles when idle. Default 5000. */
@@ -27,6 +27,39 @@ export interface SyncWorkerOptions<TContract extends IdbContract> {
   readonly backoffBaseMs?: number;
   /** Max backoff cap in ms. Default 30000. */
   readonly backoffMaxMs?: number;
+  /**
+   * Max time in ms to wait for `pushHandler`/`pullHandler` to settle before
+   * failing the cycle. Without this, a hung request never resolves, no
+   * timer is rescheduled, and the worker stalls in "pushing"/"pulling"
+   * indefinitely. Default 30000.
+   */
+  readonly requestTimeoutMs?: number;
+}
+
+/**
+ * Rejects with a timeout error if `makePromise` doesn't settle within `ms`.
+ * `makePromise` receives an `AbortSignal` that is aborted on timeout, so the
+ * underlying request (e.g. a `fetch` call) can be cancelled instead of left
+ * running after we've already given up on it.
+ */
+function withTimeout<T>(makePromise: (signal: AbortSignal) => Promise<T>, ms: number, label: string): Promise<T> {
+  const controller = new AbortController();
+  return new Promise((resolve, reject) => {
+    const timeoutHandle = setTimeout(() => {
+      controller.abort();
+      reject(new Error(`SyncWorker: ${label} timed out after ${ms}ms`));
+    }, ms);
+    makePromise(controller.signal).then(
+      (value) => {
+        clearTimeout(timeoutHandle);
+        resolve(value);
+      },
+      (err: unknown) => {
+        clearTimeout(timeoutHandle);
+        reject(err);
+      }
+    );
+  });
 }
 
 export interface PushCompletedEvent {
@@ -68,6 +101,7 @@ export function createSyncWorker<TContract extends IdbContract>(options: SyncWor
     intervalMs = 5_000,
     backoffBaseMs = 1_000,
     backoffMaxMs = 30_000,
+    requestTimeoutMs = 30_000,
   } = options;
 
   let status: SyncWorkerStatus = "idle";
@@ -75,6 +109,10 @@ export function createSyncWorker<TContract extends IdbContract>(options: SyncWor
   let timer: ReturnType<typeof setTimeout> | null = null;
   let consecutiveFailures = 0;
   let lastChangelogId: string | null = null;
+  // Shared across tick() and forceSync() so at most one push/pull cycle runs
+  // at a time — otherwise both can call getNextBatch concurrently and push
+  // the same unsynced events twice.
+  let inFlightCycle: Promise<void> | null = null;
 
   const listeners = new Map<keyof SyncEventMap, Set<(payload: unknown) => void>>();
 
@@ -98,7 +136,7 @@ export function createSyncWorker<TContract extends IdbContract>(options: SyncWor
     if (events.length > 0) {
       let pushSynced = 0;
       let pushFailed = 0;
-      const results = await pushHandler(events);
+      const results = await withTimeout((signal) => pushHandler(events, signal), requestTimeoutMs, "pushHandler");
       await syncClient.withTransaction(["_idb_sync_outbox", "_idb_sync_version_meta"], async (scope) => {
         for (const result of results) {
           if (result.success) {
@@ -115,7 +153,7 @@ export function createSyncWorker<TContract extends IdbContract>(options: SyncWor
 
     // ── Pull ─────────────────────────────────────────────────────────────────
     setStatus("pulling");
-    const logs = await pullHandler(lastChangelogId);
+    const logs = await withTimeout((signal) => pullHandler(lastChangelogId, signal), requestTimeoutMs, "pullHandler");
 
     if (logs.length > 0) {
       const { applied, skipped, lastChangelogId: newId } = await applyPull(syncClient, logs);
@@ -126,22 +164,47 @@ export function createSyncWorker<TContract extends IdbContract>(options: SyncWor
     }
   }
 
+  /** Runs `runCycle`, joining an already-in-flight cycle instead of starting a second one. */
+  function runExclusive(): Promise<void> {
+    if (inFlightCycle !== null) return inFlightCycle;
+    inFlightCycle = runCycle().finally(() => {
+      inFlightCycle = null;
+    });
+    return inFlightCycle;
+  }
+
+  /** Sets `timer`, clearing it to `null` right before `tick` runs so tick's own reschedule guard works. */
+  function scheduleTick(delay: number): void {
+    timer = setTimeout(() => {
+      timer = null;
+      void tick();
+    }, delay);
+  }
+
   async function tick(): Promise<void> {
     if (stopped) return;
     try {
-      await runCycle();
+      await runExclusive();
+      // stop() may have run while runExclusive() was in flight; don't
+      // clobber the "stopped" status it already set.
+      if (stopped) return;
       consecutiveFailures = 0;
       setStatus("idle");
     } catch {
+      if (stopped) return;
       consecutiveFailures++;
       setStatus("error");
     }
-    if (!stopped) {
+    // Guarded by `timer === null` because forceSync() may have already
+    // rescheduled while this cycle was in flight (shared via runExclusive) —
+    // without the guard both continuations would set `timer`, leaking the
+    // first one uncleared.
+    if (!stopped && timer === null) {
       const backoff = Math.min(
         consecutiveFailures > 0 ? backoffBaseMs * Math.pow(2, consecutiveFailures - 1) : intervalMs,
         backoffMaxMs
       );
-      timer = setTimeout(() => void tick(), backoff);
+      scheduleTick(backoff);
     }
   }
 
@@ -150,7 +213,7 @@ export function createSyncWorker<TContract extends IdbContract>(options: SyncWor
       return status;
     },
     start() {
-      if (stopped || timer !== null) return;
+      if (timer !== null) return;
       stopped = false;
       void tick();
     },
@@ -167,9 +230,18 @@ export function createSyncWorker<TContract extends IdbContract>(options: SyncWor
         clearTimeout(timer);
         timer = null;
       }
-      await runCycle();
-      if (!stopped) {
-        timer = setTimeout(() => void tick(), intervalMs);
+      try {
+        await runExclusive();
+        // stop() may have run while runExclusive() was in flight; don't
+        // clobber the "stopped" status it already set.
+        if (!stopped) {
+          consecutiveFailures = 0;
+          setStatus("idle");
+        }
+      } finally {
+        if (!stopped && timer === null) {
+          scheduleTick(intervalMs);
+        }
       }
     },
     on<K extends keyof SyncEventMap>(event: K, cb: (payload: SyncEventMap[K]) => void): () => void {

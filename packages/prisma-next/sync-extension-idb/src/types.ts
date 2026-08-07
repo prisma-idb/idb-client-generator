@@ -11,6 +11,14 @@ export interface OutboxEvent {
   tries: number;
   lastError: string | null;
   retryable: boolean;
+  /**
+   * The `_idb_sync_version_meta` record id this event's mutation was keyed
+   * under (same value as `versionMetaKey(modelName, key)`), or `null` when
+   * the key couldn't be determined statically (scan-writes, upsert, bulk
+   * ops — see `extractKey` in `sync-executor.ts`). `markSynced` reads this
+   * back to clear `localChangePending` on the matching version-meta row.
+   */
+  versionMetaId: string | null;
 }
 
 /** Version-meta record stored in `_idb_sync_version_meta`. */

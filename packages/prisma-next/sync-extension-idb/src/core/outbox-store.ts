@@ -68,8 +68,16 @@ export async function markSynced(scope: IdbTransactionScope, id: string): Promis
       syncedAt: new Date(),
     } as unknown as Record<string, unknown>,
   } as unknown as IdbAtomicPlan);
-  // Clear the localChangePending flag in version meta if it was set.
-  const metaId = `${existing.entityType}::${JSON.stringify((existing.payload as Record<string, unknown>)?.["id"] ?? id)}`;
+  // Clear the localChangePending flag in version meta if it was set. Read
+  // the id persisted at write time (`SyncInterceptorExecutor`'s
+  // `versionMetaKey(modelName, key)`) rather than re-deriving it from the
+  // payload — the payload shape differs per operation (create/update/delete)
+  // and re-deriving it here previously matched only `create` on models keyed
+  // by a literal `id` field, so `localChangePending` never cleared for
+  // update/delete and `applyPull` skipped all future server changes for
+  // that record.
+  const metaId = existing.versionMetaId;
+  if (metaId === null || metaId === undefined) return;
   const metaRows = await scope.execute({
     kind: "key-get",
     storeName: VERSION_META,

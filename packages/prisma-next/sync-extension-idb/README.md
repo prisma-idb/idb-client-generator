@@ -64,14 +64,14 @@ The `SyncWorker` picks up unsynced events, sends them to your push endpoint in b
 Some writes should never reach the server: temporary UI state, draft records, or data loaded from the server via `applyPull`. Pass a callback to `withoutTracking` to use the raw ORM directly — no outbox events, no version meta updates.
 
 ```ts
-await db.withoutTracking((orm) => {
+await db.withoutTracking(async (orm) => {
   await orm.localNotes.create({ id: "draft-1", body: "..." });
 });
 ```
 
 ### Extension Migrations
 
-The `migrations/` directory in this package contains the baseline migration for the `idb-sync` contract space. It creates `_idb_sync_outbox` and `_idb_sync_version_meta` independently of your app's stores. When you pass `idbSyncExtension` to `createAutoMigratingIdbClient`, the runner applies this baseline (and any future extension migrations) in a separate `upgradeneeded` pass — keyed by `space: "idb-sync"` in `_prisma_next_marker` so it versions independently from your app schema.
+The `migrations/` directory in this package contains the baseline migration for the `idb-sync` contract space. It creates `_idb_sync_outbox` and `_idb_sync_version_meta` independently of your app's stores. When you pass `idbSyncExtension` to `createAutoMigratingIdbClient`, the runner applies this baseline (and any future extension migrations) together with your app schema in a single combined `upgradeneeded` transaction (see ADR 010) — keyed by `space: "idb-sync"` in `_prisma_next_marker` so it versions independently from your app schema.
 
 You never need to generate or edit these migrations manually. Future versions of the package ship updated migration chains automatically.
 
