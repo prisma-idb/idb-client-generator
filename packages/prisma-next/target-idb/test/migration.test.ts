@@ -373,18 +373,38 @@ describe("IdbMigrationPlanner", () => {
     expect(src).toContain("from: null");
   });
 
-  it("renderTypeScript() defaults missing unique to false (regression)", () => {
-    // The contract canonicaliser may strip `unique: false` from indexes
-    // (default-stripping). Previously the renderer wrote `unique: undefined`,
-    // which is sloppy output and a type error under exactOptionalPropertyTypes.
+  it("renderTypeScript() round-trips unique/multiEntry/indexes exactly (regression)", () => {
+    // Two related bugs, same root cause: `renderOpCall` used to (a) default
+    // a missing `unique` to `false` and always render it, and (b) drop
+    // `def.indexes` on createObjectStore entirely. Both make `node
+    // migration.ts` (the self-emit CLI) reproduce a different `ops.json`
+    // than the one the planner originally wrote — `JSON.stringify` omits an
+    // `undefined` key but keeps an explicit `false`, and dropped data can't
+    // come back — so the recomputed `migrationHash` silently diverges from
+    // what's on disk. This snapshot pins the full rendered source across
+    // every `unique`/`multiEntry`/`indexes` combination the planner can
+    // produce, so any future change to the renderer that reintroduces
+    // either asymmetry shows up as a snapshot diff.
+    //
+    // - `byAuthorId` (posts): no `unique` — the contract canonicaliser
+    //   strips `unique: false` (default-stripping), so this exercises the
+    //   omitted-key path that must stay omitted, not defaulted.
+    // - `byEmail` (posts): explicit `unique: true`.
+    // - `byTag` (posts): `multiEntry: true`.
+    // - `posts`'s own createObjectStore def carries `indexes` (embedded by
+    //   `diffIdbSchema`, which passes the whole store definition through)
+    //   — this must survive rendering even though it's inert at apply time.
     const contract = {
       storage: {
         storageHash: "x",
         stores: {
           posts: {
             keyPath: "id",
-            // No `unique` field — exercises the default path.
-            indexes: { byAuthorId: { keyPath: "authorId" } },
+            indexes: {
+              byAuthorId: { keyPath: "authorId" },
+              byEmail: { keyPath: "email", unique: true },
+              byTag: { keyPath: "tags", multiEntry: true },
+            },
           },
         },
       },
@@ -399,8 +419,32 @@ describe("IdbMigrationPlanner", () => {
     });
     if (result.kind !== "success") throw new Error("expected success");
     const src = result.plan.renderTypeScript();
-    expect(src).toContain("unique: false");
-    expect(src).not.toContain("unique: undefined");
+    expect(src).toMatchInlineSnapshot(`
+      "#!/usr/bin/env -S npx tsx
+      import { Migration, MigrationCLI, createIndexOp, createObjectStoreOp } from "@prisma-next-idb/target-idb/migration";
+
+      export default class M extends Migration {
+        override describe() {
+          return {
+            from: null,
+            to: "x",
+          };
+        }
+
+        override get operations() {
+          return [
+            createObjectStoreOp("_prisma_next_marker", { keyPath: "space" }),
+            createObjectStoreOp("posts", { keyPath: "id", indexes: { "byAuthorId": { keyPath: "authorId" }, "byEmail": { keyPath: "email", unique: true }, "byTag": { keyPath: "tags", multiEntry: true } } }),
+            createIndexOp("posts", "byAuthorId", { keyPath: "authorId" }),
+            createIndexOp("posts", "byEmail", { keyPath: "email", unique: true }),
+            createIndexOp("posts", "byTag", { keyPath: "tags", multiEntry: true }),
+          ];
+        }
+      }
+
+      MigrationCLI.run(import.meta.url, M);
+      "
+    `);
   });
 
   it("emptyMigration() returns a stub plan with no ops", () => {

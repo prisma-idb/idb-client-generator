@@ -225,9 +225,12 @@ export function openAndUpgrade(input: {
         if (input.markers !== undefined && input.markers.length > 0) {
           await writeMarkers(db, input.markers);
         }
-      } finally {
+      } catch (err) {
         db.close();
+        reject(err);
+        return;
       }
+      db.close();
       resolve(input.ops.length);
     };
 

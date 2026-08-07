@@ -66,7 +66,7 @@ export type { IdbMigrationControlDriver } from "../core/migration-driver";
 // ── Planner & runner ──────────────────────────────────────────────────────────
 
 export { IdbMigrationRunner } from "../core/migration-runner";
-export { IdbMigrationPlanner, contractToIdbSchema } from "../core/migration-planner";
+export { IdbMigrationPlanner, contractToIdbSchema, renderMigrationTs } from "../core/migration-planner";
 export type { IdbMigrationPlanWithAuthoring } from "../core/migration-planner";
 
 // ── DDL apply helpers (shared by client-idb auto-migrate + family-idb preflight) ──
