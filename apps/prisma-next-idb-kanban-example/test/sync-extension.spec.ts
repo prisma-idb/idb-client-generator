@@ -1,6 +1,17 @@
 import { expect, test } from "@playwright/test";
 
 /**
+ * `openAndReadMarker`'s bare `factory.open(dbName)` implicitly creates a
+ * fresh IDB database at version 1 before any migration runs. `autoMigrate`'s
+ * combined apply (ADR 010) then does exactly ONE `upgradeneeded` bump
+ * regardless of how many spaces or migration packages have pending work —
+ * so a from-fresh combined apply always lands on version 2, independent of
+ * the app's and the sync extension's migration-chain lengths. Not a magic
+ * number to update if either chain grows.
+ */
+const IMPLICIT_V1_PLUS_ONE_COMBINED_BUMP = 2;
+
+/**
  * Proves the sync extension's combined multi-space apply (ADR 011) actually
  * runs in a real browser via the real CLI-generated artifacts — not just in
  * a fake-indexeddb unit test. `db.ts` wires `extensions: [idbSyncExtension]`
@@ -55,5 +66,5 @@ test("sync extension stores and marker rows exist after auto-migration", async (
 
   // One version bump covers both the app space and the extension space —
   // ADR 011's combined single-transaction apply, not one bump per space.
-  expect(result.version).toBe(2);
+  expect(result.version).toBe(IMPLICIT_V1_PLUS_ONE_COMBINED_BUMP);
 });
