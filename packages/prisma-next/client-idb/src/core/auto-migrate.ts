@@ -180,6 +180,19 @@ export async function autoMigrate(input: {
     ...(input.extensions ?? []),
   ];
 
+  // Reject reserved/duplicate extension space IDs before touching the
+  // database. Without this, two extensions sharing a spaceId would combine
+  // their pending DDL and the upgrade would try to create the same stores
+  // twice; an extension using APP_SPACE_ID would have its marker write
+  // silently overwrite (or be overwritten by) the app space's marker.
+  const seenSpaceIds = new Set<string>();
+  for (const extension of input.extensions ?? []) {
+    if (extension.spaceId === APP_SPACE_ID || seenSpaceIds.has(extension.spaceId)) {
+      throw new Error(`Invalid duplicate or reserved extension space ID: "${extension.spaceId}"`);
+    }
+    seenSpaceIds.add(extension.spaceId);
+  }
+
   // Descriptor self-consistency (upstream ADR 212): a space's pinned headRef
   // must match the hash actually embedded in its contractJson. Catches an
   // extension author who edited the contract source without regenerating

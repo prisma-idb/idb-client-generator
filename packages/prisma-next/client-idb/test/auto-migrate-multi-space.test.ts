@@ -203,4 +203,26 @@ describe("auto-migrate combined multi-space apply", () => {
       createAutoMigratingIdbClient({ contractSpace: appSpace, dbName: name, extensions: [tampered] })
     ).rejects.toThrow(/internally inconsistent/i);
   });
+
+  it("rejects an extension using the reserved app space ID", async () => {
+    const name = dbName();
+    const appSpace = buildContractSpaceFixture([appV1]);
+    const ext = syncExtension();
+    const reserved: IdbExtensionSpace = { spaceId: "app", contractSpace: ext.contractSpace };
+
+    await expect(
+      createAutoMigratingIdbClient({ contractSpace: appSpace, dbName: name, extensions: [reserved] })
+    ).rejects.toThrow(/duplicate or reserved/i);
+  });
+
+  it("rejects two extensions sharing the same space ID", async () => {
+    const name = dbName();
+    const appSpace = buildContractSpaceFixture([appV1]);
+    const first = syncExtension();
+    const duplicate: IdbExtensionSpace = { spaceId: first.spaceId, contractSpace: otherExtension().contractSpace };
+
+    await expect(
+      createAutoMigratingIdbClient({ contractSpace: appSpace, dbName: name, extensions: [first, duplicate] })
+    ).rejects.toThrow(/duplicate or reserved/i);
+  });
 });
