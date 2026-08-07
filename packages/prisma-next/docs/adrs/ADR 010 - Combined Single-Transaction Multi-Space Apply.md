@@ -19,7 +19,7 @@ Phase 7 added multi-space migration support (`createAutoMigratingIdbClient({ ext
 
 ### Sequence
 
-```
+```text
 autoMigrate([{spaceId:'app', ops:[...]}, {spaceId:'idb-sync', ops:[...]}])
   └── openAndUpgrade(targetVersion = v+1, ops = idb-sync.ops ++ app.ops, markers = [idb-sync, app])
         └── upgradeneeded (ONE transaction):
