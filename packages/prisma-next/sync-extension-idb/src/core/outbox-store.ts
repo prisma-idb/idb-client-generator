@@ -21,6 +21,14 @@ const VERSION_META = "_idb_sync_version_meta";
 /**
  * Fetch the next batch of unsynced, retryable outbox events sorted by
  * `createdAt` ascending (oldest-first → FIFO ordering for push).
+ *
+ * Filters `synced`/`retryable` in-memory over a full store scan rather than
+ * querying the `bySynced` index via `IDBKeyRange.only(false)` — `boolean` is
+ * not a valid IndexedDB key type (still an open spec proposal:
+ * https://github.com/w3c/IndexedDB/issues/76), so that range construction
+ * throws a `DataError` in every real IndexedDB implementation. The
+ * `bySynced` index itself is left in the contract (removing it is a schema
+ * change requiring a migration) but is not queried by range here.
  */
 export async function getNextBatch<TContract extends IdbContract>(
   client: IdbClient<TContract>,
@@ -33,15 +41,11 @@ export async function getNextBatch<TContract extends IdbContract>(
     const rows = await scope.execute({
       kind: "cursor-scan",
       storeName: OUTBOX,
-      indexName: "bySynced",
-      // IDB range for synced === false; false sorts before true in IDB.
-      range: IDBKeyRange.only(false),
     } as unknown as IdbAtomicPlan);
-    // Sort by createdAt ascending and apply limit in-memory (IDB index doesn't
-    // guarantee createdAt order within the `bySynced` index).
+    // Sort by createdAt ascending and apply limit in-memory.
     const unsorted = rows as unknown as OutboxEvent[];
     const sorted = unsorted
-      .filter((e) => e.retryable)
+      .filter((e) => !e.synced && e.retryable)
       .sort((a, b) => {
         const at = (d: Date | null) => (d instanceof Date ? d.getTime() : 0);
         return at(a.createdAt) - at(b.createdAt);

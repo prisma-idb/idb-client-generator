@@ -49,7 +49,12 @@ export async function applyPull<TContract extends IdbContract>(
   const rawOrmAny = syncClient.rawClient.orm as unknown as Record<string, unknown>;
 
   for (const log of logs) {
-    if (!rawOrmAny[log.model]) {
+    // The ORM's accessors are keyed by store name (contract.roots keys), not
+    // model name — `log.model` ("User") needs converting via getStoreName()
+    // to `"users"` before it's a valid lookup key here. Comparing against
+    // `log.model` directly always missed (store name almost never equals
+    // model name), so every log was silently treated as "unknown model".
+    if (!rawOrmAny[getStoreName(contract, log.model)]) {
       skipped++;
       continue;
     }

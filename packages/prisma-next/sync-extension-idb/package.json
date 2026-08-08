@@ -31,6 +31,8 @@
     "dev": "tsdown --watch",
     "check": "tsc --noEmit",
     "test": "vitest run",
+    "lint": "prettier --check . && eslint .",
+    "format": "prettier --write .",
     "contract:emit": "prisma-next contract emit",
     "generate-baseline": "prisma-next-idb generate-baseline --space idb-sync"
   },
