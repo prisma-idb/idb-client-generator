@@ -240,6 +240,142 @@ describe("interpretPslDocumentToIdbContract", () => {
     });
   });
 
+  describe("IDB valid-key type validation (ADR 016)", () => {
+    it("errors when @id is Boolean", () => {
+      const result = interpret(`
+        model Flag {
+          active Boolean @id
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_INVALID_KEY_TYPE");
+    });
+
+    it("errors when @id is BigInt", () => {
+      const result = interpret(`
+        model Counter {
+          n BigInt @id
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_INVALID_KEY_TYPE");
+    });
+
+    it("errors when @id is Json", () => {
+      const result = interpret(`
+        model Blob {
+          data Json @id
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_INVALID_KEY_TYPE");
+    });
+
+    it("errors when a @@id([…]) field is Boolean", () => {
+      const result = interpret(`
+        model Flag {
+          active Boolean
+          @@id([active])
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_INVALID_KEY_TYPE");
+    });
+
+    it("errors when a @unique field is Boolean", () => {
+      const result = interpret(`
+        model OutboxEvent {
+          id     String  @id
+          synced Boolean @unique
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_INVALID_INDEX_KEY_TYPE");
+    });
+
+    it("errors when a @@index([…]) field is BigInt", () => {
+      const result = interpret(`
+        model Counter {
+          id String @id
+          n  BigInt
+          @@index([n])
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_INVALID_INDEX_KEY_TYPE");
+    });
+
+    it("errors when a @@unique([…]) field is Json", () => {
+      const result = interpret(`
+        model Blob {
+          id   String @id
+          data Json
+          @@unique([data])
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_INVALID_INDEX_KEY_TYPE");
+    });
+
+    it("errors when a relation's auto-created FK index is on a Boolean-typed field", () => {
+      // Pathological, but the auto-generated FK index (psl-interpreter.ts's
+      // "default index on the FK field(s)") must be checked too, not just
+      // explicit @@index/@@unique/@unique — it goes through the same
+      // `indexes` map.
+      const result = interpret(`
+        model User {
+          id    String @id
+          posts Post[]
+        }
+        model Post {
+          id       String  @id
+          authorId Boolean
+          author   User    @relation(fields: [authorId], references: [id])
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics.some((d) => d.code === "IDB_INVALID_INDEX_KEY_TYPE")).toBe(true);
+    });
+
+    it("accepts String, Int, Float, DateTime, Decimal, and Bytes as @id or index types", () => {
+      const result = interpret(`
+        model Types {
+          id  String   @id
+          n   Int
+          f   Float
+          d   DateTime
+          dec Decimal
+          b   Bytes
+          @@index([n])
+          @@index([f])
+          @@index([d])
+          @@index([dec])
+          @@index([b])
+        }
+      `);
+      expect(result.ok).toBe(true);
+    });
+
+    it("does not double-report a field that already failed IDB_UNSUPPORTED_FIELD_TYPE", () => {
+      const result = interpret(`
+        model User {
+          id   Unknown @id
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics.map((d) => d.code)).toEqual(["IDB_UNSUPPORTED_FIELD_TYPE"]);
+    });
+  });
+
   describe("relations", () => {
     it("builds N:1 and 1:N relations between two models", () => {
       const result = interpret(`

@@ -301,3 +301,136 @@ describe("defineContract — FK projection cascade (ADR 013)", () => {
     expect(models["Post"]!.relations).toHaveProperty("user");
   });
 });
+
+describe("defineContract — IDB valid-key type validation (ADR 016)", () => {
+  it("throws when the key field is Boolean", () => {
+    expect(() =>
+      defineContract({
+        family: idbFamilyPack,
+        target: idbTargetPack,
+        models: { Flag: { store: "flags", key: "active", fields: { active: "Boolean" } } },
+      })
+    ).toThrow(/cannot use as a key/);
+  });
+
+  it("throws when the key field is BigInt", () => {
+    expect(() =>
+      defineContract({
+        family: idbFamilyPack,
+        target: idbTargetPack,
+        models: { Counter: { store: "counters", key: "n", fields: { n: "BigInt" } } },
+      })
+    ).toThrow(/cannot use as a key/);
+  });
+
+  it("throws when the key field is Json", () => {
+    expect(() =>
+      defineContract({
+        family: idbFamilyPack,
+        target: idbTargetPack,
+        models: { Blob: { store: "blobs", key: "data", fields: { data: "Json" } } },
+      })
+    ).toThrow(/cannot use as a key/);
+  });
+
+  it("throws when the key field is nullable", () => {
+    expect(() =>
+      defineContract({
+        family: idbFamilyPack,
+        target: idbTargetPack,
+        models: { User: { store: "users", key: "id", fields: { id: "String?" } } },
+      })
+    ).toThrow(/nullable/);
+  });
+
+  it("throws when the key field is not declared in fields", () => {
+    expect(() =>
+      defineContract({
+        family: idbFamilyPack,
+        target: idbTargetPack,
+        models: { User: { store: "users", key: "id", fields: { name: "String" } } },
+      })
+    ).toThrow(/not declared/);
+  });
+
+  it("throws when a @@unique-equivalent index is keyed on a Boolean field", () => {
+    expect(() =>
+      defineContract({
+        family: idbFamilyPack,
+        target: idbTargetPack,
+        models: {
+          OutboxEvent: {
+            store: "outbox",
+            key: "id",
+            fields: { id: "String", synced: "Boolean" },
+            indexes: { bySynced: { keyPath: "synced" } },
+          },
+        },
+      })
+    ).toThrow(/cannot use as an index key/);
+  });
+
+  it("throws when an index is keyed on a field not declared in fields", () => {
+    expect(() =>
+      defineContract({
+        family: idbFamilyPack,
+        target: idbTargetPack,
+        models: {
+          User: {
+            store: "users",
+            key: "id",
+            fields: { id: "String" },
+            indexes: { byEmail: { keyPath: "email" } },
+          },
+        },
+      })
+    ).toThrow(/not declared/);
+  });
+
+  it("accepts String, Int, Float, DateTime, Decimal, and Bytes as key or index types", () => {
+    expect(() =>
+      defineContract({
+        family: idbFamilyPack,
+        target: idbTargetPack,
+        models: {
+          Types: {
+            store: "types",
+            key: "id",
+            fields: {
+              id: "String",
+              n: "Int",
+              f: "Float",
+              d: "DateTime",
+              dec: "Decimal",
+              b: "Bytes",
+            },
+            indexes: {
+              byN: { keyPath: "n" },
+              byF: { keyPath: "f" },
+              byD: { keyPath: "d" },
+              byDec: { keyPath: "dec" },
+              byB: { keyPath: "b" },
+            },
+          },
+        },
+      })
+    ).not.toThrow();
+  });
+
+  it("does not validate multiEntry index key types (array-element validity isn't statically knowable here)", () => {
+    expect(() =>
+      defineContract({
+        family: idbFamilyPack,
+        target: idbTargetPack,
+        models: {
+          Post: {
+            store: "posts",
+            key: "id",
+            fields: { id: "String", tags: "Json" },
+            indexes: { byTags: { keyPath: "tags", multiEntry: true } },
+          },
+        },
+      })
+    ).not.toThrow();
+  });
+});

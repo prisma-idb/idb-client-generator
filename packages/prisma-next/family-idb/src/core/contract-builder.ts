@@ -9,7 +9,7 @@ import type {
   IdbStoreDefinition,
 } from "@prisma-next-idb/target-idb/pack";
 import type { ContractProjection } from "./psl-interpreter";
-import { warnDroppedRelation } from "./psl-interpreter";
+import { isValidIdbKeyCodec, warnDroppedRelation } from "./psl-interpreter";
 import { validateContract } from "./validate";
 
 // ── Field type system ─────────────────────────────────────────────────────────
@@ -157,6 +157,56 @@ function projectModelsForClient(models: Record<string, ModelDef>): Record<string
   return result;
 }
 
+// ── Validate key/index field types against IDB's valid-key algorithm ──────────
+
+function resolveFieldCodecId(def: ModelDef, fieldName: string): string | undefined {
+  const spec = def.fields[fieldName];
+  if (spec === undefined) return undefined;
+  const typeName = (spec.endsWith("?") ? spec.slice(0, -1) : spec) as PrismaScalarType;
+  return SCALAR_TO_CODEC_ID[typeName];
+}
+
+/**
+ * Mirrors `psl-interpreter.ts`'s `IDB_INVALID_KEY_TYPE`/`IDB_INVALID_INDEX_KEY_TYPE`
+ * diagnostics for the TS authoring surface, which has no diagnostics array —
+ * this DSL fails fast via `throw`, matching every other check in this file.
+ *
+ * `multiEntry` indexes are skipped: their key-validity depends on the
+ * *elements* of an array value, which this scalar-type system can't express
+ * (a `multiEntry` index only makes sense over a `Json`-typed field holding an
+ * array — the one case this file can't statically validate either way).
+ */
+function validateModelKeyAndIndexes(modelName: string, def: ModelDef): void {
+  if (!(def.key in def.fields)) {
+    throw new Error(`defineContract: model "${modelName}" key field "${def.key}" is not declared in "fields".`);
+  }
+  if (def.fields[def.key]?.endsWith("?")) {
+    throw new Error(
+      `defineContract: model "${modelName}" key field "${def.key}" is nullable ("${def.fields[def.key]}") — the primary key cannot be nullable.`
+    );
+  }
+  const keyCodec = resolveFieldCodecId(def, def.key);
+  if (keyCodec !== undefined && !isValidIdbKeyCodec(keyCodec)) {
+    throw new Error(
+      `defineContract: model "${modelName}" key field "${def.key}" has type "${keyCodec}", which IndexedDB cannot use as a key. Every write would throw (DataError extracting the primary key). Use String, Int, Float, DateTime, Decimal, or Bytes instead.`
+    );
+  }
+
+  for (const [indexName, idx] of Object.entries(def.indexes ?? {})) {
+    if (idx.multiEntry) continue;
+    if (!(idx.keyPath in def.fields)) {
+      throw new Error(
+        `defineContract: model "${modelName}" index "${indexName}" references field "${idx.keyPath}", which is not declared in "fields".`
+      );
+    }
+    const fieldCodec = resolveFieldCodecId(def, idx.keyPath);
+    if (fieldCodec === undefined || isValidIdbKeyCodec(fieldCodec)) continue;
+    throw new Error(
+      `defineContract: model "${modelName}" index "${indexName}" is keyed on "${idx.keyPath}" (type "${fieldCodec}"), which IndexedDB cannot use as an index key. Records are silently omitted from the index on write, and any query against it throws at runtime. Use String, Int, Float, DateTime, Decimal, or Bytes instead.`
+    );
+  }
+}
+
 // ── Helper: build ContractField entries from field specs ──────────────────────
 
 function buildFields(fields: Record<string, FieldSpec>): Record<string, ContractField> {
@@ -279,6 +329,11 @@ function buildModels(models: Record<string, ModelDef>): Record<string, ContractM
 export function defineContract(input: DefineContractInput, options?: DefineContractOptions): Contract<IdbStorage> {
   const projection: ContractProjection = options?.projection ?? "full";
   const models = projection === "client" ? projectModelsForClient(input.models) : input.models;
+
+  for (const [modelName, def] of Object.entries(models)) {
+    validateModelKeyAndIndexes(modelName, def);
+  }
+
   const stores = buildStores(models);
 
   // Mirror the capability surface that `prisma-next contract emit` writes

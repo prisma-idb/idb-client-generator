@@ -28,6 +28,32 @@ export const SCALAR_TO_CODEC_ID: Record<string, string> = {
   Bytes: "idb/bytes@1",
 };
 
+// ── IDB valid-key codec set ─────────────────────────────────────────────────────
+
+/**
+ * Codecs excluded from IndexedDB's "valid key" algorithm
+ * (https://w3c.github.io/IndexedDB/#key-construct: number, string, Date,
+ * buffer source, or Array — nothing else).
+ *
+ * - `idb/bool@1` — boolean is not, and has never been, a valid IDB key type.
+ * - `idb/bigint@1` — bigint round-trips fine as a stored *value* (structured
+ *   clone supports it), but is explicitly absent from the key-type algorithm.
+ * - `idb/json@1` — arbitrary shape (object, array, or primitive); can't be
+ *   statically guaranteed to be a valid key.
+ *
+ * Using any of these as a model's `@id`/key throws on every write
+ * (`DataError` extracting the primary key). Using one as an index `keyPath`
+ * doesn't throw on write — the record is just silently omitted from that
+ * index — but throws the first time anyone queries it via `IDBKeyRange`
+ * (see ADR 016's Context: `OutboxEvent.synced`, `idb/bool@1`, exactly this).
+ */
+const IDB_INVALID_KEY_CODEC_IDS = new Set(["idb/bool@1", "idb/bigint@1", "idb/json@1"]);
+
+/** `true` if `codecId`'s runtime representation is a valid IndexedDB key. */
+export function isValidIdbKeyCodec(codecId: string): boolean {
+  return !IDB_INVALID_KEY_CODEC_IDS.has(codecId);
+}
+
 // PSL PascalCase referential actions → IDB lowercase
 const REFERENTIAL_ACTION_MAP: Record<string, IdbReferentialAction> = {
   Cascade: "cascade",
@@ -464,6 +490,39 @@ function interpretModel(
         indexes[`${field.name}_unique`] = { keyPath: field.name, unique: true };
       }
     }
+  }
+
+  // ── Validate key/index field types against IDB's valid-key algorithm ───────
+  // Only checked when the field itself resolved a codec — a field that
+  // already failed IDB_UNSUPPORTED_FIELD_TYPE above shouldn't also get a
+  // second, redundant diagnostic here. Every entry `interpretModel` puts into
+  // `contractFields` is `kind: "scalar"` (see the assignment above) — IDB has
+  // no value-object fields — so the narrowing here is just satisfying
+  // `ContractField.type`'s shared framework union type.
+  const scalarCodecOf = (fieldName: string): string | undefined => {
+    const type = contractFields[fieldName]?.type;
+    return type?.kind === "scalar" ? type.codecId : undefined;
+  };
+
+  const keyFieldCodec = scalarCodecOf(keyPath);
+  if (keyFieldCodec !== undefined && !isValidIdbKeyCodec(keyFieldCodec)) {
+    diagnostics.push({
+      code: "IDB_INVALID_KEY_TYPE",
+      message: `Model "${model.name}" @id field "${keyPath}" has type "${keyFieldCodec}", which IndexedDB cannot use as a key. Every write would throw (DataError extracting the primary key). Use String, Int, Float, DateTime, Decimal, or Bytes instead.`,
+      sourceId,
+      span: modelFields.find((f) => f.name === keyPath)?.span ?? model.span,
+    });
+  }
+
+  for (const [indexName, idx] of Object.entries(indexes)) {
+    const fieldCodec = scalarCodecOf(idx.keyPath);
+    if (fieldCodec === undefined || isValidIdbKeyCodec(fieldCodec)) continue;
+    diagnostics.push({
+      code: "IDB_INVALID_INDEX_KEY_TYPE",
+      message: `Model "${model.name}" index "${indexName}" is keyed on "${idx.keyPath}" (type "${fieldCodec}"), which IndexedDB cannot use as an index key. Records are silently omitted from the index on write, and any query against it throws at runtime. Use String, Int, Float, DateTime, Decimal, or Bytes instead.`,
+      sourceId,
+      span: modelFields.find((f) => f.name === idx.keyPath)?.span ?? model.span,
+    });
   }
 
   return {
