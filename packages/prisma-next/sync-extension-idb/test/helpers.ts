@@ -131,7 +131,8 @@ export async function createTestSyncClient(options?: {
   trackedModels?: ReadonlyArray<string> | "*";
 }): Promise<{ client: SyncIdbClient<IdbContract>; dbName: string; contract: IdbContract }> {
   const name = testDbName();
-  await openTestDb(name, [USERS_STORE, POSTS_STORE, OUTBOX_STORE, VERSION_META_STORE]);
+  const bootstrapDb = await openTestDb(name, [USERS_STORE, POSTS_STORE, OUTBOX_STORE, VERSION_META_STORE]);
+  bootstrapDb.close();
   const contract = testContract();
   const client = createSyncIdbClient({
     contract,

@@ -193,12 +193,12 @@ function validateModelKeyAndIndexes(modelName: string, def: ModelDef): void {
   }
 
   for (const [indexName, idx] of Object.entries(def.indexes ?? {})) {
-    if (idx.multiEntry) continue;
     if (!(idx.keyPath in def.fields)) {
       throw new Error(
         `defineContract: model "${modelName}" index "${indexName}" references field "${idx.keyPath}", which is not declared in "fields".`
       );
     }
+    if (idx.multiEntry) continue;
     const fieldCodec = resolveFieldCodecId(def, idx.keyPath);
     if (fieldCodec === undefined || isValidIdbKeyCodec(fieldCodec)) continue;
     throw new Error(

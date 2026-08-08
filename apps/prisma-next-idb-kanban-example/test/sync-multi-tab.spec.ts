@@ -105,9 +105,12 @@ test("two tabs racing SyncWorker.forceSync() against the same outbox — documen
   // comment. Total push attempts across both tabs for the one event:
   // 1 = no overlap this run, 2 = both tabs saw + pushed it (the risk this
   // test exists to surface).
-  const totalPushAttempts = pushedA.length + pushedB.length;
+  const allPushed = [...pushedA, ...pushedB];
+  const totalPushAttempts = allPushed.length;
   expect(totalPushAttempts).toBeGreaterThanOrEqual(1);
-  expect(pushedA.every((id) => id === pushedA[0])).toBe(true); // sanity: no unrelated events
+  // sanity: no unrelated events — checked across both tabs combined so this
+  // can't pass vacuously when one tab pushed nothing.
+  expect(allPushed.every((id) => id === allPushed[0])).toBe(true);
   if (totalPushAttempts > 1) {
     console.log(
       `[sync-multi-tab] Duplicate push observed this run: tab A pushed ${pushedA.length}, tab B pushed ${pushedB.length} — no cross-tab lock exists yet.`

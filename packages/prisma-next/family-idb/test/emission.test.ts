@@ -87,7 +87,7 @@ describe("idbEmission", () => {
           Item: {
             store: "items",
             key: "id",
-            fields: { id: "String" },
+            fields: { id: "String", tags: "Json" },
             indexes: { byTags: { keyPath: "tags", unique: false, multiEntry: true } },
           },
         },

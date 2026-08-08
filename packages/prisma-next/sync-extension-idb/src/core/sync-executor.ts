@@ -179,6 +179,18 @@ function storeNamesOf(body: IdbPlanBody): string[] {
 // ── Key extraction ────────────────────────────────────────────────────────────
 
 /**
+ * `IDBKeyRange` is not structured-clonable, so it can never be written as
+ * (part of) a stored record's value — only used as a request argument. Any
+ * `IDBValidKey | IDBKeyRange` heading into an outbox payload must go through
+ * this first: a concrete key round-trips as-is (keys are always valid,
+ * clonable values), a range is flattened to its plain, cloneable bounds.
+ */
+function serializableKey(key: IDBValidKey | IDBKeyRange): unknown {
+  if (!(key instanceof IDBKeyRange)) return key;
+  return { lower: key.lower, upper: key.upper, lowerOpen: key.lowerOpen, upperOpen: key.upperOpen };
+}
+
+/**
  * Try to extract the primary key of the affected record from the plan body
  * and AST. Returns `undefined` when the key cannot be determined statically
  * (e.g. scan-write operations that match by filter, not by key).
@@ -423,9 +435,11 @@ class SyncInterceptingTransactionScope implements IdbTransactionScope {
       case "delete": {
         // `key` can be a range for bulk deletes; only a concrete IDBValidKey
         // is usable for VersionMeta (the outbox event is still written
-        // either way).
+        // either way). IDBKeyRange itself is not structured-clonable, so it
+        // can't be stored raw inside the outbox record's payload either —
+        // normalize it to plain, cloneable bounds first.
         const key = plan.key instanceof IDBKeyRange ? undefined : plan.key;
-        await this.#writeOutboxAndMeta(modelName, "delete", { key: plan.key }, key);
+        await this.#writeOutboxAndMeta(modelName, "delete", { key: serializableKey(plan.key) }, key);
         return;
       }
       case "update": {

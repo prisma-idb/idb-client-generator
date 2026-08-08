@@ -132,12 +132,20 @@ describe("SyncWorker — state machine", () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(statuses.filter((s) => s === "pulling")).toHaveLength(3);
 
-    // 3rd retry would be 4000ms, but capped at backoffMaxMs = 5000ms (still under 4000 here,
-    // so cap only bites once the exponent exceeds it) — verify the 4th retry is capped.
+    // 3rd retry: backoffBaseMs * 2^2 = 4000ms (still under the 5000ms cap, so
+    // this one isn't clamped yet).
     await vi.advanceTimersByTimeAsync(3_999);
     expect(statuses.filter((s) => s === "pulling")).toHaveLength(3);
     await vi.advanceTimersByTimeAsync(1);
     expect(statuses.filter((s) => s === "pulling")).toHaveLength(4);
+
+    // 4th retry would naturally be backoffBaseMs * 2^3 = 8000ms, but that
+    // exceeds backoffMaxMs = 5000ms — verify it's actually clamped down to
+    // 5000ms rather than firing at the uncapped 8000ms.
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(statuses.filter((s) => s === "pulling")).toHaveLength(4);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(statuses.filter((s) => s === "pulling")).toHaveLength(5);
   });
 
   it("resets backoff to consecutiveFailures = 0 after a successful cycle", async () => {
@@ -216,12 +224,28 @@ describe("SyncWorker — state machine", () => {
 });
 
 describe("SyncWorker — push/pull correctness (real client)", () => {
+  // forceSync() reschedules a real setTimeout(intervalMs) on completion
+  // unless the worker is stopped — track and stop every worker created in
+  // this block so none of them fire (and touch a torn-down client) after
+  // their test has finished.
+  const workers: ReturnType<typeof createSyncWorker>[] = [];
+
+  function trackedWorker(options: Parameters<typeof createSyncWorker>[0]): ReturnType<typeof createSyncWorker> {
+    const worker = createSyncWorker(options);
+    workers.push(worker);
+    return worker;
+  }
+
+  afterEach(() => {
+    for (const worker of workers.splice(0)) worker.stop();
+  });
+
   it("pushes queued outbox events, marks them synced on success, and emits pushcompleted", async () => {
     const { client } = await createTestSyncClient();
     await asAccessors(client.orm)["users"]!.create({ id: "u1", name: "Alice" });
 
     const pushed: OutboxEvent[] = [];
-    const worker = createSyncWorker({
+    const worker = trackedWorker({
       syncClient: client,
       pushHandler: async (events) => {
         pushed.push(...events);
@@ -249,7 +273,7 @@ describe("SyncWorker — push/pull correctness (real client)", () => {
     const { client } = await createTestSyncClient();
     await asAccessors(client.orm)["users"]!.create({ id: "u1", name: "Alice" });
 
-    const worker = createSyncWorker({
+    const worker = trackedWorker({
       syncClient: client,
       pushHandler: async (events) => events.map((e) => ({ id: e.id, success: false, error: "server rejected" })),
       pullHandler: async () => [],
@@ -271,7 +295,7 @@ describe("SyncWorker — push/pull correctness (real client)", () => {
   it("applies pulled logs via applyPull and emits pullcompleted", async () => {
     const { client } = await createTestSyncClient();
 
-    const worker = createSyncWorker({
+    const worker = trackedWorker({
       syncClient: client,
       pushHandler: async () => [],
       pullHandler: async () => [
