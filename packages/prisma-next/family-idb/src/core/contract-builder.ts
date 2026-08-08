@@ -9,6 +9,7 @@ import type {
   IdbStoreDefinition,
 } from "@prisma-next-idb/target-idb/pack";
 import type { ContractProjection } from "./psl-interpreter";
+import { warnDroppedRelation } from "./psl-interpreter";
 import { validateContract } from "./validate";
 
 // ── Field type system ─────────────────────────────────────────────────────────
@@ -79,10 +80,11 @@ export type DefineContractOptions = {
 
 /**
  * Drops `exclude: true` models and `excludeFields` entries for the client
- * projection (ADR 012). Relation-entangled exclusions (a surviving model
- * still relating to an excluded one, or excluding a field that backs a
- * relation) throw — that's ADR 013's cascading FK projection, not yet
- * implemented.
+ * projection (ADR 012). Any relation a survivor still has to an excluded
+ * model is dropped too (ADR 013) — for every cardinality, required or not;
+ * the model itself is never excluded as a result (see ADR 013 §"Why we
+ * don't cascade on requiredness"). The underlying FK scalar field (if any)
+ * is kept, orphaned but inert.
  */
 function projectModelsForClient(models: Record<string, ModelDef>): Record<string, ModelDef> {
   const excludedModelNames = new Set(
@@ -124,21 +126,20 @@ function projectModelsForClient(models: Record<string, ModelDef>): Record<string
     const relations: Record<string, RelationDef> = {};
     for (const [relName, rel] of Object.entries(def.relations ?? {})) {
       if (excludedModelNames.has(rel.to)) {
-        throw new Error(
-          `defineContract: model "${modelName}" relation "${relName}" points at excluded model "${rel.to}". Excluding a model that's still referenced by a relation requires cascading FK projection (see ADR 013 — not yet implemented). Remove the relation or the exclusion.`
-        );
+        warnDroppedRelation(modelName, relName, rel.to);
+        continue;
       }
       const excludedLocalField = rel.on.local.find((f) => excludedFields.has(f));
       if (excludedLocalField !== undefined) {
         throw new Error(
-          `defineContract: model "${modelName}" field "${excludedLocalField}" backs relation "${relName}" and cannot be excluded independently — this requires cascading FK projection (see ADR 013 — not yet implemented).`
+          `defineContract: model "${modelName}" field "${excludedLocalField}" backs relation "${relName}" and cannot be excluded independently — field-level FK exclusion isn't supported (ADR 013 only handles relations pointing at a whole-model @@idb.exclude). Exclude the whole model instead, or remove the exclusion.`
         );
       }
       const targetExcludedFields = new Set(models[rel.to]?.excludeFields ?? []);
       const excludedTargetField = rel.on.target.find((f) => targetExcludedFields.has(f));
       if (excludedTargetField !== undefined) {
         throw new Error(
-          `defineContract: model "${modelName}" relation "${relName}" references excluded field "${rel.to}.${excludedTargetField}" — this requires cascading FK projection (see ADR 013 — not yet implemented).`
+          `defineContract: model "${modelName}" relation "${relName}" references excluded field "${rel.to}.${excludedTargetField}" — field-level FK exclusion isn't supported (ADR 013 only handles relations pointing at a whole-model @@idb.exclude). Exclude the whole model instead, or remove the exclusion.`
         );
       }
       relations[relName] = rel;

@@ -44,13 +44,28 @@ const REFERENTIAL_ACTION_MAP: Record<string, IdbReferentialAction> = {
  * the server-facing shape). `"client"` additionally strips anything marked
  * `@idb.exclude`/`@@idb.exclude`, producing the projected client contract.
  *
- * Relation-entangled exclusions (a surviving model still relating to an
- * excluded one, or a field-level exclude on a relation/FK field) are out of
- * scope here — that's ADR 013's cascading FK projection, not yet
- * implemented — so those cases are reported as diagnostics rather than
- * silently producing a broken contract.
+ * A surviving model's relation (any cardinality, required or optional) to an
+ * excluded model is dropped (with a warning), keeping the underlying FK
+ * scalar field — the model itself is never excluded as a result (ADR 013;
+ * see its §"Why we don't cascade on requiredness"). Field-level excludes
+ * that entangle with a relation (excluding an FK column, or the relation
+ * field itself) remain unsupported and are reported as diagnostics — a
+ * different, still out-of-scope case ADR 013 doesn't cover.
  */
 export type ContractProjection = "full" | "client";
+
+/**
+ * ADR 013 — shared between this file and `contract-builder.ts` (which
+ * already imports {@link ContractProjection} from here) so the message
+ * format isn't duplicated. Called whenever a surviving model's relation is
+ * dropped because its target is excluded — any cardinality, required or
+ * not; the model itself is never excluded as a result, only the relation.
+ */
+export function warnDroppedRelation(modelName: string, relationName: string, targetModel: string): void {
+  console.warn(
+    `[prisma-next-idb] Dropped relation "${modelName}.${relationName}" from the client contract: target model "${targetModel}" is excluded (ADR 013).`
+  );
+}
 
 // ── Attribute arg helpers ──────────────────────────────────────────────────────
 
@@ -282,12 +297,9 @@ function interpretModel(
     // Relation list field (backrelation) — skip for now, resolved in second pass
     if (field.list && modelNames.has(field.typeName)) {
       if (excludedModelNames.has(field.typeName)) {
-        diagnostics.push({
-          code: "IDB_EXCLUDED_MODEL_HAS_RELATIONS",
-          message: `Field "${model.name}.${field.name}" is a relation to "${field.typeName}", which is marked @@idb.exclude. Excluding a model that's still referenced by a relation requires cascading FK projection (see ADR 013 — not yet implemented). Remove the relation or the exclusion.`,
-          sourceId,
-          span: field.span,
-        });
+        // The model itself is never excluded because of a relation (ADR
+        // 013) — just drop this backrelation and keep the model.
+        warnDroppedRelation(model.name, field.name, field.typeName);
       }
       continue;
     }
@@ -305,12 +317,10 @@ function interpretModel(
         continue;
       }
       if (excludedModelNames.has(field.typeName)) {
-        diagnostics.push({
-          code: "IDB_EXCLUDED_MODEL_HAS_RELATIONS",
-          message: `Field "${model.name}.${field.name}" is a relation to "${field.typeName}", which is marked @@idb.exclude. Excluding a model that's still referenced by a relation requires cascading FK projection (see ADR 013 — not yet implemented). Remove the relation or the exclusion.`,
-          sourceId,
-          span: field.span,
-        });
+        // Same reasoning as the backrelation case above: drop the relation
+        // (required or not), keep the model, keep the FK scalar field (it's
+        // processed independently, below, as a plain scalar).
+        warnDroppedRelation(model.name, field.name, field.typeName);
         continue;
       }
       const args = relationAttr.args;
@@ -342,7 +352,7 @@ function interpretModel(
       if (excludedLocalField !== undefined) {
         diagnostics.push({
           code: "IDB_CANNOT_EXCLUDE_RELATION_FIELD",
-          message: `Field "${model.name}.${excludedLocalField}" backs relation "${model.name}.${field.name}" and cannot be excluded independently — this requires cascading FK projection (see ADR 013 — not yet implemented).`,
+          message: `Field "${model.name}.${excludedLocalField}" backs relation "${model.name}.${field.name}" and cannot be excluded independently — field-level FK exclusion isn't supported (ADR 013's cascade only covers whole-model @@idb.exclude). Exclude the whole model instead, or remove the exclusion.`,
           sourceId,
           span: field.span,
         });
@@ -356,7 +366,7 @@ function interpretModel(
       if (excludedTargetField !== undefined) {
         diagnostics.push({
           code: "IDB_CANNOT_EXCLUDE_RELATION_FIELD",
-          message: `Field "${field.typeName}.${excludedTargetField}" is referenced by relation "${model.name}.${field.name}" and cannot be excluded independently — this requires cascading FK projection (see ADR 013 — not yet implemented).`,
+          message: `Field "${field.typeName}.${excludedTargetField}" is referenced by relation "${model.name}.${field.name}" and cannot be excluded independently — field-level FK exclusion isn't supported (ADR 013's cascade only covers whole-model @@idb.exclude). Exclude the whole model instead, or remove the exclusion.`,
           sourceId,
           span: field.span,
         });
@@ -520,7 +530,10 @@ export function interpretPslDocumentToIdbContract(
   // unsupported scalar type.
   const modelNames = new Set(allModelsUnprojected.map((m) => m.name));
 
-  // Models marked `@@idb.exclude`. Empty (no-op) in "full" projection.
+  // Models marked `@@idb.exclude`. Empty (no-op) in "full" projection. This
+  // is the *only* way a model ends up excluded — relations never add to this
+  // set (ADR 013 §"Why we don't cascade on requiredness"); a surviving
+  // model's relation into this set is dropped, not cascaded.
   const excludedModelNames = new Set(
     projection === "client"
       ? allModelsUnprojected.filter((m) => hasModelAttribute(m, IDB_EXCLUDE_ATTR)).map((m) => m.name)
@@ -576,8 +589,8 @@ export function interpretPslDocumentToIdbContract(
 
     for (const field of Object.values(model.fields)) {
       if (!field.list || !modelNames.has(field.typeName)) continue;
-      // Already reported by the first pass (IDB_EXCLUDED_MODEL_HAS_RELATIONS)
-      // — don't double-report as an unresolved backrelation.
+      // Already warned about and dropped by the first pass — don't also
+      // report it as an unresolved backrelation.
       if (excludedModelNames.has(field.typeName)) continue;
 
       const targetInterp = interpretedByName.get(field.typeName);

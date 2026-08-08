@@ -1,9 +1,20 @@
 import { buildSymbolTable } from "@prisma-next/psl-parser";
 import { parse } from "@prisma-next/psl-parser/syntax";
 import { UNBOUND_DOMAIN_NAMESPACE_ID } from "@prisma-next/contract/types";
-import { describe, expect, it } from "vitest";
+import type { MockInstance } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ContractProjection } from "../src/core/psl-interpreter";
 import { interpretPslDocumentToIdbContract, SCALAR_TO_CODEC_ID } from "../src/core/psl-interpreter";
+
+let warnSpy: MockInstance<(...args: unknown[]) => void>;
+
+beforeEach(() => {
+  warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+});
+
+afterEach(() => {
+  warnSpy.mockRestore();
+});
 
 function interpret(schema: string, projection?: ContractProjection) {
   const { document, sourceFile } = parse(schema);
@@ -528,48 +539,6 @@ describe("interpretPslDocumentToIdbContract", () => {
       expect(result.failure.diagnostics.map((d) => d.code)).toContain("IDB_INDEX_ON_EXCLUDED_FIELD");
     });
 
-    it("errors when a surviving model still relates to an excluded model (FK side)", () => {
-      const result = interpret(
-        `
-        model User {
-          id    String @id
-          posts Post[]
-        }
-        model Post {
-          id     String @id
-          userId String
-          user   User   @relation(fields: [userId], references: [id])
-          @@idb.exclude
-        }
-      `,
-        "client"
-      );
-      expect(result.ok).toBe(false);
-      if (result.ok) return;
-      // User.posts is the backrelation to the excluded Post model.
-      expect(result.failure.diagnostics.map((d) => d.code)).toContain("IDB_EXCLUDED_MODEL_HAS_RELATIONS");
-    });
-
-    it("errors when a surviving model's relation field points at an excluded model", () => {
-      const result = interpret(
-        `
-        model User {
-          id String @id
-          @@idb.exclude
-        }
-        model Post {
-          id     String @id
-          userId String
-          user   User   @relation(fields: [userId], references: [id])
-        }
-      `,
-        "client"
-      );
-      expect(result.ok).toBe(false);
-      if (result.ok) return;
-      expect(result.failure.diagnostics.map((d) => d.code)).toContain("IDB_EXCLUDED_MODEL_HAS_RELATIONS");
-    });
-
     it("errors when excluding a scalar field that backs a relation's FK", () => {
       const result = interpret(
         `
@@ -649,6 +618,114 @@ describe("interpretPslDocumentToIdbContract", () => {
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       expect(Object.keys(result.value.storage.stores)).toEqual(["user"]);
+    });
+  });
+
+  describe("FK projection cascade (ADR 013)", () => {
+    it("drops a surviving model's backrelation to an excluded model, keeping the surviving model", () => {
+      const result = interpret(
+        `
+        model User {
+          id    String @id
+          posts Post[]
+        }
+        model Post {
+          id     String @id
+          userId String
+          user   User   @relation(fields: [userId], references: [id])
+          @@idb.exclude
+        }
+      `,
+        "client"
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(Object.keys(result.value.storage.stores)).toEqual(["user"]);
+      const models = result.value.domain.namespaces[NS]!.models as Record<string, { relations: object }>;
+      expect(models["User"]!.relations).not.toHaveProperty("posts");
+      expect(warnSpy.mock.calls.some((c) => String(c[0]).includes('"User.posts"'))).toBe(true);
+    });
+
+    it("drops a required N:1 relation to an excluded model, keeping the model and its FK scalar field", () => {
+      const result = interpret(
+        `
+        model User {
+          id String @id
+          @@idb.exclude
+        }
+        model Post {
+          id     String @id
+          userId String
+          user   User   @relation(fields: [userId], references: [id])
+        }
+      `,
+        "client"
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(Object.keys(result.value.storage.stores)).toEqual(["post"]);
+      const models = result.value.domain.namespaces[NS]!.models as Record<
+        string,
+        { fields: object; relations: object }
+      >;
+      expect(models).not.toHaveProperty("User");
+      expect(models).toHaveProperty("Post");
+      expect(models["Post"]!.relations).not.toHaveProperty("user");
+      // Orphaned FK scalar field is kept, per ADR 013, even though it was required.
+      expect(models["Post"]!.fields).toHaveProperty("userId");
+      expect(warnSpy.mock.calls.some((c) => String(c[0]).includes('"Post.user"'))).toBe(true);
+    });
+
+    it("does not cascade through a chain of required relations — only the directly-excluded model's relation is dropped", () => {
+      const result = interpret(
+        `
+        model C {
+          id String @id
+          @@idb.exclude
+        }
+        model B {
+          id  String @id
+          cId String
+          c   C      @relation(fields: [cId], references: [id])
+        }
+        model A {
+          id  String @id
+          bId String
+          b   B      @relation(fields: [bId], references: [id])
+        }
+      `,
+        "client"
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      // B and A both survive — only C (the explicitly excluded model) is gone.
+      // A's relation to B is untouched since B was never excluded.
+      expect(Object.keys(result.value.storage.stores).sort()).toEqual(["a", "b"]);
+      const models = result.value.domain.namespaces[NS]!.models as Record<string, { relations: object }>;
+      expect(models["B"]!.relations).not.toHaveProperty("c");
+      expect(models["A"]!.relations).toHaveProperty("b");
+    });
+
+    it("keeps a required N:1 relation whose target survives", () => {
+      const result = interpret(
+        `
+        model User {
+          id    String @id
+          posts Post[]
+        }
+        model Post {
+          id     String @id
+          userId String
+          user   User   @relation(fields: [userId], references: [id])
+        }
+      `,
+        "client"
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const models = result.value.domain.namespaces[NS]!.models as Record<string, { relations: object }>;
+      expect(models["Post"]!.relations).toHaveProperty("user");
+      expect(models["User"]!.relations).toHaveProperty("posts");
     });
   });
 });
