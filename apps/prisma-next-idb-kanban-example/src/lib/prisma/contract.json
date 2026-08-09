@@ -156,10 +156,24 @@
           },
           "User": {
             "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/date@1",
+                  "kind": "scalar"
+                }
+              },
               "email": {
                 "nullable": true,
                 "type": {
                   "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "emailVerified": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/bool@1",
                   "kind": "scalar"
                 }
               },
@@ -170,10 +184,31 @@
                   "kind": "scalar"
                 }
               },
+              "image": {
+                "nullable": true,
+                "type": {
+                  "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "isAnonymous": {
+                "nullable": true,
+                "type": {
+                  "codecId": "idb/bool@1",
+                  "kind": "scalar"
+                }
+              },
               "name": {
                 "nullable": false,
                 "type": {
                   "codecId": "idb/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "idb/date@1",
                   "kind": "scalar"
                 }
               }

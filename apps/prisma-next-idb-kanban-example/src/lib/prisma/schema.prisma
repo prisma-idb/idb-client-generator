@@ -1,10 +1,81 @@
+// The `id`/`name`/`email` fields are also this app's domain identity (owns
+// Boards); everything else is better-auth's own required User shape — one
+// table serves both, same as this schema being the single source for both
+// the IDB client and the real server (ADR 012). `sessions`/`accounts` are
+// server-only (@idb.exclude) — the browser never needs another user's or
+// even its own session/account rows, only auth-client's own cookie-backed
+// session state.
 model User {
-  id           String  @id
-  name         String
-  email        String? @unique
-  // Server-only: never synced to the client's IndexedDB (ADR 012).
-  passwordHash String  @idb.exclude
-  boards       Board[]
+  id            String    @id
+  name          String
+  email         String?   @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  // Not `@updatedAt` — family-sql's PSL parser doesn't recognize it (see
+  // Session.updatedAt below for the full reasoning).
+  updatedAt     DateTime
+  // Set by better-auth's `anonymous()` plugin (see src/lib/server/auth.ts).
+  isAnonymous   Boolean?
+  boards        Board[]
+  // Relations to whole-model-excluded models — ADR 013 drops these from the
+  // client contract automatically (no @idb.exclude on the relation field
+  // itself: that's IDB_EXCLUDE_ON_RELATION_FIELD_UNSUPPORTED).
+  sessions      Session[]
+  accounts      Account[]
+}
+
+// better-auth's own tables (session/account/verification) — never reach the
+// browser (@@idb.exclude): they're server-only auth state, not app data.
+// Field shapes match better-auth's built-in requirements exactly (mirrors
+// apps/pidb-kanban-example's reference schema, the old generator's version
+// of this same app).
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  // Not `@updatedAt` (family-sql's PSL parser doesn't recognize it —
+  // `temporal.updatedAt()` would be its field-preset equivalent, but
+  // better-auth's own adapter code already sets this on every write, so a
+  // DB-level auto-update would be redundant anyway).
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@idb.exclude
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime
+
+  @@idb.exclude
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime
+
+  @@idb.exclude
 }
 
 // Server-only audit trail. Excluded wholesale — no relations to any synced

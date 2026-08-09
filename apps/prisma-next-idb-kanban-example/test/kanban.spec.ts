@@ -1,21 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
 
+/** Signs in a fresh anonymous guest and lands on the kanban board. Each test gets its own isolated browser context (Playwright default), so each signs in as a distinct guest. */
 async function openApp(page: Page) {
-  await page.goto("/");
+  await page.goto("/login");
+  await page.getByTestId("continue-as-guest").click();
   await expect(page.getByRole("heading", { name: "Prisma Next IDB Kanban" })).toBeVisible();
   await expect(page.getByText("Ready")).toBeVisible({ timeout: 15_000 });
 }
 
 test("creates, edits, completes, persists, and deletes local records", async ({ page }) => {
   await openApp(page);
-
-  await expect(page.getByText("Start with a local user")).toBeVisible();
-  await page.getByTestId("user-name-input").fill("Ada Lovelace");
-  await page.getByTestId("user-email-input").fill("ada@example.test");
-  await page.getByTestId("create-user-submit").click();
-
-  await expect(page.getByRole("button", { name: /Ada Lovelace/ })).toBeVisible();
-  await expect(page.getByTestId("users-count")).toHaveText("1");
 
   await page.getByTestId("board-name-input").fill("Analytical Engine");
   await page.getByTestId("create-board-submit").click();

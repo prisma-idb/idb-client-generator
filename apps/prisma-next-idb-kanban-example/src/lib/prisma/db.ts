@@ -37,3 +37,19 @@ export async function closeDb(): Promise<void> {
   client = null;
   clientPromise = null;
 }
+
+/**
+ * Closes and wipes the local database — used on logout so a different
+ * account signing in on the same browser never sees a previous session's
+ * boards/todos. `onblocked` (another tab still has the DB open) resolves
+ * anyway: best-effort, matching `close()`'s own no-throw posture.
+ */
+export async function resetDb(): Promise<void> {
+  await closeDb();
+  await new Promise<void>((resolve, reject) => {
+    const req = indexedDB.deleteDatabase(DB_NAME);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error as Error);
+    req.onblocked = () => resolve();
+  });
+}

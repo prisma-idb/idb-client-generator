@@ -20,7 +20,8 @@ const IMPLICIT_V1_PLUS_ONE_COMBINED_BUMP = 2;
  * marker rows for both, after exactly one version bump.
  */
 test("sync extension stores and marker rows exist after auto-migration", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/login");
+  await page.getByTestId("continue-as-guest").click();
   await expect(page.getByText("Ready")).toBeVisible({ timeout: 15_000 });
 
   const result = await page.evaluate(async () => {
