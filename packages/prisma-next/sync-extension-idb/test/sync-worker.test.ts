@@ -25,6 +25,7 @@ function makeStubSyncClient(): SyncIdbClient<never> {
     createSyncWorker: (() => {
       throw new Error("not used in these tests");
     }) as never,
+    onOutboxWrite: () => () => {},
     verifyMarker: (async () => ({})) as never,
     close: async () => {},
     [Symbol.asyncDispose]: async () => {},

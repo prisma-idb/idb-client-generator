@@ -70,6 +70,18 @@ export interface SyncIdbClient<TContract extends IdbContract> {
     options: Omit<SyncWorkerOptions<TContract>, "syncClient">
   ): ReturnType<typeof createSyncWorker<TContract>>;
 
+  /**
+   * Subscribe to every tracked mutation's outbox write, once it's committed
+   * — the "old generator style" event-listener hook (`BaseIDBModelClass.subscribe`)
+   * for the one thing worth watching here: a local write that's now pending
+   * push. Fires once per affected row (a cascading delete fires once per
+   * cascaded row, same as the outbox events themselves). Prefer this over
+   * re-deriving "did anything change" after every individual `db.orm.*` call
+   * site — subscribe once, e.g. to recompute a pending-count badge.
+   * Returns an unsubscribe function.
+   */
+  onOutboxWrite(callback: () => void): () => void;
+
   /** Verify the contract marker matches this database. Delegates to `rawClient`. */
   verifyMarker(): Promise<boolean>;
 
@@ -131,6 +143,7 @@ export function createSyncIdbClient<TContract extends IdbContract>(
   options: SyncIdbClientOptions<TContract>
 ): SyncIdbClient<TContract> {
   const trackedModels = options.trackedModels ?? "*";
+  const outboxWriteListeners = new Set<() => void>();
 
   const driver = createIDBRuntimeDriver(
     options.dbName,
@@ -147,6 +160,9 @@ export function createSyncIdbClient<TContract extends IdbContract>(
   const syncExecutor = new SyncInterceptorExecutor(runtime, {
     contract: options.contract,
     trackedModels,
+    onOutboxWrite: () => {
+      for (const cb of outboxWriteListeners) cb();
+    },
   });
 
   const syncOrm = idbOrm({ contract: options.contract, executor: syncExecutor });
@@ -173,6 +189,10 @@ export function createSyncIdbClient<TContract extends IdbContract>(
     withoutTracking: <T>(fn: (rawOrm: IdbOrmClient<TContract>) => Promise<T>) => fn(rawOrm),
     withTransaction,
     createSyncWorker: (opts) => createSyncWorker({ ...opts, syncClient: client }),
+    onOutboxWrite: (callback) => {
+      outboxWriteListeners.add(callback);
+      return () => outboxWriteListeners.delete(callback);
+    },
     verifyMarker: () => rawClient.verifyMarker(),
     close: () => rawClient.close(),
     [Symbol.asyncDispose]: () => rawClient.close(),

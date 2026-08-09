@@ -30,6 +30,37 @@ describe("SyncInterceptorExecutor", () => {
     expect(users).toEqual([{ id: "u1", name: "Alice" }]);
   });
 
+  it("onOutboxWrite fires once per tracked write, after it's committed", async () => {
+    const { client } = await createTestSyncClient();
+    const users = asAccessors(client.orm)["users"]!;
+
+    const calls: number[] = [];
+    const unsubscribe = client.onOutboxWrite(() => calls.push((calls.length ?? 0) + 1));
+
+    await users.create({ id: "u1", name: "Alice" });
+    // Fired only after the write actually landed — not eagerly before it.
+    expect(await scanAll(client, "_idb_sync_outbox")).toHaveLength(1);
+    expect(calls).toHaveLength(1);
+
+    await users.where({ id: "u1" }).update({ name: "Alicia" });
+    expect(calls).toHaveLength(2);
+
+    unsubscribe();
+    await users.delete("u1");
+    expect(calls).toHaveLength(2); // no longer subscribed
+  });
+
+  it("onOutboxWrite does not fire for an untracked model", async () => {
+    const { client } = await createTestSyncClient({ trackedModels: ["Post"] });
+    const users = asAccessors(client.orm)["users"]!;
+
+    const calls: number[] = [];
+    client.onOutboxWrite(() => calls.push(1));
+
+    await users.create({ id: "u1", name: "Alice" });
+    expect(calls).toHaveLength(0);
+  });
+
   it("does not intercept an untracked model", async () => {
     const { client } = await createTestSyncClient({ trackedModels: ["Post"] });
 
@@ -121,6 +152,22 @@ describe("SyncInterceptorExecutor.transaction() — relational mutations", () =>
 
     const metaRow = await keyGet(client, "_idb_sync_version_meta", postDelete!.versionMetaId!);
     expect(metaRow).toBeDefined();
+  });
+
+  it("onOutboxWrite fires for writes issued via the transaction() path too, once per affected row", async () => {
+    const { client } = await createTestSyncClient();
+    const users = asAccessors(client.orm)["users"]!;
+    const posts = asAccessors(client.orm)["posts"]!;
+
+    await users.create({ id: "u1", name: "Alice" });
+    await posts.create({ id: "p1", title: "Hi", authorId: "u1" });
+
+    let writes = 0;
+    client.onOutboxWrite(() => writes++);
+
+    // Cascade-deletes the one Post too — two rows written, two notifications.
+    await users.delete("u1");
+    expect(writes).toBe(2);
   });
 
   it("tracks a scan-write update (executeScalarUpdateWithFkValidation's put-merged path)", async () => {

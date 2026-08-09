@@ -20,7 +20,7 @@
  *    `SyncInterceptingTransactionScope` below.
  */
 
-import type { AsyncIterableResult } from "@prisma-next/framework-components/runtime";
+import { AsyncIterableResult } from "@prisma-next/framework-components/runtime";
 import type { IdbQueryExecutor, IdbQueryExecutorWithTransaction } from "@prisma-next-idb/client-idb/orm";
 import type { IdbContract } from "@prisma-next-idb/client-idb/orm";
 import type { IdbQueryPlan } from "@prisma-next-idb/adapter-idb/runtime";
@@ -263,6 +263,29 @@ function outboxPayload(ast: MutationAst): unknown {
   }
 }
 
+/**
+ * Pulls rows through `result` (consuming it exactly once), firing `onWrite`
+ * once the caller is done with it — including if the caller only pulls the
+ * first row and stops early (a `for await` break/return calls the
+ * generator's own `return()`, which resumes at the current `yield` and runs
+ * `finally` without reaching code placed after the loop). Not fired if the
+ * underlying iteration throws.
+ */
+async function* trackOutboxWrite<Row>(
+  result: AsyncIterableResult<Row>,
+  onWrite: () => void
+): AsyncGenerator<Row, void, unknown> {
+  let ok = true;
+  try {
+    for await (const row of result) yield row;
+  } catch (err) {
+    ok = false;
+    throw err;
+  } finally {
+    if (ok) onWrite();
+  }
+}
+
 // ── SyncInterceptorExecutor ───────────────────────────────────────────────────
 
 export interface SyncInterceptorConfig {
@@ -270,6 +293,14 @@ export interface SyncInterceptorConfig {
   readonly contract: IdbContract;
   /** Models to intercept. `'*'` intercepts all models. */
   readonly trackedModels: ReadonlyArray<string> | "*";
+  /**
+   * Fired once a tracked mutation's outbox write has committed — the
+   * "old generator style" event-listener hook (`BaseIDBModelClass.subscribe`)
+   * for this package's one thing worth watching: a local write that's now
+   * pending push. Exposed publicly as `SyncIdbClient.onOutboxWrite` — a
+   * single low-level callback here, fanned out to multiple subscribers there.
+   */
+  readonly onOutboxWrite?: () => void;
 }
 
 function isTrackedModel(config: SyncInterceptorConfig, modelName: string): boolean {
@@ -301,7 +332,17 @@ export class SyncInterceptorExecutor implements IdbQueryExecutorWithTransaction 
     if (!ast || !isMutationAst(ast) || !isTrackedModel(this.#config, ast.modelName)) {
       return this.#inner.execute(plan);
     }
-    return this.#inner.execute(this.#extendPlan(plan, ast));
+    const result = this.#inner.execute(this.#extendPlan(plan, ast));
+    const { onOutboxWrite } = this.#config;
+    if (!onOutboxWrite) return result;
+    // Can't `.then()`/iterate `result` here to observe completion — every
+    // `AsyncIterableResult` is single-consumption (throws on a second
+    // consumer), and the caller (client-idb's store accessor) still needs to
+    // consume it. Instead, hand back a NEW `AsyncIterableResult` that itself
+    // consumes `result` exactly once (pulling every row through, unchanged)
+    // and fires `onOutboxWrite` only after that succeeds — a write that
+    // throws mid-iteration never notifies.
+    return new AsyncIterableResult<Row>(trackOutboxWrite(result, onOutboxWrite));
   }
 
   /**
@@ -481,5 +522,6 @@ class SyncInterceptingTransactionScope implements IdbTransactionScope {
     if (key !== undefined) {
       await this.#inner.execute(versionMetaPutOp(modelName, key, meta));
     }
+    this.#config.onOutboxWrite?.();
   }
 }
