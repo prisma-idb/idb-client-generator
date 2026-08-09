@@ -1,10 +1,22 @@
 import { expect, test, type Page } from "@playwright/test";
 
-/** Signs in a fresh anonymous guest and lands on the kanban board. Each test gets its own isolated browser context (Playwright default), so each signs in as a distinct guest. */
+/**
+ * Signs in a fresh anonymous guest and lands on the kanban board. Each test
+ * gets its own isolated browser context (Playwright default), so each signs
+ * in as a distinct guest.
+ *
+ * Waits for `board-name-input`, not just the heading/"Ready" text: those
+ * render as soon as the app shell mounts, before the session check resolves
+ * and `loadWorkspace()` finishes mirroring the session user into local IDB
+ * (`kanban.status` is still `"opening"` at that point) — a caller that
+ * proceeds on the looser signal can race that write, e.g. going offline and
+ * reloading before the local user row actually landed.
+ */
 async function openApp(page: Page) {
   await page.goto("/login");
   await page.getByTestId("continue-as-guest").click();
   await expect(page.getByRole("heading", { name: "Prisma Next IDB Kanban" })).toBeVisible();
+  await expect(page.getByTestId("board-name-input")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("Ready")).toBeVisible({ timeout: 15_000 });
 }
 

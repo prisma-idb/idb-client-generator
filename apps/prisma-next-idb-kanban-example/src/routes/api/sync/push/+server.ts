@@ -1,5 +1,6 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
+import { auth } from "$lib/server/auth";
 import { getPostgres } from "$lib/server/db";
 import { syncServer } from "$lib/server/sync";
 import { applyPushEvent, getKeyField, toSyncPushPayload } from "$lib/server/sync-sql-adapter";
@@ -8,25 +9,26 @@ import type { PushEventBody, PushResultBody } from "$lib/server/sync-sql-adapter
 /**
  * ADR 014's push endpoint: validate ownership via `@prisma-next-idb/sync-server`,
  * then apply authorized writes to the real Postgres tables (execution lives
- * in `sync-sql-adapter.ts` — this file is just the HTTP boundary). Demo-level
- * simplification, called out once here rather than at every use: `scopeKey`
- * is whatever the client claims in the request body — this app has no real
- * auth, `scopeKey` is just the locally-picked "active user" id (see
- * kanban.svelte.ts's `activeUserId`). A production deployment would derive
- * `scopeKey` from a verified session, never trust it from the request body.
+ * in `sync-sql-adapter.ts` — this file is just the HTTP boundary). `scopeKey`
+ * is the authenticated session's user id, resolved server-side from the
+ * request's session cookie (`auth.api.getSession`) — never trusted from the
+ * request body, so a client can't claim to push as a different user.
  */
 
 interface PushRequestBody {
   readonly events: readonly PushEventBody[];
-  readonly scopeKey: string;
 }
 
 export const POST: RequestHandler = async ({ request }) => {
+  const session = await auth.api.getSession({ headers: request.headers });
+  if (!session?.user.id) return json({ error: "Unauthorized" }, { status: 401 });
+  const scopeKey = session.user.id;
+
   const body = (await request.json()) as Partial<PushRequestBody>;
-  if (!Array.isArray(body.events) || typeof body.scopeKey !== "string") {
-    return json({ error: "events (array) and scopeKey (string) are required" }, { status: 400 });
+  if (!Array.isArray(body.events)) {
+    return json({ error: "events (array) is required" }, { status: 400 });
   }
-  const { events, scopeKey } = body as PushRequestBody;
+  const { events } = body as PushRequestBody;
 
   const db = await getPostgres();
   const results: PushResultBody[] = [];

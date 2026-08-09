@@ -34,5 +34,19 @@ if (!env.BETTER_AUTH_SECRET) {
 export const auth = betterAuth({
   database: new Pool({ connectionString: env.DATABASE_URL }),
   secret: env.BETTER_AUTH_SECRET,
-  plugins: [sveltekitCookies(getRequestEvent), anonymous()],
+  baseURL: env.BETTER_AUTH_URL,
+  // Behind `vite preview` (this app's own e2e setup) the runtime can't
+  // resolve distinct per-client IPs, so better-auth falls back to one
+  // shared bucket per path — concurrent Playwright workers each signing in
+  // anonymously then trip it as "one client" making rapid requests. Demo
+  // app, no real traffic to protect yet.
+  rateLimit: { enabled: false },
+  // `sveltekitCookies` MUST be last: its `hooks.after` is what flushes
+  // Set-Cookie headers queued by every OTHER plugin's hooks (e.g.
+  // `anonymous()`'s own session cookie on sign-in) into SvelteKit's actual
+  // response. Listed first, those cookies never reach the browser — sign-in
+  // still succeeds server-side (the Postgres row gets created) but the
+  // client never receives a session, so it looks like sign-in silently did
+  // nothing and the local IDB user never gets mirrored.
+  plugins: [anonymous(), sveltekitCookies(getRequestEvent)],
 });

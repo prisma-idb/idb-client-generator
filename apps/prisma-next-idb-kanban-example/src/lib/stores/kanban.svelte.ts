@@ -1,13 +1,32 @@
 import { getDb } from "$lib/prisma/db";
 import type { Contract } from "$lib/prisma/contract";
 import type { DefaultModelRow, IncludedRow } from "@prisma-next-idb/client-idb/orm";
-import type { LogWithRecord, OutboxEvent, PushResult, SyncWorker } from "@prisma-next-idb/sync-extension-idb/client";
+import { getNextBatch } from "@prisma-next-idb/sync-extension-idb/client";
+import type {
+  LogWithRecord,
+  OutboxEvent,
+  PushResult,
+  SyncWorker,
+  SyncWorkerStatus,
+} from "@prisma-next-idb/sync-extension-idb/client";
 import { SvelteDate, SvelteURLSearchParams } from "svelte/reactivity";
 
 export type User = DefaultModelRow<Contract, "User">;
 export type Board = DefaultModelRow<Contract, "Board">;
 export type Todo = DefaultModelRow<Contract, "Todo">;
 export type BoardWithTodos = IncludedRow<Contract, "Board", { todos: true }>;
+
+/** The subset of better-auth's session user this store actually needs — decoupled from its exact type. */
+export interface SessionUser {
+  readonly id: string;
+  readonly name: string;
+  readonly email: string | null;
+  readonly emailVerified: boolean;
+  readonly image?: string | null;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+  readonly isAnonymous?: boolean | null;
+}
 
 export const KANBAN_CTX = Symbol("kanban");
 
@@ -18,14 +37,16 @@ function makeId(prefix: string) {
 export class KanbanStore {
   status = $state<"opening" | "ready" | "error">("opening");
   errorMessage = $state("");
-  users = $state<User[]>([]);
+  activeUser = $state<User | null>(null);
   boards = $state<BoardWithTodos[]>([]);
-  activeUserId = $state<string | null>(null);
   busy = $state(false);
   syncWorker: SyncWorker | null = null;
+  syncStatus = $state<SyncWorkerStatus>("stopped");
+  pendingSyncCount = $state(0);
+  lastSyncedAt = $state<Date | null>(null);
+  isOnline = $state(true);
   private syncStarting = false;
 
-  activeUser = $derived(this.users.find((u) => u.id === this.activeUserId) ?? null);
   todos = $derived(this.boards.flatMap((b) => b.todos));
   completedTodos = $derived(this.todos.filter((t) => t.isCompleted).length);
 
@@ -35,20 +56,7 @@ export class KanbanStore {
     this.busy = false;
   };
 
-  rememberActiveUser(userId: string | null) {
-    this.activeUserId = userId;
-    if (userId) {
-      localStorage.setItem("prisma-next-kanban-active-user", userId);
-    } else {
-      localStorage.removeItem("prisma-next-kanban-active-user");
-    }
-  }
-
-  private async loadBoards(userId: string | null) {
-    if (!userId) {
-      this.boards = [];
-      return;
-    }
+  private async loadBoards(userId: string) {
     const db = await getDb();
     this.boards = await db.orm.board
       .where({ userId })
@@ -58,48 +66,78 @@ export class KanbanStore {
       .toArray();
   }
 
-  async loadWorkspace(preferredUserId = this.activeUserId) {
+  /** Ground-truth refresh of `pendingSyncCount` from the outbox — cheap, a full scan over a small local store. */
+  private async refreshPendingCount(db?: Awaited<ReturnType<typeof getDb>>) {
+    const client = db ?? (await getDb());
+    const pending = await getNextBatch(client.rawClient, { limit: 1000 });
+    this.pendingSyncCount = pending.length;
+  }
+
+  /** Manually trigger a push/pull cycle now, ignoring the worker's idle backoff. */
+  async syncNow() {
+    await this.syncWorker?.forceSync();
+  }
+
+  /**
+   * `sessionUser` comes from better-auth's session (see `+page.svelte`,
+   * gated behind `/login`) — the browser's one identity, not something you
+   * switch between locally anymore. Mirrors it into local IDB via
+   * `withoutTracking` (the row already exists server-side, created by
+   * better-auth itself on sign-in — pushing it again through the outbox
+   * would be redundant and race the real write).
+   */
+  async loadWorkspace(sessionUser: SessionUser) {
     this.status = "opening";
     this.errorMessage = "";
     const db = await getDb();
     const markerOk = await db.verifyMarker();
     if (!markerOk) throw new Error("Prisma Next IDB opened, but marker verification failed.");
 
-    this.users = await db.orm.user.orderBy({ name: "asc" }).all().toArray();
+    this.activeUser = await db.withoutTracking((orm) =>
+      orm.user.upsert({
+        where: { id: sessionUser.id },
+        create: {
+          id: sessionUser.id,
+          name: sessionUser.name,
+          email: sessionUser.email,
+          emailVerified: sessionUser.emailVerified,
+          image: sessionUser.image ?? null,
+          createdAt: sessionUser.createdAt,
+          updatedAt: sessionUser.updatedAt,
+          isAnonymous: sessionUser.isAnonymous ?? null,
+        },
+        update: {
+          name: sessionUser.name,
+          email: sessionUser.email,
+          emailVerified: sessionUser.emailVerified,
+          image: sessionUser.image ?? null,
+          updatedAt: sessionUser.updatedAt,
+          isAnonymous: sessionUser.isAnonymous ?? null,
+        },
+      })
+    );
 
-    const remembered = localStorage.getItem("prisma-next-kanban-active-user");
-    const nextActive =
-      this.users.find((u) => u.id === preferredUserId)?.id ??
-      this.users.find((u) => u.id === remembered)?.id ??
-      this.users[0]?.id ??
-      null;
-    this.rememberActiveUser(nextActive);
-
-    await this.loadBoards(nextActive);
+    await this.loadBoards(sessionUser.id);
     this.status = "ready";
     this.startSync();
   }
 
   /**
    * ADR 014 push/pull, wired against src/routes/api/sync (Postgres-backed).
-   * `scopeKey` is read from `this.activeUserId` at call time, not captured
-   * once — so a single worker instance survives `switchUser()` without
-   * needing to be torn down and recreated. Demo-level simplification (see
-   * push/+server.ts's header): `scopeKey` here is just the locally-picked
-   * active user, not anything a real server would trust as an identity
-   * claim.
+   * `scopeKey` is read from `this.activeUser` at call time — the push/pull
+   * endpoints now derive the authoritative scope from the session cookie
+   * server-side (see push/+server.ts's header); the body-carried `scopeKey`
+   * here is only used client-side to stamp the Changelog pre-filter query.
    */
   private startSync() {
     if (this.syncWorker || this.syncStarting) return;
     this.syncStarting = true;
 
     const pushHandler = async (events: OutboxEvent[], signal: AbortSignal): Promise<PushResult[]> => {
-      const scopeKey = this.activeUserId;
-      if (!scopeKey) return events.map((e) => ({ id: e.id, success: false, error: "No active user" }));
       const res = await fetch("/api/sync/push", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ events, scopeKey }),
+        body: JSON.stringify({ events }),
         signal,
       });
       if (!res.ok) throw new Error(`Push failed: ${res.status}`);
@@ -107,23 +145,39 @@ export class KanbanStore {
     };
 
     const pullHandler = async (fromChangelogId: string | null, signal: AbortSignal): Promise<LogWithRecord[]> => {
-      const scopeKey = this.activeUserId;
-      if (!scopeKey) return [];
-      const params = new SvelteURLSearchParams({ scopeKey });
+      const params = new SvelteURLSearchParams();
       if (fromChangelogId) params.set("since", fromChangelogId);
       const res = await fetch(`/api/sync/pull?${params}`, { signal });
       if (!res.ok) throw new Error(`Pull failed: ${res.status}`);
       return res.json();
     };
 
+    this.isOnline = navigator.onLine;
+    window.addEventListener("online", () => {
+      this.isOnline = true;
+      this.syncWorker?.forceSync().catch(() => {}); // best-effort — the worker's own backoff already retries
+    });
+    window.addEventListener("offline", () => (this.isOnline = false));
+
     getDb()
       .then((db) => {
         this.syncWorker = db.createSyncWorker({ pushHandler, pullHandler });
-        this.syncWorker.on("pullcompleted", ({ applied }) => {
-          if (applied > 0) this.loadBoards(this.activeUserId).catch(this.showError);
+        this.syncWorker.on("statuschange", (status) => {
+          this.syncStatus = status;
+          if (status === "idle") this.lastSyncedAt = new SvelteDate();
         });
+        this.syncWorker.on("pullcompleted", ({ applied }) => {
+          if (applied > 0 && this.activeUser) this.loadBoards(this.activeUser.id).catch(this.showError);
+        });
+        // Pending count moves in two directions: up when a local write lands
+        // (onOutboxWrite — one subscription, not a refreshPendingCount() call
+        // sprinkled after every db.orm.* mutation site), down when a push
+        // cycle marks events synced.
+        db.onOutboxWrite(() => void this.refreshPendingCount(db));
+        this.syncWorker.on("pushcompleted", () => void this.refreshPendingCount(db));
         this.syncWorker.start();
         this.syncStarting = false;
+        void this.refreshPendingCount(db);
       })
       .catch((error: unknown) => {
         this.syncStarting = false;
@@ -131,70 +185,8 @@ export class KanbanStore {
       });
   }
 
-  async switchUser(userId: string) {
-    this.rememberActiveUser(userId);
-    this.busy = true;
-    this.errorMessage = "";
-    try {
-      await this.loadBoards(userId);
-    } catch (error) {
-      this.showError(error);
-    } finally {
-      this.busy = false;
-    }
-  }
-
-  async createUser(name: string, email: string) {
-    this.busy = true;
-    this.errorMessage = "";
-    try {
-      const db = await getDb();
-      const id = makeId("user");
-      await db.orm.user.create({ id, name, email: email || null });
-      this.users = [...this.users, { id, name, email: email || null }].sort((a, b) => a.name.localeCompare(b.name));
-      this.rememberActiveUser(id);
-      this.boards = [];
-    } catch (error) {
-      this.showError(error);
-    } finally {
-      this.busy = false;
-    }
-  }
-
-  async updateUser(userId: string, name: string, email: string) {
-    this.busy = true;
-    this.errorMessage = "";
-    try {
-      const db = await getDb();
-      await db.orm.user.where({ id: userId }).update({ name, email: email || null });
-      this.users = this.users
-        .map((u) => (u.id === userId ? { ...u, name, email: email || null } : u))
-        .sort((a, b) => a.name.localeCompare(b.name));
-    } catch (error) {
-      this.showError(error);
-    } finally {
-      this.busy = false;
-    }
-  }
-
-  async deleteUser(userId: string) {
-    this.busy = true;
-    this.errorMessage = "";
-    try {
-      const db = await getDb();
-      await db.orm.user.delete(userId);
-      this.users = this.users.filter((u) => u.id !== userId);
-      this.rememberActiveUser(null);
-      this.boards = [];
-    } catch (error) {
-      this.showError(error);
-    } finally {
-      this.busy = false;
-    }
-  }
-
   async createBoard(name: string) {
-    const userId = this.activeUserId;
+    const userId = this.activeUser?.id;
     if (!userId) return;
     this.busy = true;
     this.errorMessage = "";

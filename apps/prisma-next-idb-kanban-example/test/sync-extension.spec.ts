@@ -22,7 +22,9 @@ const IMPLICIT_V1_PLUS_ONE_COMBINED_BUMP = 2;
 test("sync extension stores and marker rows exist after auto-migration", async ({ page }) => {
   await page.goto("/login");
   await page.getByTestId("continue-as-guest").click();
-  await expect(page.getByText("Ready")).toBeVisible({ timeout: 15_000 });
+  // Not just "Ready" — that renders as soon as the shell mounts, before the
+  // session check resolves and getDb() actually opens/migrates the database.
+  await expect(page.getByTestId("board-name-input")).toBeVisible({ timeout: 15_000 });
 
   const result = await page.evaluate(async () => {
     const dbs = await indexedDB.databases();

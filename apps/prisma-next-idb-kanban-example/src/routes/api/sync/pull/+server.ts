@@ -1,5 +1,6 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
+import { auth } from "$lib/server/auth";
 import { getPostgres } from "$lib/server/db";
 import { syncServer } from "$lib/server/sync";
 import { resolvePullRecord } from "$lib/server/sync-sql-adapter";
@@ -17,15 +18,16 @@ import { resolvePullRecord } from "$lib/server/sync-sql-adapter";
  *    back as `record: null`, which `applyPull` (sync-extension-idb) treats
  *    as a local delete.
  *
- * Same demo-level caveat as push/+server.ts: `scopeKey` is trusted as
- * given, no real auth.
+ * `scopeKey` is the authenticated session's user id (`auth.api.getSession`),
+ * same as push — never a query param a client could set to another user's id.
  */
 
-export const GET: RequestHandler = async ({ url }) => {
-  const scopeKey = url.searchParams.get("scopeKey");
-  const since = url.searchParams.get("since");
-  if (!scopeKey) return json({ error: "scopeKey is required" }, { status: 400 });
+export const GET: RequestHandler = async ({ url, request }) => {
+  const session = await auth.api.getSession({ headers: request.headers });
+  if (!session?.user.id) return json({ error: "Unauthorized" }, { status: 401 });
+  const scopeKey = session.user.id;
 
+  const since = url.searchParams.get("since");
   let sinceId: number | null = null;
   if (since !== null) {
     sinceId = Number(since);
