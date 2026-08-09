@@ -22,6 +22,13 @@
  * remote), so it's run through `decodeJsonRecord` (ISO string → `Date`,
  * digit string → `bigint`, base64 → `Uint8Array`, ...) before being written —
  * IDB stores native JS values, not their JSON-safe wire forms.
+ *
+ * A `create`/`update` log with `record: null` means the server re-checked
+ * ownership (ADR 014's `buildPullQueries` live re-check) and this client is
+ * no longer authorized to see the record's current state — e.g. its
+ * ownership chain was reassigned to someone else since it was last synced.
+ * That's applied as a local delete, same as an explicit `delete` op: an
+ * unauthorized record has to stop existing locally, not just stop updating.
  */
 
 import type { IdbAtomicPlan } from "@prisma-next-idb/driver-idb/runtime";
@@ -58,10 +65,6 @@ export async function applyPull<TContract extends IdbContract>(
       skipped++;
       continue;
     }
-    if ((log.operation === "create" || log.operation === "update") && log.record === null) {
-      skipped++;
-      continue;
-    }
 
     const wasApplied = await applyLog(syncClient, contract, log);
 
@@ -80,10 +83,12 @@ export async function applyPull<TContract extends IdbContract>(
 
 /**
  * Meta check + record write + meta update in a single multi-store
- * `withTransaction` call. `delete` additionally spans every store touched by
- * an enforceable child relation (see `collectDeleteStoreNames`); for models
- * with no such relations that list is just `[storeName]`, so this is the
- * same single-store shape as `create`/`update` with no special-casing.
+ * `withTransaction` call. A `delete` op or a null-record `create`/`update`
+ * (revoked ownership, see file header) additionally spans every store
+ * touched by an enforceable child relation (see `collectDeleteStoreNames`);
+ * for models with no such relations that list is just `[storeName]`, so
+ * this is the same single-store shape as a normal `create`/`update` with no
+ * special-casing.
  */
 async function applyLog<TContract extends IdbContract>(
   syncClient: SyncIdbClient<TContract>,
@@ -92,7 +97,8 @@ async function applyLog<TContract extends IdbContract>(
 ): Promise<boolean> {
   const metaId = versionMetaKey(log.model, log.keyPath);
   const storeName = getStoreName(contract, log.model);
-  const storeNames = log.operation === "delete" ? collectDeleteStoreNames(contract, log.model) : [storeName];
+  const isDelete = log.operation === "delete" || log.record === null;
+  const storeNames = isDelete ? collectDeleteStoreNames(contract, log.model) : [storeName];
   const decodedRecord = log.record !== null ? decodeJsonRecord(contract.domain, log.model, log.record) : null;
 
   try {
@@ -109,7 +115,7 @@ async function applyLog<TContract extends IdbContract>(
         if (meta.lastAppliedChangeId !== null && meta.lastAppliedChangeId >= log.changelogId) return false;
       }
 
-      if (log.operation === "delete") {
+      if (isDelete) {
         const rows = await scope.execute({
           kind: "key-get",
           storeName,

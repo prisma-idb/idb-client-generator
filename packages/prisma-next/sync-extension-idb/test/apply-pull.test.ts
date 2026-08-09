@@ -113,12 +113,44 @@ describe("applyPull", () => {
     expect(result).toEqual({ applied: 0, skipped: 1, lastChangelogId: null });
   });
 
-  it("skips create/update logs with a null record", async () => {
+  it("treats a create/update log with a null record as a no-op when nothing is materialized locally yet", async () => {
     const { client } = await createTestSyncClient();
 
     const result = await applyPull(client, [log({ changelogId: "c1", operation: "create", record: null })]);
 
-    expect(result).toEqual({ applied: 0, skipped: 1, lastChangelogId: null });
+    expect(result).toEqual({ applied: 1, skipped: 0, lastChangelogId: "c1" });
+    expect(await scanAll(client, "users")).toHaveLength(0);
+  });
+
+  it("deletes an already-synced record when access is revoked (update log arrives with a null record)", async () => {
+    const { client } = await createTestSyncClient();
+    await applyPull(client, [log({ changelogId: "c1", operation: "create" })]);
+    expect(await scanAll(client, "users")).toEqual([{ id: "u1", name: "Alice" }]);
+
+    const result = await applyPull(client, [log({ changelogId: "c2", operation: "update", record: null })]);
+
+    expect(result).toEqual({ applied: 1, skipped: 0, lastChangelogId: "c2" });
+    expect(await scanAll(client, "users")).toHaveLength(0);
+  });
+
+  it("cascades onDelete: cascade to children when revocation deletes a parent (update log, null record)", async () => {
+    const { client } = await createTestSyncClient();
+    await applyPull(client, [log({ changelogId: "c1", operation: "create" })]);
+    await applyPull(client, [
+      log({
+        changelogId: "c2",
+        model: "Post",
+        keyPath: "p1",
+        operation: "create",
+        record: { id: "p1", title: "Hi", authorId: "u1" },
+      }),
+    ]);
+
+    const result = await applyPull(client, [log({ changelogId: "c3", operation: "update", record: null })]);
+
+    expect(result).toEqual({ applied: 1, skipped: 0, lastChangelogId: "c3" });
+    expect(await scanAll(client, "users")).toHaveLength(0);
+    expect(await scanAll(client, "posts")).toHaveLength(0);
   });
 
   it("tracks lastChangelogId as the max across multiple applied logs, regardless of input order", async () => {
