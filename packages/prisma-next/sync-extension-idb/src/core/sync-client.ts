@@ -70,7 +70,19 @@ export interface SyncIdbClient<TContract extends IdbContract> {
     options: Omit<SyncWorkerOptions<TContract>, "syncClient">
   ): ReturnType<typeof createSyncWorker<TContract>>;
 
-  /** The underlying raw `IdbClient` — marker verification, close, raw ORM. */
+  /** Verify the contract marker matches this database. Delegates to `rawClient`. */
+  verifyMarker(): Promise<boolean>;
+
+  /** Close the underlying IDB connection. Delegates to `rawClient`. */
+  close(): Promise<void>;
+
+  [Symbol.asyncDispose](): Promise<void>;
+
+  /**
+   * The underlying raw `IdbClient` — for the raw (untracked) ORM. Prefer
+   * `verifyMarker()`/`close()` directly on this client over
+   * `rawClient.verifyMarker()`/`rawClient.close()`; they're the same calls.
+   */
   readonly rawClient: IdbClient<TContract>;
 }
 
@@ -161,6 +173,9 @@ export function createSyncIdbClient<TContract extends IdbContract>(
     withoutTracking: <T>(fn: (rawOrm: IdbOrmClient<TContract>) => Promise<T>) => fn(rawOrm),
     withTransaction,
     createSyncWorker: (opts) => createSyncWorker({ ...opts, syncClient: client }),
+    verifyMarker: () => rawClient.verifyMarker(),
+    close: () => rawClient.close(),
+    [Symbol.asyncDispose]: () => rawClient.close(),
     rawClient,
   };
 

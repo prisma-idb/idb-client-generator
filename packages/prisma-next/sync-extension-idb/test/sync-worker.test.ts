@@ -25,6 +25,9 @@ function makeStubSyncClient(): SyncIdbClient<never> {
     createSyncWorker: (() => {
       throw new Error("not used in these tests");
     }) as never,
+    verifyMarker: (async () => ({})) as never,
+    close: async () => {},
+    [Symbol.asyncDispose]: async () => {},
     rawClient: {
       orm: {} as never,
       withTransaction: (async (_stores: string[], fn: (scope: unknown) => unknown) => fn(emptyScope)) as never,

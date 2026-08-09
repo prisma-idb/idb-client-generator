@@ -1,6 +1,9 @@
 export { createSyncIdbClient } from "../core/sync-client";
 export type { SyncIdbClient, SyncIdbClientOptions } from "../core/sync-client";
 
+export { createAutoMigratingSyncIdbClient } from "../core/auto-migrate-sync";
+export type { AutoMigratingSyncIdbClientOptions } from "../core/auto-migrate-sync";
+
 export { createSyncWorker } from "../core/sync-worker";
 export type {
   SyncWorker,
