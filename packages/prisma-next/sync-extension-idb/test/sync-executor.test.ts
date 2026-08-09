@@ -80,12 +80,12 @@ describe("SyncInterceptorExecutor", () => {
     expect(await scanAll(client, "users")).toHaveLength(2);
   });
 
-  it("onOutboxWrite fires once per tracked write, after it's committed", async () => {
+  it('on("outboxwrite") fires once per tracked write, after it\'s committed', async () => {
     const { client } = await createTestSyncClient();
     const users = asAccessors(client.orm)["users"]!;
 
     const calls: number[] = [];
-    const unsubscribe = client.onOutboxWrite(() => calls.push((calls.length ?? 0) + 1));
+    const unsubscribe = client.on("outboxwrite", () => calls.push((calls.length ?? 0) + 1));
 
     await users.create({ id: "u1", name: "Alice" });
     // Fired only after the write actually landed — not eagerly before it.
@@ -100,12 +100,12 @@ describe("SyncInterceptorExecutor", () => {
     expect(calls).toHaveLength(2); // no longer subscribed
   });
 
-  it("onOutboxWrite does not fire for an untracked model", async () => {
+  it('on("outboxwrite") does not fire for an untracked model', async () => {
     const { client } = await createTestSyncClient({ trackedModels: ["Post"] });
     const users = asAccessors(client.orm)["users"]!;
 
     const calls: number[] = [];
-    client.onOutboxWrite(() => calls.push(1));
+    client.on("outboxwrite", () => calls.push(1));
 
     await users.create({ id: "u1", name: "Alice" });
     expect(calls).toHaveLength(0);
@@ -218,20 +218,66 @@ describe("SyncInterceptorExecutor.transaction() — relational mutations", () =>
     expect(metaRow).toBeDefined();
   });
 
-  it("onOutboxWrite fires for writes issued via the transaction() path too, once per affected row", async () => {
+  it('on("outboxwrite") batches an entire cascade\'s affected rows into ONE firing, not one per row', async () => {
+    // Cascading to TWO children is still ONE `execute()` call on the
+    // transaction scope (one scan-write touching both Post rows), so it
+    // must be ONE firing with a 2-entry array — not two firings of one
+    // entry each, which is what a naive per-row callback (and this
+    // package's previous zero-arg `onOutboxWrite`) would have produced.
     const { client } = await createTestSyncClient();
     const users = asAccessors(client.orm)["users"]!;
     const posts = asAccessors(client.orm)["posts"]!;
 
     await users.create({ id: "u1", name: "Alice" });
     await posts.create({ id: "p1", title: "Hi", authorId: "u1" });
+    await posts.create({ id: "p2", title: "Yo", authorId: "u1" });
 
-    let writes = 0;
-    client.onOutboxWrite(() => writes++);
+    const firings: { modelName: string; operation: string; key: unknown }[][] = [];
+    client.on("outboxwrite", (entries) => firings.push([...entries]));
 
-    // Cascade-deletes the one Post too — two rows written, two notifications.
-    await users.delete("u1");
-    expect(writes).toBe(2);
+    await users.delete("u1"); // cascades to both posts
+
+    // Firing 1: the cascade's scan-write, both Posts in one array.
+    // Firing 2: the User's own delete, one entry.
+    expect(firings).toHaveLength(2);
+    const cascadeFiring = firings.find((f) => f.length === 2)!;
+    expect(cascadeFiring).toBeDefined();
+    expect(cascadeFiring.every((e) => e.modelName === "Post" && e.operation === "delete")).toBe(true);
+    expect(cascadeFiring.map((e) => e.key).sort()).toEqual(["p1", "p2"]);
+
+    const userFiring = firings.find((f) => f.length === 1)!;
+    expect(userFiring).toBeDefined();
+    expect(userFiring[0]).toMatchObject({ modelName: "User", operation: "delete", key: "u1" });
+  });
+
+  it('on("outboxwrite") carries the resolved key and outbox payload for a plain create', async () => {
+    const { client } = await createTestSyncClient();
+    const users = asAccessors(client.orm)["users"]!;
+
+    const firings: unknown[] = [];
+    client.on("outboxwrite", (entries) => firings.push([...entries]));
+
+    await users.create({ id: "u1", name: "Alice" });
+
+    expect(firings).toEqual([
+      [{ modelName: "User", operation: "create", key: "u1", payload: { id: "u1", name: "Alice" } }],
+    ]);
+  });
+
+  it('on("outboxwrite") batches createAll\'s records into one firing', async () => {
+    const { client } = await createTestSyncClient();
+    const users = asAccessors(client.orm)["users"]!;
+
+    const firings: { modelName: string; key: unknown }[][] = [];
+    client.on("outboxwrite", (entries) => firings.push([...entries]));
+
+    await users.createAll([
+      { id: "u1", name: "Alice" },
+      { id: "u2", name: "Bob" },
+    ]);
+
+    expect(firings).toHaveLength(1);
+    expect(firings[0]!.map((e) => e.key).sort()).toEqual(["u1", "u2"]);
   });
 
   it("orders a cascade's child-delete outbox events strictly before the parent's — required for the server-side ownership walk", async () => {

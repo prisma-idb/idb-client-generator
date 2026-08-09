@@ -19,8 +19,18 @@ import type { IdbClient } from "@prisma-next-idb/client-idb/client";
 import { SyncInterceptorExecutor } from "./sync-executor";
 import type { SyncWorkerOptions } from "./sync-worker";
 import { createSyncWorker } from "./sync-worker";
+import type { OutboxWriteEntry } from "../types";
 
 // ── Public types ──────────────────────────────────────────────────────────────
+
+/**
+ * Events `SyncIdbClient.on(...)` can subscribe to. Just one today —
+ * `"outboxwrite"` — but keyed the same way as `SyncWorker`'s `SyncEventMap`
+ * (see sync-worker.ts) so both use one subscription shape instead of two.
+ */
+export type SyncClientEventMap = {
+  outboxwrite: readonly OutboxWriteEntry[];
+};
 
 export interface SyncIdbClientOptions<TContract extends IdbContract> {
   /** The resolved IDB contract. */
@@ -71,16 +81,18 @@ export interface SyncIdbClient<TContract extends IdbContract> {
   ): ReturnType<typeof createSyncWorker<TContract>>;
 
   /**
-   * Subscribe to every tracked mutation's outbox write, once it's committed
-   * — the "old generator style" event-listener hook (`BaseIDBModelClass.subscribe`)
-   * for the one thing worth watching here: a local write that's now pending
-   * push. Fires once per affected row (a cascading delete fires once per
-   * cascaded row, same as the outbox events themselves). Prefer this over
-   * re-deriving "did anything change" after every individual `db.orm.*` call
-   * site — subscribe once, e.g. to recompute a pending-count badge.
-   * Returns an unsubscribe function.
+   * Subscribe to sync-client events. Just `"outboxwrite"` today — fired once
+   * per tracked IDB write call, after its outbox event(s) have committed,
+   * with the `OutboxWriteEntry[]` that call wrote (model, operation, key,
+   * payload — see that type's doc comment for exactly what "once per call"
+   * covers for batched writes like `createAll()` or a cascade delete).
+   * Prefer this over re-deriving "did anything change" after every
+   * individual `db.orm.*` call site — subscribe once, e.g. to recompute a
+   * pending-count badge, or to react to specific models/operations directly
+   * from the entries instead of a full outbox rescan. Returns an unsubscribe
+   * function.
    */
-  onOutboxWrite(callback: () => void): () => void;
+  on<K extends keyof SyncClientEventMap>(event: K, callback: (payload: SyncClientEventMap[K]) => void): () => void;
 
   /** Verify the contract marker matches this database. Delegates to `rawClient`. */
   verifyMarker(): Promise<boolean>;
@@ -143,7 +155,28 @@ export function createSyncIdbClient<TContract extends IdbContract>(
   options: SyncIdbClientOptions<TContract>
 ): SyncIdbClient<TContract> {
   const trackedModels = options.trackedModels ?? "*";
-  const outboxWriteListeners = new Set<() => void>();
+
+  // Same shape as SyncWorker's own listener map (sync-worker.ts) — one event
+  // today, but keyed so adding another later doesn't need a new Set/method pair.
+  const listeners = new Map<keyof SyncClientEventMap, Set<(payload: unknown) => void>>();
+  function emit<K extends keyof SyncClientEventMap>(event: K, payload: SyncClientEventMap[K]): void {
+    const set = listeners.get(event);
+    if (!set) return;
+    for (const cb of set) cb(payload);
+  }
+  function on<K extends keyof SyncClientEventMap>(
+    event: K,
+    callback: (payload: SyncClientEventMap[K]) => void
+  ): () => void {
+    let set = listeners.get(event);
+    if (!set) {
+      set = new Set();
+      listeners.set(event, set);
+    }
+    const wrapped = callback as (payload: unknown) => void;
+    set.add(wrapped);
+    return () => set.delete(wrapped);
+  }
 
   const driver = createIDBRuntimeDriver(
     options.dbName,
@@ -160,9 +193,7 @@ export function createSyncIdbClient<TContract extends IdbContract>(
   const syncExecutor = new SyncInterceptorExecutor(runtime, {
     contract: options.contract,
     trackedModels,
-    onOutboxWrite: () => {
-      for (const cb of outboxWriteListeners) cb();
-    },
+    onOutboxWrite: (entries) => emit("outboxwrite", entries),
   });
 
   const syncOrm = idbOrm({ contract: options.contract, executor: syncExecutor });
@@ -189,10 +220,7 @@ export function createSyncIdbClient<TContract extends IdbContract>(
     withoutTracking: <T>(fn: (rawOrm: IdbOrmClient<TContract>) => Promise<T>) => fn(rawOrm),
     withTransaction,
     createSyncWorker: (opts) => createSyncWorker({ ...opts, syncClient: client }),
-    onOutboxWrite: (callback) => {
-      outboxWriteListeners.add(callback);
-      return () => outboxWriteListeners.delete(callback);
-    },
+    on,
     verifyMarker: () => rawClient.verifyMarker(),
     close: () => rawClient.close(),
     [Symbol.asyncDispose]: () => rawClient.close(),

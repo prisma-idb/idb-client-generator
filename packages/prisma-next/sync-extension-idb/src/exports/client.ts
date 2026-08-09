@@ -1,5 +1,5 @@
 export { createSyncIdbClient } from "../core/sync-client";
-export type { SyncIdbClient, SyncIdbClientOptions } from "../core/sync-client";
+export type { SyncIdbClient, SyncIdbClientOptions, SyncClientEventMap } from "../core/sync-client";
 
 export { createAutoMigratingSyncIdbClient } from "../core/auto-migrate-sync";
 export type { AutoMigratingSyncIdbClientOptions } from "../core/auto-migrate-sync";
@@ -16,4 +16,11 @@ export type {
 export { applyPull } from "../core/apply-pull";
 export { getNextBatch, markSynced, markFailed } from "../core/outbox-store";
 
-export type { OutboxEvent, LogWithRecord, PushResult, ApplyPullResult, VersionMetaRecord } from "../types";
+export type {
+  OutboxEvent,
+  OutboxWriteEntry,
+  LogWithRecord,
+  PushResult,
+  ApplyPullResult,
+  VersionMetaRecord,
+} from "../types";

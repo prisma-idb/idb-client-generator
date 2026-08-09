@@ -45,7 +45,7 @@ import type {
 } from "@prisma-next-idb/driver-idb/runtime";
 import { getKeyPath, getStoreName } from "@prisma-next-idb/client-idb/orm";
 import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
-import type { OutboxEvent } from "../types";
+import type { OutboxEvent, OutboxWriteEntry } from "../types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -380,13 +380,14 @@ export interface SyncInterceptorConfig {
   /** Models to intercept. `'*'` intercepts all models. */
   readonly trackedModels: ReadonlyArray<string> | "*";
   /**
-   * Fired once a tracked mutation's outbox write has committed — the
-   * "old generator style" event-listener hook (`BaseIDBModelClass.subscribe`)
-   * for this package's one thing worth watching: a local write that's now
-   * pending push. Exposed publicly as `SyncIdbClient.onOutboxWrite` — a
-   * single low-level callback here, fanned out to multiple subscribers there.
+   * Fired once per tracked IDB write call, after its outbox event(s) have
+   * committed, with every entry that call wrote (one entry for an ordinary
+   * single-row mutation, several for a batched write — see
+   * `OutboxWriteEntry`'s doc comment for exactly what "batched" covers).
+   * Exposed publicly as `SyncIdbClient.on("outboxwrite", ...)` — a single
+   * low-level callback here, fanned out to multiple subscribers there.
    */
-  readonly onOutboxWrite?: () => void;
+  readonly onOutboxWrite?: (entries: readonly OutboxWriteEntry[]) => void;
 }
 
 function isTrackedModel(config: SyncInterceptorConfig, modelName: string): boolean {
@@ -418,7 +419,8 @@ export class SyncInterceptorExecutor implements IdbQueryExecutorWithTransaction 
     if (!ast || !isMutationAst(ast) || !isTrackedModel(this.#config, ast.modelName)) {
       return this.#inner.execute(plan);
     }
-    const result = this.#inner.execute(this.#extendPlan(plan, ast));
+    const { plan: extendedPlan, entries } = this.#extendPlan(plan, ast);
+    const result = this.#inner.execute(extendedPlan);
     const { onOutboxWrite } = this.#config;
     if (!onOutboxWrite) return result;
     // Can't `.then()`/iterate `result` here to observe completion — every
@@ -428,7 +430,7 @@ export class SyncInterceptorExecutor implements IdbQueryExecutorWithTransaction 
     // consumes `result` exactly once (pulling every row through, unchanged)
     // and fires `onOutboxWrite` only after that succeeds — a write that
     // throws mid-iteration never notifies.
-    return new AsyncIterableResult<Row>(trackOutboxWrite(result, onOutboxWrite));
+    return new AsyncIterableResult<Row>(trackOutboxWrite(result, () => onOutboxWrite(entries)));
   }
 
   /**
@@ -453,7 +455,10 @@ export class SyncInterceptorExecutor implements IdbQueryExecutorWithTransaction 
     return new SyncInterceptingTransactionScope(scope, this.#config);
   }
 
-  #extendPlan<Row>(plan: IdbQueryPlan<Row>, ast: MutationAst): IdbQueryPlan<Row> {
+  #extendPlan<Row>(
+    plan: IdbQueryPlan<Row>,
+    ast: MutationAst
+  ): { plan: IdbQueryPlan<Row>; entries: readonly OutboxWriteEntry[] } {
     const { contract } = this.#config;
     const modelName = ast.modelName;
     const keyPath = getKeyPath(contract, modelName);
@@ -467,12 +472,13 @@ export class SyncInterceptorExecutor implements IdbQueryExecutorWithTransaction 
       // knows how to apply — not the unusable `{ data: [record, ...] }`
       // whole-array payload this used to produce via the generic
       // single-entry path below.
-      const entries = ast.data.map((record) => ({
+      const entries: OutboxWriteEntry[] = ast.data.map((record) => ({
+        modelName,
         operation: "create",
         payload: record,
         key: record[keyPath],
       }));
-      return this.#buildBatchPlan(plan, modelName, entries);
+      return { plan: this.#buildBatchPlan(plan, entries), entries };
     }
 
     const operation = outboxOperation(ast.kind);
@@ -484,7 +490,8 @@ export class SyncInterceptorExecutor implements IdbQueryExecutorWithTransaction 
     // the outbox event is still written atomically.
     const key = extractKey(plan.idbPlan, ast, keyPath);
     const payload = outboxPayload(ast, key);
-    return this.#buildBatchPlan(plan, modelName, [{ operation, payload, key }]);
+    const entries: OutboxWriteEntry[] = [{ modelName, operation, payload, key }];
+    return { plan: this.#buildBatchPlan(plan, entries), entries };
   }
 
   /**
@@ -494,18 +501,14 @@ export class SyncInterceptorExecutor implements IdbQueryExecutorWithTransaction 
    * one caller passing more than one, since it's the one case where several
    * independently-keyed rows are known upfront in a single plan.
    */
-  #buildBatchPlan<Row>(
-    plan: IdbQueryPlan<Row>,
-    modelName: string,
-    entries: readonly { operation: string; payload: unknown; key: unknown }[]
-  ): IdbQueryPlan<Row> {
+  #buildBatchPlan<Row>(plan: IdbQueryPlan<Row>, entries: readonly OutboxWriteEntry[]): IdbQueryPlan<Row> {
     const { meta } = plan;
     const originalOps = flattenToOps(plan.idbPlan);
     const originalStores = storeNamesOf(plan.idbPlan);
 
     const extraOps: IdbAtomicPlan[] = [];
     let touchesVersionMeta = false;
-    for (const { operation, payload, key } of entries) {
+    for (const { modelName, operation, payload, key } of entries) {
       const versionMetaId = key !== undefined ? versionMetaKey(modelName, key) : null;
       extraOps.push(outboxAddOp(modelName, operation, payload, versionMetaId, meta));
       if (key !== undefined) {
@@ -552,7 +555,10 @@ export class SyncInterceptorExecutor implements IdbQueryExecutorWithTransaction 
  * row it actually touched (the merged row for `put-merged`, the pre-delete
  * snapshot for `delete`) as this op's resolved value; one outbox event +
  * one VersionMeta row is written per affected row, keyed by that row's own
- * primary key — the same shape as a normal single-row update/delete.
+ * primary key — the same shape as a normal single-row update/delete. All N
+ * of those rows are still ONE `execute()` call on this scope, so they batch
+ * into ONE `onOutboxWrite` firing (see `OutboxWriteEntry`'s doc comment) —
+ * not N separate ones the way a naive per-row callback would.
  */
 class SyncInterceptingTransactionScope implements IdbTransactionScope {
   readonly #inner: IdbTransactionScope;
@@ -586,7 +592,7 @@ class SyncInterceptingTransactionScope implements IdbTransactionScope {
     switch (plan.kind) {
       case "add": {
         const record = plan.record;
-        await this.#writeOutboxAndMeta(modelName, "create", record, record[keyPath]);
+        await this.#writeOutboxAndMeta([{ modelName, operation: "create", payload: record, key: record[keyPath] }]);
         return;
       }
       case "delete": {
@@ -596,22 +602,27 @@ class SyncInterceptingTransactionScope implements IdbTransactionScope {
         // can't be stored raw inside the outbox record's payload either —
         // normalize it to plain, cloneable bounds first.
         const key = plan.key instanceof IDBKeyRange ? undefined : plan.key;
-        await this.#writeOutboxAndMeta(modelName, "delete", { key: serializableKey(plan.key) }, key);
+        await this.#writeOutboxAndMeta([
+          { modelName, operation: "delete", payload: { key: serializableKey(plan.key) }, key },
+        ]);
         return;
       }
       case "update": {
         const merged = rows[0];
         if (!merged) return;
-        await this.#writeOutboxAndMeta(modelName, "update", { patch: plan.patch, key: plan.key }, merged[keyPath]);
+        await this.#writeOutboxAndMeta([
+          { modelName, operation: "update", payload: { patch: plan.patch, key: plan.key }, key: merged[keyPath] },
+        ]);
         return;
       }
       case "scan-write": {
         const operation = plan.write === "delete" ? "delete" : "update";
-        for (const row of rows) {
+        const entries: OutboxWriteEntry[] = rows.map((row) => {
           const key = row[keyPath];
           const payload = plan.write === "delete" ? { key } : { patch: plan.patch, key };
-          await this.#writeOutboxAndMeta(modelName, operation, payload, key);
-        }
+          return { modelName, operation, payload, key };
+        });
+        await this.#writeOutboxAndMeta(entries);
         return;
       }
       // `put` is untracked: `client-idb`'s mutation executor never issues it
@@ -631,13 +642,17 @@ class SyncInterceptingTransactionScope implements IdbTransactionScope {
     }
   }
 
-  async #writeOutboxAndMeta(modelName: string, operation: string, payload: unknown, key: unknown): Promise<void> {
+  /** Writes every entry's outbox-add + VersionMeta-put, then fires ONE `onOutboxWrite` with the whole batch — a no-op for an empty array (e.g. a scan-write that matched zero rows). */
+  async #writeOutboxAndMeta(entries: readonly OutboxWriteEntry[]): Promise<void> {
+    if (entries.length === 0) return;
     const meta = syncPlanMeta(this.#config.contract);
-    const versionMetaId = key !== undefined ? versionMetaKey(modelName, key) : null;
-    await this.#inner.execute(outboxAddOp(modelName, operation, payload, versionMetaId, meta));
-    if (key !== undefined) {
-      await this.#inner.execute(versionMetaPutOp(modelName, key, meta));
+    for (const { modelName, operation, payload, key } of entries) {
+      const versionMetaId = key !== undefined ? versionMetaKey(modelName, key) : null;
+      await this.#inner.execute(outboxAddOp(modelName, operation, payload, versionMetaId, meta));
+      if (key !== undefined) {
+        await this.#inner.execute(versionMetaPutOp(modelName, key, meta));
+      }
     }
-    this.#config.onOutboxWrite?.();
+    this.#config.onOutboxWrite?.(entries);
   }
 }

@@ -1,3 +1,23 @@
+/**
+ * One tracked mutation's outbox write — model, operation, resolved key (when
+ * statically knowable), and the exact payload written to the outbox record.
+ * Fired via `SyncIdbClient.on("outboxwrite", ...)`, batched per underlying
+ * IDB write call: a single `create()`/`update()`/`delete()` fires with a
+ * 1-element array; a batched write that resolves multiple rows in one call
+ * (`createAll()`, a cascade delete's scan-write, `updateAll()`/`deleteAll()`)
+ * fires once with all of them. See sync-executor.ts's `SyncInterceptorExecutor`
+ * and `SyncInterceptingTransactionScope` for exactly which calls batch
+ * together — it's "per IDB write call", not "per top-level ORM call": a
+ * `deleteAll()` cascading across N parents still fires once per parent (plus
+ * once per parent's own cascade batch), not once for the whole `deleteAll()`.
+ */
+export interface OutboxWriteEntry {
+  readonly modelName: string;
+  readonly operation: string;
+  readonly key: unknown;
+  readonly payload: unknown;
+}
+
 /** Outbox event record stored in `_idb_sync_outbox`. */
 export interface OutboxEvent {
   id: string;
