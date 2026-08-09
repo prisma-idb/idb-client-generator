@@ -23,6 +23,7 @@ export class KanbanStore {
   activeUserId = $state<string | null>(null);
   busy = $state(false);
   syncWorker: SyncWorker | null = null;
+  private syncStarting = false;
 
   activeUser = $derived(this.users.find((u) => u.id === this.activeUserId) ?? null);
   todos = $derived(this.boards.flatMap((b) => b.todos));
@@ -89,7 +90,8 @@ export class KanbanStore {
    * claim.
    */
   private startSync() {
-    if (this.syncWorker) return;
+    if (this.syncWorker || this.syncStarting) return;
+    this.syncStarting = true;
 
     const pushHandler = async (events: OutboxEvent[], signal: AbortSignal): Promise<PushResult[]> => {
       const scopeKey = this.activeUserId;
@@ -121,8 +123,12 @@ export class KanbanStore {
           if (applied > 0) this.loadBoards(this.activeUserId).catch(this.showError);
         });
         this.syncWorker.start();
+        this.syncStarting = false;
       })
-      .catch(this.showError);
+      .catch((error: unknown) => {
+        this.syncStarting = false;
+        this.showError(error);
+      });
   }
 
   async switchUser(userId: string) {

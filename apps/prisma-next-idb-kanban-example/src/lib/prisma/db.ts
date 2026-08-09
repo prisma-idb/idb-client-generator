@@ -18,6 +18,11 @@ export async function getDb(): Promise<DbClient> {
     contractSpace,
     dbName: DB_NAME,
     extensions: [idbSyncExtension],
+  }).catch((err: unknown) => {
+    // Clear on rejection so a later getDb() call retries instead of
+    // re-awaiting the same rejected promise forever.
+    clientPromise = null;
+    throw err;
   });
 
   const fresh = await clientPromise;

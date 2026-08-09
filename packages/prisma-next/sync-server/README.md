@@ -16,6 +16,7 @@ pnpm add @prisma-next-idb/sync-server
 
 ```ts
 import { createSyncServer } from "@prisma-next-idb/sync-server";
+import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
 import { postgresContract } from "./prisma/schema.postgres.generated"; // the real server contract
 import { clientContract } from "./prisma/contract"; // the browser's IDB contract
 
@@ -23,21 +24,47 @@ const syncServer = createSyncServer({
   contract: postgresContract, // full server contract (ADR 012) — includes client-excluded models
   clientContract, // client-projected contract (ADR 012) — defines what's ever synced
   rootModel: "User",
+  // Required for a SQL contract — the default getKeyField assumes IDB's flat
+  // storage.keyPath, which postgresContract doesn't have. See the API section
+  // below for the full resolver.
+  getKeyField: (contract, modelName) => {
+    const model = domainModelsAtDefaultNamespace(contract.domain)[modelName]!;
+    const table = (model.storage as { table: string; namespaceId: string }).table;
+    const ns = (model.storage as { namespaceId: string }).namespaceId;
+    const columns = contract.storage.namespaces[ns]!.entries.table[table]!.primaryKey.columns;
+    if (columns.length !== 1) throw new Error(`Compound keys aren't supported here (model "${modelName}")`);
+    return columns[0]!;
+  },
 });
 
 // Push: resolve what each outbox event needs authorized.
-const results = syncServer.validatePush(events, { scopeKey: currentUserId });
-for (const { eventId, check } of results) {
+const pushChecks = syncServer.validatePush(events, { scopeKey: currentUserId });
+for (const { eventId, check } of pushChecks) {
   if (check.kind === "unknown-model") throw new PermanentSyncError("INVALID_MODEL", eventId);
-  if (check.kind === "root") {
-    if (!check.authorized) throw new PermanentSyncError("SCOPE_VIOLATION", eventId);
-    continue;
-  }
-  // check.kind === "scoped" — authorized via ANY ONE path resolving to scopeKey.
-  const owned = await Promise.any(
-    check.paths.map((path) => findFirstAlongPath(prisma, /* model */ eventModel, check.key, path, check.scopeKey))
-  ).catch(() => null);
-  if (!owned) throw new PermanentSyncError("SCOPE_VIOLATION", eventId);
+
+  // Authorize, write, and record the changelog row in ONE transaction —
+  // ownership check last, immediately before the write it authorizes, not
+  // before the transaction opens. Otherwise the record's ownership chain
+  // (e.g. a Board.userId) could be reassigned in the gap between the check
+  // and the write it was meant to gate (ADR 014's transactional boundary).
+  await prisma.$transaction(async (tx) => {
+    if (check.kind === "root") {
+      if (!check.authorized) throw new PermanentSyncError("SCOPE_VIOLATION", eventId);
+    } else {
+      // check.kind === "scoped" — authorized via ANY ONE path resolving to scopeKey.
+      // Promise.all + some, not Promise.any: Promise.any resolves on the first
+      // *fulfilled* promise regardless of its value, so a path that legitimately
+      // resolves to `null` (not found) would short-circuit before a later path
+      // that does resolve — silently rejecting a valid ownership chain.
+      const pathResults = await Promise.all(
+        check.paths.map((path) => findFirstAlongPath(tx, /* model */ eventModel, check.key, path, check.scopeKey))
+      );
+      if (!pathResults.some(Boolean)) throw new PermanentSyncError("SCOPE_VIOLATION", eventId);
+    }
+
+    await applyEvent(tx, eventModel, event); // the actual write
+    await tx.changelog.create({ data: { model: eventModel, scopeKey: currentUserId /* ... */ } });
+  });
 }
 
 // Pull: `logs` must already be pre-filtered to this caller (see "Pull is two

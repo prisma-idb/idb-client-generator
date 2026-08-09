@@ -14,7 +14,12 @@ export async function getPostgres() {
     if (!env.DATABASE_URL) {
       throw new Error("DATABASE_URL is not set — copy .env.example to .env and run `pnpm db:up && pnpm db:init`.");
     }
-    connected = client.connect({ url: env.DATABASE_URL });
+    // Clear on rejection (e.g. Postgres not up yet) so the next call retries
+    // instead of re-awaiting the same rejected promise forever.
+    connected = client.connect({ url: env.DATABASE_URL }).catch((err: unknown) => {
+      connected = null;
+      throw err;
+    });
   }
   await connected;
   return client;

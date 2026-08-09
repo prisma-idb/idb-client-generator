@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 import "dotenv/config";
 import { defineConfig } from "@prisma-next/postgres/config";
 import { writeSqlSchemaWithSync } from "@prisma-next-idb/sync-server/schema";
@@ -26,6 +28,10 @@ import { writeSqlSchemaWithSync } from "@prisma-next-idb/sync-server/schema";
  * Create the schema with: `prisma-next db init --config prisma-next.config.postgres.ts`
  * Author a migration with: `prisma-next migration new --config prisma-next.config.postgres.ts`
  */
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is not set — copy .env.example to .env and run `pnpm db:up && pnpm db:init`.");
+}
+
 export default defineConfig({
   // No outputPath override — deriveOutputPath names it from the schema
   // filename (schema.postgres.generated.{json,d.ts}), which keeps it from

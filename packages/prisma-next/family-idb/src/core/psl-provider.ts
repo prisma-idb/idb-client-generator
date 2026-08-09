@@ -23,10 +23,8 @@ import { interpretPslDocumentToIdbContract, SCALAR_TO_CODEC_ID } from "./psl-int
  */
 export function stripIdbExcludeAttributes(schema: string): string {
   return schema
-    .split("\n")
-    .filter((line) => line.trim() !== "@@idb.exclude")
-    .join("\n")
-    .replace(/\s*@idb\.exclude\b/g, "");
+    .replace(/^[ \t]*@@idb\.exclude\b.*\n?/gm, "") // model-level: drop the whole line, incl. trailing comments
+    .replace(/[ \t]*@idb\.exclude\b/g, ""); // field-level: drop just the token, keep the field
 }
 
 function defaultOutputFromSchemaPath(schemaPath: string): string {

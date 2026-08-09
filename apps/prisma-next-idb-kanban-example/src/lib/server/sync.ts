@@ -28,7 +28,7 @@ export const sqlGetKeyField: GetKeyField = (contract, modelName) => {
       namespaces: Record<string, { entries: { table: Record<string, { primaryKey: { columns: string[] } }> } }>;
     }
   ).namespaces[storage.namespaceId]?.entries.table[storage.table];
-  const columns = table?.primaryKey.columns;
+  const columns = table?.primaryKey?.columns;
   if (!columns || columns.length !== 1) {
     throw new Error(
       `Model "${modelName}" has no single-column primary key (got ${columns?.length ?? 0}) — ` +

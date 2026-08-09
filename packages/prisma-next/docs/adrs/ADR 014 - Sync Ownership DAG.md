@@ -42,6 +42,8 @@ Both checks throw at `createSyncServer()` construction, not per-request — a br
 
 For each outbox event: resolve every authorization path from `event.model` to `rootModel` (all paths, not just shortest — same reasoning as the old generator, a model can legitimately chain to root through more than one relation). Build the flat WHERE-shape combining the record's own key with _any one_ path resolving to `scopeKey`. The caller executes it (`findFirst`); a miss means `SCOPE_VIOLATION`. Record-shape validation (does the payload match the contract) is ADR 015's job, run first — a malformed payload never reaches DAG resolution.
 
+**The caller's authorization check, mutation, and changelog write must run inside one transaction**, ownership check last (immediately before the write it authorizes) — not before the transaction opens. `sync-server` itself never touches a database, so it can't enforce this; it's a requirement on the caller's execution half (see the README's push example). Checking ownership outside the transaction leaves a window where the record's ownership chain (e.g. a `Board.userId`) could be reassigned between the check and the write it was meant to authorize.
+
 ### Pull scoping
 
 Symmetric: for the root model, the row's own key must equal `scopeKey` directly (no chain needed, it _is_ the root). For every other model, `buildPullQueries` emits the same multi-path WHERE-shape push validation uses, so a client can never pull a row it couldn't have legitimately pushed.

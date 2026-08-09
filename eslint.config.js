@@ -33,6 +33,13 @@ export default defineConfig([
       // since it's the human-editable scaffold.
       "**/migrations/**/*.d.ts",
       "**/migrations/**/*.json",
+      // same artifacts, kanban example's distinct Postgres migration
+      // lineage (migrations-postgres/, not migrations/ — see
+      // prisma-next.config.postgres.ts's header for why it's separate)
+      "**/migrations-postgres/**/*.d.ts",
+      "**/migrations-postgres/**/*.json",
+      // generated Postgres schema artifacts
+      "**/schema.postgres.generated.*",
     ],
   },
   js.configs.recommended,

@@ -57,13 +57,13 @@ export function getKeyField(model: string): string {
  * (missing FK, deleted parent).
  */
 async function resolveRootKeyViaPath(
+  db: Awaited<ReturnType<typeof getPostgres>>,
   startModel: string,
   startRow: Record<string, unknown>,
   path: readonly string[],
   rootKeyField: string
 ): Promise<unknown> {
   const models = domainModelsAtDefaultNamespace(serverContract.domain);
-  const db = await getPostgres();
 
   let currentModel = startModel;
   let currentRow: Record<string, unknown> | null = startRow;
@@ -96,6 +96,7 @@ async function resolveRootKeyViaPath(
  * what used to be two near-identical authorization loops in push and pull.
  */
 async function checkAuthorization(
+  db: Awaited<ReturnType<typeof getPostgres>>,
   model: string,
   check: OwnershipCheck,
   startRow: Record<string, unknown> | null
@@ -105,7 +106,7 @@ async function checkAuthorization(
   if (!startRow) return false; // record already gone / never existed — nothing to authorize
 
   for (const path of check.paths) {
-    const rootKey = await resolveRootKeyViaPath(model, startRow, path, check.rootKeyField);
+    const rootKey = await resolveRootKeyViaPath(db, model, startRow, path, check.rootKeyField);
     if (rootKey === check.scopeKey) return true;
   }
   return false;
@@ -143,7 +144,17 @@ function decodeDates(payload: Record<string, unknown>): Record<string, unknown> 
   return payload;
 }
 
-/** Authorizes, then applies, one outbox event: writes the model row + a stamped `Changelog` row, atomically. Idempotent on `outboxEventId`. */
+/**
+ * Authorizes, then applies, one outbox event: writes the model row + a
+ * stamped `Changelog` row, atomically. Idempotent on `outboxEventId`.
+ *
+ * Authorization runs *inside* the same transaction as the write, right
+ * before it — not before `db.transaction()` opens — so the row(s) it reads
+ * (the record itself, and every hop `checkAuthorization` walks) are locked
+ * against concurrent reassignment for the rest of the transaction. Checking
+ * outside the transaction would leave a window where e.g. a `Board`'s
+ * `userId` could be reassigned between the check and the write it authorized.
+ */
 export async function applyPushEvent(
   db: Awaited<ReturnType<typeof getPostgres>>,
   event: PushEventBody,
@@ -155,15 +166,6 @@ export async function applyPushEvent(
     return { id: event.id, success: false, error: "Unknown model", retryable: false };
   }
 
-  const startRow: Record<string, unknown> | null =
-    event.operation === "create"
-      ? (event.payload as Record<string, unknown>)
-      : await ormRootFor(db, model).first({ [getKeyField(model)]: check.key });
-
-  if (!(await checkAuthorization(model, check, startRow))) {
-    return { id: event.id, success: false, error: "SCOPE_VIOLATION", retryable: false };
-  }
-
   try {
     return await db.transaction(async (tx) => {
       const txDb = { orm: tx.orm } as unknown as Awaited<ReturnType<typeof getPostgres>>;
@@ -171,8 +173,17 @@ export async function applyPushEvent(
       const alreadyApplied = await changelogRoot.first({ outboxEventId: event.id });
       if (alreadyApplied) return { id: event.id, success: true };
 
-      const root = ormRootFor(txDb, model);
       const keyField = getKeyField(model);
+      const startRow: Record<string, unknown> | null =
+        event.operation === "create"
+          ? (event.payload as Record<string, unknown>)
+          : await ormRootFor(txDb, model).first({ [keyField]: check.key });
+
+      if (!(await checkAuthorization(txDb, model, check, startRow))) {
+        return { id: event.id, success: false, error: "SCOPE_VIOLATION", retryable: false };
+      }
+
+      const root = ormRootFor(txDb, model);
       if (event.operation === "create") {
         await root.select(keyField).create(decodeDates(event.payload as Record<string, unknown>));
       } else if (event.operation === "update") {
@@ -193,11 +204,13 @@ export async function applyPushEvent(
       return { id: event.id, success: true };
     });
   } catch (err) {
-    console.error("push apply failed", err);
+    // Log the real error server-side only — it can carry DB-internal detail
+    // (constraint names, SQL fragments) that shouldn't reach the client.
+    console.error(`push apply failed for event ${event.id}`, err);
     return {
       id: event.id,
       success: false,
-      error: err instanceof Error ? err.message : "Unknown error",
+      error: `Failed to apply event ${event.id}`,
       retryable: true,
     };
   }
@@ -222,7 +235,7 @@ export async function resolvePullRecord(
   const startRow =
     check.kind === "scoped" ? await ormRootFor(db, model).first({ [getKeyField(model)]: check.key }) : null;
 
-  const authorized = await checkAuthorization(model, check, startRow);
+  const authorized = await checkAuthorization(db, model, check, startRow);
   if (!authorized || operation === "delete") return null;
 
   return ormRootFor(db, model).first({ [getKeyField(model)]: keyPath });

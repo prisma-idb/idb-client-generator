@@ -26,12 +26,18 @@ export const GET: RequestHandler = async ({ url }) => {
   const since = url.searchParams.get("since");
   if (!scopeKey) return json({ error: "scopeKey is required" }, { status: 400 });
 
+  let sinceId: number | null = null;
+  if (since !== null) {
+    sinceId = Number(since);
+    if (!Number.isInteger(sinceId)) return json({ error: "since must be an integer" }, { status: 400 });
+  }
+
   const db = await getPostgres();
 
   const ordered = db.orm.public.Changelog.where({ scopeKey })
     .select("id", "model", "keyPath", "operation")
     .orderBy((c) => c.id.asc());
-  const rows = await (since ? ordered.cursor({ id: Number(since) }) : ordered).take(50).all();
+  const rows = await (sinceId !== null ? ordered.cursor({ id: sinceId }) : ordered).take(50).all();
 
   const pullLogs = rows.map((row) => ({ changelogId: String(row.id), model: row.model, key: row.keyPath }));
   const checks = syncServer.buildPullQueries(pullLogs, { scopeKey });
