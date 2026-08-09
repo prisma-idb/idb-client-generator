@@ -12,7 +12,17 @@ export interface SyncPushEvent {
   readonly payload: Record<string, unknown>;
 }
 
-/** A changelog row pending pull; `key` is the row's own primary-key value. */
+/**
+ * A changelog row pending pull; `key` is the row's own primary-key value.
+ *
+ * Expected to already be pre-filtered to the caller — e.g. by a `scopeKey`
+ * column the caller stamped on the changelog row at push time (reusing the
+ * `scopeKey` that authorized it) and queried flatly (`WHERE scopeKey = ?`).
+ * `buildPullQueries` doesn't repeat that filter; it re-derives ownership
+ * live, since the stamped value is a push-time snapshot and can go stale if
+ * the record's ownership chain changes afterward (e.g. a `Board` handed to
+ * a different owner after a `Todo` under it was already pushed).
+ */
 export interface SyncPullLogEntry {
   readonly changelogId: string;
   readonly model: string;

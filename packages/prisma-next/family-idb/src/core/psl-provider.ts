@@ -41,6 +41,15 @@ export interface PrismaIdbContractOptions {
    * @default "full"
    */
   readonly projection?: ContractProjection;
+  /**
+   * Runs on the raw schema text right after it's read, before parsing.
+   * Lets a downstream package (e.g. `@prisma-next-idb/sync-server`) append
+   * synthetic model/enum declarations — the appended text goes through the
+   * exact same parse → interpret → hash pipeline as hand-authored PSL, so
+   * `storageHash` reflects it correctly (it's computed *inside*
+   * `interpretPslDocumentToIdbContract`, from whatever this returns).
+   */
+  readonly injectSchemaText?: (schema: string) => string;
 }
 
 /**
@@ -90,6 +99,10 @@ export function prismaIdbContract(schemaPath: string, options?: PrismaIdbContrac
               },
             ],
           });
+        }
+
+        if (options?.injectSchemaText) {
+          schema = options.injectSchemaText(schema);
         }
 
         const { document, sourceFile, diagnostics: parseDiagnostics } = parse(schema);

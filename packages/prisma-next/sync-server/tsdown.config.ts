@@ -1,7 +1,7 @@
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
-  entry: ["src/exports/server.ts"],
+  entry: ["src/exports/server.ts", "src/exports/schema.ts"],
   format: ["esm"],
   dts: {
     enabled: true,
