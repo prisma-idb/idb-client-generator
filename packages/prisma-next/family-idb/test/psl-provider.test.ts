@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { ContractSourceContext } from "@prisma-next/config/config-types";
 import type { IdbStorage } from "@prisma-next-idb/target-idb/pack";
-import { prismaIdbContract } from "../src/core/psl-provider";
+import { prismaIdbContract, stripIdbExcludeAttributes } from "../src/core/psl-provider";
 
 let dir: string;
 
@@ -96,5 +96,44 @@ describe("prismaIdbContract", () => {
       );
       expect(result.ok).toBe(false);
     });
+  });
+});
+
+describe("stripIdbExcludeAttributes", () => {
+  it("removes a field-level @idb.exclude, keeping the field itself", () => {
+    const result = stripIdbExcludeAttributes(`
+      model User {
+        id           String @id
+        passwordHash String @idb.exclude
+      }
+    `);
+    expect(result).toContain("passwordHash String");
+    expect(result).not.toContain("@idb.exclude");
+  });
+
+  it("removes a model-level @@idb.exclude line, keeping the model itself", () => {
+    const result = stripIdbExcludeAttributes(`
+      model AuditLog {
+        id String @id
+        @@idb.exclude
+      }
+    `);
+    expect(result).toContain("model AuditLog");
+    expect(result).not.toContain("@@idb.exclude");
+  });
+
+  it("round-trips through prismaIdbContract's own parser without error once stripped", async () => {
+    const stripped = stripIdbExcludeAttributes(`
+      model User {
+        id           String @id
+        passwordHash String @idb.exclude
+      }
+      model AuditLog {
+        id String @id
+        @@idb.exclude
+      }
+    `);
+    const result = await load("schema.prisma", stripped);
+    expect(result.ok).toBe(true);
   });
 });

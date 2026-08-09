@@ -9,6 +9,26 @@ import { extname, basename } from "pathe";
 import type { ContractProjection } from "./psl-interpreter";
 import { interpretPslDocumentToIdbContract, SCALAR_TO_CODEC_ID } from "./psl-interpreter";
 
+/**
+ * Removes `@idb.exclude`/`@@idb.exclude` from raw PSL text — the `idb`
+ * namespace family-idb owns (`psl-interpreter.ts`'s `IDB_EXCLUDE_ATTR`).
+ * A foreign PSL parser (e.g. the SQL family's) doesn't recognize this
+ * namespace and hard-errors on it (`PSL_EXTENSION_NAMESPACE_NOT_COMPOSED`);
+ * stripping it is the text-level equivalent of what family-idb itself
+ * already does for these same fields under `projection: "full"`, where the
+ * attribute is documented as a no-op. Use this when sharing a schema.prisma
+ * authored for family-idb with a different family's schema loader — the
+ * server always wants every field these attributes would otherwise hide
+ * from the client.
+ */
+export function stripIdbExcludeAttributes(schema: string): string {
+  return schema
+    .split("\n")
+    .filter((line) => line.trim() !== "@@idb.exclude")
+    .join("\n")
+    .replace(/\s*@idb\.exclude\b/g, "");
+}
+
 function defaultOutputFromSchemaPath(schemaPath: string): string {
   const ext = extname(schemaPath);
   if (ext.length === 0) return `${schemaPath}.json`;

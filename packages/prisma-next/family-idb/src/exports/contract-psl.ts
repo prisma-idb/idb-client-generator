@@ -1,4 +1,4 @@
 export { interpretPslDocumentToIdbContract } from "../core/psl-interpreter";
 export type { ContractProjection, InterpretPslOptions } from "../core/psl-interpreter";
 
-export { type PrismaIdbContractOptions, prismaIdbContract } from "../core/psl-provider";
+export { type PrismaIdbContractOptions, prismaIdbContract, stripIdbExcludeAttributes } from "../core/psl-provider";
