@@ -722,6 +722,50 @@ export async function executeScalarUpdateWithFkValidation(options: {
   });
 }
 
+/**
+ * Bulk counterpart to {@link executeScalarUpdateWithFkValidation}: same FK
+ * validation, but applies the patch to every row the filter matches (no
+ * `take: 1`) and returns all of them.
+ *
+ * Always goes through the transaction scope — unlike single-row `update()`,
+ * which only needs one when there's a scalar FK field to validate. A bulk
+ * scan-write's affected row SET isn't knowable until it actually runs, and
+ * observing that result INSIDE the same transaction is exactly what the
+ * sync interceptor needs to track the write correctly: its transaction-scope
+ * hook (`SyncInterceptingTransactionScope#maybeTrack`'s `scan-write` case)
+ * writes one outbox event per row it's handed, atomically with the write
+ * itself. The plan-level path `update()` falls back to for a non-FK single
+ * row has no equivalent hook — a plan is extended with outbox ops BEFORE
+ * it runs, which only works when the affected key is knowable up front.
+ */
+export async function executeBulkUpdateWithFkValidation(options: {
+  executor: IdbQueryExecutorWithTransaction;
+  contract: IdbContract;
+  modelName: string;
+  filters: readonly IdbFilterExpr[];
+  data: Record<string, unknown>;
+}): Promise<Record<string, unknown>[]> {
+  const { executor, contract, modelName, filters, data } = options;
+  const storeNames = collectScalarFkStoreNames(contract, modelName, data);
+  return withMutationScope(executor, storeNames, async (scope) => {
+    await validateScalarFks(scope, contract, modelName, data);
+    const storeName = getStoreName(contract, modelName);
+    const meta = makePlanMeta(contract);
+    const combined =
+      filters.length === 0 ? undefined : filters.length === 1 ? filters[0]! : { kind: "and" as const, exprs: filters };
+    const filter =
+      combined !== undefined ? (row: Record<string, unknown>): boolean => evaluateFilter(combined, row) : undefined;
+    return scope.execute({
+      meta,
+      kind: "scan-write",
+      storeName,
+      write: "put-merged",
+      patch: data,
+      ...(filter !== undefined ? { filter } : {}),
+    } as IdbAtomicPlan);
+  });
+}
+
 // ── Delete referential action enforcement ─────────────────────────────────────
 
 /**

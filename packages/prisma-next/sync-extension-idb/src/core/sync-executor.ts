@@ -33,6 +33,7 @@ import type {
   IdbCreateAllAst,
   IdbDeleteAllAst,
   IdbUpdateAllAst,
+  IdbFilterExpr,
 } from "@prisma-next-idb/adapter-idb/runtime";
 import type {
   IdbAtomicPlan,
@@ -70,6 +71,30 @@ function isMutationAst(ast: IdbQueryAst): ast is MutationAst {
 
 type OutboxRecord = OutboxEvent;
 
+/**
+ * `getNextBatch` sorts outbox events by `createdAt` ascending for FIFO push
+ * order — load-bearing for cascades: `applyReferentialActionsForRow` writes
+ * a child row's outbox event (e.g. a cascade-deleted Todo) before its
+ * parent's (the Board being deleted), and the server-side ownership check
+ * for that child's delete walks Todo→Board→User, which only resolves while
+ * the Board row still exists. Pushed out of order, the child's delete would
+ * fail authorization once the parent is already gone.
+ *
+ * Plain `new Date()` has millisecond resolution; every op in one cascade
+ * (or one batch plan) runs synchronously and can easily land in the same
+ * millisecond, making `createdAt` ties resolve by IndexedDB cursor order
+ * (the store's `id` keyPath — a random UUID, unrelated to write order) —
+ * not the guarantee the sort claims. Monotonically bumping ensures each
+ * successive call this session gets a strictly later timestamp than the
+ * last, regardless of wall-clock resolution.
+ */
+let lastOutboxTimestampMs = 0;
+function nextOutboxTimestamp(): Date {
+  const now = Date.now();
+  lastOutboxTimestampMs = now > lastOutboxTimestampMs ? now : lastOutboxTimestampMs + 1;
+  return new Date(lastOutboxTimestampMs);
+}
+
 function buildOutboxRecord(
   modelName: string,
   operation: string,
@@ -81,7 +106,7 @@ function buildOutboxRecord(
     entityType: modelName,
     operation,
     payload,
-    createdAt: new Date(),
+    createdAt: nextOutboxTimestamp(),
     synced: false,
     syncedAt: null,
     lastAttemptedAt: null,
@@ -191,6 +216,28 @@ function serializableKey(key: IDBValidKey | IDBKeyRange): unknown {
 }
 
 /**
+ * Resolves the model's primary-key value pinned by a filter expression, when
+ * the filter (or one branch of an AND) is a plain equality check on
+ * `keyField` — the shape `.where({ [keyField]: value }).update(...)` compiles
+ * to. This is the only update-by-filter shape the sync wire protocol can
+ * carry as a single-row change (the server applies updates by key, not by
+ * replaying an arbitrary filter tree); a filter that never pins the key by
+ * equality (range/bulk updates) resolves to `undefined`, same as any other
+ * statically-unknowable key.
+ */
+function extractKeyFromFilter(filter: IdbFilterExpr | undefined, keyField: string): unknown {
+  if (!filter) return undefined;
+  if (filter.kind === "field" && filter.field === keyField && filter.op === "eq") return filter.value;
+  if (filter.kind === "and") {
+    for (const sub of filter.exprs) {
+      const found = extractKeyFromFilter(sub, keyField);
+      if (found !== undefined) return found;
+    }
+  }
+  return undefined;
+}
+
+/**
  * Try to extract the primary key of the affected record from the plan body
  * and AST. Returns `undefined` when the key cannot be determined statically
  * (e.g. scan-write operations that match by filter, not by key).
@@ -203,13 +250,31 @@ function extractKey(body: IdbPlanBody, ast: MutationAst, keyField: string): unkn
     case "delete":
       return ast.key;
     case "update":
-      // IdbUpdatePlan carries the key explicitly; scan-write and batch don't.
+      // IdbUpdatePlan carries the key explicitly; scan-write and batch don't
+      // — but a `.where({ [keyField]: value }).update(...)` (no scalar FK
+      // fields in the patch, so it never reaches the transaction-scope path)
+      // still compiles down to a scan-write with a filter, and that filter
+      // is exactly the AST's own `where` — recoverable by inspection.
       if (body.kind === "update") return body.key;
-      return undefined;
+      return extractKeyFromFilter(ast.where, keyField);
     case "upsert":
+      return undefined;
     case "createAll":
     case "deleteAll":
     case "updateAll":
+      // Practically unreachable through client-idb's own ORM surface — all
+      // three are intercepted before reaching here. `createAll` is expanded
+      // into one per-record entry directly in `#extendPlan` (each record's
+      // key is already known statically, no need to fall back to
+      // `undefined`). `updateAll()`/`deleteAll()` now always route through
+      // the transaction scope (`executeBulkUpdateWithFkValidation` /
+      // `executeDeleteAllWithReferentialActions`), tracked instead by
+      // `SyncInterceptingTransactionScope#maybeTrack`'s `scan-write` case —
+      // one event per actually-affected row, keyed individually. Kept here
+      // (returning `undefined`, same as the other statically-unknowable
+      // cases) only because `MutationAst` is a shared type across every
+      // possible IDB plan, including ones a caller could hand-construct
+      // outside the ORM's own accessors.
       return undefined;
     default: {
       const _exhaustive: never = ast;
@@ -239,17 +304,38 @@ function outboxOperation(kind: MutationAst["kind"]): string {
   }
 }
 
-/** Extract the payload to store in the outbox from the AST. */
-function outboxPayload(ast: MutationAst): unknown {
+/**
+ * Extract the payload to store in the outbox from the AST. `key` is the
+ * already-resolved primary key (see `extractKey`) — when present, "update"
+ * carries it directly instead of the raw filter tree: the server applies
+ * updates by key (same wire shape as "delete"), and a filter expression
+ * (`{kind:"field",field,op,value}`) has no meaning on the other side of the
+ * wire without re-deriving exactly this same key from it. When the key can't
+ * be resolved (a genuine bulk/range update reaching this plan-level path —
+ * see the `deleteAll`/`updateAll` cases below for why that shouldn't happen
+ * through the ORM's own accessors), there is no single-row change to push
+ * from here — `where` is kept only for diagnostic visibility, not because
+ * the server can act on it.
+ */
+function outboxPayload(ast: MutationAst, key: unknown): unknown {
   switch (ast.kind) {
     case "create":
       return ast.data;
     case "delete":
       return { key: ast.key };
     case "update":
-      return { patch: ast.patch, where: ast.where };
+      return key !== undefined ? { patch: ast.patch, key } : { patch: ast.patch, where: ast.where };
     case "upsert":
       return { create: ast.create, update: ast.update, where: ast.where };
+    // Bulk creates/updates/deletes ARE syncable — just not through here. See
+    // the matching cases in `extractKey` above: `createAll` is expanded into
+    // one per-record entry directly in `#extendPlan` before this function is
+    // ever called for it; `updateAll()`/`deleteAll()` always go through the
+    // transaction scope now, expanded the same way via
+    // `SyncInterceptingTransactionScope#maybeTrack`. These plan-level shapes
+    // (a whole array under `createAll`, a raw filter tree under
+    // `deleteAll`/`updateAll`) are unreachable through the ORM's own
+    // accessors; kept for the same exhaustiveness reason as `extractKey`'s.
     case "createAll":
       return { data: ast.data };
     case "deleteAll":
@@ -370,35 +456,65 @@ export class SyncInterceptorExecutor implements IdbQueryExecutorWithTransaction 
   #extendPlan<Row>(plan: IdbQueryPlan<Row>, ast: MutationAst): IdbQueryPlan<Row> {
     const { contract } = this.#config;
     const modelName = ast.modelName;
-    const operation = outboxOperation(ast.kind);
-    const payload = outboxPayload(ast);
+    const keyPath = getKeyPath(contract, modelName);
 
-    // Extract the primary key of the affected record — used to key VersionMeta.
+    if (ast.kind === "createAll") {
+      // Unlike a scan-write bulk op, every record's key is already known
+      // statically (the caller supplies it) — no need to fall back to a
+      // single lumped event the way `updateAll`/`deleteAll` used to before
+      // they moved to the transaction-scope path. One outbox event per
+      // record here instead, each a normal "create" the server already
+      // knows how to apply — not the unusable `{ data: [record, ...] }`
+      // whole-array payload this used to produce via the generic
+      // single-entry path below.
+      const entries = ast.data.map((record) => ({
+        operation: "create",
+        payload: record,
+        key: record[keyPath],
+      }));
+      return this.#buildBatchPlan(plan, modelName, entries);
+    }
+
+    const operation = outboxOperation(ast.kind);
+
+    // Extract the primary key of the affected record — used to key
+    // VersionMeta, and (for "update") to decide the outbox payload's shape.
     // For operations where the key is unknowable statically (scan-writes,
-    // upsert, bulk ops), extractKey returns undefined; version meta is omitted
-    // but the outbox event is still written atomically.
-    const key = extractKey(plan.idbPlan, ast, getKeyPath(contract, modelName));
-    return this.#buildBatchPlan(plan, modelName, operation, payload, key);
+    // upsert), extractKey returns undefined; version meta is omitted but
+    // the outbox event is still written atomically.
+    const key = extractKey(plan.idbPlan, ast, keyPath);
+    const payload = outboxPayload(ast, key);
+    return this.#buildBatchPlan(plan, modelName, [{ operation, payload, key }]);
   }
 
+  /**
+   * Appends one outbox-add (+ VersionMeta-put, when its key is known) per
+   * entry to the plan's batch, atomically alongside the original write(s).
+   * A single-entry array covers every ordinary mutation; `createAll` is the
+   * one caller passing more than one, since it's the one case where several
+   * independently-keyed rows are known upfront in a single plan.
+   */
   #buildBatchPlan<Row>(
     plan: IdbQueryPlan<Row>,
     modelName: string,
-    operation: string,
-    payload: unknown,
-    key: unknown
+    entries: readonly { operation: string; payload: unknown; key: unknown }[]
   ): IdbQueryPlan<Row> {
     const { meta } = plan;
     const originalOps = flattenToOps(plan.idbPlan);
     const originalStores = storeNamesOf(plan.idbPlan);
 
-    const versionMetaId = key !== undefined ? versionMetaKey(modelName, key) : null;
-    const extraOps: IdbAtomicPlan[] = [outboxAddOp(modelName, operation, payload, versionMetaId, meta)];
-    if (key !== undefined) {
-      extraOps.push(versionMetaPutOp(modelName, key, meta));
+    const extraOps: IdbAtomicPlan[] = [];
+    let touchesVersionMeta = false;
+    for (const { operation, payload, key } of entries) {
+      const versionMetaId = key !== undefined ? versionMetaKey(modelName, key) : null;
+      extraOps.push(outboxAddOp(modelName, operation, payload, versionMetaId, meta));
+      if (key !== undefined) {
+        extraOps.push(versionMetaPutOp(modelName, key, meta));
+        touchesVersionMeta = true;
+      }
     }
 
-    const allStores = [...originalStores, OUTBOX_STORE, ...(key !== undefined ? [VERSION_META_STORE] : [])];
+    const allStores = [...originalStores, OUTBOX_STORE, ...(touchesVersionMeta ? [VERSION_META_STORE] : [])];
 
     const batchPlan: IdbBatchPlan = {
       meta,

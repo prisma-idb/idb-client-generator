@@ -7,12 +7,10 @@ import type {
   IdbCreateAst,
   IdbCreateAllAst,
   IdbDeleteAst,
-  IdbDeleteAllAst,
   IdbFindManyAst,
   IdbFindUniqueAst,
   IdbQueryAst,
   IdbUpdateAst,
-  IdbUpdateAllAst,
   IdbUpsertAst,
 } from "@prisma-next-idb/adapter-idb/runtime";
 import { evaluateFilter, shorthandToFilterExpr } from "@prisma-next-idb/adapter-idb/runtime";
@@ -66,6 +64,7 @@ import { type IdbGroupedAccessor, createGroupedAccessor } from "./grouped-access
 import type { IdbQueryExecutor } from "./executor";
 import { loadRelation } from "./relation-loader";
 import {
+  executeBulkUpdateWithFkValidation,
   executeDeleteAllWithReferentialActions,
   executeDeleteWithReferentialActions,
   executeNestedCreateMutation,
@@ -688,38 +687,32 @@ export class IdbStoreAccessorImpl<
     return null;
   }
 
+  /**
+   * Always routes through the transaction scope (`executeBulkUpdateWithFkValidation`),
+   * unlike single-row `update()`'s plan-level fallback for the no-FK-field
+   * case. A bulk scan-write's affected row set isn't knowable until it
+   * actually runs — going through the transaction scope is what lets the
+   * sync interceptor observe the real affected rows and write one outbox
+   * event per row (see `SyncInterceptingTransactionScope#maybeTrack`'s
+   * `scan-write` case), atomically with the write itself, instead of one
+   * event for the whole batch with no way to recover which rows it covered.
+   */
   updateAll(patch: PatchInput<TContract, ModelName>): AsyncIterableResult<DefaultModelRow<TContract, ModelName>> {
-    const groupingKey = this.#newGroupingKey();
-    const combined = this.#combinedFilterExpr();
-    const filter = combined !== undefined ? (row: Record<string, unknown>) => evaluateFilter(combined, row) : undefined;
-    const meta = this.#planMeta(groupingKey);
-    const storeName = this.#storeName;
+    const contract = this.#contract;
     const modelName = this.#modelName;
+    const filters = this.#state.filters;
     const patchRecord = patch as Record<string, unknown>;
-    const executorExecute = this.#executor.execute.bind(this.#executor);
+    const executor = requireTransactionExecutor(this.#executor);
     return new AsyncIterableResult(
       (async function* (): AsyncGenerator<DefaultModelRow<TContract, ModelName>, void, unknown> {
-        const ast: IdbUpdateAllAst = {
-          kind: "updateAll",
+        const rows = await executeBulkUpdateWithFkValidation({
+          executor,
+          contract,
           modelName,
-          patch: patchRecord,
-          ...(combined !== undefined ? { where: combined } : {}),
-        };
-        const plan: IdbQueryPlan<Record<string, unknown>> = {
-          meta,
-          ast,
-          idbPlan: {
-            meta,
-            kind: "scan-write",
-            storeName,
-            write: "put-merged",
-            patch: patchRecord,
-            ...(filter !== undefined ? { filter } : {}),
-          },
-        };
-        for await (const row of executorExecute(plan)) {
-          yield row as DefaultModelRow<TContract, ModelName>;
-        }
+          filters,
+          data: patchRecord,
+        });
+        for (const row of rows) yield row as DefaultModelRow<TContract, ModelName>;
       })()
     );
   }
@@ -818,52 +811,31 @@ export class IdbStoreAccessorImpl<
     return (await this.createAll(data).toArray()).length;
   }
 
+  /**
+   * Always routes through the transaction scope (`executeDeleteAllWithReferentialActions`),
+   * not just when there are enforceable child relations to cascade — that
+   * function already handles the no-relations case correctly (an empty
+   * relation list is a no-op loop), and going through it unconditionally is
+   * what lets the sync interceptor's transaction-scope tracking write one
+   * outbox event per actually-deleted row instead of one lump event for
+   * the whole batch with no way to know which rows it covered. See
+   * `updateAll()`'s doc comment for the same reasoning.
+   */
   deleteAll(): AsyncIterableResult<DefaultModelRow<TContract, ModelName>> {
     const combined = this.#combinedFilterExpr();
     const filter = combined !== undefined ? (row: Record<string, unknown>) => evaluateFilter(combined, row) : undefined;
-
-    if (hasEnforceableChildRelations(this.#contract, this.#modelName)) {
-      const contract = this.#contract;
-      const modelName = this.#modelName;
-      const executor = requireTransactionExecutor(this.#executor);
-      return new AsyncIterableResult(
-        (async function* (): AsyncGenerator<DefaultModelRow<TContract, ModelName>, void, unknown> {
-          const rows = await executeDeleteAllWithReferentialActions({
-            executor,
-            contract,
-            modelName,
-            ...(filter !== undefined ? { filter } : {}),
-          });
-          for (const row of rows) yield row as DefaultModelRow<TContract, ModelName>;
-        })()
-      );
-    }
-
-    const groupingKey = this.#newGroupingKey();
-    const meta = this.#planMeta(groupingKey);
-    const ast: IdbDeleteAllAst = {
-      kind: "deleteAll",
-      modelName: this.#modelName,
-      ...(combined !== undefined ? { where: combined } : {}),
-    };
-    const storeName = this.#storeName;
-    const executorExecute = this.#executor.execute.bind(this.#executor);
+    const contract = this.#contract;
+    const modelName = this.#modelName;
+    const executor = requireTransactionExecutor(this.#executor);
     return new AsyncIterableResult(
       (async function* (): AsyncGenerator<DefaultModelRow<TContract, ModelName>, void, unknown> {
-        const plan: IdbQueryPlan<Record<string, unknown>> = {
-          meta,
-          ast,
-          idbPlan: {
-            meta,
-            kind: "scan-write",
-            storeName,
-            write: "delete",
-            ...(filter !== undefined ? { filter } : {}),
-          },
-        };
-        for await (const row of executorExecute(plan)) {
-          yield row as DefaultModelRow<TContract, ModelName>;
-        }
+        const rows = await executeDeleteAllWithReferentialActions({
+          executor,
+          contract,
+          modelName,
+          ...(filter !== undefined ? { filter } : {}),
+        });
+        for (const row of rows) yield row as DefaultModelRow<TContract, ModelName>;
       })()
     );
   }

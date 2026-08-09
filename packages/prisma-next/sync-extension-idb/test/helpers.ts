@@ -92,6 +92,7 @@ export function testContract(): IdbContract {
  */
 export interface TestStoreAccessor {
   create(data: Record<string, unknown>): Promise<Record<string, unknown>>;
+  createAll(data: Record<string, unknown>[]): { toArray(): Promise<Record<string, unknown>[]> };
   findUnique(key: unknown): Promise<Record<string, unknown> | null>;
   delete(key: unknown): Promise<void>;
   where(filter: Record<string, unknown>): TestStoreAccessor;
