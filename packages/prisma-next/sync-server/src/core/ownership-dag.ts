@@ -1,9 +1,16 @@
 import type { Contract } from "@prisma-next/contract/types";
 import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
-import type { IdbStorage } from "@prisma-next-idb/target-idb/pack";
 
-/** The contract shape `sync-server` operates on — an IDB `Contract` (see ADR 014). */
-export type SyncServerContract = Contract<IdbStorage>;
+/**
+ * The contract shape `sync-server` operates on — any family's `Contract`
+ * (see ADR 014's "Genuinely family-agnostic"). The DAG only ever walks
+ * `contract.domain` (relations, model names), which is framework-level and
+ * identical in shape across IDB, SQL, Mongo, or any future family — nothing
+ * here reads `contract.storage` except through the injectable `getKeyField`
+ * resolver in `sync-server.ts`, which is the one place storage shape
+ * actually varies by family.
+ */
+export type SyncServerContract = Contract;
 
 /**
  * The ownership graph: `edges.get(model)` is every model reachable from
@@ -115,7 +122,7 @@ function validateClientReachability(
     if (!visited.has(modelName)) {
       throw new Error(
         `Model "${modelName}" has no path of owning relations back to root model "${rootModel}". ` +
-          `Add a relation chain to "${rootModel}", or mark the model @@idb.exclude if it shouldn't sync.`
+          `Add a relation chain to "${rootModel}", or exclude the model from the client contract if it shouldn't sync.`
       );
     }
   }

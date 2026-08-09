@@ -5,6 +5,7 @@ export { resolveAuthorizationPaths } from "../core/authorization-paths";
 
 export type {
   CreateSyncServerOptions,
+  GetKeyField,
   OwnershipCheck,
   PullScopeResult,
   PushValidationResult,
@@ -12,4 +13,4 @@ export type {
   SyncPushEvent,
   SyncServer,
 } from "../core/sync-server";
-export { buildPullQueries, createSyncServer, validatePush } from "../core/sync-server";
+export { buildPullQueries, createSyncServer, defaultGetKeyField, validatePush } from "../core/sync-server";

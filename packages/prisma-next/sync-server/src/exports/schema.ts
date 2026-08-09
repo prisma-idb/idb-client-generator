@@ -1,52 +1,53 @@
-import type { ContractConfig } from "@prisma-next/config/config-types";
-import type { PrismaIdbContractOptions } from "@prisma-next-idb/family-idb/contract-psl";
-import { prismaIdbContract } from "@prisma-next-idb/family-idb/contract-psl";
-import { injectChangelogModel } from "../core/changelog-schema";
+import { injectChangelogModelSql, prepareSqlSchemaWithSync } from "../core/changelog-schema";
+import { writeSqlSchemaWithSync } from "../core/write-sql-schema";
 
 /**
  * Plain PSL-text transform — appends the `Changelog` model (ADR 014's
- * push/pull log shape) to raw schema text, unparsed. Family-agnostic: it
- * only uses vanilla Prisma scalar types/attributes (`String`, `Json`,
- * `@id`, `@unique`, `@@index`), no `@idb.*`-namespaced syntax, so it isn't
- * tied to `family-idb` specifically. `prismaIdbContractWithSync` below is
- * what wires it into IDB's own PSL loader; a future SQL/Mongo family
- * package would wire this same function into *its* loader instead,
- * whatever that ends up looking like.
+ * push/pull log shape: real enum, real DB-generated `autoincrement()` id)
+ * to raw schema text, unparsed. Doesn't strip `@idb.exclude` — pair with
+ * `@prisma-next-idb/family-idb/contract-psl`'s `stripIdbExcludeAttributes`
+ * if the schema you're appending to was authored for family-idb, or use
+ * {@link prepareSqlSchemaWithSync}, which already does both.
  */
-export { injectChangelogModel };
+export { injectChangelogModelSql };
 
 /**
- * `family-idb`'s `prismaIdbContract`, with `injectChangelogModel` wired in
- * as the pre-parse hook — i.e. this is IDB-family-specific, not a generic
- * "add Changelog to your server" helper. It only makes sense when the
- * *server* is itself backed by the IDB family — which today means this
- * repo's own kanban-example pattern (no real backend; `family-idb`'s
- * interpreter run a second time with `projection: "full"` stands in for
- * one). If your server is a real Postgres/Mongo database, this function
- * doesn't apply — there's no SQL/Mongo family package in this repo (yet).
- * What carries over once one exists is the pattern, not this function:
- * that family's own PSL/contract loader would need the same kind of
- * pre-parse `injectSchemaText` hook `family-idb`'s `prismaIdbContract`
- * has, and could reuse `injectChangelogModel` directly against it.
+ * `stripIdbExcludeAttributes` (family-idb's `idb.exclude` namespace is
+ * meaningless to a real server, and the SQL parser hard-errors on it) then
+ * `injectChangelogModelSql` — the one call a SQL-family config needs to
+ * turn a schema authored for family-idb into the real server schema.
+ * Pure text in, text out — no file I/O. See {@link writeSqlSchemaWithSync}
+ * for the version that also handles reading the source file and writing
+ * the result, which is what a `defineConfig` call almost always wants.
+ */
+export { prepareSqlSchemaWithSync };
+
+/**
+ * The file-I/O wrapper around {@link prepareSqlSchemaWithSync}: reads
+ * `sourceSchemaPath`, prepares it, writes the result to
+ * `generatedSchemaPath` (with an auto-generated header), and returns
+ * `generatedSchemaPath` so it can be used inline as `defineConfig`'s
+ * `contract:` value.
  *
- * Use for the *server* config only (`projection: "full"`, or omitted) —
- * never wire it into the client config, or the client contract would gain
- * a model it can never legitimately have data for.
+ * There's no `injectSchemaText`-style hook on the SQL family's own schema
+ * loader (`@prisma-next/sql-contract-psl`'s `prismaContract`, which
+ * `@prisma-next/postgres/config`'s `defineConfig` wraps) to plug this into
+ * directly — so this still writes an intermediate file. This wrapper
+ * exists so a consuming app's config doesn't have to know that; it just
+ * calls one function.
  *
  * @example
  * ```ts
- * import { defineConfig } from '@prisma-next-idb/family-idb/config-types';
- * import { prismaIdbContractWithSync } from '@prisma-next-idb/sync-server/schema';
+ * import { defineConfig } from "@prisma-next/postgres/config";
+ * import { writeSqlSchemaWithSync } from "@prisma-next-idb/sync-server/schema";
  *
  * export default defineConfig({
- *   // ...
- *   contract: prismaIdbContractWithSync('./src/prisma/schema.prisma', {
- *     projection: 'full',
- *     output: './src/prisma/contract.server.json',
- *   }),
+ *   contract: writeSqlSchemaWithSync(
+ *     "src/lib/prisma/schema.prisma",
+ *     "src/lib/prisma/schema.postgres.generated.prisma"
+ *   ),
+ *   db: { connection: process.env.DATABASE_URL },
  * });
  * ```
  */
-export function prismaIdbContractWithSync(schemaPath: string, options?: PrismaIdbContractOptions): ContractConfig {
-  return prismaIdbContract(schemaPath, { ...options, injectSchemaText: injectChangelogModel });
-}
+export { writeSqlSchemaWithSync };

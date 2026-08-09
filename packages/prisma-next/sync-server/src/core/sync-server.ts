@@ -1,5 +1,4 @@
 import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
-import type { IdbModelStorage } from "@prisma-next-idb/target-idb/pack";
 import { resolveAuthorizationPaths } from "./authorization-paths";
 import { buildOwnershipDag } from "./ownership-dag";
 import type { OwnershipDag, SyncServerContract } from "./ownership-dag";
@@ -70,18 +69,41 @@ export interface PullScopeResult {
   readonly check: OwnershipCheck;
 }
 
-function getKeyField(contract: SyncServerContract, modelName: string): string {
+/**
+ * Resolves a model's primary-key field name from the contract. Storage
+ * shape is the one thing that genuinely varies by family (IDB: a flat
+ * `model.storage.keyPath` string; SQL: a possibly-compound
+ * `contract.storage.namespaces[ns].entries.table[table].primaryKey.columns`
+ * array; Mongo, whatever Mongo does) — so this is the sole extension point
+ * `createSyncServer` exposes (`CreateSyncServerOptions.getKeyField`) rather
+ * than something the DAG tries to introspect generically.
+ */
+export type GetKeyField = (contract: SyncServerContract, modelName: string) => string;
+
+/**
+ * Default resolver: duck-types `model.storage.keyPath` as a string. This
+ * happens to be exactly IDB's storage shape, but nothing here imports an
+ * IDB type to know that — a family whose storage shape doesn't expose a
+ * flat `keyPath` (SQL's compound-capable `primaryKey.columns`, for one)
+ * simply won't match, and `createSyncServer` throws asking for an explicit
+ * `getKeyField` instead of silently misresolving.
+ */
+export const defaultGetKeyField: GetKeyField = (contract, modelName) => {
   const model = domainModelsAtDefaultNamespace(contract.domain)[modelName];
-  const storage = model?.storage as IdbModelStorage | undefined;
-  if (!storage?.keyPath) {
-    throw new Error(`Model "${modelName}" has no storage.keyPath in the contract.`);
+  const keyPath = (model?.storage as { readonly keyPath?: unknown } | undefined)?.keyPath;
+  if (typeof keyPath !== "string") {
+    throw new Error(
+      `Model "${modelName}" has no string storage.keyPath in the contract. ` +
+        `This contract's storage shape isn't IDB's — pass a getKeyField option to createSyncServer.`
+    );
   }
-  return storage.keyPath;
-}
+  return keyPath;
+};
 
 function buildOwnershipCheck(
   dag: OwnershipDag,
   contract: SyncServerContract,
+  getKeyField: GetKeyField,
   modelName: string,
   keyField: string,
   key: unknown,
@@ -103,6 +125,7 @@ function buildOwnershipCheck(
 export function validatePush(
   dag: OwnershipDag,
   contract: SyncServerContract,
+  getKeyField: GetKeyField,
   events: readonly SyncPushEvent[],
   options: { readonly scopeKey: string }
 ): readonly PushValidationResult[] {
@@ -113,7 +136,15 @@ export function validatePush(
       return { eventId: event.id, model: event.model, check: { kind: "unknown-model" } };
     }
     const keyField = getKeyField(contract, event.model);
-    const check = buildOwnershipCheck(dag, contract, event.model, keyField, event.payload[keyField], options.scopeKey);
+    const check = buildOwnershipCheck(
+      dag,
+      contract,
+      getKeyField,
+      event.model,
+      keyField,
+      event.payload[keyField],
+      options.scopeKey
+    );
     return { eventId: event.id, model: event.model, check };
   });
 }
@@ -121,6 +152,7 @@ export function validatePush(
 export function buildPullQueries(
   dag: OwnershipDag,
   contract: SyncServerContract,
+  getKeyField: GetKeyField,
   logs: readonly SyncPullLogEntry[],
   options: { readonly scopeKey: string }
 ): readonly PullScopeResult[] {
@@ -131,17 +163,19 @@ export function buildPullQueries(
       return { changelogId: log.changelogId, model: log.model, check: { kind: "unknown-model" } };
     }
     const keyField = getKeyField(contract, log.model);
-    const check = buildOwnershipCheck(dag, contract, log.model, keyField, log.key, options.scopeKey);
+    const check = buildOwnershipCheck(dag, contract, getKeyField, log.model, keyField, log.key, options.scopeKey);
     return { changelogId: log.changelogId, model: log.model, check };
   });
 }
 
 export interface CreateSyncServerOptions {
-  /** The full server-side contract (ADR 012) — includes client-excluded models. */
+  /** The full server-side contract (ADR 012) — includes client-excluded models. Any family. */
   readonly contract: SyncServerContract;
-  /** The client-projected contract (ADR 012) — defines which models are ever synced. */
+  /** The client-projected contract (ADR 012) — defines which models are ever synced. Any family. */
   readonly clientContract: SyncServerContract;
   readonly rootModel: string;
+  /** @default defaultGetKeyField (IDB-shaped storage.keyPath) */
+  readonly getKeyField?: GetKeyField;
 }
 
 export interface SyncServer {
@@ -164,10 +198,11 @@ export interface SyncServer {
  */
 export function createSyncServer(options: CreateSyncServerOptions): SyncServer {
   const dag = buildOwnershipDag(options.contract, options.clientContract, options.rootModel);
+  const getKeyField = options.getKeyField ?? defaultGetKeyField;
 
   return {
     rootModel: dag.rootModel,
-    validatePush: (events, pushOptions) => validatePush(dag, options.contract, events, pushOptions),
-    buildPullQueries: (logs, pullOptions) => buildPullQueries(dag, options.contract, logs, pullOptions),
+    validatePush: (events, pushOptions) => validatePush(dag, options.contract, getKeyField, events, pushOptions),
+    buildPullQueries: (logs, pullOptions) => buildPullQueries(dag, options.contract, getKeyField, logs, pullOptions),
   };
 }

@@ -36,11 +36,11 @@
   },
   "dependencies": {
     "@prisma-next-idb/family-idb": "workspace:*",
-    "@prisma-next-idb/target-idb": "workspace:*",
     "@prisma-next/config": "^0.16.0",
     "@prisma-next/contract": "^0.16.0"
   },
   "devDependencies": {
+    "@prisma-next-idb/target-idb": "workspace:*",
     "@types/node": "^24.10.9",
     "tsdown": "^0.22.14",
     "typescript": "^6.0.3",
