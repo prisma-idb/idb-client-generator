@@ -18,9 +18,9 @@ import { Pool } from "pg";
  * connection — different libraries, no reason to couple their connection
  * lifecycles.
  *
- * Anonymous-only for now (see the `anonymous()` plugin) — no social
- * providers configured yet. Add `socialProviders` here when needed; nothing
- * else in this setup assumes anonymous-only.
+ * Google + anonymous: `anonymous()` covers guests (see the "Continue as
+ * guest" button); `socialProviders.google` requires GOOGLE_CLIENT_ID/SECRET
+ * (see .env.example for where to get them and the redirect URI to register).
  */
 if (!env.DATABASE_URL) {
   throw new Error("DATABASE_URL is not set — copy .env.example to .env and run `pnpm db:up && pnpm db:init`.");
@@ -34,6 +34,12 @@ if (!env.BETTER_AUTH_SECRET) {
 export const auth = betterAuth({
   database: new Pool({ connectionString: env.DATABASE_URL }),
   secret: env.BETTER_AUTH_SECRET,
+  socialProviders: {
+    google: {
+      clientId: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET,
+    },
+  },
   baseURL: env.BETTER_AUTH_URL,
   // Behind `vite preview` (this app's own e2e setup) the runtime can't
   // resolve distinct per-client IPs, so better-auth falls back to one
