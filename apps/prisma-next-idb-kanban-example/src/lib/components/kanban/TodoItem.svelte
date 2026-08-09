@@ -28,6 +28,7 @@
       aria-label={todo.isCompleted ? "Mark todo incomplete" : "Mark todo complete"}
       onclick={() => kanban.toggleTodo(todo.id, todo.isCompleted)}
       disabled={kanban.busy}
+      data-testid="toggle-todo"
     >
       {#if todo.isCompleted}
         <CheckIcon />
@@ -40,17 +41,26 @@
         bind:value={title}
         class={todo.isCompleted ? "text-muted-foreground line-through" : ""}
         aria-label={`Todo title ${todo.title}`}
+        data-testid="todo-title-field"
       />
       <Textarea
         bind:value={description}
         rows={2}
         aria-label={`Todo description ${todo.title}`}
         placeholder="Description"
+        data-testid="todo-description-field"
       />
     </div>
   </div>
   <div class="mt-2 flex justify-end gap-2">
-    <Button size="sm" variant="secondary" onclick={save} disabled={kanban.busy} aria-label="Save todo">
+    <Button
+      size="sm"
+      variant="secondary"
+      onclick={save}
+      disabled={kanban.busy}
+      aria-label="Save todo"
+      data-testid="save-todo"
+    >
       <SaveIcon />
       Save
     </Button>
@@ -60,6 +70,7 @@
       onclick={() => kanban.deleteTodo(todo.id)}
       disabled={kanban.busy}
       aria-label="Delete todo"
+      data-testid="delete-todo"
     >
       <Trash2Icon />
       Delete

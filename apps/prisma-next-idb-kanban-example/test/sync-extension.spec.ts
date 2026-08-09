@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { signInAsTestUser } from "./test-utils-signin";
 
 /**
  * `openAndReadMarker`'s bare `factory.open(dbName)` implicitly creates a
@@ -20,8 +21,8 @@ const IMPLICIT_V1_PLUS_ONE_COMBINED_BUMP = 2;
  * marker rows for both, after exactly one version bump.
  */
 test("sync extension stores and marker rows exist after auto-migration", async ({ page }) => {
-  await page.goto("/login");
-  await page.getByTestId("continue-as-guest").click();
+  await signInAsTestUser(page);
+  await page.goto("/");
   // Not just "Ready" — that renders as soon as the shell mounts, before the
   // session check resolves and getDb() actually opens/migrates the database.
   await expect(page.getByTestId("board-name-input")).toBeVisible({ timeout: 15_000 });

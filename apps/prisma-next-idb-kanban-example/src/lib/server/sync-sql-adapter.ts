@@ -131,7 +131,25 @@ export interface PushResultBody {
 /** Extracts the shape `sync-server`'s `validatePush` reads `payload[keyField]` from, per operation kind (sync-executor.ts's `outboxPayload`). */
 export function toSyncPushPayload(operation: string, payload: unknown, keyField: string): Record<string, unknown> {
   if (operation === "create") return payload as Record<string, unknown>;
-  if (operation === "update") return (payload as { where: Record<string, unknown> }).where;
+  if (operation === "update") {
+    const { key } = payload as { key?: unknown };
+    if (key === undefined) {
+      // Should not happen through the ORM's normal accessors. `update()`,
+      // `updateAll()`, and `upsert()` all resolve a real key now, from
+      // whatever row the write actually matched — not by statically
+      // guessing at the filter/args that led to it, which is what used to
+      // leave `update()` unresolved for anything but a bare equality filter
+      // on the primary key. (`upsert()` was never actually affected by that
+      // bug in the first place: it already always runs through its own
+      // atomic transaction-scope path in real usage, which was already
+      // correctly tracked — see sync-executor.ts's `extractKey` for the
+      // full picture of what still can't reach here.) Kept as a defensive,
+      // loud failure — not a silent no-op — in case a plan ever does bypass
+      // the ORM's own accessors.
+      throw new Error(`Unsupported update: filter does not pin "${keyField}" by equality`);
+    }
+    return { [keyField]: key };
+  }
   if (operation === "delete") return { [keyField]: (payload as { key: unknown }).key };
   throw new Error(`Unsupported operation "${operation}"`);
 }
@@ -187,8 +205,15 @@ export async function applyPushEvent(
       if (event.operation === "create") {
         await root.select(keyField).create(decodeDates(event.payload as Record<string, unknown>));
       } else if (event.operation === "update") {
-        const { where, patch } = event.payload as { where: Record<string, unknown>; patch: Record<string, unknown> };
-        await root.select(keyField).where(where).update(decodeDates(patch));
+        // `check.key` (resolved above via `toSyncPushPayload`, same value)
+        // is what identifies the row — not `event.payload`, which still
+        // carries the client's raw outbox record (`{ patch, key }`) rather
+        // than the SQL ORM's `.where()` matcher shape.
+        const { patch } = event.payload as { patch: Record<string, unknown> };
+        await root
+          .select(keyField)
+          .where({ [keyField]: check.key })
+          .update(decodeDates(patch));
       } else {
         await root.where({ [keyField]: (event.payload as { key: unknown }).key }).delete();
       }

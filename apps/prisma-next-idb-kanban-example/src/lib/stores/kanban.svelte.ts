@@ -170,10 +170,11 @@ export class KanbanStore {
           if (applied > 0 && this.activeUser) this.loadBoards(this.activeUser.id).catch(this.showError);
         });
         // Pending count moves in two directions: up when a local write lands
-        // (onOutboxWrite — one subscription, not a refreshPendingCount() call
+        // ("outboxwrite" — one subscription, not a refreshPendingCount() call
         // sprinkled after every db.orm.* mutation site), down when a push
-        // cycle marks events synced.
-        db.onOutboxWrite(() => void this.refreshPendingCount(db));
+        // cycle marks events synced. Same `on(event, cb)` shape as
+        // `syncWorker.on(...)` below, not the old bespoke `onOutboxWrite`.
+        db.on("outboxwrite", () => void this.refreshPendingCount(db));
         this.syncWorker.on("pushcompleted", () => void this.refreshPendingCount(db));
         this.syncWorker.start();
         this.syncStarting = false;
