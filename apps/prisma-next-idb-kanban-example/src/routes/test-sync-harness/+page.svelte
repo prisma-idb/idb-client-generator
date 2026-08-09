@@ -1,8 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { createAutoMigratingIdbClient } from "@prisma-next-idb/client-idb/client-auto";
   import { idbSyncExtension } from "@prisma-next-idb/sync-extension-idb/control";
-  import { createSyncIdbClient } from "@prisma-next-idb/sync-extension-idb/client";
+  import { createAutoMigratingSyncIdbClient } from "@prisma-next-idb/sync-extension-idb/client";
   import { contractSpace } from "$lib/prisma/contract-space.generated";
 
   /**
@@ -22,14 +21,11 @@
     const dbName = new URLSearchParams(location.search).get("db");
     if (!dbName) throw new Error("test-sync-harness requires a ?db= query param");
 
-    const migrating = await createAutoMigratingIdbClient({
+    const syncClient = await createAutoMigratingSyncIdbClient({
       contractSpace,
       dbName,
       extensions: [idbSyncExtension],
     });
-    await migrating.close();
-
-    const syncClient = createSyncIdbClient({ contract: contractSpace.contractJson, dbName });
     (window as unknown as { __syncHarness: unknown }).__syncHarness = { syncClient };
     ready = true;
   });

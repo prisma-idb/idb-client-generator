@@ -1,7 +1,8 @@
 import { getDb } from "$lib/prisma/db";
 import type { Contract } from "$lib/prisma/contract";
 import type { DefaultModelRow, IncludedRow } from "@prisma-next-idb/client-idb/orm";
-import { SvelteDate } from "svelte/reactivity";
+import type { LogWithRecord, OutboxEvent, PushResult, SyncWorker } from "@prisma-next-idb/sync-extension-idb/client";
+import { SvelteDate, SvelteURLSearchParams } from "svelte/reactivity";
 
 export type User = DefaultModelRow<Contract, "User">;
 export type Board = DefaultModelRow<Contract, "Board">;
@@ -21,6 +22,7 @@ export class KanbanStore {
   boards = $state<BoardWithTodos[]>([]);
   activeUserId = $state<string | null>(null);
   busy = $state(false);
+  syncWorker: SyncWorker | null = null;
 
   activeUser = $derived(this.users.find((u) => u.id === this.activeUserId) ?? null);
   todos = $derived(this.boards.flatMap((b) => b.todos));
@@ -74,6 +76,53 @@ export class KanbanStore {
 
     await this.loadBoards(nextActive);
     this.status = "ready";
+    this.startSync();
+  }
+
+  /**
+   * ADR 014 push/pull, wired against src/routes/api/sync (Postgres-backed).
+   * `scopeKey` is read from `this.activeUserId` at call time, not captured
+   * once — so a single worker instance survives `switchUser()` without
+   * needing to be torn down and recreated. Demo-level simplification (see
+   * push/+server.ts's header): `scopeKey` here is just the locally-picked
+   * active user, not anything a real server would trust as an identity
+   * claim.
+   */
+  private startSync() {
+    if (this.syncWorker) return;
+
+    const pushHandler = async (events: OutboxEvent[], signal: AbortSignal): Promise<PushResult[]> => {
+      const scopeKey = this.activeUserId;
+      if (!scopeKey) return events.map((e) => ({ id: e.id, success: false, error: "No active user" }));
+      const res = await fetch("/api/sync/push", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ events, scopeKey }),
+        signal,
+      });
+      if (!res.ok) throw new Error(`Push failed: ${res.status}`);
+      return res.json();
+    };
+
+    const pullHandler = async (fromChangelogId: string | null, signal: AbortSignal): Promise<LogWithRecord[]> => {
+      const scopeKey = this.activeUserId;
+      if (!scopeKey) return [];
+      const params = new SvelteURLSearchParams({ scopeKey });
+      if (fromChangelogId) params.set("since", fromChangelogId);
+      const res = await fetch(`/api/sync/pull?${params}`, { signal });
+      if (!res.ok) throw new Error(`Pull failed: ${res.status}`);
+      return res.json();
+    };
+
+    getDb()
+      .then((db) => {
+        this.syncWorker = db.createSyncWorker({ pushHandler, pullHandler });
+        this.syncWorker.on("pullcompleted", ({ applied }) => {
+          if (applied > 0) this.loadBoards(this.activeUserId).catch(this.showError);
+        });
+        this.syncWorker.start();
+      })
+      .catch(this.showError);
   }
 
   async switchUser(userId: string) {
