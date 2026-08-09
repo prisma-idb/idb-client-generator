@@ -99,6 +99,9 @@ jobs:
       - name: Generate BETTER_AUTH_SECRET
         run: echo "BETTER_AUTH_SECRET=$(openssl rand -base64 32 | tr '/+=' '_-')" >> $GITHUB_ENV
 
+      - name: Build Prisma Next kanban workspace dependencies
+        run: pnpm exec turbo run build --filter="...@prisma-next-idb/kanban-example^..."
+
       - name: Emit Prisma Next kanban Postgres contract
         working-directory: apps/prisma-next-idb-kanban-example
         run: pnpm contract:emit:postgres
@@ -275,6 +278,9 @@ jobs:
       - uses: ./.github/actions/
       - name: Generate BETTER_AUTH_SECRET
         run: echo "BETTER_AUTH_SECRET=$(openssl rand -base64 32 | tr '/+=' '_-')" >> $GITHUB_ENV
+
+      - name: Build Prisma Next kanban workspace dependencies
+        run: pnpm exec turbo run build --filter="...@prisma-next-idb/kanban-example^..."
 
       - name: Emit Postgres contract
         working-directory: apps/prisma-next-idb-kanban-example
