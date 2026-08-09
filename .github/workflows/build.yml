@@ -99,6 +99,12 @@ jobs:
       - name: Generate BETTER_AUTH_SECRET
         run: echo "BETTER_AUTH_SECRET=$(openssl rand -base64 32 | tr '/+=' '_-')" >> $GITHUB_ENV
 
+      - name: Emit Prisma Next kanban Postgres contract
+        working-directory: apps/prisma-next-idb-kanban-example
+        run: pnpm contract:emit:postgres
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5433/postgres"
+
       - name: Run typecheck commands
         run: pnpm check
         env:
@@ -245,11 +251,38 @@ jobs:
     timeout-minutes: 60
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5435:5432
+
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           persist-credentials: false
+      - name: Set DATABASE_URL environment variable
+        run: echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5435/postgres" >> $GITHUB_ENV
       - uses: ./.github/actions/
+      - name: Generate BETTER_AUTH_SECRET
+        run: echo "BETTER_AUTH_SECRET=$(openssl rand -base64 32 | tr '/+=' '_-')" >> $GITHUB_ENV
+
+      - name: Emit Postgres contract
+        working-directory: apps/prisma-next-idb-kanban-example
+        run: pnpm contract:emit:postgres
+
+      - name: Initialize Postgres schema
+        working-directory: apps/prisma-next-idb-kanban-example
+        run: pnpm db:init
 
       - name: Install Playwright Browsers
         working-directory: apps/prisma-next-idb-kanban-example
@@ -257,6 +290,9 @@ jobs:
 
       - name: Run Prisma Next kanban E2E tests
         run: pnpm test:prisma-next-kanban-e2e
+        env:
+          GOOGLE_CLIENT_ID: "placeholder"
+          GOOGLE_CLIENT_SECRET: "placeholder"
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: ${{ !cancelled() }}
