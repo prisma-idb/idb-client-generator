@@ -26,7 +26,7 @@
   },
   "devDependencies": {
     "@prisma/internals": "^7.9.1",
-    "@types/node": "^24.13.3",
+    "@types/node": "^24.10.9",
     "typescript": "^6.0.3"
   },
   "peerDependencies": {
@@ -34,7 +34,7 @@
     "@prisma/client": "^6.0.0 || ^7.0.0",
     "idb": "^8.0.0",
     "prisma": "^6.0.0 || ^7.0.0",
-    "uuid": ">=9.0.0"
+    "uuid": "^11.1.1"
   },
   "peerDependenciesMeta": {
     "uuid": {
