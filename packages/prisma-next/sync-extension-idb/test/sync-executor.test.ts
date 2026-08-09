@@ -136,11 +136,12 @@ describe("SyncInterceptorExecutor", () => {
   });
 
   it("writes an update outbox event keyed by primary key, not a raw filter tree, for a where({id}).update() with no scalar FK fields", async () => {
-    // No scalar FK field in the patch, so this never reaches
-    // executeScalarUpdateWithFkValidation's transaction-scope path — it's
-    // the plan-level `execute()` path, which used to lose the key entirely
-    // (payload carried the AST's raw filter expression instead), silently
-    // breaking sync for every plain field update.
+    // update() always routes through executeScalarUpdateWithFkValidation's
+    // transaction scope now, whether or not the patch has a scalar FK field
+    // — this used to be the plan-level `execute()` path specifically for the
+    // no-FK case, which lost the key entirely for anything but a bare
+    // equality filter on the primary key (payload carried the AST's raw
+    // filter expression instead), silently breaking sync.
     const { client } = await createTestSyncClient();
     const users = asAccessors(client.orm)["users"]!;
 
@@ -159,6 +160,35 @@ describe("SyncInterceptorExecutor", () => {
     expect(updateEvent!.versionMetaId).toBe('User::"u1"');
     expect(updateEvent!.payload.key).toBe("u1");
     expect(updateEvent!.payload.where).toBeUndefined();
+
+    const metaRow = await keyGet(client, "_idb_sync_version_meta", updateEvent!.versionMetaId!);
+    expect(metaRow).toBeDefined();
+  });
+
+  it("resolves the key from the actually-matched row for a where() filter on a non-key field", async () => {
+    // The gap the fix above didn't close: extracting a key by INSPECTING the
+    // filter only ever worked for a bare equality check directly on the
+    // primary key (`.where({ id })`) — any other field left the key
+    // unresolved, and this operation either synced a raw filter tree the
+    // server couldn't apply, or (after a later, narrower fix) was rejected
+    // outright with "filter does not pin \"id\" by equality". Routing
+    // through the transaction scope unconditionally removes the need to
+    // guess at all: the key comes from the row the filter actually matched,
+    // once it's run — the same mechanism `updateAll()`/cascade deletes
+    // already rely on, applied to the single-row case too.
+    const { client } = await createTestSyncClient();
+    const users = asAccessors(client.orm)["users"]!;
+
+    await users.create({ id: "u1", name: "Alice" });
+    await users.where({ name: "Alice" }).update({ name: "Alicia" });
+
+    const outbox = await scanAll(client, "_idb_sync_outbox");
+    const updateEvent = (
+      outbox as { operation: string; versionMetaId: string | null; payload: { patch: unknown; key?: unknown } }[]
+    ).find((e) => e.operation === "update");
+    expect(updateEvent).toBeDefined();
+    expect(updateEvent!.payload.key).toBe("u1");
+    expect(updateEvent!.versionMetaId).toBe('User::"u1"');
 
     const metaRow = await keyGet(client, "_idb_sync_version_meta", updateEvent!.versionMetaId!);
     expect(metaRow).toBeDefined();
@@ -400,5 +430,48 @@ describe("SyncInterceptorExecutor.transaction() — relational mutations", () =>
     );
     expect(postUpdate).toBeDefined();
     expect(postUpdate!.versionMetaId).toBe('Post::"p1"');
+  });
+
+  it("tracks upsert()'s create branch as a normal, correctly-keyed create event", async () => {
+    // upsert() always goes through its own atomic transaction-scope path in
+    // real usage (store-accessor.ts checks `typeof exec.transaction ===
+    // "function"`, true for every real client — the non-transactional
+    // fallback next to it is dead code outside a bare test stub). That path
+    // issues a plain `add` atomic plan once it's determined the row doesn't
+    // exist yet, which SyncInterceptingTransactionScope's `add` case tracks
+    // exactly like a normal create() — same shape, same server code path,
+    // no "upsert" operation ever reaches the wire.
+    const { client } = await createTestSyncClient();
+    const users = asAccessors(client.orm)["users"]!;
+
+    await users.upsert({ where: { id: "u1" }, create: { id: "u1", name: "Alice" }, update: { name: "Alicia" } });
+
+    const outbox = (await scanAll(client, "_idb_sync_outbox")) as {
+      operation: string;
+      versionMetaId: string | null;
+      payload: unknown;
+    }[];
+    expect(outbox).toHaveLength(1);
+    expect(outbox[0]!.operation).toBe("create");
+    expect(outbox[0]!.payload).toEqual({ id: "u1", name: "Alice" });
+    expect(outbox[0]!.versionMetaId).toBe('User::"u1"');
+  });
+
+  it("tracks upsert()'s update branch as a normal, correctly-keyed update event", async () => {
+    const { client } = await createTestSyncClient();
+    const users = asAccessors(client.orm)["users"]!;
+
+    await users.create({ id: "u1", name: "Alice" });
+    await users.upsert({ where: { id: "u1" }, create: { id: "u1", name: "New" }, update: { name: "Updated" } });
+
+    const outbox = (await scanAll(client, "_idb_sync_outbox")) as {
+      operation: string;
+      versionMetaId: string | null;
+      payload: { patch: unknown; key: unknown };
+    }[];
+    const upsertUpdate = outbox.find((e) => e.operation === "update");
+    expect(upsertUpdate).toBeDefined();
+    expect(upsertUpdate!.payload).toEqual({ patch: { name: "Updated" }, key: "u1" });
+    expect(upsertUpdate!.versionMetaId).toBe('User::"u1"');
   });
 });

@@ -10,7 +10,6 @@ import type {
   IdbFindManyAst,
   IdbFindUniqueAst,
   IdbQueryAst,
-  IdbUpdateAst,
   IdbUpsertAst,
 } from "@prisma-next-idb/adapter-idb/runtime";
 import { evaluateFilter, shorthandToFilterExpr } from "@prisma-next-idb/adapter-idb/runtime";
@@ -647,44 +646,33 @@ export class IdbStoreAccessorImpl<
       return row as DefaultModelRow<TContract, ModelName> | null;
     }
 
-    if (hasScalarFkFields(this.#contract, this.#modelName, patchRecord)) {
-      const row = await executeScalarUpdateWithFkValidation({
-        executor: requireTransactionExecutor(this.#executor),
-        contract: this.#contract,
-        modelName: this.#modelName,
-        filters: this.#state.filters,
-        data: patchRecord,
-      });
-      return row as DefaultModelRow<TContract, ModelName> | null;
-    }
-
-    const groupingKey = this.#newGroupingKey();
-    const combined = this.#combinedFilterExpr();
-    const filter = combined !== undefined ? (row: Record<string, unknown>) => evaluateFilter(combined, row) : undefined;
-    const meta = this.#planMeta(groupingKey);
-    const ast: IdbUpdateAst = {
-      kind: "update",
+    // Always routes through the transaction scope, whether or not the patch
+    // touches a scalar FK field — same reasoning as `updateAll()` below: the
+    // matched row isn't known until the scan-write actually runs (`.where()`
+    // filters on ANY field, not just the primary key), and only the
+    // transaction-scope path lets the sync interceptor observe that REAL row
+    // and key it correctly (`SyncInterceptingTransactionScope#maybeTrack`'s
+    // `update`/`scan-write` cases), atomically with the write itself.
+    //
+    // The previous plan-level fallback here (for patches with no FK field)
+    // tried to recover the key by statically inspecting the filter AST
+    // instead — which only worked for the narrow case of an equality filter
+    // directly on the primary key (`.where({ id })`). Any other filter
+    // (`.where({ name: "..." })`, a range, an OR) left the key unresolved,
+    // and the outbox event synced with a raw filter tree the server
+    // couldn't apply — or, after an earlier fix, was rejected outright with
+    // `Unsupported update: filter does not pin "id" by equality`. Routing
+    // through the transaction scope unconditionally removes the whole
+    // category: the row (and therefore its key) comes from what actually
+    // matched, not from re-deriving it from the filter that found it.
+    const row = await executeScalarUpdateWithFkValidation({
+      executor: requireTransactionExecutor(this.#executor),
+      contract: this.#contract,
       modelName: this.#modelName,
-      patch: patchRecord,
-      ...(combined !== undefined ? { where: combined } : {}),
-    };
-    const plan: IdbQueryPlan<Record<string, unknown>> = {
-      meta,
-      ast,
-      idbPlan: {
-        meta,
-        kind: "scan-write",
-        storeName: this.#storeName,
-        write: "put-merged",
-        patch: patchRecord,
-        take: 1,
-        ...(filter !== undefined ? { filter } : {}),
-      },
-    };
-    for await (const row of this.#executor.execute(plan)) {
-      return row as DefaultModelRow<TContract, ModelName>;
-    }
-    return null;
+      filters: this.#state.filters,
+      data: patchRecord,
+    });
+    return row as DefaultModelRow<TContract, ModelName> | null;
   }
 
   /**

@@ -99,6 +99,11 @@ export interface TestStoreAccessor {
   update(patch: Record<string, unknown>): Promise<Record<string, unknown> | null>;
   updateAll(patch: Record<string, unknown>): { toArray(): Promise<Record<string, unknown>[]> };
   deleteAll(): { toArray(): Promise<Record<string, unknown>[]> };
+  upsert(args: {
+    where: Record<string, unknown>;
+    create: Record<string, unknown>;
+    update: Record<string, unknown>;
+  }): Promise<Record<string, unknown>>;
 }
 
 /** Cast an `orm`/`rawOrm` client to plain-record store accessors for test use. */
