@@ -26,7 +26,7 @@ import type {
   StorageHashBase,
 } from "@prisma-next/contract/types";
 
-export type StorageHash = StorageHashBase<"sha256:2a65046f034d955883925ba05b6520fd9b295eeeea32546233d0e97cdbe92231">;
+export type StorageHash = StorageHashBase<"sha256:2d901374e296dfea10d8dd96177d4d503150eecb0f7411c96b5ddf4cbc00bfff">;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash = ProfileHashBase<"sha256:9c8aa3114e84ed3b7ea2bd57526d9c2e1bf7c5292be694e9d3801f566fda7ccb">;
 
@@ -95,12 +95,12 @@ export type FieldOutputTypes = {
     readonly User: {
       readonly id: CodecTypes["pg/text@1"]["output"];
       readonly name: CodecTypes["pg/text@1"]["output"];
-      readonly email: CodecTypes["pg/text@1"]["output"] | null;
+      readonly email: CodecTypes["pg/text@1"]["output"];
       readonly emailVerified: CodecTypes["pg/bool@1"]["output"];
       readonly image: CodecTypes["pg/text@1"]["output"] | null;
       readonly createdAt: CodecTypes["pg/timestamptz@1"]["output"];
       readonly updatedAt: CodecTypes["pg/timestamptz@1"]["output"];
-      readonly isAnonymous: CodecTypes["pg/bool@1"]["output"] | null;
+      readonly isAnonymous: CodecTypes["pg/bool@1"]["output"];
     };
     readonly Verification: {
       readonly id: CodecTypes["pg/text@1"]["output"];
@@ -170,12 +170,12 @@ export type FieldInputTypes = {
     readonly User: {
       readonly id: CodecTypes["pg/text@1"]["input"];
       readonly name: CodecTypes["pg/text@1"]["input"];
-      readonly email: CodecTypes["pg/text@1"]["input"] | null;
+      readonly email: CodecTypes["pg/text@1"]["input"];
       readonly emailVerified: CodecTypes["pg/bool@1"]["input"];
       readonly image: CodecTypes["pg/text@1"]["input"] | null;
       readonly createdAt: CodecTypes["pg/timestamptz@1"]["input"];
       readonly updatedAt: CodecTypes["pg/timestamptz@1"]["input"];
-      readonly isAnonymous: CodecTypes["pg/bool@1"]["input"] | null;
+      readonly isAnonymous: CodecTypes["pg/bool@1"]["input"];
     };
     readonly Verification: {
       readonly id: CodecTypes["pg/text@1"]["input"];
@@ -244,11 +244,11 @@ export type StorageColumnTypes = {
     };
     readonly user: {
       readonly createdAt: CodecTypes["pg/timestamptz@1"]["output"];
-      readonly email: CodecTypes["pg/text@1"]["output"] | null;
+      readonly email: CodecTypes["pg/text@1"]["output"];
       readonly emailVerified: CodecTypes["pg/bool@1"]["output"];
       readonly id: CodecTypes["pg/text@1"]["output"];
       readonly image: CodecTypes["pg/text@1"]["output"] | null;
-      readonly isAnonymous: CodecTypes["pg/bool@1"]["output"] | null;
+      readonly isAnonymous: CodecTypes["pg/bool@1"]["output"];
       readonly name: CodecTypes["pg/text@1"]["output"];
       readonly updatedAt: CodecTypes["pg/timestamptz@1"]["output"];
     };
@@ -319,11 +319,11 @@ export type StorageColumnInputTypes = {
     };
     readonly user: {
       readonly createdAt: CodecTypes["pg/timestamptz@1"]["input"];
-      readonly email: CodecTypes["pg/text@1"]["input"] | null;
+      readonly email: CodecTypes["pg/text@1"]["input"];
       readonly emailVerified: CodecTypes["pg/bool@1"]["input"];
       readonly id: CodecTypes["pg/text@1"]["input"];
       readonly image: CodecTypes["pg/text@1"]["input"] | null;
-      readonly isAnonymous: CodecTypes["pg/bool@1"]["input"] | null;
+      readonly isAnonymous: CodecTypes["pg/bool@1"]["input"];
       readonly name: CodecTypes["pg/text@1"]["input"];
       readonly updatedAt: CodecTypes["pg/timestamptz@1"]["input"];
     };
@@ -424,7 +424,7 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ["id"] };
-              uniques: readonly [];
+              uniques: readonly [{ readonly columns: readonly ["providerId", "accountId"] }];
               indexes: readonly [{ readonly columns: readonly ["userId"]; readonly name: "account_userId_idx" }];
               foreignKeys: readonly [
                 {
@@ -681,7 +681,7 @@ type ContractBase = Omit<
                 readonly email: {
                   readonly nativeType: "text";
                   readonly codecId: "pg/text@1";
-                  readonly nullable: true;
+                  readonly nullable: false;
                 };
                 readonly emailVerified: {
                   readonly nativeType: "bool";
@@ -711,7 +711,11 @@ type ContractBase = Omit<
                 readonly isAnonymous: {
                   readonly nativeType: "bool";
                   readonly codecId: "pg/bool@1";
-                  readonly nullable: true;
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: "literal";
+                    readonly value: DefaultLiteralValue<"pg/bool@1", false>;
+                  };
                 };
               };
               primaryKey: { readonly columns: readonly ["id"] };
@@ -1120,7 +1124,7 @@ type ContractBase = Omit<
                 readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
               };
               readonly email: {
-                readonly nullable: true;
+                readonly nullable: false;
                 readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
               };
               readonly emailVerified: {
@@ -1140,7 +1144,7 @@ type ContractBase = Omit<
                 readonly type: { readonly kind: "scalar"; readonly codecId: "pg/timestamptz@1" };
               };
               readonly isAnonymous: {
-                readonly nullable: true;
+                readonly nullable: false;
                 readonly type: { readonly kind: "scalar"; readonly codecId: "pg/bool@1" };
               };
             };

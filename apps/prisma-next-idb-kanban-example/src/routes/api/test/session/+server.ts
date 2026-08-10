@@ -15,10 +15,15 @@ import type { RequestHandler } from "./$types";
  *
  * Gated behind `PLAYWRIGHT_TEST_UTILS=1` (set only in playwright.config.ts's
  * webServer.env) — a plain 404 in any environment that isn't explicitly the
- * e2e test server, same as if the route never existed.
+ * e2e test server, same as if the route never existed. Also requires
+ * `__PLAYWRIGHT_E2E_BUILD__` (vite.config.ts), a build-time-only flag baked
+ * in from the same env var — the runtime check alone can't tell "the e2e
+ * server set this" apart from "this got left set in a real deployment's
+ * env by mistake"; the build-time flag can only ever be true for a build
+ * actually produced by Playwright's webServer.
  */
 export const POST: RequestHandler = async () => {
-  if (env.PLAYWRIGHT_TEST_UTILS !== "1") error(404);
+  if (env.PLAYWRIGHT_TEST_UTILS !== "1" || !__PLAYWRIGHT_E2E_BUILD__) error(404);
 
   const { testAuth } = await import("$lib/server/test-auth");
   const ctx = await testAuth.$context;

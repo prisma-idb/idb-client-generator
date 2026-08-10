@@ -8,15 +8,21 @@
 model User {
   id            String    @id
   name          String
-  email         String?   @unique
+  // better-auth requires this and keeps it unique even for anonymous users
+  // — the anonymous() plugin always synthesizes a placeholder address
+  // (temp@<id>.<domain>) rather than leaving it unset (verified against
+  // better-auth's own plugin source).
+  email         String    @unique
   emailVerified Boolean   @default(false)
   image         String?
   createdAt     DateTime  @default(now())
   // Not `@updatedAt` — family-sql's PSL parser doesn't recognize it (see
   // Session.updatedAt below for the full reasoning).
   updatedAt     DateTime
-  // Set by better-auth's `anonymous()` plugin (see src/lib/server/auth.ts).
-  isAnonymous   Boolean?
+  // Set by better-auth's `anonymous()` plugin (see src/lib/server/auth.ts)
+  // — `false` by default for every user, `true` explicitly for anonymous
+  // sign-ins. Never actually left unset.
+  isAnonymous   Boolean   @default(false)
   boards        Board[]
   // Relations to whole-model-excluded models — ADR 013 drops these from the
   // client contract automatically (no @idb.exclude on the relation field
@@ -64,6 +70,10 @@ model Account {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime
 
+  // better-auth resolves a social account by this pair — without it, two
+  // concurrent OAuth callbacks for the same provider account could insert
+  // two rows and make later lookups non-deterministic.
+  @@unique([providerId, accountId])
   @@idb.exclude
 }
 

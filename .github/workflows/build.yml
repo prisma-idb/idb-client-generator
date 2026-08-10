@@ -137,7 +137,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres
+        image: postgres:16@sha256:95206741a5b214807675e14165369d05b93a9cf692223b616d07cca227e74b0b
         env:
           POSTGRES_DB: postgres
           POSTGRES_PASSWORD: postgres
@@ -175,7 +175,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres
+        image: postgres:16@sha256:95206741a5b214807675e14165369d05b93a9cf692223b616d07cca227e74b0b
         env:
           POSTGRES_DB: postgres
           POSTGRES_PASSWORD: postgres
@@ -256,7 +256,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres
+        image: postgres:16@sha256:95206741a5b214807675e14165369d05b93a9cf692223b616d07cca227e74b0b
         env:
           POSTGRES_DB: postgres
           POSTGRES_PASSWORD: postgres

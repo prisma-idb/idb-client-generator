@@ -611,7 +611,7 @@
                 }
               },
               "email": {
-                "nullable": true,
+                "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -639,7 +639,7 @@
                 }
               },
               "isAnonymous": {
-                "nullable": true,
+                "nullable": false,
                 "type": {
                   "codecId": "pg/bool@1",
                   "kind": "scalar"
@@ -902,7 +902,11 @@
               "primaryKey": {
                 "columns": ["id"]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": ["providerId", "accountId"]
+                }
+              ]
             },
             "auditLog": {
               "columns": {
@@ -1207,7 +1211,7 @@
                 "email": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
-                  "nullable": true
+                  "nullable": false
                 },
                 "emailVerified": {
                   "codecId": "pg/bool@1",
@@ -1230,8 +1234,12 @@
                 },
                 "isAnonymous": {
                   "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
                   "nativeType": "bool",
-                  "nullable": true
+                  "nullable": false
                 },
                 "name": {
                   "codecId": "pg/text@1",
@@ -1311,7 +1319,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "sha256:2a65046f034d955883925ba05b6520fd9b295eeeea32546233d0e97cdbe92231"
+    "storageHash": "sha256:2d901374e296dfea10d8dd96177d4d503150eecb0f7411c96b5ddf4cbc00bfff"
   },
   "capabilities": {
     "postgres": {

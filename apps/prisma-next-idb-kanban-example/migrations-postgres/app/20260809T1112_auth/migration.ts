@@ -30,7 +30,17 @@ export default class M extends Migration<Start, End> {
         table: "user",
         column: col("updatedAt", "timestamptz", { notNull: true }),
       }),
-      this.addColumn({ schema: "public", table: "user", column: col("isAnonymous", "bool") }),
+      this.addColumn({
+        schema: "public",
+        table: "user",
+        column: col("isAnonymous", "bool", { notNull: true, default: lit(false) }),
+      }),
+      // `email` was created nullable by the baseline migration — better-auth
+      // requires it (the anonymous() plugin always synthesizes a placeholder
+      // address rather than leaving it unset). Safe as a plain SET NOT NULL
+      // with no backfill: this table is created empty earlier in this same
+      // migration chain, so no existing rows can violate it.
+      this.setNotNull({ schema: "public", table: "user", column: "email" }),
 
       this.createTable({
         schema: "public",
@@ -65,7 +75,13 @@ export default class M extends Migration<Start, End> {
           col("createdAt", "timestamptz", { notNull: true, default: fn("now()") }),
           col("updatedAt", "timestamptz", { notNull: true }),
         ],
-        constraints: [primaryKey(["id"])],
+        // better-auth resolves a social account by this pair — without it,
+        // two concurrent OAuth callbacks for the same provider account could
+        // insert two rows and make later lookups non-deterministic.
+        constraints: [
+          primaryKey(["id"]),
+          unique(["providerId", "accountId"], { name: "account_providerId_accountId_key" }),
+        ],
       }),
       this.createTable({
         schema: "public",

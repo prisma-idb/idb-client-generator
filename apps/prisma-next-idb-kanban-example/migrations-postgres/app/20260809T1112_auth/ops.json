@@ -192,7 +192,7 @@
     "execute": [
       {
         "description": "add column \"isAnonymous\"",
-        "sql": "ALTER TABLE \"public\".\"user\" ADD COLUMN \"isAnonymous\" bool"
+        "sql": "ALTER TABLE \"public\".\"user\" ADD COLUMN \"isAnonymous\" bool DEFAULT false NOT NULL"
       }
     ],
     "postcheck": [
@@ -200,6 +200,45 @@
         "description": "verify column \"isAnonymous\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
         "params": ["public", "user", "isAnonymous"]
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.setNotNull.user.email",
+    "label": "Set NOT NULL on \"user\".\"email\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "email",
+        "table": "user"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"email\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": ["public", "user", "email"]
+      },
+      {
+        "description": "ensure no NULL values in \"email\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"public\".\"user\" WHERE \"email\" IS NULL) AS \"result\"",
+        "params": []
+      }
+    ],
+    "execute": [
+      {
+        "description": "set NOT NULL on \"email\"",
+        "sql": "ALTER TABLE \"public\".\"user\" ALTER COLUMN \"email\" SET NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"email\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": ["public", "user", "email", "NO"]
       }
     ]
   },
@@ -261,7 +300,7 @@
     "execute": [
       {
         "description": "create table \"account\"",
-        "sql": "CREATE TABLE \"public\".\"account\" (\n  \"id\" text NOT NULL,\n  \"accountId\" text NOT NULL,\n  \"providerId\" text NOT NULL,\n  \"userId\" text NOT NULL,\n  \"accessToken\" text,\n  \"refreshToken\" text,\n  \"idToken\" text,\n  \"accessTokenExpiresAt\" timestamptz,\n  \"refreshTokenExpiresAt\" timestamptz,\n  \"scope\" text,\n  \"password\" text,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "sql": "CREATE TABLE \"public\".\"account\" (\n  \"id\" text NOT NULL,\n  \"accountId\" text NOT NULL,\n  \"providerId\" text NOT NULL,\n  \"userId\" text NOT NULL,\n  \"accessToken\" text,\n  \"refreshToken\" text,\n  \"idToken\" text,\n  \"accessTokenExpiresAt\" timestamptz,\n  \"refreshTokenExpiresAt\" timestamptz,\n  \"scope\" text,\n  \"password\" text,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"account_providerId_accountId_key\" UNIQUE (\"providerId\", \"accountId\")\n)",
         "params": []
       }
     ],

@@ -38,12 +38,12 @@ export type FieldOutputTypes = {
     readonly User: {
       readonly id: CodecTypes["idb/string@1"]["output"];
       readonly name: CodecTypes["idb/string@1"]["output"];
-      readonly email: CodecTypes["idb/string@1"]["output"] | null;
+      readonly email: CodecTypes["idb/string@1"]["output"];
       readonly emailVerified: CodecTypes["idb/bool@1"]["output"];
       readonly image: CodecTypes["idb/string@1"]["output"] | null;
       readonly createdAt: CodecTypes["idb/date@1"]["output"];
       readonly updatedAt: CodecTypes["idb/date@1"]["output"];
-      readonly isAnonymous: CodecTypes["idb/bool@1"]["output"] | null;
+      readonly isAnonymous: CodecTypes["idb/bool@1"]["output"];
     };
   };
 };
@@ -66,12 +66,12 @@ export type FieldInputTypes = {
     readonly User: {
       readonly id: CodecTypes["idb/string@1"]["input"];
       readonly name: CodecTypes["idb/string@1"]["input"];
-      readonly email: CodecTypes["idb/string@1"]["input"] | null;
+      readonly email: CodecTypes["idb/string@1"]["input"];
       readonly emailVerified: CodecTypes["idb/bool@1"]["input"];
       readonly image: CodecTypes["idb/string@1"]["input"] | null;
       readonly createdAt: CodecTypes["idb/date@1"]["input"];
       readonly updatedAt: CodecTypes["idb/date@1"]["input"];
-      readonly isAnonymous: CodecTypes["idb/bool@1"]["input"] | null;
+      readonly isAnonymous: CodecTypes["idb/bool@1"]["input"];
     };
   };
 };
@@ -215,7 +215,7 @@ type ContractBase = Omit<
                 readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
               };
               readonly email: {
-                readonly nullable: true;
+                readonly nullable: false;
                 readonly type: { readonly kind: "scalar"; readonly codecId: "idb/string@1" };
               };
               readonly emailVerified: {
@@ -235,7 +235,7 @@ type ContractBase = Omit<
                 readonly type: { readonly kind: "scalar"; readonly codecId: "idb/date@1" };
               };
               readonly isAnonymous: {
-                readonly nullable: true;
+                readonly nullable: false;
                 readonly type: { readonly kind: "scalar"; readonly codecId: "idb/bool@1" };
               };
             };

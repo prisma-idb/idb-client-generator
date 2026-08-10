@@ -164,7 +164,7 @@
                 }
               },
               "email": {
-                "nullable": true,
+                "nullable": false,
                 "type": {
                   "codecId": "idb/string@1",
                   "kind": "scalar"
@@ -192,7 +192,7 @@
                 }
               },
               "isAnonymous": {
-                "nullable": true,
+                "nullable": false,
                 "type": {
                   "codecId": "idb/bool@1",
                   "kind": "scalar"

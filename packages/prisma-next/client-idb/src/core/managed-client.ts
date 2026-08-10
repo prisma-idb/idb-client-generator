@@ -27,11 +27,14 @@ export interface ManagedIdbClient<TClient> {
   close(): Promise<void>;
   /**
    * Closes and deletes the database — waits out any `get()` open already in
-   * flight first. Rejects if `deleteDatabase` reports `onblocked` (another
-   * tab still has the DB open): the deletion has NOT happened at that point,
-   * so a caller using this for a "guaranteed clean slate" (e.g. logout) must
-   * not treat it as success — the old database, and whatever it contains, is
-   * still there.
+   * flight first. `onblocked` (another tab still has the DB open) is NOT
+   * terminal — per spec, the delete request stays pending, and still fires
+   * `onsuccess` once every blocking connection closes — so this promise
+   * stays pending through it too, settling only once `deleteDatabase`
+   * actually reaches `onsuccess` or `onerror`. Neither resolving early
+   * (claims success before the old data is actually gone) nor rejecting
+   * early (reports failure on a delete that may still succeed) would be
+   * accurate.
    */
   reset(): Promise<void>;
 }
@@ -98,8 +101,12 @@ export function createManagedIdbClient<TClient extends { close(): Promise<void> 
         const req = idbFactory.deleteDatabase(dbName);
         req.onsuccess = () => resolve();
         req.onerror = () => reject(req.error as Error);
-        req.onblocked = () =>
-          reject(new Error(`deleteDatabase("${dbName}") blocked by an open connection in another tab`));
+        // Deliberately no-op: `onblocked` only means the request is waiting
+        // on another open connection, not that it failed — `onsuccess` (or
+        // `onerror`) still fires later once that connection closes. Settling
+        // here either way would misreport the outcome; see the `reset()`
+        // doc comment above.
+        req.onblocked = () => {};
       });
     })();
     try {

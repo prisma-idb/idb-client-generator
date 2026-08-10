@@ -16,11 +16,18 @@ export type Board = DefaultModelRow<Contract, "Board">;
 export type Todo = DefaultModelRow<Contract, "Todo">;
 export type BoardWithTodos = IncludedRow<Contract, "Board", { todos: true }>;
 
-/** The subset of better-auth's session user this store actually needs — decoupled from its exact type. */
+/**
+ * The subset of better-auth's session user this store actually needs —
+ * decoupled from its exact type. `email`/`isAnonymous` are non-nullable:
+ * better-auth's `anonymous()` plugin always synthesizes a placeholder email
+ * rather than leaving it unset, and `isAnonymous` has a `defaultValue: false`
+ * applied on every user — matching schema.prisma's User model, which the
+ * real server enforces as NOT NULL.
+ */
 export interface SessionUser {
   readonly id: string;
   readonly name: string;
-  readonly email: string | null;
+  readonly email: string;
   readonly emailVerified: boolean;
   readonly image?: string | null;
   readonly createdAt: Date;
@@ -113,7 +120,7 @@ export class KanbanStore {
           image: sessionUser.image ?? null,
           createdAt: sessionUser.createdAt,
           updatedAt: sessionUser.updatedAt,
-          isAnonymous: sessionUser.isAnonymous ?? null,
+          isAnonymous: sessionUser.isAnonymous ?? false,
         },
         update: {
           name: sessionUser.name,
@@ -121,7 +128,7 @@ export class KanbanStore {
           emailVerified: sessionUser.emailVerified,
           image: sessionUser.image ?? null,
           updatedAt: sessionUser.updatedAt,
-          isAnonymous: sessionUser.isAnonymous ?? null,
+          isAnonymous: sessionUser.isAnonymous ?? false,
         },
       })
     );
