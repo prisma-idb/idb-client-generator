@@ -143,7 +143,7 @@ export function createSyncWorker<TContract extends IdbContract>(options: SyncWor
             await markSynced(scope, result.id);
             pushSynced++;
           } else {
-            await markFailed(scope, result.id, result.error ?? "unknown error");
+            await markFailed(scope, result.id, result.error ?? "unknown error", result.retryable);
             pushFailed++;
           }
         }

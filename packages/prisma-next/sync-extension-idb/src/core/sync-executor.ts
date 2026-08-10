@@ -540,6 +540,17 @@ export class SyncInterceptorExecutor implements IdbQueryExecutorWithTransaction 
 class SyncInterceptingTransactionScope implements IdbTransactionScope {
   readonly #inner: IdbTransactionScope;
   readonly #config: SyncInterceptorConfig;
+  // Buffered, not fired immediately from #writeOutboxAndMeta: this scope can
+  // see several execute() calls before the caller commits (e.g. a cascade
+  // delete's per-row referential actions), and any of them can still fail
+  // and roll back the whole transaction. Firing onOutboxWrite per-call let
+  // subscribers (e.g. a pending-sync-count badge) react to writes that were
+  // later rolled back and never actually persisted. One entry per
+  // `#writeOutboxAndMeta` call (i.e. per `execute()`, preserving the
+  // existing one-firing-per-call granularity — see that method's doc
+  // comment), only actually emitted once `commit()`'s `tx.oncomplete`
+  // confirms every write in the transaction is durable.
+  #pendingBatches: OutboxWriteEntry[][] = [];
 
   constructor(inner: IdbTransactionScope, config: SyncInterceptorConfig) {
     this.#inner = inner;
@@ -552,11 +563,15 @@ class SyncInterceptingTransactionScope implements IdbTransactionScope {
     return rows;
   }
 
-  commit(): Promise<void> {
-    return this.#inner.commit();
+  async commit(): Promise<void> {
+    await this.#inner.commit();
+    const batches = this.#pendingBatches;
+    this.#pendingBatches = [];
+    for (const entries of batches) this.#config.onOutboxWrite?.(entries);
   }
 
   rollback(): void {
+    this.#pendingBatches = [];
     this.#inner.rollback();
   }
 
@@ -619,7 +634,7 @@ class SyncInterceptingTransactionScope implements IdbTransactionScope {
     }
   }
 
-  /** Writes every entry's outbox-add + VersionMeta-put, then fires ONE `onOutboxWrite` with the whole batch — a no-op for an empty array (e.g. a scan-write that matched zero rows). */
+  /** Writes every entry's outbox-add + VersionMeta-put, buffering it as ONE `commit()`-time `onOutboxWrite` batch — a no-op for an empty array (e.g. a scan-write that matched zero rows). */
   async #writeOutboxAndMeta(entries: readonly OutboxWriteEntry[]): Promise<void> {
     if (entries.length === 0) return;
     const meta = syncPlanMeta(this.#config.contract);
@@ -630,6 +645,6 @@ class SyncInterceptingTransactionScope implements IdbTransactionScope {
         await this.#inner.execute(versionMetaPutOp(modelName, key, meta));
       }
     }
-    this.#config.onOutboxWrite?.(entries);
+    this.#pendingBatches.push([...entries]);
   }
 }

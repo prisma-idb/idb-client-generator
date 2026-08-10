@@ -59,11 +59,18 @@ export interface LogWithRecord {
   record: Record<string, unknown> | null;
 }
 
-/** Per-event result from the push endpoint. */
+/**
+ * Per-event result from the push endpoint. `retryable` (present only for
+ * `success: false`) is the server's own verdict on whether trying again
+ * could ever change the outcome — `markFailed` (outbox-store.ts) uses it to
+ * decide whether to give up on this local change immediately rather than
+ * waiting out the client-side retry cap.
+ */
 export interface PushResult {
   id: string;
   success: boolean;
   error?: string;
+  retryable?: boolean;
 }
 
 /** Stats returned by `applyPull`. */

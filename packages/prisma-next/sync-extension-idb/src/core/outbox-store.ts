@@ -58,6 +58,34 @@ export async function getNextBatch<TContract extends IdbContract>(
 
 // ── Write helpers (inside an existing transaction scope) ──────────────────────
 
+/**
+ * Clears `localChangePending` on the version-meta row an outbox event was
+ * keyed under, if any — shared by `markSynced` (the event's own write
+ * succeeded) and `markFailed` (the event is dead and will never succeed, see
+ * that function's doc comment). Reads the id persisted at write time
+ * (`SyncInterceptorExecutor`'s `versionMetaKey(modelName, key)`) rather than
+ * re-deriving it from the payload — the payload shape differs per operation
+ * (create/update/delete) and re-deriving it here previously matched only
+ * `create` on models keyed by a literal `id` field, so `localChangePending`
+ * never cleared for update/delete and `applyPull` skipped all future server
+ * changes for that record.
+ */
+async function clearLocalChangePending(scope: IdbTransactionScope, versionMetaId: string | null): Promise<void> {
+  if (versionMetaId === null) return;
+  const metaRows = await scope.execute({
+    kind: "key-get",
+    storeName: VERSION_META,
+    key: versionMetaId,
+  } as unknown as IdbAtomicPlan);
+  const meta = metaRows[0] as Record<string, unknown> | undefined;
+  if (!meta) return;
+  await scope.execute({
+    kind: "put",
+    storeName: VERSION_META,
+    record: { ...meta, localChangePending: false },
+  } as unknown as IdbAtomicPlan);
+}
+
 /** Mark an outbox event as successfully synced. */
 export async function markSynced(scope: IdbTransactionScope, id: string): Promise<void> {
   const rows = await scope.execute({ kind: "key-get", storeName: OUTBOX, key: id } as unknown as IdbAtomicPlan);
@@ -72,37 +100,35 @@ export async function markSynced(scope: IdbTransactionScope, id: string): Promis
       syncedAt: new Date(),
     } as unknown as Record<string, unknown>,
   } as unknown as IdbAtomicPlan);
-  // Clear the localChangePending flag in version meta if it was set. Read
-  // the id persisted at write time (`SyncInterceptorExecutor`'s
-  // `versionMetaKey(modelName, key)`) rather than re-deriving it from the
-  // payload — the payload shape differs per operation (create/update/delete)
-  // and re-deriving it here previously matched only `create` on models keyed
-  // by a literal `id` field, so `localChangePending` never cleared for
-  // update/delete and `applyPull` skipped all future server changes for
-  // that record.
-  const metaId = existing.versionMetaId;
-  if (metaId === null || metaId === undefined) return;
-  const metaRows = await scope.execute({
-    kind: "key-get",
-    storeName: VERSION_META,
-    key: metaId,
-  } as unknown as IdbAtomicPlan);
-  const meta = metaRows[0] as Record<string, unknown> | undefined;
-  if (meta) {
-    await scope.execute({
-      kind: "put",
-      storeName: VERSION_META,
-      record: { ...meta, localChangePending: false },
-    } as unknown as IdbAtomicPlan);
-  }
+  await clearLocalChangePending(scope, existing.versionMetaId);
 }
 
-/** Record a push failure — increment tries, store error, mark non-retryable after too many attempts. */
-export async function markFailed(scope: IdbTransactionScope, id: string, error: string): Promise<void> {
+/**
+ * Record a push failure — increment tries, store error, mark non-retryable
+ * after too many attempts OR immediately when the server says so.
+ *
+ * `serverRetryable` is the push result's own `retryable` flag: `undefined`
+ * for a failure the server never actually weighed in on (e.g. a network/
+ * timeout error caught client-side before a response came back), in which
+ * case only the tries-based cap applies. A server verdict of `false` (e.g.
+ * SCOPE_VIOLATION because the record was already deleted by another device)
+ * means this specific local change can never succeed no matter how many
+ * times it's retried — clearing `localChangePending` immediately (instead of
+ * only once `tries` hits the client-side cap) is what lets the delete that
+ * made it moot actually apply on the next pull, instead of that pull's
+ * `apply-pull.ts` guard deferring to a local edit that's already dead.
+ */
+export async function markFailed(
+  scope: IdbTransactionScope,
+  id: string,
+  error: string,
+  serverRetryable?: boolean
+): Promise<void> {
   const rows = await scope.execute({ kind: "key-get", storeName: OUTBOX, key: id } as unknown as IdbAtomicPlan);
   const existing = rows[0] as OutboxEvent | undefined;
   if (!existing) return;
   const tries = existing.tries + 1;
+  const retryable = serverRetryable !== false && tries < 10;
   await scope.execute({
     kind: "put",
     storeName: OUTBOX,
@@ -111,7 +137,8 @@ export async function markFailed(scope: IdbTransactionScope, id: string, error: 
       tries,
       lastError: error,
       lastAttemptedAt: new Date(),
-      retryable: tries < 10,
+      retryable,
     } as unknown as Record<string, unknown>,
   } as unknown as IdbAtomicPlan);
+  if (!retryable) await clearLocalChangePending(scope, existing.versionMetaId);
 }

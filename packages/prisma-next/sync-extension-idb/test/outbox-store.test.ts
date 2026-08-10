@@ -186,4 +186,90 @@ describe("markFailed", () => {
     expect(event?.tries).toBe(10);
     expect(event?.retryable).toBe(false);
   });
+
+  it("a server-side non-retryable verdict flips retryable immediately, regardless of tries", async () => {
+    const { client } = await createTestSyncClient();
+    await client.withTransaction(["_idb_sync_outbox"], async (scope) => {
+      await scope.execute({
+        kind: "add",
+        storeName: "_idb_sync_outbox",
+        record: outboxEvent({ id: "e1", tries: 0 }) as unknown as Record<string, unknown>,
+      } as never);
+    });
+
+    await client.withTransaction(["_idb_sync_outbox"], async (scope) => {
+      await markFailed(scope, "e1", "SCOPE_VIOLATION", false);
+    });
+
+    const event = await getOutboxEvent(client, "e1");
+    expect(event?.tries).toBe(1);
+    expect(event?.retryable).toBe(false);
+  });
+
+  it("clears localChangePending on the linked version-meta row once a failure becomes non-retryable", async () => {
+    // Regression test: a push rejected as non-retryable (e.g. the record was
+    // deleted by another device — SCOPE_VIOLATION) can never succeed no
+    // matter how many times it's retried. Previously `localChangePending`
+    // only ever cleared on `markSynced`, so this local change stayed
+    // "pending" forever — and `apply-pull.ts`'s `localChangePending` guard
+    // then silently skipped every future pull for that record, including
+    // the one carrying the delete that made this update moot.
+    const { client } = await createTestSyncClient();
+    await client.withTransaction(["_idb_sync_outbox", "_idb_sync_version_meta"], async (scope) => {
+      await scope.execute({
+        kind: "add",
+        storeName: "_idb_sync_outbox",
+        record: outboxEvent({ id: "e1", versionMetaId: 'Board::"b1"' }) as unknown as Record<string, unknown>,
+      } as never);
+      await scope.execute({
+        kind: "add",
+        storeName: "_idb_sync_version_meta",
+        record: {
+          id: 'Board::"b1"',
+          model: "Board",
+          key: "b1",
+          lastAppliedChangeId: null,
+          localChangePending: true,
+        },
+      } as never);
+    });
+
+    await client.withTransaction(["_idb_sync_outbox", "_idb_sync_version_meta"], async (scope) => {
+      await markFailed(scope, "e1", "SCOPE_VIOLATION", false);
+    });
+
+    const meta = await getVersionMeta(client, 'Board::"b1"');
+    expect(meta?.localChangePending).toBe(false);
+  });
+
+  it("keeps localChangePending set while a failure is still retryable", async () => {
+    const { client } = await createTestSyncClient();
+    await client.withTransaction(["_idb_sync_outbox", "_idb_sync_version_meta"], async (scope) => {
+      await scope.execute({
+        kind: "add",
+        storeName: "_idb_sync_outbox",
+        record: outboxEvent({ id: "e1", versionMetaId: 'Board::"b1"' }) as unknown as Record<string, unknown>,
+      } as never);
+      await scope.execute({
+        kind: "add",
+        storeName: "_idb_sync_version_meta",
+        record: {
+          id: 'Board::"b1"',
+          model: "Board",
+          key: "b1",
+          lastAppliedChangeId: null,
+          localChangePending: true,
+        },
+      } as never);
+    });
+
+    await client.withTransaction(["_idb_sync_outbox", "_idb_sync_version_meta"], async (scope) => {
+      // No server verdict (e.g. a network/timeout error) — still under the
+      // tries cap, so this local change might still succeed.
+      await markFailed(scope, "e1", "network error");
+    });
+
+    const meta = await getVersionMeta(client, 'Board::"b1"');
+    expect(meta?.localChangePending).toBe(true);
+  });
 });
