@@ -55,6 +55,8 @@ export class KanbanStore {
   private syncStarting = false;
   /** Aborts the `online`/`offline` `window` listeners registered by `startSync()` — see `dispose()`. */
   private connectivityController: AbortController | null = null;
+  /** Unsubscribes the `db.on("outboxwrite", ...)` listener registered by `startSync()` — see `dispose()`. */
+  private unsubscribeOutboxWrite: (() => void) | null = null;
 
   todos = $derived(this.boards.flatMap((b) => b.todos));
   completedTodos = $derived(this.todos.filter((t) => t.isCompleted).length);
@@ -209,7 +211,7 @@ export class KanbanStore {
         // sprinkled after every db.orm.* mutation site), down when a push
         // cycle marks events synced. Same `on(event, cb)` shape as
         // `syncWorker.on(...)` below, not the old bespoke `onOutboxWrite`.
-        db.on("outboxwrite", () => void this.refreshPendingCount(db));
+        this.unsubscribeOutboxWrite = db.on("outboxwrite", () => void this.refreshPendingCount(db));
         this.syncWorker.on("pushcompleted", () => void this.refreshPendingCount(db));
         this.syncWorker.start();
         this.syncStarting = false;
@@ -225,16 +227,23 @@ export class KanbanStore {
       });
   }
 
-  /** Stops the sync worker and removes the `online`/`offline` listeners — call when the store is no longer in use (e.g. on page unmount). */
+  /** Stops the sync worker and removes the `online`/`offline` and outbox listeners — call when the store is no longer in use (e.g. on page unmount). */
   dispose(): void {
     this.connectivityController?.abort();
     this.connectivityController = null;
+    this.unsubscribeOutboxWrite?.();
+    this.unsubscribeOutboxWrite = null;
     // A getDb() opened by startSync() may still be in flight — its
     // continuation checks the (now aborted) signal and bails instead of
     // starting a worker; reset this so a fresh startSync() call after
     // dispose() (e.g. a new loadWorkspace()) isn't blocked by a stale flag.
     this.syncStarting = false;
     this.syncWorker?.stop();
+    // Null out (not just stop()) so a subsequent startSync() — e.g. a fresh
+    // loadWorkspace() call on a store that was disposed but not discarded —
+    // isn't blocked by startSync()'s own `if (this.syncWorker || ...) return`
+    // guard seeing a stale, already-stopped worker.
+    this.syncWorker = null;
   }
 
   async createBoard(name: string) {
