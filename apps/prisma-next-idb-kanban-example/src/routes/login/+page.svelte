@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { goto } from "$app/navigation";
   import { resolve } from "$app/paths";
   import { LoaderCircleIcon, UserIcon } from "@lucide/svelte";
@@ -14,7 +13,11 @@
 
   const session = authClient.useSession();
 
-  onMount(() => {
+  // `$effect`, not `onMount`: `useSession()`'s data arrives asynchronously
+  // (still pending at mount), so a one-shot onMount check reads it before
+  // it's populated and never redirects an already-signed-in user landing
+  // here directly. This re-runs whenever `$session` updates.
+  $effect(() => {
     if ($session.data?.user) goto(resolve("/"));
   });
 

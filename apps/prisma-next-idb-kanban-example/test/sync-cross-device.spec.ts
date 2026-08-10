@@ -143,8 +143,8 @@ test("deleting a board cascade-deletes its todos, and both are gone on another d
   await syncNow(pageB);
 
   await expect(boardCard(pageB, boardName)).not.toBeVisible();
-  await expect(pageB.getByText("Cascade todo 1")).not.toBeVisible();
-  await expect(pageB.getByText("Cascade todo 2")).not.toBeVisible();
+  await expect(todoItem(pageB, "Cascade todo 1")).not.toBeVisible();
+  await expect(todoItem(pageB, "Cascade todo 2")).not.toBeVisible();
 });
 
 test("a board created while offline syncs once the device reconnects", async ({ devices }) => {
@@ -185,7 +185,7 @@ test("concurrent updates to the same board — the later push wins", async ({ de
   await syncNow(pageA);
 
   await expect(boardCard(pageA, "Version B")).toBeVisible();
-  await expect(pageA.getByText("Version A")).not.toBeVisible();
+  await expect(boardCard(pageA, "Version A")).not.toBeVisible();
 });
 
 /**
@@ -228,6 +228,6 @@ test("a delete beats a concurrent update — no resurrection in this app's curre
   // in the same cycle vs. needing a second one).
   await syncNow(pageA);
 
-  await expect(pageA.getByText("Edited before delete")).not.toBeVisible();
+  await expect(boardCard(pageA, "Edited before delete")).not.toBeVisible();
   await expect(boardCard(pageA, boardName)).not.toBeVisible();
 });

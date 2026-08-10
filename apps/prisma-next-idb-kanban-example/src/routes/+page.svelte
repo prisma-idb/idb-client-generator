@@ -13,6 +13,16 @@
   const kanban = new KanbanStore();
   setContext(KANBAN_CTX, kanban);
 
+  // Own effect, not folded into the session-reactive one below: that one
+  // re-runs whenever `$session` changes (e.g. a token refresh), and tearing
+  // the sync worker down on every re-run (instead of only on actual unmount)
+  // would stop it for good — `startSync()` no-ops once `this.syncWorker` is
+  // set, so nothing would ever restart it. This effect reads no reactive
+  // state, so it only ever runs its cleanup once, on unmount.
+  $effect(() => {
+    return () => kanban.dispose();
+  });
+
   // Reactive, not a one-shot fetch: `authClient`'s a module-level singleton,
   // so this `useSession()` store already reflects `signIn.anonymous()` on
   // /login — that same call refreshes the store's cache internally. A fresh

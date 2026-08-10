@@ -141,7 +141,8 @@ export function hasNestedMutationCallbacks(
 export function requireTransactionExecutor(executor: IdbQueryExecutor): IdbQueryExecutorWithTransaction {
   if (typeof (executor as IdbQueryExecutorWithTransaction).transaction !== "function") {
     throw new Error(
-      "Nested relation writes require an executor with transaction support. " +
+      "This operation requires an executor with transaction support (nested relation writes, " +
+        "FK-validated create/update, and referential-action delete all need it). " +
         "Use IdbRuntime (createIdbRuntime or createAutoMigratingIdbClient) instead of a plain IdbQueryExecutor."
     );
   }

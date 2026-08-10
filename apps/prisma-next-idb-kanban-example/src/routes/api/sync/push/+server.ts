@@ -19,16 +19,54 @@ interface PushRequestBody {
   readonly events: readonly PushEventBody[];
 }
 
+// The real client only ever pushes `SyncWorkerOptions.batchSize` events at a
+// time (default 20, see sync-worker.ts) — generous headroom over that, not a
+// tuned limit, just a bound so a crafted request can't force an unbounded
+// number of sequential per-event transactions (see the loop below's own
+// comment on why these run sequentially, not concurrently).
+const MAX_PUSH_BATCH_SIZE = 1000;
+
+function isPushEventBody(value: unknown): value is PushEventBody {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return typeof v.id === "string" && typeof v.entityType === "string" && typeof v.operation === "string";
+}
+
 export const POST: RequestHandler = async ({ request }) => {
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session?.user.id) return json({ error: "Unauthorized" }, { status: 401 });
   const scopeKey = session.user.id;
 
-  const body = (await request.json()) as Partial<PushRequestBody>;
+  let body: Partial<PushRequestBody>;
+  try {
+    body = (await request.json()) as Partial<PushRequestBody>;
+  } catch {
+    return json({ error: "Invalid JSON body" }, { status: 400 });
+  }
   if (!Array.isArray(body.events)) {
     return json({ error: "events (array) is required" }, { status: 400 });
   }
+  if (body.events.length > MAX_PUSH_BATCH_SIZE) {
+    return json({ error: `events exceeds max batch size of ${MAX_PUSH_BATCH_SIZE}` }, { status: 400 });
+  }
+  if (!body.events.every(isPushEventBody)) {
+    return json({ error: "Malformed event in events array" }, { status: 400 });
+  }
   const { events } = body as PushRequestBody;
+
+  // Reject outright rather than silently double-applying or dropping one:
+  // the loop below re-matches each check back to its event by id
+  // (`events.find`), which only holds up if ids are actually unique within
+  // the batch. A legitimate client's own outbox ids are always unique
+  // (crypto.randomUUID() per write) — this only ever fires on a malformed
+  // or crafted request.
+  const seenEventIds = new Set<string>();
+  for (const event of events) {
+    if (seenEventIds.has(event.id)) {
+      return json({ error: "Duplicate event id in push batch" }, { status: 400 });
+    }
+    seenEventIds.add(event.id);
+  }
 
   const db = await getPostgres();
   const results: PushResultBody[] = [];

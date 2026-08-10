@@ -46,6 +46,8 @@ export class KanbanStore {
   lastSyncedAt = $state<Date | null>(null);
   isOnline = $state(true);
   private syncStarting = false;
+  /** Aborts the `online`/`offline` `window` listeners registered by `startSync()` — see `dispose()`. */
+  private connectivityController: AbortController | null = null;
 
   todos = $derived(this.boards.flatMap((b) => b.todos));
   completedTodos = $derived(this.todos.filter((t) => t.isCompleted).length);
@@ -66,10 +68,17 @@ export class KanbanStore {
       .toArray();
   }
 
-  /** Ground-truth refresh of `pendingSyncCount` from the outbox — cheap, a full scan over a small local store. */
+  /**
+   * Ground-truth refresh of `pendingSyncCount` from the outbox — cheap, a
+   * full scan over a small local store. `getNextBatch` already scans every
+   * row before applying `limit` (it's an in-memory filter/sort/slice, not an
+   * indexed query — see its doc comment), so there's no cost saved by
+   * capping this below the true count; capping it would just make the
+   * badge lie once the outbox actually grows past the cap.
+   */
   private async refreshPendingCount(db?: Awaited<ReturnType<typeof getDb>>) {
     const client = db ?? (await getDb());
-    const pending = await getNextBatch(client.rawClient, { limit: 1000 });
+    const pending = await getNextBatch(client.rawClient, { limit: Number.POSITIVE_INFINITY });
     this.pendingSyncCount = pending.length;
   }
 
@@ -152,12 +161,23 @@ export class KanbanStore {
       return res.json();
     };
 
+    // AbortController, not bare `addEventListener` calls: `startSync()` runs
+    // once per loaded workspace, but nothing previously removed these
+    // listeners — a store that outlives its page (unmount without a fresh
+    // reload) leaked them onto `window` forever. `dispose()` aborts this.
+    const controller = new AbortController();
+    this.connectivityController = controller;
+
     this.isOnline = navigator.onLine;
-    window.addEventListener("online", () => {
-      this.isOnline = true;
-      this.syncWorker?.forceSync().catch(() => {}); // best-effort — the worker's own backoff already retries
-    });
-    window.addEventListener("offline", () => (this.isOnline = false));
+    window.addEventListener(
+      "online",
+      () => {
+        this.isOnline = true;
+        this.syncWorker?.forceSync().catch(() => {}); // best-effort — the worker's own backoff already retries
+      },
+      { signal: controller.signal }
+    );
+    window.addEventListener("offline", () => (this.isOnline = false), { signal: controller.signal });
 
     getDb()
       .then((db) => {
@@ -182,8 +202,16 @@ export class KanbanStore {
       })
       .catch((error: unknown) => {
         this.syncStarting = false;
+        controller.abort();
         this.showError(error);
       });
+  }
+
+  /** Stops the sync worker and removes the `online`/`offline` listeners — call when the store is no longer in use (e.g. on page unmount). */
+  dispose(): void {
+    this.connectivityController?.abort();
+    this.connectivityController = null;
+    this.syncWorker?.stop();
   }
 
   async createBoard(name: string) {

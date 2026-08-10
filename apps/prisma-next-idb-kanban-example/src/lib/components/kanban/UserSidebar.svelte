@@ -17,6 +17,17 @@
   async function logout() {
     loggingOut = true;
     try {
+      // Flush the outbox BEFORE signing out — the push endpoint authorizes
+      // via the session cookie, so any unsynced writes still need one while
+      // it's valid. resetDb() wipes local IDB unconditionally, so anything
+      // still pending after this is unrecoverable; abort logout and surface
+      // it instead of silently discarding local-only work.
+      if (kanban.pendingSyncCount > 0) {
+        await kanban.syncNow();
+        if (kanban.pendingSyncCount > 0) {
+          throw new Error("Some changes haven't synced yet. Check your connection and try again.");
+        }
+      }
       await authClient.signOut();
       await resetDb();
       await goto(resolve("/login"));

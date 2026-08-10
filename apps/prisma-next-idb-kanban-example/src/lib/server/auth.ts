@@ -31,22 +31,30 @@ if (!env.BETTER_AUTH_SECRET) {
   );
 }
 
+// Only registered when both are actually configured — leaving `clientId`/
+// `clientSecret` to fall back to "" / undefined still enables the provider
+// (the "Continue with Google" button renders and can be clicked), it just
+// fails once the OAuth flow actually starts. Omitting the provider entirely
+// for an unconfigured deploy (e.g. local dev without Google credentials set
+// up) keeps that failure at config time instead.
+const socialProviders =
+  env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+    ? { google: { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET } }
+    : {};
+
 export const auth = betterAuth({
   database: new Pool({ connectionString: env.DATABASE_URL }),
   secret: env.BETTER_AUTH_SECRET,
-  socialProviders: {
-    google: {
-      clientId: env.GOOGLE_CLIENT_ID,
-      clientSecret: env.GOOGLE_CLIENT_SECRET,
-    },
-  },
+  socialProviders,
   baseURL: env.BETTER_AUTH_URL,
   // Behind `vite preview` (this app's own e2e setup) the runtime can't
   // resolve distinct per-client IPs, so better-auth falls back to one
   // shared bucket per path — concurrent Playwright workers each signing in
-  // anonymously then trip it as "one client" making rapid requests. Demo
-  // app, no real traffic to protect yet.
-  rateLimit: { enabled: false },
+  // anonymously then trip it as "one client" making rapid requests. Only
+  // disabled under the same `PLAYWRIGHT_TEST_UTILS=1` marker test-auth.ts
+  // gates on (set only by playwright.config.ts's webServer.env) — a real
+  // deploy of this demo app keeps rate limiting on.
+  rateLimit: { enabled: env.PLAYWRIGHT_TEST_UTILS !== "1" },
   // `sveltekitCookies` MUST be last: its `hooks.after` is what flushes
   // Set-Cookie headers queued by every OTHER plugin's hooks (e.g.
   // `anonymous()`'s own session cookie on sign-in) into SvelteKit's actual
