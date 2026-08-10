@@ -167,6 +167,7 @@ export class KanbanStore {
     // reload) leaked them onto `window` forever. `dispose()` aborts this.
     const controller = new AbortController();
     this.connectivityController = controller;
+    const { signal } = controller;
 
     this.isOnline = navigator.onLine;
     window.addEventListener(
@@ -175,12 +176,19 @@ export class KanbanStore {
         this.isOnline = true;
         this.syncWorker?.forceSync().catch(() => {}); // best-effort — the worker's own backoff already retries
       },
-      { signal: controller.signal }
+      { signal }
     );
-    window.addEventListener("offline", () => (this.isOnline = false), { signal: controller.signal });
+    window.addEventListener("offline", () => (this.isOnline = false), { signal });
 
     getDb()
       .then((db) => {
+        // dispose() aborts `signal` and may have run while getDb() was still
+        // in flight — `this.syncWorker` was still null then, so its stop()
+        // call was a no-op. Without this check we'd create and start a new
+        // worker (and register a fresh outboxwrite listener) on a store
+        // that's already been torn down, leaking a live worker nothing will
+        // ever stop.
+        if (signal.aborted) return;
         this.syncWorker = db.createSyncWorker({ pushHandler, pullHandler });
         this.syncWorker.on("statuschange", (status) => {
           this.syncStatus = status;
@@ -202,6 +210,9 @@ export class KanbanStore {
       })
       .catch((error: unknown) => {
         this.syncStarting = false;
+        // Already disposed — dispose() already aborted `signal`; don't
+        // surface a stale error onto a store nothing is looking at anymore.
+        if (signal.aborted) return;
         controller.abort();
         this.showError(error);
       });
@@ -211,6 +222,11 @@ export class KanbanStore {
   dispose(): void {
     this.connectivityController?.abort();
     this.connectivityController = null;
+    // A getDb() opened by startSync() may still be in flight — its
+    // continuation checks the (now aborted) signal and bails instead of
+    // starting a worker; reset this so a fresh startSync() call after
+    // dispose() (e.g. a new loadWorkspace()) isn't blocked by a stale flag.
+    this.syncStarting = false;
     this.syncWorker?.stop();
   }
 

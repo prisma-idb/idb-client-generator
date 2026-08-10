@@ -66,7 +66,6 @@
     "@types/pg": "^8.21.0",
     "clsx": "^2.1.1",
     "dotenv": "^17.4.2",
-    "prettier-plugin-tailwindcss": "^0.8.1",
     "prisma-next": "^0.16.0",
     "shadcn-svelte": "^1.5.0",
     "svelte": "^5.56.8",

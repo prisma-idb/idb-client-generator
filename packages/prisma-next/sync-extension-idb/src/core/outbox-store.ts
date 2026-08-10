@@ -59,6 +59,23 @@ export async function getNextBatch<TContract extends IdbContract>(
 // ── Write helpers (inside an existing transaction scope) ──────────────────────
 
 /**
+ * True if some OTHER outbox event still references `versionMetaId` and could
+ * still succeed (unsynced, retryable) — a full store scan, same as
+ * `getNextBatch` (no queryable index; see that function's doc comment). The
+ * event whose own write just triggered this check has already had its
+ * `synced`/`retryable` field updated by the caller before this runs, so it
+ * naturally doesn't match here — no need to also exclude it by id.
+ */
+async function hasOtherPendingOutboxEvents(scope: IdbTransactionScope, versionMetaId: string): Promise<boolean> {
+  const rows = await scope.execute({
+    kind: "cursor-scan",
+    storeName: OUTBOX,
+  } as unknown as IdbAtomicPlan);
+  const events = rows as unknown as OutboxEvent[];
+  return events.some((e) => e.versionMetaId === versionMetaId && !e.synced && e.retryable);
+}
+
+/**
  * Clears `localChangePending` on the version-meta row an outbox event was
  * keyed under, if any — shared by `markSynced` (the event's own write
  * succeeded) and `markFailed` (the event is dead and will never succeed, see
@@ -68,10 +85,17 @@ export async function getNextBatch<TContract extends IdbContract>(
  * (create/update/delete) and re-deriving it here previously matched only
  * `create` on models keyed by a literal `id` field, so `localChangePending`
  * never cleared for update/delete and `applyPull` skipped all future server
- * changes for that record.
+ * changes for that record. Leaves the flag set (rather than clearing it) when
+ * another unsynced, retryable event for the same record still exists —
+ * clearing it here would let a pull land in between and clobber that
+ * still-pending local change.
  */
 async function clearLocalChangePending(scope: IdbTransactionScope, versionMetaId: string | null): Promise<void> {
   if (versionMetaId === null) return;
+  // Another unsynced, retryable event for the same record still needs this
+  // flag set — clearing it now would let a pull land in between and clobber
+  // that still-pending local change.
+  if (await hasOtherPendingOutboxEvents(scope, versionMetaId)) return;
   const metaRows = await scope.execute({
     kind: "key-get",
     storeName: VERSION_META,

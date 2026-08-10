@@ -27,8 +27,11 @@ export interface ManagedIdbClient<TClient> {
   close(): Promise<void>;
   /**
    * Closes and deletes the database — waits out any `get()` open already in
-   * flight first. `onblocked` (another tab still has the DB open) resolves
-   * anyway: best-effort, matching `close()`'s own no-throw posture.
+   * flight first. Rejects if `deleteDatabase` reports `onblocked` (another
+   * tab still has the DB open): the deletion has NOT happened at that point,
+   * so a caller using this for a "guaranteed clean slate" (e.g. logout) must
+   * not treat it as success — the old database, and whatever it contains, is
+   * still there.
    */
   reset(): Promise<void>;
 }
@@ -95,7 +98,8 @@ export function createManagedIdbClient<TClient extends { close(): Promise<void> 
         const req = idbFactory.deleteDatabase(dbName);
         req.onsuccess = () => resolve();
         req.onerror = () => reject(req.error as Error);
-        req.onblocked = () => resolve();
+        req.onblocked = () =>
+          reject(new Error(`deleteDatabase("${dbName}") blocked by an open connection in another tab`));
       });
     })();
     try {

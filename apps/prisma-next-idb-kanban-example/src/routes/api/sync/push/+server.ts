@@ -43,6 +43,9 @@ export const POST: RequestHandler = async ({ request }) => {
   } catch {
     return json({ error: "Invalid JSON body" }, { status: 400 });
   }
+  if (typeof body !== "object" || body === null) {
+    return json({ error: "Invalid body" }, { status: 400 });
+  }
   if (!Array.isArray(body.events)) {
     return json({ error: "events (array) is required" }, { status: 400 });
   }

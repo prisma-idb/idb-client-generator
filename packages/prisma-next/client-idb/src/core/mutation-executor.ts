@@ -656,25 +656,39 @@ async function validateScalarFks(
   const meta = makePlanMeta(contract);
   for (const def of getRelationDefinitions(contract, modelName)) {
     if (def.cardinality !== "N:1") continue;
-    for (let i = 0; i < def.localFields.length; i++) {
-      const localField = def.localFields[i]!;
-      const targetField = def.targetFields[i]!;
-      const value = data[localField];
-      if (!(localField in data) || value === null || value === undefined) continue;
-      const filter = (row: Record<string, unknown>): boolean => row[targetField] === value;
-      const plan: IdbCursorScanPlan = {
-        meta,
-        kind: "cursor-scan",
-        storeName: def.relatedStoreName,
-        filter,
-        take: 1,
-      };
-      const rows = await scope.execute(plan as IdbAtomicPlan);
-      if (rows.length === 0) {
-        throw new Error(
-          `FK violation on relation '${def.relationName}': no ${def.relatedModelName} with ${targetField}='${String(value)}'`
-        );
-      }
+    const touched = def.localFields.some((f) => f in data && data[f] !== null && data[f] !== undefined);
+    if (!touched) continue;
+
+    if (def.localFields.length > 1) {
+      // Validating each field of a compound FK independently would check
+      // "does *some* row have this orgId" and "does *some* row have this
+      // userId" as two separate queries — both can pass even when no single
+      // parent row satisfies the full tuple, silently persisting a value
+      // assembled from two different parent rows. Refuse outright rather
+      // than validate incorrectly: a correct fix also needs the row's other,
+      // untouched FK fields (not available here on a partial update patch)
+      // to know the intended full tuple.
+      throw new Error(
+        `FK violation on relation '${def.relationName}': compound (multi-field) scalar FK validation is not supported`
+      );
+    }
+
+    const localField = def.localFields[0]!;
+    const targetField = def.targetFields[0]!;
+    const value = data[localField];
+    const filter = (row: Record<string, unknown>): boolean => row[targetField] === value;
+    const plan: IdbCursorScanPlan = {
+      meta,
+      kind: "cursor-scan",
+      storeName: def.relatedStoreName,
+      filter,
+      take: 1,
+    };
+    const rows = await scope.execute(plan as IdbAtomicPlan);
+    if (rows.length === 0) {
+      throw new Error(
+        `FK violation on relation '${def.relationName}': no ${def.relatedModelName} with ${targetField}='${String(value)}'`
+      );
     }
   }
 }

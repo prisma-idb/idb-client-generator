@@ -7,6 +7,9 @@
   import * as Card from "$lib/components/ui/card";
   import logo from "$lib/assets/prisma-idb-logo.png";
   import GoogleIcon from "$lib/icons/google-icon.svelte";
+  import type { PageProps } from "./$types";
+
+  let { data }: PageProps = $props();
 
   let busy = $state<"google" | "guest" | null>(null);
   let errorMessage = $state("");
@@ -69,29 +72,31 @@
           {errorMessage}
         </div>
       {/if}
-      <Button
-        class="w-full"
-        variant="outline"
-        onclick={continueWithGoogle}
-        disabled={busy !== null}
-        aria-busy={busy === "google"}
-        data-testid="continue-with-google"
-      >
-        {#if busy === "google"}
-          <LoaderCircleIcon class="animate-spin" />
-        {:else}
-          <GoogleIcon />
-        {/if}
-        Continue with Google
-      </Button>
-      <div class="relative">
-        <div class="absolute inset-0 flex items-center">
-          <span class="border-border w-full border-t"></span>
+      {#if data.googleEnabled}
+        <Button
+          class="w-full"
+          variant="outline"
+          onclick={continueWithGoogle}
+          disabled={busy !== null}
+          aria-busy={busy === "google"}
+          data-testid="continue-with-google"
+        >
+          {#if busy === "google"}
+            <LoaderCircleIcon class="animate-spin" />
+          {:else}
+            <GoogleIcon />
+          {/if}
+          Continue with Google
+        </Button>
+        <div class="relative">
+          <div class="absolute inset-0 flex items-center">
+            <span class="border-border w-full border-t"></span>
+          </div>
+          <div class="relative flex justify-center text-xs">
+            <span class="bg-card text-muted-foreground px-2">or</span>
+          </div>
         </div>
-        <div class="relative flex justify-center text-xs">
-          <span class="bg-card text-muted-foreground px-2">or</span>
-        </div>
-      </div>
+      {/if}
       <Button
         class="w-full"
         onclick={continueAsGuest}

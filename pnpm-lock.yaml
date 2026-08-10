@@ -478,9 +478,6 @@ importers:
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
-      prettier-plugin-tailwindcss:
-        specifier: ^0.8.1
-        version: 0.8.1(prettier-plugin-svelte@4.1.1(prettier@3.9.6)(svelte@5.56.8(@typescript-eslint/types@8.66.0)))(prettier@3.9.6)
       prisma-next:
         specifier: ^0.16.0
         version: 0.16.0(typanion@3.14.0)(typescript@6.0.3)

@@ -117,6 +117,52 @@ describe("markSynced", () => {
     expect(meta?.localChangePending).toBe(false);
   });
 
+  it("keeps localChangePending set when another unsynced, retryable event still references the same record", async () => {
+    // Regression test: two local edits to the same record before either
+    // syncs (e1, e2, same versionMetaId). If e1's push succeeds first,
+    // markSynced(e1) must NOT clear localChangePending while e2 is still
+    // unsynced and retryable — doing so would let a pull land in between and
+    // clobber e2's not-yet-synced change.
+    const { client } = await createTestSyncClient();
+    await client.withTransaction(["_idb_sync_outbox", "_idb_sync_version_meta"], async (scope) => {
+      await scope.execute({
+        kind: "add",
+        storeName: "_idb_sync_outbox",
+        record: outboxEvent({ id: "e1", versionMetaId: 'User::"u1"' }) as unknown as Record<string, unknown>,
+      } as never);
+      await scope.execute({
+        kind: "add",
+        storeName: "_idb_sync_outbox",
+        record: outboxEvent({ id: "e2", versionMetaId: 'User::"u1"' }) as unknown as Record<string, unknown>,
+      } as never);
+      await scope.execute({
+        kind: "add",
+        storeName: "_idb_sync_version_meta",
+        record: {
+          id: 'User::"u1"',
+          model: "User",
+          key: "u1",
+          lastAppliedChangeId: null,
+          localChangePending: true,
+        },
+      } as never);
+    });
+
+    await client.withTransaction(["_idb_sync_outbox", "_idb_sync_version_meta"], async (scope) => {
+      await markSynced(scope, "e1");
+    });
+
+    const metaAfterE1 = await getVersionMeta(client, 'User::"u1"');
+    expect(metaAfterE1?.localChangePending).toBe(true);
+
+    await client.withTransaction(["_idb_sync_outbox", "_idb_sync_version_meta"], async (scope) => {
+      await markSynced(scope, "e2");
+    });
+
+    const metaAfterE2 = await getVersionMeta(client, 'User::"u1"');
+    expect(metaAfterE2?.localChangePending).toBe(false);
+  });
+
   it("does nothing when versionMetaId is null", async () => {
     const { client } = await createTestSyncClient();
     await client.withTransaction(["_idb_sync_outbox"], async (scope) => {
