@@ -1,5 +1,5 @@
 /**
- * Tests for the `generate-contract-space` codegen.
+ * Tests for the `migration contract-space` codegen.
  *
  * Coverage:
  * - Empty migrations dir → emits a module with `migrations: []` and writes
@@ -45,6 +45,14 @@ afterEach(() => {
   process.stderr.write = originalStderr;
 });
 
+function defaultPaths(base: string): { migrationsDir: string; contractPath: string; outPath: string } {
+  return {
+    migrationsDir: join(base, "migrations"),
+    contractPath: join(base, "src", "lib", "prisma", "contract.json"),
+    outPath: join(base, "src", "lib", "prisma", "contract-space.generated.ts"),
+  };
+}
+
 async function writePackage(opts: {
   dirName: string;
   from: string | null;
@@ -67,7 +75,7 @@ async function writePackage(opts: {
 
 describe("generateContractSpace", () => {
   it("emits an empty-migrations module when no packages exist", async () => {
-    const exitCode = await generateContractSpace({ cwd });
+    const exitCode = await generateContractSpace(defaultPaths(cwd));
     expect(exitCode).toBe(0);
 
     const out = await readFile(join(cwd, "src", "lib", "prisma", "contract-space.generated.ts"), "utf-8");
@@ -81,7 +89,7 @@ describe("generateContractSpace", () => {
     await writePackage({ dirName: "0001_baseline", from: null, to: "sha256:A", invariants: ["inv-1"] });
     await writePackage({ dirName: "0002_addPosts", from: "sha256:A", to: "sha256:B" });
 
-    const exitCode = await generateContractSpace({ cwd });
+    const exitCode = await generateContractSpace(defaultPaths(cwd));
     expect(exitCode).toBe(0);
 
     const out = await readFile(join(cwd, "src", "lib", "prisma", "contract-space.generated.ts"), "utf-8");
@@ -99,7 +107,7 @@ describe("generateContractSpace", () => {
   it("does not write migrations/refs/ (would collide with framework's space scanner)", async () => {
     await writePackage({ dirName: "0001_baseline", from: null, to: "sha256:A" });
 
-    await generateContractSpace({ cwd });
+    await generateContractSpace(defaultPaths(cwd));
 
     const { existsSync } = await import("node:fs");
     expect(existsSync(join(cwd, "migrations", "refs"))).toBe(false);
@@ -110,22 +118,22 @@ describe("generateContractSpace", () => {
     // Second package's `from` doesn't match first's `to`.
     await writePackage({ dirName: "0002_v2", from: "sha256:WRONG", to: "sha256:B" });
 
-    await expect(generateContractSpace({ cwd })).rejects.toThrow(/chain broken/i);
+    await expect(generateContractSpace(defaultPaths(cwd))).rejects.toThrow(/chain broken/i);
   });
 
   it("is idempotent", async () => {
     await writePackage({ dirName: "0001_baseline", from: null, to: "sha256:A" });
 
-    await generateContractSpace({ cwd });
+    await generateContractSpace(defaultPaths(cwd));
     const first = await readFile(join(cwd, "src", "lib", "prisma", "contract-space.generated.ts"), "utf-8");
 
-    await generateContractSpace({ cwd });
+    await generateContractSpace(defaultPaths(cwd));
     const second = await readFile(join(cwd, "src", "lib", "prisma", "contract-space.generated.ts"), "utf-8");
 
     expect(first).toBe(second);
   });
 
-  it("respects explicit migrationsDir/contractPath/outPath overrides", async () => {
+  it("respects explicit migrationsDir/contractPath/outPath", async () => {
     const customMigDir = join(cwd, "custom-migs");
     const customContract = join(cwd, "custom-contract.json");
     const customOut = join(cwd, "out.ts");
@@ -148,7 +156,6 @@ describe("generateContractSpace", () => {
     await writeFile(join(customMigDir, "app", "0001", "ops.json"), "[]", "utf-8");
 
     const exitCode = await generateContractSpace({
-      cwd,
       migrationsDir: customMigDir,
       contractPath: customContract,
       outPath: customOut,

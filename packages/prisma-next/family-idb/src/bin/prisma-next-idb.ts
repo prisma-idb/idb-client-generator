@@ -2,206 +2,178 @@
 /**
  * `prisma-next-idb` — IDB-target-specific CLI tooling.
  *
- * Subcommands:
+ * Mirrors `prisma-next`'s own `<group> <verb>` command shape (a project
+ * using sync runs both CLIs side by side, so learning one shape should
+ * cover both):
  *
- * - `generate-baseline` — auto-generate the first migration package
- *   (`from: null`) from the current `contract.json`.  Only valid on a
- *   fresh project with no migrations yet. Pass `--space <id>` to generate
- *   an extension-space baseline (ADR 212 contract-space package layout)
- *   instead of the default app-space one — see the `--space` flag docs below.
- * - `generate-migration` — plan and write the next incremental migration
- *   package by diffing the head migration's `end-contract.json` against the
- *   current `contract.json`. Requires at least one migration to already exist.
- *   Also accepts `--space <id>` for extension-space incremental migrations —
- *   updates `migrations/refs/head.json` to the new head afterward.
- * - `generate-contract-space` — re-write
- *   `<project>/src/lib/prisma/contract-space.generated.ts` (or the path
- *   specified by `--out`) from the on-disk `migrations/app/` packages.
- * - `preflight` — walk the migration chain from empty → tip against a
- *   `fake-indexeddb` shadow, reporting per-step success/failure.
+ * - `migration plan` — plans the next migration package, auto-detecting
+ *   whether this is the first (baseline, `from: null`) or an incremental
+ *   migration by checking whether the target space already has any
+ *   packages on disk. Also accepts `--space <id>` for extension-space
+ *   migrations (ADR 212 contract-space package layout) — updates
+ *   `migrations/refs/head.json` afterward.
+ * - `migration contract-space` — re-writes
+ *   `<contract-dir>/contract-space.generated.ts` (or the path specified by
+ *   `--out`) from the on-disk `migrations/app/` packages.
+ * - `migration preflight` — walks the migration chain from empty → tip
+ *   against a `fake-indexeddb` shadow, reporting per-step success/failure.
  *
  * Why a separate binary from `prisma-next`: the framework CLI is generic
  * (target-discovery via config); these commands are IDB-specific and own an
  * opinionated layout. Keeping them separate avoids growing the framework CLI
  * surface with target-specific subcommands.
  *
+ * `--contract` and `--migrations-dir` default to `prisma-next.config.ts`'s
+ * `contract.output` / `migrations.dir` (loaded the same way `prisma-next
+ * contract emit` does, via `@prisma-next/config-loader`) rather than a
+ * hardcoded path — pass `--config <path>` if it isn't at the default
+ * location, or `--contract`/`--migrations-dir` directly to skip config
+ * loading for that value entirely.
+ *
  * Typical new-project workflow:
- *   1. prisma-next contract emit               # generate contract.json
- *   2. prisma-next-idb generate-baseline       # create migrations/app/<ts>_baseline/
- *   3. prisma-next-idb generate-contract-space # bundle into contract-space.generated.ts
- *   4. prisma-next-idb preflight               # (optional) validate chain in CI
+ *   1. prisma-next contract emit                  # generate contract.json
+ *   2. prisma-next-idb migration plan             # create migrations/app/<ts>_baseline/
+ *   3. prisma-next-idb migration contract-space   # bundle into contract-space.generated.ts
+ *   4. prisma-next-idb migration preflight        # (optional) validate chain in CI
  *
  * Adding a subsequent migration:
- *   1. prisma-next contract emit               # update contract.json after schema change
- *   2. prisma-next-idb generate-migration \   # plan incremental migration
- *        --name <slug>                         # e.g. --name add_posts
- *   3. prisma-next-idb generate-contract-space # re-bundle contract-space.generated.ts
- *   4. prisma-next-idb preflight               # (optional) validate chain in CI
+ *   1. prisma-next contract emit                  # update contract.json after schema change
+ *   2. prisma-next-idb migration plan --name <slug>   # e.g. --name add_posts
+ *   3. prisma-next-idb migration contract-space   # re-bundle contract-space.generated.ts
+ *   4. prisma-next-idb migration preflight        # (optional) validate chain in CI
  */
-import { parseArgs } from "node:util";
-import { generateContractSpace } from "../core/contract-space-codegen";
+import { Command } from "commander";
+import packageJson from "../../package.json" with { type: "json" };
+import type { ResolvedCliPaths } from "../core/resolve-cli-paths";
+import { resolveCliPaths } from "../core/resolve-cli-paths";
 
-/**
- * Flags shared across all subcommands.
- *
- * `--contract <path>` and `--migrations-dir <path>` let callers override the
- * defaults for any project layout (Next.js, Nuxt, plain Vite, etc.). Without
- * them the commands fall back to framework-conventional defaults, but those
- * defaults are just starting points — every project that uses a different
- * layout should pass explicit paths.
- */
-interface ParsedFlags {
-  /** Path to contract.json. */
-  contract: string | undefined;
-  /** Path to the migrations root (contains `app/` subdirectory). */
-  migrationsDir: string | undefined;
-  /** Output path for `generate-contract-space`. */
-  out: string | undefined;
-  /** Slug suffix for the migration directory name. */
-  name: string | undefined;
-  /** Contract-space id for `generate-baseline` (default: "app"). See ADR 212. */
-  space: string | undefined;
+interface SharedFlags {
+  readonly config?: string;
+  readonly contract?: string;
+  readonly migrationsDir?: string;
 }
 
-function parseFlags(): ParsedFlags {
-  const { values } = parseArgs({
-    allowPositionals: true,
-    strict: false,
-    options: {
-      contract: { type: "string" },
-      "migrations-dir": { type: "string" },
-      out: { type: "string" },
-      name: { type: "string" },
-      space: { type: "string" },
+function addSharedOptions(cmd: Command): Command {
+  return cmd
+    .option("--config <path>", "Path to prisma-next.config.ts (default: discovered from cwd)")
+    .option("--contract <path>", "Path to contract.json (default: config.contract.output)")
+    .option("--migrations-dir <path>", "Path to the migrations root (default: config.migrations.dir)");
+}
+
+async function resolvePaths(
+  flags: SharedFlags,
+  needs: { readonly contract: boolean; readonly contractSpaceOut: boolean; readonly out?: string }
+): Promise<ResolvedCliPaths> {
+  return resolveCliPaths({
+    cwd: process.cwd(),
+    ...(flags.config !== undefined && { configOption: flags.config }),
+    overrides: {
+      ...(flags.contract !== undefined && { contract: flags.contract }),
+      ...(flags.migrationsDir !== undefined && { migrationsDir: flags.migrationsDir }),
+      ...(needs.out !== undefined && { out: needs.out }),
     },
+    needsContract: needs.contract,
+    needsContractSpaceOut: needs.contractSpaceOut,
   });
-  return {
-    // parseArgs with strict:false widens all values to string|boolean|undefined;
-    // our options are all declared type:"string" so at runtime these are always
-    // string|undefined — the cast is safe.
-    contract: values["contract"] as string | undefined,
-    migrationsDir: values["migrations-dir"] as string | undefined,
-    out: values["out"] as string | undefined,
-    name: values["name"] as string | undefined,
-    space: values["space"] as string | undefined,
-  };
 }
 
-async function main(): Promise<number> {
-  const { positionals } = parseArgs({ allowPositionals: true, strict: false });
-  const subcommand = positionals[0];
-  const flags = parseFlags();
-
-  switch (subcommand) {
-    case "generate-baseline": {
-      const { generateBaseline } = await import("../core/generate-baseline");
-      return generateBaseline({
-        cwd: process.cwd(),
-        // exactOptionalPropertyTypes: omit the key entirely when undefined rather
-        // than passing `key: undefined`, which violates the readonly optional contract.
-        ...(flags.contract !== undefined && { contractPath: flags.contract }),
-        ...(flags.migrationsDir !== undefined && { migrationsDir: flags.migrationsDir }),
-        ...(flags.name !== undefined && { name: flags.name }),
-        ...(flags.space !== undefined && { spaceId: flags.space }),
-      });
-    }
-    case "generate-migration": {
-      if (flags.name === undefined) {
-        process.stderr.write("generate-migration: --name <slug> is required.\n");
-        return 2;
-      }
-      const { generateMigration } = await import("../core/generate-migration");
-      return generateMigration({
-        cwd: process.cwd(),
-        name: flags.name,
-        ...(flags.contract !== undefined && { contractPath: flags.contract }),
-        ...(flags.migrationsDir !== undefined && { migrationsDir: flags.migrationsDir }),
-        ...(flags.space !== undefined && { spaceId: flags.space }),
-      });
-    }
-    case "generate-contract-space":
-      return generateContractSpace({
-        cwd: process.cwd(),
-        ...(flags.contract !== undefined && { contractPath: flags.contract }),
-        ...(flags.migrationsDir !== undefined && { migrationsDir: flags.migrationsDir }),
-        ...(flags.out !== undefined && { outPath: flags.out }),
-      });
-    case "preflight": {
-      const { runPreflight } = await import("../core/preflight");
-      return runPreflight({
-        cwd: process.cwd(),
-        ...(flags.migrationsDir !== undefined && { migrationsDir: flags.migrationsDir }),
-      });
-    }
-    case undefined:
-    case "help":
-    case "--help":
-    case "-h":
-      printHelp();
-      return 0;
-    default:
-      process.stderr.write(`Unknown command: ${subcommand}\n\n`);
-      printHelp();
-      return 2;
+/** User-actionable errors (bad config, missing files) print a message and exit 1 — no stack trace. */
+async function runAction(fn: () => Promise<number>): Promise<void> {
+  try {
+    process.exitCode = await fn();
+  } catch (err) {
+    process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
+    process.exitCode = 1;
   }
 }
 
-function printHelp(): void {
-  process.stdout.write(
-    "prisma-next-idb — IDB-target tooling for Prisma Next\n" +
-      "\n" +
-      "Usage:\n" +
-      "  prisma-next-idb <command> [flags]\n" +
-      "\n" +
-      "Commands:\n" +
-      "  generate-baseline         Create the initial migration package from contract.json\n" +
-      "  generate-migration        Plan the next incremental migration (requires --name)\n" +
-      "  generate-contract-space   Regenerate contract-space.generated.ts\n" +
-      "  preflight                 Validate the migration chain against fake-indexeddb\n" +
-      "  help                      Show this message\n" +
-      "\n" +
-      "Flags (all commands):\n" +
-      "  --contract <path>         Path to contract.json (default: src/lib/prisma/contract.json)\n" +
-      "  --migrations-dir <path>   Path to migrations root (default: migrations/)\n" +
-      "\n" +
-      "Flags (generate-baseline, generate-migration):\n" +
-      "  --space <id>              Contract-space id (default: app). Non-app values write directly\n" +
-      "                            under migrations/ (no app/ subdir) and pin/update\n" +
-      "                            migrations/refs/head.json — the ADR 212 contract-space package\n" +
-      "                            layout used by extension packages (e.g. sync-extension-idb).\n" +
-      "\n" +
-      "Flags (generate-baseline only):\n" +
-      "  --name <slug>             Directory slug (default: baseline)\n" +
-      "\n" +
-      "Flags (generate-migration only):\n" +
-      "  --name <slug>             Directory slug, e.g. add_posts (required)\n" +
-      "\n" +
-      "Flags (generate-contract-space only):\n" +
-      "  --out <path>              Output file path (default: src/lib/prisma/contract-space.generated.ts)\n" +
-      "\n" +
-      "New-project workflow:\n" +
-      "  1. prisma-next contract emit                          # generate contract.json\n" +
-      "  2. prisma-next-idb generate-baseline \\               # create baseline migration\n" +
-      "       --contract src/prisma/contract.json             #   (if your layout differs)\n" +
-      "  3. prisma-next-idb generate-contract-space \\         # bundle into contract-space.generated.ts\n" +
-      "       --contract src/prisma/contract.json \\           #   (same override if needed)\n" +
-      "       --out src/prisma/contract-space.generated.ts\n" +
-      "  4. prisma-next-idb preflight                         # validate chain (CI)\n" +
-      "\n" +
-      "Adding a subsequent migration:\n" +
-      "  1. prisma-next contract emit                          # update contract.json\n" +
-      "  2. prisma-next-idb generate-migration --name <slug>  # plan incremental migration\n" +
-      "  3. prisma-next-idb generate-contract-space           # re-bundle contract-space\n" +
-      "  4. prisma-next-idb preflight                         # validate chain (CI)\n"
-  );
+const program = new Command();
+program.name("prisma-next-idb").description("IDB-target tooling for Prisma Next").version(packageJson.version);
+
+const migrationCommand = new Command("migration").description("On-disk migration package management commands");
+
+interface PlanFlags extends SharedFlags {
+  readonly name?: string;
+  readonly space?: string;
 }
 
-main().then(
-  (code) => {
-    process.exit(code);
-  },
-  (err: unknown) => {
-    process.stderr.write(`${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`);
-    process.exit(1);
-  }
+const planCommand = addSharedOptions(
+  new Command("plan")
+    .description("Plan the next migration package (auto-detects baseline vs. incremental)")
+    .option("--name <slug>", 'Directory slug (default: "baseline" for a fresh space; required otherwise)')
+    .option(
+      "--space <id>",
+      'Contract-space id (default: "app"). Non-app values write directly under the migrations root and pin/update migrations/refs/head.json — the ADR 212 layout extension packages (e.g. sync-extension-idb) use.'
+    )
 );
+planCommand.action(async (flags: PlanFlags) => {
+  await runAction(async () => {
+    const { contractPath, migrationsDir } = await resolvePaths(flags, { contract: true, contractSpaceOut: false });
+    const { migrationPlan } = await import("../core/migration-plan");
+    return migrationPlan({
+      migrationsDir,
+      contractPath: contractPath!,
+      ...(flags.name !== undefined && { name: flags.name }),
+      ...(flags.space !== undefined && { spaceId: flags.space }),
+    });
+  });
+});
+
+interface ContractSpaceFlags extends SharedFlags {
+  readonly out?: string;
+}
+
+const contractSpaceCommand = addSharedOptions(
+  new Command("contract-space")
+    .description("Regenerate contract-space.generated.ts from migrations/app/")
+    .option("--out <path>", "Output file path (default: colocated with the resolved contract.json)")
+);
+contractSpaceCommand.action(async (flags: ContractSpaceFlags) => {
+  await runAction(async () => {
+    const { contractPath, migrationsDir, contractSpaceOutPath } = await resolvePaths(flags, {
+      contract: true,
+      contractSpaceOut: true,
+      ...(flags.out !== undefined && { out: flags.out }),
+    });
+    const { generateContractSpace } = await import("../core/contract-space-codegen");
+    return generateContractSpace({ migrationsDir, contractPath: contractPath!, outPath: contractSpaceOutPath! });
+  });
+});
+
+const preflightCommand = addSharedOptions(
+  new Command("preflight").description("Validate the migration chain against fake-indexeddb")
+);
+preflightCommand.action(async (flags: SharedFlags) => {
+  await runAction(async () => {
+    const { migrationsDir } = await resolvePaths(flags, { contract: false, contractSpaceOut: false });
+    const { runPreflight } = await import("../core/preflight");
+    return runPreflight({ migrationsDir });
+  });
+});
+
+migrationCommand.addCommand(planCommand);
+migrationCommand.addCommand(contractSpaceCommand);
+migrationCommand.addCommand(preflightCommand);
+program.addCommand(migrationCommand);
+
+program.exitOverride();
+
+async function main(): Promise<void> {
+  if (process.argv.length <= 2) {
+    program.outputHelp();
+    process.exitCode = 0;
+    return;
+  }
+  try {
+    await program.parseAsync(process.argv);
+  } catch (err) {
+    // commander throws a CommanderError (via exitOverride) instead of calling
+    // process.exit directly — its own help/usage/error output already went
+    // to stdout/stderr, so just propagate the exit code.
+    const code =
+      typeof (err as { exitCode?: unknown }).exitCode === "number" ? (err as { exitCode: number }).exitCode : 1;
+    process.exitCode = code;
+  }
+}
+
+main();

@@ -24,7 +24,7 @@ describe("prisma-next-idb preflight", () => {
     const cwd = await setupTmpProject("preflight-empty");
     await writeContractJson(cwd, HASH_BASELINE);
 
-    const { stdout, exitCode } = await cli(["preflight"], { cwd });
+    const { stdout, exitCode } = await cli(["migration", "preflight"], { cwd });
     expect(exitCode).toBe(0);
     expect(stdout).toContain("Nothing to preflight");
   });
@@ -47,7 +47,7 @@ describe("prisma-next-idb preflight", () => {
       ops: [createPostsStoreOp],
     });
 
-    const { stdout, exitCode } = await cli(["preflight"], { cwd });
+    const { stdout, exitCode } = await cli(["migration", "preflight"], { cwd });
     expect(exitCode).toBe(0);
     expect(stdout).toContain("Preflighting 2 migration(s)");
     expect(stdout).toContain("0001_baseline … ok");
@@ -73,7 +73,7 @@ describe("prisma-next-idb preflight", () => {
       ops: [indexOnMissingStoreOp],
     });
 
-    const { stdout, stderr, exitCode } = await cli(["preflight"], { cwd });
+    const { stdout, stderr, exitCode } = await cli(["migration", "preflight"], { cwd });
     expect(exitCode).toBe(1);
     expect(stdout).toContain("0001_baseline … ok");
     expect(stdout).toContain("0002_badIndex … FAILED");
@@ -100,7 +100,7 @@ describe("prisma-next-idb preflight", () => {
       ops: [createMarkerStoreOp, createUsersStoreOp, createPostsStoreOp],
     });
 
-    const { stdout, exitCode } = await cli(["preflight"], { cwd });
+    const { stdout, exitCode } = await cli(["migration", "preflight"], { cwd });
     expect(exitCode).toBe(0);
     // Baseline ran first; addcomments ran second.
     const baselineIdx = stdout.indexOf("20260527T120000_baseline");
@@ -122,7 +122,7 @@ describe("prisma-next-idb preflight", () => {
       ops: [createCommentsStoreOp],
     });
 
-    const { stderr, exitCode } = await cli(["preflight"], { cwd });
+    const { stderr, exitCode } = await cli(["migration", "preflight"], { cwd });
     expect(exitCode).toBe(1);
     expect(stderr).toMatch(/chain broken/i);
   });
@@ -152,7 +152,7 @@ describe("prisma-next-idb preflight", () => {
       ops: [createCommentsStoreOp],
     });
 
-    const { stderr, exitCode } = await cli(["preflight"], { cwd });
+    const { stderr, exitCode } = await cli(["migration", "preflight"], { cwd });
     expect(exitCode).toBe(1);
     expect(stderr).toMatch(/chain conflict/i);
   });
@@ -176,7 +176,7 @@ describe("prisma-next-idb preflight", () => {
       ],
     });
 
-    const { stderr, exitCode } = await cli(["preflight"], { cwd });
+    const { stderr, exitCode } = await cli(["migration", "preflight"], { cwd });
     expect(exitCode).toBe(1);
     expect(stderr).toMatch(/non-idb op/i);
   });

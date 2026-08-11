@@ -16,9 +16,11 @@ import { syncContract } from "./src/contract";
  * instead of a live TS object imported directly — matching the ADR 212
  * package layout `src/exports/control.ts` JSON-imports from.
  *
- * The IDB-specific baseline/migration tooling (`prisma-next-idb
- * generate-baseline --space idb-sync`) reads `src/contract.json` produced
- * by this config's `contract emit`, not this file directly.
+ * The IDB-specific migration tooling (`prisma-next-idb migration plan
+ * --space idb-sync`) reads `src/contract.json` produced by this config's
+ * `contract emit`, not this file directly — it resolves that path from
+ * this file's own `contract.output`, not a hardcoded default, so no
+ * `--contract` flag is needed on the `migration:plan` script below.
  *
  * As with the app usage example, the CLI's `db verify`/`db init`/`db update`
  * are refusal-only for IDB (no live IndexedDB on the Node side) — this

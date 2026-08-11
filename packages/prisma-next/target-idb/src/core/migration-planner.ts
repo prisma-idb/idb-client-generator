@@ -65,7 +65,7 @@ function extractStorageHash(contract: Contract | null | unknown): string {
  *
  * Exported so callers that need to render a scaffold from a modified ops
  * list (e.g. an extension-space baseline that strips the marker-store op —
- * see `generate-baseline.ts`) can bypass `plan.renderTypeScript()`, which
+ * see `migration-plan.ts`) can bypass `plan.renderTypeScript()`, which
  * always renders the planner's original `plan.operations`.
  */
 export function renderMigrationTs(input: {

@@ -3,12 +3,12 @@
  *
  * Mirrors the getting-started tutorial:
  *   1.  Write schema V1 (User model) and emit contract artifacts
- *   2.  generate-baseline → verify package layout + migration.json + ops.json + migration.ts
- *   3.  generate-contract-space → verify generated TypeScript bundle
+ *   2.  migration plan (greenfield) → verify package layout + migration.json + ops.json + migration.ts
+ *   3.  migration contract-space → verify generated TypeScript bundle
  *   4.  Modify schema to V2 (add Todo model) and re-emit contract artifacts
- *   5.  generate-migration --name add_todo → verify incremental package with correct from/to
- *   6.  generate-contract-space (again) → verify both packages in bundle
- *   7.  preflight → exit 0 (full chain applies cleanly against fake-indexeddb)
+ *   5.  migration plan --name add_todo (incremental) → verify package with correct from/to
+ *   6.  migration contract-space (again) → verify both packages in bundle
+ *   7.  migration preflight → exit 0 (full chain applies cleanly against fake-indexeddb)
  *   8.  Deep assertions: chain integrity, file content, ORM type exports
  */
 
@@ -22,8 +22,7 @@ import { buildSymbolTable } from "@prisma-next/psl-parser";
 import { parse } from "@prisma-next/psl-parser/syntax";
 import { interpretPslDocumentToIdbContract, SCALAR_TO_CODEC_ID } from "../src/core/psl-interpreter";
 import { idbEmission } from "../src/core/emission";
-import { generateBaseline } from "../src/core/generate-baseline";
-import { generateMigration } from "../src/core/generate-migration";
+import { migrationPlan } from "../src/core/migration-plan";
 import { generateContractSpace } from "../src/core/contract-space-codegen";
 import { runPreflight } from "../src/core/preflight";
 import { chainOrderByMetadata } from "../src/core/chain-order";
@@ -170,8 +169,10 @@ interface Op {
 const contractJsonPath = (base: string) => join(base, "src", "lib", "prisma", "contract.json");
 const contractDtsPath = (base: string) => join(base, "src", "lib", "prisma", "contract.d.ts");
 const contractSpacePath = (base: string) => join(base, "src", "lib", "prisma", "contract-space.generated.ts");
-const appDir = (base: string) => join(base, "migrations", "app");
+const migrationsDir = (base: string) => join(base, "migrations");
+const appDir = (base: string) => join(migrationsDir(base), "app");
 const pkgPath = (base: string, dir: string) => join(appDir(base), dir);
+const defaultPaths = (base: string) => ({ migrationsDir: migrationsDir(base), contractPath: contractJsonPath(base) });
 
 async function listMigrationDirs(base: string): Promise<string[]> {
   const entries = await readdir(appDir(base), { withFileTypes: true });
@@ -211,9 +212,9 @@ describe("end-to-end workflow smoke test", () => {
     expect(v1.contractDts).toContain("readonly user:"); // store key in storage type literal
     expect(v1.contractDts).not.toContain("readonly todo:");
 
-    // ── Step 2: generate-baseline ────────────────────────────────────────────
+    // ── Step 2: migration plan (auto-detects greenfield/baseline) ────────────
 
-    const baselineCode = await generateBaseline({ cwd });
+    const baselineCode = await migrationPlan(defaultPaths(cwd));
     expect(baselineCode).toBe(0);
 
     const dirsAfterBaseline = await listMigrationDirs(cwd);
@@ -280,7 +281,7 @@ describe("end-to-end workflow smoke test", () => {
 
     // ── Step 3: generate-contract-space (V1) ────────────────────────────────
 
-    const spaceCodeV1 = await generateContractSpace({ cwd });
+    const spaceCodeV1 = await generateContractSpace({ ...defaultPaths(cwd), outPath: contractSpacePath(cwd) });
     expect(spaceCodeV1).toBe(0);
 
     const spaceV1 = await readFile(contractSpacePath(cwd), "utf-8");
@@ -302,9 +303,9 @@ describe("end-to-end workflow smoke test", () => {
     expect(v2.contractDts).toContain("readonly user:");
     expect(v2.contractDts).toContain("readonly todo:");
 
-    // ── Step 5: generate-migration --name add_todo ───────────────────────────
+    // ── Step 5: migration plan --name add_todo (incremental, head already exists) ──
 
-    const migCode = await generateMigration({ cwd, name: "add_todo" });
+    const migCode = await migrationPlan({ ...defaultPaths(cwd), name: "add_todo" });
     expect(migCode).toBe(0);
 
     const dirsAfterMigration = await listMigrationDirs(cwd);
@@ -373,7 +374,7 @@ describe("end-to-end workflow smoke test", () => {
 
     // ── Step 6: generate-contract-space (V2) ────────────────────────────────
 
-    const spaceCodeV2 = await generateContractSpace({ cwd });
+    const spaceCodeV2 = await generateContractSpace({ ...defaultPaths(cwd), outPath: contractSpacePath(cwd) });
     expect(spaceCodeV2).toBe(0);
 
     const spaceV2 = await readFile(contractSpacePath(cwd), "utf-8");
@@ -388,7 +389,7 @@ describe("end-to-end workflow smoke test", () => {
 
     // ── Step 7: preflight ────────────────────────────────────────────────────
 
-    const preflightCode = await runPreflight({ cwd });
+    const preflightCode = await runPreflight({ migrationsDir: migrationsDir(cwd) });
     expect(preflightCode).toBe(0);
 
     // ── Step 8: Chain integrity cross-checks ─────────────────────────────────
@@ -416,7 +417,7 @@ describe("end-to-end workflow smoke test", () => {
     const v1 = emitContract(SCHEMA_V1);
     await writeFile(contractJsonPath(cwd), v1.contractJson, "utf-8");
     await writeFile(contractDtsPath(cwd), v1.contractDts, "utf-8");
-    expect(await generateBaseline({ cwd })).toBe(0);
+    expect(await migrationPlan(defaultPaths(cwd))).toBe(0);
 
     const dirs = await listMigrationDirs(cwd);
     const baselineDir = dirs[0]!;
@@ -431,7 +432,7 @@ describe("end-to-end workflow smoke test", () => {
     await writeFile(contractJsonPath(cwd), v2.contractJson, "utf-8");
     await writeFile(contractDtsPath(cwd), v2.contractDts, "utf-8");
 
-    await expect(generateMigration({ cwd, name: "add_todo" })).resolves.toBe(1);
+    await expect(migrationPlan({ ...defaultPaths(cwd), name: "add_todo" })).resolves.toBe(1);
     await expect(listMigrationDirs(cwd)).resolves.toEqual([baselineDir]);
   });
 });

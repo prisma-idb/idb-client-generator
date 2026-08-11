@@ -31,8 +31,8 @@ pnpm --filter @prisma-next-idb/kanban-example test:e2e
 
 ```sh
 pnpm --filter @prisma-next-idb/kanban-example contract:emit
-pnpm --filter @prisma-next-idb/kanban-example migration:generate
-pnpm --filter @prisma-next-idb/kanban-example migration:generate-space
+pnpm --filter @prisma-next-idb/kanban-example migration:plan
+pnpm --filter @prisma-next-idb/kanban-example migration:contract-space
 pnpm --filter @prisma-next-idb/kanban-example migration:preflight
 ```
 

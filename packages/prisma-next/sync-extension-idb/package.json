@@ -34,7 +34,7 @@
     "lint": "prettier --check . && eslint .",
     "format": "prettier --write .",
     "contract:emit": "prisma-next contract emit",
-    "generate-baseline": "prisma-next-idb generate-baseline --space idb-sync"
+    "migration:plan": "prisma-next-idb migration plan --space idb-sync"
   },
   "dependencies": {
     "@prisma-next-idb/adapter-idb": "workspace:*",

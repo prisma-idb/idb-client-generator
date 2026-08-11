@@ -30,8 +30,8 @@ pnpm --filter @prisma-next-idb/usage test:e2e
 ## Prisma Next workflow
 
 ```sh
-pnpm --filter @prisma-next-idb/usage migration:generate
-pnpm --filter @prisma-next-idb/usage migration:generate-space
+pnpm --filter @prisma-next-idb/usage migration:plan
+pnpm --filter @prisma-next-idb/usage migration:contract-space
 pnpm --filter @prisma-next-idb/usage migration:preflight
 ```
 
