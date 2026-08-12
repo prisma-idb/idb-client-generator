@@ -156,7 +156,16 @@ migrationCommand.addCommand(contractSpaceCommand);
 migrationCommand.addCommand(preflightCommand);
 program.addCommand(migrationCommand);
 
+// `addCommand()` (unlike `.command()`) doesn't copy parent settings onto the
+// child, so each subcommand needs its own `exitOverride()` — otherwise a
+// parse error scoped to that subcommand (e.g. an unknown flag on `migration
+// plan`) calls `process.exit()` directly instead of throwing a catchable
+// CommanderError, bypassing the code below.
 program.exitOverride();
+migrationCommand.exitOverride();
+planCommand.exitOverride();
+contractSpaceCommand.exitOverride();
+preflightCommand.exitOverride();
 
 async function main(): Promise<void> {
   if (process.argv.length <= 2) {
@@ -176,4 +185,7 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+main().catch((err: unknown) => {
+  process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
+  process.exitCode = 1;
+});

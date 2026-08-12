@@ -10,7 +10,7 @@
  */
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { cli, setupTmpProject, writeMinimalIdbConfig } from "./_helpers";
 
@@ -18,7 +18,7 @@ const MINIMAL_CONTRACT = { storage: { storageHash: "sha256:cfg-test", stores: { 
 
 async function writeContractAt(cwd: string, relPath: string, contract: unknown = MINIMAL_CONTRACT): Promise<void> {
   const full = join(cwd, relPath);
-  await mkdir(full.slice(0, full.lastIndexOf("/")), { recursive: true });
+  await mkdir(dirname(full), { recursive: true });
   await writeFile(full, JSON.stringify(contract, null, 2), "utf-8");
 }
 

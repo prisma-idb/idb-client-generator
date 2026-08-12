@@ -14,7 +14,7 @@
  * - spaceId (extension-space, ADR 212) behavior for both modes.
  */
 
-import { mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -302,6 +302,30 @@ describe("migrationPlan — incremental mode", () => {
     const code = await migrationPlan({ ...defaultPaths(cwd), name: "add_version_meta" });
     expect(code).toBe(1);
     expect(capturedStderr).toContain("inconsistent");
+  });
+
+  it("returns 1 when the head package's migration.json is unreadable", async () => {
+    expect(await migrationPlan(defaultPaths(cwd))).toBe(0);
+    const dirs = await listMigrationDirs(cwd);
+    const metaPath = join(cwd, "migrations", "app", dirs[0]!, "migration.json");
+    await rm(metaPath);
+
+    await writeContract(cwd, CONTRACT_V2);
+    const code = await migrationPlan({ ...defaultPaths(cwd), name: "add_version_meta" });
+    expect(code).toBe(1);
+    expect(capturedStderr).toContain(metaPath);
+  });
+
+  it("returns 1 when the head package's migration.json is malformed JSON", async () => {
+    expect(await migrationPlan(defaultPaths(cwd))).toBe(0);
+    const dirs = await listMigrationDirs(cwd);
+    const metaPath = join(cwd, "migrations", "app", dirs[0]!, "migration.json");
+    await writeFile(metaPath, "{not valid json", "utf-8");
+
+    await writeContract(cwd, CONTRACT_V2);
+    const code = await migrationPlan({ ...defaultPaths(cwd), name: "add_version_meta" });
+    expect(code).toBe(1);
+    expect(capturedStderr).toContain(metaPath);
   });
 });
 

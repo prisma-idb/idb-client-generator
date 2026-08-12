@@ -184,11 +184,21 @@ async function planIncremental(ctx: SharedCtx, existingDirs: readonly string[]):
     let metaRaw: string;
     try {
       metaRaw = await readFile(metaPath, "utf-8");
-    } catch {
-      process.stderr.write(`migration plan: cannot read ${metaPath} — skipping ${dirName}.\n`);
-      continue;
+    } catch (err) {
+      process.stderr.write(
+        `migration plan: cannot read ${metaPath} — ${err instanceof Error ? err.message : String(err)}\n`
+      );
+      return 1;
     }
-    const meta = JSON.parse(metaRaw) as { from: string | null; to: string };
+    let meta: { from: string | null; to: string };
+    try {
+      meta = JSON.parse(metaRaw) as { from: string | null; to: string };
+    } catch (err) {
+      process.stderr.write(
+        `migration plan: malformed ${metaPath} — ${err instanceof Error ? err.message : String(err)}\n`
+      );
+      return 1;
+    }
     packages.set(dirName, { dirName, metadata: meta });
   }
 
