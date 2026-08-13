@@ -41,7 +41,7 @@ jobs:
         run: pnpm check:prisma-next-descriptors
 
       - name: Build packages
-        run: pnpm build --filter=@prisma-next-idb/* --filter=@prisma-idb/idb-client-generator
+        run: pnpm build --filter="./packages/prisma-next/*" --filter="./packages/generator"
 
       - name: Create release PR or publish
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
