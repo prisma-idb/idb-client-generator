@@ -6,14 +6,15 @@
  * derived from `apps/prisma-next-usage`:
  *
  *   Phase 1 (baseline):
- *     prisma-next-idb generate-baseline
- *     prisma-next-idb generate-contract-space
- *     prisma-next-idb preflight
+ *     prisma-next-idb migration plan
+ *     prisma-next-idb migration contract-space
+ *     prisma-next-idb migration preflight
  *
  *   Phase 2 (add posts):
- *     (write second migration package — simulating `prisma-next migration plan`)
- *     prisma-next-idb generate-contract-space
- *     prisma-next-idb preflight
+ *     (write second migration package — simulating a real `migration plan`
+ *     incremental run)
+ *     prisma-next-idb migration contract-space
+ *     prisma-next-idb migration preflight
  *
  * The contract fixtures are the exact JSON snapshots produced by
  * `prisma-next contract emit` for the corresponding schema states.
@@ -139,11 +140,11 @@ const CONTRACT_V2_WITH_POSTS = {
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 describe("migration pipeline e2e", () => {
-  it("generate-baseline creates a valid baseline package from a full contract", async () => {
+  it("migration plan (greenfield) creates a valid baseline package from a full contract", async () => {
     const cwd = await setupTmpProject("e2e-baseline-only");
     await writeRawContractJson(cwd, CONTRACT_V1_NO_POSTS);
 
-    const { stdout, exitCode } = await cli(["generate-baseline"], { cwd });
+    const { stdout, exitCode } = await cli(["migration", "plan"], { cwd });
     expect(exitCode).toBe(0);
     expect(stdout).toContain("Generated baseline migration");
     expect(stdout).toContain("from: null");
@@ -173,13 +174,13 @@ describe("migration pipeline e2e", () => {
     expect(storeNames).not.toContain("posts");
   });
 
-  it("full pipeline: baseline → generate-space → preflight, then add-posts → generate-space → preflight", async () => {
+  it("full pipeline: plan → contract-space → preflight, then add-posts → contract-space → preflight", async () => {
     const cwd = await setupTmpProject("e2e-full-pipeline");
     await writeRawContractJson(cwd, CONTRACT_V1_NO_POSTS);
 
     // ── Phase 1: generate the baseline ──────────────────────────────────────
 
-    const r1 = await cli(["generate-baseline"], { cwd });
+    const r1 = await cli(["migration", "plan"], { cwd });
     expect(r1.exitCode).toBe(0);
 
     const dirs1 = await getMigrationDirs(cwd);
@@ -189,7 +190,7 @@ describe("migration pipeline e2e", () => {
     ) as { from: null; to: string };
     expect(baselineMeta.to).toBe(V1_STORAGE_HASH);
 
-    const r2 = await cli(["generate-contract-space"], { cwd });
+    const r2 = await cli(["migration", "contract-space"], { cwd });
     expect(r2.exitCode).toBe(0);
     expect(r2.stdout).toContain("1 migration");
 
@@ -197,7 +198,7 @@ describe("migration pipeline e2e", () => {
     expect(generated1).toContain(dirs1[0]);
     expect(generated1).not.toContain("posts");
 
-    const r3 = await cli(["preflight"], { cwd });
+    const r3 = await cli(["migration", "preflight"], { cwd });
     expect(r3.exitCode).toBe(0);
     expect(r3.stdout).toContain("Preflighting 1 migration(s)");
     expect(r3.stdout).toContain(dirs1[0] + " … ok");
@@ -219,7 +220,7 @@ describe("migration pipeline e2e", () => {
     const dirs2 = await getMigrationDirs(cwd);
     expect(dirs2).toHaveLength(2);
 
-    const r4 = await cli(["generate-contract-space"], { cwd });
+    const r4 = await cli(["migration", "contract-space"], { cwd });
     expect(r4.exitCode).toBe(0);
     expect(r4.stdout).toContain("2 migration");
 
@@ -231,7 +232,7 @@ describe("migration pipeline e2e", () => {
     const addPostsIdx = generated2.indexOf("20260604T1029_add_posts");
     expect(baselineIdx).toBeLessThan(addPostsIdx);
 
-    const r5 = await cli(["preflight"], { cwd });
+    const r5 = await cli(["migration", "preflight"], { cwd });
     expect(r5.exitCode).toBe(0);
     expect(r5.stdout).toContain("Preflighting 2 migration(s)");
     expect(r5.stdout).toContain(dirs1[0] + " … ok");
@@ -239,33 +240,47 @@ describe("migration pipeline e2e", () => {
     expect(r5.stdout).toContain("Preflight passed");
   });
 
-  it("generate-baseline refuses when migrations/app/ already has packages", async () => {
+  it("migration plan auto-detects incremental (not a re-baseline) when migrations/app/ already has packages", async () => {
     const cwd = await setupTmpProject("e2e-no-double-baseline");
     await writeRawContractJson(cwd, CONTRACT_V1_NO_POSTS);
-    await writePackage({
-      cwd,
-      dirName: "0001_existing",
-      from: null,
-      to: V1_STORAGE_HASH,
-      ops: [],
-    });
 
-    const { stderr, exitCode } = await cli(["generate-baseline"], { cwd });
-    expect(exitCode).toBe(1);
-    expect(stderr).toContain("already contains");
-    expect(stderr).toContain("0001_existing");
+    const baseline = await cli(["migration", "plan"], { cwd });
+    expect(baseline.exitCode).toBe(0);
+    const existingDirs = await getMigrationDirs(cwd);
+    expect(existingDirs).toHaveLength(1);
+    const baselineDir = existingDirs[0]!;
+
+    // Without --name it refuses (incremental mode requires one), but it does
+    // NOT try to write a second `from: null` baseline alongside the existing one.
+    const noName = await cli(["migration", "plan"], { cwd });
+    expect(noName.exitCode).toBe(2);
+    expect(noName.stderr).toContain("--name <slug> is required");
+    expect(await getMigrationDirs(cwd)).toEqual([baselineDir]);
+
+    await writeRawContractJson(cwd, CONTRACT_V2_WITH_POSTS);
+    const withName = await cli(["migration", "plan", "--name", "add_posts"], { cwd });
+    expect(withName.exitCode).toBe(0);
+
+    const dirs = await getMigrationDirs(cwd);
+    expect(dirs).toHaveLength(2);
+    expect(dirs).toContain(baselineDir);
+    const newDir = dirs.find((d) => d !== baselineDir)!;
+    const meta = JSON.parse(await readFile(join(cwd, "migrations", "app", newDir, "migration.json"), "utf-8")) as {
+      from: string | null;
+    };
+    expect(meta.from).toBe(V1_STORAGE_HASH); // chained from the existing package, not from: null
   });
 
-  it("generate-contract-space after generate-baseline is idempotent", async () => {
+  it("migration contract-space after migration plan is idempotent", async () => {
     const cwd = await setupTmpProject("e2e-idempotent");
     await writeRawContractJson(cwd, CONTRACT_V1_NO_POSTS);
-    await cli(["generate-baseline"], { cwd });
+    await cli(["migration", "plan"], { cwd });
 
-    const r1 = await cli(["generate-contract-space"], { cwd });
+    const r1 = await cli(["migration", "contract-space"], { cwd });
     expect(r1.exitCode).toBe(0);
     const out1 = await readFile(join(cwd, "src", "lib", "prisma", "contract-space.generated.ts"), "utf-8");
 
-    const r2 = await cli(["generate-contract-space"], { cwd });
+    const r2 = await cli(["migration", "contract-space"], { cwd });
     expect(r2.exitCode).toBe(0);
     const out2 = await readFile(join(cwd, "src", "lib", "prisma", "contract-space.generated.ts"), "utf-8");
 

@@ -1,10 +1,22 @@
 import { buildSymbolTable } from "@prisma-next/psl-parser";
 import { parse } from "@prisma-next/psl-parser/syntax";
 import { UNBOUND_DOMAIN_NAMESPACE_ID } from "@prisma-next/contract/types";
-import { describe, expect, it } from "vitest";
+import type { MockInstance } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ContractProjection } from "../src/core/psl-interpreter";
 import { interpretPslDocumentToIdbContract, SCALAR_TO_CODEC_ID } from "../src/core/psl-interpreter";
 
-function interpret(schema: string) {
+let warnSpy: MockInstance<(...args: unknown[]) => void>;
+
+beforeEach(() => {
+  warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+});
+
+afterEach(() => {
+  warnSpy.mockRestore();
+});
+
+function interpret(schema: string, projection?: ContractProjection) {
   const { document, sourceFile } = parse(schema);
   const { table } = buildSymbolTable({
     document,
@@ -12,7 +24,7 @@ function interpret(schema: string) {
     scalarTypes: Object.keys(SCALAR_TO_CODEC_ID),
     pslBlockDescriptors: {},
   });
-  return interpretPslDocumentToIdbContract(table, "test.prisma");
+  return interpretPslDocumentToIdbContract(table, "test.prisma", projection !== undefined ? { projection } : undefined);
 }
 
 const NS = UNBOUND_DOMAIN_NAMESPACE_ID;
@@ -228,6 +240,142 @@ describe("interpretPslDocumentToIdbContract", () => {
     });
   });
 
+  describe("IDB valid-key type validation (ADR 016)", () => {
+    it("errors when @id is Boolean", () => {
+      const result = interpret(`
+        model Flag {
+          active Boolean @id
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_INVALID_KEY_TYPE");
+    });
+
+    it("errors when @id is BigInt", () => {
+      const result = interpret(`
+        model Counter {
+          n BigInt @id
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_INVALID_KEY_TYPE");
+    });
+
+    it("errors when @id is Json", () => {
+      const result = interpret(`
+        model Blob {
+          data Json @id
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_INVALID_KEY_TYPE");
+    });
+
+    it("errors when a @@id([…]) field is Boolean", () => {
+      const result = interpret(`
+        model Flag {
+          active Boolean
+          @@id([active])
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_INVALID_KEY_TYPE");
+    });
+
+    it("errors when a @unique field is Boolean", () => {
+      const result = interpret(`
+        model OutboxEvent {
+          id     String  @id
+          synced Boolean @unique
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_INVALID_INDEX_KEY_TYPE");
+    });
+
+    it("errors when a @@index([…]) field is BigInt", () => {
+      const result = interpret(`
+        model Counter {
+          id String @id
+          n  BigInt
+          @@index([n])
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_INVALID_INDEX_KEY_TYPE");
+    });
+
+    it("errors when a @@unique([…]) field is Json", () => {
+      const result = interpret(`
+        model Blob {
+          id   String @id
+          data Json
+          @@unique([data])
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_INVALID_INDEX_KEY_TYPE");
+    });
+
+    it("errors when a relation's auto-created FK index is on a Boolean-typed field", () => {
+      // Pathological, but the auto-generated FK index (psl-interpreter.ts's
+      // "default index on the FK field(s)") must be checked too, not just
+      // explicit @@index/@@unique/@unique — it goes through the same
+      // `indexes` map.
+      const result = interpret(`
+        model User {
+          id    String @id
+          posts Post[]
+        }
+        model Post {
+          id       String  @id
+          authorId Boolean
+          author   User    @relation(fields: [authorId], references: [id])
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics.some((d) => d.code === "IDB_INVALID_INDEX_KEY_TYPE")).toBe(true);
+    });
+
+    it("accepts String, Int, Float, DateTime, Decimal, and Bytes as @id or index types", () => {
+      const result = interpret(`
+        model Types {
+          id  String   @id
+          n   Int
+          f   Float
+          d   DateTime
+          dec Decimal
+          b   Bytes
+          @@index([n])
+          @@index([f])
+          @@index([d])
+          @@index([dec])
+          @@index([b])
+        }
+      `);
+      expect(result.ok).toBe(true);
+    });
+
+    it("does not double-report a field that already failed IDB_UNSUPPORTED_FIELD_TYPE", () => {
+      const result = interpret(`
+        model User {
+          id   Unknown @id
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics.map((d) => d.code)).toEqual(["IDB_UNSUPPORTED_FIELD_TYPE"]);
+    });
+  });
+
   describe("relations", () => {
     it("builds N:1 and 1:N relations between two models", () => {
       const result = interpret(`
@@ -416,6 +564,304 @@ describe("interpretPslDocumentToIdbContract", () => {
       expect(model.fields["decimal"]?.type.codecId).toBe("idb/decimal@1");
       expect(model.fields["json"]?.type.codecId).toBe("idb/json@1");
       expect(model.fields["bytes"]?.type.codecId).toBe("idb/bytes@1");
+    });
+  });
+
+  describe("@idb.exclude / @@idb.exclude (ADR 012)", () => {
+    it("ignores the exclude attributes entirely in full projection (default)", () => {
+      const result = interpret(`
+        model User {
+          id           String @id
+          name         String
+          passwordHash String @idb.exclude
+        }
+
+        model AuditLog {
+          id String @id
+          @@idb.exclude
+        }
+      `);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.domain.namespaces[NS]!.models).toHaveProperty("User");
+      expect(result.value.domain.namespaces[NS]!.models).toHaveProperty("AuditLog");
+      const userModel = result.value.domain.namespaces[NS]!.models["User"] as unknown as TestContractModel;
+      expect(userModel.fields).toHaveProperty("passwordHash");
+    });
+
+    it("drops a field marked @idb.exclude in client projection", () => {
+      const result = interpret(
+        `
+        model User {
+          id           String @id
+          name         String
+          passwordHash String @idb.exclude
+        }
+      `,
+        "client"
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const model = result.value.domain.namespaces[NS]!.models["User"] as unknown as TestContractModel;
+      expect(model.fields).toHaveProperty("name");
+      expect(model.fields).not.toHaveProperty("passwordHash");
+    });
+
+    it("drops a whole model marked @@idb.exclude in client projection", () => {
+      const result = interpret(
+        `
+        model User {
+          id String @id
+        }
+
+        model AuditLog {
+          id     String @id
+          action String
+          @@idb.exclude
+        }
+      `,
+        "client"
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.domain.namespaces[NS]!.models).toHaveProperty("User");
+      expect(result.value.domain.namespaces[NS]!.models).not.toHaveProperty("AuditLog");
+      expect(result.value.storage.stores).not.toHaveProperty("auditLog");
+      expect(result.value.roots).not.toHaveProperty("auditLog");
+    });
+
+    it("errors when excluding the @id key field", () => {
+      const result = interpret(
+        `
+        model User {
+          id String @id @idb.exclude
+        }
+      `,
+        "client"
+      );
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics.map((d) => d.code)).toContain("IDB_CANNOT_EXCLUDE_KEY_FIELD");
+    });
+
+    it("errors when an @@index/@@unique references an excluded field", () => {
+      const result = interpret(
+        `
+        model User {
+          id    String @id
+          email String @idb.exclude
+          @@index([email])
+        }
+      `,
+        "client"
+      );
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics.map((d) => d.code)).toContain("IDB_INDEX_ON_EXCLUDED_FIELD");
+    });
+
+    it("errors when a field-level @unique is combined with @idb.exclude", () => {
+      const result = interpret(
+        `
+        model User {
+          id    String @id
+          email String @unique @idb.exclude
+        }
+      `,
+        "client"
+      );
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics.map((d) => d.code)).toContain("IDB_INDEX_ON_EXCLUDED_FIELD");
+    });
+
+    it("errors when excluding a scalar field that backs a relation's FK", () => {
+      const result = interpret(
+        `
+        model User {
+          id    String @id
+          posts Post[]
+        }
+        model Post {
+          id     String @id
+          userId String @idb.exclude
+          user   User   @relation(fields: [userId], references: [id])
+        }
+      `,
+        "client"
+      );
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics.map((d) => d.code)).toContain("IDB_CANNOT_EXCLUDE_RELATION_FIELD");
+    });
+
+    it("errors when @idb.exclude is placed directly on a relation field", () => {
+      const result = interpret(
+        `
+        model User {
+          id    String @id
+          posts Post[]
+        }
+        model Post {
+          id     String @id
+          userId String
+          user   User   @relation(fields: [userId], references: [id]) @idb.exclude
+        }
+      `,
+        "client"
+      );
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics.map((d) => d.code)).toContain("IDB_EXCLUDE_ON_RELATION_FIELD_UNSUPPORTED");
+    });
+
+    it("errors when a relation references an excluded unique field on the target model", () => {
+      const result = interpret(
+        `
+        model User {
+          id    String @id
+          email String @unique @idb.exclude
+        }
+        model Post {
+          id        String @id
+          userEmail String
+          user      User   @relation(fields: [userEmail], references: [email])
+        }
+      `,
+        "client"
+      );
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics.map((d) => d.code)).toContain("IDB_CANNOT_EXCLUDE_RELATION_FIELD");
+    });
+
+    it("excludes a self-contained model with no relations cleanly", () => {
+      const result = interpret(
+        `
+        model User {
+          id    String @id
+          name  String
+        }
+        model AuditLog {
+          id        String   @id
+          action    String
+          createdAt DateTime
+          @@idb.exclude
+        }
+      `,
+        "client"
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(Object.keys(result.value.storage.stores)).toEqual(["user"]);
+    });
+  });
+
+  describe("FK projection cascade (ADR 013)", () => {
+    it("drops a surviving model's backrelation to an excluded model, keeping the surviving model", () => {
+      const result = interpret(
+        `
+        model User {
+          id    String @id
+          posts Post[]
+        }
+        model Post {
+          id     String @id
+          userId String
+          user   User   @relation(fields: [userId], references: [id])
+          @@idb.exclude
+        }
+      `,
+        "client"
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(Object.keys(result.value.storage.stores)).toEqual(["user"]);
+      const models = result.value.domain.namespaces[NS]!.models as Record<string, { relations: object }>;
+      expect(models["User"]!.relations).not.toHaveProperty("posts");
+      expect(warnSpy.mock.calls.some((c) => String(c[0]).includes('"User.posts"'))).toBe(true);
+    });
+
+    it("drops a required N:1 relation to an excluded model, keeping the model and its FK scalar field", () => {
+      const result = interpret(
+        `
+        model User {
+          id String @id
+          @@idb.exclude
+        }
+        model Post {
+          id     String @id
+          userId String
+          user   User   @relation(fields: [userId], references: [id])
+        }
+      `,
+        "client"
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(Object.keys(result.value.storage.stores)).toEqual(["post"]);
+      const models = result.value.domain.namespaces[NS]!.models as Record<
+        string,
+        { fields: object; relations: object }
+      >;
+      expect(models).not.toHaveProperty("User");
+      expect(models).toHaveProperty("Post");
+      expect(models["Post"]!.relations).not.toHaveProperty("user");
+      // Orphaned FK scalar field is kept, per ADR 013, even though it was required.
+      expect(models["Post"]!.fields).toHaveProperty("userId");
+      expect(warnSpy.mock.calls.some((c) => String(c[0]).includes('"Post.user"'))).toBe(true);
+    });
+
+    it("does not cascade through a chain of required relations — only the directly-excluded model's relation is dropped", () => {
+      const result = interpret(
+        `
+        model C {
+          id String @id
+          @@idb.exclude
+        }
+        model B {
+          id  String @id
+          cId String
+          c   C      @relation(fields: [cId], references: [id])
+        }
+        model A {
+          id  String @id
+          bId String
+          b   B      @relation(fields: [bId], references: [id])
+        }
+      `,
+        "client"
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      // B and A both survive — only C (the explicitly excluded model) is gone.
+      // A's relation to B is untouched since B was never excluded.
+      expect(Object.keys(result.value.storage.stores).sort()).toEqual(["a", "b"]);
+      const models = result.value.domain.namespaces[NS]!.models as Record<string, { relations: object }>;
+      expect(models["B"]!.relations).not.toHaveProperty("c");
+      expect(models["A"]!.relations).toHaveProperty("b");
+    });
+
+    it("keeps a required N:1 relation whose target survives", () => {
+      const result = interpret(
+        `
+        model User {
+          id    String @id
+          posts Post[]
+        }
+        model Post {
+          id     String @id
+          userId String
+          user   User   @relation(fields: [userId], references: [id])
+        }
+      `,
+        "client"
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const models = result.value.domain.namespaces[NS]!.models as Record<string, { relations: object }>;
+      expect(models["Post"]!.relations).toHaveProperty("user");
+      expect(models["User"]!.relations).toHaveProperty("posts");
     });
   });
 });

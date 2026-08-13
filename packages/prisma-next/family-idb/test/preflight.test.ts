@@ -101,7 +101,7 @@ const indexOnMissingStore = {
 
 describe("runPreflight", () => {
   it("returns 0 with no packages", async () => {
-    const code = await runPreflight({ cwd });
+    const code = await runPreflight({ migrationsDir: join(cwd, "migrations") });
     expect(code).toBe(0);
   });
 
@@ -119,7 +119,7 @@ describe("runPreflight", () => {
       ops: [createPosts],
     });
 
-    const code = await runPreflight({ cwd });
+    const code = await runPreflight({ migrationsDir: join(cwd, "migrations") });
     expect(code).toBe(0);
   });
 
@@ -137,7 +137,7 @@ describe("runPreflight", () => {
       ops: [indexOnMissingStore],
     });
 
-    const code = await runPreflight({ cwd });
+    const code = await runPreflight({ migrationsDir: join(cwd, "migrations") });
     expect(code).toBe(1);
   });
 
@@ -155,7 +155,7 @@ describe("runPreflight", () => {
       ops: [createPosts],
     });
 
-    await expect(runPreflight({ cwd })).rejects.toThrow(/chain broken/i);
+    await expect(runPreflight({ migrationsDir: join(cwd, "migrations") })).rejects.toThrow(/chain broken/i);
   });
 
   it("throws when a migration package hash no longer matches its ops", async () => {
@@ -167,6 +167,6 @@ describe("runPreflight", () => {
       migrationHash: "sha256:tampered",
     });
 
-    await expect(runPreflight({ cwd })).rejects.toThrow(/migration hash mismatch/i);
+    await expect(runPreflight({ migrationsDir: join(cwd, "migrations") })).rejects.toThrow(/migration hash mismatch/i);
   });
 });

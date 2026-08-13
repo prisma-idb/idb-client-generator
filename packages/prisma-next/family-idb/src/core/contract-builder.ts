@@ -8,6 +8,8 @@ import type {
   IdbStorage,
   IdbStoreDefinition,
 } from "@prisma-next-idb/target-idb/pack";
+import type { ContractProjection } from "./psl-interpreter";
+import { isValidIdbKeyCodec, warnDroppedRelation } from "./psl-interpreter";
 import { validateContract } from "./validate";
 
 // ── Field type system ─────────────────────────────────────────────────────────
@@ -57,6 +59,10 @@ export type ModelDef = {
   readonly fields: Record<string, FieldSpec>;
   readonly indexes?: Record<string, IndexDef>;
   readonly relations?: Record<string, RelationDef>;
+  /** Server-only model — dropped when `defineContract` runs with `{ projection: "client" }`. See ADR 012. */
+  readonly exclude?: boolean;
+  /** Server-only fields on an otherwise-synced model — dropped in client projection. See ADR 012. */
+  readonly excludeFields?: readonly string[];
 };
 
 export type DefineContractInput = {
@@ -66,6 +72,140 @@ export type DefineContractInput = {
   readonly target: { readonly targetId: string; readonly id: string };
   readonly models: Record<string, ModelDef>;
 };
+
+export type DefineContractOptions = {
+  /** @default "full" */
+  readonly projection?: ContractProjection;
+};
+
+/**
+ * Drops `exclude: true` models and `excludeFields` entries for the client
+ * projection (ADR 012). Any relation a survivor still has to an excluded
+ * model is dropped too (ADR 013) — for every cardinality, required or not;
+ * the model itself is never excluded as a result (see ADR 013 §"Why we
+ * don't cascade on requiredness"). The underlying FK scalar field (if any)
+ * is kept, orphaned but inert.
+ */
+function projectModelsForClient(models: Record<string, ModelDef>): Record<string, ModelDef> {
+  const excludedModelNames = new Set(
+    Object.entries(models)
+      .filter(([, def]) => def.exclude === true)
+      .map(([name]) => name)
+  );
+
+  const result: Record<string, ModelDef> = {};
+
+  for (const [modelName, def] of Object.entries(models)) {
+    if (excludedModelNames.has(modelName)) continue;
+
+    const excludedFields = new Set(def.excludeFields ?? []);
+
+    if (excludedFields.has(def.key)) {
+      throw new Error(
+        `defineContract: model "${modelName}" excludes its own key field "${def.key}" — the client contract needs a primary key for every included model.`
+      );
+    }
+
+    for (const excludedField of excludedFields) {
+      if (excludedField === def.key) continue;
+      if (!(excludedField in def.fields)) {
+        throw new Error(
+          `defineContract: model "${modelName}" excludeFields references unknown field "${excludedField}" — it is not declared in "fields".`
+        );
+      }
+    }
+
+    for (const [indexName, idx] of Object.entries(def.indexes ?? {})) {
+      if (excludedFields.has(idx.keyPath)) {
+        throw new Error(
+          `defineContract: model "${modelName}" index "${indexName}" references excluded field "${idx.keyPath}". Remove the index or the exclusion.`
+        );
+      }
+    }
+
+    const relations: Record<string, RelationDef> = {};
+    for (const [relName, rel] of Object.entries(def.relations ?? {})) {
+      if (excludedModelNames.has(rel.to)) {
+        warnDroppedRelation(modelName, relName, rel.to);
+        continue;
+      }
+      const excludedLocalField = rel.on.local.find((f) => excludedFields.has(f));
+      if (excludedLocalField !== undefined) {
+        throw new Error(
+          `defineContract: model "${modelName}" field "${excludedLocalField}" backs relation "${relName}" and cannot be excluded independently — field-level FK exclusion isn't supported (ADR 013 only handles relations pointing at a whole-model @@idb.exclude). Exclude the whole model instead, or remove the exclusion.`
+        );
+      }
+      const targetExcludedFields = new Set(models[rel.to]?.excludeFields ?? []);
+      const excludedTargetField = rel.on.target.find((f) => targetExcludedFields.has(f));
+      if (excludedTargetField !== undefined) {
+        throw new Error(
+          `defineContract: model "${modelName}" relation "${relName}" references excluded field "${rel.to}.${excludedTargetField}" — field-level FK exclusion isn't supported (ADR 013 only handles relations pointing at a whole-model @@idb.exclude). Exclude the whole model instead, or remove the exclusion.`
+        );
+      }
+      relations[relName] = rel;
+    }
+
+    const fields: Record<string, FieldSpec> = {};
+    for (const [fieldName, spec] of Object.entries(def.fields)) {
+      if (excludedFields.has(fieldName)) continue;
+      fields[fieldName] = spec;
+    }
+
+    result[modelName] = { ...def, fields, relations };
+  }
+
+  return result;
+}
+
+// ── Validate key/index field types against IDB's valid-key algorithm ──────────
+
+function resolveFieldCodecId(def: ModelDef, fieldName: string): string | undefined {
+  const spec = def.fields[fieldName];
+  if (spec === undefined) return undefined;
+  const typeName = (spec.endsWith("?") ? spec.slice(0, -1) : spec) as PrismaScalarType;
+  return SCALAR_TO_CODEC_ID[typeName];
+}
+
+/**
+ * Mirrors `psl-interpreter.ts`'s `IDB_INVALID_KEY_TYPE`/`IDB_INVALID_INDEX_KEY_TYPE`
+ * diagnostics for the TS authoring surface, which has no diagnostics array —
+ * this DSL fails fast via `throw`, matching every other check in this file.
+ *
+ * `multiEntry` indexes are skipped: their key-validity depends on the
+ * *elements* of an array value, which this scalar-type system can't express
+ * (a `multiEntry` index only makes sense over a `Json`-typed field holding an
+ * array — the one case this file can't statically validate either way).
+ */
+function validateModelKeyAndIndexes(modelName: string, def: ModelDef): void {
+  if (!(def.key in def.fields)) {
+    throw new Error(`defineContract: model "${modelName}" key field "${def.key}" is not declared in "fields".`);
+  }
+  if (def.fields[def.key]?.endsWith("?")) {
+    throw new Error(
+      `defineContract: model "${modelName}" key field "${def.key}" is nullable ("${def.fields[def.key]}") — the primary key cannot be nullable.`
+    );
+  }
+  const keyCodec = resolveFieldCodecId(def, def.key);
+  if (keyCodec !== undefined && !isValidIdbKeyCodec(keyCodec)) {
+    throw new Error(
+      `defineContract: model "${modelName}" key field "${def.key}" has type "${keyCodec}", which IndexedDB cannot use as a key. Every write would throw (DataError extracting the primary key). Use String, Int, Float, DateTime, Decimal, or Bytes instead.`
+    );
+  }
+
+  for (const [indexName, idx] of Object.entries(def.indexes ?? {})) {
+    if (!(idx.keyPath in def.fields)) {
+      throw new Error(
+        `defineContract: model "${modelName}" index "${indexName}" references field "${idx.keyPath}", which is not declared in "fields".`
+      );
+    }
+    if (idx.multiEntry) continue;
+    const fieldCodec = resolveFieldCodecId(def, idx.keyPath);
+    if (fieldCodec === undefined || isValidIdbKeyCodec(fieldCodec)) continue;
+    throw new Error(
+      `defineContract: model "${modelName}" index "${indexName}" is keyed on "${idx.keyPath}" (type "${fieldCodec}"), which IndexedDB cannot use as an index key. Records are silently omitted from the index on write, and any query against it throws at runtime. Use String, Int, Float, DateTime, Decimal, or Bytes instead.`
+    );
+  }
+}
 
 // ── Helper: build ContractField entries from field specs ──────────────────────
 
@@ -186,8 +326,15 @@ function buildModels(models: Record<string, ModelDef>): Record<string, ContractM
  * });
  * ```
  */
-export function defineContract(input: DefineContractInput): Contract<IdbStorage> {
-  const stores = buildStores(input.models);
+export function defineContract(input: DefineContractInput, options?: DefineContractOptions): Contract<IdbStorage> {
+  const projection: ContractProjection = options?.projection ?? "full";
+  const models = projection === "client" ? projectModelsForClient(input.models) : input.models;
+
+  for (const [modelName, def] of Object.entries(models)) {
+    validateModelKeyAndIndexes(modelName, def);
+  }
+
+  const stores = buildStores(models);
 
   // Mirror the capability surface that `prisma-next contract emit` writes
   // into the JSON contract — keeps the two authoring paths byte-equivalent
@@ -224,13 +371,13 @@ export function defineContract(input: DefineContractInput): Contract<IdbStorage>
   // v0.12.0: models live under `domain.namespaces.<ns>.models`, not a top-level
   // `models` field.
   const domain = {
-    namespaces: { [ns]: { models: buildModels(input.models) } },
+    namespaces: { [ns]: { models: buildModels(models) } },
   } as unknown as ApplicationDomain;
 
   const contract: Contract<IdbStorage> = {
     target: "idb",
     targetFamily: "idb",
-    roots: buildRoots(input.models),
+    roots: buildRoots(models),
     domain,
     storage,
     capabilities,

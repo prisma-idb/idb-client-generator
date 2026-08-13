@@ -5,6 +5,7 @@ import type {
   MigrationPackage,
 } from "@prisma-next/framework-components/control";
 import { APP_SPACE_ID } from "@prisma-next/framework-components/control";
+import type { IdbExtensionSpace } from "@prisma-next-idb/family-idb/control";
 // Browser-safe (WebCrypto) hash — the framework's `@prisma-next/migration-tools/hash`
 // uses `node:crypto` and throws in the browser (PLAN Issue #23 regression).
 import { computeMigrationHash } from "./migration-hash";
@@ -53,6 +54,11 @@ const SAFE_POLICY: Required<MigrationPolicy> = {
  * `prisma-next-idb generate-contract-space`. It carries the canonical
  * contract JSON, the ordered list of migration packages, and the head
  * ref the runtime walks toward.
+ *
+ * `extensions` is an optional list of additional contract spaces contributed
+ * by IDB extensions (e.g. the sync extension). Each extension space migrates
+ * independently of the application space and writes its own marker row keyed
+ * by the extension's `spaceId`.
  */
 export interface AutoMigrateClientOptions<TContract extends IdbContract> {
   readonly contractSpace: ContractSpace<TContract>;
@@ -61,6 +67,15 @@ export interface AutoMigrateClientOptions<TContract extends IdbContract> {
   readonly policy?: MigrationPolicy;
   /** IDB factory override — primarily for tests. Defaults to `indexedDB`. */
   readonly factory?: IDBFactory;
+  /**
+   * Additional contract spaces from IDB extensions.
+   *
+   * Every space with pending work — the application space plus each
+   * extension — is applied together in one combined `upgradeneeded`
+   * transaction and one batched marker-write transaction (ADR 010). Each
+   * space still gets its own marker row in `_prisma_next_marker`.
+   */
+  readonly extensions?: ReadonlyArray<IdbExtensionSpace>;
 }
 
 /**
@@ -78,9 +93,11 @@ export interface AutoMigrateClientOptions<TContract extends IdbContract> {
  *    package's `ops` in chain order.
  * 4. Apply the policy filter. Refuse if any destructive op was filtered
  *    out and `onDestructive === 'refuse'`.
- * 5. Reopen at `db.version + 1` so `upgradeneeded` fires; apply every
- *    collected op inside the version-change transaction.
- * 6. Write the marker to `headRef.hash` in a separate readwrite tx.
+ * 5. If `extensions` are configured, repeat steps 1–4 for each extension
+ *    space, then combine every space's pending ops into ONE reopen at
+ *    `db.version + 1` so `upgradeneeded` fires once; apply every collected
+ *    op (all spaces) inside that single version-change transaction.
+ * 6. Write every migrated space's marker in one batched readwrite tx.
  * 7. Hand back the typed `IdbClient`.
  *
  * **What does NOT run in the browser**:
@@ -113,6 +130,7 @@ export async function createAutoMigratingIdbClient<TContract extends IdbContract
     dbName: options.dbName,
     policy,
     factory,
+    ...(options.extensions !== undefined ? { extensions: options.extensions } : {}),
   });
 
   return createIdbClient({
@@ -134,6 +152,11 @@ function mergePolicy(p?: MigrationPolicy): Required<MigrationPolicy> {
 /**
  * The migration loop. Exported for tests.
  *
+ * Collects pending ops from the app space and every extension space, then
+ * applies all of them in a single combined `upgradeneeded` transaction
+ * (one IDB version bump total) followed by one batched marker-write
+ * transaction covering every space that migrated. See ADR 010 for details.
+ *
  * @internal Prefer {@link createAutoMigratingIdbClient}.
  */
 export async function autoMigrate(input: {
@@ -145,26 +168,78 @@ export async function autoMigrate(input: {
   readonly dbName: string;
   readonly policy: Required<MigrationPolicy>;
   readonly factory: IDBFactory;
+  readonly extensions?: ReadonlyArray<IdbExtensionSpace>;
 }): Promise<void> {
-  const { contractSpace, dbName, policy, factory } = input;
-  const targetHash = contractSpace.headRef.hash;
+  const { dbName, policy, factory } = input;
 
-  // 1 + 2: read current version and marker.
-  const { currentVersion, markerHash } = await openAndReadMarker(dbName, factory);
-  if (markerHash === targetHash) return;
+  // Order here only affects the destructive-op collection loop below, not the
+  // final apply order (see the combined-apply step, which re-sorts to match
+  // upstream ADR 212's extension-first convention).
+  const spaces: Array<{ spaceId: string; contractSpace: ContractSpace<Contract> }> = [
+    { spaceId: APP_SPACE_ID, contractSpace: input.contractSpace },
+    ...(input.extensions ?? []),
+  ];
 
-  // 3: collect pending ops from chain walk.
-  const { pendingOps, destructiveDropped } = await walkChain({
-    markerHash,
-    headHash: targetHash,
-    migrations: contractSpace.migrations,
-    policy,
-  });
+  // Reject reserved/duplicate extension space IDs before touching the
+  // database. Without this, two extensions sharing a spaceId would combine
+  // their pending DDL and the upgrade would try to create the same stores
+  // twice; an extension using APP_SPACE_ID would have its marker write
+  // silently overwrite (or be overwritten by) the app space's marker.
+  const seenSpaceIds = new Set<string>();
+  for (const extension of input.extensions ?? []) {
+    if (extension.spaceId === APP_SPACE_ID || seenSpaceIds.has(extension.spaceId)) {
+      throw new Error(`Invalid duplicate or reserved extension space ID: "${extension.spaceId}"`);
+    }
+    seenSpaceIds.add(extension.spaceId);
+  }
 
-  // 4: refuse if destructive ops were dropped under refuse policy.
-  if (destructiveDropped > 0 && policy.onDestructive === "refuse") {
+  // Descriptor self-consistency (upstream ADR 212): a space's pinned headRef
+  // must match the hash actually embedded in its contractJson. Catches an
+  // extension author who edited the contract source without regenerating
+  // migrations/refs/head.json — fails loudly here instead of surfacing as a
+  // confusing chain-walk error deep inside walkChain.
+  for (const space of spaces) {
+    const declaredHash = space.contractSpace.contractJson.storage.storageHash;
+    const headHash = space.contractSpace.headRef.hash;
+    if (declaredHash !== headHash) {
+      throw new Error(
+        `Contract space "${space.spaceId}" is internally inconsistent: ` +
+          `contractJson.storage.storageHash (${declaredHash}) does not match ` +
+          `headRef.hash (${headHash}). The contract source likely changed without ` +
+          "regenerating migrations/refs/head.json for this space — rebuild its migration chain."
+      );
+    }
+  }
+
+  // Read current DB version once (all spaces share the same IDB database).
+  const { currentVersion: initialVersion } = await openAndReadMarker(dbName, factory, APP_SPACE_ID);
+
+  // Collect pending work per space without applying yet, so we can surface
+  // all destructive violations before touching the database.
+  const pendingPerSpace: Array<{ spaceId: string; ops: IdbDdlOp[]; storageHash: string }> = [];
+  let totalDestructiveDropped = 0;
+
+  for (const space of spaces) {
+    const targetHash = space.contractSpace.headRef.hash;
+    const { markerHash } = await openAndReadMarker(dbName, factory, space.spaceId);
+    if (markerHash === targetHash) continue;
+
+    const { pendingOps, destructiveDropped } = await walkChain({
+      markerHash,
+      headHash: targetHash,
+      migrations: space.contractSpace.migrations,
+      policy,
+    });
+    totalDestructiveDropped += destructiveDropped;
+    if (pendingOps.length > 0) {
+      pendingPerSpace.push({ spaceId: space.spaceId, ops: pendingOps, storageHash: targetHash });
+    }
+  }
+
+  // Refuse if any space had destructive ops dropped under refuse policy.
+  if (totalDestructiveDropped > 0 && policy.onDestructive === "refuse") {
     throw new Error(
-      `Auto-migration refused: ${destructiveDropped} destructive operation(s) ` +
+      `Auto-migration refused: ${totalDestructiveDropped} destructive operation(s) ` +
         "in the pending chain would drop user data. To allow them, pass " +
         "`policy: { onDestructive: 'allow' }` to createAutoMigratingIdbClient. " +
         "Per-tab persistent state (drafts, offline queue, cached content) will " +
@@ -172,15 +247,33 @@ export async function autoMigrate(input: {
     );
   }
 
-  if (pendingOps.length === 0) return;
+  if (pendingPerSpace.length === 0) return;
 
-  // 5 + 6: apply ops in upgradeneeded, write marker afterwards.
+  // Combine every pending space into ONE upgradeneeded transaction (one IDB
+  // version bump total) and ONE batched marker-write transaction (ADR 010).
+  // This gives true cross-space atomicity — a failure partway through no
+  // longer leaves some spaces migrated and others not — and cuts the number
+  // of versionchange/blocked cycles a multi-tab user hits on cold start from
+  // N (one per space) to 1.
+  //
+  // DDL op order within the combined transaction is extensions
+  // (alphabetical-by-spaceId) first, app-space last, matching upstream
+  // ADR 212's convention. That ordering is safe here specifically because
+  // marker writes happen in the separate phase-2 transaction below, which
+  // only runs after every space's DDL — including the app space's
+  // `_prisma_next_marker` creation — has already committed in phase 1.
+  const orderedPending = [...pendingPerSpace].sort((a, b) => {
+    if (a.spaceId === APP_SPACE_ID) return 1;
+    if (b.spaceId === APP_SPACE_ID) return -1;
+    return a.spaceId.localeCompare(b.spaceId);
+  });
+
   await openAndUpgrade({
     factory,
     dbName,
-    targetVersion: currentVersion + 1,
-    ops: pendingOps,
-    marker: { space: APP_SPACE_ID, storageHash: targetHash },
+    targetVersion: initialVersion + 1,
+    ops: orderedPending.flatMap((space) => space.ops),
+    markers: orderedPending.map((space) => ({ space: space.spaceId, storageHash: space.storageHash })),
   });
 }
 
@@ -265,12 +358,13 @@ async function walkChain(input: {
 
 /**
  * Open the database at its current local version (no version arg), read the
- * marker, then close the connection. Returns the current integer version so
- * the caller can compute `currentVersion + 1` for the upgrade re-open.
+ * marker for `spaceId`, then close the connection. Returns the current integer
+ * version so the caller can compute `currentVersion + 1` for the upgrade re-open.
  */
 function openAndReadMarker(
   dbName: string,
-  factory: IDBFactory
+  factory: IDBFactory,
+  spaceId: string
 ): Promise<{ currentVersion: number; markerHash: string | null }> {
   return new Promise((resolve, reject) => {
     let req: IDBOpenDBRequest;
@@ -286,7 +380,7 @@ function openAndReadMarker(
       const currentVersion = db.version;
       void (async () => {
         try {
-          const record = await readMarker(db, APP_SPACE_ID);
+          const record = await readMarker(db, spaceId);
           resolve({ currentVersion, markerHash: record?.storageHash ?? null });
         } catch (err) {
           reject(err);

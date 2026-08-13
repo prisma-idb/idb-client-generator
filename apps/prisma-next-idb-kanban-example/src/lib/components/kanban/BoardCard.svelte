@@ -35,8 +35,20 @@
 <Card.Root class="max-h-[calc(100svh-230px)] rounded-md py-4" data-testid="board-card">
   <Card.Header class="gap-3 px-4">
     <div class="flex items-center gap-2">
-      <Input bind:value={boardName} class="h-8 font-medium" aria-label={`Board name ${board.name}`} />
-      <Button size="icon-sm" variant="secondary" onclick={saveBoard} disabled={kanban.busy} aria-label="Save board">
+      <Input
+        bind:value={boardName}
+        class="h-8 font-medium"
+        aria-label={`Board name ${board.name}`}
+        data-testid="board-name-field"
+      />
+      <Button
+        size="icon-sm"
+        variant="secondary"
+        onclick={saveBoard}
+        disabled={kanban.busy}
+        aria-label="Save board"
+        data-testid="save-board"
+      >
         <SaveIcon />
       </Button>
       <Button
@@ -45,11 +57,14 @@
         onclick={() => kanban.deleteBoard(board.id)}
         disabled={kanban.busy}
         aria-label="Delete board"
+        data-testid="delete-board"
       >
         <Trash2Icon />
       </Button>
     </div>
-    <Card.Description>{board.todos.length} todo{board.todos.length === 1 ? "" : "s"}</Card.Description>
+    <Card.Description data-testid="board-todo-count"
+      >{board.todos.length} todo{board.todos.length === 1 ? "" : "s"}</Card.Description
+    >
   </Card.Header>
 
   <Card.Content class="flex min-h-0 flex-1 flex-col gap-3 px-4">

@@ -141,7 +141,8 @@ export function hasNestedMutationCallbacks(
 export function requireTransactionExecutor(executor: IdbQueryExecutor): IdbQueryExecutorWithTransaction {
   if (typeof (executor as IdbQueryExecutorWithTransaction).transaction !== "function") {
     throw new Error(
-      "Nested relation writes require an executor with transaction support. " +
+      "This operation requires an executor with transaction support (nested relation writes, " +
+        "FK-validated create/update, and referential-action delete all need it). " +
         "Use IdbRuntime (createIdbRuntime or createAutoMigratingIdbClient) instead of a plain IdbQueryExecutor."
     );
   }
@@ -655,25 +656,39 @@ async function validateScalarFks(
   const meta = makePlanMeta(contract);
   for (const def of getRelationDefinitions(contract, modelName)) {
     if (def.cardinality !== "N:1") continue;
-    for (let i = 0; i < def.localFields.length; i++) {
-      const localField = def.localFields[i]!;
-      const targetField = def.targetFields[i]!;
-      const value = data[localField];
-      if (!(localField in data) || value === null || value === undefined) continue;
-      const filter = (row: Record<string, unknown>): boolean => row[targetField] === value;
-      const plan: IdbCursorScanPlan = {
-        meta,
-        kind: "cursor-scan",
-        storeName: def.relatedStoreName,
-        filter,
-        take: 1,
-      };
-      const rows = await scope.execute(plan as IdbAtomicPlan);
-      if (rows.length === 0) {
-        throw new Error(
-          `FK violation on relation '${def.relationName}': no ${def.relatedModelName} with ${targetField}='${String(value)}'`
-        );
-      }
+    const touched = def.localFields.some((f) => f in data && data[f] !== null && data[f] !== undefined);
+    if (!touched) continue;
+
+    if (def.localFields.length > 1) {
+      // Validating each field of a compound FK independently would check
+      // "does *some* row have this orgId" and "does *some* row have this
+      // userId" as two separate queries — both can pass even when no single
+      // parent row satisfies the full tuple, silently persisting a value
+      // assembled from two different parent rows. Refuse outright rather
+      // than validate incorrectly: a correct fix also needs the row's other,
+      // untouched FK fields (not available here on a partial update patch)
+      // to know the intended full tuple.
+      throw new Error(
+        `FK violation on relation '${def.relationName}': compound (multi-field) scalar FK validation is not supported`
+      );
+    }
+
+    const localField = def.localFields[0]!;
+    const targetField = def.targetFields[0]!;
+    const value = data[localField];
+    const filter = (row: Record<string, unknown>): boolean => row[targetField] === value;
+    const plan: IdbCursorScanPlan = {
+      meta,
+      kind: "cursor-scan",
+      storeName: def.relatedStoreName,
+      filter,
+      take: 1,
+    };
+    const rows = await scope.execute(plan as IdbAtomicPlan);
+    if (rows.length === 0) {
+      throw new Error(
+        `FK violation on relation '${def.relationName}': no ${def.relatedModelName} with ${targetField}='${String(value)}'`
+      );
     }
   }
 }
@@ -722,6 +737,50 @@ export async function executeScalarUpdateWithFkValidation(options: {
   });
 }
 
+/**
+ * Bulk counterpart to {@link executeScalarUpdateWithFkValidation}: same FK
+ * validation, but applies the patch to every row the filter matches (no
+ * `take: 1`) and returns all of them.
+ *
+ * Always goes through the transaction scope — unlike single-row `update()`,
+ * which only needs one when there's a scalar FK field to validate. A bulk
+ * scan-write's affected row SET isn't knowable until it actually runs, and
+ * observing that result INSIDE the same transaction is exactly what the
+ * sync interceptor needs to track the write correctly: its transaction-scope
+ * hook (`SyncInterceptingTransactionScope#maybeTrack`'s `scan-write` case)
+ * writes one outbox event per row it's handed, atomically with the write
+ * itself. The plan-level path `update()` falls back to for a non-FK single
+ * row has no equivalent hook — a plan is extended with outbox ops BEFORE
+ * it runs, which only works when the affected key is knowable up front.
+ */
+export async function executeBulkUpdateWithFkValidation(options: {
+  executor: IdbQueryExecutorWithTransaction;
+  contract: IdbContract;
+  modelName: string;
+  filters: readonly IdbFilterExpr[];
+  data: Record<string, unknown>;
+}): Promise<Record<string, unknown>[]> {
+  const { executor, contract, modelName, filters, data } = options;
+  const storeNames = collectScalarFkStoreNames(contract, modelName, data);
+  return withMutationScope(executor, storeNames, async (scope) => {
+    await validateScalarFks(scope, contract, modelName, data);
+    const storeName = getStoreName(contract, modelName);
+    const meta = makePlanMeta(contract);
+    const combined =
+      filters.length === 0 ? undefined : filters.length === 1 ? filters[0]! : { kind: "and" as const, exprs: filters };
+    const filter =
+      combined !== undefined ? (row: Record<string, unknown>): boolean => evaluateFilter(combined, row) : undefined;
+    return scope.execute({
+      meta,
+      kind: "scan-write",
+      storeName,
+      write: "put-merged",
+      patch: data,
+      ...(filter !== undefined ? { filter } : {}),
+    } as IdbAtomicPlan);
+  });
+}
+
 // ── Delete referential action enforcement ─────────────────────────────────────
 
 /**
@@ -738,7 +797,7 @@ export function hasEnforceableChildRelations(contract: IdbContract, modelName: s
   return false;
 }
 
-function collectDeleteStoreNames(contract: IdbContract, modelName: string): string[] {
+export function collectDeleteStoreNames(contract: IdbContract, modelName: string): string[] {
   const stores = new Set([getStoreName(contract, modelName)]);
   for (const def of getRelationDefinitions(contract, modelName)) {
     if (!isDeleteEnforcementRelation(contract, modelName, def)) continue;
@@ -749,7 +808,7 @@ function collectDeleteStoreNames(contract: IdbContract, modelName: string): stri
   return [...stores];
 }
 
-async function applyReferentialActionsForRow(
+export async function applyReferentialActionsForRow(
   scope: IdbTransactionScope,
   contract: IdbContract,
   modelName: string,

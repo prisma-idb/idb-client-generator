@@ -1,5 +1,5 @@
 /**
- * CLI regression tests for `prisma-next-idb generate-contract-space`.
+ * CLI regression tests for `prisma-next-idb migration contract-space`.
  *
  * Each test scaffolds a tmpdir containing a `migrations/app/<...>` fixture
  * + a `contract.json`, spawns the built CLI binary via execa, and asserts
@@ -29,12 +29,12 @@ async function readGenerated(cwd: string): Promise<string> {
   return readFile(join(cwd, "src", "lib", "prisma", "contract-space.generated.ts"), "utf-8");
 }
 
-describe("prisma-next-idb generate-contract-space", () => {
+describe("prisma-next-idb migration contract-space", () => {
   it("emits an empty-migrations module when no packages exist", async () => {
     const cwd = await setupTmpProject("codegen-empty");
     await writeContractJson(cwd, HASH_BASELINE);
 
-    const { stdout, exitCode } = await cli(["generate-contract-space"], { cwd });
+    const { stdout, exitCode } = await cli(["migration", "contract-space"], { cwd });
     expect(exitCode).toBe(0);
     expect(stdout).toContain("0 migrations");
 
@@ -62,7 +62,7 @@ describe("prisma-next-idb generate-contract-space", () => {
       ops: [createPostsStoreOp],
     });
 
-    const { stdout, exitCode } = await cli(["generate-contract-space"], { cwd });
+    const { stdout, exitCode } = await cli(["migration", "contract-space"], { cwd });
     expect(exitCode).toBe(0);
     expect(stdout).toContain("2 migrations");
 
@@ -100,7 +100,7 @@ describe("prisma-next-idb generate-contract-space", () => {
       ops: [createMarkerStoreOp, createUsersStoreOp],
     });
 
-    const { exitCode } = await cli(["generate-contract-space"], { cwd });
+    const { exitCode } = await cli(["migration", "contract-space"], { cwd });
     expect(exitCode).toBe(0);
 
     const out = await readGenerated(cwd);
@@ -130,7 +130,7 @@ describe("prisma-next-idb generate-contract-space", () => {
       ops: [createMarkerStoreOp],
     });
 
-    await cli(["generate-contract-space"], { cwd });
+    await cli(["migration", "contract-space"], { cwd });
     expect(existsSync(join(cwd, "migrations", "refs"))).toBe(false);
   });
 
@@ -145,9 +145,9 @@ describe("prisma-next-idb generate-contract-space", () => {
       ops: [createMarkerStoreOp],
     });
 
-    await cli(["generate-contract-space"], { cwd });
+    await cli(["migration", "contract-space"], { cwd });
     const first = await readGenerated(cwd);
-    await cli(["generate-contract-space"], { cwd });
+    await cli(["migration", "contract-space"], { cwd });
     const second = await readGenerated(cwd);
 
     expect(first).toBe(second);
@@ -165,7 +165,7 @@ describe("prisma-next-idb generate-contract-space", () => {
       ops: [createPostsStoreOp],
     });
 
-    const { stderr, exitCode } = await cli(["generate-contract-space"], { cwd });
+    const { stderr, exitCode } = await cli(["migration", "contract-space"], { cwd });
     expect(exitCode).toBe(1);
     expect(stderr).toMatch(/chain broken/i);
     expect(stderr).toContain("null"); // expected from === null (the missing baseline)
@@ -197,7 +197,7 @@ describe("prisma-next-idb generate-contract-space", () => {
       ops: [createPostsStoreOp],
     });
 
-    const { stderr, exitCode } = await cli(["generate-contract-space"], { cwd });
+    const { stderr, exitCode } = await cli(["migration", "contract-space"], { cwd });
     expect(exitCode).toBe(1);
     expect(stderr).toMatch(/chain conflict/i);
   });
@@ -221,7 +221,7 @@ describe("prisma-next-idb generate-contract-space", () => {
       ops: [createPostsStoreOp],
     });
 
-    const { stderr, exitCode } = await cli(["generate-contract-space"], { cwd });
+    const { stderr, exitCode } = await cli(["migration", "contract-space"], { cwd });
     expect(exitCode).toBe(1);
     expect(stderr).toMatch(/orphan/i);
     expect(stderr).toContain("0002_orphan");
@@ -235,7 +235,7 @@ describe("prisma-next-idb generate-contract-space", () => {
     const { rm } = await import("node:fs/promises");
     await rm(join(cwd, "migrations", "app"), { recursive: true });
 
-    const { exitCode } = await cli(["generate-contract-space"], { cwd });
+    const { exitCode } = await cli(["migration", "contract-space"], { cwd });
     expect(exitCode).toBe(0);
 
     const out = await readGenerated(cwd);

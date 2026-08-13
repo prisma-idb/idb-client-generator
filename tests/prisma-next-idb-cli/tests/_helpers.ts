@@ -11,11 +11,19 @@
  *   `src/lib/prisma/contract.json` with the given hash.
  * - `writeRawContractJson(cwd, contract)` — write an arbitrary object as
  *   `src/lib/prisma/contract.json`; used when commands need a full contract
- *   (e.g. generate-baseline, which calls the migration planner).
+ *   (e.g. `migration plan`, which calls the migration planner).
  * - `getMigrationDirs(cwd)` — return sorted directory names under
  *   `<cwd>/migrations/app/`.
- * - `setupTmpProject()` — mkdtemp + minimal directory scaffolding;
- *   returns the project cwd.
+ * - `writeMinimalIdbConfig(cwd, opts?)` — write a `prisma-next.config.ts`
+ *   with minimal stub descriptors (no real family/target/adapter package
+ *   imports needed — `@prisma-next/config`'s `validateConfig` only checks
+ *   shape) so the CLI's config-driven path resolution has something to
+ *   load. `setupTmpProject` calls this with the defaults every test already
+ *   assumes (`src/lib/prisma/contract.json`, `migrations/`) — override
+ *   `contractOutput`/`migrationsDir`/`familyId` to test config-driven
+ *   resolution itself.
+ * - `setupTmpProject()` — mkdtemp + minimal directory scaffolding + a
+ *   default `prisma-next.config.ts`; returns the project cwd.
  */
 
 import { mkdir, mkdtemp, readdir, writeFile } from "node:fs/promises";
@@ -51,10 +59,57 @@ export async function cli(args: readonly string[], opts: { cwd: string }): Promi
   };
 }
 
+export interface MinimalIdbConfigOptions {
+  /** Relative to `cwd`. Default: `"src/lib/prisma/contract.json"` (matches every fixture's default layout). */
+  readonly contractOutput?: string;
+  /** Relative to `cwd`. Default: `"migrations"`. */
+  readonly migrationsDir?: string;
+  /** Default: `"idb"`. Set to something else to exercise the family-mismatch guard. */
+  readonly familyId?: string;
+  /** Default: `"prisma-next.config.ts"`. */
+  readonly fileName?: string;
+}
+
+/**
+ * Writes a `prisma-next.config.ts` with minimal stub descriptors — enough
+ * to satisfy `@prisma-next/config`'s `validateConfig` structural checks
+ * (`kind`/`id`/`familyId`/`version`/`create`, cross-matching `familyId`s)
+ * without importing real `@prisma-next-idb/family-idb/control` etc. The
+ * CLI only ever reads `config.family.familyId`, `config.contract.output`,
+ * and `config.migrations.dir` from a loaded config — `contract.source` is
+ * never invoked by these commands (only `prisma-next contract emit` calls
+ * it), so a dummy `load` is fine.
+ */
+export async function writeMinimalIdbConfig(cwd: string, opts: MinimalIdbConfigOptions = {}): Promise<void> {
+  const familyId = opts.familyId ?? "idb";
+  const contractOutput = opts.contractOutput ?? "src/lib/prisma/contract.json";
+  const migrationsDir = opts.migrationsDir ?? "migrations";
+  const fileName = opts.fileName ?? "prisma-next.config.ts";
+  const id = JSON.stringify(familyId);
+  const source = `
+const family = { kind: "family", id: ${id}, familyId: ${id}, version: "0.0.0", emission: {}, create: () => ({}) };
+const target = { kind: "target", id: ${id}, familyId: ${id}, version: "0.0.0", targetId: ${id}, create: () => ({}) };
+const adapter = { kind: "adapter", id: ${id}, familyId: ${id}, version: "0.0.0", targetId: ${id}, create: () => ({}) };
+
+export default {
+  family,
+  target,
+  adapter,
+  contract: {
+    source: { load: async () => ({ ok: true, value: {} }) },
+    output: ${JSON.stringify(contractOutput)},
+  },
+  migrations: { dir: ${JSON.stringify(migrationsDir)} },
+};
+`;
+  await writeFile(join(cwd, fileName), source, "utf-8");
+}
+
 export async function setupTmpProject(label: string): Promise<string> {
   const cwd = await mkdtemp(join(tmpdir(), `idb-cli-test-${label}-`));
   await mkdir(join(cwd, "migrations", "app"), { recursive: true });
   await mkdir(join(cwd, "src", "lib", "prisma"), { recursive: true });
+  await writeMinimalIdbConfig(cwd);
   return cwd;
 }
 

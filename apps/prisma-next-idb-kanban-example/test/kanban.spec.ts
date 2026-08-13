@@ -1,21 +1,30 @@
 import { expect, test, type Page } from "@playwright/test";
+import { signInAsTestUser } from "./test-utils-signin";
 
+/**
+ * Signs in a fresh guest (via the `testUtils` fast path — see
+ * test-utils-signin.ts; the real "Continue as guest" click is covered by
+ * `test/login.spec.ts`) and lands on the kanban board. Each test gets its
+ * own isolated browser context (Playwright default), so each signs in as a
+ * distinct guest.
+ *
+ * Waits for `board-name-input`, not just the heading/"Ready" text: those
+ * render as soon as the app shell mounts, before the session check resolves
+ * and `loadWorkspace()` finishes mirroring the session user into local IDB
+ * (`kanban.status` is still `"opening"` at that point) — a caller that
+ * proceeds on the looser signal can race that write, e.g. going offline and
+ * reloading before the local user row actually landed.
+ */
 async function openApp(page: Page) {
+  await signInAsTestUser(page);
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Prisma Next IDB Kanban" })).toBeVisible();
+  await expect(page.getByTestId("board-name-input")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("Ready")).toBeVisible({ timeout: 15_000 });
 }
 
 test("creates, edits, completes, persists, and deletes local records", async ({ page }) => {
   await openApp(page);
-
-  await expect(page.getByText("Start with a local user")).toBeVisible();
-  await page.getByTestId("user-name-input").fill("Ada Lovelace");
-  await page.getByTestId("user-email-input").fill("ada@example.test");
-  await page.getByTestId("create-user-submit").click();
-
-  await expect(page.getByRole("button", { name: /Ada Lovelace/ })).toBeVisible();
-  await expect(page.getByTestId("users-count")).toHaveText("1");
 
   await page.getByTestId("board-name-input").fill("Analytical Engine");
   await page.getByTestId("create-board-submit").click();

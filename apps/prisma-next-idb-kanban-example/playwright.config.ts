@@ -26,5 +26,9 @@ export default defineConfig({
     port: 4176,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    // Gates src/lib/server/test-auth.ts + /api/test/session — better-auth's
+    // testUtils plugin, used to mint signed-in sessions without going
+    // through the real login UI for tests that don't need to exercise it.
+    env: { PLAYWRIGHT_TEST_UTILS: "1" },
   },
 });

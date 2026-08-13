@@ -1,5 +1,5 @@
 // THIS FILE IS AUTO-GENERATED — do not edit by hand.
-// Regenerate with: prisma-next-idb generate-contract-space
+// Regenerate with: prisma-next-idb migration contract-space
 
 import type { Contract } from "./contract";
 import { contractSpaceFromJson } from "@prisma-next/migration-tools/spaces";

@@ -23,3 +23,15 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 # Playwright
 test-results
+
+# Regenerated every prisma-next.config.postgres.ts load — see its header.
+src/lib/prisma/schema.postgres.generated.prisma
+src/lib/prisma/schema.postgres.generated.json
+src/lib/prisma/schema.postgres.generated.d.ts
+
+# `db init`/`db update` write here: which migration hash *this* local
+# Postgres currently sits at. Per-environment state, not portable history —
+# the migration packages themselves (migrations-postgres/app/<name>/) are
+# tracked; this pointer isn't, the same way a migrations table lives in the
+# database itself in most other migration tools, not the repo.
+migrations-postgres/app/refs/

@@ -1,6 +1,10 @@
 <script lang="ts">
-  import { setContext, onMount } from "svelte";
+  import { setContext } from "svelte";
+  import { goto } from "$app/navigation";
+  import { resolve } from "$app/paths";
   import { LoaderCircleIcon } from "@lucide/svelte";
+  import { authClient } from "$lib/clients/auth-client";
+  import { getDb } from "$lib/prisma/db";
   import { KanbanStore, KANBAN_CTX } from "$lib/stores/kanban.svelte";
   import AppHeader from "$lib/components/kanban/AppHeader.svelte";
   import UserSidebar from "$lib/components/kanban/UserSidebar.svelte";
@@ -9,8 +13,45 @@
   const kanban = new KanbanStore();
   setContext(KANBAN_CTX, kanban);
 
-  onMount(() => {
-    kanban.loadWorkspace().catch(kanban.showError);
+  // Own effect, not folded into the session-reactive one below: that one
+  // re-runs whenever `$session` changes (e.g. a token refresh), and tearing
+  // the sync worker down on every re-run (instead of only on actual unmount)
+  // would stop it for good — `startSync()` no-ops once `this.syncWorker` is
+  // set, so nothing would ever restart it. This effect reads no reactive
+  // state, so it only ever runs its cleanup once, on unmount.
+  $effect(() => {
+    return () => kanban.dispose();
+  });
+
+  // Reactive, not a one-shot fetch: `authClient`'s a module-level singleton,
+  // so this `useSession()` store already reflects `signIn.anonymous()` on
+  // /login — that same call refreshes the store's cache internally. A fresh
+  // `getSession()` fetch here instead raced that refresh and could still see
+  // "no session" immediately after a sign-in that had, in fact, succeeded.
+  const session = authClient.useSession();
+  let resolving = false;
+
+  $effect(() => {
+    if ($session.isPending || resolving) return;
+    resolving = true;
+
+    if ($session.data?.user) {
+      kanban.loadWorkspace($session.data.user).catch(kanban.showError);
+      return;
+    }
+
+    // No session — could be genuinely signed out, or offline with the
+    // session fetch having failed outright. Fall back to whatever's already
+    // mirrored in local IDB before giving up: an offline reload after a
+    // previous online session must still open the app, not bounce to
+    // /login (see the PWA "reloads the app shell offline" test).
+    getDb()
+      .then((db) => db.orm.user.first())
+      .then((cachedUser) => {
+        if (cachedUser) return kanban.loadWorkspace(cachedUser);
+        return goto(resolve("/login"));
+      })
+      .catch(kanban.showError);
   });
 </script>
 

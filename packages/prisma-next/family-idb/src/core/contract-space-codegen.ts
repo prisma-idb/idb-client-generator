@@ -6,22 +6,15 @@ import { chainOrderByMetadata, type ChainablePackage } from "./chain-order";
 /**
  * Options for {@link generateContractSpace}.
  *
- * All paths default to framework-conventional values but **should be
- * overridden** when the project's layout differs. The defaults are:
- *
- * - migrations: `<cwd>/migrations/`
- * - contract:   `<cwd>/src/lib/prisma/contract.json`
- * - output:     `<cwd>/src/lib/prisma/contract-space.generated.ts`
- *
- * Pass explicit values (or the corresponding CLI flags) for any project
- * that keeps its contract and generated files elsewhere — Next.js, Nuxt,
- * plain Vite, etc. all typically use different paths.
+ * The CLI (`prisma-next-idb migration contract-space`) resolves all three
+ * paths before calling this function — from explicit flags, or otherwise
+ * from `prisma-next.config.ts` (`contract.output`, `migrations.dir`) via
+ * `resolveCliPaths`. Direct callers (tests) must supply them explicitly.
  */
 export interface GenerateContractSpaceOptions {
-  readonly cwd: string;
-  readonly migrationsDir?: string;
-  readonly contractPath?: string;
-  readonly outPath?: string;
+  readonly migrationsDir: string;
+  readonly contractPath: string;
+  readonly outPath: string;
 }
 
 interface LoadedPackage extends ChainablePackage {
@@ -48,10 +41,10 @@ interface LoadedPackage extends ChainablePackage {
  * migration package list changes). Exit code 0 on success.
  */
 export async function generateContractSpace(opts: GenerateContractSpaceOptions): Promise<number> {
-  const migrationsDir = opts.migrationsDir ?? join(opts.cwd, "migrations");
+  const migrationsDir = opts.migrationsDir;
   const appDir = join(migrationsDir, "app");
-  const contractPath = opts.contractPath ?? join(opts.cwd, "src/lib/prisma/contract.json");
-  const outPath = opts.outPath ?? join(opts.cwd, "src/lib/prisma/contract-space.generated.ts");
+  const contractPath = opts.contractPath;
+  const outPath = opts.outPath;
 
   const packages = await loadPackages(appDir);
   validateChain(packages);
@@ -59,13 +52,13 @@ export async function generateContractSpace(opts: GenerateContractSpaceOptions):
   // Warn when no packages exist — the output module will have an empty
   // migrations list and `hash: ""`, which breaks createAutoMigratingIdbClient
   // on a fresh database (walkChain throws: "no migration with from === null").
-  // The user should run `prisma-next-idb generate-baseline` first.
+  // The user should run `prisma-next-idb migration plan` first.
   if (packages.length === 0) {
     process.stderr.write(
-      "Warning: no migration packages found in migrations/app/.\n" +
+      `Warning: no migration packages found in ${relative(process.cwd(), appDir)}/.\n` +
         "The generated module will have an empty migrations list, which breaks\n" +
         "`createAutoMigratingIdbClient` on a fresh database.\n" +
-        "Run `prisma-next-idb generate-baseline` first to create the initial migration.\n\n"
+        "Run `prisma-next-idb migration plan` first to create the initial migration.\n\n"
     );
   }
 
@@ -145,7 +138,7 @@ function renderModule(input: RenderInput): string {
 
   const importLines: string[] = [
     "// THIS FILE IS AUTO-GENERATED — do not edit by hand.",
-    "// Regenerate with: prisma-next-idb generate-contract-space",
+    "// Regenerate with: prisma-next-idb migration contract-space",
     "",
     `import type { Contract } from "${contractTypeSpecifier}";`,
     'import { contractSpaceFromJson } from "@prisma-next/migration-tools/spaces";',

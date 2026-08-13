@@ -14,6 +14,7 @@
   } from "@lucide/svelte";
   import { KANBAN_CTX, type KanbanStore } from "$lib/stores/kanban.svelte";
   import ThemeToggle from "./ThemeToggle.svelte";
+  import SyncStatus from "./SyncStatus.svelte";
 
   const DOCS_URL = "https://prisma-idb.dev/docs/prisma-next/kanban-example";
   const GITHUB_URL = "https://github.com/prisma-idb/idb-client-generator/tree/main/apps/prisma-next-idb-kanban-example";
@@ -41,7 +42,7 @@
       <div class="space-y-1">
         <h1 class="text-2xl font-semibold tracking-tight md:text-3xl">Prisma Next IDB Kanban</h1>
         <p class="text-muted-foreground max-w-2xl text-sm">
-          Local users, boards, and todos managed directly through the IndexedDB ORM.
+          Boards and todos managed directly through the IndexedDB ORM, synced to your account.
         </p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
@@ -66,16 +67,11 @@
         <span class="bg-border mx-0.5 h-4 w-px" aria-hidden="true"></span>
         <ThemeToggle />
       </div>
+      <SyncStatus />
     </div>
   </div>
 
   <div class="divide-border bg-card flex items-stretch divide-x rounded-lg border text-sm">
-    <div class="flex flex-col gap-0.5 px-5 py-3">
-      <span class="text-muted-foreground text-xs font-medium tracking-widest uppercase">Users</span>
-      <span class="text-2xl leading-none font-semibold tabular-nums" data-testid="users-count"
-        >{kanban.users.length}</span
-      >
-    </div>
     <div class="flex flex-col gap-0.5 px-5 py-3">
       <span class="text-muted-foreground text-xs font-medium tracking-widest uppercase">Boards</span>
       <span class="text-2xl leading-none font-semibold tabular-nums" data-testid="boards-count"
@@ -110,7 +106,8 @@
       </form>
     </div>
     <p class="text-muted-foreground mt-3 text-sm">
-      This app shows Prisma Next IDB running entirely in the browser, without a backend service or account setup.
+      This app shows Prisma Next IDB running in the browser, offline-capable, syncing to a real Postgres backend once
+      you're signed in.
     </p>
   </div>
 

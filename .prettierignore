@@ -33,3 +33,6 @@ playwright-report
 # Generated files
 .turbo
 prisma/generated
+
+# Generated postgres schema artifacts
+schema.postgres.generated.*

@@ -16,7 +16,7 @@ import { createIDBRuntimeDriver } from "@prisma-next-idb/driver-idb/runtime";
 import type { IdbRuntimeDriverInstance } from "@prisma-next-idb/driver-idb/runtime";
 import type { IdbQueryPlan } from "@prisma-next-idb/adapter-idb/runtime";
 import { idbOrm } from "../src/exports/orm";
-import type { IdbQueryExecutor, IdbStoreAccessor } from "../src/exports/orm";
+import type { IdbQueryExecutor, IdbQueryExecutorWithTransaction, IdbStoreAccessor } from "../src/exports/orm";
 
 // ── Test-only cast helper ─────────────────────────────────────────────────────
 
@@ -35,7 +35,7 @@ function asRecord(client: unknown): Record<string, IdbStoreAccessor<never, never
  * The adapter is a passthrough (idbPlan ≡ planBody), so we extract idbPlan
  * directly instead of going through the full runtime stack.
  */
-class TestExecutor implements IdbQueryExecutor {
+class TestExecutor implements IdbQueryExecutor, IdbQueryExecutorWithTransaction {
   readonly #driver: IdbRuntimeDriverInstance;
 
   constructor(driver: IdbRuntimeDriverInstance) {
@@ -51,6 +51,14 @@ class TestExecutor implements IdbQueryExecutor {
         }
       })()
     );
+  }
+
+  // Delegates straight to the driver, which already supports it (same
+  // pattern as fk-enforcement.test.ts's TestExecutorWithTransaction) — purely
+  // additive: nothing outside updateAll()/deleteAll() calls .transaction() on
+  // this executor, so every other describe block in this file is unaffected.
+  transaction(storeNames: string[], mode?: IDBTransactionMode) {
+    return this.#driver.transaction(storeNames, mode);
   }
 }
 

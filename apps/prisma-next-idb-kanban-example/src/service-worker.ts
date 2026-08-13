@@ -39,6 +39,13 @@ sw.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== sw.location.origin) return;
 
+  // Never cache-first API responses — they're per-session/per-request
+  // dynamic data (auth session state, sync pull/push), not the static app
+  // shell. Caching e.g. `/api/auth/get-session`'s pre-sign-in "no session"
+  // response would keep being served after a real sign-in succeeds, since
+  // cache-first never re-checks the network once it has *a* cached hit.
+  if (url.pathname.startsWith("/api/")) return;
+
   event.respondWith(cacheFirst(event.request));
 });
 

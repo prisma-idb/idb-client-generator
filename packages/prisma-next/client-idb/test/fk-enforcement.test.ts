@@ -361,6 +361,59 @@ describe("delete — setDefault (unsupported)", () => {
   });
 });
 
+// ── scalar FK validation — compound (multi-field) ──────────────────────────────
+
+const compoundFkContract = defineContract({
+  family: idbFamilyPack,
+  target: idbTargetPack,
+  models: {
+    User: {
+      store: "users",
+      key: "id",
+      fields: { id: "String", orgId: "String", name: "String" },
+    },
+    Post: {
+      store: "posts",
+      key: "id",
+      fields: { id: "String", postOrgId: "String", authorId: "String", title: "String" },
+      relations: {
+        author: {
+          to: "User",
+          cardinality: "N:1",
+          on: { local: ["postOrgId", "authorId"], target: ["orgId", "id"] },
+        },
+      },
+    },
+  },
+});
+
+describe("scalar FK validation — compound (multi-field)", () => {
+  let db: IDBDatabase;
+  let executor: TestExecutorWithTransaction;
+
+  beforeEach(async () => {
+    const name = nextDbName();
+    db = await openTestDb(name);
+    executor = new TestExecutorWithTransaction(createIDBRuntimeDriver(name).create());
+  });
+  afterEach(() => db.close());
+
+  it("refuses to create a row with a compound scalar FK instead of validating each field independently", async () => {
+    const orm = idbOrm({ contract: compoundFkContract, executor });
+    await orm["users"]!.create({ id: "u1", orgId: "org-A", name: "Alice" } as never);
+    await orm["users"]!.create({ id: "u2", orgId: "org-B", name: "Bob" } as never);
+
+    // No single User has both orgId="org-A" AND id="u2" — validating each
+    // field independently would incorrectly let this through (org-A matches
+    // u1, u2 matches u2), silently persisting a value assembled from two
+    // different parent rows.
+    await expect(
+      orm["posts"]!.create({ id: "p1", postOrgId: "org-A", authorId: "u2", title: "Post" } as never)
+    ).rejects.toThrow(/compound.*not supported/i);
+    expect(await getAllRows(db, "posts")).toHaveLength(0);
+  });
+});
+
 // ── deleteAll with cascade ────────────────────────────────────────────────────
 
 describe("deleteAll — cascade", () => {

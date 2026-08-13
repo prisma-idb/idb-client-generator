@@ -13,7 +13,14 @@ export default defineConfig({
   db: {
     connection: ":memory:", // unused by IDB; required by the framework
   },
-  contract: prismaIdbContract("src/lib/prisma/schema.prisma"),
+  // This app is the browser client, so its own emitted contract is the
+  // projected one — server-only members (`@idb.exclude`/`@@idb.exclude`,
+  // e.g. `User.passwordHash`, `AuditLog`) never reach the bundle. See ADR
+  // 012 and prisma-next.config.postgres.ts (the real server, which parses
+  // this same schema.prisma through the SQL family instead — see that
+  // file's header for why it's not "projection: full" through this same
+  // IDB family the way it used to be).
+  contract: prismaIdbContract("src/lib/prisma/schema.prisma", { projection: "client" }),
   migrations: {
     dir: "migrations",
   },

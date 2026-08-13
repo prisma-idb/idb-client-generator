@@ -1,33 +1,27 @@
-import { createAutoMigratingIdbClient } from "@prisma-next-idb/client-idb/client-auto";
-import type { IdbClient } from "@prisma-next-idb/client-idb/client-auto";
+import { idbSyncExtension } from "@prisma-next-idb/sync-extension-idb/control";
+import { createManagedAutoSyncIdbClient } from "@prisma-next-idb/sync-extension-idb/client";
+import type { SyncIdbClient } from "@prisma-next-idb/sync-extension-idb/client";
 import type { Contract } from "./contract";
 import { contractSpace } from "./contract-space.generated";
 
 const DB_NAME = "prisma-next-idb-kanban-example";
 
-type DbClient = IdbClient<Contract>;
+type DbClient = SyncIdbClient<Contract>;
 
-let client: DbClient | null = null;
-let clientPromise: Promise<DbClient> | null = null;
+const managedDb = createManagedAutoSyncIdbClient<Contract>({
+  contractSpace,
+  dbName: DB_NAME,
+  extensions: [idbSyncExtension],
+});
 
-export async function getDb(): Promise<DbClient> {
-  if (client) return client;
-  if (!clientPromise) {
-    clientPromise = createAutoMigratingIdbClient({
-      contractSpace,
-      dbName: DB_NAME,
-    });
-  }
+/** Migrate + open a sync-tracked client in one call — `db.orm.*` mutations atomically write outbox events alongside the model write. */
+export const getDb = (): Promise<DbClient> => managedDb.get();
 
-  const fresh = await clientPromise;
-  client = fresh;
+export const closeDb = (): Promise<void> => managedDb.close();
 
-  return fresh;
-}
-
-export async function closeDb(): Promise<void> {
-  if (!client) return;
-  await client.close();
-  client = null;
-  clientPromise = null;
-}
+/**
+ * Closes and wipes the local database — used on logout so a different
+ * account signing in on the same browser never sees a previous session's
+ * boards/todos.
+ */
+export const resetDb = (): Promise<void> => managedDb.reset();

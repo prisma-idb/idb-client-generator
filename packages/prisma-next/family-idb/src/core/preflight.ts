@@ -7,8 +7,7 @@ import { applyOneDdlOp, isIdbDdlOp, type IdbDdlOp } from "@prisma-next-idb/targe
 import { join } from "pathe";
 
 export interface PreflightOptions {
-  readonly cwd: string;
-  readonly migrationsDir?: string;
+  readonly migrationsDir: string;
 }
 
 /**
@@ -32,7 +31,7 @@ export interface PreflightOptions {
  * Exit codes: 0 on full chain success; 1 on any failure.
  */
 export async function runPreflight(opts: PreflightOptions): Promise<number> {
-  const migrationsDir = opts.migrationsDir ?? join(opts.cwd, "migrations");
+  const migrationsDir = opts.migrationsDir;
   const appDir = join(migrationsDir, "app");
 
   const packages = await loadPackages(appDir);

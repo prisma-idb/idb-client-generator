@@ -7,7 +7,7 @@ import type {
   MigrationPlannerResult,
   MigrationScaffoldContext,
 } from "@prisma-next/framework-components/control";
-import type { IdbStoreDefinition } from "./idb-contract-types";
+import type { IdbIndexDefinition, IdbStoreDefinition } from "./idb-contract-types";
 import { createMarkerStoreOp, type IdbDdlOp } from "./migration-factories";
 import type { IdbSchemaDiffInput } from "./schema-diff";
 import { diffIdbSchema } from "./schema-diff";
@@ -63,9 +63,12 @@ function extractStorageHash(contract: Contract | null | unknown): string {
  * `renderCallsToTypeScript` (shebang → imports → class → describe →
  * operations → MigrationCLI.run).
  *
- * @internal
+ * Exported so callers that need to render a scaffold from a modified ops
+ * list (e.g. an extension-space baseline that strips the marker-store op —
+ * see `migration-plan.ts`) can bypass `plan.renderTypeScript()`, which
+ * always renders the planner's original `plan.operations`.
  */
-function renderMigrationTs(input: {
+export function renderMigrationTs(input: {
   readonly fromHash: string | null;
   readonly toHash: string;
   readonly ops: readonly IdbDdlOp[];
@@ -127,6 +130,34 @@ function collectFactoryImports(ops: readonly IdbDdlOp[]): string[] {
   return [...names].sort();
 }
 
+/**
+ * Render an `IdbIndexDefinition` as an object-literal source fragment.
+ *
+ * `unique`/`multiEntry` are rendered only when actually present on `def` —
+ * never defaulted. The contract canonicaliser strips `unique: false` /
+ * `multiEntry: false` from indexes (default-stripping), so an absent key
+ * here means "not set", not "false". Defaulting it to `false` and always
+ * rendering it (as this used to do for `unique`) is a self-emit round-trip
+ * bug: `JSON.stringify` drops an `undefined` value's key but keeps an
+ * explicit `false`, so re-emitting `ops.json` from the always-rendered TS
+ * produces different bytes — and a different `migrationHash` — than the
+ * planner's original output, silently breaking `MigrationCLI.run`'s
+ * "re-running this file reproduces its own artifacts" contract. Shared by
+ * both the standalone `createIndexOp(...)` call and the `indexes` map
+ * embedded in a `createObjectStoreOp(...)` def (see below) so both sites
+ * stay symmetric.
+ */
+function renderIndexDefLiteral(def: IdbIndexDefinition): string {
+  const optsParts = [`keyPath: ${JSON.stringify(def.keyPath)}`];
+  if (def.unique !== undefined) {
+    optsParts.push(`unique: ${def.unique}`);
+  }
+  if (def.multiEntry !== undefined) {
+    optsParts.push(`multiEntry: ${def.multiEntry}`);
+  }
+  return `{ ${optsParts.join(", ")} }`;
+}
+
 function renderOpCall(op: IdbDdlOp): string {
   switch (op.kind) {
     case "createObjectStore": {
@@ -134,21 +165,26 @@ function renderOpCall(op: IdbDdlOp): string {
       if (op.def.autoIncrement !== undefined) {
         optsParts.push(`autoIncrement: ${op.def.autoIncrement}`);
       }
+      // `diffIdbSchema` passes the full contract store definition (indexes
+      // included) into `createObjectStoreOp`'s `def` for a freshly-created
+      // store — `applyOneDdlOp` never reads `def.indexes` (indexes are
+      // actually created via the separate `createIndexOp`s diffIdbSchema
+      // also emits), so this is inert metadata. Previously dropped here
+      // entirely, which is a self-emit round-trip bug for the same reason
+      // as `unique` above: the planner's `ops.json` has it, but re-emitting
+      // from the rendered TS didn't reproduce it, so the hashes diverged.
+      if (op.def.indexes !== undefined && Object.keys(op.def.indexes).length > 0) {
+        const entries = Object.entries(op.def.indexes)
+          .map(([indexName, def]) => `${JSON.stringify(indexName)}: ${renderIndexDefLiteral(def)}`)
+          .join(", ");
+        optsParts.push(`indexes: { ${entries} }`);
+      }
       return `createObjectStoreOp(${JSON.stringify(op.storeName)}, { ${optsParts.join(", ")} })`;
     }
     case "dropObjectStore":
       return `dropObjectStoreOp(${JSON.stringify(op.storeName)})`;
-    case "createIndex": {
-      // IDB defaults `unique` to false when absent; the IR sometimes omits it
-      // after canonicalisation. Default to false in the rendered TS so the
-      // output is always valid.
-      const unique = op.def.unique ?? false;
-      const optsParts = [`keyPath: ${JSON.stringify(op.def.keyPath)}`, `unique: ${unique}`];
-      if (op.def.multiEntry !== undefined) {
-        optsParts.push(`multiEntry: ${op.def.multiEntry}`);
-      }
-      return `createIndexOp(${JSON.stringify(op.storeName)}, ${JSON.stringify(op.indexName)}, { ${optsParts.join(", ")} })`;
-    }
+    case "createIndex":
+      return `createIndexOp(${JSON.stringify(op.storeName)}, ${JSON.stringify(op.indexName)}, ${renderIndexDefLiteral(op.def)})`;
     case "dropIndex":
       return `dropIndexOp(${JSON.stringify(op.storeName)}, ${JSON.stringify(op.indexName)})`;
   }

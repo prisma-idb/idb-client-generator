@@ -1,104 +1,70 @@
 <script lang="ts">
   import { getContext } from "svelte";
+  import { goto } from "$app/navigation";
+  import { resolve } from "$app/paths";
   import * as Card from "$lib/components/ui/card";
+  import { Badge } from "$lib/components/ui/badge";
   import { Button } from "$lib/components/ui/button";
-  import { Input } from "$lib/components/ui/input";
-  import { SaveIcon, Trash2Icon, UserPlusIcon, UsersIcon } from "@lucide/svelte";
+  import { LoaderCircleIcon, LogOutIcon, UserIcon } from "@lucide/svelte";
+  import { authClient } from "$lib/clients/auth-client";
+  import { resetDb } from "$lib/prisma/db";
   import { KANBAN_CTX, type KanbanStore } from "$lib/stores/kanban.svelte";
 
   const kanban = getContext<KanbanStore>(KANBAN_CTX);
 
-  let newName = $state("");
-  let newEmail = $state("");
-  let editName = $state("");
-  let editEmail = $state("");
+  let loggingOut = $state(false);
 
-  $effect(() => {
-    editName = kanban.activeUser?.name ?? "";
-    editEmail = kanban.activeUser?.email ?? "";
-  });
-
-  async function createUser(event: Event) {
-    event.preventDefault();
-    const name = newName.trim();
-    if (!name) return;
-    await kanban.createUser(name, newEmail.trim());
-    newName = "";
-    newEmail = "";
-  }
-
-  async function saveUser(event: Event) {
-    event.preventDefault();
-    const user = kanban.activeUser;
-    if (!user) return;
-    const name = editName.trim();
-    if (!name) return;
-    await kanban.updateUser(user.id, name, editEmail.trim());
+  async function logout() {
+    loggingOut = true;
+    try {
+      // Flush the outbox BEFORE signing out — the push endpoint authorizes
+      // via the session cookie, so any unsynced writes still need one while
+      // it's valid. resetDb() wipes local IDB unconditionally, so anything
+      // still pending after this is unrecoverable; abort logout and surface
+      // it instead of silently discarding local-only work.
+      if (kanban.pendingSyncCount > 0) {
+        await kanban.syncNow();
+        if (kanban.pendingSyncCount > 0) {
+          throw new Error("Some changes haven't synced yet. Check your connection and try again.");
+        }
+      }
+      await authClient.signOut();
+      await resetDb();
+      await goto(resolve("/login"));
+    } catch (error) {
+      loggingOut = false;
+      kanban.showError(error);
+    }
   }
 </script>
 
 <Card.Root class="rounded-md py-4">
   <Card.Header class="px-4">
     <Card.Title class="flex items-center gap-2">
-      <UsersIcon class="size-4" />
-      Local users
+      <UserIcon class="size-4" />
+      Signed in
     </Card.Title>
-    <Card.Description>Choose a workspace owner or create another local profile.</Card.Description>
+    <Card.Description>This browser's identity — boards and todos belong to it.</Card.Description>
   </Card.Header>
   <Card.Content class="space-y-3 px-4">
-    <div class="space-y-1.5">
-      {#each kanban.users as user (user.id)}
-        <Button
-          variant={user.id === kanban.activeUserId ? "default" : "outline"}
-          class="h-auto w-full justify-start py-2"
-          onclick={() => kanban.switchUser(user.id)}
-          disabled={kanban.busy}
-        >
-          <span class="truncate">{user.name}</span>
-          {#if user.email}
-            <span class="text-xs opacity-70">{user.email}</span>
-          {/if}
-        </Button>
+    {#if kanban.activeUser}
+      <div class="flex items-center gap-2">
+        <span class="truncate text-sm font-medium" data-testid="active-user-name">{kanban.activeUser.name}</span>
+        {#if kanban.activeUser.isAnonymous}
+          <Badge variant="secondary">Guest</Badge>
+        {/if}
+      </div>
+      {#if kanban.activeUser.email}
+        <p class="text-muted-foreground truncate text-xs" data-testid="active-user-email">{kanban.activeUser.email}</p>
+      {/if}
+    {/if}
+    <Button class="w-full" variant="outline" onclick={logout} disabled={loggingOut} aria-busy={loggingOut}>
+      {#if loggingOut}
+        <LoaderCircleIcon class="animate-spin" />
       {:else}
-        <div class="text-muted-foreground rounded-md border border-dashed px-3 py-6 text-center text-sm">
-          No local users yet.
-        </div>
-      {/each}
-    </div>
-
-    <form class="space-y-2 border-t pt-3" onsubmit={createUser}>
-      <Input bind:value={newName} placeholder="User name" required data-testid="user-name-input" />
-      <Input bind:value={newEmail} placeholder="Email, optional" type="email" data-testid="user-email-input" />
-      <Button class="w-full" type="submit" disabled={kanban.busy || !newName.trim()} data-testid="create-user-submit">
-        <UserPlusIcon />
-        Create user
-      </Button>
-    </form>
+        <LogOutIcon />
+      {/if}
+      Log out
+    </Button>
   </Card.Content>
 </Card.Root>
-
-{#if kanban.activeUser}
-  {@const user = kanban.activeUser}
-  <Card.Root class="rounded-md py-4">
-    <Card.Header class="px-4">
-      <Card.Title>Manage user</Card.Title>
-      <Card.Description>Renaming or deleting this user updates the local store.</Card.Description>
-    </Card.Header>
-    <Card.Content>
-      <form class="space-y-2" onsubmit={saveUser}>
-        <Input bind:value={editName} required aria-label="Active user name" />
-        <Input bind:value={editEmail} type="email" aria-label="Active user email" />
-        <div class="grid grid-cols-2 gap-2">
-          <Button type="submit" variant="secondary" disabled={kanban.busy || !editName.trim()}>
-            <SaveIcon />
-            Save
-          </Button>
-          <Button type="button" variant="destructive" onclick={() => kanban.deleteUser(user.id)} disabled={kanban.busy}>
-            <Trash2Icon />
-            Delete
-          </Button>
-        </div>
-      </form>
-    </Card.Content>
-  </Card.Root>
-{/if}

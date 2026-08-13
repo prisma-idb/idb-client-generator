@@ -12,11 +12,11 @@ import { contract } from "./src/lib/prisma/contract.server";
  * IndexedDB is a browser API, so the CLI control plane is **refusal-only**:
  *
  * ```bash
- * pnpm prisma-next contract emit                    # Generates contract.json + .d.ts
- * pnpm prisma-next migration new                    # Scaffolds a migration.ts file
- * pnpm prisma-next-idb generate-baseline            # Auto-creates the first migration
- * pnpm prisma-next-idb generate-contract-space      # Bundles into contract-space.generated.ts
- * pnpm prisma-next-idb preflight                    # Validates the chain against fake-indexeddb
+ * pnpm prisma-next contract emit                # Generates contract.json + .d.ts
+ * pnpm prisma-next migration new                # Scaffolds a migration.ts file
+ * pnpm prisma-next-idb migration plan           # Auto-creates the first/next migration
+ * pnpm prisma-next-idb migration contract-space # Bundles into contract-space.generated.ts
+ * pnpm prisma-next-idb migration preflight      # Validates the chain against fake-indexeddb
  * ```
  *
  * Migrations actually apply in the browser via `createAutoMigratingIdbClient`

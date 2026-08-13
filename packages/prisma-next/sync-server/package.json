@@ -1,0 +1,49 @@
+{
+  "name": "@prisma-next-idb/sync-server",
+  "version": "0.1.0",
+  "description": "Prisma Next IDB — sync ownership DAG (server-side push authorization + pull scoping, ADR 014)",
+  "license": "MIT",
+  "files": ["dist"],
+  "keywords": ["prisma", "prisma-next", "indexeddb", "offline-first", "idb", "sync", "authorization"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/prisma-idb/idb-client-generator.git",
+    "directory": "packages/prisma-next/sync-server"
+  },
+  "homepage": "https://prisma-idb.dev/",
+  "bugs": {
+    "url": "https://github.com/prisma-idb/idb-client-generator/issues"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/server.d.mts",
+      "default": "./dist/server.mjs"
+    },
+    "./schema": {
+      "types": "./dist/schema.d.mts",
+      "default": "./dist/schema.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "prettier --check . && eslint .",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@prisma-next-idb/family-idb": "workspace:*",
+    "@prisma-next/config": "^0.16.0",
+    "@prisma-next/contract": "^0.16.0"
+  },
+  "devDependencies": {
+    "@prisma-next-idb/target-idb": "workspace:*",
+    "@types/node": "^24.10.9",
+    "tsdown": "^0.22.14",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  }
+}

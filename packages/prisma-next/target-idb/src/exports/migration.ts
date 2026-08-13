@@ -66,12 +66,12 @@ export type { IdbMigrationControlDriver } from "../core/migration-driver";
 // ── Planner & runner ──────────────────────────────────────────────────────────
 
 export { IdbMigrationRunner } from "../core/migration-runner";
-export { IdbMigrationPlanner, contractToIdbSchema } from "../core/migration-planner";
+export { IdbMigrationPlanner, contractToIdbSchema, renderMigrationTs } from "../core/migration-planner";
 export type { IdbMigrationPlanWithAuthoring } from "../core/migration-planner";
 
 // ── DDL apply helpers (shared by client-idb auto-migrate + family-idb preflight) ──
 
-export { applyOneDdlOp, openAndUpgrade, readMarker, writeMarker } from "../core/apply-ddl-op";
+export { applyOneDdlOp, openAndUpgrade, readMarker, writeMarker, writeMarkers } from "../core/apply-ddl-op";
 export type { IdbMarkerRecord, MarkerWriteInput } from "../core/apply-ddl-op";
 
 // ── Migration authoring surface (base class + self-emit CLI) ──────────────────
