@@ -1,5 +1,19 @@
 # @prisma-next-idb/client-idb
 
+## 0.3.0
+
+### Minor Changes
+
+- [#208](https://github.com/prisma-idb/idb-client-generator/pull/208) [`f91e806`](https://github.com/prisma-idb/idb-client-generator/commit/f91e8066fd06d18b3e8fba51ee95116222980a32) Thanks [@WhyAsh5114](https://github.com/WhyAsh5114)! - Add `createManagedAutoIdbClient`, a convenience wrapper composing `createManagedIdbClient` with `createAutoMigratingIdbClient`. Threads `dbName`/`factory` once to both the managed wrapper and the underlying auto-migrating factory, instead of requiring callers to hand-compose the two (which meant writing `dbName` in two separate option bags with nothing tying them together — a drift between the two silently makes `reset()` delete the wrong database).
+
+### Patch Changes
+
+- Updated dependencies [[`f91e806`](https://github.com/prisma-idb/idb-client-generator/commit/f91e8066fd06d18b3e8fba51ee95116222980a32)]:
+  - @prisma-next-idb/target-idb@0.3.0
+  - @prisma-next-idb/adapter-idb@0.3.0
+  - @prisma-next-idb/runtime-idb@0.3.0
+  - @prisma-next-idb/driver-idb@0.3.0
+
 ## 0.2.0
 
 ### Minor Changes
