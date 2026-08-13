@@ -4,6 +4,8 @@ export type { SyncIdbClient, SyncIdbClientOptions, SyncClientEventMap } from "..
 export { createAutoMigratingSyncIdbClient } from "../core/auto-migrate-sync";
 export type { AutoMigratingSyncIdbClientOptions } from "../core/auto-migrate-sync";
 
+export { createManagedAutoSyncIdbClient } from "../core/managed-auto-migrate-sync";
+
 export { createSyncWorker } from "../core/sync-worker";
 export type {
   SyncWorker,
