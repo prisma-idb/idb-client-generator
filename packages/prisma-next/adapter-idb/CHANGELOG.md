@@ -1,5 +1,13 @@
 # @prisma-next-idb/adapter-idb
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies [[`f91e806`](https://github.com/prisma-idb/idb-client-generator/commit/f91e8066fd06d18b3e8fba51ee95116222980a32)]:
+  - @prisma-next-idb/target-idb@0.3.0
+  - @prisma-next-idb/driver-idb@0.3.0
+
 ## 0.2.0
 
 ### Patch Changes

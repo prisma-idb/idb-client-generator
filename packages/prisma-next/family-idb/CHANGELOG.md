@@ -1,5 +1,24 @@
 # @prisma-next-idb/family-idb
 
+## 0.3.0
+
+### Minor Changes
+
+- [#208](https://github.com/prisma-idb/idb-client-generator/pull/208) [`88bcc88`](https://github.com/prisma-idb/idb-client-generator/commit/88bcc8814bfc6b0bcbe1f6c2531382a23faba223) Thanks [@WhyAsh5114](https://github.com/WhyAsh5114)! - `prisma-next-idb` now resolves `--contract` and `--migrations-dir` from `prisma-next.config.ts` (via `@prisma-next/config-loader`, the same loader `prisma-next contract emit` uses) instead of hardcoded `src/lib/prisma/...` paths — projects with a non-default `contract.output` or `migrations.dir` no longer need to pass those flags on every invocation.
+
+  The command surface is also restructured to mirror `prisma-next`'s own `<group> <verb>` shape:
+
+  - `generate-baseline` and `generate-migration` are merged into a single auto-detecting `migration plan`, which picks greenfield vs. incremental based on whether the target space already has migration packages on disk (and prints a warning if it falls back to greenfield unexpectedly).
+  - `generate-contract-space` is renamed to `migration contract-space`.
+  - `preflight` is renamed to `migration preflight`.
+
+  **Breaking:** the old flat command names (`generate-baseline`, `generate-migration`, `generate-contract-space`, `preflight`) no longer exist — update any `package.json` scripts or CI invocations to the `migration <verb>` form.
+
+### Patch Changes
+
+- Updated dependencies [[`f91e806`](https://github.com/prisma-idb/idb-client-generator/commit/f91e8066fd06d18b3e8fba51ee95116222980a32)]:
+  - @prisma-next-idb/target-idb@0.3.0
+
 ## 0.2.0
 
 ### Patch Changes
