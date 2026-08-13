@@ -1,4 +1,4 @@
-import { createAutoMigratingIdbClient, createManagedIdbClient } from "@prisma-next-idb/client-idb/client-auto";
+import { createManagedAutoIdbClient } from "@prisma-next-idb/client-idb/client-auto";
 import type { IdbClient, ManagedIdbClient } from "@prisma-next-idb/client-idb/client-auto";
 import type { Contract } from "./contract";
 import { contractSpace } from "./contract-space.generated";
@@ -26,7 +26,7 @@ const managedByDbName = new Map<string, ManagedIdbClient<IdbClient<Contract>>>()
 function managedDb(dbName: string): ManagedIdbClient<IdbClient<Contract>> {
   let managed = managedByDbName.get(dbName);
   if (!managed) {
-    managed = createManagedIdbClient(() => createAutoMigratingIdbClient({ contractSpace, dbName }), { dbName });
+    managed = createManagedAutoIdbClient({ contractSpace, dbName });
     managedByDbName.set(dbName, managed);
   }
   return managed;

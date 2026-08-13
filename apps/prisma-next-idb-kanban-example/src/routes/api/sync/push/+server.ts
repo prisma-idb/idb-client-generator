@@ -1,23 +1,20 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
+import { pushRequestBodySchema } from "@prisma-next-idb/sync-extension-idb/schemas";
+import type { PushResultBody } from "@prisma-next-idb/sync-extension-idb/schemas";
 import { auth } from "$lib/server/auth";
 import { getPostgres } from "$lib/server/db";
-import { syncServer } from "$lib/server/sync";
-import { applyPushEvent, getKeyField, toSyncPushPayload } from "$lib/server/sync-sql-adapter";
-import type { PushEventBody, PushResultBody } from "$lib/server/sync-sql-adapter";
+import { syncServer, sqlSyncAdapter } from "$lib/server/sync";
 
 /**
  * ADR 014's push endpoint: validate ownership via `@prisma-next-idb/sync-server`,
  * then apply authorized writes to the real Postgres tables (execution lives
- * in `sync-sql-adapter.ts` — this file is just the HTTP boundary). `scopeKey`
- * is the authenticated session's user id, resolved server-side from the
- * request's session cookie (`auth.api.getSession`) — never trusted from the
- * request body, so a client can't claim to push as a different user.
+ * in `@prisma-next-idb/sync-server-sql`'s `sqlSyncAdapter`, built once in
+ * `sync.ts` — this file is just the HTTP boundary). `scopeKey` is the
+ * authenticated session's user id, resolved server-side from the request's
+ * session cookie (`auth.api.getSession`) — never trusted from the request
+ * body, so a client can't claim to push as a different user.
  */
-
-interface PushRequestBody {
-  readonly events: readonly PushEventBody[];
-}
 
 // The real client only ever pushes `SyncWorkerOptions.batchSize` events at a
 // time (default 20, see sync-worker.ts) — generous headroom over that, not a
@@ -26,36 +23,26 @@ interface PushRequestBody {
 // comment on why these run sequentially, not concurrently).
 const MAX_PUSH_BATCH_SIZE = 1000;
 
-function isPushEventBody(value: unknown): value is PushEventBody {
-  if (typeof value !== "object" || value === null) return false;
-  const v = value as Record<string, unknown>;
-  return typeof v.id === "string" && typeof v.entityType === "string" && typeof v.operation === "string";
-}
-
 export const POST: RequestHandler = async ({ request }) => {
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session?.user.id) return json({ error: "Unauthorized" }, { status: 401 });
   const scopeKey = session.user.id;
 
-  let body: Partial<PushRequestBody>;
+  let rawBody: unknown;
   try {
-    body = (await request.json()) as Partial<PushRequestBody>;
+    rawBody = await request.json();
   } catch {
     return json({ error: "Invalid JSON body" }, { status: 400 });
   }
-  if (typeof body !== "object" || body === null) {
-    return json({ error: "Invalid body" }, { status: 400 });
+
+  const parsed = pushRequestBodySchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return json({ error: "Malformed request body", details: parsed.error.issues }, { status: 400 });
   }
-  if (!Array.isArray(body.events)) {
-    return json({ error: "events (array) is required" }, { status: 400 });
-  }
-  if (body.events.length > MAX_PUSH_BATCH_SIZE) {
+  if (parsed.data.events.length > MAX_PUSH_BATCH_SIZE) {
     return json({ error: `events exceeds max batch size of ${MAX_PUSH_BATCH_SIZE}` }, { status: 400 });
   }
-  if (!body.events.every(isPushEventBody)) {
-    return json({ error: "Malformed event in events array" }, { status: 400 });
-  }
-  const { events } = body as PushRequestBody;
+  const { events } = parsed.data;
 
   // Reject outright rather than silently double-applying or dropping one:
   // the loop below re-matches each check back to its event by id
@@ -88,8 +75,12 @@ export const POST: RequestHandler = async ({ request }) => {
       pushEvents.push({
         id: event.id,
         model: event.entityType,
-        operation: event.operation as "create" | "update" | "delete",
-        payload: toSyncPushPayload(event.operation, event.payload, getKeyField(event.entityType)),
+        operation: event.operation,
+        payload: sqlSyncAdapter.toSyncPushPayload(
+          event.operation,
+          event.payload,
+          sqlSyncAdapter.getKeyField(event.entityType)
+        ),
       });
     } catch (err) {
       results.push({
@@ -111,7 +102,7 @@ export const POST: RequestHandler = async ({ request }) => {
   // plain `for` loop for the same reason.
   for (const { eventId, model, check } of checks) {
     const event = events.find((e) => e.id === eventId)!;
-    results.push(await applyPushEvent(db, event, model, check, scopeKey));
+    results.push(await sqlSyncAdapter.applyPushEvent(db, event, model, check, scopeKey));
   }
 
   return json(results);

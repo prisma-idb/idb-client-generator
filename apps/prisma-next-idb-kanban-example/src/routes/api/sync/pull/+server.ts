@@ -2,12 +2,12 @@ import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 import { auth } from "$lib/server/auth";
 import { getPostgres } from "$lib/server/db";
-import { syncServer } from "$lib/server/sync";
-import { resolvePullRecord } from "$lib/server/sync-sql-adapter";
+import { syncServer, sqlSyncAdapter } from "$lib/server/sync";
 
 /**
  * ADR 014's pull endpoint — two steps, per sync-server's README (execution
- * lives in `sync-sql-adapter.ts` — this file is just the HTTP boundary):
+ * lives in `@prisma-next-idb/sync-server-sql`'s `sqlSyncAdapter`, built once
+ * in `sync.ts` — this file is just the HTTP boundary):
  *
  * 1. Cheap pre-filter on Changelog, scoped by `scopeKey` (stamped at push
  *    time, see push/+server.ts) and a cursor (`.cursor({ id: since })`).
@@ -49,7 +49,7 @@ export const GET: RequestHandler = async ({ url, request }) => {
       const sourceRow = rows.find((r) => String(r.id) === changelogId)!;
       const operation = sourceRow.operation as "create" | "update" | "delete";
       const keyPath = sourceRow.keyPath;
-      const record = await resolvePullRecord(db, model, check, keyPath, operation);
+      const record = await sqlSyncAdapter.resolvePullRecord(db, model, check, keyPath, operation);
       return { changelogId, model, operation, keyPath, record };
     })
   );

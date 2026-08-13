@@ -31,6 +31,7 @@
     "@prisma-next-idb/client-idb": "workspace:*",
     "@prisma-next-idb/sync-extension-idb": "workspace:*",
     "@prisma-next-idb/sync-server": "workspace:*",
+    "@prisma-next-idb/sync-server-sql": "workspace:*",
     "@prisma-next/adapter-postgres": "^0.16.0",
     "@prisma-next/driver-postgres": "^0.16.0",
     "@prisma-next/family-sql": "^0.16.0",

@@ -1,7 +1,6 @@
 import { idbSyncExtension } from "@prisma-next-idb/sync-extension-idb/control";
-import { createAutoMigratingSyncIdbClient } from "@prisma-next-idb/sync-extension-idb/client";
+import { createManagedAutoSyncIdbClient } from "@prisma-next-idb/sync-extension-idb/client";
 import type { SyncIdbClient } from "@prisma-next-idb/sync-extension-idb/client";
-import { createManagedIdbClient } from "@prisma-next-idb/client-idb/client";
 import type { Contract } from "./contract";
 import { contractSpace } from "./contract-space.generated";
 
@@ -9,15 +8,11 @@ const DB_NAME = "prisma-next-idb-kanban-example";
 
 type DbClient = SyncIdbClient<Contract>;
 
-const managedDb = createManagedIdbClient<DbClient>(
-  () =>
-    createAutoMigratingSyncIdbClient<Contract>({
-      contractSpace,
-      dbName: DB_NAME,
-      extensions: [idbSyncExtension],
-    }),
-  { dbName: DB_NAME }
-);
+const managedDb = createManagedAutoSyncIdbClient<Contract>({
+  contractSpace,
+  dbName: DB_NAME,
+  extensions: [idbSyncExtension],
+});
 
 /** Migrate + open a sync-tracked client in one call — `db.orm.*` mutations atomically write outbox events alongside the model write. */
 export const getDb = (): Promise<DbClient> => managedDb.get();
