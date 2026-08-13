@@ -40,6 +40,9 @@ export default defineConfig([
       "**/migrations-postgres/**/*.json",
       // generated Postgres schema artifacts
       "**/schema.postgres.generated.*",
+      // sync-server-sql's test fixture contract, regenerated on every
+      // `pnpm contract:emit:postgres` — see its prisma-next.config.ts
+      "**/test/fixtures/schema.generated.*",
     ],
   },
   js.configs.recommended,

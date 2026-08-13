@@ -1,0 +1,51 @@
+{
+  "name": "@prisma-next-idb/sync-server-sql",
+  "version": "0.1.0",
+  "description": "Prisma Next IDB — SQL execution adapter for sync-server (ownership checks + push/pull against a prisma-next SQL ORM client)",
+  "license": "MIT",
+  "files": ["dist"],
+  "keywords": ["prisma", "prisma-next", "indexeddb", "offline-first", "idb", "sync", "sql", "postgres", "sqlite"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/prisma-idb/idb-client-generator.git",
+    "directory": "packages/prisma-next/sync-server-sql"
+  },
+  "homepage": "https://prisma-idb.dev/",
+  "bugs": {
+    "url": "https://github.com/prisma-idb/idb-client-generator/issues"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "check": "pnpm contract:emit:postgres && tsc --noEmit",
+    "test": "pnpm contract:emit:postgres && pnpm db:create && pnpm db:init && vitest run",
+    "lint": "prettier --check . && eslint .",
+    "format": "prettier --write .",
+    "contract:emit:postgres": "prisma-next contract emit --config prisma-next.config.ts",
+    "db:create": "node scripts/ensure-test-db.mjs",
+    "db:init": "prisma-next db init --config prisma-next.config.ts"
+  },
+  "dependencies": {
+    "@prisma-next-idb/sync-server": "workspace:*",
+    "@prisma-next/contract": "^0.16.0"
+  },
+  "devDependencies": {
+    "@prisma-next/postgres": "^0.16.0",
+    "@types/node": "^24.10.9",
+    "@types/pg": "^8.21.0",
+    "dotenv": "^17.4.2",
+    "pg": "^8.22.0",
+    "prisma-next": "^0.16.0",
+    "tsdown": "^0.22.14",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  }
+}
