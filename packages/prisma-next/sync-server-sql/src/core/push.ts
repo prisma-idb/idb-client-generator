@@ -80,15 +80,28 @@ export async function applyPushEvent(
         return { id: event.id, success: false, error: "SCOPE_VIOLATION", retryable: false };
       }
 
+      // For updates, also re-check ownership against the row *as the patch
+      // would leave it* — a patch that reassigns a parent FK (e.g. moves a
+      // Todo to a Board the caller doesn't own) is authorized by the
+      // pre-patch startRow check above but must not be allowed to land the
+      // record in a scope the caller doesn't own.
+      const patch =
+        event.operation === "update" ? (event.payload as { patch: Record<string, unknown> }).patch : undefined;
+      if (patch) {
+        const proposedRow = { ...(startRow as Record<string, unknown>), ...patch };
+        if (!(await checkAuthorization(tx, contract, getKeyField, model, check, proposedRow))) {
+          return { id: event.id, success: false, error: "SCOPE_VIOLATION", retryable: false };
+        }
+      }
+
       const root = ormRootFor(tx, model);
       if (event.operation === "create") {
         await root.select(keyField).create(event.payload as Record<string, unknown>);
-      } else if (event.operation === "update") {
+      } else if (event.operation === "update" && patch) {
         // `check.key` (resolved by the caller via `toSyncPushPayload`, same
         // value) is what identifies the row — not `event.payload`, which
         // still carries the client's raw outbox record (`{ patch, key }`)
         // rather than the ORM's `.where()` matcher shape.
-        const { patch } = event.payload as { patch: Record<string, unknown> };
         await root
           .select(keyField)
           .where({ [keyField]: check.key })

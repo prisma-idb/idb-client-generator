@@ -4,7 +4,7 @@ description: Set up bidirectional sync between IndexedDB and a server, step by s
 icon: RefreshCw
 ---
 
-Sync keeps a browser IndexedDB database and a server database in sync, per user. It's two packages:
+Sync keeps a browser IndexedDB database and a server database in sync, per user. It's three packages:
 
 - **`@prisma-next-idb/sync-extension-idb`** — browser-side. Wraps your IDB ORM client so every mutation atomically writes an outbox event alongside the model write, and gives you a worker that pushes those events to your server and pulls remote changes back.
 - **`@prisma-next-idb/sync-server`** — server-side. Given a `rootModel` (e.g. `User`), builds an authorization graph from your schema's relations and tells you, per event, what to check before applying it. Never touches a database or an HTTP framework directly — you wire it into your own routes.

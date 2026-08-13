@@ -85,7 +85,7 @@ await db.transaction(async (tx) => {
   if (!authorized) throw new Error("SCOPE_VIOLATION"); // rolls back the transaction
 
   await applyEvent(tx, event);
-  await tx.changelog.create({ data: { model: event.model, scopeKey: currentUserId, outboxEventId: event.id } });
+  await tx.Changelog.create({ data: { model: event.model, scopeKey: currentUserId, outboxEventId: event.id } });
 });
 ```
 
