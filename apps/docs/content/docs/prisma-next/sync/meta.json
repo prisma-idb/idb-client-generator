@@ -1,0 +1,6 @@
+{
+  "title": "Sync",
+  "description": "Bidirectional sync between IndexedDB and a server",
+  "icon": "RefreshCw",
+  "pages": ["index", "client-contracts", "client", "server"]
+}

@@ -8,8 +8,10 @@
     "client",
     "migrations",
     "kanban-example",
+    "---Sync---",
+    "...sync",
     "---Reference---",
-    "api"
+    "...api"
   ],
   "root": true,
   "title": "Prisma Next",

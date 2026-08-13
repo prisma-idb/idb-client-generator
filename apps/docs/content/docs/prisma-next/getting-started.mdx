@@ -64,36 +64,20 @@ export default defineConfig({
 });
 ```
 
-## Scripts
-
-Add these to `package.json`:
-
-```json
-{
-  "scripts": {
-    "contract:emit": "prisma-next contract emit",
-    "migration:baseline": "prisma-next-idb generate-baseline --contract src/prisma/contract.json",
-    "migration:generate": "prisma-next-idb generate-migration --contract src/prisma/contract.json",
-    "migration:generate-space": "prisma-next-idb generate-contract-space --contract src/prisma/contract.json --out src/prisma/contract-space.generated.ts",
-    "migration:preflight": "prisma-next-idb preflight"
-  }
-}
-```
-
-The IDB CLI defaults to `src/lib/prisma/contract.json`; these scripts use `src/prisma` to stay framework-neutral. If you move the files again, update the `--contract` and `--out` flags. If you move `migrations/`, add `--migrations-dir <path>` to the IDB scripts.
-
 ## Bootstrap
 
-Run once on a fresh project:
+Both CLIs are devDependencies, so `npx` resolves them locally. Run once on a fresh project:
 
 ```bash
-npm run contract:emit
-npm run migration:baseline
-npm run migration:generate-space
-npm run migration:preflight
+npx prisma-next contract emit
+npx prisma-next-idb migration plan
+npx prisma-next-idb migration contract-space
+npx prisma-next-idb migration preflight
 ```
 
 This writes `contract.json`, `contract.d.ts`, `contract-space.generated.ts`, and the first migration package under `migrations/app/`. Commit all of them.
+
+`prisma-next-idb` reads `--contract`/`--migrations-dir` from `prisma-next.config.ts` (`contract.output` / `migrations.dir`) — the same config `prisma-next contract emit` reads — so no flags are needed here even though this example keeps its contract under `src/prisma/` rather than the `src/lib/prisma/` most examples use. Pass `--contract`/`--migrations-dir`/`--config` explicitly only if you need to point at something other than what the config declares.
 
 ## Open the client
 
