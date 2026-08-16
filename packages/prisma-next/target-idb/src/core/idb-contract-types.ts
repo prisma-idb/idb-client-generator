@@ -41,6 +41,18 @@ export type IdbIndexDefinition = {
 /** Referential action executed on child rows when a parent row is deleted. */
 export type IdbReferentialAction = "cascade" | "setNull" | "setDefault" | "restrict" | "noAction";
 
+/**
+ * Mutation-default generator ids IDB recognizes in `contract.execution.mutations.defaults`.
+ *
+ * Only `"timestampNow"` exists today, backing `temporal.updatedAt()` PSL
+ * fields (fires on both `onCreate` and `onUpdate`, matching the SQL family's
+ * generator of the same name). Kept as a named union — rather than inlining
+ * the string literal at each use site — so the id can't drift between the
+ * PSL interpreter (which writes it) and the runtime mutation-defaults
+ * resolver (which reads it).
+ */
+export type IdbMutationDefaultGeneratorId = "timestampNow";
+
 /** Per-relation storage metadata attached to {@link IdbModelStorage}. */
 export type IdbRelationStorage = {
   readonly onDelete?: IdbReferentialAction;

@@ -13,6 +13,7 @@
  *   it backs, matching `timestampNow`'s `'query'`-stability in SQL.
  */
 import type { ExecutionMutationDefault, ExecutionMutationDefaultValue } from "@prisma-next/contract/types";
+import type { IdbMutationDefaultGeneratorId } from "@prisma-next-idb/target-idb/pack";
 
 /** Per-top-level-mutation-call cache, keyed by generator id. Create one with {@link createMutationDefaultsCache}. */
 export type MutationDefaultsCache = Map<string, unknown>;
@@ -22,11 +23,14 @@ export function createMutationDefaultsCache(): MutationDefaultsCache {
 }
 
 function computeGeneratedValue(spec: ExecutionMutationDefaultValue): unknown {
-  switch (spec.id) {
+  const id = spec.id as IdbMutationDefaultGeneratorId;
+  switch (id) {
     case "timestampNow":
       return new Date();
-    default:
-      throw new Error(`Unknown mutation-default generator id "${spec.id}"`);
+    default: {
+      const _exhaustive: never = id;
+      throw new Error(`Unknown mutation-default generator id "${String(_exhaustive)}"`);
+    }
   }
 }
 
