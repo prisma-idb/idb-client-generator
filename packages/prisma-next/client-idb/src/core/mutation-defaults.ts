@@ -73,7 +73,7 @@ export function applyCreateDefaults(
   let result = data;
   for (const d of defaults) {
     if (d.ref.table !== storeName || !d.onCreate) continue;
-    if (Object.hasOwn(result, d.ref.column)) continue;
+    if (result[d.ref.column] !== undefined) continue;
     if (result === data) result = { ...data };
     result[d.ref.column] = resolveGeneratedValue(d.onCreate, cache);
   }
@@ -82,9 +82,10 @@ export function applyCreateDefaults(
 
 /**
  * Fills in every column with an `onUpdate` default that `patch` doesn't
- * already set. An empty `patch` is returned unchanged — no write means no
- * default should fire either (matches SQL's "empty update payloads skip
- * onUpdate defaults" rule).
+ * already set. A patch with no defined values (empty, or every field
+ * explicitly `undefined`) is returned unchanged — no write means no default
+ * should fire either (matches SQL's "empty update payloads skip onUpdate
+ * defaults" rule).
  */
 export function applyUpdateDefaults(
   defaults: readonly ExecutionMutationDefault[] | undefined,
@@ -92,12 +93,12 @@ export function applyUpdateDefaults(
   patch: Record<string, unknown>,
   cache: MutationDefaultsCache
 ): Record<string, unknown> {
-  if (Object.keys(patch).length === 0) return patch;
+  if (Object.values(patch).every((v) => v === undefined)) return patch;
   if (!defaults || defaults.length === 0) return patch;
   let result = patch;
   for (const d of defaults) {
     if (d.ref.table !== storeName || !d.onUpdate) continue;
-    if (Object.hasOwn(result, d.ref.column)) continue;
+    if (result[d.ref.column] !== undefined) continue;
     if (result === patch) result = { ...patch };
     result[d.ref.column] = resolveGeneratedValue(d.onUpdate, cache);
   }

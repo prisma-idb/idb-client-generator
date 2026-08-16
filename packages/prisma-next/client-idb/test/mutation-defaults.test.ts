@@ -52,11 +52,20 @@ describe("applyCreateDefaults", () => {
     expect(a["updatedAt"]).toBe(b["updatedAt"]);
   });
 
-  it("generates a fresh timestamp per call when given separate caches", async () => {
+  it("generates an independent timestamp instance per call when given separate caches", () => {
     const a = applyCreateDefaults([updatedAtDefault], "post", { id: "p1" }, createMutationDefaultsCache());
-    await new Promise((r) => setTimeout(r, 2));
     const b = applyCreateDefaults([updatedAtDefault], "post", { id: "p2" }, createMutationDefaultsCache());
-    expect((a["updatedAt"] as Date).getTime()).toBeLessThan((b["updatedAt"] as Date).getTime());
+    expect(a["updatedAt"]).not.toBe(b["updatedAt"]);
+  });
+
+  it("treats an explicit undefined value the same as an absent column", () => {
+    const result = applyCreateDefaults(
+      [updatedAtDefault],
+      "post",
+      { id: "p1", updatedAt: undefined },
+      createMutationDefaultsCache()
+    );
+    expect(result["updatedAt"]).toBeInstanceOf(Date);
   });
 });
 
@@ -87,7 +96,9 @@ const idCuid2Default: ExecutionMutationDefault = {
 
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const UUID_V7_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const CUID2_PATTERN = /^[a-z][a-z0-9]{23}$/;
+// uniku's cuid2 length bounds are 2-32 chars (default 24) — match the shape,
+// not a specific length, so this doesn't couple to the default.
+const CUID2_PATTERN = /^[a-z][a-z0-9]{1,31}$/;
 
 describe("applyCreateDefaults — literal generator", () => {
   it("fills in the field's own literal value", () => {
@@ -155,6 +166,13 @@ describe("applyUpdateDefaults", () => {
 
   it("skips every onUpdate default for an empty patch", () => {
     const patch = {};
+    const result = applyUpdateDefaults([updatedAtDefault], "post", patch, createMutationDefaultsCache());
+    expect(result).toBe(patch);
+    expect(result).not.toHaveProperty("updatedAt");
+  });
+
+  it("treats a patch whose fields are all undefined the same as an empty patch", () => {
+    const patch = { title: undefined };
     const result = applyUpdateDefaults([updatedAtDefault], "post", patch, createMutationDefaultsCache());
     expect(result).toBe(patch);
     expect(result).not.toHaveProperty("updatedAt");

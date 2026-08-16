@@ -50,6 +50,30 @@ function parseDefaultLiteralValue(raw: string): { readonly value: string | numbe
   return undefined;
 }
 
+/**
+ * `true` if a parsed `@default(<literal>)` value's JS type matches what
+ * `codecId` expects (a literal's JS type must match the field's declared
+ * type — a string literal on an Int field, or vice versa, is a mismatch).
+ * Declared as a function (not a `codecId → JS type` const lookup) since
+ * `SCALAR_TO_CODEC_ID` — which every `codecId` here is sourced from — is
+ * declared further down this module; a top-level const initializer would hit
+ * the temporal dead zone, but a function body only evaluates when called.
+ */
+function literalValueMatchesCodec(value: string | number | boolean, codecId: string): boolean {
+  switch (codecId) {
+    case SCALAR_TO_CODEC_ID["String"]:
+      return typeof value === "string";
+    case SCALAR_TO_CODEC_ID["Int"]:
+    case SCALAR_TO_CODEC_ID["Float"]:
+    case SCALAR_TO_CODEC_ID["Decimal"]:
+      return typeof value === "number";
+    case SCALAR_TO_CODEC_ID["Boolean"]:
+      return typeof value === "boolean";
+    default:
+      return false;
+  }
+}
+
 /** Parses `@default(...)`'s positional argument as a function call: `name(...)` or bare `name()`. */
 function parseDefaultFunctionCall(raw: string): { readonly name: string; readonly arg?: string } | undefined {
   const trimmed = raw.trim();
@@ -673,6 +697,15 @@ function interpretModel(
 
       const literal = parseDefaultLiteralValue(raw);
       if (literal) {
+        if (!literalValueMatchesCodec(literal.value, codecId)) {
+          diagnostics.push({
+            code: "IDB_INVALID_DEFAULT_VALUE",
+            message: `Field "${model.name}.${field.name}" has type "${field.typeName}" but @default(${raw}) is a ${typeof literal.value} literal.`,
+            sourceId,
+            span: defaultAttr.span,
+          });
+          continue;
+        }
         fieldExecutionDefaults.push({
           fieldName: field.name,
           onCreate: { kind: "generator", id: LITERAL_GENERATOR_ID, params: { value: literal.value } },

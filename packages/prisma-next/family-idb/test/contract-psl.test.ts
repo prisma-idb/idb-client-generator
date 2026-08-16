@@ -1079,6 +1079,30 @@ describe("interpretPslDocumentToIdbContract", () => {
       `);
       expect(result.ok).toBe(true);
     });
+
+    it("errors on a string default for an Int field", () => {
+      const result = interpret(`
+        model Post {
+          id    String @id
+          views Int    @default("not a number")
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_INVALID_DEFAULT_VALUE");
+    });
+
+    it("errors on a numeric default for a Boolean field", () => {
+      const result = interpret(`
+        model Post {
+          id        String  @id
+          published Boolean @default(1)
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_INVALID_DEFAULT_VALUE");
+    });
   });
 
   describe("@default(now())", () => {

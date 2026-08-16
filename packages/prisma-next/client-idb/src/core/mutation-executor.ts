@@ -6,10 +6,10 @@
  *
  * - No column/field mapping — IDB field names ARE the storage keys.
  * - `applyCreateDefaults`/`applyUpdateDefaults` (`mutation-defaults.ts`) fill
- *   in `contract.execution.mutations.defaults` (currently just
- *   `temporal.updatedAt()`'s `timestampNow` generator) — IDB has no
- *   server-rendered defaults, so this always runs client-side, unlike SQL's
- *   storage-plane `ColumnDefault`.
+ *   in every generator id `contract.execution.mutations.defaults` declares
+ *   (see `IdbMutationDefaultGeneratorId`) — IDB has no server-rendered
+ *   defaults, so this always runs client-side, unlike SQL's storage-plane
+ *   `ColumnDefault`.
  * - `insertSingleRow` → `scope.execute({ kind: "add", ... })`.
  * - `findRowByCriterion` / `findFirstByFilters` → `scope.execute({ kind: "cursor-scan", ... })`.
  *   IDB allows reads inside a readwrite transaction; the transaction scope accepts
@@ -423,6 +423,12 @@ async function applyChildOwnedMutation(
       for (const [childField, parentValue] of parentValues.entries()) {
         setValues[childField] = parentValue;
       }
+      const patch = applyUpdateDefaults(
+        contract.execution?.mutations.defaults,
+        relation.relatedStoreName,
+        setValues,
+        defaultsCache
+      );
       const filter = buildCriterionFilter(criterion as Record<string, unknown>);
       const meta = makePlanMeta(contract);
       // scan-write + put-merged: set the FK fields on every child row matching
@@ -434,7 +440,7 @@ async function applyChildOwnedMutation(
         kind: "scan-write",
         storeName: relation.relatedStoreName,
         write: "put-merged",
-        patch: setValues,
+        patch,
         filter,
       });
     }
@@ -450,13 +456,19 @@ async function applyChildOwnedMutation(
 
   if (!mutation.criteria || mutation.criteria.length === 0) {
     // Disconnect all children of this parent.
+    const patch = applyUpdateDefaults(
+      contract.execution?.mutations.defaults,
+      relation.relatedStoreName,
+      setValues,
+      defaultsCache
+    );
     const parentJoinFilter = buildParentJoinFilter(parentValues);
     await scope.execute({
       meta,
       kind: "scan-write",
       storeName: relation.relatedStoreName,
       write: "put-merged",
-      patch: setValues,
+      patch,
       filter: parentJoinFilter,
     });
     return;
@@ -464,6 +476,12 @@ async function applyChildOwnedMutation(
 
   // Disconnect specific children matching each criterion AND the parent join.
   for (const criterion of mutation.criteria) {
+    const patch = applyUpdateDefaults(
+      contract.execution?.mutations.defaults,
+      relation.relatedStoreName,
+      setValues,
+      defaultsCache
+    );
     const criterionFilter = buildCriterionFilter(criterion as Record<string, unknown>);
     const parentJoinFilter = buildParentJoinFilter(parentValues);
     const combinedFilter = (row: Record<string, unknown>): boolean => parentJoinFilter(row) && criterionFilter(row);
@@ -472,7 +490,7 @@ async function applyChildOwnedMutation(
       kind: "scan-write",
       storeName: relation.relatedStoreName,
       write: "put-merged",
-      patch: setValues,
+      patch,
       filter: combinedFilter,
     });
   }
