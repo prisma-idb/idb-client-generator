@@ -1,11 +1,12 @@
 import type { ContractSourceDiagnostic, ContractSourceDiagnostics } from "@prisma-next/config/config-types";
-import { computeProfileHash, computeStorageHash } from "@prisma-next/contract/hashing";
-import type { ApplicationDomain, Contract, ContractField } from "@prisma-next/contract/types";
+import { computeExecutionHash, computeProfileHash, computeStorageHash } from "@prisma-next/contract/hashing";
+import type { ApplicationDomain, Contract, ContractField, ExecutionMutationDefault } from "@prisma-next/contract/types";
 import { UNBOUND_DOMAIN_NAMESPACE_ID, crossRef } from "@prisma-next/contract/types";
 import type { FieldSymbol, ModelSymbol, SymbolTable } from "@prisma-next/psl-parser";
 import type {
   IdbIndexDefinition,
   IdbModelStorage,
+  IdbMutationDefaultGeneratorId,
   IdbReferentialAction,
   IdbStorage,
   IdbStoreDefinition,
@@ -13,6 +14,12 @@ import type {
 import { notOk, ok } from "@prisma-next/utils/result";
 import type { Result } from "@prisma-next/utils/result";
 import { validateContract } from "./validate";
+
+/** The one `temporal.*` type-constructor path IDB currently understands. */
+const TEMPORAL_UPDATED_AT_PATH = ["temporal", "updatedAt"] as const;
+
+/** Generator id shared by every `temporal.updatedAt()` field — fires on both onCreate and onUpdate. */
+const TIMESTAMP_NOW_GENERATOR_ID: IdbMutationDefaultGeneratorId = "timestampNow";
 
 // ── Scalar type → codec ID mapping ────────────────────────────────────────────
 
@@ -165,6 +172,8 @@ interface InterpretedModel {
   readonly relationsStorage: Record<string, { onDelete?: IdbReferentialAction }>;
   /** FK-side declarations keyed by targetModelName for back-relation resolution. */
   readonly fksByTarget: ReadonlyMap<string, { fieldName: string; localFields: string[]; targetFields: string[] }>;
+  /** Names of fields declared `temporal.updatedAt()` — feeds `contract.execution.mutations.defaults`. */
+  readonly temporalUpdatedAtFields: readonly string[];
 }
 
 // ── Core interpreter ───────────────────────────────────────────────────────────
@@ -308,6 +317,7 @@ function interpretModel(
   const relations: InterpretedModel["relations"] = {};
   const relationsStorage: Record<string, { onDelete?: IdbReferentialAction }> = {};
   const fksByTarget = new Map<string, { fieldName: string; localFields: string[]; targetFields: string[] }>();
+  const temporalUpdatedAtFields: string[] = [];
 
   for (const field of modelFields) {
     // Skip the @id field's optional marker — keyPath fields cannot be nullable in IDB
@@ -467,6 +477,53 @@ function interpretModel(
       continue;
     }
 
+    // `temporal.updatedAt()` — a namespaced type-constructor call in the type
+    // position (no plain type name), shared framework-level PSL grammar
+    // (same construct the SQL family requires in place of the removed bare
+    // `@updatedAt` attribute). Must be checked before the plain-scalar
+    // lookup below: `field.typeName` for a type-constructor field is just
+    // the call's last path segment ("updatedAt"), not a real scalar type.
+    if (field.typeConstructor) {
+      const path = field.typeConstructor.path;
+      const isTemporalUpdatedAt =
+        path.length === TEMPORAL_UPDATED_AT_PATH.length && path.every((p, i) => p === TEMPORAL_UPDATED_AT_PATH[i]);
+
+      if (!isTemporalUpdatedAt) {
+        diagnostics.push({
+          code: "IDB_UNSUPPORTED_TYPE_CONSTRUCTOR",
+          message: `Field "${model.name}.${field.name}" uses unsupported type constructor "${path.join(".")}()". IDB currently only supports temporal.updatedAt().`,
+          sourceId,
+          span: field.typeConstructor.span,
+        });
+        continue;
+      }
+      if (field.typeConstructor.args.length > 0) {
+        diagnostics.push({
+          code: "IDB_TEMPORAL_UPDATED_AT_TAKES_NO_ARGS",
+          message: `Field "${model.name}.${field.name}" — temporal.updatedAt() takes no arguments.`,
+          sourceId,
+          span: field.typeConstructor.span,
+        });
+        continue;
+      }
+      if (field.name === idFieldName) {
+        diagnostics.push({
+          code: "IDB_TEMPORAL_UPDATED_AT_ON_KEY_FIELD",
+          message: `Field "${model.name}.${field.name}" is the model's @id key and cannot be temporal.updatedAt() — an auto-managed timestamp cannot also be the primary key.`,
+          sourceId,
+          span: field.span,
+        });
+        continue;
+      }
+
+      contractFields[field.name] = {
+        nullable: field.optional,
+        type: { kind: "scalar", codecId: SCALAR_TO_CODEC_ID["DateTime"]! },
+      };
+      temporalUpdatedAtFields.push(field.name);
+      continue;
+    }
+
     const codecId = SCALAR_TO_CODEC_ID[field.typeName];
     if (codecId === undefined) {
       diagnostics.push({
@@ -534,6 +591,7 @@ function interpretModel(
     relations,
     relationsStorage,
     fksByTarget,
+    temporalUpdatedAtFields,
   };
 }
 
@@ -690,6 +748,7 @@ export function interpretPslDocumentToIdbContract(
   const stores: Record<string, IdbStoreDefinition> = {};
   const roots: Record<string, ReturnType<typeof crossRef>> = {};
   const domainModels: Record<string, unknown> = {};
+  const executionDefaults: ExecutionMutationDefault[] = [];
 
   for (const [modelName, interp] of interpretedByName) {
     stores[interp.storeName] = {
@@ -698,6 +757,14 @@ export function interpretPslDocumentToIdbContract(
     };
 
     roots[interp.storeName] = crossRef(modelName);
+
+    for (const fieldName of interp.temporalUpdatedAtFields) {
+      executionDefaults.push({
+        ref: { namespace: ns, table: interp.storeName, column: fieldName },
+        onCreate: { kind: "generator", id: TIMESTAMP_NOW_GENERATOR_ID },
+        onUpdate: { kind: "generator", id: TIMESTAMP_NOW_GENERATOR_ID },
+      });
+    }
 
     const modelStorage: IdbModelStorage =
       Object.keys(interp.relationsStorage).length > 0
@@ -738,6 +805,18 @@ export function interpretPslDocumentToIdbContract(
     namespaces: { [ns]: { models: domainModels } },
   } as unknown as ApplicationDomain;
 
+  const execution =
+    executionDefaults.length > 0
+      ? {
+          executionHash: computeExecutionHash({
+            target: "idb",
+            targetFamily: "idb",
+            execution: { mutations: { defaults: executionDefaults } },
+          }),
+          mutations: { defaults: executionDefaults },
+        }
+      : undefined;
+
   const contract: Contract<IdbStorage> = {
     target: "idb",
     targetFamily: "idb",
@@ -748,6 +827,7 @@ export function interpretPslDocumentToIdbContract(
     extensionPacks: {},
     meta: {},
     profileHash,
+    ...(execution ? { execution } : {}),
   };
 
   validateContract(contract);

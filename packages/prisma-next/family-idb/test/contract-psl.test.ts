@@ -864,4 +864,105 @@ describe("interpretPslDocumentToIdbContract", () => {
       expect(models["User"]!.relations).toHaveProperty("posts");
     });
   });
+
+  describe("temporal.updatedAt()", () => {
+    it("resolves the field as a DateTime and attaches an execution mutation default", () => {
+      const result = interpret(`
+        model Post {
+          id        String @id
+          title     String
+          updatedAt temporal.updatedAt()
+        }
+      `);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+
+      const model = result.value.domain.namespaces[NS]!.models["Post"] as unknown as TestContractModel;
+      expect(model.fields["updatedAt"]).toMatchObject({
+        nullable: false,
+        type: { kind: "scalar", codecId: "idb/date@1" },
+      });
+
+      expect(result.value.execution).toBeDefined();
+      expect(typeof result.value.execution?.executionHash).toBe("string");
+      expect(result.value.execution?.mutations.defaults).toEqual([
+        {
+          ref: { namespace: NS, table: "post", column: "updatedAt" },
+          onCreate: { kind: "generator", id: "timestampNow" },
+          onUpdate: { kind: "generator", id: "timestampNow" },
+        },
+      ]);
+    });
+
+    it("omits `execution` entirely when no model uses temporal.updatedAt()", () => {
+      const result = interpret(`model Post { id String @id }`);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.execution).toBeUndefined();
+    });
+
+    it("collects one execution default per model that uses it", () => {
+      const result = interpret(`
+        model User {
+          id        String @id
+          updatedAt temporal.updatedAt()
+        }
+        model Post {
+          id        String @id
+          updatedAt temporal.updatedAt()
+        }
+      `);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const tables = result.value.execution?.mutations.defaults.map((d) => d.ref.table).sort();
+      expect(tables).toEqual(["post", "user"]);
+    });
+
+    it("errors on an unrecognized type-constructor namespace", () => {
+      const result = interpret(`
+        model Post {
+          id  String @id
+          foo other.thing()
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_UNSUPPORTED_TYPE_CONSTRUCTOR");
+    });
+
+    it("errors on an unrecognized temporal.* constructor", () => {
+      const result = interpret(`
+        model Post {
+          id String @id
+          ts temporal.timestamp()
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_UNSUPPORTED_TYPE_CONSTRUCTOR");
+    });
+
+    it("errors when used on the @id key field", () => {
+      const result = interpret(`
+        model Post {
+          id temporal.updatedAt() @id
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_TEMPORAL_UPDATED_AT_ON_KEY_FIELD");
+    });
+
+    it("errors when the constructor call carries arguments", () => {
+      const result = interpret(`
+        model Post {
+          id        String @id
+          updatedAt temporal.updatedAt(3)
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_TEMPORAL_UPDATED_AT_TAKES_NO_ARGS");
+    });
+  });
 });
