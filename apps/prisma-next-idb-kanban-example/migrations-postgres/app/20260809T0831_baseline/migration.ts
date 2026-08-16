@@ -57,7 +57,7 @@ export default class M extends Migration<never, End> {
         schema: "public",
         table: "changelog",
         columns: [
-          col("id", "int4", { notNull: true, default: fn("autoincrement()") }),
+          col("id", "SERIAL", { notNull: true, default: fn("autoincrement()") }),
           col("model", "text", { notNull: true }),
           col("keyPath", "text", { notNull: true }),
           col("operation", "text", { notNull: true }),

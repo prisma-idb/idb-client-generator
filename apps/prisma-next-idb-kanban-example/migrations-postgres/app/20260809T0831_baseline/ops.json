@@ -162,7 +162,7 @@
     "execute": [
       {
         "description": "create table \"changelog\"",
-        "sql": "CREATE TABLE \"public\".\"changelog\" (\n  \"id\" int4 NOT NULL,\n  \"model\" text NOT NULL,\n  \"keyPath\" text NOT NULL,\n  \"operation\" text NOT NULL,\n  \"scopeKey\" text NOT NULL,\n  \"outboxEventId\" text NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"changelog_outboxEventId_key\" UNIQUE (\"outboxEventId\")\n)",
+        "sql": "CREATE TABLE \"public\".\"changelog\" (\n  \"id\" SERIAL NOT NULL,\n  \"model\" text NOT NULL,\n  \"keyPath\" text NOT NULL,\n  \"operation\" text NOT NULL,\n  \"scopeKey\" text NOT NULL,\n  \"outboxEventId\" text NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"changelog_outboxEventId_key\" UNIQUE (\"outboxEventId\")\n)",
         "params": []
       }
     ],
