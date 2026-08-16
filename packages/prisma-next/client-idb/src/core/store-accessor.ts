@@ -61,6 +61,7 @@ import {
 } from "./aggregate-builder";
 import { type IdbGroupedAccessor, createGroupedAccessor } from "./grouped-accessor";
 import type { IdbQueryExecutor } from "./executor";
+import { applyCreateDefaults, applyUpdateDefaults, createMutationDefaultsCache } from "./mutation-defaults";
 import { loadRelation } from "./relation-loader";
 import {
   executeBulkUpdateWithFkValidation,
@@ -580,17 +581,23 @@ export class IdbStoreAccessorImpl<
 
     const groupingKey = this.#newGroupingKey();
     const meta = this.#planMeta(groupingKey);
-    const ast: IdbCreateAst = { kind: "create", modelName: this.#modelName, data: record };
+    const withDefaults = applyCreateDefaults(
+      this.#contract.execution?.mutations.defaults,
+      this.#storeName,
+      record,
+      createMutationDefaultsCache()
+    );
+    const ast: IdbCreateAst = { kind: "create", modelName: this.#modelName, data: withDefaults };
     const plan: IdbQueryPlan<Record<string, unknown>> = {
       meta,
       ast,
-      idbPlan: { meta, kind: "add", storeName: this.#storeName, record },
+      idbPlan: { meta, kind: "add", storeName: this.#storeName, record: withDefaults },
     };
     // The IDB driver echoes the stored record back as the single result row.
     for await (const row of this.#executor.execute(plan)) {
       return row as DefaultModelRow<TContract, ModelName>;
     }
-    return record as DefaultModelRow<TContract, ModelName>;
+    return withDefaults as DefaultModelRow<TContract, ModelName>;
   }
 
   async findUnique(key: KeyType<TContract, ModelName>): Promise<DefaultModelRow<TContract, ModelName> | null> {
@@ -728,16 +735,19 @@ export class IdbStoreAccessorImpl<
     // find-then-write in a single readwrite transaction so there is no
     // check-then-act race window. Mirrors the vendor's single-statement upsert.
     const exec = this.#executor as IdbQueryExecutor & Partial<Pick<IdbQueryExecutorWithTransaction, "transaction">>;
+    const executionDefaults = this.#contract.execution?.mutations.defaults;
     if (typeof exec.transaction === "function") {
       return withMutationScope(exec as IdbQueryExecutorWithTransaction, [storeName], async (scope) => {
         const found = await scope.execute({ meta, kind: "cursor-scan", storeName, filter: matches, take: 1 });
         const existing = found[0];
         if (existing === undefined) {
-          const rows = await scope.execute({ meta, kind: "add", storeName, record: createRecord });
-          return (rows[0] ?? createRecord) as DefaultModelRow<TContract, ModelName>;
+          const record = applyCreateDefaults(executionDefaults, storeName, createRecord, createMutationDefaultsCache());
+          const rows = await scope.execute({ meta, kind: "add", storeName, record });
+          return (rows[0] ?? record) as DefaultModelRow<TContract, ModelName>;
         }
         const key = existing[keyPath] as IDBValidKey;
-        const rows = await scope.execute({ meta, kind: "update", storeName, key, patch: patchRecord });
+        const patch = applyUpdateDefaults(executionDefaults, storeName, patchRecord, createMutationDefaultsCache());
+        const rows = await scope.execute({ meta, kind: "update", storeName, key, patch });
         return (rows[0] ?? existing) as DefaultModelRow<TContract, ModelName>;
       });
     }
@@ -752,17 +762,18 @@ export class IdbStoreAccessorImpl<
       return this.create(args.create as MutationCreateInput<TContract, ModelName>);
     }
     const key = (existing as Record<string, unknown>)[keyPath] as IDBValidKey;
+    const patch = applyUpdateDefaults(executionDefaults, storeName, patchRecord, createMutationDefaultsCache());
     const ast: IdbUpsertAst = {
       kind: "upsert",
       modelName: this.#modelName,
       create: createRecord,
-      update: patchRecord,
+      update: patch,
       where: args.where as Record<string, unknown>,
     };
     const plan: IdbQueryPlan<Record<string, unknown>> = {
       meta,
       ast,
-      idbPlan: { meta, kind: "update", storeName, key, patch: patchRecord },
+      idbPlan: { meta, kind: "update", storeName, key, patch },
     };
     for await (const row of this.#executor.execute(plan)) {
       return row as DefaultModelRow<TContract, ModelName>;
@@ -773,7 +784,14 @@ export class IdbStoreAccessorImpl<
   createAll(data: CreateInput<TContract, ModelName>[]): AsyncIterableResult<DefaultModelRow<TContract, ModelName>> {
     const groupingKey = this.#newGroupingKey();
     const meta = this.#planMeta(groupingKey);
-    const records = data.map((d) => d as Record<string, unknown>);
+    // One shared cache for the whole batch — every row in a single createAll()
+    // call gets the same generated `temporal.updatedAt()` timestamp, matching
+    // SQL's 'query'-stability semantics for the same generator.
+    const defaultsCache = createMutationDefaultsCache();
+    const executionDefaults = this.#contract.execution?.mutations.defaults;
+    const records = data.map((d) =>
+      applyCreateDefaults(executionDefaults, this.#storeName, d as Record<string, unknown>, defaultsCache)
+    );
     const ast: IdbCreateAllAst = { kind: "createAll", modelName: this.#modelName, data: records };
     const plan: IdbQueryPlan<Record<string, unknown>> = {
       meta,
