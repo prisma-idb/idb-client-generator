@@ -18,8 +18,71 @@ import { validateContract } from "./validate";
 /** The one `temporal.*` type-constructor path IDB currently understands. */
 const TEMPORAL_UPDATED_AT_PATH = ["temporal", "updatedAt"] as const;
 
-/** Generator id shared by every `temporal.updatedAt()` field — fires on both onCreate and onUpdate. */
+/** Generator id shared by `temporal.updatedAt()`/bare `@updatedAt`/`@default(now())`. */
 const TIMESTAMP_NOW_GENERATOR_ID: IdbMutationDefaultGeneratorId = "timestampNow";
+
+/** Synthetic generator id that just echoes `params.value` — backs `@default(<literal>)`. */
+const LITERAL_GENERATOR_ID: IdbMutationDefaultGeneratorId = "literal";
+
+/** An execution-plane mutation default resolved for one field, pre-`ref` (the store name isn't known yet at field-resolution time). */
+interface FieldExecutionDefault {
+  readonly fieldName: string;
+  readonly onCreate?: {
+    readonly kind: "generator";
+    readonly id: IdbMutationDefaultGeneratorId;
+    readonly params?: Record<string, unknown>;
+  };
+  readonly onUpdate?: {
+    readonly kind: "generator";
+    readonly id: IdbMutationDefaultGeneratorId;
+    readonly params?: Record<string, unknown>;
+  };
+}
+
+/** Parses `@default(...)`'s positional argument as a literal value: `true`/`false`/a number/a quoted string. */
+function parseDefaultLiteralValue(raw: string): { readonly value: string | number | boolean } | undefined {
+  const t = raw.trim();
+  if (t === "true") return { value: true };
+  if (t === "false") return { value: false };
+  if (/^-?\d+(\.\d+)?$/.test(t)) return { value: Number(t) };
+  const str = parseStringArg(t);
+  if (str !== undefined) return { value: str };
+  return undefined;
+}
+
+/** Parses `@default(...)`'s positional argument as a function call: `name(...)` or bare `name()`. */
+function parseDefaultFunctionCall(raw: string): { readonly name: string; readonly arg?: string } | undefined {
+  const trimmed = raw.trim();
+  const openParen = trimmed.indexOf("(");
+  const closeParen = trimmed.lastIndexOf(")");
+  if (openParen <= 0 || closeParen !== trimmed.length - 1) return undefined;
+  const name = trimmed.slice(0, openParen).trim();
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) return undefined;
+  const arg = trimmed.slice(openParen + 1, closeParen).trim();
+  return arg ? { name, arg } : { name };
+}
+
+type DefaultFunctionResolution =
+  | { readonly ok: true; readonly generatorId: IdbMutationDefaultGeneratorId }
+  | { readonly ok: false; readonly reason: "unknown-function" | "invalid-argument" };
+
+/** Resolves a parsed `@default(...)` function call (excluding `autoincrement()`, handled separately as a storage-plane concern) to a generator id. */
+function resolveDefaultFunctionGeneratorId(name: string, arg: string | undefined): DefaultFunctionResolution {
+  switch (name) {
+    case "now":
+      return arg === undefined
+        ? { ok: true, generatorId: TIMESTAMP_NOW_GENERATOR_ID }
+        : { ok: false, reason: "invalid-argument" };
+    case "uuid":
+      if (arg === undefined || arg === "4") return { ok: true, generatorId: "uuidv4" };
+      if (arg === "7") return { ok: true, generatorId: "uuidv7" };
+      return { ok: false, reason: "invalid-argument" };
+    case "cuid":
+      return arg === undefined ? { ok: true, generatorId: "cuid2" } : { ok: false, reason: "invalid-argument" };
+    default:
+      return { ok: false, reason: "unknown-function" };
+  }
+}
 
 // ── Scalar type → codec ID mapping ────────────────────────────────────────────
 
@@ -172,8 +235,10 @@ interface InterpretedModel {
   readonly relationsStorage: Record<string, { onDelete?: IdbReferentialAction }>;
   /** FK-side declarations keyed by targetModelName for back-relation resolution. */
   readonly fksByTarget: ReadonlyMap<string, { fieldName: string; localFields: string[]; targetFields: string[] }>;
-  /** Names of fields declared `temporal.updatedAt()` — feeds `contract.execution.mutations.defaults`. */
-  readonly temporalUpdatedAtFields: readonly string[];
+  /** Execution-plane defaults resolved from `temporal.updatedAt()`, bare `@updatedAt`, and `@default(...)` — feeds `contract.execution.mutations.defaults`. */
+  readonly fieldExecutionDefaults: readonly FieldExecutionDefault[];
+  /** `true` when `@default(autoincrement())` was declared on this model's `@id` field — feeds `IdbStoreDefinition.autoIncrement`. */
+  readonly autoIncrement: boolean;
 }
 
 // ── Core interpreter ───────────────────────────────────────────────────────────
@@ -317,7 +382,8 @@ function interpretModel(
   const relations: InterpretedModel["relations"] = {};
   const relationsStorage: Record<string, { onDelete?: IdbReferentialAction }> = {};
   const fksByTarget = new Map<string, { fieldName: string; localFields: string[]; targetFields: string[] }>();
-  const temporalUpdatedAtFields: string[] = [];
+  const fieldExecutionDefaults: FieldExecutionDefault[] = [];
+  let autoIncrement = false;
 
   for (const field of modelFields) {
     // Skip the @id field's optional marker — keyPath fields cannot be nullable in IDB
@@ -520,7 +586,11 @@ function interpretModel(
         nullable: field.optional,
         type: { kind: "scalar", codecId: SCALAR_TO_CODEC_ID["DateTime"]! },
       };
-      temporalUpdatedAtFields.push(field.name);
+      fieldExecutionDefaults.push({
+        fieldName: field.name,
+        onCreate: { kind: "generator", id: TIMESTAMP_NOW_GENERATOR_ID },
+        onUpdate: { kind: "generator", id: TIMESTAMP_NOW_GENERATOR_ID },
+      });
       continue;
     }
 
@@ -539,6 +609,142 @@ function interpretModel(
       nullable: field.optional,
       type: { kind: "scalar", codecId },
     };
+
+    // `@updatedAt` (classic Prisma spelling) — same runtime semantics as
+    // `temporal.updatedAt()` above, just a different PSL surface for the
+    // same "fires on both create and update" mutation default.
+    const updatedAtAttr = getFieldAttribute(field, "updatedAt");
+    const defaultAttr = getFieldAttribute(field, "default");
+
+    if (updatedAtAttr && defaultAttr) {
+      diagnostics.push({
+        code: "IDB_UPDATED_AT_AND_DEFAULT_CONFLICT",
+        message: `Field "${model.name}.${field.name}" cannot combine @updatedAt with @default(...).`,
+        sourceId,
+        span: defaultAttr.span,
+      });
+      continue;
+    }
+
+    if (updatedAtAttr) {
+      if (field.name === idFieldName) {
+        diagnostics.push({
+          code: "IDB_TEMPORAL_UPDATED_AT_ON_KEY_FIELD",
+          message: `Field "${model.name}.${field.name}" is the model's @id key and cannot be @updatedAt — an auto-managed timestamp cannot also be the primary key.`,
+          sourceId,
+          span: field.span,
+        });
+        continue;
+      }
+      if (field.optional) {
+        diagnostics.push({
+          code: "IDB_EXECUTION_DEFAULT_ON_OPTIONAL_FIELD",
+          message: `Field "${model.name}.${field.name}" cannot be both optional and @updatedAt — an omitted value would be ambiguous between "generate one" and "store null". Remove "?" or the attribute.`,
+          sourceId,
+          span: field.span,
+        });
+        continue;
+      }
+      if (codecId !== SCALAR_TO_CODEC_ID["DateTime"]) {
+        diagnostics.push({
+          code: "IDB_UPDATED_AT_NOT_DATETIME",
+          message: `Field "${model.name}.${field.name}" is marked @updatedAt but has type "${field.typeName}", not DateTime.`,
+          sourceId,
+          span: field.span,
+        });
+        continue;
+      }
+      fieldExecutionDefaults.push({
+        fieldName: field.name,
+        onCreate: { kind: "generator", id: TIMESTAMP_NOW_GENERATOR_ID },
+        onUpdate: { kind: "generator", id: TIMESTAMP_NOW_GENERATOR_ID },
+      });
+    } else if (defaultAttr) {
+      const raw = findPositionalArg(defaultAttr.args);
+      if (raw === undefined) {
+        diagnostics.push({
+          code: "IDB_INVALID_DEFAULT_VALUE",
+          message: `Field "${model.name}.${field.name}" @default(...) requires a positional argument.`,
+          sourceId,
+          span: defaultAttr.span,
+        });
+        continue;
+      }
+
+      const literal = parseDefaultLiteralValue(raw);
+      if (literal) {
+        fieldExecutionDefaults.push({
+          fieldName: field.name,
+          onCreate: { kind: "generator", id: LITERAL_GENERATOR_ID, params: { value: literal.value } },
+        });
+      } else {
+        const call = parseDefaultFunctionCall(raw);
+        if (!call) {
+          diagnostics.push({
+            code: "IDB_INVALID_DEFAULT_VALUE",
+            message: `Field "${model.name}.${field.name}" has unsupported default value "${raw}".`,
+            sourceId,
+            span: defaultAttr.span,
+          });
+          continue;
+        }
+
+        if (call.name === "autoincrement") {
+          if (field.name !== idFieldName) {
+            diagnostics.push({
+              code: "IDB_AUTOINCREMENT_NOT_ON_KEY_FIELD",
+              message: `Field "${model.name}.${field.name}" uses @default(autoincrement()) but is not the model's @id key. IndexedDB only generates keys for the primary key field.`,
+              sourceId,
+              span: defaultAttr.span,
+            });
+            continue;
+          }
+          if (codecId !== SCALAR_TO_CODEC_ID["Int"]) {
+            diagnostics.push({
+              code: "IDB_AUTOINCREMENT_NOT_INT",
+              message: `Field "${model.name}.${field.name}" uses @default(autoincrement()) but has type "${field.typeName}", not Int. IndexedDB key generators only produce numbers.`,
+              sourceId,
+              span: defaultAttr.span,
+            });
+            continue;
+          }
+          autoIncrement = true;
+          continue;
+        }
+
+        if (field.optional) {
+          diagnostics.push({
+            code: "IDB_EXECUTION_DEFAULT_ON_OPTIONAL_FIELD",
+            message: `Field "${model.name}.${field.name}" cannot be both optional and @default(${call.name}(...)) — an omitted value would be ambiguous between "generate one" and "store null". Remove "?" or the default.`,
+            sourceId,
+            span: defaultAttr.span,
+          });
+          continue;
+        }
+
+        const resolution = resolveDefaultFunctionGeneratorId(call.name, call.arg);
+        if (!resolution.ok) {
+          diagnostics.push({
+            code:
+              resolution.reason === "unknown-function"
+                ? "IDB_UNKNOWN_DEFAULT_FUNCTION"
+                : "IDB_INVALID_DEFAULT_FUNCTION_ARGUMENT",
+            message:
+              resolution.reason === "unknown-function"
+                ? `Field "${model.name}.${field.name}" uses unsupported default function "${call.name}(...)". Supported: now(), uuid(), uuid(7), cuid(), autoincrement().`
+                : `Field "${model.name}.${field.name}" — @default(${call.name}(${call.arg ?? ""})) has an unsupported argument.`,
+            sourceId,
+            span: defaultAttr.span,
+          });
+          continue;
+        }
+
+        fieldExecutionDefaults.push({
+          fieldName: field.name,
+          onCreate: { kind: "generator", id: resolution.generatorId },
+        });
+      }
+    }
 
     // @unique field attribute → unique index
     if (hasFieldAttribute(field, "unique")) {
@@ -591,7 +797,8 @@ function interpretModel(
     relations,
     relationsStorage,
     fksByTarget,
-    temporalUpdatedAtFields,
+    fieldExecutionDefaults,
+    autoIncrement,
   };
 }
 
@@ -753,16 +960,17 @@ export function interpretPslDocumentToIdbContract(
   for (const [modelName, interp] of interpretedByName) {
     stores[interp.storeName] = {
       keyPath: interp.keyPath,
+      ...(interp.autoIncrement ? { autoIncrement: true } : {}),
       ...(Object.keys(interp.indexes).length > 0 ? { indexes: interp.indexes } : {}),
     };
 
     roots[interp.storeName] = crossRef(modelName);
 
-    for (const fieldName of interp.temporalUpdatedAtFields) {
+    for (const fd of interp.fieldExecutionDefaults) {
       executionDefaults.push({
-        ref: { namespace: ns, table: interp.storeName, column: fieldName },
-        onCreate: { kind: "generator", id: TIMESTAMP_NOW_GENERATOR_ID },
-        onUpdate: { kind: "generator", id: TIMESTAMP_NOW_GENERATOR_ID },
+        ref: { namespace: ns, table: interp.storeName, column: fd.fieldName },
+        ...(fd.onCreate ? { onCreate: fd.onCreate } : {}),
+        ...(fd.onUpdate ? { onUpdate: fd.onUpdate } : {}),
       });
     }
 

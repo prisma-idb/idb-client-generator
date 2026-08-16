@@ -44,14 +44,22 @@ export type IdbReferentialAction = "cascade" | "setNull" | "setDefault" | "restr
 /**
  * Mutation-default generator ids IDB recognizes in `contract.execution.mutations.defaults`.
  *
- * Only `"timestampNow"` exists today, backing `temporal.updatedAt()` PSL
- * fields (fires on both `onCreate` and `onUpdate`, matching the SQL family's
- * generator of the same name). Kept as a named union — rather than inlining
- * the string literal at each use site — so the id can't drift between the
- * PSL interpreter (which writes it) and the runtime mutation-defaults
- * resolver (which reads it).
+ * - `"timestampNow"` — `new Date()`. Backs `temporal.updatedAt()` and bare
+ *   `@updatedAt` (onCreate + onUpdate) and `@default(now())` (onCreate only).
+ * - `"literal"` — echoes `params.value` verbatim. Backs `@default(<literal>)`.
+ *   IDB has no storage-plane default slot (no server to render one), so even
+ *   a literal default has to be produced by this same execution-plane
+ *   mechanism.
+ * - `"uuidv4"` / `"uuidv7"` / `"cuid2"` — backed by `@prisma-next/ids`
+ *   (the same shared framework ID-generation package the SQL family's own
+ *   presets use). Back `@default(uuid())` / `@default(uuid(7))` / `@default(cuid())`.
+ *
+ * Kept as a named union — rather than inlining string literals at each use
+ * site — so an id can't drift between the PSL interpreter (which writes it)
+ * and the runtime mutation-defaults resolver (which reads it, exhaustively
+ * switching over this type).
  */
-export type IdbMutationDefaultGeneratorId = "timestampNow";
+export type IdbMutationDefaultGeneratorId = "timestampNow" | "literal" | "uuidv4" | "uuidv7" | "cuid2";
 
 /** Per-relation storage metadata attached to {@link IdbModelStorage}. */
 export type IdbRelationStorage = {

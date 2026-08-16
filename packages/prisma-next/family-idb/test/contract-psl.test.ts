@@ -965,4 +965,271 @@ describe("interpretPslDocumentToIdbContract", () => {
       expect(result.failure.diagnostics[0]!.code).toBe("IDB_TEMPORAL_UPDATED_AT_TAKES_NO_ARGS");
     });
   });
+
+  describe("@updatedAt (bare attribute)", () => {
+    it("resolves the same as temporal.updatedAt(): onCreate + onUpdate timestampNow", () => {
+      const result = interpret(`
+        model Post {
+          id        String   @id
+          title     String
+          updatedAt DateTime @updatedAt
+        }
+      `);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+
+      const model = result.value.domain.namespaces[NS]!.models["Post"] as unknown as TestContractModel;
+      expect(model.fields["updatedAt"]).toMatchObject({
+        nullable: false,
+        type: { kind: "scalar", codecId: "idb/date@1" },
+      });
+      expect(result.value.execution?.mutations.defaults).toEqual([
+        {
+          ref: { namespace: NS, table: "post", column: "updatedAt" },
+          onCreate: { kind: "generator", id: "timestampNow" },
+          onUpdate: { kind: "generator", id: "timestampNow" },
+        },
+      ]);
+    });
+
+    it("errors when used on the @id key field", () => {
+      const result = interpret(`
+        model Post {
+          id DateTime @id @updatedAt
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_TEMPORAL_UPDATED_AT_ON_KEY_FIELD");
+    });
+
+    it("errors on an optional field", () => {
+      const result = interpret(`
+        model Post {
+          id        String @id
+          updatedAt DateTime? @updatedAt
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_EXECUTION_DEFAULT_ON_OPTIONAL_FIELD");
+    });
+
+    it("errors on a non-DateTime field", () => {
+      const result = interpret(`
+        model Post {
+          id        String @id
+          updatedAt String @updatedAt
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_UPDATED_AT_NOT_DATETIME");
+    });
+
+    it("errors when combined with @default(...)", () => {
+      const result = interpret(`
+        model Post {
+          id        String @id
+          updatedAt DateTime @updatedAt @default(now())
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_UPDATED_AT_AND_DEFAULT_CONFLICT");
+    });
+  });
+
+  describe("@default(literal)", () => {
+    it("resolves boolean/number/string literals", () => {
+      const result = interpret(`
+        model Post {
+          id        String  @id
+          published Boolean @default(false)
+          views     Int     @default(0)
+          title     String  @default("untitled")
+        }
+      `);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.execution?.mutations.defaults).toEqual(
+        expect.arrayContaining([
+          {
+            ref: { namespace: NS, table: "post", column: "published" },
+            onCreate: { kind: "generator", id: "literal", params: { value: false } },
+          },
+          {
+            ref: { namespace: NS, table: "post", column: "views" },
+            onCreate: { kind: "generator", id: "literal", params: { value: 0 } },
+          },
+          {
+            ref: { namespace: NS, table: "post", column: "title" },
+            onCreate: { kind: "generator", id: "literal", params: { value: "untitled" } },
+          },
+        ])
+      );
+    });
+
+    it("allows a literal default on an optional field", () => {
+      const result = interpret(`
+        model Post {
+          id       String   @id
+          archived Boolean? @default(false)
+        }
+      `);
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("@default(now())", () => {
+    it("resolves to timestampNow, onCreate only (no onUpdate)", () => {
+      const result = interpret(`
+        model Post {
+          id        String   @id
+          createdAt DateTime @default(now())
+        }
+      `);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.execution?.mutations.defaults).toEqual([
+        {
+          ref: { namespace: NS, table: "post", column: "createdAt" },
+          onCreate: { kind: "generator", id: "timestampNow" },
+        },
+      ]);
+    });
+
+    it("errors on an optional field", () => {
+      const result = interpret(`
+        model Post {
+          id        String    @id
+          createdAt DateTime? @default(now())
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_EXECUTION_DEFAULT_ON_OPTIONAL_FIELD");
+    });
+  });
+
+  describe("@default(uuid())", () => {
+    it("resolves uuid() and uuid(4) to the uuidv4 generator", () => {
+      const result = interpret(`
+        model Post {
+          id  String @id
+          a   String @default(uuid())
+          b   String @default(uuid(4))
+        }
+      `);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const defaults = result.value.execution?.mutations.defaults;
+      expect(defaults).toEqual(
+        expect.arrayContaining([
+          { ref: { namespace: NS, table: "post", column: "a" }, onCreate: { kind: "generator", id: "uuidv4" } },
+          { ref: { namespace: NS, table: "post", column: "b" }, onCreate: { kind: "generator", id: "uuidv4" } },
+        ])
+      );
+    });
+
+    it("resolves uuid(7) to the uuidv7 generator", () => {
+      const result = interpret(`
+        model Post {
+          id String @id @default(uuid(7))
+        }
+      `);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.execution?.mutations.defaults).toEqual([
+        { ref: { namespace: NS, table: "post", column: "id" }, onCreate: { kind: "generator", id: "uuidv7" } },
+      ]);
+    });
+
+    it("errors on an unsupported uuid version", () => {
+      const result = interpret(`
+        model Post {
+          id String @id @default(uuid(9))
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_INVALID_DEFAULT_FUNCTION_ARGUMENT");
+    });
+  });
+
+  describe("@default(cuid())", () => {
+    it("resolves bare cuid() to the cuid2 generator", () => {
+      const result = interpret(`
+        model Post {
+          id String @id @default(cuid())
+        }
+      `);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.execution?.mutations.defaults).toEqual([
+        { ref: { namespace: NS, table: "post", column: "id" }, onCreate: { kind: "generator", id: "cuid2" } },
+      ]);
+    });
+
+    it("errors on cuid(1) — no v1 generator available", () => {
+      const result = interpret(`
+        model Post {
+          id String @id @default(cuid(1))
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_INVALID_DEFAULT_FUNCTION_ARGUMENT");
+    });
+  });
+
+  describe("@default(autoincrement())", () => {
+    it("sets IdbStoreDefinition.autoIncrement and adds no execution default", () => {
+      const result = interpret(`
+        model Post {
+          id Int @id @default(autoincrement())
+        }
+      `);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.storage.stores["post"]).toMatchObject({ autoIncrement: true });
+      expect(result.value.execution).toBeUndefined();
+    });
+
+    it("errors when used on a non-@id field", () => {
+      const result = interpret(`
+        model Post {
+          id    String @id
+          order Int    @default(autoincrement())
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_AUTOINCREMENT_NOT_ON_KEY_FIELD");
+    });
+
+    it("errors when the @id field is not Int", () => {
+      const result = interpret(`
+        model Post {
+          id String @id @default(autoincrement())
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_AUTOINCREMENT_NOT_INT");
+    });
+  });
+
+  describe("@default(...) error cases", () => {
+    it("errors on an unknown default function", () => {
+      const result = interpret(`
+        model Post {
+          id String @id @default(dbgenerated("gen_random_uuid()"))
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_UNKNOWN_DEFAULT_FUNCTION");
+    });
+  });
 });

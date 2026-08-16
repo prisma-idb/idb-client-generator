@@ -1,18 +1,23 @@
 /**
  * Applies `contract.execution.mutations.defaults` (ADR 158) during a
  * create/update — IDB's equivalent of the SQL family's
- * `ExecutionContext.applyMutationDefaults`. Today the only generator id is
- * `"timestampNow"`, backing `temporal.updatedAt()` fields.
+ * `ExecutionContext.applyMutationDefaults`.
  *
  * Semantics mirror the SQL reference implementation:
  * - a caller-provided value always wins over a default;
  * - an empty update patch skips every `onUpdate` default (no write ⇒ no
  *   `@updatedAt` advance);
- * - a generator's value is cached per id so a whole top-level mutation call
- *   (e.g. a `createAll()` batch) shares one generated value across every row
- *   it backs, matching `timestampNow`'s `'query'`-stability in SQL.
+ * - `timestampNow`'s value is cached per call so a whole top-level mutation
+ *   call (e.g. a `createAll()` batch) shares one generated value across
+ *   every row it backs, matching its `'query'`-stability in SQL. Every other
+ *   generator (`literal`, `uuidv4`, `uuidv7`, `cuid2`) is deliberately *not*
+ *   cached — an id generator must produce a fresh, unique value per
+ *   resolution (both across rows in a batch and across distinct defaulted
+ *   fields on the same row), and a cache keyed only by generator id would
+ *   otherwise leak one field's/row's value onto the next.
  */
 import type { ExecutionMutationDefault, ExecutionMutationDefaultValue } from "@prisma-next/contract/types";
+import { generateId } from "@prisma-next/ids/runtime";
 import type { IdbMutationDefaultGeneratorId } from "@prisma-next-idb/target-idb/pack";
 
 /** Per-top-level-mutation-call cache, keyed by generator id. Create one with {@link createMutationDefaultsCache}. */
@@ -22,11 +27,20 @@ export function createMutationDefaultsCache(): MutationDefaultsCache {
   return new Map();
 }
 
+/** Generator ids whose value is shared across an entire top-level call. Every other id always regenerates. */
+const CACHEABLE_GENERATOR_IDS: ReadonlySet<IdbMutationDefaultGeneratorId> = new Set(["timestampNow"]);
+
 function computeGeneratedValue(spec: ExecutionMutationDefaultValue): unknown {
   const id = spec.id as IdbMutationDefaultGeneratorId;
   switch (id) {
     case "timestampNow":
       return new Date();
+    case "literal":
+      return spec.params?.["value"];
+    case "uuidv4":
+    case "uuidv7":
+    case "cuid2":
+      return generateId(spec.params !== undefined ? { id, params: spec.params } : { id });
     default: {
       const _exhaustive: never = id;
       throw new Error(`Unknown mutation-default generator id "${String(_exhaustive)}"`);
@@ -35,10 +49,12 @@ function computeGeneratedValue(spec: ExecutionMutationDefaultValue): unknown {
 }
 
 function resolveGeneratedValue(spec: ExecutionMutationDefaultValue, cache: MutationDefaultsCache): unknown {
-  const cached = cache.get(spec.id);
+  const id = spec.id as IdbMutationDefaultGeneratorId;
+  if (!CACHEABLE_GENERATOR_IDS.has(id)) return computeGeneratedValue(spec);
+  const cached = cache.get(id);
   if (cached !== undefined) return cached;
   const value = computeGeneratedValue(spec);
-  cache.set(spec.id, value);
+  cache.set(id, value);
   return value;
 }
 
