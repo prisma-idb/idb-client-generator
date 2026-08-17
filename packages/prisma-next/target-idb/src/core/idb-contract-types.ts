@@ -41,6 +41,26 @@ export type IdbIndexDefinition = {
 /** Referential action executed on child rows when a parent row is deleted. */
 export type IdbReferentialAction = "cascade" | "setNull" | "setDefault" | "restrict" | "noAction";
 
+/**
+ * Mutation-default generator ids IDB recognizes in `contract.execution.mutations.defaults`.
+ *
+ * - `"timestampNow"` — `new Date()`. Backs `temporal.updatedAt()` and bare
+ *   `@updatedAt` (onCreate + onUpdate) and `@default(now())` (onCreate only).
+ * - `"literal"` — echoes `params.value` verbatim. Backs `@default(<literal>)`.
+ *   IDB has no storage-plane default slot (no server to render one), so even
+ *   a literal default has to be produced by this same execution-plane
+ *   mechanism.
+ * - `"uuidv4"` / `"uuidv7"` / `"cuid2"` — backed by `@prisma-next/ids`
+ *   (the same shared framework ID-generation package the SQL family's own
+ *   presets use). Back `@default(uuid())` / `@default(uuid(7))` / `@default(cuid())`.
+ *
+ * Kept as a named union — rather than inlining string literals at each use
+ * site — so an id can't drift between the PSL interpreter (which writes it)
+ * and the runtime mutation-defaults resolver (which reads it, exhaustively
+ * switching over this type).
+ */
+export type IdbMutationDefaultGeneratorId = "timestampNow" | "literal" | "uuidv4" | "uuidv7" | "cuid2";
+
 /** Per-relation storage metadata attached to {@link IdbModelStorage}. */
 export type IdbRelationStorage = {
   readonly onDelete?: IdbReferentialAction;

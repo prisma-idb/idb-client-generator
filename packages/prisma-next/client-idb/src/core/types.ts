@@ -131,16 +131,56 @@ export type KeyType<TContract, ModelName extends string> =
 type KeyPathField<TContract, ModelName extends string> = ModelKeyPath<TContract, ModelName> &
   keyof ResolvedInputRow<TContract, ModelName>;
 
+/** The object store name for a model, extracted from `contract.domain...storage.storeName` (used to match `execution.mutations.defaults[].ref.table`). */
+type ModelStoreName<TContract, ModelName extends string> = ModelName extends keyof ModelsOf<TContract>
+  ? ModelsOf<TContract>[ModelName] extends { readonly storage: { readonly storeName: infer S } }
+    ? S extends string
+      ? S
+      : never
+    : never
+  : never;
+
+/** The flattened `execution.mutations.defaults` array type, or `never` for a contract with no execution section. */
+type ExecutionDefaultsOf<TContract> = TContract extends {
+  readonly execution: { readonly mutations: { readonly defaults: infer D } };
+}
+  ? D extends readonly unknown[]
+    ? D[number]
+    : never
+  : never;
+
+/**
+ * Column names with an `onCreate` execution default for this model's store —
+ * e.g. `temporal.updatedAt()`/bare `@updatedAt` fields, or any
+ * `@default(...)` field (literal, `now()`, `uuid()`, `cuid()`). These are
+ * omittable in `create()` even though the field itself isn't nullable,
+ * since the runtime fills them in (`client-idb/src/core/mutation-defaults.ts`).
+ */
+type FieldsWithCreateDefault<TContract, ModelName extends string> = Extract<
+  ExecutionDefaultsOf<TContract>,
+  { readonly ref: { readonly table: ModelStoreName<TContract, ModelName> }; readonly onCreate: unknown }
+>["ref"]["column"];
+
+/** {@link FieldsWithCreateDefault}, narrowed to keys that actually exist on the resolved input row (may be absent for models with no typed maps). */
+type DefaultedInputField<TContract, ModelName extends string> = FieldsWithCreateDefault<TContract, ModelName> &
+  keyof ResolvedInputRow<TContract, ModelName>;
+
 /**
  * Input shape for `create()`: the full input row with the primary key field
  * made optional (IDB can generate keys via `autoIncrement`, or clients may
- * omit the key when using `cuid()` / `uuid()` at the application layer).
+ * omit the key when using `cuid()` / `uuid()` at the application layer), and
+ * every other field with an `onCreate` execution default also made optional.
  */
 export type CreateInput<TContract, ModelName extends string> = Omit<
   ResolvedInputRow<TContract, ModelName>,
-  ModelKeyPath<TContract, ModelName>
+  ModelKeyPath<TContract, ModelName> | FieldsWithCreateDefault<TContract, ModelName>
 > &
-  Partial<Pick<ResolvedInputRow<TContract, ModelName>, KeyPathField<TContract, ModelName>>>;
+  Partial<
+    Pick<
+      ResolvedInputRow<TContract, ModelName>,
+      KeyPathField<TContract, ModelName> | DefaultedInputField<TContract, ModelName>
+    >
+  >;
 
 // ── Relations ─────────────────────────────────────────────────────────────────
 

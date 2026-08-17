@@ -5,7 +5,11 @@
  * from the SQL vendor:
  *
  * - No column/field mapping — IDB field names ARE the storage keys.
- * - No `applyMutationDefaults` — IDB has no server-side defaults.
+ * - `applyCreateDefaults`/`applyUpdateDefaults` (`mutation-defaults.ts`) fill
+ *   in every generator id `contract.execution.mutations.defaults` declares
+ *   (see `IdbMutationDefaultGeneratorId`) — IDB has no server-rendered
+ *   defaults, so this always runs client-side, unlike SQL's storage-plane
+ *   `ColumnDefault`.
  * - `insertSingleRow` → `scope.execute({ kind: "add", ... })`.
  * - `findRowByCriterion` / `findFirstByFilters` → `scope.execute({ kind: "cursor-scan", ... })`.
  *   IDB allows reads inside a readwrite transaction; the transaction scope accepts
@@ -28,6 +32,12 @@ import { evaluateFilter, shorthandToFilterExpr } from "@prisma-next-idb/adapter-
 import type { IdbFilterExpr } from "@prisma-next-idb/adapter-idb/runtime";
 import type { IdbReferentialAction } from "@prisma-next-idb/target-idb/pack";
 import type { IdbQueryExecutor } from "./executor";
+import {
+  applyCreateDefaults,
+  applyUpdateDefaults,
+  createMutationDefaultsCache,
+  type MutationDefaultsCache,
+} from "./mutation-defaults";
 import { withMutationScope, type IdbQueryExecutorWithTransaction } from "./mutation-scope";
 import { createRelationMutator, isRelationMutationCallback, isRelationMutationDescriptor } from "./relation-mutator";
 import {
@@ -160,7 +170,10 @@ export async function executeNestedCreateMutation(options: {
   const { executor, contract, modelName, data } = options;
   const record = data as Record<string, unknown>;
   const storeNames = collectStoreNames(contract, modelName, record);
-  return withMutationScope(executor, storeNames, (scope) => createGraph(scope, contract, modelName, record));
+  const defaultsCache = createMutationDefaultsCache();
+  return withMutationScope(executor, storeNames, (scope) =>
+    createGraph(scope, contract, modelName, record, defaultsCache)
+  );
 }
 
 export async function executeNestedUpdateMutation(options: {
@@ -173,8 +186,9 @@ export async function executeNestedUpdateMutation(options: {
   const { executor, contract, modelName, filters, data } = options;
   const record = data as Record<string, unknown>;
   const storeNames = collectStoreNames(contract, modelName, record);
+  const defaultsCache = createMutationDefaultsCache();
   return withMutationScope(executor, storeNames, (scope) =>
-    updateFirstGraph(scope, contract, modelName, filters, record)
+    updateFirstGraph(scope, contract, modelName, filters, record, defaultsCache)
   );
 }
 
@@ -196,7 +210,8 @@ async function createGraph(
   scope: IdbTransactionScope,
   contract: IdbContract,
   modelName: string,
-  input: Record<string, unknown>
+  input: Record<string, unknown>,
+  defaultsCache: MutationDefaultsCache
 ): Promise<Record<string, unknown>> {
   const parsed = parseMutationInput(contract, modelName, input);
   const { parentOwned, childOwned } = partitionByOwnership(parsed.relationMutations);
@@ -207,16 +222,16 @@ async function createGraph(
     if (item.mutation.kind === "disconnect") {
       throw new Error("disconnect() is only supported in update() nested mutations");
     }
-    await applyParentOwnedMutation(scope, contract, modelName, scalarData, item.relation, item.mutation);
+    await applyParentOwnedMutation(scope, contract, modelName, scalarData, item.relation, item.mutation, defaultsCache);
   }
 
-  const parentRow = await insertSingleRow(scope, contract, modelName, scalarData);
+  const parentRow = await insertSingleRow(scope, contract, modelName, scalarData, defaultsCache);
 
   for (const item of childOwned) {
     if (item.mutation.kind === "disconnect") {
       throw new Error("disconnect() is only supported in update() nested mutations");
     }
-    await applyChildOwnedMutation(scope, contract, modelName, parentRow, item.relation, item.mutation);
+    await applyChildOwnedMutation(scope, contract, modelName, parentRow, item.relation, item.mutation, defaultsCache);
   }
 
   return parentRow;
@@ -227,7 +242,8 @@ async function updateFirstGraph(
   contract: IdbContract,
   modelName: string,
   filters: readonly IdbFilterExpr[],
-  input: Record<string, unknown>
+  input: Record<string, unknown>,
+  defaultsCache: MutationDefaultsCache
 ): Promise<Record<string, unknown> | null> {
   const existingRow = await findFirstByFilters(scope, contract, modelName, filters);
   if (!existingRow) return null;
@@ -238,7 +254,7 @@ async function updateFirstGraph(
   const scalarData = { ...parsed.scalarData };
 
   for (const item of parentOwned) {
-    await applyParentOwnedMutation(scope, contract, modelName, scalarData, item.relation, item.mutation);
+    await applyParentOwnedMutation(scope, contract, modelName, scalarData, item.relation, item.mutation, defaultsCache);
   }
 
   let parentRow = existingRow;
@@ -248,13 +264,14 @@ async function updateFirstGraph(
     const keyPath = getKeyPath(contract, modelName);
     const key = existingRow[keyPath] as IDBValidKey;
     const meta = makePlanMeta(contract);
-    const rows = await scope.execute({ meta, kind: "update", storeName, key, patch: scalarData });
+    const patch = applyUpdateDefaults(contract.execution?.mutations.defaults, storeName, scalarData, defaultsCache);
+    const rows = await scope.execute({ meta, kind: "update", storeName, key, patch });
     const updated = rows[0];
     if (updated) parentRow = updated;
   }
 
   for (const item of childOwned) {
-    await applyChildOwnedMutation(scope, contract, modelName, parentRow, item.relation, item.mutation);
+    await applyChildOwnedMutation(scope, contract, modelName, parentRow, item.relation, item.mutation, defaultsCache);
   }
 
   return parentRow;
@@ -325,7 +342,8 @@ async function applyParentOwnedMutation(
   parentModelName: string,
   scalarData: Record<string, unknown>,
   relation: RelationDefinition,
-  mutation: IdbRelationMutation<IdbContract, string>
+  mutation: IdbRelationMutation<IdbContract, string>,
+  defaultsCache: MutationDefaultsCache
 ): Promise<void> {
   if (mutation.kind === "disconnect") {
     for (const localField of relation.localFields) {
@@ -341,7 +359,7 @@ async function applyParentOwnedMutation(
     }
     // Recursive nesting is not supported in Phase 6.4 — the nested record must
     // be a plain scalar create, not itself a nested mutation.
-    const relatedRow = await insertSingleRow(scope, contract, relation.relatedModelName, row);
+    const relatedRow = await insertSingleRow(scope, contract, relation.relatedModelName, row, defaultsCache);
     copyRelatedValuesToParent(relation, scalarData, relatedRow, parentModelName, contract);
     return;
   }
@@ -382,7 +400,8 @@ async function applyChildOwnedMutation(
   parentModelName: string,
   parentRow: Record<string, unknown>,
   relation: RelationDefinition,
-  mutation: IdbRelationMutation<IdbContract, string>
+  mutation: IdbRelationMutation<IdbContract, string>,
+  defaultsCache: MutationDefaultsCache
 ): Promise<void> {
   // parentValues: childFkField → parentPkValue (e.g. "authorId" → "u1")
   const parentValues = readParentColumnValues(parentModelName, relation, parentRow);
@@ -393,7 +412,7 @@ async function applyChildOwnedMutation(
       for (const [childField, parentValue] of parentValues.entries()) {
         payload[childField] = parentValue;
       }
-      await insertSingleRow(scope, contract, relation.relatedModelName, payload);
+      await insertSingleRow(scope, contract, relation.relatedModelName, payload, defaultsCache);
     }
     return;
   }
@@ -404,6 +423,12 @@ async function applyChildOwnedMutation(
       for (const [childField, parentValue] of parentValues.entries()) {
         setValues[childField] = parentValue;
       }
+      const patch = applyUpdateDefaults(
+        contract.execution?.mutations.defaults,
+        relation.relatedStoreName,
+        setValues,
+        defaultsCache
+      );
       const filter = buildCriterionFilter(criterion as Record<string, unknown>);
       const meta = makePlanMeta(contract);
       // scan-write + put-merged: set the FK fields on every child row matching
@@ -415,7 +440,7 @@ async function applyChildOwnedMutation(
         kind: "scan-write",
         storeName: relation.relatedStoreName,
         write: "put-merged",
-        patch: setValues,
+        patch,
         filter,
       });
     }
@@ -431,13 +456,19 @@ async function applyChildOwnedMutation(
 
   if (!mutation.criteria || mutation.criteria.length === 0) {
     // Disconnect all children of this parent.
+    const patch = applyUpdateDefaults(
+      contract.execution?.mutations.defaults,
+      relation.relatedStoreName,
+      setValues,
+      defaultsCache
+    );
     const parentJoinFilter = buildParentJoinFilter(parentValues);
     await scope.execute({
       meta,
       kind: "scan-write",
       storeName: relation.relatedStoreName,
       write: "put-merged",
-      patch: setValues,
+      patch,
       filter: parentJoinFilter,
     });
     return;
@@ -445,6 +476,12 @@ async function applyChildOwnedMutation(
 
   // Disconnect specific children matching each criterion AND the parent join.
   for (const criterion of mutation.criteria) {
+    const patch = applyUpdateDefaults(
+      contract.execution?.mutations.defaults,
+      relation.relatedStoreName,
+      setValues,
+      defaultsCache
+    );
     const criterionFilter = buildCriterionFilter(criterion as Record<string, unknown>);
     const parentJoinFilter = buildParentJoinFilter(parentValues);
     const combinedFilter = (row: Record<string, unknown>): boolean => parentJoinFilter(row) && criterionFilter(row);
@@ -453,7 +490,7 @@ async function applyChildOwnedMutation(
       kind: "scan-write",
       storeName: relation.relatedStoreName,
       write: "put-merged",
-      patch: setValues,
+      patch,
       filter: combinedFilter,
     });
   }
@@ -488,13 +525,15 @@ async function insertSingleRow(
   scope: IdbTransactionScope,
   contract: IdbContract,
   modelName: string,
-  data: Record<string, unknown>
+  data: Record<string, unknown>,
+  defaultsCache: MutationDefaultsCache
 ): Promise<Record<string, unknown>> {
   assertNoNestedCallbacks(modelName, data);
   const storeName = getStoreName(contract, modelName);
   const meta = makePlanMeta(contract);
-  const rows = await scope.execute({ meta, kind: "add", storeName, record: data });
-  return rows[0] ?? data;
+  const record = applyCreateDefaults(contract.execution?.mutations.defaults, storeName, data, defaultsCache);
+  const rows = await scope.execute({ meta, kind: "add", storeName, record });
+  return rows[0] ?? record;
 }
 
 /**
@@ -703,7 +742,7 @@ export async function executeScalarCreateWithFkValidation(options: {
   const storeNames = collectScalarFkStoreNames(contract, modelName, data);
   return withMutationScope(executor, storeNames, async (scope) => {
     await validateScalarFks(scope, contract, modelName, data);
-    return insertSingleRow(scope, contract, modelName, data);
+    return insertSingleRow(scope, contract, modelName, data, createMutationDefaultsCache());
   });
 }
 
@@ -724,12 +763,18 @@ export async function executeScalarUpdateWithFkValidation(options: {
       filters.length === 0 ? undefined : filters.length === 1 ? filters[0]! : { kind: "and" as const, exprs: filters };
     const filter =
       combined !== undefined ? (row: Record<string, unknown>): boolean => evaluateFilter(combined, row) : undefined;
+    const patch = applyUpdateDefaults(
+      contract.execution?.mutations.defaults,
+      storeName,
+      data,
+      createMutationDefaultsCache()
+    );
     const rows = await scope.execute({
       meta,
       kind: "scan-write",
       storeName,
       write: "put-merged",
-      patch: data,
+      patch,
       take: 1,
       ...(filter !== undefined ? { filter } : {}),
     } as IdbAtomicPlan);
@@ -770,12 +815,18 @@ export async function executeBulkUpdateWithFkValidation(options: {
       filters.length === 0 ? undefined : filters.length === 1 ? filters[0]! : { kind: "and" as const, exprs: filters };
     const filter =
       combined !== undefined ? (row: Record<string, unknown>): boolean => evaluateFilter(combined, row) : undefined;
+    const patch = applyUpdateDefaults(
+      contract.execution?.mutations.defaults,
+      storeName,
+      data,
+      createMutationDefaultsCache()
+    );
     return scope.execute({
       meta,
       kind: "scan-write",
       storeName,
       write: "put-merged",
-      patch: data,
+      patch,
       ...(filter !== undefined ? { filter } : {}),
     } as IdbAtomicPlan);
   });

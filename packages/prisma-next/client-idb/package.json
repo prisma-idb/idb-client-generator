@@ -36,6 +36,7 @@
     "@prisma-next-idb/target-idb": "workspace:*",
     "@prisma-next/contract": "^0.16.0",
     "@prisma-next/framework-components": "^0.16.0",
+    "@prisma-next/ids": "^0.16.0",
     "@prisma-next/migration-tools": "^0.16.0"
   },
   "devDependencies": {
