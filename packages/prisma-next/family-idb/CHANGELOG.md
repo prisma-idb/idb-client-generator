@@ -1,5 +1,16 @@
 # @prisma-next-idb/family-idb
 
+## 0.4.0
+
+### Minor Changes
+
+- [#211](https://github.com/prisma-idb/idb-client-generator/pull/211) [`d54b62d`](https://github.com/prisma-idb/idb-client-generator/commit/d54b62db76c7ff242511c0c010d5f983d9bceb25) Thanks [@WhyAsh5114](https://github.com/WhyAsh5114)! - Add `@default(...)` and bare `@updatedAt` support to the IDB family's PSL interpreter: literal defaults, `now()`, `uuid()`/`uuid(7)`, `cuid()`, and `autoincrement()` (mapped to IndexedDB's native auto-incrementing keys). Fields with an `onCreate` default — including `temporal.updatedAt()` from the previous release — are now correctly optional in `create()`'s input type, not just the primary key.
+
+### Patch Changes
+
+- Updated dependencies [[`d54b62d`](https://github.com/prisma-idb/idb-client-generator/commit/d54b62db76c7ff242511c0c010d5f983d9bceb25)]:
+  - @prisma-next-idb/target-idb@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes
