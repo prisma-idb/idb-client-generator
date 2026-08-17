@@ -1,5 +1,12 @@
 # @prisma-next-idb/sync-server-sql
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @prisma-next-idb/sync-server@0.2.1
+
 ## 0.2.0
 
 ### Minor Changes

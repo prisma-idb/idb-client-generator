@@ -1,6 +1,6 @@
 {
   "name": "@prisma-next-idb/sync-server-sql",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Prisma Next IDB — SQL execution adapter for sync-server (ownership checks + push/pull against a prisma-next SQL ORM client)",
   "license": "MIT",
   "files": ["dist"],
