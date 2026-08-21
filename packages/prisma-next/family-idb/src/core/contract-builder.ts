@@ -44,6 +44,7 @@ export type RelationDef = {
     readonly target: readonly string[];
   };
   readonly onDelete?: IdbReferentialAction;
+  readonly onUpdate?: IdbReferentialAction;
 };
 
 export type IndexDef = {
@@ -59,6 +60,19 @@ export type ModelDef = {
   readonly fields: Record<string, FieldSpec>;
   readonly indexes?: Record<string, IndexDef>;
   readonly relations?: Record<string, RelationDef>;
+  /**
+   * Literal default values, keyed by field name — feeds the `setDefault`
+   * referential action (a child's FK field is reset to its own declared
+   * default when its parent is deleted/updated with `onDelete`/`onUpdate:
+   * "setDefault"`). A sibling map to `fields`, deliberately not folded into
+   * `FieldSpec` (a bare type string) to avoid widening that type.
+   *
+   * Does NOT feed `create()`'s default-filling — the TS-DSL authoring path
+   * has no `execution.mutations.defaults` support at all yet (a separate,
+   * larger, pre-existing gap). Use the PSL authoring path's `@default(...)`
+   * if you need create-time defaults; this map only backs `setDefault`.
+   */
+  readonly fieldDefaults?: Record<string, string | number | boolean>;
   /** Server-only model — dropped when `defineContract` runs with `{ projection: "client" }`. See ADR 012. */
   readonly exclude?: boolean;
   /** Server-only fields on an otherwise-synced model — dropped in client projection. See ADR 012. */
@@ -207,6 +221,55 @@ function validateModelKeyAndIndexes(modelName: string, def: ModelDef): void {
   }
 }
 
+// ── Validate no conflicting reciprocal relation-action declarations ───────────
+
+function sameFieldList(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((field, index) => field === b[index]);
+}
+
+/**
+ * `onDelete`/`onUpdate` may be declared on either side of a relation — unlike
+ * PSL (which only permits it on the FK-owning/`N:1` side), TS-DSL relation
+ * entries are self-contained and don't require a paired reciprocal
+ * declaration at all (see the `posts`-only test below). But if BOTH a
+ * relation and its reciprocal declare the *same* kind of action, only the
+ * side enforcement actually walks from is ever read at runtime
+ * (`getReferentialActionForRelation` in `client-idb/src/core/mutation-executor.ts`
+ * checks the direct side first and only falls back to the inverse when the
+ * direct side is silent) — so the other side's declaration would be silently
+ * ignored. That's a footgun, not a legitimate "pick one" scenario, so it's
+ * rejected here instead.
+ */
+function validateNoConflictingRelationActions(models: Record<string, ModelDef>): void {
+  for (const [modelName, def] of Object.entries(models)) {
+    for (const [relName, rel] of Object.entries(def.relations ?? {})) {
+      const relatedDef = models[rel.to];
+      if (!relatedDef) continue;
+      for (const [inverseRelName, inverseRel] of Object.entries(relatedDef.relations ?? {})) {
+        if (inverseRel.to !== modelName) continue;
+        // Mirrors the reciprocal-match predicate in `getReferentialActionForRelation`
+        // (client-idb/src/core/mutation-executor.ts) — keep these in sync. Matching on
+        // fields (not just `to`) is required: two distinct relations to the same model
+        // (e.g. `Message.sender` / `Message.recipient` both -> `User`) are not reciprocals
+        // of each other and must not be flagged.
+        if (!sameFieldList(inverseRel.on.local, rel.on.target)) continue;
+        if (!sameFieldList(inverseRel.on.target, rel.on.local)) continue;
+
+        for (const kind of ["onDelete", "onUpdate"] as const) {
+          if (rel[kind] !== undefined && inverseRel[kind] !== undefined) {
+            throw new Error(
+              `defineContract: relation "${modelName}.${relName}" and its reciprocal "${rel.to}.${inverseRelName}" ` +
+                `both declare "${kind}". Only one side is ever read at runtime (whichever side enforcement's cascade ` +
+                `walk starts from — the "1:N" side, or the non-owning "1:1" side); the other declaration would be ` +
+                `silently ignored. Declare "${kind}" on one side only.`
+            );
+          }
+        }
+      }
+    }
+  }
+}
+
 // ── Helper: build ContractField entries from field specs ──────────────────────
 
 function buildFields(fields: Record<string, FieldSpec>): Record<string, ContractField> {
@@ -276,7 +339,7 @@ function buildModels(models: Record<string, ModelDef>): Record<string, ContractM
   const result: Record<string, ContractModelEntry> = {};
   for (const [modelName, def] of Object.entries(models)) {
     const relations: ContractModelEntry["relations"] = {};
-    const relationsStorage: Record<string, { onDelete: IdbReferentialAction }> = {};
+    const relationsStorage: Record<string, { onDelete?: IdbReferentialAction; onUpdate?: IdbReferentialAction }> = {};
     for (const [relName, rel] of Object.entries(def.relations ?? {})) {
       relations[relName] = {
         // v0.12.0: relation `to` is a CrossReference, not a bare model-name string.
@@ -284,14 +347,19 @@ function buildModels(models: Record<string, ModelDef>): Record<string, ContractM
         cardinality: rel.cardinality,
         on: { localFields: rel.on.local, targetFields: rel.on.target },
       };
-      if (rel.onDelete !== undefined) {
-        relationsStorage[relName] = { onDelete: rel.onDelete };
+      if (rel.onDelete !== undefined || rel.onUpdate !== undefined) {
+        relationsStorage[relName] = {
+          ...(rel.onDelete !== undefined ? { onDelete: rel.onDelete } : {}),
+          ...(rel.onUpdate !== undefined ? { onUpdate: rel.onUpdate } : {}),
+        };
       }
     }
-    const storage: IdbModelStorage =
-      Object.keys(relationsStorage).length > 0
-        ? { storeName: def.store, keyPath: def.key, relations: relationsStorage }
-        : { storeName: def.store, keyPath: def.key };
+    const storage: IdbModelStorage = {
+      storeName: def.store,
+      keyPath: def.key,
+      ...(Object.keys(relationsStorage).length > 0 ? { relations: relationsStorage } : {}),
+      ...(def.fieldDefaults && Object.keys(def.fieldDefaults).length > 0 ? { fieldDefaults: def.fieldDefaults } : {}),
+    };
     result[modelName] = { fields: buildFields(def.fields), relations, storage };
   }
   return result;
@@ -333,6 +401,7 @@ export function defineContract(input: DefineContractInput, options?: DefineContr
   for (const [modelName, def] of Object.entries(models)) {
     validateModelKeyAndIndexes(modelName, def);
   }
+  validateNoConflictingRelationActions(models);
 
   const stores = buildStores(models);
 

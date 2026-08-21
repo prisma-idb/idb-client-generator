@@ -256,7 +256,9 @@ interface InterpretedModel {
       readonly on: { readonly localFields: readonly string[]; readonly targetFields: readonly string[] };
     }
   >;
-  readonly relationsStorage: Record<string, { onDelete?: IdbReferentialAction }>;
+  readonly relationsStorage: Record<string, { onDelete?: IdbReferentialAction; onUpdate?: IdbReferentialAction }>;
+  /** Literal `@default(...)` values, keyed by field name — feeds `IdbModelStorage.fieldDefaults` (`setDefault`). */
+  readonly fieldDefaults: Record<string, string | number | boolean>;
   /** FK-side declarations keyed by targetModelName for back-relation resolution. */
   readonly fksByTarget: ReadonlyMap<string, { fieldName: string; localFields: string[]; targetFields: string[] }>;
   /** Execution-plane defaults resolved from `temporal.updatedAt()`, bare `@updatedAt`, and `@default(...)` — feeds `contract.execution.mutations.defaults`. */
@@ -404,7 +406,8 @@ function interpretModel(
   // ── Walk fields ──────────────────────────────────────────────────────────────
   const contractFields: Record<string, ContractField> = {};
   const relations: InterpretedModel["relations"] = {};
-  const relationsStorage: Record<string, { onDelete?: IdbReferentialAction }> = {};
+  const relationsStorage: Record<string, { onDelete?: IdbReferentialAction; onUpdate?: IdbReferentialAction }> = {};
+  const fieldDefaults: Record<string, string | number | boolean> = {};
   const fksByTarget = new Map<string, { fieldName: string; localFields: string[]; targetFields: string[] }>();
   const fieldExecutionDefaults: FieldExecutionDefault[] = [];
   let autoIncrement = false;
@@ -511,13 +514,28 @@ function interpretModel(
         });
       }
 
+      const onUpdateRaw = findNamedArg(args, "onUpdate");
+      const onUpdate = onUpdateRaw ? REFERENTIAL_ACTION_MAP[onUpdateRaw.trim()] : undefined;
+
+      if (onUpdateRaw && onUpdate === undefined) {
+        diagnostics.push({
+          code: "IDB_UNKNOWN_REFERENTIAL_ACTION",
+          message: `Relation field "${model.name}.${field.name}" has unknown onUpdate value "${onUpdateRaw}". Valid values: ${Object.keys(REFERENTIAL_ACTION_MAP).join(", ")}.`,
+          sourceId,
+          span: field.span,
+        });
+      }
+
       relations[field.name] = {
         to: crossRef(field.typeName),
         cardinality: "N:1",
         on: { localFields, targetFields },
       };
-      if (onDelete !== undefined) {
-        relationsStorage[field.name] = { onDelete };
+      if (onDelete !== undefined || onUpdate !== undefined) {
+        relationsStorage[field.name] = {
+          ...(onDelete !== undefined ? { onDelete } : {}),
+          ...(onUpdate !== undefined ? { onUpdate } : {}),
+        };
       }
       fksByTarget.set(field.typeName, {
         fieldName: field.name,
@@ -710,6 +728,11 @@ function interpretModel(
           fieldName: field.name,
           onCreate: { kind: "generator", id: LITERAL_GENERATOR_ID, params: { value: literal.value } },
         });
+        // Also feeds `IdbModelStorage.fieldDefaults` (setDefault referential
+        // action) — only literal defaults land here, never a generator
+        // (uuid()/cuid()/now()/autoincrement()), matching Prisma's own rule
+        // that `SetDefault` may only target a scalar/literal default.
+        fieldDefaults[field.name] = literal.value;
       } else {
         const call = parseDefaultFunctionCall(raw);
         if (!call) {
@@ -829,6 +852,7 @@ function interpretModel(
     fields: contractFields,
     relations,
     relationsStorage,
+    fieldDefaults,
     fksByTarget,
     fieldExecutionDefaults,
     autoIncrement,
@@ -1007,10 +1031,12 @@ export function interpretPslDocumentToIdbContract(
       });
     }
 
-    const modelStorage: IdbModelStorage =
-      Object.keys(interp.relationsStorage).length > 0
-        ? { storeName: interp.storeName, keyPath: interp.keyPath, relations: interp.relationsStorage }
-        : { storeName: interp.storeName, keyPath: interp.keyPath };
+    const modelStorage: IdbModelStorage = {
+      storeName: interp.storeName,
+      keyPath: interp.keyPath,
+      ...(Object.keys(interp.relationsStorage).length > 0 ? { relations: interp.relationsStorage } : {}),
+      ...(Object.keys(interp.fieldDefaults).length > 0 ? { fieldDefaults: interp.fieldDefaults } : {}),
+    };
 
     domainModels[modelName] = {
       fields: interp.fields,
