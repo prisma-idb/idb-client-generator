@@ -488,6 +488,40 @@ describe("defineContract — onUpdate and fieldDefaults storage", () => {
     };
     expect(postStorage.fieldDefaults).toEqual({ authorId: "system" });
   });
+
+  it("throws when fieldDefaults references an undeclared field", () => {
+    expect(() =>
+      defineContract({
+        family: idbFamilyPack,
+        target: idbTargetPack,
+        models: {
+          Post: {
+            store: "posts",
+            key: "id",
+            fields: { id: "String", authorId: "String" },
+            fieldDefaults: { typoField: "system" },
+          },
+        },
+      })
+    ).toThrow(/not declared in "fields"/);
+  });
+
+  it("throws when a fieldDefaults value's JS type doesn't match the field's declared type", () => {
+    expect(() =>
+      defineContract({
+        family: idbFamilyPack,
+        target: idbTargetPack,
+        models: {
+          Post: {
+            store: "posts",
+            key: "id",
+            fields: { id: "String", authorId: "String", priority: "Int" },
+            fieldDefaults: { priority: "high" as unknown as number },
+          },
+        },
+      })
+    ).toThrow(/JS type must match/);
+  });
 });
 
 describe("defineContract — conflicting reciprocal relation actions", () => {

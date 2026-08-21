@@ -992,6 +992,21 @@ describe("onUpdate — setDefault", () => {
     const posts = await getAllRows(db, "posts");
     expect(posts[0]?.["authorSlug"]).toBe("alice");
   });
+
+  // Regression test: the row being updated is still present in the store
+  // (with its *old* slug) when `validateSetDefaultPatch` scans for a real
+  // row matching the default — without excluding that row's own key, the
+  // scan would find the row about to change away from "system" and wrongly
+  // treat the default as valid.
+  it("does not accept the row's own pre-change value as satisfying the default", async () => {
+    const orm = idbOrm({ contract: onUpdateSetDefaultContract, executor });
+    await orm["users"]!.create({ id: "u1", slug: "system", name: "Coincidence" } as never);
+    await orm["posts"]!.create({ id: "p1", authorSlug: "alice", title: "Post" } as never);
+
+    await expect(orm["users"]!.where({ id: "u1" } as never).update({ slug: "alice2" } as never)).rejects.toThrow(
+      /does not reference a real row/i
+    );
+  });
 });
 
 const onUpdateRestrictContract = defineContract({
@@ -1325,5 +1340,36 @@ describe("onUpdate — multi-hop cascade (User -> Post -> Comment)", () => {
     expect(posts[0]?.["authorSlug"]).toBe("alice2");
     const comments = await getAllRows(db, "comments");
     expect(comments[0]?.["postAuthorSlug"]).toBe("alice2");
+  });
+});
+
+describe("onUpdate — cascade on a self-referential model", () => {
+  let db: IDBDatabase;
+  let executor: TestExecutorWithTransaction;
+
+  beforeEach(async () => {
+    const name = nextDbName();
+    db = await openTestDbWithStores(name, { employees: "id" });
+    executor = new TestExecutorWithTransaction(createIDBRuntimeDriver(name).create());
+  });
+  afterEach(() => db.close());
+
+  // Regression test: `collectOnUpdateEnforcementStoreNames`'s related store
+  // for a self-referential relation is the model's own store — already the
+  // seed of its result set — so `storeNames.length` alone can't distinguish
+  // "no enforcement applies" from "enforcement applies, but only within this
+  // one store". `update()` must still take the read-before-write enforcement
+  // path here, not the fast blind-write path (which would skip the cascade
+  // below entirely).
+  it("propagates a changed referenced field onto self-referential children", async () => {
+    const orm = idbOrm({ contract: selfReferentialCascadeContract, executor });
+    await orm["employees"]!.create({ id: "root", managerId: null, name: "Root" } as never);
+    await orm["employees"]!.create({ id: "a", managerId: "root", name: "A" } as never);
+
+    await orm["employees"]!.where({ id: "root" } as never).update({ id: "root2" } as never);
+
+    const employees = await getAllRows(db, "employees");
+    const a = employees.find((e) => e["id"] === "a");
+    expect(a?.["managerId"]).toBe("root2");
   });
 });

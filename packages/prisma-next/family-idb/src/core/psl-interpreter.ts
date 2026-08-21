@@ -59,7 +59,7 @@ function parseDefaultLiteralValue(raw: string): { readonly value: string | numbe
  * declared further down this module; a top-level const initializer would hit
  * the temporal dead zone, but a function body only evaluates when called.
  */
-function literalValueMatchesCodec(value: string | number | boolean, codecId: string): boolean {
+export function literalValueMatchesCodec(value: string | number | boolean, codecId: string): boolean {
   switch (codecId) {
     case SCALAR_TO_CODEC_ID["String"]:
       return typeof value === "string";

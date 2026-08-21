@@ -774,13 +774,23 @@ function buildSetDefaultPatch(contract: IdbContract, def: RelationDefinition): R
  * field) relations, for the same reason `validateScalarFks` does: each
  * field's default is resolved independently, so there's no guarantee the
  * combination corresponds to a single real row.
+ *
+ * `excludeKey`, when given, excludes the parent row currently being
+ * deleted/updated from the existence scan. That row is still physically
+ * present in the store at this point (its own write/delete hasn't happened
+ * yet — this check runs first, before the enforcement loop's caller applies
+ * it), so without the exclusion, a default value equal to that row's *old*
+ * `localField` value would false-positive: the scan would find the row about
+ * to disappear (or change away from that value) and wrongly conclude the
+ * default references a real row, when after the transaction nothing will.
  */
 async function validateSetDefaultPatch(
   scope: IdbTransactionScope,
   contract: IdbContract,
   modelName: string,
   def: RelationDefinition,
-  patch: Record<string, unknown>
+  patch: Record<string, unknown>,
+  excludeKey?: IDBValidKey
 ): Promise<void> {
   if (def.localFields.length > 1) {
     throw new Error(
@@ -792,10 +802,12 @@ async function validateSetDefaultPatch(
 
   const meta = makePlanMeta(contract);
   const parentStoreName = getStoreName(contract, modelName);
+  const parentKeyPath = getKeyPath(contract, modelName);
   const localField = def.localFields[0]!;
   const targetField = def.targetFields[0]!;
   const value = patch[targetField];
-  const filter = (row: Record<string, unknown>): boolean => row[localField] === value;
+  const filter = (row: Record<string, unknown>): boolean =>
+    row[localField] === value && (excludeKey === undefined || row[parentKeyPath] !== excludeKey);
   const found = await scope.execute({
     meta,
     kind: "cursor-scan",
@@ -824,17 +836,22 @@ async function validateSetDefaultPatch(
  * `collectDeleteStoreNames`'s cascade-only recursion), since a propagated
  * value change may itself need to cascade further.
  *
- * A result containing only `modelName`'s own store means no `onUpdate`
- * enforcement can apply to this write — callers use that to keep the
- * existing fast blind-write path instead of paying for a read-before-write.
+ * Returns `enforces: false` when no `onUpdate` enforcement can apply to this
+ * write — callers use that to keep the existing fast blind-write path
+ * instead of paying for a read-before-write. This is tracked as an explicit
+ * flag rather than inferred from `storeNames.length > 1`: for a
+ * self-referential relation, `def.relatedStoreName` equals `modelName`'s own
+ * store (already the seed of the `Set`), so the store count alone can't tell
+ * "no enforcement" apart from "enforces, but only against this same store".
  */
 export function collectOnUpdateEnforcementStoreNames(
   contract: IdbContract,
   modelName: string,
   data: Record<string, unknown>
-): string[] {
+): { storeNames: string[]; enforces: boolean } {
   const stores = new Set([getStoreName(contract, modelName)]);
   const visitedModels = new Set<string>();
+  let enforces = false;
 
   function walkCascadeChain(mName: string): void {
     if (visitedModels.has(mName)) return;
@@ -854,11 +871,12 @@ export function collectOnUpdateEnforcementStoreNames(
     if (!def.localFields.some((f) => f in data)) continue;
     const action = getOnUpdateForRelation(contract, modelName, def);
     if (action === "noAction") continue;
+    enforces = true;
     stores.add(def.relatedStoreName);
     if (action === "cascade") walkCascadeChain(def.relatedModelName);
   }
 
-  return [...stores];
+  return { storeNames: [...stores], enforces };
 }
 
 /**
@@ -969,7 +987,7 @@ export async function applyReferentialActionsForRowOnUpdate(
 
     if (action === "setDefault") {
       const childPatch = buildSetDefaultPatch(contract, def);
-      await validateSetDefaultPatch(scope, contract, modelName, def, childPatch);
+      await validateSetDefaultPatch(scope, contract, modelName, def, childPatch, oldRow[keyPath] as IDBValidKey);
       await scope.execute({
         meta,
         kind: "scan-write",
@@ -1083,10 +1101,10 @@ function collectUpdateStoreNames(
   data: Record<string, unknown>
 ): { storeNames: string[]; enforcesOnUpdate: boolean } {
   const fkStoreNames = collectScalarFkStoreNames(contract, modelName, data);
-  const onUpdateStoreNames = collectOnUpdateEnforcementStoreNames(contract, modelName, data);
+  const { storeNames: onUpdateStoreNames, enforces } = collectOnUpdateEnforcementStoreNames(contract, modelName, data);
   return {
     storeNames: [...new Set([...fkStoreNames, ...onUpdateStoreNames])],
-    enforcesOnUpdate: onUpdateStoreNames.length > 1,
+    enforcesOnUpdate: enforces,
   };
 }
 
@@ -1356,7 +1374,7 @@ export async function applyReferentialActionsForRow(
 
     if (action === "setDefault") {
       const patch = buildSetDefaultPatch(contract, def);
-      await validateSetDefaultPatch(scope, contract, modelName, def, patch);
+      await validateSetDefaultPatch(scope, contract, modelName, def, patch, row[keyPath] as IDBValidKey);
       await scope.execute({
         meta,
         kind: "scan-write",

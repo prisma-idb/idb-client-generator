@@ -739,7 +739,11 @@ export class IdbStoreAccessorImpl<
     const exec = this.#executor as IdbQueryExecutor & Partial<Pick<IdbQueryExecutorWithTransaction, "transaction">>;
     const executionDefaults = this.#contract.execution?.mutations.defaults;
     if (typeof exec.transaction === "function") {
-      const onUpdateStoreNames = collectOnUpdateEnforcementStoreNames(this.#contract, this.#modelName, patchRecord);
+      const { storeNames: onUpdateStoreNames } = collectOnUpdateEnforcementStoreNames(
+        this.#contract,
+        this.#modelName,
+        patchRecord
+      );
       const storeNames = [...new Set([storeName, ...onUpdateStoreNames])];
       return withMutationScope(exec as IdbQueryExecutorWithTransaction, storeNames, async (scope) => {
         const found = await scope.execute({ meta, kind: "cursor-scan", storeName, filter: matches, take: 1 });

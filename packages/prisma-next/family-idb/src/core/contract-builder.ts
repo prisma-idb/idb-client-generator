@@ -9,7 +9,7 @@ import type {
   IdbStoreDefinition,
 } from "@prisma-next-idb/target-idb/pack";
 import type { ContractProjection } from "./psl-interpreter";
-import { isValidIdbKeyCodec, warnDroppedRelation } from "./psl-interpreter";
+import { isValidIdbKeyCodec, literalValueMatchesCodec, warnDroppedRelation } from "./psl-interpreter";
 import { validateContract } from "./validate";
 
 // ── Field type system ─────────────────────────────────────────────────────────
@@ -218,6 +218,25 @@ function validateModelKeyAndIndexes(modelName: string, def: ModelDef): void {
     throw new Error(
       `defineContract: model "${modelName}" index "${indexName}" is keyed on "${idx.keyPath}" (type "${fieldCodec}"), which IndexedDB cannot use as an index key. Records are silently omitted from the index on write, and any query against it throws at runtime. Use String, Int, Float, DateTime, Decimal, or Bytes instead.`
     );
+  }
+
+  for (const [fieldName, value] of Object.entries(def.fieldDefaults ?? {})) {
+    if (!(fieldName in def.fields)) {
+      throw new Error(
+        `defineContract: model "${modelName}" fieldDefaults references field "${fieldName}", which is not declared in "fields".`
+      );
+    }
+    // Mirrors PSL's `literalValueMatchesCodec` check on `@default(...)` — a
+    // literal default's JS type must match the field's declared type, and
+    // only String/Int/Float/Decimal/Boolean fields accept a literal default
+    // at all (matching `ModelDef.fieldDefaults`'s own `string | number |
+    // boolean` value type).
+    const codec = resolveFieldCodecId(def, fieldName);
+    if (codec !== undefined && !literalValueMatchesCodec(value, codec)) {
+      throw new Error(
+        `defineContract: model "${modelName}" fieldDefaults["${fieldName}"] is a ${typeof value} value, but field "${fieldName}" has type "${def.fields[fieldName]}" — the literal default's JS type must match the field's declared type.`
+      );
+    }
   }
 }
 
