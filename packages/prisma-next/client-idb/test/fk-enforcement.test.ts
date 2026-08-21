@@ -41,7 +41,7 @@ class TestExecutorWithTransaction implements IdbQueryExecutor, IdbQueryExecutorW
   }
 }
 
-/** A bare executor with no `.transaction()` — exercises `upsert()`'s non-atomic fallback path. */
+/** A bare executor with no `.transaction()` — verifies `upsert()` rejects when transaction support is absent. */
 class BareTestExecutor implements IdbQueryExecutor {
   readonly #driver: IdbRuntimeDriverInstance;
   constructor(driver: IdbRuntimeDriverInstance) {

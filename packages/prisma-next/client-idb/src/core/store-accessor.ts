@@ -733,14 +733,31 @@ export class IdbStoreAccessorImpl<
     const executionDefaults = this.#contract.execution?.mutations.defaults;
 
     // Runs the find-then-write in a single readwrite transaction so there is
-    // no check-then-act race window. Mirrors the vendor's single-statement
-    // upsert, and matches create/update/delete/updateAll/deleteAll, which all
-    // require a transaction-capable executor.
+    // no check-then-act race window — atomicity is needed both for that and
+    // for `onUpdate` referential-action enforcement (a multi-store read +
+    // write) on the update branch. Mirrors the vendor's single-statement
+    // upsert.
     const exec = requireTransactionExecutor(this.#executor);
+    // Defaults are applied here, before store-name collection, rather than
+    // inside the transaction: `collectOnUpdateEnforcementStoreNames` only
+    // sees fields present in the patch it's given, and an `onUpdate` mutation
+    // default can add a field that wasn't in the caller's raw patch — if that
+    // field also happens to be a relation's local field, collecting stores
+    // from the raw patch would under-declare the transaction's store list.
+    // Applying defaults first (a pure function of the patch + static contract
+    // config, no row read needed) and reusing the same result throughout
+    // keeps enforcement, store collection, and the actual write looking at
+    // one consistent effective patch.
+    const effectivePatch = applyUpdateDefaults(
+      executionDefaults,
+      storeName,
+      patchRecord,
+      createMutationDefaultsCache()
+    );
     const { storeNames: onUpdateStoreNames } = collectOnUpdateEnforcementStoreNames(
       this.#contract,
       this.#modelName,
-      patchRecord
+      effectivePatch
     );
     const storeNames = [...new Set([storeName, ...onUpdateStoreNames])];
     return withMutationScope(exec, storeNames, async (scope) => {
@@ -752,9 +769,8 @@ export class IdbStoreAccessorImpl<
         return (rows[0] ?? record) as DefaultModelRow<TContract, ModelName>;
       }
       const key = existing[keyPath] as IDBValidKey;
-      const patch = applyUpdateDefaults(executionDefaults, storeName, patchRecord, createMutationDefaultsCache());
-      await applyReferentialActionsForRowOnUpdate(scope, this.#contract, this.#modelName, existing, patch);
-      const rows = await scope.execute({ meta, kind: "update", storeName, key, patch });
+      await applyReferentialActionsForRowOnUpdate(scope, this.#contract, this.#modelName, existing, effectivePatch);
+      const rows = await scope.execute({ meta, kind: "update", storeName, key, patch: effectivePatch });
       return (rows[0] ?? existing) as DefaultModelRow<TContract, ModelName>;
     });
   }
