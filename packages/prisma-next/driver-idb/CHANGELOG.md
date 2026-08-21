@@ -1,5 +1,7 @@
 # @prisma-next-idb/driver-idb
 
+## 0.5.0
+
 ## 0.4.0
 
 ## 0.3.0

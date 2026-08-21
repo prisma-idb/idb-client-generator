@@ -1,5 +1,12 @@
 # @prisma-next-idb/sync-server
 
+## 0.2.2
+
+### Patch Changes
+
+- Updated dependencies [[`dc9b4ec`](https://github.com/prisma-idb/idb-client-generator/commit/dc9b4eceb33e3f94898a4eae28e3f9ba3886bc09)]:
+  - @prisma-next-idb/family-idb@0.5.0
+
 ## 0.2.1
 
 ### Patch Changes

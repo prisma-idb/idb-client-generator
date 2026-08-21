@@ -1,6 +1,6 @@
 {
   "name": "@prisma-next-idb/runtime-idb",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Prisma Next IDB family — runtime (RuntimeCore subclass that wires adapter + driver)",
   "license": "MIT",
   "files": ["dist"],
