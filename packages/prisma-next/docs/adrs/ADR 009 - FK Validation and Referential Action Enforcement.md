@@ -32,6 +32,8 @@ export type IdbModelStorage = {
 };
 ```
 
+(As originally decided — see the "Consequences" section below for the shipped shape: `IdbRelationStorage` also gained `onUpdate?`, and `IdbModelStorage` gained `fieldDefaults?: Record<string, string | number | boolean>` to back `setDefault`.)
+
 This mirrors the SQL pattern: FK behavior lives in target-specific storage metadata, not in the target-agnostic contract IR. The `relations` key matches the relation name in `model.relations` so the ORM can cross-reference them.
 
 `RelationDef` in `family-idb/src/core/contract-builder.ts` gains an optional `onDelete?` field, and `defineContract()` writes it into `IdbModelStorage.relations` at contract build time.
@@ -84,7 +86,7 @@ The contract has all the information needed: N:1 relations declare exactly which
 - **`setDefault` is implemented** for both `onDelete` and `onUpdate`. `IdbModelStorage.fieldDefaults` (populated only from a literal `@default(...)` — never a generator like `uuid()`/`now()`, matching Prisma's own restriction that `SetDefault` may only target a scalar default) holds each field's default value; `setDefault` resets the child's own FK field to it. A target field with no declared default throws a precise error rather than silently no-op'ing. **The default value is also validated against the parent's own store before it's written** (`validateSetDefaultPatch`) — a real database only makes `SET DEFAULT` safe because its FK constraint re-checks the new value transactionally; without an equivalent check here, `setDefault` would silently reintroduce the dangling-FK problem this whole ADR exists to close (e.g. `authorId: "system"` with no `id: "system"` row would otherwise write a dangling reference undetected). Refuses (throws) rather than validates incorrectly for compound (multi-field) relations, mirroring `validateScalarFks`'s same restriction.
 - **Known gaps, out of scope for this work:** `upsert()`'s non-atomic fallback path (a bare executor without `.transaction()` support) bypasses all FK/referential-action enforcement, and its _create_ arm never validates scalar FKs even on the atomic path. Both predate this work and are not addressed here.
 
-## Implementation — see Phase 6.8 in PLAN.md, and the recursive-cascade/onUpdate/setDefault follow-up work on `feat/idb-referential-actions-followups`
+## Implementation — see Phase 6.8 in PLAN.md; the recursive-cascade/`onUpdate`/`setDefault` follow-up work is captured in the "Consequences" section above
 
 ## Related
 
