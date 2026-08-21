@@ -28,7 +28,6 @@ export type IdbQueryAst =
   | IdbUpdateAst
   | IdbUpdateAllAst
   | IdbUpdateCountAst
-  | IdbUpsertAst
   | IdbCreateAllAst
   | IdbCreateCountAst
   | IdbDeleteAllAst
@@ -101,15 +100,6 @@ export interface IdbUpdateCountAst {
   readonly modelName: string;
   readonly patch: Record<string, unknown>;
   readonly where?: IdbFilterExpr;
-}
-
-/** Insert or update a single record depending on whether it already exists. */
-export interface IdbUpsertAst {
-  readonly kind: "upsert";
-  readonly modelName: string;
-  readonly create: Record<string, unknown>;
-  readonly update: Record<string, unknown>;
-  readonly where: Record<string, unknown>;
 }
 
 /** Batch insert multiple records. Returns inserted rows as AsyncIterableResult. */
@@ -186,9 +176,13 @@ export interface IdbGroupByAst {
   readonly aggregates: Readonly<Record<string, IdbAggregateRequest>>;
 }
 
-// Note: nested create/update (relation-callback writes) deliberately do NOT
-// carry an AST node. They execute inside a single `withMutationScope`
-// transaction, which bypasses the RuntimeCore middleware chain by design
-// (see PLAN Issue #6 — matches the vendor, where transactions also bypass
-// per-op middleware). An AST here would be unreachable, so it is intentionally
-// absent rather than dead. (Was PLAN Issue #21.)
+// Note: nested create/update (relation-callback writes) and upsert
+// deliberately do NOT carry an AST node. They execute inside a single
+// `withMutationScope` transaction, which bypasses the RuntimeCore middleware
+// chain by design (see PLAN Issue #6 — matches the vendor, where transactions
+// also bypass per-op middleware). An AST here would be unreachable, so it is
+// intentionally absent rather than dead. (Nested writes: was PLAN Issue #21.
+// Upsert: `client-idb`'s `upsert()` always runs through `withMutationScope`
+// now — it used to have a non-transactional fallback that emitted a plan-level
+// `IdbUpsertAst`, but that fallback was removed once every mutation method
+// required a transaction-capable executor.)

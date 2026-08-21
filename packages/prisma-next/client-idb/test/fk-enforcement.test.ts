@@ -41,6 +41,22 @@ class TestExecutorWithTransaction implements IdbQueryExecutor, IdbQueryExecutorW
   }
 }
 
+/** A bare executor with no `.transaction()` — exercises `upsert()`'s non-atomic fallback path. */
+class BareTestExecutor implements IdbQueryExecutor {
+  readonly #driver: IdbRuntimeDriverInstance;
+  constructor(driver: IdbRuntimeDriverInstance) {
+    this.#driver = driver;
+  }
+  execute<Row>(plan: IdbQueryPlan<Row>): AsyncIterableResult<Row> {
+    const it = this.#driver.execute(plan.idbPlan);
+    return new AsyncIterableResult(
+      (async function* () {
+        for await (const row of it) yield row as Row;
+      })()
+    );
+  }
+}
+
 // ── DB helpers ────────────────────────────────────────────────────────────────
 
 let dbCounter = 0;
@@ -1371,5 +1387,35 @@ describe("onUpdate — cascade on a self-referential model", () => {
     const employees = await getAllRows(db, "employees");
     const a = employees.find((e) => e["id"] === "a");
     expect(a?.["managerId"]).toBe("root2");
+  });
+});
+
+describe("upsert — requires a transaction-capable executor", () => {
+  let db: IDBDatabase;
+  let executor: BareTestExecutor;
+
+  beforeEach(async () => {
+    const name = nextDbName();
+    db = await openTestDbWithStores(name, { users: "id", posts: "id" });
+    executor = new BareTestExecutor(createIDBRuntimeDriver(name).create());
+  });
+  afterEach(() => db.close());
+
+  // upsert() used to keep a non-atomic two-step fallback for a bare
+  // executor (no `.transaction()`), which could silently skip onUpdate
+  // referential-action enforcement. That fallback is gone: upsert() now
+  // requires transaction support unconditionally, matching
+  // create/update/delete/updateAll/deleteAll.
+  it("rejects unconditionally on a bare executor, regardless of the patch", async () => {
+    const orm = idbOrm({ contract: onUpdateCascadeContract, executor });
+    await orm["users"]!.create({ id: "u1", slug: "alice", name: "Alice" } as never);
+
+    await expect(
+      orm["users"]!.upsert({
+        where: { id: "u1" },
+        create: { id: "u1", slug: "alice", name: "Alice" },
+        update: { name: "Alicia" },
+      } as never)
+    ).rejects.toThrow(/requires an executor with transaction support/i);
   });
 });

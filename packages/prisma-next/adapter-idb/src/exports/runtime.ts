@@ -15,7 +15,6 @@ export type {
   IdbUpdateAst,
   IdbUpdateAllAst,
   IdbUpdateCountAst,
-  IdbUpsertAst,
   IdbCreateAllAst,
   IdbCreateCountAst,
   IdbDeleteAllAst,

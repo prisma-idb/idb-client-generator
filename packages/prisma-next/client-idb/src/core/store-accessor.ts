@@ -10,7 +10,6 @@ import type {
   IdbFindManyAst,
   IdbFindUniqueAst,
   IdbQueryAst,
-  IdbUpsertAst,
 } from "@prisma-next-idb/adapter-idb/runtime";
 import { evaluateFilter, shorthandToFilterExpr } from "@prisma-next-idb/adapter-idb/runtime";
 import {
@@ -78,7 +77,7 @@ import {
   hasScalarFkFields,
   requireTransactionExecutor,
 } from "./mutation-executor";
-import { withMutationScope, type IdbQueryExecutorWithTransaction } from "./mutation-scope";
+import { withMutationScope } from "./mutation-scope";
 
 /** Callback form of `.where(fn)` — receives the typed model accessor proxy. */
 export type WhereCallback<TContract, ModelName extends string> = (
@@ -731,63 +730,33 @@ export class IdbStoreAccessorImpl<
     const createRecord = args.create as Record<string, unknown>;
     const patchRecord = args.update as Record<string, unknown>;
     const storeName = this.#storeName;
-
-    // Atomic path: when the executor supports transactions (always true for
-    // IdbRuntime, i.e. createIdbClient / createAutoMigratingIdbClient), run the
-    // find-then-write in a single readwrite transaction so there is no
-    // check-then-act race window. Mirrors the vendor's single-statement upsert.
-    const exec = this.#executor as IdbQueryExecutor & Partial<Pick<IdbQueryExecutorWithTransaction, "transaction">>;
     const executionDefaults = this.#contract.execution?.mutations.defaults;
-    if (typeof exec.transaction === "function") {
-      const { storeNames: onUpdateStoreNames } = collectOnUpdateEnforcementStoreNames(
-        this.#contract,
-        this.#modelName,
-        patchRecord
-      );
-      const storeNames = [...new Set([storeName, ...onUpdateStoreNames])];
-      return withMutationScope(exec as IdbQueryExecutorWithTransaction, storeNames, async (scope) => {
-        const found = await scope.execute({ meta, kind: "cursor-scan", storeName, filter: matches, take: 1 });
-        const existing = found[0];
-        if (existing === undefined) {
-          const record = applyCreateDefaults(executionDefaults, storeName, createRecord, createMutationDefaultsCache());
-          const rows = await scope.execute({ meta, kind: "add", storeName, record });
-          return (rows[0] ?? record) as DefaultModelRow<TContract, ModelName>;
-        }
-        const key = existing[keyPath] as IDBValidKey;
-        const patch = applyUpdateDefaults(executionDefaults, storeName, patchRecord, createMutationDefaultsCache());
-        await applyReferentialActionsForRowOnUpdate(scope, this.#contract, this.#modelName, existing, patch);
-        const rows = await scope.execute({ meta, kind: "update", storeName, key, patch });
-        return (rows[0] ?? existing) as DefaultModelRow<TContract, ModelName>;
-      });
-    }
 
-    // Fallback (non-atomic): a bare bring-your-own `IdbQueryExecutor` with no
-    // transaction support. A check-then-act window exists here, but it is the
-    // only path available without `transaction()`. Real clients never hit it.
-    const existing = await this.where(args.where).first();
-    if (!existing) {
-      // A bare CreateInput (no relation callbacks) is always a valid
-      // MutationCreateInput; the generic intersection can't be proven here.
-      return this.create(args.create as MutationCreateInput<TContract, ModelName>);
-    }
-    const key = (existing as Record<string, unknown>)[keyPath] as IDBValidKey;
-    const patch = applyUpdateDefaults(executionDefaults, storeName, patchRecord, createMutationDefaultsCache());
-    const ast: IdbUpsertAst = {
-      kind: "upsert",
-      modelName: this.#modelName,
-      create: createRecord,
-      update: patch,
-      where: args.where as Record<string, unknown>,
-    };
-    const plan: IdbQueryPlan<Record<string, unknown>> = {
-      meta,
-      ast,
-      idbPlan: { meta, kind: "update", storeName, key, patch },
-    };
-    for await (const row of this.#executor.execute(plan)) {
-      return row as DefaultModelRow<TContract, ModelName>;
-    }
-    return existing as DefaultModelRow<TContract, ModelName>;
+    // Runs the find-then-write in a single readwrite transaction so there is
+    // no check-then-act race window. Mirrors the vendor's single-statement
+    // upsert, and matches create/update/delete/updateAll/deleteAll, which all
+    // require a transaction-capable executor.
+    const exec = requireTransactionExecutor(this.#executor);
+    const { storeNames: onUpdateStoreNames } = collectOnUpdateEnforcementStoreNames(
+      this.#contract,
+      this.#modelName,
+      patchRecord
+    );
+    const storeNames = [...new Set([storeName, ...onUpdateStoreNames])];
+    return withMutationScope(exec, storeNames, async (scope) => {
+      const found = await scope.execute({ meta, kind: "cursor-scan", storeName, filter: matches, take: 1 });
+      const existing = found[0];
+      if (existing === undefined) {
+        const record = applyCreateDefaults(executionDefaults, storeName, createRecord, createMutationDefaultsCache());
+        const rows = await scope.execute({ meta, kind: "add", storeName, record });
+        return (rows[0] ?? record) as DefaultModelRow<TContract, ModelName>;
+      }
+      const key = existing[keyPath] as IDBValidKey;
+      const patch = applyUpdateDefaults(executionDefaults, storeName, patchRecord, createMutationDefaultsCache());
+      await applyReferentialActionsForRowOnUpdate(scope, this.#contract, this.#modelName, existing, patch);
+      const rows = await scope.execute({ meta, kind: "update", storeName, key, patch });
+      return (rows[0] ?? existing) as DefaultModelRow<TContract, ModelName>;
+    });
   }
 
   createAll(data: CreateInput<TContract, ModelName>[]): AsyncIterableResult<DefaultModelRow<TContract, ModelName>> {
