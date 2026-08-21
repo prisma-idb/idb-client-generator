@@ -38,7 +38,7 @@ export type IdbIndexDefinition = {
   readonly multiEntry?: boolean;
 };
 
-/** Referential action executed on child rows when a parent row is deleted. */
+/** Referential action executed on child rows when a parent row is deleted or updated. */
 export type IdbReferentialAction = "cascade" | "setNull" | "setDefault" | "restrict" | "noAction";
 
 /**
@@ -61,9 +61,17 @@ export type IdbReferentialAction = "cascade" | "setNull" | "setDefault" | "restr
  */
 export type IdbMutationDefaultGeneratorId = "timestampNow" | "literal" | "uuidv4" | "uuidv7" | "cuid2";
 
-/** Per-relation storage metadata attached to {@link IdbModelStorage}. */
+/**
+ * Per-relation storage metadata attached to {@link IdbModelStorage}.
+ *
+ * `onUpdate`'s default (when omitted) is `'cascade'`, unlike `onDelete`'s
+ * `'restrict'` default — matching Prisma's own documented behavior:
+ * propagating a changed referenced value to children is normally safe,
+ * unlike deleting the row those children point to.
+ */
 export type IdbRelationStorage = {
-  readonly onDelete?: IdbReferentialAction;
+  readonly onDelete?: IdbReferentialAction; // default: 'restrict'
+  readonly onUpdate?: IdbReferentialAction; // default: 'cascade'
 };
 
 /**
@@ -72,11 +80,17 @@ export type IdbRelationStorage = {
  * Tells the runtime (and the generated client) which object store owns this model
  * and which field is its primary key. `relations` carries per-relation enforcement
  * metadata (e.g. `onDelete`) mirroring the SQL target's FK constraint metadata.
+ * `fieldDefaults` carries literal `@default(...)` values, keyed by field name —
+ * feeds the `setDefault` referential action (a child's FK field is reset to its
+ * own declared default, not the parent's). Only ever populated from a *literal*
+ * default (string/number/boolean) — never a generator like `uuid()`/`now()`,
+ * matching Prisma's own rule that `SetDefault` may only target a scalar default.
  */
 export type IdbModelStorage = {
   readonly storeName: string;
   readonly keyPath: string;
   readonly relations?: Record<string, IdbRelationStorage>;
+  readonly fieldDefaults?: Record<string, string | number | boolean>;
 };
 
 /**

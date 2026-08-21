@@ -235,9 +235,11 @@ describe("SyncInterceptorExecutor.transaction() — relational mutations", () =>
     expect(userDelete).toBeDefined();
 
     // ...and so is the cascade-deleted Post: `applyReferentialActionsForRow`
-    // issues the cascade as a `scan-write` (write: "delete") against the
-    // same wrapped transaction scope, and every row it actually removes
-    // gets its own outbox event, keyed by that row's own primary key.
+    // reads the matching children then issues a `delete` per row against the
+    // same wrapped transaction scope (a per-row read-then-delete, so a
+    // deeper cascade can recurse into each child's own children), and every
+    // row it actually removes gets its own outbox event, keyed by that
+    // row's own primary key.
     const postDelete = (outbox as { entityType: string; operation: string; versionMetaId: string | null }[]).find(
       (e) => e.entityType === "Post" && e.operation === "delete"
     );
@@ -248,12 +250,17 @@ describe("SyncInterceptorExecutor.transaction() — relational mutations", () =>
     expect(metaRow).toBeDefined();
   });
 
-  it('on("outboxwrite") batches an entire cascade\'s affected rows into ONE firing, not one per row', async () => {
-    // Cascading to TWO children is still ONE `execute()` call on the
-    // transaction scope (one scan-write touching both Post rows), so it
-    // must be ONE firing with a 2-entry array — not two firings of one
-    // entry each, which is what a naive per-row callback (and this
-    // package's previous zero-arg `onOutboxWrite`) would have produced.
+  it('on("outboxwrite") fires once per cascaded row now that cascade is recursive (multi-hop)', async () => {
+    // Cascade used to be a single blind `scan-write` (write: "delete")
+    // touching every matching child in one `execute()` call, so all of them
+    // landed in one outbox-write firing. Recursive (multi-hop) cascade
+    // requires reading each child individually (cursor-scan, then recurse
+    // into ITS OWN children, then delete it) so a deeper cascade can be
+    // enforced — that per-row processing means each cascaded child is now
+    // its own `execute({ kind: "delete", ... })` call, and therefore its own
+    // outbox-write firing. Every row is still tracked, correctly keyed, and
+    // strictly ordered before its parent (see the next test) — only the
+    // batching *granularity* changed, not correctness.
     const { client } = await createTestSyncClient();
     const users = asAccessors(client.orm)["users"]!;
     const posts = asAccessors(client.orm)["posts"]!;
@@ -267,15 +274,15 @@ describe("SyncInterceptorExecutor.transaction() — relational mutations", () =>
 
     await users.delete("u1"); // cascades to both posts
 
-    // Firing 1: the cascade's scan-write, both Posts in one array.
-    // Firing 2: the User's own delete, one entry.
-    expect(firings).toHaveLength(2);
-    const cascadeFiring = firings.find((f) => f.length === 2)!;
-    expect(cascadeFiring).toBeDefined();
-    expect(cascadeFiring.every((e) => e.modelName === "Post" && e.operation === "delete")).toBe(true);
-    expect(cascadeFiring.map((e) => e.key).sort()).toEqual(["p1", "p2"]);
+    // Firing 1 & 2: one per cascaded Post delete. Firing 3: the User's own delete.
+    expect(firings).toHaveLength(3);
+    expect(firings.every((f) => f.length === 1)).toBe(true);
 
-    const userFiring = firings.find((f) => f.length === 1)!;
+    const postFirings = firings.filter((f) => f[0]!.modelName === "Post");
+    expect(postFirings.every((f) => f[0]!.operation === "delete")).toBe(true);
+    expect(postFirings.map((f) => f[0]!.key).sort()).toEqual(["p1", "p2"]);
+
+    const userFiring = firings.find((f) => f[0]!.modelName === "User")!;
     expect(userFiring).toBeDefined();
     expect(userFiring[0]).toMatchObject({ modelName: "User", operation: "delete", key: "u1" });
   });

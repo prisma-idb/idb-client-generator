@@ -50,9 +50,9 @@ _Prior context (2026-05-29 third-pass audit): Phase 7 (migration package layer r
 
 **Total: 508/508 tests passing (415 vitest + 93 Playwright) — pending Playwright run for Phase 6.8 (+8).**
 
-### Follow-up: `setDefault` referential action
+### `setDefault` referential action, recursive cascade, and `onUpdate` — done
 
-`setDefault` is declared in `IdbReferentialAction` and accepted by the type system, but throws at runtime with a clear message: `"setDefault is not supported: IDB contracts do not track field defaults"`. To implement it properly, `IdbModelStorage` needs a `fieldDefaults?: Record<string, unknown>` slot and `buildModels` must populate it from a `default?` field on `FieldDef`. This is tracked as a follow-up — the `cascade`/`setNull`/`restrict`/`noAction` actions cover all common use cases.
+`setDefault`, multi-hop recursive cascade, and `onUpdate` referential actions (previously tracked as follow-ups here) are implemented — see [ADR 009](docs/adrs/ADR%20009%20-%20FK%20Validation%20and%20Referential%20Action%20Enforcement.md)'s Consequences section for the shipped design. `IdbModelStorage.fieldDefaults?: Record<string, string | number | boolean>` backs `setDefault`, populated only from literal `@default(...)` values.
 
 [Issue #1]: #issue-1--migrationrunner-missing-executeacrossspaces-blocks-cli-db-update
 [Issue #2]: #issue-2--sign-does-not-populate-manifestschema-from-contract
@@ -628,17 +628,7 @@ SQL ORM: `BinaryExpr`, `AndExpr`, `OrExpr` from `sql-relational-core/ast` (class
 
 ```ts
 export type IdbFilterOp =
-  | "eq"
-  | "neq"
-  | "gt"
-  | "lt"
-  | "gte"
-  | "lte"
-  | "in"
-  | "notIn"
-  | "contains"
-  | "startsWith"
-  | "endsWith";
+  "eq" | "neq" | "gt" | "lt" | "gte" | "lte" | "in" | "notIn" | "contains" | "startsWith" | "endsWith";
 
 export interface IdbFieldFilter {
   readonly kind: "field";
@@ -1069,8 +1059,7 @@ Include state in `IdbAccessorState` changes from `Record<string, true>` to:
 
 ```ts
 type IncludeEntry =
-  | { readonly kind: "collection"; readonly state: IdbAccessorState }
-  | { readonly kind: "scalar"; readonly fn: "count" };
+  { readonly kind: "collection"; readonly state: IdbAccessorState } | { readonly kind: "scalar"; readonly fn: "count" };
 ```
 
 ---
