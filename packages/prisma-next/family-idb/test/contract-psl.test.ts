@@ -42,6 +42,7 @@ type TestContractModel = {
   readonly relations: Record<string, unknown>;
   readonly storage: {
     readonly relations: Record<string, unknown>;
+    readonly fieldDefaults?: Record<string, unknown>;
   };
 };
 
@@ -428,6 +429,61 @@ describe("interpretPslDocumentToIdbContract", () => {
 
       const postModel = result.value.domain.namespaces[NS]!.models["Post"] as unknown as TestContractModel;
       expect(postModel.storage.relations["user"]).toMatchObject({ onDelete: "cascade" });
+    });
+
+    it("stores onUpdate in IdbModelStorage.relations", () => {
+      const result = interpret(`
+        model User {
+          id    String @id
+          posts Post[]
+        }
+        model Post {
+          id     String @id
+          userId String
+          user   User   @relation(fields: [userId], references: [id], onUpdate: SetNull)
+        }
+      `);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+
+      const postModel = result.value.domain.namespaces[NS]!.models["Post"] as unknown as TestContractModel;
+      expect(postModel.storage.relations["user"]).toMatchObject({ onUpdate: "setNull" });
+    });
+
+    it("stores both onDelete and onUpdate on the same relation", () => {
+      const result = interpret(`
+        model User {
+          id    String @id
+          posts Post[]
+        }
+        model Post {
+          id     String @id
+          userId String
+          user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+        }
+      `);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+
+      const postModel = result.value.domain.namespaces[NS]!.models["Post"] as unknown as TestContractModel;
+      expect(postModel.storage.relations["user"]).toMatchObject({ onDelete: "cascade", onUpdate: "restrict" });
+    });
+
+    it("errors on an unknown onUpdate value", () => {
+      const result = interpret(`
+        model User {
+          id    String @id
+          posts Post[]
+        }
+        model Post {
+          id     String @id
+          userId String
+          user   User   @relation(fields: [userId], references: [id], onUpdate: Bogus)
+        }
+      `);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.diagnostics[0]!.code).toBe("IDB_UNKNOWN_REFERENTIAL_ACTION");
     });
 
     it("automatically creates an index on the FK field", () => {
@@ -1102,6 +1158,40 @@ describe("interpretPslDocumentToIdbContract", () => {
       expect(result.ok).toBe(false);
       if (result.ok) return;
       expect(result.failure.diagnostics[0]!.code).toBe("IDB_INVALID_DEFAULT_VALUE");
+    });
+  });
+
+  describe("@default(literal) — setDefault fieldDefaults", () => {
+    it("populates IdbModelStorage.fieldDefaults for a literal default", () => {
+      const result = interpret(`
+        model Post {
+          id        String  @id
+          published Boolean @default(false)
+          views     Int     @default(0)
+          title     String  @default("untitled")
+        }
+      `);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+
+      const postModel = result.value.domain.namespaces[NS]!.models["Post"] as unknown as TestContractModel;
+      expect(postModel.storage.fieldDefaults).toEqual({ published: false, views: 0, title: "untitled" });
+    });
+
+    it("does not populate fieldDefaults for generator-based defaults (uuid/cuid/now/autoincrement)", () => {
+      const result = interpret(`
+        model Post {
+          id        Int      @id @default(autoincrement())
+          slug      String   @default(uuid())
+          extId     String   @default(cuid())
+          createdAt DateTime @default(now())
+        }
+      `);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+
+      const postModel = result.value.domain.namespaces[NS]!.models["Post"] as unknown as TestContractModel;
+      expect(postModel.storage.fieldDefaults).toBeUndefined();
     });
   });
 

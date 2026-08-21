@@ -434,3 +434,271 @@ describe("defineContract — IDB valid-key type validation (ADR 016)", () => {
     ).not.toThrow();
   });
 });
+
+describe("defineContract — onUpdate and fieldDefaults storage", () => {
+  it("writes onUpdate into IdbModelStorage.relations alongside onDelete", () => {
+    const contract = defineContract({
+      family: idbFamilyPack,
+      target: idbTargetPack,
+      models: {
+        User: {
+          store: "users",
+          key: "id",
+          fields: { id: "String", name: "String" },
+          relations: {
+            posts: {
+              to: "Post",
+              cardinality: "1:N",
+              on: { local: ["id"], target: ["authorId"] },
+              onDelete: "cascade",
+              onUpdate: "restrict",
+            },
+          },
+        },
+        Post: {
+          store: "posts",
+          key: "id",
+          fields: { id: "String", authorId: "String" },
+        },
+      },
+    });
+
+    const userStorage = domainModelsAtDefaultNamespace(contract.domain)["User"]?.storage as {
+      relations?: Record<string, { onDelete?: string; onUpdate?: string }>;
+    };
+    expect(userStorage.relations?.["posts"]).toEqual({ onDelete: "cascade", onUpdate: "restrict" });
+  });
+
+  it("writes fieldDefaults into IdbModelStorage", () => {
+    const contract = defineContract({
+      family: idbFamilyPack,
+      target: idbTargetPack,
+      models: {
+        Post: {
+          store: "posts",
+          key: "id",
+          fields: { id: "String", authorId: "String" },
+          fieldDefaults: { authorId: "system" },
+        },
+      },
+    });
+
+    const postStorage = domainModelsAtDefaultNamespace(contract.domain)["Post"]?.storage as {
+      fieldDefaults?: Record<string, unknown>;
+    };
+    expect(postStorage.fieldDefaults).toEqual({ authorId: "system" });
+  });
+
+  it("throws when fieldDefaults references an undeclared field", () => {
+    expect(() =>
+      defineContract({
+        family: idbFamilyPack,
+        target: idbTargetPack,
+        models: {
+          Post: {
+            store: "posts",
+            key: "id",
+            fields: { id: "String", authorId: "String" },
+            fieldDefaults: { typoField: "system" },
+          },
+        },
+      })
+    ).toThrow(/not declared in "fields"/);
+  });
+
+  it("throws when a fieldDefaults value's JS type doesn't match the field's declared type", () => {
+    expect(() =>
+      defineContract({
+        family: idbFamilyPack,
+        target: idbTargetPack,
+        models: {
+          Post: {
+            store: "posts",
+            key: "id",
+            fields: { id: "String", authorId: "String", priority: "Int" },
+            fieldDefaults: { priority: "high" as unknown as number },
+          },
+        },
+      })
+    ).toThrow(/JS type must match/);
+  });
+});
+
+describe("defineContract — conflicting reciprocal relation actions", () => {
+  it("throws when both sides of a relation declare onDelete", () => {
+    expect(() =>
+      defineContract({
+        family: idbFamilyPack,
+        target: idbTargetPack,
+        models: {
+          User: {
+            store: "users",
+            key: "id",
+            fields: { id: "String", name: "String" },
+            relations: {
+              posts: {
+                to: "Post",
+                cardinality: "1:N",
+                on: { local: ["id"], target: ["authorId"] },
+                onDelete: "cascade",
+              },
+            },
+          },
+          Post: {
+            store: "posts",
+            key: "id",
+            fields: { id: "String", authorId: "String" },
+            relations: {
+              author: {
+                to: "User",
+                cardinality: "N:1",
+                on: { local: ["authorId"], target: ["id"] },
+                onDelete: "restrict",
+              },
+            },
+          },
+        },
+      })
+    ).toThrow(/both declare "onDelete"/);
+  });
+
+  it("throws when both sides declare onUpdate", () => {
+    expect(() =>
+      defineContract({
+        family: idbFamilyPack,
+        target: idbTargetPack,
+        models: {
+          User: {
+            store: "users",
+            key: "id",
+            fields: { id: "String" },
+            relations: {
+              posts: {
+                to: "Post",
+                cardinality: "1:N",
+                on: { local: ["id"], target: ["authorId"] },
+                onUpdate: "cascade",
+              },
+            },
+          },
+          Post: {
+            store: "posts",
+            key: "id",
+            fields: { id: "String", authorId: "String" },
+            relations: {
+              author: {
+                to: "User",
+                cardinality: "N:1",
+                on: { local: ["authorId"], target: ["id"] },
+                onUpdate: "setNull",
+              },
+            },
+          },
+        },
+      })
+    ).toThrow(/both declare "onUpdate"/);
+  });
+
+  it("does not throw when only one side declares an action", () => {
+    expect(() =>
+      defineContract({
+        family: idbFamilyPack,
+        target: idbTargetPack,
+        models: {
+          User: {
+            store: "users",
+            key: "id",
+            fields: { id: "String" },
+            relations: {
+              posts: {
+                to: "Post",
+                cardinality: "1:N",
+                on: { local: ["id"], target: ["authorId"] },
+                onDelete: "cascade",
+              },
+            },
+          },
+          Post: {
+            store: "posts",
+            key: "id",
+            fields: { id: "String", authorId: "String" },
+            relations: {
+              author: { to: "User", cardinality: "N:1", on: { local: ["authorId"], target: ["id"] } },
+            },
+          },
+        },
+      })
+    ).not.toThrow();
+  });
+
+  it("does not throw when the two sides declare different kinds (onDelete vs onUpdate)", () => {
+    expect(() =>
+      defineContract({
+        family: idbFamilyPack,
+        target: idbTargetPack,
+        models: {
+          User: {
+            store: "users",
+            key: "id",
+            fields: { id: "String" },
+            relations: {
+              posts: {
+                to: "Post",
+                cardinality: "1:N",
+                on: { local: ["id"], target: ["authorId"] },
+                onDelete: "cascade",
+              },
+            },
+          },
+          Post: {
+            store: "posts",
+            key: "id",
+            fields: { id: "String", authorId: "String" },
+            relations: {
+              author: {
+                to: "User",
+                cardinality: "N:1",
+                on: { local: ["authorId"], target: ["id"] },
+                onUpdate: "restrict",
+              },
+            },
+          },
+        },
+      })
+    ).not.toThrow();
+  });
+
+  it("does not false-positive on two distinct relations to the same model", () => {
+    // Message.sender and Message.recipient both point at User, but neither is the
+    // other's reciprocal (different local fields) — matching on `to` alone would
+    // wrongly flag this pair.
+    expect(() =>
+      defineContract({
+        family: idbFamilyPack,
+        target: idbTargetPack,
+        models: {
+          User: { store: "users", key: "id", fields: { id: "String" } },
+          Message: {
+            store: "messages",
+            key: "id",
+            fields: { id: "String", senderId: "String", recipientId: "String" },
+            relations: {
+              sender: {
+                to: "User",
+                cardinality: "N:1",
+                on: { local: ["senderId"], target: ["id"] },
+                onDelete: "cascade",
+              },
+              recipient: {
+                to: "User",
+                cardinality: "N:1",
+                on: { local: ["recipientId"], target: ["id"] },
+                onDelete: "setNull",
+              },
+            },
+          },
+        },
+      })
+    ).not.toThrow();
+  });
+});

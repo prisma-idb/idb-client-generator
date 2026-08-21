@@ -12,10 +12,11 @@
  *    (`lower()` returns `plan.idbPlan` as-is), so this extended batch plan
  *    reaches the driver unmodified and executes atomically in a single IDB
  *    transaction. Nothing else stays on this path: `update`/`updateAll`/
- *    `deleteAll`/`upsert` don't have a statically-known key/row-set (a filter
- *    — or, for `upsert`, a find-then-branch — matches/resolves whatever it
- *    does when it actually runs) — `client-idb` routes all four through the
- *    transaction-scope path below unconditionally instead, never through here.
+ *    `deleteAll` don't have a statically-known key/row-set (a filter matches
+ *    whatever it matches when it actually runs) — `client-idb` routes all
+ *    three, plus `upsert` (a find-then-branch, resolved only once it runs),
+ *    through the transaction-scope path below unconditionally instead, never
+ *    through here.
  * 2. **Transaction-level** (`transaction()`): `client-idb`'s mutation
  *    executor (`mutation-executor.ts`) requires `.transaction()` for any
  *    model with a relation — FK-existence validation on create, referential
@@ -33,7 +34,6 @@ import type {
   IdbCreateAst,
   IdbDeleteAst,
   IdbUpdateAst,
-  IdbUpsertAst,
   IdbCreateAllAst,
   IdbDeleteAllAst,
   IdbUpdateAllAst,
@@ -55,15 +55,13 @@ import type { OutboxEvent, OutboxWriteEntry } from "../types";
 const OUTBOX_STORE = "_idb_sync_outbox";
 const VERSION_META_STORE = "_idb_sync_version_meta";
 
-type MutationAst =
-  IdbCreateAst | IdbDeleteAst | IdbUpdateAst | IdbUpsertAst | IdbCreateAllAst | IdbDeleteAllAst | IdbUpdateAllAst;
+type MutationAst = IdbCreateAst | IdbDeleteAst | IdbUpdateAst | IdbCreateAllAst | IdbDeleteAllAst | IdbUpdateAllAst;
 
 function isMutationAst(ast: IdbQueryAst): ast is MutationAst {
   return (
     ast.kind === "create" ||
     ast.kind === "delete" ||
     ast.kind === "update" ||
-    ast.kind === "upsert" ||
     ast.kind === "createAll" ||
     ast.kind === "deleteAll" ||
     ast.kind === "updateAll"
@@ -230,40 +228,34 @@ function extractKey(ast: MutationAst, keyField: string): unknown {
       return ast.data[keyField];
     case "delete":
       return ast.key;
-    case "upsert":
     case "update":
     case "createAll":
     case "deleteAll":
     case "updateAll":
       // Practically unreachable through client-idb's own ORM surface — all
-      // five are intercepted before reaching here, because none of them can
+      // four are intercepted before reaching here, because none of them can
       // have a statically-known key/row-set the way `create`/`delete` do
       // (a filter matches whatever it matches when it actually runs, not
       // before). `createAll` is expanded into one per-record entry directly
       // in `#extendPlan` (each record's OWN key is supplied by the caller,
-      // no inspection needed). The other four all unconditionally route
+      // no inspection needed). The other three all unconditionally route
       // through the transaction scope instead — `update()`/`updateAll()`/
       // `deleteAll()` via `executeScalarUpdateWithFkValidation` /
-      // `executeBulkUpdateWithFkValidation` / `executeDeleteAllWithReferentialActions`,
-      // `upsert()` via its own `withMutationScope` call directly in
-      // store-accessor.ts (issuing a plain `add` or `update` atomic plan
-      // once it knows which branch it's in) — tracked by
-      // `SyncInterceptingTransactionScope#maybeTrack`'s `add`/`update`/
-      // `scan-write` cases, keyed from the row the write actually matched,
-      // not guessed at from the filter/args that led to it. (An earlier
-      // version of `update()`'s plan-level fallback tried exactly that kind
-      // of guess for its own case — recognizing only a bare equality filter
-      // directly on the primary key — and quietly failed to sync anything
-      // filtered by a different field.) `upsert()` does have a second,
-      // non-transactional fallback path for a bare `IdbQueryExecutor`
-      // without `.transaction()` support, which WOULD reach here — but
-      // every real client (`createIdbRuntime`, and therefore every
-      // sync-tracked one) implements `.transaction()`, so that fallback is
-      // dead code in practice, same as the others. Kept here (returning
-      // `undefined`, same as any other statically-unknowable case) only
-      // because `MutationAst` is a shared type across every possible IDB
-      // plan, including ones a caller could hand-construct outside the
-      // ORM's own accessors.
+      // `executeBulkUpdateWithFkValidation` / `executeDeleteAllWithReferentialActions`
+      // — tracked by `SyncInterceptingTransactionScope#maybeTrack`'s
+      // `add`/`update`/`scan-write` cases, keyed from the row the write
+      // actually matched, not guessed at from the filter/args that led to
+      // it. (An earlier version of `update()`'s plan-level fallback tried
+      // exactly that kind of guess for its own case — recognizing only a
+      // bare equality filter directly on the primary key — and quietly
+      // failed to sync anything filtered by a different field.) `upsert()`
+      // works the same way, via its own `withMutationScope` call directly in
+      // store-accessor.ts — it has no AST node at all (see the note next to
+      // `IdbQueryAst` in `idb-query-ast.ts`), so it isn't even a case here.
+      // Kept here (returning `undefined`, same as any other
+      // statically-unknowable case) only because `MutationAst` is a shared
+      // type across every possible IDB plan, including ones a caller could
+      // hand-construct outside the ORM's own accessors.
       return undefined;
     default: {
       const _exhaustive: never = ast;
@@ -284,8 +276,6 @@ function outboxOperation(kind: MutationAst["kind"]): string {
     case "update":
     case "updateAll":
       return "update";
-    case "upsert":
-      return "upsert";
     default: {
       const _exhaustive: never = kind;
       return String(_exhaustive);
@@ -295,10 +285,10 @@ function outboxOperation(kind: MutationAst["kind"]): string {
 
 /**
  * Extract the payload to store in the outbox from the AST. Never actually
- * called for "upsert"/"update"/"createAll"/"deleteAll"/"updateAll" — see the
- * matching cases in `extractKey` above for why each is unreachable through
- * the ORM's own accessors. Their bodies here exist only so this function
- * stays exhaustive over every `MutationAst` kind, in case a caller ever
+ * called for "update"/"createAll"/"deleteAll"/"updateAll" — see the matching
+ * cases in `extractKey` above for why each is unreachable through the ORM's
+ * own accessors. Their bodies here exist only so this function stays
+ * exhaustive over every `MutationAst` kind, in case a caller ever
  * hand-builds a plan bypassing the ORM entirely; they're never exercised by
  * real writes.
  */
@@ -308,8 +298,6 @@ function outboxPayload(ast: MutationAst): unknown {
       return ast.data;
     case "delete":
       return { key: ast.key };
-    case "upsert":
-      return { create: ast.create, update: ast.update, where: ast.where };
     case "update":
       return { patch: ast.patch, where: ast.where };
     case "createAll":
