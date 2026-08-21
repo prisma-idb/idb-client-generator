@@ -64,6 +64,8 @@ import type { IdbQueryExecutor } from "./executor";
 import { applyCreateDefaults, applyUpdateDefaults, createMutationDefaultsCache } from "./mutation-defaults";
 import { loadRelation } from "./relation-loader";
 import {
+  applyReferentialActionsForRowOnUpdate,
+  collectOnUpdateEnforcementStoreNames,
   executeBulkUpdateWithFkValidation,
   executeDeleteAllWithReferentialActions,
   executeDeleteWithReferentialActions,
@@ -737,7 +739,9 @@ export class IdbStoreAccessorImpl<
     const exec = this.#executor as IdbQueryExecutor & Partial<Pick<IdbQueryExecutorWithTransaction, "transaction">>;
     const executionDefaults = this.#contract.execution?.mutations.defaults;
     if (typeof exec.transaction === "function") {
-      return withMutationScope(exec as IdbQueryExecutorWithTransaction, [storeName], async (scope) => {
+      const onUpdateStoreNames = collectOnUpdateEnforcementStoreNames(this.#contract, this.#modelName, patchRecord);
+      const storeNames = [...new Set([storeName, ...onUpdateStoreNames])];
+      return withMutationScope(exec as IdbQueryExecutorWithTransaction, storeNames, async (scope) => {
         const found = await scope.execute({ meta, kind: "cursor-scan", storeName, filter: matches, take: 1 });
         const existing = found[0];
         if (existing === undefined) {
@@ -747,6 +751,7 @@ export class IdbStoreAccessorImpl<
         }
         const key = existing[keyPath] as IDBValidKey;
         const patch = applyUpdateDefaults(executionDefaults, storeName, patchRecord, createMutationDefaultsCache());
+        await applyReferentialActionsForRowOnUpdate(scope, this.#contract, this.#modelName, existing, patch);
         const rows = await scope.execute({ meta, kind: "update", storeName, key, patch });
         return (rows[0] ?? existing) as DefaultModelRow<TContract, ModelName>;
       });
