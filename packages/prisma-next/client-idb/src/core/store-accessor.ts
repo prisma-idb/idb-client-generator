@@ -634,7 +634,8 @@ export class IdbStoreAccessorImpl<
       ast,
       idbPlan: { meta, kind: "delete", storeName: this.#storeName, key: key as IDBValidKey },
     };
-    // `delete` yields no rows; drain via toArray() to execute the plan.
+    // The driver echoes the deleted row, but this API returns void — drain
+    // via toArray() just to execute the plan and discard the result.
     await this.#executor.query(plan).toArray();
   }
 

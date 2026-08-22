@@ -241,18 +241,17 @@ class IdbRuntimeImpl extends RuntimeCore<IdbQueryPlan, IdbPlanBody, IdbMiddlewar
    * draining here has no extra cost beyond what a `query()` call over the
    * same plan would already pay.
    *
-   * Caveat: this counts *rows the driver yields*, not "ops applied." A
-   * single atomic `delete` plan (`execute/ops.ts`'s `execDelete`) yields no
-   * rows by design (`store.delete()` has no return value, so there's
-   * nothing to echo back) — so `execute()` on a lone delete plan resolves
-   * `{ affectedRows: 0 }` even though the delete succeeded. `add`/`put`/
-   * `update` and `scan-write`'s delete branch all echo the touched row(s)
-   * and count correctly. Nothing in this repo calls `IdbRuntime.execute()`
-   * today (client-idb still drains deletes through `query()` — see
-   * `store-accessor.ts`'s `delete()`), so this is a real but currently
-   * dormant gap, not an observed bug. Fix it here (e.g. by inspecting the
-   * plan's `kind` and counting ops instead of rows for delete-shaped plans)
-   * before anything starts relying on `execute()`'s count for deletes.
+   * This counts *rows the driver yields*, which correctly equals "ops
+   * applied" for every atomic plan kind: `add`/`put`/`update` each echo the
+   * one row they touched, `scan-write` echoes every matched row, and
+   * `delete` (`execute/ops.ts`'s `execDelete`) walks a cursor over its
+   * key/range and echoes each row it deletes — so a delete matching zero
+   * keys correctly resolves `{ affectedRows: 0 }` and one matching N keys
+   * (a range delete) resolves `{ affectedRows: N }`. For a `batch` plan,
+   * `affectedRows` is the sum of rows every op in the batch yields,
+   * *including read ops* (`key-get`/`index-get`/`cursor-scan`) if the batch
+   * happens to contain any — it's a row count across the whole plan, not a
+   * write-only count.
    */
   protected override async runExecute(exec: IdbPlanBody): Promise<RuntimeStatementStats> {
     let affectedRows = 0;

@@ -483,15 +483,13 @@ describe("execute", () => {
     expect(result).toEqual({ affectedRows: 0 });
   });
 
-  it("KNOWN GAP: undercounts a delete plan as { affectedRows: 0 } — the real driver's execDelete() yields no rows by design (see runExecute's doc comment)", async () => {
-    // Mirrors driver-idb's execute/ops.ts::execDelete, which resolves `[]`
-    // on a successful delete (IDB's store.delete() has nothing to echo
-    // back) — NOT the actual per-op affected count. This test pins today's
-    // documented behavior so a future fix (counting ops instead of rows for
-    // delete-shaped plans) has something concrete to change, rather than
-    // this gap staying invisible.
+  it("resolves { affectedRows: 1 } for a delete plan that matched a key", async () => {
+    // Mirrors driver-idb's execute/ops.ts::execDelete, which now walks a
+    // cursor over the delete plan's key/range and echoes each row it
+    // actually deletes (rather than resolving `[]` unconditionally) — so
+    // draining and counting here gives the real per-op affected count.
     const driver = makeMockDriver({
-      execute: (_plan) => rowsIterable(), // a real delete op yields [] too
+      execute: (_plan) => rowsIterable({ id: "user-1" }), // the deleted row, echoed
     });
 
     const runtime = createIdbRuntime({
@@ -505,8 +503,25 @@ describe("execute", () => {
     });
     const result = await runtime.execute(deletePlan);
 
-    // Documents the gap rather than hiding it: a real delete happened, but
-    // the count says otherwise.
+    expect(result).toEqual({ affectedRows: 1 });
+  });
+
+  it("resolves { affectedRows: 0 } for a delete plan that matched no key", async () => {
+    const driver = makeMockDriver({
+      execute: (_plan) => rowsIterable(), // no key matched — nothing echoed
+    });
+
+    const runtime = createIdbRuntime({
+      adapter: makeMockAdapter(),
+      driver,
+      contract: TEST_CONTRACT,
+    });
+
+    const deletePlan = makeQueryPlan({
+      idbPlan: { kind: "delete", storeName: "User", key: "does-not-exist" } as unknown as IdbPlanBody,
+    });
+    const result = await runtime.execute(deletePlan);
+
     expect(result).toEqual({ affectedRows: 0 });
   });
 

@@ -118,18 +118,15 @@ is structurally assigned or its row path is called by name. See §1.
 
 4. **New test coverage for the actual new behavior** (not just the rename):
    `runtime-idb/test/runtime.test.ts` gained a `describe("execute")` block
-   (statement path) with 4 tests — `{ affectedRows: N }` for a draining
-   driver, `{ affectedRows: 0 }` for an empty stream, a call-order test
-   proving `execute()` fires `beforeExecute`/`afterExecute` and **not**
-   `beforeQuery`/`onRow` (the two chains are genuinely separate, not two
-   names for the same one), and a test that deliberately **pins a known
-   correctness gap** rather than hiding it: a delete-shaped plan resolves
-   `{ affectedRows: 0 }` even though a row was deleted, because the real
-   driver's `execDelete` (`driver-idb/src/core/execute/ops.ts`) yields no
-   rows by design (`store.delete()` has nothing to echo back) and
-   `runExecute` counts _rows yielded_, not _ops applied_. See §5 before
-   anything starts consuming `execute()`'s count for deletes. The
-   pre-existing tests that exercised the
+   (statement path) with 5 tests — `{ affectedRows: N }` for a draining
+   driver, `{ affectedRows: 0 }` for an empty stream, a delete plan that
+   matched a key (`{ affectedRows: 1 }`) and one that matched none
+   (`{ affectedRows: 0 }`), and a call-order test proving `execute()` fires
+   `beforeExecute`/`afterExecute` and **not** `beforeQuery`/`onRow` (the two
+   chains are genuinely separate, not two names for the same one). An
+   initial version of this block shipped with a test that _pinned_ a known
+   delete-undercount gap instead of fixing it — see §6 for the follow-up
+   that closed it. The pre-existing tests that exercised the
    row-returning path through `.execute(plan)` were renamed to `.query(plan)`
    verbatim; three of them used a `beforeExecute` middleware hook to observe
    call order or capture `contentHash` while calling the row-returning
@@ -181,11 +178,14 @@ not just the packages they intend to keep changed.
 
 - `pnpm build` — green, repo-wide.
 - `runtime-idb` standalone `tsc --noEmit`: clean (was 3 errors, all in
-  `idb-runtime.ts` — see §0). `test` (vitest): **26/26 passing** (was 12/22
+  `idb-runtime.ts` — see §0). `test` (vitest): **27/27 passing** (was 12/22
   passing, 10 failing with `this.runExecute is not a function`, before this
-  phase — see §0; includes the new `execute()`-path tests from §1 item 4,
-  one of which deliberately pins the known delete-undercount gap — see §1
-  item 4 and §5).
+  phase — see §0; includes the `execute()`-path tests from §1 item 4, after
+  §6's follow-up fix replaced the gap-pinning test with two that assert the
+  correct counts).
+- `driver-idb` standalone `test` (vitest): **59/59 passing** after §6's fix
+  to `execDelete` — updated to assert delete plans now echo the row(s) they
+  removed instead of `[]` (single key, key range, and inside a batch).
 - `client-idb` standalone `tsc --noEmit`: clean (after rebuilding
   `runtime-idb` — see §2's build-staleness note). `test`: **219/219 passing**
   (unchanged count from Phase 8.3 — this phase renames call sites, doesn't
@@ -209,19 +209,10 @@ No Playwright/e2e run in this phase (deferred to 8.7 per `PLAN_8.0` §8.4).
 
 ## 5. Guidance for future sessions
 
-- **`IdbRuntime.execute()` is not yet correct for delete plans — fix this
-  before anything starts relying on its count.** `runExecute` counts _rows
-  the driver yields_, and a lone `delete`-kind plan yields none by design
-  (`execDelete` in `driver-idb/src/core/execute/ops.ts`), so `execute()` on
-  a delete resolves `{ affectedRows: 0 }` even though the delete succeeded.
-  `add`/`put`/`update` and `scan-write`'s delete branch all count correctly.
-  This is dormant today — nothing in this repo calls `IdbRuntime.execute()`
-  for real work; `client-idb`'s own `delete()` still drains through
-  `query()` (see `store-accessor.ts`). Pinned by a dedicated test in
-  `runtime-idb/test/runtime.test.ts` (§1 item 4) so it stays visible. Fix by
-  inspecting the plan's `kind` in `runExecute` and counting ops (not rows)
-  for delete-shaped atomic plans and for `scan-write`'s delete branch inside
-  batch plans.
+- **The delete-undercount gap this phase originally shipped with is now
+  fixed — see §6.** `IdbRuntime.execute()` (and `query()`, for that matter)
+  now reports the correct affected-row count for delete plans, single-key
+  or ranged.
 - **`SyncInterceptorExecutor` (`sync-extension-idb`) only implements
   `query()`, not `execute()`.** It wraps `IdbQueryExecutor` to write outbox
   events and version-meta records alongside tracked mutations, but that
@@ -240,3 +231,60 @@ No Playwright/e2e run in this phase (deferred to 8.7 per `PLAN_8.0` §8.4).
   separate `execute()` that bypasses both `RuntimeCore` chains entirely (see
   its own doc comment, updated this phase for clarity) — don't conflate it
   with `IdbQueryExecutor`/`IdbRuntime` if touching it later.
+
+## 6. Follow-up (same PR): fixed the delete-undercount gap
+
+The gap flagged in the original version of this phase — `execute()`
+resolving `{ affectedRows: 0 }` for a delete that actually happened — is
+fixed, not just documented. Root-caused and scoped by walking every path
+that reaches the atomic `"delete"` plan kind before touching anything (full
+grep, not assumption):
+
+- `client-idb`'s `store-accessor.ts#delete()` and `sync-extension-idb`'s
+  `#maybeTrack`'s `"delete"` case both discard/don't need the driver's
+  returned rows for a delete op — one drains-and-discards via `.toArray()`,
+  the other rebuilds its outbox payload from `plan.key`, not from the rows
+  the driver returns. So changing what a delete op echoes back is purely
+  additive: nothing in the repo depended on the old `[]`-always behavior.
+- `driver-idb/src/core/execute/ops.ts`'s `execDelete` previously called
+  `store.delete(plan.key)` directly and always resolved `onComplete([])`
+  ("delete yields no rows" by its own old comment). It now opens a cursor
+  over `plan.key` (`store.openCursor(plan.key)`) — which, same as every
+  other cursor-scan in this file, works whether `plan.key` is a single
+  `IDBValidKey` or an `IDBKeyRange` — and for each matched record: captures
+  `cursor.value` (the row about to be removed), calls `cursor.delete()`,
+  then continues. `onComplete` resolves with every row actually deleted, in
+  key order. A `delete` matching nothing now yields `[]` for the right
+  reason (nothing matched), not because the op type never returns rows.
+  This mirrors `execScanWrite`'s existing `"delete"` write branch, which
+  already did exactly this (capture-then-`cursor.delete()`) — `execDelete`
+  was the one holdout still using the single-shot `store.delete()` call.
+- This was deliberately **not** fixed by special-casing `plan.kind` inside
+  `runtime-idb`'s `runExecute()` (the fix §5 originally suggested) — that
+  would have fixed the count while leaving `execDelete`'s `[]`-always
+  return in place, which is also wrong for anything reading `query()` over
+  a delete plan directly (nothing does today, but there's no reason to
+  leave that half of the bug in place when the driver-level fix is no more
+  code and strictly more correct).
+- Why not `store.get()`-then-`store.delete()` instead of a cursor: `get()`
+  only returns the **first** match for a range query — it would have
+  silently undercounted the exact case (`deleteMany`/ranged delete) that
+  motivated checking this carefully in the first place. The
+  `execute.test.ts` suite already had a "deletes all records in a key
+  range" test (`IDBKeyRange.bound("u1", "u2")`), confirming ranged deletes
+  are real, exercised behavior here, not a hypothetical.
+- Updated in the same commit: `IdbDeletePlan`'s doc comment
+  (`driver-idb/src/core/plan-body.ts`), `runExecute`'s doc comment
+  (`runtime-idb/src/idb-runtime.ts` — no longer describes a caveat that no
+  longer exists), `store-accessor.ts#delete()`'s inline comment, and every
+  test that asserted the old `toHaveLength(0)` behavior for a successful
+  delete (`driver-idb/test/execute.test.ts`'s three delete tests plus its
+  batch test with a `put`+`delete` pair, and `runtime-idb/test/runtime.test.ts`'s
+  gap-pinning test, replaced with matched/unmatched-key tests).
+- Cost: a delete op now costs a cursor open + per-row delete instead of one
+  `store.delete()` call — the same shape `execUpdate` (get-then-put) and
+  `execScanWrite` already have in this file, not a new pattern.
+- Full validation re-run after the fix: `driver-idb` 59/59, `runtime-idb`
+  27/27, `client-idb` 219/219, `sync-extension-idb` 56/56, repo-wide
+  `pnpm build` green, both example apps' `svelte-check` unchanged (0 errors
+  / the same pre-existing 7).
