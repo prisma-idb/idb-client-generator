@@ -140,7 +140,7 @@ export async function loadRelation(
           },
         };
         const rows: Record<string, unknown>[] = [];
-        for await (const row of executor.execute(plan)) {
+        for await (const row of executor.query(plan)) {
           rows.push(row);
         }
         return rows;
@@ -156,7 +156,7 @@ export async function loadRelation(
       meta: planMeta,
       idbPlan: { meta: planMeta, kind: "cursor-scan", storeName: relatedStoreName, filter },
     };
-    for await (const row of executor.execute(plan)) {
+    for await (const row of executor.query(plan)) {
       relatedRows.push(row);
     }
   }

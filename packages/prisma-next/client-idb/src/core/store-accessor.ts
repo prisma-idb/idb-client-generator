@@ -480,7 +480,7 @@ export class IdbStoreAccessorImpl<
     // without aliasing `this` (no-this-alias).
     const buildScanPlan = this.#buildScanPlan.bind(this);
     const executeOrRows = this.#executeOrRows.bind(this);
-    const executorExecute = this.#executor.execute.bind(this.#executor);
+    const executorQuery = this.#executor.query.bind(this.#executor);
     const applyIncludes = this.#applyIncludes.bind(this);
     const projectRows = this.#projectRows.bind(this);
     const combined = this.#combinedFilterExpr();
@@ -507,7 +507,7 @@ export class IdbStoreAccessorImpl<
           // AND single-index path (or full scan — decided inside buildScanPlan).
           const scanPlan = buildScanPlan<Record<string, unknown>>(groupingKey, fieldToIndexMap);
           rows = [];
-          for await (const row of executorExecute(scanPlan)) {
+          for await (const row of executorQuery(scanPlan)) {
             rows.push(row);
           }
         }
@@ -595,7 +595,7 @@ export class IdbStoreAccessorImpl<
       idbPlan: { meta, kind: "add", storeName: this.#storeName, record: withDefaults },
     };
     // The IDB driver echoes the stored record back as the single result row.
-    for await (const row of this.#executor.execute(plan)) {
+    for await (const row of this.#executor.query(plan)) {
       return row as DefaultModelRow<TContract, ModelName>;
     }
     return withDefaults as DefaultModelRow<TContract, ModelName>;
@@ -610,7 +610,7 @@ export class IdbStoreAccessorImpl<
       ast,
       idbPlan: { meta, kind: "key-get", storeName: this.#storeName, key: key as IDBValidKey },
     };
-    for await (const row of this.#executor.execute(plan)) {
+    for await (const row of this.#executor.query(plan)) {
       return row as DefaultModelRow<TContract, ModelName>;
     }
     return null;
@@ -635,7 +635,7 @@ export class IdbStoreAccessorImpl<
       idbPlan: { meta, kind: "delete", storeName: this.#storeName, key: key as IDBValidKey },
     };
     // `delete` yields no rows; drain via toArray() to execute the plan.
-    await this.#executor.execute(plan).toArray();
+    await this.#executor.query(plan).toArray();
   }
 
   async update(
@@ -797,10 +797,10 @@ export class IdbStoreAccessorImpl<
         ops: records.map((record) => ({ meta, kind: "add" as const, storeName: this.#storeName, record })),
       },
     };
-    const executorExecute = this.#executor.execute.bind(this.#executor);
+    const executorQuery = this.#executor.query.bind(this.#executor);
     return new AsyncIterableResult(
       (async function* (): AsyncGenerator<DefaultModelRow<TContract, ModelName>, void, unknown> {
-        for await (const row of executorExecute(plan)) {
+        for await (const row of executorQuery(plan)) {
           yield row as DefaultModelRow<TContract, ModelName>;
         }
       })()
@@ -887,7 +887,7 @@ export class IdbStoreAccessorImpl<
     };
     const plan: IdbQueryPlan<Record<string, unknown>> = { ...scanPlan, ast };
     let n = 0;
-    for await (const _ of this.#executor.execute(plan)) {
+    for await (const _ of this.#executor.query(plan)) {
       n++;
     }
     return n;
@@ -954,7 +954,7 @@ export class IdbStoreAccessorImpl<
       },
     };
     const rows: Record<string, unknown>[] = [];
-    for await (const row of this.#executor.execute(plan)) {
+    for await (const row of this.#executor.query(plan)) {
       rows.push(row);
     }
     return rows;
@@ -1062,7 +1062,7 @@ export class IdbStoreAccessorImpl<
           },
         };
         const branchRows: Record<string, unknown>[] = [];
-        for await (const row of this.#executor.execute(plan)) {
+        for await (const row of this.#executor.query(plan)) {
           branchRows.push(row);
         }
         return branchRows;
