@@ -25,7 +25,7 @@
  *    `SyncInterceptingTransactionScope` below.
  */
 
-import { AsyncIterableResult } from "@prisma-next/framework-components/runtime";
+import { AsyncIterableResult } from "@prisma/orm-framework/components/runtime";
 import type { IdbQueryExecutor, IdbQueryExecutorWithTransaction } from "@prisma-next-idb/client-idb/orm";
 import type { IdbContract } from "@prisma-next-idb/client-idb/orm";
 import type { IdbQueryPlan } from "@prisma-next-idb/adapter-idb/runtime";
@@ -47,7 +47,7 @@ import type {
   IdbTransactionScope,
 } from "@prisma-next-idb/driver-idb/runtime";
 import { getKeyPath, getStoreName } from "@prisma-next-idb/client-idb/orm";
-import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
+import { domainModelsAtDefaultNamespace } from "@prisma/orm-framework/contract/types";
 import type { OutboxEvent, OutboxWriteEntry } from "../types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────

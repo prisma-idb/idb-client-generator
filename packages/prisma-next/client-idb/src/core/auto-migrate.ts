@@ -1,12 +1,12 @@
-import type { Contract } from "@prisma-next/contract/types";
+import type { Contract } from "@prisma/orm-framework/contract/types";
 import type {
   ContractSpace,
   MigrationOperationClass,
   MigrationPackage,
-} from "@prisma-next/framework-components/control";
-import { APP_SPACE_ID } from "@prisma-next/framework-components/control";
+} from "@prisma/orm-framework/components/control";
+import { APP_SPACE_ID } from "@prisma/orm-framework/components/control";
 import type { IdbExtensionSpace } from "@prisma-next-idb/family-idb/control";
-// Browser-safe (WebCrypto) hash — the framework's `@prisma-next/migration-tools/hash`
+// Browser-safe (WebCrypto) hash — the framework's `@prisma/orm-toolchain/migration-tools/hash`
 // uses `node:crypto` and throws in the browser (PLAN Issue #23 regression).
 import { computeMigrationHash } from "./migration-hash";
 // Import from `./runtime` (not `./migration`) so `MigrationCLI` → `node:fs`

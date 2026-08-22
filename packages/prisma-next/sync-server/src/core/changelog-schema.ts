@@ -23,7 +23,7 @@ import { stripIdbExcludeAttributes } from "@prisma-next-idb/family-idb/contract-
  * The enum deliberately has no `@@type(...)` codec pragma — confirmed
  * empirically (a throwaway `contract emit` against `@prisma-next/postgres`)
  * that omitting it still resolves to `pg/text@1`, because
- * `@prisma-next/postgres/config`'s `defineConfig` already sets
+ * `@prisma/orm-postgres/config`'s `defineConfig` already sets
  * `enumInferenceCodecs: { text: PG_TEXT_CODEC_ID, ... }` — the *target*
  * supplies that default, not the schema text. Hardcoding `@@type("pg/text@1")`
  * here would have been redundant against Postgres and actively wrong

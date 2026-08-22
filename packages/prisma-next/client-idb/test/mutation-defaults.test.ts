@@ -7,7 +7,7 @@
  * in family-idb's contract-psl.test.ts.
  */
 import { describe, expect, it } from "vitest";
-import type { ExecutionMutationDefault } from "@prisma-next/contract/types";
+import type { ExecutionMutationDefault } from "@prisma/orm-framework/contract/types";
 import { applyCreateDefaults, applyUpdateDefaults, createMutationDefaultsCache } from "../src/core/mutation-defaults";
 
 const updatedAtDefault: ExecutionMutationDefault = {

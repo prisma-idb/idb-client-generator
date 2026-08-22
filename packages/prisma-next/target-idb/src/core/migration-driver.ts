@@ -1,4 +1,4 @@
-import type { ControlDriverInstance } from "@prisma-next/framework-components/control";
+import type { ControlDriverInstance } from "@prisma/orm-framework/components/control";
 
 /**
  * Extended IDB control driver for migrations.

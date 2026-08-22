@@ -4,8 +4,8 @@ import type {
   MigrationRunnerFailure,
   MigrationRunnerPerSpaceOptions,
   MigrationRunnerResult,
-} from "@prisma-next/framework-components/control";
-import { APP_SPACE_ID } from "@prisma-next/framework-components/control";
+} from "@prisma/orm-framework/components/control";
+import { APP_SPACE_ID } from "@prisma/orm-framework/components/control";
 
 // ── Inline Result helper ──────────────────────────────────────────────────────
 // `@prisma-next/utils` is not a direct dependency, so satisfy `NotOk<F>`

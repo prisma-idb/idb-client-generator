@@ -2,7 +2,7 @@
 // Regenerate with: prisma-next-idb migration contract-space
 
 import type { Contract } from "./contract";
-import { contractSpaceFromJson } from "@prisma-next/migration-tools/spaces";
+import { contractSpaceFromJson } from "@prisma/orm-toolchain/migration-tools/spaces";
 import contractJson from "./contract.json" with { type: "json" };
 import mig_20260621T1213_baseline_meta from "../../../migrations/app/20260621T1213_baseline/migration.json" with { type: "json" };
 import mig_20260621T1213_baseline_ops from "../../../migrations/app/20260621T1213_baseline/ops.json" with { type: "json" };

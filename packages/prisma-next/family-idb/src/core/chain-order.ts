@@ -1,4 +1,4 @@
-import type { MigrationMetadata } from "@prisma-next/migration-tools/metadata";
+import type { MigrationMetadata } from "@prisma/orm-toolchain/migration-tools/metadata";
 
 /**
  * Minimal shape that {@link chainOrderByMetadata} needs from each package.

@@ -1,4 +1,4 @@
-import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
+import { domainModelsAtDefaultNamespace } from "@prisma/orm-framework/contract/types";
 import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineContract } from "../src/core/contract-builder";

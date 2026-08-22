@@ -1,4 +1,4 @@
-import type { RuntimeMiddleware } from "@prisma-next/framework-components/runtime";
+import type { RuntimeMiddleware } from "@prisma/orm-framework/components/runtime";
 import type { IdbPlanBody } from "@prisma-next-idb/driver-idb/runtime";
 
 /**

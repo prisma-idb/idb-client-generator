@@ -1,6 +1,6 @@
 import "dotenv/config";
 import pg from "pg";
-import postgres from "@prisma-next/postgres/runtime";
+import postgres from "@prisma/orm-postgres/runtime";
 import type { SyncServerContract } from "@prisma-next-idb/sync-server";
 import type { Contract } from "./fixtures/schema.generated.d";
 import contractJson from "./fixtures/schema.generated.json" with { type: "json" };

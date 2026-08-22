@@ -1,4 +1,4 @@
-import type { TargetDescriptor } from "@prisma-next/framework-components/components";
+import type { TargetDescriptor } from "@prisma/orm-framework/components/components";
 import { codecDescriptors } from "./codecs";
 
 /**

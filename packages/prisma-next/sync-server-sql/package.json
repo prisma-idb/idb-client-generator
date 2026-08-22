@@ -35,10 +35,10 @@
   },
   "dependencies": {
     "@prisma-next-idb/sync-server": "workspace:*",
-    "@prisma-next/contract": "^0.16.0"
+    "@prisma/orm-framework": "8.0.0-rc.4"
   },
   "devDependencies": {
-    "@prisma-next/postgres": "^0.16.0",
+    "@prisma/orm-postgres": "8.0.0-rc.4",
     "@types/node": "^24.10.9",
     "@types/pg": "^8.21.0",
     "dotenv": "^17.4.2",

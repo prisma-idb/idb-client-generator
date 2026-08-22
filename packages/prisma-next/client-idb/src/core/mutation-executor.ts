@@ -24,9 +24,9 @@
  * one IDB transaction spanning all required stores, per ADR 007.
  */
 
-import type { PlanMeta } from "@prisma-next/contract/types";
-import type { ContractReferenceRelation } from "@prisma-next/contract/types";
-import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
+import type { PlanMeta } from "@prisma/orm-framework/contract/types";
+import type { ContractReferenceRelation } from "@prisma/orm-framework/contract/types";
+import { domainModelsAtDefaultNamespace } from "@prisma/orm-framework/contract/types";
 import type { IdbAtomicPlan, IdbCursorScanPlan } from "@prisma-next-idb/driver-idb/runtime";
 import { evaluateFilter, shorthandToFilterExpr } from "@prisma-next-idb/adapter-idb/runtime";
 import type { IdbFilterExpr } from "@prisma-next-idb/adapter-idb/runtime";

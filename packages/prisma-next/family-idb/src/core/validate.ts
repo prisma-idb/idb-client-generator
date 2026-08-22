@@ -1,7 +1,7 @@
-import type { Contract } from "@prisma-next/contract/types";
-import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
-import { ContractValidationError } from "@prisma-next/contract/contract-validation-error";
-import { validateContractDomain } from "@prisma-next/contract/validate-domain";
+import type { Contract } from "@prisma/orm-framework/contract/types";
+import { domainModelsAtDefaultNamespace } from "@prisma/orm-framework/contract/types";
+import { ContractValidationError } from "@prisma/orm-framework/contract/contract-validation-error";
+import { validateContractDomain } from "@prisma/orm-framework/contract/validate-domain";
 import type { IdbModelStorage, IdbStorage } from "@prisma-next-idb/target-idb/pack";
 
 /** Fully-typed IDB contract after validation. */

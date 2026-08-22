@@ -1,12 +1,12 @@
-import type { Contract } from "@prisma-next/contract/types";
-import type { TargetBoundComponentDescriptor } from "@prisma-next/framework-components/components";
+import type { Contract } from "@prisma/orm-framework/contract/types";
+import type { TargetBoundComponentDescriptor } from "@prisma/orm-framework/components/components";
 import type {
   MigrationOperationPolicy,
   MigrationPlanWithAuthoringSurface,
   MigrationPlanner,
   MigrationPlannerResult,
   MigrationScaffoldContext,
-} from "@prisma-next/framework-components/control";
+} from "@prisma/orm-framework/components/control";
 import type { IdbIndexDefinition, IdbStoreDefinition } from "./idb-contract-types";
 import { createMarkerStoreOp, type IdbDdlOp } from "./migration-factories";
 import type { IdbSchemaDiffInput } from "./schema-diff";

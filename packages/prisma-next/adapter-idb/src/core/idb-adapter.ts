@@ -1,4 +1,4 @@
-import type { CodecLookup } from "@prisma-next/framework-components/codec";
+import type { CodecLookup } from "@prisma/orm-framework/components/codec";
 import type { IdbPlanBody } from "@prisma-next-idb/driver-idb/runtime";
 import type { IdbQueryPlan } from "./idb-query-plan";
 import type { IdbLowererContext, IdbRuntimeAdapterInstance } from "./runtime-adapter-instance";

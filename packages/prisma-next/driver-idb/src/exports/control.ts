@@ -1,4 +1,4 @@
-import type { ControlDriverDescriptor, ControlDriverInstance } from "@prisma-next/framework-components/control";
+import type { ControlDriverDescriptor, ControlDriverInstance } from "@prisma/orm-framework/components/control";
 import { idbDriverDescriptorMeta } from "../core/descriptor-meta";
 
 /**

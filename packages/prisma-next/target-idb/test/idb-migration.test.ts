@@ -8,7 +8,7 @@
  *   a valid `ops.json` + `migration.json` pair
  */
 
-import { buildMigrationArtifacts } from "@prisma-next/migration-tools/migration";
+import { buildMigrationArtifacts } from "@prisma/orm-toolchain/migration-tools/migration";
 import { describe, expect, it } from "vitest";
 import { IdbMigration } from "../src/core/idb-migration";
 import { createIndexOp, createObjectStoreOp, type IdbDdlOp } from "../src/core/migration-factories";

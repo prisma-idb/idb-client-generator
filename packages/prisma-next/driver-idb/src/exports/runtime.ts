@@ -1,4 +1,4 @@
-import type { RuntimeDriverDescriptor } from "@prisma-next/framework-components/execution";
+import type { RuntimeDriverDescriptor } from "@prisma/orm-framework/components/execution";
 import { idbDriverDescriptorMeta } from "../core/descriptor-meta";
 import { IdbRuntimeDriverInstance } from "../core/idb-driver";
 

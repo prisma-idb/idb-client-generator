@@ -1,4 +1,4 @@
-import type { RuntimeAdapterDescriptor, ExecutionStack } from "@prisma-next/framework-components/execution";
+import type { RuntimeAdapterDescriptor, ExecutionStack } from "@prisma/orm-framework/components/execution";
 import { idbCodecLookup } from "@prisma-next-idb/target-idb/runtime";
 import { idbAdapterDescriptorMeta } from "../core/descriptor-meta";
 import { IdbAdapter } from "../core/idb-adapter";

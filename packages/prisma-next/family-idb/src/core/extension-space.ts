@@ -1,4 +1,4 @@
-import type { ContractSpace } from "@prisma-next/framework-components/control";
+import type { ContractSpace } from "@prisma/orm-framework/components/control";
 
 /**
  * A named contract space contributed by an IDB extension (e.g. the sync

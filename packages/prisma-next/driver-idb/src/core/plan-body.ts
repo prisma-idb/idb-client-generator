@@ -1,4 +1,4 @@
-import type { ExecutionPlan } from "@prisma-next/framework-components/runtime";
+import type { ExecutionPlan } from "@prisma/orm-framework/components/runtime";
 
 // ── Marker store ─────────────────────────────────────────────────────────────
 

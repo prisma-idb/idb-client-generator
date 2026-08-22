@@ -1,4 +1,4 @@
-import type { DriverDescriptor } from "@prisma-next/framework-components/components";
+import type { DriverDescriptor } from "@prisma/orm-framework/components/components";
 
 export const idbDriverDescriptorMeta = {
   kind: "driver",

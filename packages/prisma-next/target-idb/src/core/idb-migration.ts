@@ -1,4 +1,4 @@
-import { Migration } from "@prisma-next/migration-tools/migration";
+import { Migration } from "@prisma/orm-toolchain/migration-tools/migration";
 import type { IdbDdlOp } from "./migration-factories";
 
 /**

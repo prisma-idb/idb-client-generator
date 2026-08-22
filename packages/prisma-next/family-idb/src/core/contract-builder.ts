@@ -1,6 +1,6 @@
-import { computeProfileHash, computeStorageHash } from "@prisma-next/contract/hashing";
-import type { ApplicationDomain, Contract, ContractField, CrossReference } from "@prisma-next/contract/types";
-import { UNBOUND_DOMAIN_NAMESPACE_ID, crossRef } from "@prisma-next/contract/types";
+import { computeProfileHash, computeStorageHash } from "@prisma/orm-framework/contract/hashing";
+import type { ApplicationDomain, Contract, ContractField, CrossReference } from "@prisma/orm-framework/contract/types";
+import { UNBOUND_DOMAIN_NAMESPACE_ID, crossRef } from "@prisma/orm-framework/contract/types";
 import type {
   IdbIndexDefinition,
   IdbModelStorage,
