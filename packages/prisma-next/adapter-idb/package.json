@@ -31,7 +31,7 @@
   "dependencies": {
     "@prisma-next-idb/driver-idb": "workspace:*",
     "@prisma-next-idb/target-idb": "workspace:*",
-    "@prisma-next/framework-components": "^0.16.0"
+    "@prisma/orm-framework": "8.0.0-rc.4"
   },
   "devDependencies": {
     "tsdown": "^0.22.14",
