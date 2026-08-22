@@ -36,8 +36,8 @@
   },
   "dependencies": {
     "@prisma-next-idb/target-idb": "workspace:*",
-    "@prisma/orm-framework": "8.0.0-rc.4",
-    "@prisma/orm-toolchain": "8.0.0-rc.4",
+    "@prisma/orm-framework": "8.0.0-rc.5",
+    "@prisma/orm-toolchain": "8.0.0-rc.5",
     "commander": "^14.0.3",
     "fake-indexeddb": "^6.2.5",
     "pathe": "^2.0.3"

@@ -26,7 +26,7 @@
     "@prisma-next-idb/family-idb": "workspace:*",
     "@prisma-next-idb/target-idb": "workspace:*",
     "@prisma/cli-engine": "0.2.0",
-    "@prisma/orm-framework": "8.0.0-rc.4",
+    "@prisma/orm-framework": "8.0.0-rc.5",
     "@sveltejs/adapter-auto": "latest",
     "@sveltejs/kit": "^2.70.2",
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
@@ -49,6 +49,6 @@
   },
   "dependencies": {
     "@prisma-next-idb/client-idb": "workspace:*",
-    "@prisma/orm-toolchain": "8.0.0-rc.4"
+    "@prisma/orm-toolchain": "8.0.0-rc.5"
   }
 }
