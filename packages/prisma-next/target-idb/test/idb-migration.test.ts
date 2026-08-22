@@ -72,7 +72,7 @@ describe("IdbMigration", () => {
     };
     expect(metaParsed.from).toBeNull();
     expect(metaParsed.to).toBe("sha256:test-to-hash");
-    expect(metaParsed.migrationHash).toMatch(/^sha256:/);
+    expect(metaParsed.migrationHash).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it("origin reflects describe().from when non-null", () => {

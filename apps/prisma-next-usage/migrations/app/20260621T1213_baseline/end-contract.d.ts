@@ -12,9 +12,9 @@ import type {
   StorageHashBase,
 } from "@prisma-next/contract/types";
 
-export type StorageHash = StorageHashBase<"sha256:6e7f133567af57688f9750c1c8281785032b1d999366ab78ea34f6fe6064d5a6">;
+export type StorageHash = StorageHashBase<"6e7f133567af57688f9750c1c8281785032b1d999366ab78ea34f6fe6064d5a6">;
 export type ExecutionHash = ExecutionHashBase<string>;
-export type ProfileHash = ProfileHashBase<"sha256:e97a15c6c5e8cd6446e4f48dc464af667a10a0a4ecb533c9624bbab58233a14d">;
+export type ProfileHash = ProfileHashBase<"e97a15c6c5e8cd6446e4f48dc464af667a10a0a4ecb533c9624bbab58233a14d">;
 
 export type CodecTypes = IdbCodecTypes;
 export type LaneCodecTypes = CodecTypes;

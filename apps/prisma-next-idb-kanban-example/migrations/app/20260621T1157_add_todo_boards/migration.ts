@@ -4,8 +4,8 @@ import { Migration, MigrationCLI, createIndexOp, createObjectStoreOp } from "@pr
 export default class M extends Migration {
   override describe() {
     return {
-      from: "sha256:004f476119390a4c2e8ea6d507ac5e9707c7d58d65be963316b827ef42fb756b",
-      to: "sha256:3960fb5561eb9dfea1e51a4fbcb3f1b717d275317e32e95db2949d0737770425",
+      from: "004f476119390a4c2e8ea6d507ac5e9707c7d58d65be963316b827ef42fb756b",
+      to: "3960fb5561eb9dfea1e51a4fbcb3f1b717d275317e32e95db2949d0737770425",
     };
   }
 

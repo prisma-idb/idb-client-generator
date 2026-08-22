@@ -106,7 +106,7 @@ describe("MigrationCLI", () => {
     };
     expect(meta.from).toBeNull();
     expect(meta.to).toBe("sha256:test-to-hash");
-    expect(meta.migrationHash).toMatch(/^sha256:/);
+    expect(meta.migrationHash).toMatch(/^[0-9a-f]{64}$/);
 
     expect(stdoutChunks.join("")).toContain("Wrote ops.json + migration.json to");
   });

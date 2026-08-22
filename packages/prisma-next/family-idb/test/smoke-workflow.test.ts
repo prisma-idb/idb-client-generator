@@ -204,7 +204,7 @@ describe("end-to-end workflow smoke test", () => {
     await writeFile(contractJsonPath(cwd), v1.contractJson, "utf-8");
     await writeFile(contractDtsPath(cwd), v1.contractDts, "utf-8");
 
-    expect(v1.storageHash).toMatch(/^sha256:/);
+    expect(v1.storageHash).toMatch(/^[0-9a-f]{64}$/);
     // V1 contract has the user store and no todo store
     expect(v1.contractDts).toContain("IdbContractWithTypeMaps");
     expect(v1.contractDts).toContain("export type Contract");
@@ -297,7 +297,7 @@ describe("end-to-end workflow smoke test", () => {
     await writeFile(contractJsonPath(cwd), v2.contractJson, "utf-8");
     await writeFile(contractDtsPath(cwd), v2.contractDts, "utf-8");
 
-    expect(v2.storageHash).toMatch(/^sha256:/);
+    expect(v2.storageHash).toMatch(/^[0-9a-f]{64}$/);
     expect(v2.storageHash).not.toBe(v1.storageHash); // schema changed → different hash
     // V2 contract has both user and todo stores
     expect(v2.contractDts).toContain("readonly user:");
