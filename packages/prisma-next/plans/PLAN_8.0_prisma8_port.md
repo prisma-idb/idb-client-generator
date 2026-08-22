@@ -58,8 +58,10 @@ pull origin main`, and re-run the three `dist-tags` checks above — if
    `orm-toolchain` needs `@prisma/cli-engine@0.2.0` pinned alongside it or
    `pnpm install` fails. See `PLAN_8.1_mechanical_import_rewrite.md` for
    the full account, including four newly-discovered breaking changes not
-   in §3 below and a phase-ordering correction to §9 (8.5 must precede
-   8.3's contract re-emit step).
+   in §3 below and the CLI-death finding that led Phase 8.3 to descope
+   "re-emit every contract" out of itself entirely — see `PLAN_8.3
+_contract_layer.md` §0 — rather than reorder 8.3 after 8.5; the re-emit
+   step now lives in 8.5's own row in §9.
 
 2. **This plan is Tier 1 + the CLI (§2, §5) only.** Tier 2
    (`apps/prisma-next-idb-kanban-example`'s Postgres/SQL side) is
