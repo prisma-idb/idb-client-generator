@@ -29,21 +29,22 @@
     "test": "pnpm contract:emit:postgres && pnpm db:create && pnpm db:init && vitest run",
     "lint": "prettier --check . && eslint .",
     "format": "prettier --write .",
-    "contract:emit:postgres": "prisma-next contract emit --config prisma-next.config.ts",
+    "contract:emit:postgres": "prisma contract emit --config prisma.config.ts",
     "db:create": "node scripts/ensure-test-db.mjs",
-    "db:init": "prisma-next db init --config prisma-next.config.ts"
+    "db:init": "prisma db init --config prisma.config.ts"
   },
   "dependencies": {
     "@prisma-next-idb/sync-server": "workspace:*",
     "@prisma/orm-framework": "8.0.0-rc.4"
   },
   "devDependencies": {
+    "@prisma/cli-engine": "0.2.0",
     "@prisma/orm-postgres": "8.0.0-rc.4",
     "@types/node": "^24.10.9",
     "@types/pg": "^8.21.0",
     "dotenv": "^17.4.2",
     "pg": "^8.22.0",
-    "prisma-next": "^0.16.0",
+    "prisma": "8.0.0-rc.7",
     "tsdown": "^0.22.14",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
