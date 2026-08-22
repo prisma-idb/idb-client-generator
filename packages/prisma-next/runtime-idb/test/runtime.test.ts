@@ -512,7 +512,7 @@ describe("constructor middleware context", () => {
           kind: "cursorScan",
           storeName: "User",
           meta: { target: "idb", storageHash: "abc123", lane: "idb" },
-        } as unknown as import("@prisma-next/framework-components/runtime").ExecutionPlan);
+        } as unknown as import("@prisma/orm-framework/components/runtime").ExecutionPlan);
       },
     };
 
@@ -547,7 +547,7 @@ describe("constructor middleware context", () => {
           storeName: "posts",
           key: "post-1",
           meta: { target: "idb", storageHash: "def456", lane: "idb" },
-        } as unknown as import("@prisma-next/framework-components/runtime").ExecutionPlan;
+        } as unknown as import("@prisma/orm-framework/components/runtime").ExecutionPlan;
         hashes.push(await ctx.contentHash(planShape));
         hashes.push(await ctx.contentHash(planShape));
       },
@@ -580,14 +580,14 @@ describe("constructor middleware context", () => {
             kind: "cursorScan",
             storeName: "users",
             meta: { target: "idb", storageHash: "aaa", lane: "idb" },
-          } as import("@prisma-next/framework-components/runtime").ExecutionPlan)
+          } as import("@prisma/orm-framework/components/runtime").ExecutionPlan)
         );
         hashes.push(
           await ctx.contentHash({
             kind: "cursorScan",
             storeName: "posts",
             meta: { target: "idb", storageHash: "bbb", lane: "idb" },
-          } as import("@prisma-next/framework-components/runtime").ExecutionPlan)
+          } as import("@prisma/orm-framework/components/runtime").ExecutionPlan)
         );
       },
     };

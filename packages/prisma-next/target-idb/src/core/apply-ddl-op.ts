@@ -1,4 +1,4 @@
-import type { ContractMarkerRecord } from "@prisma-next/contract/types";
+import type { ContractMarkerRecord } from "@prisma/orm-framework/contract/types";
 import { IDB_MARKER_STORE, type IdbDdlOp } from "./migration-factories";
 
 /**

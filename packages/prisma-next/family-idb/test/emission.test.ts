@@ -1,5 +1,5 @@
-import type { ContractModel } from "@prisma-next/contract/types";
-import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
+import type { ContractModel } from "@prisma/orm-framework/contract/types";
+import { domainModelsAtDefaultNamespace } from "@prisma/orm-framework/contract/types";
 import { describe, expect, it } from "vitest";
 import { idbEmission } from "../src/core/emission";
 import { validateContract } from "../src/core/validate";

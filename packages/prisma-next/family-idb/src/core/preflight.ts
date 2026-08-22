@@ -1,7 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { IDBFactory } from "fake-indexeddb";
-import type { MigrationMetadata } from "@prisma-next/migration-tools/metadata";
-import { computeMigrationHash } from "@prisma-next/migration-tools/hash";
+import type { MigrationMetadata } from "@prisma/orm-toolchain/migration-tools/metadata";
+import { computeMigrationHash } from "@prisma/orm-toolchain/migration-tools/hash";
 import { chainOrderByMetadata, type ChainablePackage } from "./chain-order";
 import { applyOneDdlOp, isIdbDdlOp, type IdbDdlOp } from "@prisma-next-idb/target-idb/migration";
 import { join } from "pathe";

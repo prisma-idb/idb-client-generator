@@ -1,4 +1,4 @@
-import type { AsyncIterableResult } from "@prisma-next/framework-components/runtime";
+import type { AsyncIterableResult } from "@prisma/orm-framework/components/runtime";
 import type { IdbQueryPlan } from "@prisma-next-idb/adapter-idb/runtime";
 
 /**

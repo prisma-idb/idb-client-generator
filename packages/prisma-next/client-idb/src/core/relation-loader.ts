@@ -1,5 +1,5 @@
-import type { ContractReferenceRelation } from "@prisma-next/contract/types";
-import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
+import type { ContractReferenceRelation } from "@prisma/orm-framework/contract/types";
+import { domainModelsAtDefaultNamespace } from "@prisma/orm-framework/contract/types";
 import type { IdbQueryPlan } from "@prisma-next-idb/adapter-idb/runtime";
 import { evaluateFilter } from "@prisma-next-idb/adapter-idb/runtime";
 import type { IdbRowFilter } from "@prisma-next-idb/driver-idb/runtime";

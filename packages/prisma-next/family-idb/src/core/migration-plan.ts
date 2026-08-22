@@ -1,10 +1,11 @@
 import { copyFile, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
-import type { Contract } from "@prisma-next/contract/types";
+import type { Contract } from "@prisma/orm-framework/contract/types";
 import type { IdbMigrationPlanWithAuthoring } from "@prisma-next-idb/target-idb/migration";
 import { IdbMigrationPlanner, contractToIdbSchema, renderMigrationTs } from "@prisma-next-idb/target-idb/migration";
-import { computeMigrationHash } from "@prisma-next/migration-tools/hash";
-import { formatMigrationDirName } from "@prisma-next/migration-tools/io";
-import { deriveProvidedInvariants } from "@prisma-next/migration-tools/invariants";
+import { keepInternalSpecifiers } from "@prisma/orm-framework/components/emission";
+import { computeMigrationHash } from "@prisma/orm-toolchain/migration-tools/hash";
+import { formatMigrationDirName } from "@prisma/orm-toolchain/migration-tools/io";
+import { deriveProvidedInvariants } from "@prisma/orm-toolchain/migration-tools/invariants";
 import { join, relative } from "pathe";
 import { chainOrderByMetadata } from "./chain-order";
 
@@ -315,7 +316,7 @@ async function planIncremental(ctx: SharedCtx, existingDirs: readonly string[]):
     dirName,
     ops,
     metadata,
-    migrationTsContent: plan.renderTypeScript(),
+    migrationTsContent: plan.renderTypeScript(keepInternalSpecifiers),
     contractRaw,
     providedInvariants,
     fromLabel: fromHash,

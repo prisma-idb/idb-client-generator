@@ -1,8 +1,8 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import type { MigrationMetadata } from "@prisma-next/migration-tools/metadata";
-import { buildMigrationArtifacts, isDirectEntrypoint } from "@prisma-next/migration-tools/migration";
+import type { MigrationMetadata } from "@prisma/orm-toolchain/migration-tools/metadata";
+import { buildMigrationArtifacts, isDirectEntrypoint } from "@prisma/orm-toolchain/migration-tools/migration";
 import { dirname, join } from "pathe";
 import type { IdbMigration } from "./idb-migration";
 

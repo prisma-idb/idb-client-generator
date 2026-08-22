@@ -1,4 +1,4 @@
-import type { RuntimeDriverInstance } from "@prisma-next/framework-components/execution";
+import type { RuntimeDriverInstance } from "@prisma/orm-framework/components/execution";
 import { executeIdbPlan } from "./execute";
 import { MARKER_STORE_NAME, type IdbMarkerRecord, type IdbPlanBody } from "./plan-body";
 import { createTransactionScope, type IdbTransactionScope } from "./transaction-scope";

@@ -1,4 +1,4 @@
-import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
+import { domainModelsAtDefaultNamespace } from "@prisma/orm-framework/contract/types";
 import type { GetKeyField } from "@prisma-next-idb/sync-server";
 
 /**

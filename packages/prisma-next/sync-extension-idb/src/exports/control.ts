@@ -1,5 +1,5 @@
 import type { IdbExtensionSpace } from "@prisma-next-idb/family-idb/control";
-import { contractSpaceFromJson } from "@prisma-next/migration-tools/spaces";
+import { contractSpaceFromJson } from "@prisma/orm-toolchain/migration-tools/spaces";
 import contractJson from "../contract.json" with { type: "json" };
 import baselineMeta from "../../migrations/20260802T0712_install_sync_extension/migration.json" with { type: "json" };
 import baselineOps from "../../migrations/20260802T0712_install_sync_extension/ops.json" with { type: "json" };

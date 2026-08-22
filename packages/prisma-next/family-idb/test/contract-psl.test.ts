@@ -1,6 +1,6 @@
-import { buildSymbolTable } from "@prisma-next/psl-parser";
-import { parse } from "@prisma-next/psl-parser/syntax";
-import { UNBOUND_DOMAIN_NAMESPACE_ID } from "@prisma-next/contract/types";
+import { buildSymbolTable } from "@prisma/orm-framework/psl-parser";
+import { parse } from "@prisma/orm-framework/psl-parser/syntax";
+import { UNBOUND_DOMAIN_NAMESPACE_ID } from "@prisma/orm-framework/contract/types";
 import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ContractProjection } from "../src/core/psl-interpreter";

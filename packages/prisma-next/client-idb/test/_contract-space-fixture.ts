@@ -8,9 +8,9 @@
  * real project.
  */
 
-import type { Contract } from "@prisma-next/contract/types";
-import type { ContractSpace, MigrationPackage } from "@prisma-next/framework-components/control";
-import { computeMigrationHash } from "@prisma-next/migration-tools/hash";
+import type { Contract } from "@prisma/orm-framework/contract/types";
+import type { ContractSpace, MigrationPackage } from "@prisma/orm-framework/components/control";
+import { computeMigrationHash } from "@prisma/orm-toolchain/migration-tools/hash";
 import { IdbMigrationPlanner } from "@prisma-next-idb/target-idb/migration";
 
 function getStorageHash(contract: unknown): string {

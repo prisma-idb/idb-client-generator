@@ -10,7 +10,7 @@ import type {
   NamespaceId,
   ProfileHashBase,
   StorageHashBase,
-} from "@prisma-next/contract/types";
+} from "@prisma/orm-framework/contract/types";
 
 export type StorageHash = StorageHashBase<"sha256:7fde36649c356a3b6962006d44bb08e84372aa86bb23671252eab9b4cf45e798">;
 export type ExecutionHash = ExecutionHashBase<string>;

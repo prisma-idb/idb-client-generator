@@ -1,4 +1,4 @@
-import type { AdapterDescriptor } from "@prisma-next/framework-components/components";
+import type { AdapterDescriptor } from "@prisma/orm-framework/components/components";
 
 export const idbAdapterDescriptorMeta = {
   kind: "adapter",

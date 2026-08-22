@@ -1,5 +1,13 @@
-import type { ApplicationDomain, ContractField, ContractValueObject, JsonValue } from "@prisma-next/contract/types";
-import { domainModelsAtDefaultNamespace, domainValueObjectsAtDefaultNamespace } from "@prisma-next/contract/types";
+import type {
+  ApplicationDomain,
+  ContractField,
+  ContractValueObject,
+  JsonValue,
+} from "@prisma/orm-framework/contract/types";
+import {
+  domainModelsAtDefaultNamespace,
+  domainValueObjectsAtDefaultNamespace,
+} from "@prisma/orm-framework/contract/types";
 import { idbCodecLookup } from "./codecs";
 
 /**

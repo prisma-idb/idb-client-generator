@@ -1,4 +1,4 @@
-import type { SchemaDiffIssue, VerifyDatabaseSchemaResult } from "@prisma-next/framework-components/control";
+import type { SchemaDiffIssue, VerifyDatabaseSchemaResult } from "@prisma/orm-framework/components/control";
 import type { IdbContract } from "./validate";
 import type { IdbIndexIR, IdbSchemaIR, IdbStoreIR } from "./schema-ir";
 

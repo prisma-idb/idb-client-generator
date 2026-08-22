@@ -1,4 +1,4 @@
-import type { FamilyPackRef } from "@prisma-next/framework-components/components";
+import type { FamilyPackRef } from "@prisma/orm-framework/components/components";
 
 const idbFamilyPack = {
   kind: "family",

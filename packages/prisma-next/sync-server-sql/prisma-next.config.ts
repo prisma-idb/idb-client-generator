@@ -1,7 +1,7 @@
 /// <reference types="node" />
 
 import "dotenv/config";
-import { defineConfig } from "@prisma-next/postgres/config";
+import { defineConfig } from "@prisma/orm-postgres/config";
 import { writeSqlSchemaWithSync } from "@prisma-next-idb/sync-server/schema";
 
 /**

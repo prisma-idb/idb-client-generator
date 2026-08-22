@@ -1,5 +1,5 @@
-import type { MigrationPackage } from "@prisma-next/framework-components/control";
-import { canonicalizeJson } from "@prisma-next/framework-components/utils";
+import type { MigrationPackage } from "@prisma/orm-framework/components/control";
+import { canonicalizeJson } from "@prisma/orm-framework/components/utils";
 
 /** Hex-encode the bytes of a digest buffer. */
 function toHex(buffer: ArrayBuffer): string {
@@ -14,7 +14,7 @@ async function sha256Hex(input: string): Promise<string> {
 
 /**
  * Browser-safe re-implementation of `computeMigrationHash` from
- * `@prisma-next/migration-tools/hash`.
+ * `@prisma/orm-toolchain/migration-tools/hash`.
  *
  * The framework version hashes with Node's `node:crypto` `createHash`, which
  * does not exist in the browser — so importing it into the runtime auto-migrate

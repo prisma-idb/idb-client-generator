@@ -1,4 +1,4 @@
-import type { ControlFamilyDescriptor, ControlStack } from "@prisma-next/framework-components/control";
+import type { ControlFamilyDescriptor, ControlStack } from "@prisma/orm-framework/components/control";
 import { idbEmission } from "./emission";
 import { type IdbControlFamilyInstance, createIdbFamilyInstance } from "./control-instance";
 

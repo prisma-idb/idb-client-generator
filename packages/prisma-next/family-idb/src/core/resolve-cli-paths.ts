@@ -1,5 +1,5 @@
-import { loadConfig } from "@prisma-next/config-loader";
-import type { PrismaNextConfig } from "@prisma-next/config-loader";
+import { loadConfig } from "@prisma/orm-toolchain/config-loader";
+import type { PrismaNextConfig } from "@prisma/orm-toolchain/config-loader";
 import { dirname, join, resolve } from "pathe";
 
 /**
@@ -44,7 +44,11 @@ export async function resolveCliPaths(opts: ResolveCliPathsOptions): Promise<Res
 
   let config: PrismaNextConfig | undefined;
   if (needsConfig) {
-    config = await loadConfig(opts.configOption);
+    const loaded = await loadConfig(opts.configOption);
+    if (!loaded.ok) {
+      throw new Error(`prisma-next-idb: failed to load config — ${loaded.failure.message}`);
+    }
+    config = loaded.value.config;
     const familyId = config.family?.familyId;
     if (familyId !== "idb") {
       throw new Error(
@@ -90,7 +94,7 @@ function requireContractOutput(config: PrismaNextConfig): string {
         "typescriptContract(...)), or pass --contract explicitly."
     );
   }
-  // Already absolute — @prisma-next/config-loader's finalizeConfig resolves
+  // Already absolute — @prisma/orm-toolchain/config-loader's finalizeConfig resolves
   // contract.output against the config file's directory before returning it.
   return output;
 }

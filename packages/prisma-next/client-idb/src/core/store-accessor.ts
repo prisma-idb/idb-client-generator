@@ -1,5 +1,5 @@
-import { AsyncIterableResult } from "@prisma-next/framework-components/runtime";
-import type { PlanMeta } from "@prisma-next/contract/types";
+import { AsyncIterableResult } from "@prisma/orm-framework/components/runtime";
+import type { PlanMeta } from "@prisma/orm-framework/contract/types";
 import type { IdbFilterExpr, IdbQueryPlan } from "@prisma-next-idb/adapter-idb/runtime";
 import type {
   IdbAggregateAst,

@@ -31,14 +31,14 @@ export { prepareSqlSchemaWithSync };
  *
  * There's no `injectSchemaText`-style hook on the SQL family's own schema
  * loader (`@prisma-next/sql-contract-psl`'s `prismaContract`, which
- * `@prisma-next/postgres/config`'s `defineConfig` wraps) to plug this into
+ * `@prisma/orm-postgres/config`'s `defineConfig` wraps) to plug this into
  * directly — so this still writes an intermediate file. This wrapper
  * exists so a consuming app's config doesn't have to know that; it just
  * calls one function.
  *
  * @example
  * ```ts
- * import { defineConfig } from "@prisma-next/postgres/config";
+ * import { defineConfig } from "@prisma/orm-postgres/config";
  * import { writeSqlSchemaWithSync } from "@prisma-next-idb/sync-server/schema";
  *
  * export default defineConfig({

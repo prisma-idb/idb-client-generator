@@ -1,4 +1,4 @@
-import type { QueryPlan } from "@prisma-next/framework-components/runtime";
+import type { QueryPlan } from "@prisma/orm-framework/components/runtime";
 import type { IdbPlanBody } from "@prisma-next-idb/driver-idb/runtime";
 import type { IdbQueryAst } from "./idb-query-ast";
 

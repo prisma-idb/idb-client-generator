@@ -1,5 +1,5 @@
-import type { Contract } from "@prisma-next/contract/types";
-import type { TargetBoundComponentDescriptor } from "@prisma-next/framework-components/components";
+import type { Contract } from "@prisma/orm-framework/contract/types";
+import type { TargetBoundComponentDescriptor } from "@prisma/orm-framework/components/components";
 import type {
   ContractSerializer,
   ControlAdapterInstance,
@@ -7,7 +7,7 @@ import type {
   ControlTargetInstance,
   MigratableTargetDescriptor,
   TargetMigrationsCapability,
-} from "@prisma-next/framework-components/control";
+} from "@prisma/orm-framework/components/control";
 import { idbTargetDescriptorMeta } from "../core/descriptor-meta";
 import { IdbMigrationPlanner, contractToIdbSchema } from "../core/migration-planner";
 import { IdbMigrationRunner } from "../core/migration-runner";

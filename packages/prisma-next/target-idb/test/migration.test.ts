@@ -30,7 +30,8 @@ import { IdbMigrationPlanner, contractToIdbSchema } from "../src/core/migration-
 import { IdbMigrationRunner, openAndUpgrade, readMarker } from "../src/core/migration-runner";
 import { IdbMigrationControlDriverDescriptor, extractMigrationDriver } from "../src/core/migration-driver";
 import type { IdbSchemaDiffInput } from "../src/core/schema-diff";
-import type { MigrationOperationPolicy } from "@prisma-next/framework-components/control";
+import type { MigrationOperationPolicy } from "@prisma/orm-framework/components/control";
+import { keepInternalSpecifiers } from "@prisma/orm-framework/components/emission";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -362,7 +363,7 @@ describe("IdbMigrationPlanner", () => {
       spaceId: "app",
     });
     if (result.kind !== "success") throw new Error("expected success");
-    const src = result.plan.renderTypeScript();
+    const src = result.plan.renderTypeScript(keepInternalSpecifiers);
     expect(src).toContain("export default class M extends Migration");
     expect(src).toContain("override describe()");
     expect(src).toContain("override get operations()");
@@ -418,7 +419,7 @@ describe("IdbMigrationPlanner", () => {
       spaceId: "app",
     });
     if (result.kind !== "success") throw new Error("expected success");
-    const src = result.plan.renderTypeScript();
+    const src = result.plan.renderTypeScript(keepInternalSpecifiers);
     expect(src).toMatchInlineSnapshot(`
       "#!/usr/bin/env -S npx tsx
       import { Migration, MigrationCLI, createIndexOp, createObjectStoreOp } from "@prisma-next-idb/target-idb/migration";
@@ -448,17 +449,23 @@ describe("IdbMigrationPlanner", () => {
   });
 
   it("emptyMigration() returns a stub plan with no ops", () => {
-    const plan = planner.emptyMigration({ packageDir: "/tmp", fromHash: null, toHash: "x" }, "app");
+    const plan = planner.emptyMigration(
+      { packageDir: "/tmp", fromHash: null, toHash: "x", snapshotsImportPath: "../../snapshots" },
+      "app"
+    );
     expect(plan.operations).toHaveLength(0);
-    const src = plan.renderTypeScript();
+    const src = plan.renderTypeScript(keepInternalSpecifiers);
     expect(src).toContain("export default class M extends Migration");
     expect(src).toContain("Add IDB DDL operations here");
     expect(src).toContain("MigrationCLI.run(import.meta.url, M)");
   });
 
   it("emptyMigration() threads fromHash into describe()", () => {
-    const plan = planner.emptyMigration({ packageDir: "/tmp", fromHash: "sha256:prev", toHash: "sha256:next" }, "app");
-    const src = plan.renderTypeScript();
+    const plan = planner.emptyMigration(
+      { packageDir: "/tmp", fromHash: "sha256:prev", toHash: "sha256:next", snapshotsImportPath: "../../snapshots" },
+      "app"
+    );
+    const src = plan.renderTypeScript(keepInternalSpecifiers);
     expect(src).toContain('from: "sha256:prev"');
     expect(src).toContain('to: "sha256:next"');
   });

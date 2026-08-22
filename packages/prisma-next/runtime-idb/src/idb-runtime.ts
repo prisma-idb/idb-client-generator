@@ -1,4 +1,4 @@
-import type { CodecCallContext } from "@prisma-next/framework-components/codec";
+import type { CodecCallContext } from "@prisma/orm-framework/components/codec";
 import {
   AsyncIterableResult,
   checkMiddlewareCompatibility,
@@ -6,9 +6,9 @@ import {
   type ExecutionPlan,
   type RuntimeExecuteOptions,
   type RuntimeMiddlewareContext,
-} from "@prisma-next/framework-components/runtime";
-import { canonicalStringify } from "@prisma-next/utils/canonical-stringify";
-import { hashContent } from "@prisma-next/utils/hash-content";
+} from "@prisma/orm-framework/components/runtime";
+import { canonicalStringify } from "@prisma/orm-framework/utils/canonical-stringify";
+import { hashContent } from "@prisma/orm-framework/utils/hash-content";
 import type { IdbLowererContext, IdbQueryPlan, IdbRuntimeAdapterInstance } from "@prisma-next-idb/adapter-idb/runtime";
 import type { IdbPlanBody, IdbRuntimeDriverInstance, IdbTransactionScope } from "@prisma-next-idb/driver-idb/runtime";
 import type { IdbMiddleware } from "./idb-middleware";

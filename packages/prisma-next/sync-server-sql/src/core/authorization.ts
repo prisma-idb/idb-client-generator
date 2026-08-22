@@ -1,4 +1,4 @@
-import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
+import { domainModelsAtDefaultNamespace } from "@prisma/orm-framework/contract/types";
 import type { GetKeyField, OwnershipCheck, SyncServerContract } from "@prisma-next-idb/sync-server";
 import { ormRootFor } from "./orm-root";
 

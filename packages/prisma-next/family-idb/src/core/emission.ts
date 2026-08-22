@@ -1,5 +1,5 @@
-import type { Contract, ContractModel } from "@prisma-next/contract/types";
-import type { EmissionSpi } from "@prisma-next/framework-components/emission";
+import type { Contract, ContractModel } from "@prisma/orm-framework/contract/types";
+import type { EmissionSpi } from "@prisma/orm-framework/components/emission";
 import type { IdbModelStorage, IdbStorage } from "@prisma-next-idb/target-idb/pack";
 
 // ── Serialization utilities ──────────────────────────────────────────────────

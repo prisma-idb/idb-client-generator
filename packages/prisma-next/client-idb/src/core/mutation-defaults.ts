@@ -16,8 +16,8 @@
  *   fields on the same row), and a cache keyed only by generator id would
  *   otherwise leak one field's/row's value onto the next.
  */
-import type { ExecutionMutationDefault, ExecutionMutationDefaultValue } from "@prisma-next/contract/types";
-import { generateId } from "@prisma-next/ids/runtime";
+import type { ExecutionMutationDefault, ExecutionMutationDefaultValue } from "@prisma/orm-framework/contract/types";
+import { generateId } from "@prisma/orm-framework/ids/runtime";
 import type { IdbMutationDefaultGeneratorId } from "@prisma-next-idb/target-idb/pack";
 
 /** Per-top-level-mutation-call cache, keyed by generator id. Create one with {@link createMutationDefaultsCache}. */

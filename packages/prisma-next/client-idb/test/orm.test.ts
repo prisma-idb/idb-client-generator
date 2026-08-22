@@ -7,7 +7,7 @@
  * the full runtime stack.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { AsyncIterableResult } from "@prisma-next/framework-components/runtime";
+import { AsyncIterableResult } from "@prisma/orm-framework/components/runtime";
 import { defineContract } from "@prisma-next-idb/family-idb/contract-ts";
 import type { FieldSpec } from "@prisma-next-idb/family-idb/contract-ts";
 import idbFamilyPack from "@prisma-next-idb/family-idb/pack";

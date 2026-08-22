@@ -1,5 +1,5 @@
-import type { Contract } from "@prisma-next/contract/types";
-import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
+import type { Contract } from "@prisma/orm-framework/contract/types";
+import { domainModelsAtDefaultNamespace } from "@prisma/orm-framework/contract/types";
 
 /**
  * The contract shape `sync-server` operates on — any family's `Contract`

@@ -40,7 +40,7 @@ export interface IdbClient<TContract extends IdbContract> {
  * Creates a typed IDB client from a contract and a database name.
  *
  * Assembles the full runtime stack (driver → adapter → runtime → ORM) internally.
- * Equivalent to `postgres({ contract, url })` in `@prisma-next/postgres/runtime`.
+ * Equivalent to `postgres({ contract, url })` in `@prisma/orm-postgres/runtime`.
  *
  * The IDB database version is not exposed — it is managed by the migration runner
  * per ADR 001. The driver opens at the current database version, which is correct

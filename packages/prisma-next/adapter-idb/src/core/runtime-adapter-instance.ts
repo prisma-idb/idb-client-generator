@@ -1,5 +1,5 @@
-import type { CodecCallContext } from "@prisma-next/framework-components/codec";
-import type { RuntimeAdapterInstance } from "@prisma-next/framework-components/execution";
+import type { CodecCallContext } from "@prisma/orm-framework/components/codec";
+import type { RuntimeAdapterInstance } from "@prisma/orm-framework/components/execution";
 import type { IdbPlanBody } from "@prisma-next-idb/driver-idb/runtime";
 import type { IdbQueryPlan } from "./idb-query-plan";
 

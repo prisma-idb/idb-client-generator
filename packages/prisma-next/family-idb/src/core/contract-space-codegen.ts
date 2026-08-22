@@ -1,5 +1,5 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
-import type { MigrationMetadata } from "@prisma-next/migration-tools/metadata";
+import type { MigrationMetadata } from "@prisma/orm-toolchain/migration-tools/metadata";
 import { dirname, join, relative } from "pathe";
 import { chainOrderByMetadata, type ChainablePackage } from "./chain-order";
 
@@ -141,7 +141,7 @@ function renderModule(input: RenderInput): string {
     "// Regenerate with: prisma-next-idb migration contract-space",
     "",
     `import type { Contract } from "${contractTypeSpecifier}";`,
-    'import { contractSpaceFromJson } from "@prisma-next/migration-tools/spaces";',
+    'import { contractSpaceFromJson } from "@prisma/orm-toolchain/migration-tools/spaces";',
     `import contractJson from "${contractImportPath}" with { type: "json" };`,
   ];
 

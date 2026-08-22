@@ -1,4 +1,4 @@
-import type { RuntimeTargetDescriptor, RuntimeTargetInstance } from "@prisma-next/framework-components/execution";
+import type { RuntimeTargetDescriptor, RuntimeTargetInstance } from "@prisma/orm-framework/components/execution";
 import { idbTargetDescriptorMeta } from "../core/descriptor-meta";
 export { idbCodecLookup } from "../core/codecs";
 export { decodeJsonRecord } from "../core/decode-json-record";
