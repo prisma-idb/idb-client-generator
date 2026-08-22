@@ -198,7 +198,29 @@ treating it as complete.
    PR prisma-next#1033). `storageHash`/`profileHash` values are unchanged
    (only the textual prefix drops); `migrationHash` values **change**
    because the hashed manifest bytes embed the `from`/`to` hash strings.
-   Two concrete, already-located consequences:
+
+   **Correction from Phase 8.2** (see
+   `PLAN_8.2_content_hash_migration_tree.md` §0 for the full evidence): the
+   "clean break with no fallback reader" claim below, and the store-layout
+   conversion step it motivates, do **not** apply to Tier 1. That claim is
+   true of rc.4's own `readMigrationPackage` — but Tier 1 never calls it.
+   Our authoring pipeline (`family-idb/src/core/migration-plan.ts`) hand-rolls
+   sibling-file reads/writes for `end-contract.json`/`.d.ts` and never
+   adopted the public snapshot-store API; our runtime
+   (`contract-space.generated.ts`) only ever imports `migration.json`/
+   `ops.json` into `contractSpaceFromJson`, whose rc.4 signature takes no
+   snapshot-store input at all. The vendor migrator script
+   (`scripts/migrate-migrations-layout.mjs`) is also not runnable from this
+   repo as written — it imports `@internal/*` packages that only resolve
+   inside `vendor/prisma`'s own uninstalled workspace. Phase 8.2 therefore
+   only ran the prefix-strip codemod (self-contained, no `@internal/*`
+   imports) against the 3 Tier-1 migration roots; adopting the
+   content-addressed store remains a real, open design option for
+   `migration-plan.ts`/`preflight.ts`, not a completed or abandoned step.
+
+   Two concrete, already-located consequences (the first — the prefix
+   fix — is now done; the second — the store-layout conversion — is the
+   corrected item above):
    - `packages/prisma-next/client-idb/src/core/migration-hash.ts` is a
      hand-maintained browser-safe reimplementation of the framework's
      `computeMigrationHash` (WebCrypto instead of Node's `createHash`,
@@ -800,16 +822,16 @@ logic — rebuild, then re-check.
 
 ## 9. Proposed phase breakdown
 
-| Phase | Goal                                                                                                                                                                                                                                                                                                                                                                        | Depends on                         |
-| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| 8.1   | Mechanical import/package rewrite across Tier 1 per §6's table; `package.json` dependency swap, exact-pinned version (re-verify per the version-drift callout before locking it)                                                                                                                                                                                            | —                                  |
-| 8.2   | Content-hash + migration-tree conversion: strip `sha256:` (codemod), run `migrate-migrations-layout.mjs` per root, re-verify every `migrationHash`; fix `migration-hash.ts`'s prefix + re-validate its algorithm against the target rc                                                                                                                                      | 8.1                                |
-| 8.3   | Contract-layer breaks: `extensionPacks`→`extensions` in `psl-interpreter.ts`/`contract-builder.ts`, `sourceFormat`→`format`/`outputPath`→`output` if present, re-emit every contract, error-code sweep (read-through, confirm no source change needed)                                                                                                                      | 8.1                                |
-| 8.4   | `RuntimeCore` query()/execute() split: delete the stale `execute()` override, implement `runExecute()`, adapt `IdbMiddleware`, audit and update every `.execute(plan)` call site across `client-idb`/`sync-extension-idb`/`driver-idb` per §4                                                                                                                               | 8.1                                |
-| 8.5   | CLI/config unification: rename both example apps' `prisma-next.config.ts` → `prisma.config.ts` with the `definePrismaConfig({ orm: … })` envelope, add `@prisma/cli-engine` (exact `0.2.0` or whatever the re-verified target rc's peer wants)                                                                                                                              | 8.1, 8.3                           |
-| 8.6   | CLI mounting: build the `@prisma/cli-engine`-based shell per §5 Option A — `idbCommandFamily` via `defineCommandFamily`, our commands via `defineCommand`, mounted through `createCli`; resolve bin naming (§7 decision 2)                                                                                                                                                  | 8.1, 8.5                           |
-| 8.7   | Full validation: `pnpm check` + `pnpm lint` + `pnpm test:prisma-next` green; `pnpm test:prisma-next-e2e` and `pnpm test:prisma-next-kanban-e2e` (Playwright, real-browser) exercising the demo apps' IDB paths; exercise the new CLI shell (§5/8.6) end to end manually — see §8.4 for why the browser suites and a fresh `cli-tests` rebuild both matter here specifically | 8.1–8.6                            |
-| 8.8   | Tier 2 — `apps/prisma-next-idb-kanban-example`'s Postgres side. **Deferred, not scheduled** (§7 decision 4) — needs its own scoped survey against the SQL-family breaking changes this plan deliberately excluded before it can even get a phase table of its own                                                                                                           | — (independent of 8.1–8.7's stack) |
+| Phase | Goal                                                                                                                                                                                                                                                                                                                                                                                          | Depends on                         |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| 8.1   | Mechanical import/package rewrite across Tier 1 per §6's table; `package.json` dependency swap, exact-pinned version (re-verify per the version-drift callout before locking it)                                                                                                                                                                                                              | —                                  |
+| 8.2   | Content-hash migration-tree conversion: strip `sha256:` (codemod) across the 3 Tier-1 migration roots + the 3 root `contract.json`/`.d.ts` files, re-verify every `migrationHash`; fix `migration-hash.ts`'s prefix + add the hash-identity test against a real recorded hash. **The store-layout conversion (`migrate-migrations-layout.mjs`) does not apply to Tier 1 — see `PLAN_8.2` §0** | 8.1                                |
+| 8.3   | Contract-layer breaks: `extensionPacks`→`extensions` in `psl-interpreter.ts`/`contract-builder.ts`, `sourceFormat`→`format`/`outputPath`→`output` if present, re-emit every contract, error-code sweep (read-through, confirm no source change needed)                                                                                                                                        | 8.1                                |
+| 8.4   | `RuntimeCore` query()/execute() split: delete the stale `execute()` override, implement `runExecute()`, adapt `IdbMiddleware`, audit and update every `.execute(plan)` call site across `client-idb`/`sync-extension-idb`/`driver-idb` per §4                                                                                                                                                 | 8.1                                |
+| 8.5   | CLI/config unification: rename both example apps' `prisma-next.config.ts` → `prisma.config.ts` with the `definePrismaConfig({ orm: … })` envelope, add `@prisma/cli-engine` (exact `0.2.0` or whatever the re-verified target rc's peer wants)                                                                                                                                                | 8.1, 8.3                           |
+| 8.6   | CLI mounting: build the `@prisma/cli-engine`-based shell per §5 Option A — `idbCommandFamily` via `defineCommandFamily`, our commands via `defineCommand`, mounted through `createCli`; resolve bin naming (§7 decision 2)                                                                                                                                                                    | 8.1, 8.5                           |
+| 8.7   | Full validation: `pnpm check` + `pnpm lint` + `pnpm test:prisma-next` green; `pnpm test:prisma-next-e2e` and `pnpm test:prisma-next-kanban-e2e` (Playwright, real-browser) exercising the demo apps' IDB paths; exercise the new CLI shell (§5/8.6) end to end manually — see §8.4 for why the browser suites and a fresh `cli-tests` rebuild both matter here specifically                   | 8.1–8.6                            |
+| 8.8   | Tier 2 — `apps/prisma-next-idb-kanban-example`'s Postgres side. **Deferred, not scheduled** (§7 decision 4) — needs its own scoped survey against the SQL-family breaking changes this plan deliberately excluded before it can even get a phase table of its own                                                                                                                             | — (independent of 8.1–8.7's stack) |
 
 ## 10. Sources
 
