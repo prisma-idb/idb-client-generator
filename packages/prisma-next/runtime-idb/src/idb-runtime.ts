@@ -6,6 +6,7 @@ import {
   type ExecutionPlan,
   type RuntimeExecuteOptions,
   type RuntimeMiddlewareContext,
+  type RuntimeStatementStats,
 } from "@prisma/orm-framework/components/runtime";
 import { canonicalStringify } from "@prisma/orm-framework/utils/canonical-stringify";
 import { hashContent } from "@prisma/orm-framework/utils/hash-content";
@@ -44,12 +45,16 @@ export interface IdbRuntimeOptions {
 /**
  * Public IDB runtime interface.
  *
- * `execute()` accepts an {@link IdbQueryPlan} and returns an
+ * `query()` accepts an {@link IdbQueryPlan} and returns an
  * `AsyncIterableResult<Row>` — an async iterable that also fulfils as a
- * `Row[]` when awaited.
+ * `Row[]` when awaited. `execute()` runs the same plan for its side effects
+ * and resolves a {@link RuntimeStatementStats} (`{ affectedRows }`) instead
+ * of rows — mirrors the upstream `RuntimeCore` query()/execute() split
+ * (rc.4).
  */
 export interface IdbRuntime {
-  execute<Row>(plan: IdbQueryPlan & { readonly _row?: Row }, options?: RuntimeExecuteOptions): AsyncIterableResult<Row>;
+  query<Row>(plan: IdbQueryPlan & { readonly _row?: Row }, options?: RuntimeExecuteOptions): AsyncIterableResult<Row>;
+  execute(plan: IdbQueryPlan, options?: RuntimeExecuteOptions): Promise<RuntimeStatementStats>;
   /**
    * Open a multi-store IDB transaction and return an `IdbTransactionScope`.
    *
@@ -115,8 +120,8 @@ function buildMiddlewareContext(contract: Record<string, unknown>): RuntimeMiddl
     },
     // Always "runtime": IdbTransactionScope.execute() bypasses the middleware
     // chain entirely, so middleware is only ever invoked from the top-level
-    // execute() path, which is exactly the "runtime" scope. There is no IDB
-    // connection pool, so "connection" is not applicable either.
+    // query()/execute() paths, which is exactly the "runtime" scope. There is
+    // no IDB connection pool, so "connection" is not applicable either.
     scope: "runtime",
     contentHash: async (exec: ExecutionPlan) => {
       // Reduce the plan to its structural identity for hashing.
@@ -174,7 +179,11 @@ function keyRangeIdentity(range: IDBKeyRange): Record<string, unknown> {
  * - `lower(plan, ctx)` — delegates to `adapter.lower()` with the contract
  *   threaded via {@link IdbLowererContext}, producing an `IdbPlanBody`
  * - `runDriver(exec)` — delegates to `driver.execute()` to run the plan against IDB
- * - `execute()` — the concrete template method from `RuntimeCore`
+ * - `query()` — the concrete row-returning template method from `RuntimeCore`,
+ *   backed by `runDriver()`
+ * - `runExecute(exec)` — drains `runDriver()` and counts rows into a
+ *   `RuntimeStatementStats`; backs `execute()`, the concrete
+ *   statement-terminal template method from `RuntimeCore`
  * - `close()` — closes the IDB connection via `driver.close()`
  */
 class IdbRuntimeImpl extends RuntimeCore<IdbQueryPlan, IdbPlanBody, IdbMiddleware> implements IdbRuntime {
@@ -211,25 +220,46 @@ class IdbRuntimeImpl extends RuntimeCore<IdbQueryPlan, IdbPlanBody, IdbMiddlewar
 
   /**
    * Execute a lowered IDB plan body via the driver.
+   *
+   * Backs `query()` (inherited concretely from `RuntimeCore`) — rows are
+   * yielded as-is from the driver (identity pass-through). All current
+   * `idb/*` codecs are identity transforms — no per-field decoding is
+   * needed. When per-field codec decoding is added (e.g. decoding
+   * `idb/date@1` stored values back to `Date` instances, or custom codec
+   * output types), it wires up here.
    */
   protected override runDriver(exec: IdbPlanBody): AsyncIterable<Record<string, unknown>> {
     return this.#driver.execute(exec);
   }
 
   /**
-   * Execute an IDB query plan and return a typed async-iterable result.
+   * Backs `execute()` (inherited concretely from `RuntimeCore`) — IDB has no
+   * native "affected-row count without returning rows" concept, so this
+   * drains `runDriver()`'s row stream and counts. The driver already
+   * materializes every op's touched rows in memory before yielding (see
+   * `IdbRuntimeDriverInstance.execute()`'s collect-then-yield strategy), so
+   * draining here has no extra cost beyond what a `query()` call over the
+   * same plan would already pay.
    *
-   * Rows are yielded as-is from the driver (identity pass-through).
-   * All current `idb/*` codecs are identity transforms — no per-field
-   * decoding is needed. When per-field codec decoding is added (e.g.
-   * decoding `idb/date@1` stored values back to `Date` instances, or
-   * custom codec output types), it wires up here.
+   * Caveat: this counts *rows the driver yields*, not "ops applied." A
+   * single atomic `delete` plan (`execute/ops.ts`'s `execDelete`) yields no
+   * rows by design (`store.delete()` has no return value, so there's
+   * nothing to echo back) — so `execute()` on a lone delete plan resolves
+   * `{ affectedRows: 0 }` even though the delete succeeded. `add`/`put`/
+   * `update` and `scan-write`'s delete branch all echo the touched row(s)
+   * and count correctly. Nothing in this repo calls `IdbRuntime.execute()`
+   * today (client-idb still drains deletes through `query()` — see
+   * `store-accessor.ts`'s `delete()`), so this is a real but currently
+   * dormant gap, not an observed bug. Fix it here (e.g. by inspecting the
+   * plan's `kind` and counting ops instead of rows for delete-shaped plans)
+   * before anything starts relying on `execute()`'s count for deletes.
    */
-  override execute<Row>(
-    plan: IdbQueryPlan & { readonly _row?: Row },
-    options?: RuntimeExecuteOptions
-  ): AsyncIterableResult<Row> {
-    return super.execute(plan, options);
+  protected override async runExecute(exec: IdbPlanBody): Promise<RuntimeStatementStats> {
+    let affectedRows = 0;
+    for await (const _row of this.runDriver(exec)) {
+      affectedRows++;
+    }
+    return { affectedRows };
   }
 
   async transaction(storeNames: string[], mode: IDBTransactionMode = "readwrite"): Promise<IdbTransactionScope> {
@@ -263,7 +293,7 @@ class IdbRuntimeImpl extends RuntimeCore<IdbQueryPlan, IdbPlanBody, IdbMiddlewar
  * ```ts
  * const driver = createIDBRuntimeDriver("my-app").create();
  * const runtime = createIdbRuntime({ adapter, driver, contract });
- * await runtime.execute(plan)
+ * await runtime.query(plan)
  * await runtime.close();
  * ```
  */

@@ -5,7 +5,7 @@
  * meta records alongside every tracked mutation. Interception happens at two
  * levels:
  *
- * 1. **Plan-level** (`execute()`): for mutation plans with a statically-known
+ * 1. **Plan-level** (`query()`): for mutation plans with a statically-known
  *    key (a plain `create`/`delete`, where the caller always supplies the key
  *    up front) the `idbPlan` body is extended into an `IdbBatchPlan` spanning
  *    the model store + both sync stores. The IDB adapter is a passthrough
@@ -21,7 +21,7 @@
  *    executor (`mutation-executor.ts`) requires `.transaction()` for any
  *    model with a relation — FK-existence validation on create, referential
  *    actions on delete — and operates on the returned `IdbTransactionScope`
- *    directly via raw `IdbAtomicPlan`s, bypassing `execute()` entirely. See
+ *    directly via raw `IdbAtomicPlan`s, bypassing `query()` entirely. See
  *    `SyncInterceptingTransactionScope` below.
  */
 
@@ -378,13 +378,13 @@ export class SyncInterceptorExecutor implements IdbQueryExecutorWithTransaction 
     this.#config = config;
   }
 
-  execute<Row>(plan: IdbQueryPlan<Row>): AsyncIterableResult<Row> {
+  query<Row>(plan: IdbQueryPlan<Row>): AsyncIterableResult<Row> {
     const ast = plan.ast;
     if (!ast || !isMutationAst(ast) || !isTrackedModel(this.#config, ast.modelName)) {
-      return this.#inner.execute(plan);
+      return this.#inner.query(plan);
     }
     const { plan: extendedPlan, entries } = this.#extendPlan(plan, ast);
-    const result = this.#inner.execute(extendedPlan);
+    const result = this.#inner.query(extendedPlan);
     const { onOutboxWrite } = this.#config;
     if (!onOutboxWrite) return result;
     // Can't `.then()`/iterate `result` here to observe completion — every
@@ -401,7 +401,7 @@ export class SyncInterceptorExecutor implements IdbQueryExecutorWithTransaction 
    * `client-idb`'s mutation executor requires this for any model with a
    * relation (FK-existence validation on create, referential actions on
    * delete — `requireTransactionExecutor` in `mutation-executor.ts`) and
-   * operates on the returned scope via raw `IdbAtomicPlan`s, not `execute()`.
+   * operates on the returned scope via raw `IdbAtomicPlan`s, not `query()`.
    * Delegates to the inner executor (the real `IdbRuntime`, which implements
    * this), wrapping the returned scope so ops issued against it are ALSO
    * tracked — see `SyncInterceptingTransactionScope`.

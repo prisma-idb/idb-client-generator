@@ -37,7 +37,7 @@ const contract = defineContract({
 
 class TestExecutor implements IdbQueryExecutor {
   constructor(readonly driver: IdbRuntimeDriverInstance) {}
-  execute<Row>(plan: IdbQueryPlan<Row>): AsyncIterableResult<Row> {
+  query<Row>(plan: IdbQueryPlan<Row>): AsyncIterableResult<Row> {
     const it = this.driver.execute(plan.idbPlan);
     return new AsyncIterableResult(
       (async function* () {

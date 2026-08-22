@@ -15,8 +15,9 @@
  * - `rollback()` is idempotent: calling it on an already-aborted transaction is
  *   a no-op (the DOMException from IDB is swallowed).
  *
- * Issue #6 (scope hard-coding): since execute() bypasses RuntimeCore's middleware
- * chain, the cache middleware never fires inside a scope → reads are always fresh.
+ * Issue #6 (scope hard-coding): since this scope's execute() bypasses both of
+ * `RuntimeCore`'s middleware chains (query()'s and execute()'s alike), the
+ * cache middleware never fires inside a scope → reads are always fresh.
  */
 import type { IdbAtomicPlan } from "./plan-body";
 import { IdbExecuteError } from "./execute/error";

@@ -28,7 +28,7 @@ class TestExecutorWithTransaction implements IdbQueryExecutor, IdbQueryExecutorW
   constructor(driver: IdbRuntimeDriverInstance) {
     this.#driver = driver;
   }
-  execute<Row>(plan: IdbQueryPlan<Row>): AsyncIterableResult<Row> {
+  query<Row>(plan: IdbQueryPlan<Row>): AsyncIterableResult<Row> {
     const it = this.#driver.execute(plan.idbPlan);
     return new AsyncIterableResult(
       (async function* () {
@@ -47,7 +47,7 @@ class BareTestExecutor implements IdbQueryExecutor {
   constructor(driver: IdbRuntimeDriverInstance) {
     this.#driver = driver;
   }
-  execute<Row>(plan: IdbQueryPlan<Row>): AsyncIterableResult<Row> {
+  query<Row>(plan: IdbQueryPlan<Row>): AsyncIterableResult<Row> {
     const it = this.#driver.execute(plan.idbPlan);
     return new AsyncIterableResult(
       (async function* () {

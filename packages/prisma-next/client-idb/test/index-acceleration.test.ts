@@ -37,7 +37,7 @@ class SpyExecutor implements IdbQueryExecutor {
     this.#driver = driver;
   }
 
-  execute<Row>(plan: IdbQueryPlan<Row>): AsyncIterableResult<Row> {
+  query<Row>(plan: IdbQueryPlan<Row>): AsyncIterableResult<Row> {
     this.captured.push(plan as unknown as CapturedPlan);
     const iterable = this.#driver.execute(plan.idbPlan);
     return new AsyncIterableResult(

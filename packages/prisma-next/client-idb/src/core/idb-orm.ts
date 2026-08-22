@@ -36,7 +36,7 @@ export interface IdbOrmOptions<TContract extends IdbContract> {
   /**
    * The query executor.
    *
-   * Any object with a compatible `execute()` signature satisfies this —
+   * Any object with a compatible `query()` signature satisfies this —
    * most commonly an `IdbRuntime` created via `createIdbRuntime()`.
    */
   readonly executor: IdbQueryExecutor;
