@@ -1,3 +1,25 @@
+# Phase 8 — Port to Prisma 8 RC
+
+[`PLAN_8.0_prisma8_port.md`](PLAN_8.0_prisma8_port.md) is a source-grounded
+survey (not yet implementation) of moving from the frozen `@prisma-next/*`
+0.16.0 scope to `@prisma/*` `8.0.0-rc.4`. Read it before starting any work
+against `vendor/prisma` past this point — it resolves the "does our
+dependency surface even still exist" gate, maps every import we make to its
+new home, flags the one real engineering problem (the `RuntimeCore`
+query()/execute() split hitting `runtime-idb`'s `IdbRuntimeImpl` subclass),
+and scopes mounting our CLI commands into `@prisma/cli-engine`'s public
+primitives instead of keeping a bespoke standalone bin. **Read its "Before
+you start" callout first** — a version-drift check (npm's `prisma@next` is
+already three RCs ahead of the git tag this survey targeted) needs
+re-verifying before Phase 8.1 locks an exact version pin. Implementation
+lands as a stack of PRs (§8 of that doc) — each phase gets its own
+`PLAN_8.x_*.md` once it starts, following this README's existing Phase 7
+convention.
+
+| Phase                                        | Goal                                                                           | Depends on |
+| -------------------------------------------- | ------------------------------------------------------------------------------ | ---------- |
+| [8.1](PLAN_8.1_mechanical_import_rewrite.md) | Mechanical `@prisma-next/*` → `@prisma/*` import/package rewrite across Tier 1 | —          |
+
 # Phase 7 — Migration package layer (Group A rewrite)
 
 These working-doc plans implement the architectural feedback from

@@ -1,0 +1,853 @@
+# Phase 8 — Port from `@prisma-next/*` (0.16.0) to `@prisma/*` (Prisma 8 RC)
+
+Status: **planning only** — no implementation started. This document is the
+output of a source-grounded survey (CHANGELOG, release notes, upgrade-recipe
+skills, direct diffs against `vendor/prisma`, and direct inspection of
+published npm tarballs), not a guess. Every claim below cites the file or
+command it came from. Implementation lands as a **stack of PRs** — see §8 —
+so each phase below is written to be picked up by a fresh agent session that
+has read only this document and the phase's own `PLAN_8.x_*.md` (once that
+exists; see §9's note on per-phase docs).
+
+## Before you start — read this first
+
+1. **Two independent version counters — don't confuse them.** `npm view
+prisma@next version` returns **`8.0.0-rc.7`**, which looks like it's
+   three releases past this plan's `8.0.0-rc.4` target — but it isn't the
+   same counter. The `prisma` binary is published from a _separate_
+   repository (`prisma/prisma-cli`, not `vendor/prisma`) that bundles
+   several independently-versioned products (`npm view prisma@next
+dependencies` lists `@prisma/composer-cli`, `@prisma/compute-sdk`,
+   `@prisma/credentials-store`, `@prisma/management-api-sdk` alongside
+   `@prisma/orm-toolchain`) and iterates on its own faster cadence. The ORM
+   surface this plan actually depends on — confirmed via `npm view
+@prisma/orm-framework dist-tags` / `@prisma/orm-toolchain dist-tags` /
+   `@prisma/orm-postgres dist-tags`, all three returning `{"latest":
+"8.0.0-rc.4", "dev": "8.0.0-rc.4-dev.16"}` with no rc.5/6/7 published at
+   all — **is genuinely current at `8.0.0-rc.4`**. `prisma@next`'s own
+   `dependencies` field confirms this from the other direction: even at
+   CLI version `8.0.0-rc.7`, it depends on `@prisma/orm-toolchain:
+8.0.0-rc.4` exactly. `vendor/prisma`'s git tags topping out at `rc.4` is
+   consistent with this, not evidence of a stale clone.
+   **What's still real and worth checking before Phase 8.1 locks a pin**:
+   `vendor/prisma/docs/releases/v8.0.0-rc.5.md` exists (drafted, no git tag
+   yet) and the `8.0.0-rc.4-to-8.0.0-rc.5` upgrade-recipe skill directory
+   already exists too — an ORM rc.5 is clearly coming. Before Phase 8.1
+   starts, re-run `git -C vendor/prisma fetch --tags && git -C vendor/prisma
+pull origin main`, and re-run the three `dist-tags` checks above — if
+   `@prisma/orm-framework`'s `latest` has moved past `rc.4` by then, redo
+   the targeted parts of this survey (§3's breaking-changes list and §6's
+   exports-map table) against the new version using the same method
+   documented here, and confirm the new pin with the user rather than
+   silently re-targeting.
+
+   **Done, 2026-08-22, at the start of Phase 8.1**: re-ran the fetch/pull
+   and all three `dist-tags` checks — still genuinely `rc.4` (`latest` on
+   all three ORM packages, no `v8.0.0-rc.5` git tag yet despite the drafted
+   release notes). The pin stands; no re-survey was needed. Also verified,
+   since this section's wording was ambiguous on one point: `npm view
+@prisma/{orm-framework,orm-toolchain,orm-postgres}@8.0.0-rc.4 exports
+--json` against the actual published tarballs (not `vendor/prisma`'s
+   `main`, which is ahead of the `rc.4` tag) — **§6's mapping table is
+   exactly correct as written**, including the `framework-components/X` →
+   `orm-framework/components/X` double-segment. Also discovered:
+   `@prisma/orm-toolchain@8.0.0-rc.4` has `@prisma/cli-engine: "0.2.0"` as
+   a **hard, non-optional peerDependency** (absent from
+   `peerDependenciesMeta`) — since this repo's `.npmrc` sets
+   `strict-peer-dependencies=true`, every package.json that depends on
+   `orm-toolchain` needs `@prisma/cli-engine@0.2.0` pinned alongside it or
+   `pnpm install` fails. See `PLAN_8.1_mechanical_import_rewrite.md` for
+   the full account, including four newly-discovered breaking changes not
+   in §3 below and a phase-ordering correction to §9 (8.5 must precede
+   8.3's contract re-emit step).
+
+2. **This plan is Tier 1 + the CLI (§2, §5) only.** Tier 2
+   (`apps/prisma-next-idb-kanban-example`'s Postgres/SQL side) is
+   deliberately out of scope here — see §7 decision 4.
+3. **Implementation happens in a stacked PR chain**, not one big branch.
+   Read §8 before opening the first PR — it has the exact tooling, commands,
+   validation commands, and the phase→stack-layer mapping.
+4. **The build-staleness trap will bite Phase 8.1 directly.** This repo's
+   own rule (confirmed in `vendor/prisma/CLAUDE.md`'s Golden Rules, and
+   hit repeatedly in this repo's own history per the
+   `project-prisma-next-bugs` memory): after changing a workspace package
+   that others depend on, `pnpm test` (vitest/esbuild strips types) and
+   even `pnpm check`/`tsc --noEmit` can pass against a **stale** built
+   `dist/*.d.mts` in a downstream package — neither command rebuilds
+   dependencies for you. Phase 8.1 rewrites imports across nine
+   interdependent packages in dependency order (`target-idb` →
+   `family-idb` → `adapter-idb`/`driver-idb` → `runtime-idb` →
+   `client-idb` → `sync-extension-idb` → `sync-server`/`sync-server-sql`).
+   Rebuild each package (`pnpm --filter @prisma-next-idb/<name> build`)
+   immediately after changing it and before moving to the next one in the
+   chain, or a downstream package's "clean" typecheck is meaningless.
+
+## 0. Where we are, where we're going
+
+We're pinned to `^0.16.0` of the `@prisma-next/*` npm scope (frozen — no more
+releases will ever land there). Upstream (`prisma/prisma`, formerly
+`prisma/prisma-next`) has shipped several more releases past that point —
+`0.17.0`, `8.0.0-rc.1` through **`8.0.0-rc.4`, the newest version actually
+published for the ORM packages this plan depends on** (see the "two
+independent version counters" callout above — the unified `prisma` CLI
+binary iterates faster and separately, currently at `8.0.0-rc.7`, but that
+doesn't mean the ORM surface has moved) — and retired the `@prisma-next/*`
+scope entirely in favor of `@prisma/*`. This document's detailed survey
+(§3, §6) is scoped against **`8.0.0-rc.4`**, which is both the newest tag
+in our `vendor/prisma` checkout and the newest version on npm for
+`@prisma/orm-framework`/`@prisma/orm-toolchain`/`@prisma/orm-postgres` as
+of this survey — genuinely current, not stale, subject only to the
+pre-8.1 re-check described above (an ORM rc.5 is clearly coming, just not
+here yet).
+
+Confirmed on the npm registry (not just present in the source tree — rc.3's
+own release note warns that source-tree `private: false` and actual npm
+publication can diverge mid-transition: _"`npx prisma@next` currently fails
+on import"_ because the registry lagged the engine version the CLI was built
+against): `@prisma/orm-framework@8.0.0-rc.4`, `@prisma/orm-toolchain@8.0.0-rc.4`,
+and `@prisma/orm-postgres@8.0.0-rc.4` all resolve real tarballs on the
+registry as of this survey. Toolchain floors also clear: rc.4 declares
+`engines.node >=24` / `peerDependencies.typescript >=5.9`; this repo runs
+Node `v24.13.0` and TypeScript `^6.0.3` — no prerequisite upgrade needed
+before 8.1 opens.
+
+## 1. The gate: does our dependency surface still exist? — Resolved
+
+Before scoping any actual work we checked whether every package we depend on
+still has a published home. It does. All nine `@prisma-next/*` packages we
+use are `private: true` under `@internal/*` names in the rc.4 tree, but each
+is re-exported through exactly one of two public aggregate packages via
+subpath exports:
+
+| Current (`^0.16.0`)                 | rc.4 home                                                                                                                                                                                  | Evidence                                                           |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| `@prisma-next/contract`             | `@prisma/orm-framework/contract` (+ subpaths: `types`, `hashing`, `validate-domain`, `contract-validation-error`, …)                                                                       | `packages/9-public/@prisma/orm-framework/package.json` exports map |
+| `@prisma-next/framework-components` | `@prisma/orm-framework/components` (+ `/control`, `/runtime`, `/execution`, `/codec`, `/emission`, `/utils`, `/ir`, `/psl-ast`, `/components`)                                             | same                                                               |
+| `@prisma-next/ids`                  | `@prisma/orm-framework/ids` (+ `/runtime`)                                                                                                                                                 | same                                                               |
+| `@prisma-next/config`               | `@prisma/orm-framework/config` (+ `/config-types`, `/config-validation`)                                                                                                                   | same                                                               |
+| `@prisma-next/psl-parser`           | `@prisma/orm-framework/psl-parser` (+ `/interpret`, `/syntax`, `/tokenizer`, `/format`)                                                                                                    | same                                                               |
+| `@prisma-next/utils`                | `@prisma/orm-framework/utils` (+ `/canonical-stringify`, `/hash-content`, `/result`, …)                                                                                                    | same                                                               |
+| `@prisma-next/config-loader`        | `@prisma/orm-toolchain/config-loader`                                                                                                                                                      | `packages/9-public/@prisma/orm-toolchain/package.json` exports map |
+| `@prisma-next/migration-tools`      | `@prisma/orm-toolchain/migration-tools` (+ `/hash`, `/invariants`, `/io`, `/metadata`, `/migration`, `/spaces`, `/aggregate`, `/graph`, `/refs`, `/errors`, `/contract-snapshot-store`, …) | same                                                               |
+| `@prisma-next/postgres`             | `@prisma/orm-postgres` (+ `/config`, `/runtime`, `/adapter`, `/driver`, …) — a much larger single-target aggregate, only used by `sync-server-sql`                                         | `packages/9-public/@prisma/orm-postgres/package.json` exports map  |
+
+This matches the extension-author upgrade recipe's own framing exactly (see
+`vendor/prisma/skills/prisma-8-extension-upgrade/upgrades/0.16-to-0.17/instructions.md`,
+entry `build-against-published-packages-not-workspace-names`): _"Each internal
+package became a subpath entrypoint of exactly one of those [public
+aggregates] — the module you imported still exists under a new name, the
+mapping is one hop and the symbols are unchanged."_ This is a real port, not
+a restructuring project or a "wait for GA" conversation.
+
+**One structural fact worth internalizing**: we are a third-party target
+(IndexedDB) that consumes only the _framework_ layer
+(`@prisma-next/{contract,framework-components,ids,config,config-loader,migration-tools,psl-parser,utils}`)
+plus, in one app-tier dependency, the _Postgres target aggregate_. We do
+**not** import from `@internal/sql-contract`, `@internal/sql-schema-ir`,
+`@internal/target-postgres`, or any other SQL-family-internal package —
+`target-idb`/`family-idb` implement IDB's storage model from scratch, the
+same way the Mongo family does. This matters a lot for scoping the next
+section.
+
+## 2. Scope tiers
+
+**Tier 1 — our library packages** (`packages/prisma-next/{adapter,client,driver,family,runtime,sync-extension,sync-server,target}-idb`,
+and `sync-server-sql`): touch only the framework-generic surface above. The
+large SQL-family-specific breaking changes in the CHANGELOG (CHECK-constraint
+IR reshape, RLS wire-naming, SQL index name-identification, Postgres native
+type authoring, `pg/*` codec JSON-form changes, aggregate-registry
+construction) **do not reach this tier** — verified by grep, not assumed (see
+§6).
+
+**Tier 2 — `apps/prisma-next-idb-kanban-example`**: this demo app is
+dual-stack. It has an IDB side (`migrations/`) _and_ a full Postgres/SQL
+side (`migrations-postgres/`, `prisma-next.config.postgres.ts`), and its
+`package.json` pulls in the entire SQL family directly: `@prisma-next/{sql-builder,
+sql-contract, sql-contract-psl, sql-orm-client, sql-relational-core,
+sql-runtime, sql-contract-emitter, target-postgres, adapter-postgres,
+driver-postgres, family-sql}`. Every SQL-specific breaking change in the
+CHANGELOG **does** apply here. This is a materially bigger and different job
+than Tier 1 and is **deferred** — see §7 decision 4.
+
+**Tier 3 — `apps/prisma-next-usage`**: IDB-only demo, same surface as Tier 1.
+
+**Out of scope, confirmed**: `packages/generator` (the legacy
+pre-prisma-next generator, pinned to `@prisma/client ^6||^7` — unrelated
+lineage, not part of this port) and `apps/docs` (no `@prisma-next` runtime
+dependency, just documents the API).
+
+## 3. Concrete breaking changes that reach Tier 1
+
+Filtered from the five relevant upgrade-recipe hops
+(`0.16→0.17`, `0.17→rc.1`, `rc.1→rc.2`, `rc.2→rc.3`, `rc.3→rc.4`, both the
+user and extension-author skill variants) against what we actually import
+and construct. SQL/RLS/index/CHECK/pg-codec items are excluded per §2 — verified
+via the `extensionPacks`, `instanceof`, aggregate, and `RuntimeCore` greps in
+§6, not assumed. **Subject to the pre-8.1 re-check in the "before you
+start" callout** — if an ORM rc.5 (or later) has published by the time
+Phase 8.1 starts, redo this section's survey for the new hop before
+treating it as complete.
+
+1. **Package scope retirement — mechanical, wide.** `@prisma-next/*` →
+   `@prisma/orm-framework` / `@prisma/orm-toolchain` per the table in §1.
+   ~27 distinct import specifiers across `packages/prisma-next/*/src`
+   (full inventory below). No symbol renames within this move — only the
+   package/subpath name changes.
+
+2. **`sha256:` prefix dropped from every content hash** (`0.16→0.17`,
+   PR prisma-next#1033). `storageHash`/`profileHash` values are unchanged
+   (only the textual prefix drops); `migrationHash` values **change**
+   because the hashed manifest bytes embed the `from`/`to` hash strings.
+   Two concrete, already-located consequences:
+   - `packages/prisma-next/client-idb/src/core/migration-hash.ts` is a
+     hand-maintained browser-safe reimplementation of the framework's
+     `computeMigrationHash` (WebCrypto instead of Node's `createHash`,
+     because `node:crypto` doesn't exist in the browser). It still returns
+     `` `sha256:${outer}` `` (line 43) — this must become bare hex. **The
+     prefix is the easy half of this fix.** The dangerous half: our
+     comment pins the algorithm to "v0.12.0 manifest semantics," and the
+     manifest gained `ownership`/`destinationContractJson` fields and the
+     snapshot store moved twice since then. Before trusting the port, diff
+     our 44-line implementation against
+     `vendor/prisma/packages/1-framework/3-tooling/migration/src/**/hash*`
+     at rc.4, and add a test that compares our browser-computed hash
+     against a `migrationHash` the real CLI recorded for the same
+     migration — neither typecheck nor our current suite would catch a
+     silent algorithm divergence.
+   - Every checked-in migration tree we ship
+     (`apps/prisma-next-idb-kanban-example/migrations/`,
+     `apps/prisma-next-usage/migrations/`,
+     `packages/prisma-next/sync-extension-idb/migrations/`, plus the
+     `-postgres` tree) uses the **old sibling-snapshot layout**
+     (`start-contract.json`/`end-contract.json`/`.d.ts` siblings inside
+     each migration package, `sha256:`-prefixed hashes throughout,
+     ref-paired `refs/*.contract.json`) — confirmed by grep. `0.17`
+     replaced this with a single content-addressed store per migrations
+     root (`migrations/snapshots/<hex>/contract.{json,d.ts}`). This is a
+     **clean break with no fallback reader** — an unconverted tree fails
+     to load entirely once the toolchain is upgraded. Conversion order
+     matters and is prescribed by the recipe: (a) run the colocated
+     `strip-sha256-hash-prefixes.ts` codemod first — the layout migrator
+     only accepts bare-hex trees; (b) then run
+     `node scripts/migrate-migrations-layout.mjs <migrationsRoot>` from a
+     `vendor/prisma` checkout at rc.4, once per migrations root (four
+     roots to convert); (c) re-verify every `migrationHash` is unchanged
+     after conversion (the migrator does this itself and aborts on
+     mismatch before writing anything). Confirmed the migrator script
+     still exists in the rc.4 tree at
+     `vendor/prisma/scripts/migrate-migrations-layout.mjs` (plus its own
+     test file and two regen helpers) — it was not deleted once the 0.17
+     transition completed, so no fallback recovery (`git show
+v0.17.0:scripts/migrate-migrations-layout.mjs`) is needed.
+
+3. **`extensionPacks` → `extensions`** (`0.16→0.17`, PR prisma-next#1032).
+   Hard break, no compat alias — the key sits in the hashed contract bytes,
+   so every contract's `storageHash`/`executionHash`/`profileHash` changes
+   on re-emit. Confirmed present in our own contract-authoring code:
+   `packages/prisma-next/family-idb/src/core/psl-interpreter.ts` and
+   `contract-builder.ts` both reference `extensionPacks`; downstream
+   generated artifacts (`contract.json`/`contract.d.ts` in both example
+   apps, `sync-extension-idb/src/contract.{json,d.ts}`) will regenerate
+   once the builder is fixed and contracts are re-emitted. Two smaller
+   riders in the same PR: `contract.source.sourceFormat` → `format`,
+   `outputPath` → `output` on facade `defineConfig` — check both against
+   our config plumbing.
+
+4. **Structured error scheme, dotted `NAMESPACE.SUBCODE` codes**
+   (`0.16→0.17`). Legacy classes (`PslFormatError`, `SqlEscapeError`,
+   `ConfigFileNotFoundError`, `ConfigValidationError`,
+   `DomainNamespaceResolutionError`, `SupabaseConfigError`,
+   `InvalidJwtError`) are deleted in favor of `isStructuredError(error) &&
+error.code === '…'`. We grepped our own `src/` for `instanceof …Error`
+   checks and found none against a framework-owned error class (our few
+   hits are plain `instanceof Error`, unaffected) — so this is a
+   **read-through, not a required source change**, but re-verify at
+   implementation time since new code may have been added since this
+   survey (2026-08-22).
+
+5. **CLI/config unification** (`rc.1→rc.2`, hard-cut in `rc.3→rc.4`).
+   `prisma-next.config.ts` and the flat (un-nested) config shape are
+   **fully removed** as of rc.4 — no more deprecation-warning fallback.
+   Confirmed present: `apps/prisma-next-idb-kanban-example/prisma-next.config.ts`
+   and `apps/prisma-next-usage/prisma-next.config.ts` both need the
+   rename + `definePrismaConfig({ orm: ormConfig({ …existing… }) })`
+   envelope wrap, plus a new `@prisma/cli-engine` devDependency (confirmed
+   published: `npm view @prisma/cli-engine` lists `latest: 0.0.9` but
+   `dev: 0.2.0` — the exact `0.2.0` `@prisma/orm-toolchain@8.0.0-rc.4`'s
+   peer wants is on the `dev` dist-tag, not `latest`; pin the exact
+   version string, not a tag or range). Separately: the `prisma-next` bin
+   is retired repo-wide — **our own bin**,
+   `packages/prisma-next/family-idb/src/bin/prisma-next-idb.ts`, is no
+   longer an open question — see §5 and §7 decision 2 for the resolved
+   direction (mount into a `@prisma/cli-engine` shell, don't just keep a
+   bespoke standalone bin as-is).
+
+6. **Count-only mutation terminals `createCount`/`updateCount`/`deleteCount`
+   → `createAndCount`/`updateAndCount`/`deleteAndCount`** (`0.16→0.17`).
+   This is upstream's own ORM naming; it does **not** rename a symbol we
+   import — `client-idb`'s `createCount`/`updateCount`/`deleteCount` in
+   `core/types.ts`/`core/store-accessor.ts` is _our own_ independently
+   chosen public API surface, mirroring the old convention. No forced
+   break. Optional terminology-alignment decision, not scoped into this
+   plan.
+
+7. **Aggregate restructuring across `0.17→rc.1→rc.2`** (bigint round-trip,
+   then reverted to native numbers + lossless `*BigInt`/`avgDecimal`
+   variants, contract-derived `AggregateTypes` block). Verified **not
+   applicable**: `client-idb/src/core/aggregate-builder.ts` is a fully
+   hand-rolled `count`/`sum`/`avg`/`min`/`max` implementation that mirrors
+   the vendor `sql-orm-client/aggregate-builder.ts` shape but does not
+   derive from the contract's `AggregateTypes` block or construct an
+   `ExecutionContext.aggregateDescriptors` registry (confirmed by grep —
+   `AggregateTypes`/`aggregateDescriptors` appear nowhere in our source).
+   No compile break. Worth a deliberate design conversation later about
+   whether to adopt the same lossless-numeric convention for consistency,
+   but it's not a migration requirement.
+
+## 4. The one real engineering problem: `RuntimeCore`'s query()/execute() split
+
+This is the item the mechanical import-rewrite framing would miss, and it's
+the single largest actual risk in this port. Confirmed by reading the actual
+rc.4 source against our actual subclass, not inferred from the changelog
+prose.
+
+**What changed upstream.** Confirmed directly against our installed 0.16.0
+package (`node_modules/.pnpm/@prisma-next+framework-components@0.16.0_*/…/dist/runtime.d.mts`,
+not inferred from our subclass shape): at 0.16.0, `RuntimeCore` defines
+"the entire `execute(plan)` template in one place" — a single concrete
+`execute()` backed by one abstract `runDriver()` hook and one middleware
+chain (`beforeExecute`/`runDriver`/`onRow`). At rc.4
+(`execution/runtime-core.ts`) it is genuinely two orthogonal template-method
+pairs:
+
+- `query<Row>(plan, options?): AsyncIterableResult<Row>` — **concrete**,
+  calls the abstract `runDriver(exec): AsyncIterable<Record<string, unknown>>`
+  hook, runs the `beforeQuery`/`interceptQuery`/`onRow`/`afterQuery`
+  middleware chain.
+- `execute(plan, options?): Promise<RuntimeStatementStats>` — **concrete**,
+  calls a _new_ abstract `runExecute(exec): Promise<RuntimeStatementStats>`
+  hook, runs the separate `beforeExecute`/`interceptExecute`/`afterExecute`
+  chain, and returns `{ affectedRows }` — not rows.
+
+**What this breaks in `runtime-idb`.**
+`packages/prisma-next/runtime-idb/src/idb-runtime.ts`'s `IdbRuntimeImpl`
+directly subclasses `RuntimeCore<IdbQueryPlan, IdbPlanBody, IdbMiddleware>`
+and currently:
+
+```ts
+// current (line 228)
+override execute<Row>(
+  plan: IdbQueryPlan & { readonly _row?: Row },
+  options?: RuntimeExecuteOptions
+): AsyncIterableResult<Row> {
+  return super.execute(plan, options);
+}
+```
+
+This override's return type (`AsyncIterableResult<Row>`) directly conflicts
+with the base class's new `execute()` signature
+(`Promise<RuntimeStatementStats>`) — a hard TypeScript incompatible-override
+error, not a warning. The fix is not a rename-in-place: `runDriver()` (already
+implemented at line 215, delegating to `this.#driver.execute(exec)`) stays as
+is and now backs the base class's _new_ `query()` — so the override above
+should simply be **deleted**, letting `query()` inherit from the base class.
+What's genuinely new work is implementing `runExecute(exec):
+Promise<RuntimeStatementStats>` — IDB has no native "affected-row count
+without returning rows" concept, so this needs a real design decision (most
+likely: drain `runDriver`'s async iterable and count, or have the IDB driver
+report a count directly for non-returning writes) rather than a mechanical
+port. `idb-middleware.ts`'s `IdbMiddleware extends
+RuntimeMiddleware<IdbPlanBody>` also needs checking against the now-split
+hook shape (`beforeQuery`/`interceptQuery` vs `beforeExecute`/`interceptExecute`,
+both threaded through the same `RuntimeMiddlewareContext`).
+
+Then, **every consumer of the renamed row path** needs auditing:
+`client-idb/src/core/executor.ts`'s `IdbQueryExecutor.execute()`,
+`store-accessor.ts` (6+ call sites), `relation-loader.ts`, and
+`sync-extension-idb/src/core/sync-executor.ts` all currently call
+`.execute(plan)` expecting rows back. These are _our own_ interface names,
+decoupled from `RuntimeCore` by one layer (`IdbQueryExecutor` is our own
+type) — so they don't have to be renamed to `query`, but the thing they
+delegate to (`IdbRuntimeImpl`) now exposes the row path under `query()`
+after the fix above, so the delegation call site inside `client-idb`'s
+runtime-adapter wiring changes from `.execute(...)` to `.query(...)`. Map
+every one of these before starting, don't discover them mid-port —
+`driver-idb/src/core/transaction-scope.ts` has a comment ("execute()
+bypasses RuntimeCore's middleware") that itself needs re-reading once the
+split lands, since the bypass may now be ambiguous about _which_ execute it
+bypasses.
+
+Budget this as its own review-and-test pass, not a line in a bigger diff.
+
+## 5. CLI mounting — building on `@prisma/cli-engine`'s public primitives
+
+**Direction confirmed by the user**: prefer mounting our commands into the
+`prisma` CLI's engine over keeping a fully bespoke standalone bin. The
+reasoning holds up under research — see below for what's actually possible
+today and what would need upstream cooperation.
+
+### 5.1 How the real `prisma` CLI mounts command families
+
+From `docs/architecture docs/subsystems/11. CLI.md`: _"The published
+toolchain ships no bin. The only user-facing binary is the unified `prisma`
+CLI (the prisma-cli repository), which imports `ormCommandFamily` from
+`@prisma/orm-toolchain/cli` and mounts it in its own `@prisma/cli-engine`
+shell."_ `ADR 211` (superseded, but its supersession note confirms the
+current model) says the same thing from the other direction: there is no
+`prisma-next` bin anymore anywhere in the published surface; the unified
+binary is the only user-facing entry point.
+
+**This is static composition, not a runtime plugin system.** Confirmed by
+unpacking `@prisma/cli-engine@0.2.0` from npm (`npm pack
+@prisma/cli-engine@0.2.0`) and reading its `dist/index.d.ts` directly. The
+engine exports:
+
+```ts
+declare function createCli(spec: {
+  readonly name: string;
+  readonly version: string;
+  readonly commandFamilies: readonly CommandFamily[];
+  readonly groups: Readonly<Record<string, { readonly brief: string; readonly description?: string }>>;
+  readonly commands: MountedTree;
+  readonly help?: { readonly tagline?: string; readonly description?: string; readonly examples?: readonly string[]; readonly docsUrl?: string };
+  readonly telemetry?: TelemetryDeclaration;
+}): Cli;
+
+interface CommandFamily {
+  readonly configSection: ConfigSection<unknown> | undefined;
+  readonly commands: Readonly<Record<string, AnyCommand>>;
+  readonly docsBaseUrl: string | undefined;
+  readonly redirects: readonly CommandRedirect[];
+}
+declare function defineCommandFamily(spec: {
+  readonly configSection?: ConfigSection<unknown>;
+  readonly commands: Readonly<Record<string, AnyCommand>>;
+  readonly docsBaseUrl?: string;
+  readonly redirects?: readonly RedirectSpec[];
+}): CommandFamily;
+
+declare function defineCommand<TFlags, TPositionals, TConfig, TCode, TManagesCredentials, TInstallsPackages>(def: {
+  /* name, flags, positionals, needs (incl. a config-section token), handler, help, … */
+}): CommandDefinition</* … */>;
+```
+
+`createCli`'s `commandFamilies` is a plain array literal — whoever calls
+`createCli()` decides which families are in the binary, at build time.
+There is no config file, environment variable, or `node_modules` scan that
+lets a family register itself into someone else's already-built `prisma`
+binary at runtime. Corroborating evidence: `npm view prisma@next
+dependencies` (the actual unified CLI package, confirmed on npm at
+`8.0.0-rc.7`) lists `@prisma/orm-toolchain`, `@prisma/composer-cli`,
+`@prisma/compute-sdk`, `@prisma/credentials-store`,
+`@prisma/management-api-sdk` as direct dependencies — each is almost
+certainly one more `CommandFamily` statically composed the same way
+`ormCommandFamily` is. Third-party families are not among them, and there's
+no indication from anything read in this survey that they could be without
+`prisma/prisma-cli`'s own source adding the dependency and the array entry.
+
+### 5.2 Two paths, ranked
+
+**Option A — build our own `@prisma/cli-engine`-based shell (recommended,
+actionable now, no upstream dependency).** `createCli`, `defineCommandFamily`,
+`defineCommand`, and `definePrismaConfig` are all public, typed, published
+exports of `@prisma/cli-engine` — the exact same primitives the real
+`prisma` binary is built from. We can build our own bin (working name:
+keep `prisma-next-idb`/successor, or pick something — this is where §7
+decision 2 gets made concrete) that calls `createCli({ commandFamilies: […],
+… })` with:
+
+- our own `idbCommandFamily` (built with `defineCommandFamily`, wrapping
+  `migration plan` / `migration contract-space` / `migration preflight` —
+  today's `bin/prisma-next-idb.ts` commands — as `defineCommand` entries),
+  and
+- optionally `ormCommandFamily` itself, mounted alongside ours. **Confirmed
+  importable**: unpacking `@prisma/orm-toolchain@8.0.0-rc.4` from npm and
+  reading `dist/cli.d.mts` shows `declare const ormCommandFamily:
+import("@prisma/cli-engine").CommandFamily;`, exported from the package's
+  `/cli` subpath. Whether mounting it alongside ours is actually useful
+  depends on whether any of our workflows want the generic `contract emit`/
+  `db verify`/`migration new` surface next to our IDB-specific commands —
+  a design question for whoever implements this phase, not resolved here.
+
+This gets us the identical flag-parsing, help rendering, JSON output
+(`@prisma/cli-engine/protocol`), structured-error rendering, and telemetry
+conventions as the real `prisma` CLI — genuinely solving the "don't make
+users learn two different CLI dialects" problem the user raised, even
+though the bin name differs. `@prisma/cli-engine` becomes a new direct
+dependency of wherever the bin lives (currently `family-idb`); pin it at
+the exact `0.2.0` (see §3 item 5 — `latest` on npm is still the stale
+`0.0.9`).
+
+**Option B — get mounted inside the actual `prisma` binary (stretch,
+requires upstream, not blocking).** This means `prisma/prisma-cli` (a
+separate GitHub repository, **not cloned into `vendor/`** — everything in
+this section came from npm package inspection, not that repo's source)
+adding our command family as a dependency and an entry in its own
+`createCli({ commandFamilies: […] })` call. Nothing in this survey found a
+stated policy — positive or negative — on third-party target command
+families being accepted there. **This is a missing-context item**: before
+treating Option B as viable or dead, someone should actually look at
+`https://github.com/prisma/prisma-cli` (issues, discussions,
+`CONTRIBUTING.md`, or an open conversation with a maintainer) — none of
+that was checked in this survey because it's a separate repo outside
+`vendor/prisma`'s clone. Recommend treating Option B as a follow-up
+conversation to have _after_ Option A ships and proves the UX is worth
+pursuing further, not a prerequisite for Option A.
+
+### 5.3 What's still unresolved for whoever implements this phase
+
+- Exact shape of `defineCommand`'s handler/flags/positionals — the `.d.ts`
+  read above captured the top-level signatures but not every field of
+  `CommandDefinition`'s generic parameters (`FlagSpec`, `PositionalSpec`,
+  `NeedsSpec`, `Handler`). Read `dist/report-BpE5F1IH.d.ts` (from the
+  unpacked `@prisma/cli-engine@0.2.0` tarball, or re-`npm pack` fresh) in
+  full before starting, and look at how `ormCommandFamily`'s own commands
+  are defined in `vendor/prisma/packages/1-framework/3-tooling/cli/src/orm/`
+  for a working, in-repo example of the full pattern (command modules,
+  `family.ts` collection, `cli.ts` mounting shell) even though that
+  example mounts a different family than ours.
+- Bin/package naming for the new shell — ties into §7 decision 2 (deferred
+  in this doc, resolve when this phase starts).
+- Whether `definePrismaConfig`'s single recognized-sections model (_"the
+  recognised section names are exactly the ones the CLI's command families
+  declare"_) means our own `idbCommandFamily` needs its own `configSection`
+  (via `defineConfigSection`) for anything to be configurable through
+  `prisma.config.ts` — almost certainly yes if we want e.g. a
+  `definePrismaConfig({ idb: idbConfig({ … }) })` shape, but not derived
+  in this survey.
+
+## 6. Full import inventory (Tier 1, mechanical rewrite checklist)
+
+Grepped from `packages/prisma-next/*/src` (module-path granularity — exact
+symbol-level detail belongs in the implementation pass, not this plan):
+
+```
+@prisma-next/config-loader                          → @prisma/orm-toolchain/config-loader
+@prisma-next/config/config-types                     → @prisma/orm-framework/config/config-types
+@prisma-next/contract/contract-validation-error       → @prisma/orm-framework/contract/contract-validation-error
+@prisma-next/contract/hashing                         → @prisma/orm-framework/contract/hashing
+@prisma-next/contract/types                           → @prisma/orm-framework/contract/types
+@prisma-next/contract/validate-domain                 → @prisma/orm-framework/contract/validate-domain
+@prisma-next/framework-components/codec               → @prisma/orm-framework/components/codec
+@prisma-next/framework-components/components          → @prisma/orm-framework/components/components
+@prisma-next/framework-components/control             → @prisma/orm-framework/components/control
+@prisma-next/framework-components/emission            → @prisma/orm-framework/components/emission
+@prisma-next/framework-components/execution           → @prisma/orm-framework/components/execution
+@prisma-next/framework-components/runtime             → @prisma/orm-framework/components/runtime
+@prisma-next/framework-components/utils               → @prisma/orm-framework/components/utils
+@prisma-next/ids/runtime                              → @prisma/orm-framework/ids/runtime
+@prisma-next/migration-tools/hash                     → @prisma/orm-toolchain/migration-tools/hash
+@prisma-next/migration-tools/invariants                → @prisma/orm-toolchain/migration-tools/invariants
+@prisma-next/migration-tools/io                        → @prisma/orm-toolchain/migration-tools/io
+@prisma-next/migration-tools/metadata                  → @prisma/orm-toolchain/migration-tools/metadata
+@prisma-next/migration-tools/migration                 → @prisma/orm-toolchain/migration-tools/migration
+@prisma-next/migration-tools/spaces                    → @prisma/orm-toolchain/migration-tools/spaces
+@prisma-next/postgres/config                           → @prisma/orm-postgres/config     (sync-server-sql only)
+@prisma-next/psl-parser                                → @prisma/orm-framework/psl-parser
+@prisma-next/psl-parser/interpret                      → @prisma/orm-framework/psl-parser/interpret
+@prisma-next/psl-parser/syntax                         → @prisma/orm-framework/psl-parser/syntax
+@prisma-next/utils/canonical-stringify                 → @prisma/orm-framework/utils/canonical-stringify
+@prisma-next/utils/hash-content                        → @prisma/orm-framework/utils/hash-content
+@prisma-next/utils/result                              → @prisma/orm-framework/utils/result
+```
+
+Note the added `components/` segment on every `framework-components/*` →
+`orm-framework/components/*` mapping — this is not a 1:1 string substitution
+of the package name alone.
+
+`package.json` changes, per package under `packages/prisma-next/*`: drop
+every `@prisma-next/*` dependency entry, add `@prisma/orm-framework` and/or
+`@prisma/orm-toolchain` (and `@prisma/orm-postgres` for `sync-server-sql`),
+each pinned to the exact `8.0.0-rc.4` (not caret) — **pending the
+version-drift re-check at the top of this document**.
+
+## 7. Open decisions
+
+Status as of this update — some resolved by the user, some explicitly
+deferred. Don't re-litigate a "deferred" item without the user raising it
+again; don't treat a "deferred" item as "decided against," either — it's
+genuinely open, just not blocking Phase 8.1–8.7.
+
+1. **Package naming — DEFERRED, keep as-is.** We publish `@prisma-next-idb/*`
+   at `0.5.0`/`0.3.0`/`0.2.0`. `prisma-next` as a brand is retired
+   upstream, but the user has explicitly postponed this decision. **Do not
+   rename any of our own package names in this port** — every phase below
+   should assume `@prisma-next-idb/*` stays exactly as it is today. Revisit
+   only if the user raises it again.
+2. **Our own CLI bin's fate — DIRECTION SET, implementation detail open.**
+   The user prefers mounting over a bespoke standalone CLI — see §5 for
+   the full research. Concretely: pursue §5's Option A (our own
+   `@prisma/cli-engine`-based shell) as its own phase (8.6). The exact bin
+   name/package location for that shell is not decided here — resolve it
+   when Phase 8.6 starts, informed by §5.3's open questions.
+3. **`packages/generator` scope — CONFIRMED out of scope.** Unrelated
+   lineage (`@prisma/client ^6||^7`, the pre-prisma-next generator). Not
+   touched by this port.
+4. **Tier 2 (`apps/prisma-next-idb-kanban-example`'s Postgres side)
+   scheduling — DEFERRED, still open.** Full SQL-family breaking-change
+   surface applies there (CHECK constraints, RLS wire-naming, index
+   name-identification, `pg/*` codec JSON-form changes, aggregate
+   restructuring, the Postgres side of the query/execute split). This
+   plan's Phase 8.8 exists as a placeholder only — it is **not** scheduled
+   and needs its own scoped survey (analogous to this whole document, but
+   for the SQL-family breaking changes this document deliberately
+   excluded) before anyone starts it.
+5. **Version pinning strategy — DEFERRED, still open.** This draft
+   recommends pinning `8.0.0-rc.4` exact (not `^8.0.0-rc.4`), and `rc.4`
+   _is_ confirmed current for the ORM packages this plan depends on (see
+   the "two independent version counters" callout — don't be misled by
+   `prisma@next` itself already being at `rc.7`, that's a different
+   product's version counter). What's still genuinely open: whether to
+   treat each subsequent ORM rc as its own scoped follow-up survey (this
+   document's own recommendation) versus some other cadence, and whether
+   "exact pin everywhere" stays right once the CLI-mounting work (§5)
+   adds `@prisma/cli-engine` as a new, separately-versioned dependency.
+
+## 8. Implementation workflow: stacked pull requests
+
+GitHub shipped native stacked pull requests to public preview on
+2026-07-30 — an ordered series of PRs, each one layer of a larger change,
+independently reviewable, auto-rebased server-side as lower PRs merge, and
+mergeable as a unit. This is a genuinely new GitHub feature (public preview,
+~3 weeks old as of this document); if anything below doesn't match what
+`gh stack --help` or the linked docs say when you read this, trust the live
+tool/docs over this section and update it.
+
+**Docs**: [Quickstart](https://docs.github.com/en/pull-requests/get-started/stacked-prs-quickstart),
+[CLI command reference](https://docs.github.com/en/pull-requests/reference/stacked-prs-cli-commands),
+[Managing stacked PRs](https://docs.github.com/en/pull-requests/how-tos/create-pull-requests/managing-stacked-pull-requests).
+
+### 8.1 Prerequisites
+
+- `gh` CLI ≥ 2.90.0 — confirmed installed here at `2.97.0`.
+- Git ≥ 2.20 — confirmed installed here at `2.55.0`.
+- Install the extension once per machine/session: `gh extension install
+github/gh-stack` (not yet installed as of this survey — run this before
+  the first phase starts).
+- For agent sessions specifically, also run `gh skill install
+github/gh-stack` — the feature is explicitly wired up for coding agents
+  via this skill.
+
+### 8.2 Phase → stack mapping
+
+One stack, phases as layers, in the dependency order from §9's table.
+
+**Correction from Phase 8.1** (see `PLAN_8.1_mechanical_import_rewrite.md`
+§3 for the full evidence): 8.3's "re-emit every contract" step needs a
+working `contract emit`, and the only CLI capable of that against
+rc.4-shaped config is what 8.5/8.6 build — the `prisma-next@0.16.0` CLI we
+have today is confirmed dead against rc.4 packages. **8.5 must precede
+8.3**, not follow it as drawn below. The diagram and §9's table are left
+as originally written pending whoever picks up the reorder actually
+restructuring the stack; treat 8.5-before-8.3 as the real dependency until
+then.
+
+```
+main
+ └─ 8.1  mechanical import/package rewrite
+     └─ 8.2  content-hash + migration-tree conversion
+         └─ 8.3  contract-layer breaks (extensionPacks→extensions, error codes)
+             └─ 8.4  RuntimeCore query()/execute() split
+                 └─ 8.5  CLI/config unification (prisma.config.ts rename)
+                     └─ 8.6  CLI mounting (§5 Option A)
+                         └─ 8.7  full validation pass
+```
+
+Phase 8.8 (Tier 2, deferred per §7 decision 4) is **not** part of this
+stack — it's independently scoped, lands later, and should be its own
+stack (or single PR) once someone actually scopes it.
+
+Note that 8.2, 8.3, and 8.4 are, per §9's dependency column, _siblings_ —
+each depends only on 8.1, not on each other. A stack is linear, so serializing
+them into one chain (as drawn above) is a forced choice, not a discovered
+constraint: it means churn in 8.2 or 8.3 rebases 8.4 (the risky one, per §4)
+on top of it even though they touch unrelated code. If parallel review
+matters more than a single simple chain, 8.2/8.3/8.4 could instead be three
+separate stacks off `main` (each rejoining before 8.5, which genuinely does
+depend on 8.1 _and_ 8.3). This document doesn't decide that trade-off —
+whoever starts Phase 8.1 should pick based on how much reviewer bandwidth
+is available in parallel versus how much rebase churn is tolerable.
+
+Each phase should land as one PR in the stack — see §9 for what "done"
+looks like per phase. If a phase turns out too large for one reviewable PR
+(8.4 and 8.6 are the likely candidates, per their own sections above), split
+it into sub-layers (`8.4a`, `8.4b`, …) rather than cramming it into one
+diff — the whole point of the stack is that each layer stays small and
+independently reviewable.
+
+### 8.3 Commands, end to end
+
+**Starting the stack** (once, at the start of Phase 8.1):
+
+```
+gh stack init -b main
+# name the first branch/layer, e.g. phase-8.1-import-rewrite
+```
+
+**Working within a phase** (any phase, any session):
+
+```
+git commit -m "…"              # normal commits, as many as needed
+gh stack push                   # push the active branch(es) to origin
+gh stack submit                 # create/update the PR(s), correct base targeting
+```
+
+Or, to stage+commit+advance to the next layer in one step when starting a
+new phase on top of the current one:
+
+```
+gh stack add -Am "start phase 8.2: migration-tree conversion" phase-8.2-migration-hash
+```
+
+**Resuming in a fresh agent session** (this is the common case — a new
+session picking up a phase that a previous session started or that's next
+in the stack):
+
+```
+gh stack view                   # see every layer, its PR, status, latest commit
+gh stack checkout <phase-branch-or-PR-number>
+```
+
+`gh stack view` is the first command any fresh session should run against
+this repo's stack — it's the fastest way to answer "what phase is done,
+what's in review, what's next" without reading PR descriptions one by one.
+
+**When a lower phase's PR merges**: GitHub auto-rebases and retargets every
+PR above it server-side — nothing to do on GitHub's side. Locally, sync
+before continuing work on the next phase:
+
+```
+gh stack sync                   # fetch, rebase remaining branches, push, sync PR state
+```
+
+(`gh stack rebase` does the cascading rebase alone, without the fetch/push/
+sync-state steps, if finer control is needed — e.g. mid-conflict resolution
+with `gh stack rebase --continue`/`--abort`.)
+
+**Merging**: once a phase's PR (and everything below it) is approved,
+either merge normally through GitHub's UI/API per-PR (auto-rebase handles
+the cascade), or use `gh stack merge <stack-number-or-PR-number>` to merge
+one or more layers at once.
+
+### 8.4 Validation commands
+
+Root `package.json` scripts (run from repo root):
+
+- `pnpm test:prisma-next` — the scoped test filter covering exactly Tier 1
+  (`adapter-idb`, `client-idb`, `driver-idb`, `family-idb`, `runtime-idb`,
+  `target-idb`, `sync-server`, `sync-server-sql`, `sync-extension-idb`,
+  `cli-tests`). Prefer this over the unscoped `pnpm test` while working
+  through Phases 8.1–8.6 — faster feedback, and it won't hide a Tier 1
+  regression under unrelated Tier 2/generator-package noise. **One member
+  of this filter needs its own extra rebuild step**: `cli-tests`
+  (`tests/prisma-next-idb-cli`) spawns the _built_ CLI binary rather than
+  importing source, so per this repo's own 2026-06-04 history (see
+  `project-prisma-next-bugs` memory) a `target-idb` or `family-idb` source
+  change is invisible to it until both are rebuilt — a green `cli-tests`
+  run after touching either package without rebuilding first is testing
+  the old binary, not your change. This bites hardest in Phase 8.6, which
+  rebuilds the CLI shell from scratch.
+- `pnpm check` — typecheck via `tsc --noEmit` (through Turbo, per-package).
+  **This is the one that catches what `pnpm test` (vitest/esbuild, strips
+  types) cannot** — see the build-staleness note below.
+- `pnpm build` — builds every package via Turbo; `pnpm --filter
+@prisma-next-idb/<name> build` builds just one.
+- `pnpm lint` — repo-wide lint.
+- `pnpm run:ci` — the full local approximation of what CI runs
+  (`format && generate && lint && check && build`); a reasonable "am I
+  actually done" check before opening a phase's PR for review, though probably overkill to run after every single commit.
+- `pnpm test:prisma-next-e2e` / `pnpm test:prisma-next-kanban-e2e` —
+  Playwright, real-browser. Per this repo's own history (see
+  `project-prisma-next-bugs` memory, the 2026-06-02 `node:crypto` entry),
+  a browser-only regression (Node API used somewhere that only runs in the
+  page) can pass `pnpm test` _and_ `pnpm check` and only fail here — worth
+  running at least once per stack, not just at Phase 8.7.
+
+**The build-staleness trap, concretely, for this port.** `pnpm test` does
+not rebuild a package's dependencies before running its tests, and `pnpm
+check`'s typecheck reads whatever `dist/*.d.mts` currently exists on disk —
+neither one notices that a package it depends on has newer _source_ than
+built output. This repo's own history has hit this repeatedly enough to be
+documented as a named gotcha (`project-prisma-next-bugs` memory — multiple
+entries, e.g. 2026-08-17: _"`target-idb`/`family-idb` changes … are
+invisible to `client-idb` tests until `pnpm --filter
+@prisma-next-idb/target-idb build && pnpm --filter @prisma-next-idb/family-idb
+build`"_). Phase 8.1 touches every Tier 1 package in dependency order —
+after changing each one, run `pnpm --filter @prisma-next-idb/<name> build`
+_before_ moving to the next package or before trusting a downstream
+package's `pnpm check`/`pnpm test:prisma-next` result. If something that
+"should" be a type error isn't, or a value that should exist reads as
+`undefined` at runtime, suspect a stale `dist/` before suspecting the port
+logic — rebuild, then re-check.
+
+### 8.5 Practical notes for this specific stack
+
+- Keep each phase's commits scoped to that phase — a fresh agent session
+  picking up e.g. Phase 8.4 shouldn't have to untangle unrelated Phase 8.3
+  changes bleeding into the same branch.
+- Per Phase 7's convention (`plans/README.md`), land a `PLAN_8.x_<name>.md`
+  for each phase before or alongside opening that phase's PR — this
+  document (`PLAN_8.0`) is the survey and phase map, not per-phase
+  acceptance criteria. A fresh session starting Phase 8.4 should write
+  `PLAN_8.4_runtime_core_split.md` (or find one already written by a prior
+  session) rather than re-deriving §4's findings from scratch each time.
+- If a phase's implementation surfaces a finding that changes an earlier
+  phase's assumptions (e.g., Phase 8.4's `runExecute()` design decision
+  turns out to affect Phase 8.2's migration-hash work), update _this_
+  document's relevant section rather than letting the discrepancy live only
+  in a later phase's PR description — this doc is the thing every
+  subsequent session reads first.
+
+## 9. Proposed phase breakdown
+
+| Phase | Goal                                                                                                                                                                                                                                                                                                                                                                        | Depends on                         |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| 8.1   | Mechanical import/package rewrite across Tier 1 per §6's table; `package.json` dependency swap, exact-pinned version (re-verify per the version-drift callout before locking it)                                                                                                                                                                                            | —                                  |
+| 8.2   | Content-hash + migration-tree conversion: strip `sha256:` (codemod), run `migrate-migrations-layout.mjs` per root, re-verify every `migrationHash`; fix `migration-hash.ts`'s prefix + re-validate its algorithm against the target rc                                                                                                                                      | 8.1                                |
+| 8.3   | Contract-layer breaks: `extensionPacks`→`extensions` in `psl-interpreter.ts`/`contract-builder.ts`, `sourceFormat`→`format`/`outputPath`→`output` if present, re-emit every contract, error-code sweep (read-through, confirm no source change needed)                                                                                                                      | 8.1                                |
+| 8.4   | `RuntimeCore` query()/execute() split: delete the stale `execute()` override, implement `runExecute()`, adapt `IdbMiddleware`, audit and update every `.execute(plan)` call site across `client-idb`/`sync-extension-idb`/`driver-idb` per §4                                                                                                                               | 8.1                                |
+| 8.5   | CLI/config unification: rename both example apps' `prisma-next.config.ts` → `prisma.config.ts` with the `definePrismaConfig({ orm: … })` envelope, add `@prisma/cli-engine` (exact `0.2.0` or whatever the re-verified target rc's peer wants)                                                                                                                              | 8.1, 8.3                           |
+| 8.6   | CLI mounting: build the `@prisma/cli-engine`-based shell per §5 Option A — `idbCommandFamily` via `defineCommandFamily`, our commands via `defineCommand`, mounted through `createCli`; resolve bin naming (§7 decision 2)                                                                                                                                                  | 8.1, 8.5                           |
+| 8.7   | Full validation: `pnpm check` + `pnpm lint` + `pnpm test:prisma-next` green; `pnpm test:prisma-next-e2e` and `pnpm test:prisma-next-kanban-e2e` (Playwright, real-browser) exercising the demo apps' IDB paths; exercise the new CLI shell (§5/8.6) end to end manually — see §8.4 for why the browser suites and a fresh `cli-tests` rebuild both matter here specifically | 8.1–8.6                            |
+| 8.8   | Tier 2 — `apps/prisma-next-idb-kanban-example`'s Postgres side. **Deferred, not scheduled** (§7 decision 4) — needs its own scoped survey against the SQL-family breaking changes this plan deliberately excluded before it can even get a phase table of its own                                                                                                           | — (independent of 8.1–8.7's stack) |
+
+## 10. Sources
+
+- `vendor/prisma/CHANGELOG.md` (full read, `v0.12.0` → `v8.0.0-rc.2`)
+- `vendor/prisma/docs/releases/v8.0.0-rc.{3,4}.md` (not yet folded into
+  CHANGELOG.md at time of writing)
+- `vendor/prisma/skills/prisma-next-upgrade/upgrades/{0.16-to-0.17,
+0.17-to-8.0.0-rc.1, 8.0.0-rc.1-to-8.0.0-rc.2}/instructions.md`
+- `vendor/prisma/skills/prisma-8-extension-upgrade/upgrades/{0.16-to-0.17,
+8.0.0-rc.1-to-8.0.0-rc.2}/instructions.md`
+- `vendor/prisma/packages/9-public/@prisma/{orm-framework,orm-toolchain,
+orm-postgres}/package.json` (exports maps, read directly)
+- `vendor/prisma/packages/1-framework/1-core/framework-components/src/
+execution/{runtime-core.ts,runtime-middleware.ts}` (read directly against
+  our `runtime-idb` subclass)
+- `vendor/prisma/docs/architecture docs/subsystems/11. CLI.md`,
+  `vendor/prisma/docs/architecture docs/adrs/ADR 211 - prisma-next bin-only
+distribution.md` (CLI mounting architecture, §5)
+- `npm pack @prisma/cli-engine@0.2.0` and `npm pack
+@prisma/orm-toolchain@8.0.0-rc.4`, both unpacked and read directly
+  (`dist/index.d.ts`, `dist/report-BpE5F1IH.d.ts`, `dist/cli.d.mts`) —
+  confirms `createCli`/`defineCommandFamily`/`defineCommand`/
+  `ormCommandFamily` are real public exports, §5
+- `npm view prisma@next version` / `dependencies`, `npm view
+@prisma/cli-engine versions --json`, `npm view
+@prisma/{orm-framework,orm-toolchain,orm-postgres} dist-tags --json` —
+  registry checks that separated the `prisma` CLI's own version counter
+  (`8.0.0-rc.7`, from `prisma/prisma-cli`) from the ORM packages' (genuinely
+  `8.0.0-rc.4`, `latest` on all three), motivating the "two independent
+  version counters" callout at the top of this document
+- Our own source: full `@prisma-next/*` import inventory via grep across
+  `packages/prisma-next/*/src`; `packages/prisma-next/client-idb/src/core/
+migration-hash.ts`; `packages/prisma-next/runtime-idb/src/idb-runtime.ts`;
+  `apps/*/package.json`, `apps/*/prisma-next.config.ts`,
+  `apps/*/migrations*/`
+- GitHub stacked-PR docs (§8): [Quickstart](https://docs.github.com/en/pull-requests/get-started/stacked-prs-quickstart),
+  [CLI command reference](https://docs.github.com/en/pull-requests/reference/stacked-prs-cli-commands),
+  [Managing stacked PRs](https://docs.github.com/en/pull-requests/how-tos/create-pull-requests/managing-stacked-pull-requests),
+  [public preview changelog post](https://github.blog/changelog/2026-07-30-stacked-pull-requests-are-now-in-public-preview/)
+- [[project-prisma-next-upstream-drift]] memory (2026-08-18 survey, now
+  superseded by this document for anything version-specific)
