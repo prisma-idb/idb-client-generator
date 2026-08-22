@@ -2,7 +2,7 @@
   "schemaVersion": "1",
   "targetFamily": "idb",
   "target": "idb",
-  "profileHash": "sha256:e97a15c6c5e8cd6446e4f48dc464af667a10a0a4ecb533c9624bbab58233a14d",
+  "profileHash": "e97a15c6c5e8cd6446e4f48dc464af667a10a0a4ecb533c9624bbab58233a14d",
   "roots": {
     "_idb_sync_outbox": {
       "model": "OutboxEvent",
@@ -158,7 +158,7 @@
         "id": "__unbound__"
       }
     },
-    "storageHash": "sha256:7fde36649c356a3b6962006d44bb08e84372aa86bb23671252eab9b4cf45e798",
+    "storageHash": "7fde36649c356a3b6962006d44bb08e84372aa86bb23671252eab9b4cf45e798",
     "stores": {
       "_idb_sync_outbox": {
         "indexes": {

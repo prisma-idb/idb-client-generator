@@ -2,7 +2,7 @@
   "schemaVersion": "1",
   "targetFamily": "idb",
   "target": "idb",
-  "profileHash": "sha256:e97a15c6c5e8cd6446e4f48dc464af667a10a0a4ecb533c9624bbab58233a14d",
+  "profileHash": "e97a15c6c5e8cd6446e4f48dc464af667a10a0a4ecb533c9624bbab58233a14d",
   "roots": {
     "posts": {
       "model": "Post",
@@ -193,7 +193,7 @@
         "id": "__unbound__"
       }
     },
-    "storageHash": "sha256:6e7f133567af57688f9750c1c8281785032b1d999366ab78ea34f6fe6064d5a6",
+    "storageHash": "6e7f133567af57688f9750c1c8281785032b1d999366ab78ea34f6fe6064d5a6",
     "stores": {
       "posts": {
         "indexes": {
