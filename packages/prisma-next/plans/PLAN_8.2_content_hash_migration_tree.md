@@ -24,9 +24,17 @@ before writing any code:
    just to run one script is disproportionate and out of scope.
 
 2. **Our own code never reads the store layout, so it was never actually
-   required.** The "clean break" claim is true of rc.4's own
-   `readMigrationPackage` (`@prisma/orm-toolchain/migration-tools/io`) — but
-   grep confirms Tier 1 never calls it. What we actually call at runtime:
+   required — and upstream itself says the store isn't load-bearing anyway.**
+   [ADR 240](../../../vendor/prisma/docs/architecture%20docs/adrs/ADR%20240%20-%20Contract%20snapshots%20live%20in%20a%20content-addressed%20store.md)
+   (Accepted) states this directly: "`migration apply` reads only
+   `migration.json` and `ops.json` per package; it never touches
+   `snapshots/`... A project can delete `migrations/snapshots/` entirely and
+   still `migrate` an app-space chain end-to-end; `snapshots/` is authoring
+   and planning surface, not an apply input." So even on rc.4's own reference
+   implementation, an unconverted (or store-less) tree is not a "fails to
+   load entirely" scenario at apply time — the earlier §0 draft overstated
+   this. What we actually call at runtime, independently confirming the same
+   conclusion for our own pipeline:
    - `contractSpaceFromJson` (`@prisma/orm-toolchain/migration-tools/spaces`,
      used by every `contract-space.generated.ts`) — its rc.4 signature is
      `{ contractJson: unknown; migrations: { dirName, metadata, ops }[];
