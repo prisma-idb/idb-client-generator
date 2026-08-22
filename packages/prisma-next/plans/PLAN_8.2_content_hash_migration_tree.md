@@ -168,6 +168,6 @@ by inspection since it's a straightforward value-preserving edit.
   `@internal/migration-tools/{contract-snapshot-store,hash,io}` →
   `@prisma/orm-toolchain/migration-tools/{contract-snapshot-store,hash,io}`)
   rather than trying to run vendor's copy directly.
-- `PLAN_8.0` §3 item 2 and §9's 8.2 row are stale per §0 above; update them
-  directly if you're touching that document next, rather than layering
-  another correction note.
+- `PLAN_8.0` §3 item 2 and §9's 8.2 row have already been updated directly
+  (in this same PR) with the ADR 240 correction and the deferred Phase 8.9
+  entry — no further correction note is needed there.

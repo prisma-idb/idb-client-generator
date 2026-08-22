@@ -16,11 +16,11 @@ lands as a stack of PRs (§8 of that doc) — each phase gets its own
 `PLAN_8.x_*.md` once it starts, following this README's existing Phase 7
 convention.
 
-| Phase                                          | Goal                                                                                                                               | Depends on |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| [8.1](PLAN_8.1_mechanical_import_rewrite.md)   | Mechanical `@prisma-next/*` → `@prisma/*` import/package rewrite across Tier 1                                                     | —          |
-| [8.2](PLAN_8.2_content_hash_migration_tree.md) | Content-hash migration-tree conversion: strip `sha256:` prefix repo-wide (store-layout conversion found not to apply — see its §0) | 8.1        |
-| 8.9 (deferred)                                 | Content-addressed contract-snapshot store adoption (ADR 240) — not scheduled, see `PLAN_8.0` §9                                    | 8.2        |
+| Phase                                          | Goal                                                                                                                                                         | Depends on |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| [8.1](PLAN_8.1_mechanical_import_rewrite.md)   | Mechanical `@prisma-next/*` → `@prisma/*` import/package rewrite across Tier 1                                                                               | —          |
+| [8.2](PLAN_8.2_content_hash_migration_tree.md) | Content-hash migration-tree conversion: strip `sha256:` prefix across the 3 Tier-1 migration roots (store-layout conversion found not to apply — see its §0) | 8.1        |
+| 8.9 (deferred)                                 | Content-addressed contract-snapshot store adoption (ADR 240) — not scheduled, see `PLAN_8.0` §9                                                              | 8.2        |
 
 # Phase 7 — Migration package layer (Group A rewrite)
 
