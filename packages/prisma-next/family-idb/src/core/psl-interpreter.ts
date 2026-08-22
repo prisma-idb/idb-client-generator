@@ -1096,7 +1096,7 @@ export function interpretPslDocumentToIdbContract(
     domain,
     storage,
     capabilities,
-    extensionPacks: {},
+    extensions: {},
     meta: {},
     profileHash,
     ...(execution ? { execution } : {}),

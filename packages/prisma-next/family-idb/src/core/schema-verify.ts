@@ -1,4 +1,8 @@
-import type { SchemaDiffIssue, VerifyDatabaseSchemaResult } from "@prisma/orm-framework/components/control";
+import {
+  VERIFY_CODE_SCHEMA_FAILURE,
+  type SchemaDiffIssue,
+  type VerifyDatabaseSchemaResult,
+} from "@prisma/orm-framework/components/control";
 import type { IdbContract } from "./validate";
 import type { IdbIndexIR, IdbSchemaIR, IdbStoreIR } from "./schema-ir";
 
@@ -503,5 +507,3 @@ export function verifyIdbSchema(
   }
   return { ok: false, code: VERIFY_CODE_SCHEMA_FAILURE, ...sharedResult };
 }
-
-const VERIFY_CODE_SCHEMA_FAILURE = "PN-RUN-3010";

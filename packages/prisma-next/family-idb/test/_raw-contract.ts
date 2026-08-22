@@ -35,7 +35,7 @@ export function createRawIdbContract(
     domain: { namespaces: { [ns]: { models } } } as unknown as Contract<IdbStorage>["domain"],
     storage: { ...storageBlock, storageHash } as IdbStorage,
     capabilities,
-    extensionPacks: {},
+    extensions: {},
     meta: {},
     profileHash,
   };
