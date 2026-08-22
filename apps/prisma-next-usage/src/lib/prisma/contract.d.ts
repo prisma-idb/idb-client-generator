@@ -12,9 +12,9 @@ import type {
   StorageHashBase,
 } from "@prisma/orm-framework/contract/types";
 
-export type StorageHash = StorageHashBase<"sha256:e8f91dccffdb18ae207ff36b9238a31e7ff38bf0b54079f0a3b0de97b81dda21">;
+export type StorageHash = StorageHashBase<"e8f91dccffdb18ae207ff36b9238a31e7ff38bf0b54079f0a3b0de97b81dda21">;
 export type ExecutionHash = ExecutionHashBase<string>;
-export type ProfileHash = ProfileHashBase<"sha256:e97a15c6c5e8cd6446e4f48dc464af667a10a0a4ecb533c9624bbab58233a14d">;
+export type ProfileHash = ProfileHashBase<"e97a15c6c5e8cd6446e4f48dc464af667a10a0a4ecb533c9624bbab58233a14d">;
 
 export type CodecTypes = IdbCodecTypes;
 export type LaneCodecTypes = CodecTypes;

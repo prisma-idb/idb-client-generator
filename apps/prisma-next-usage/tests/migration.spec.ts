@@ -23,7 +23,7 @@ import { QueryRunner } from "./helpers";
 // The storageHash baked into the baseline migration package (users + posts +
 // random_store, no tags). This is the value the marker store holds when a DB
 // was last opened against the baseline schema.
-const V1_STORAGE_HASH = "sha256:6e7f133567af57688f9750c1c8281785032b1d999366ab78ea34f6fe6064d5a6";
+const V1_STORAGE_HASH = "6e7f133567af57688f9750c1c8281785032b1d999366ab78ea34f6fe6064d5a6";
 
 let dbCounter = 0;
 function uniqueV1DbName(workerIndex: number): string {
