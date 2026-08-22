@@ -2,7 +2,7 @@
  * CLI regression tests for config-driven path resolution.
  *
  * `prisma-next-idb` used to hardcode `src/lib/prisma/contract.json` and
- * `migrations/` as its only defaults, ignoring whatever `prisma-next.config.ts`
+ * `migrations/` as its only defaults, ignoring whatever `prisma.config.ts`
  * actually declared via `contract.output` / `migrations.dir`. These tests
  * cover the fix: paths come from the loaded config when not passed
  * explicitly, explicit flags still win, and a mismatched/missing config
@@ -29,9 +29,9 @@ describe("prisma-next-idb — config-driven path resolution", () => {
     await writeMinimalIdbConfig(cwd, { contractOutput: "src/contract.json", migrationsDir: "db-migrations" });
     await writeContractAt(cwd, "src/contract.json");
 
-    const { stdout, exitCode } = await cli(["migration", "plan"], { cwd });
+    const { stderr, exitCode } = await cli(["migration", "plan"], { cwd });
     expect(exitCode).toBe(0);
-    expect(stdout).toContain("db-migrations/app/");
+    expect(stderr).toContain("db-migrations/app/");
 
     const entries = await getMigrationDirsAt(cwd, "db-migrations");
     expect(entries).toHaveLength(1);
@@ -48,9 +48,9 @@ describe("prisma-next-idb — config-driven path resolution", () => {
     await writeMinimalIdbConfig(cwd, { contractOutput: "src/contract.json", migrationsDir: "migrations" });
     await writeContractAt(cwd, "src/contract.json");
 
-    const { stdout, exitCode } = await cli(["migration", "plan", "--space", "idb-sync"], { cwd });
+    const { stderr, exitCode } = await cli(["migration", "plan", "--space", "idb-sync"], { cwd });
     expect(exitCode).toBe(0);
-    expect(stdout).toContain("Generated baseline migration");
+    expect(stderr).toContain("Generated baseline migration");
 
     const headRef = JSON.parse(await readFile(join(cwd, "migrations", "refs", "head.json"), "utf-8")) as {
       hash: string;
@@ -80,11 +80,11 @@ describe("prisma-next-idb — config-driven path resolution", () => {
     await writeMinimalIdbConfig(cwd, { familyId: "postgres" });
 
     const { stderr, exitCode } = await cli(["migration", "plan"], { cwd });
-    expect(exitCode).toBe(1);
+    expect(exitCode).toBe(2);
     expect(stderr).toContain('expected "idb"');
   });
 
-  it("fails clearly when no prisma-next.config.ts exists and no path flags are given", async () => {
+  it("fails clearly when no prisma.config.ts exists and no path flags are given", async () => {
     const { mkdtemp } = await import("node:fs/promises");
     const { tmpdir } = await import("node:os");
     // A bare tmpdir with no config file at all — not setupTmpProject, which
@@ -92,7 +92,7 @@ describe("prisma-next-idb — config-driven path resolution", () => {
     const cwd = await mkdtemp(join(tmpdir(), "idb-cli-test-cfg-missing-"));
 
     const { stderr, exitCode } = await cli(["migration", "plan"], { cwd });
-    expect(exitCode).toBe(1);
+    expect(exitCode).toBe(2);
     expect(stderr.length).toBeGreaterThan(0);
   });
 

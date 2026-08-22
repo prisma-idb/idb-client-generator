@@ -22,6 +22,12 @@ export interface MigrationPlanOptions {
   readonly name?: string;
   /** Contract-space identifier. Defaults to `"app"`. See ADR 212. */
   readonly spaceId?: string;
+  /** Output sinks. Default to `process.stdout`/`process.stderr` so every
+   *  existing caller (commander bin, tests) is unaffected; a CLI-engine
+   *  command handler passes collecting sinks instead so nothing reaches
+   *  the real stdout/stderr streams. */
+  readonly out?: (line: string) => void;
+  readonly err?: (line: string) => void;
 }
 
 /**
@@ -48,6 +54,8 @@ export interface MigrationPlanOptions {
  * `--name` was required (incremental mode) and not supplied.
  */
 export async function migrationPlan(opts: MigrationPlanOptions): Promise<number> {
+  const out = opts.out ?? ((line: string) => process.stdout.write(line));
+  const err = opts.err ?? ((line: string) => process.stderr.write(line));
   const spaceId = opts.spaceId ?? "app";
   const isAppSpace = spaceId === "app";
   const targetDir = isAppSpace ? join(opts.migrationsDir, "app") : opts.migrationsDir;
@@ -68,15 +76,15 @@ export async function migrationPlan(opts: MigrationPlanOptions): Promise<number>
       // defensive here — see ADR 212).
       .filter((e) => e.name !== "refs" && e.name !== "app")
       .map((e) => e.name);
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+  } catch (err_) {
+    if ((err_ as NodeJS.ErrnoException).code !== "ENOENT") throw err_;
     // targetDir doesn't exist yet — expected for a fresh project.
   }
 
-  const ctx: SharedCtx = { ...opts, spaceId, isAppSpace, targetDir, dirLabel };
+  const ctx: SharedCtx = { ...opts, out, err, spaceId, isAppSpace, targetDir, dirLabel };
 
   if (existingDirs.length === 0) {
-    process.stderr.write(
+    err(
       `migration plan: no existing migrations found under ${dirLabel} — generating a full baseline.\n` +
         "If you expected an incremental migration, check --migrations-dir / your config's migrations.dir.\n"
     );
@@ -87,6 +95,8 @@ export async function migrationPlan(opts: MigrationPlanOptions): Promise<number>
 }
 
 interface SharedCtx extends MigrationPlanOptions {
+  readonly out: (line: string) => void;
+  readonly err: (line: string) => void;
   readonly spaceId: string;
   readonly isAppSpace: boolean;
   readonly targetDir: string;
@@ -103,7 +113,7 @@ async function planGreenfield(ctx: SharedCtx): Promise<number> {
     contractJson = JSON.parse(contractRaw);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-      process.stderr.write(
+      ctx.err(
         `migration plan: contract.json not found at ${ctx.contractPath}.\n` +
           "Run `prisma-next contract emit` first to generate the contract file.\n"
       );
@@ -123,7 +133,7 @@ async function planGreenfield(ctx: SharedCtx): Promise<number> {
   });
 
   if (planResult.kind === "failure") {
-    process.stderr.write(
+    ctx.err(
       "migration plan: migration planning failed:\n" +
         planResult.conflicts.map((c) => `  ${c.summary}`).join("\n") +
         "\n"
@@ -175,7 +185,7 @@ async function planGreenfield(ctx: SharedCtx): Promise<number> {
 
 async function planIncremental(ctx: SharedCtx, existingDirs: readonly string[]): Promise<number> {
   if (ctx.name === undefined) {
-    process.stderr.write("migration plan: --name <slug> is required when generating an incremental migration.\n");
+    ctx.err("migration plan: --name <slug> is required when generating an incremental migration.\n");
     return 2;
   }
 
@@ -186,18 +196,14 @@ async function planIncremental(ctx: SharedCtx, existingDirs: readonly string[]):
     try {
       metaRaw = await readFile(metaPath, "utf-8");
     } catch (err) {
-      process.stderr.write(
-        `migration plan: cannot read ${metaPath} — ${err instanceof Error ? err.message : String(err)}\n`
-      );
+      ctx.err(`migration plan: cannot read ${metaPath} — ${err instanceof Error ? err.message : String(err)}\n`);
       return 1;
     }
     let meta: { from: string | null; to: string };
     try {
       meta = JSON.parse(metaRaw) as { from: string | null; to: string };
     } catch (err) {
-      process.stderr.write(
-        `migration plan: malformed ${metaPath} — ${err instanceof Error ? err.message : String(err)}\n`
-      );
+      ctx.err(`migration plan: malformed ${metaPath} — ${err instanceof Error ? err.message : String(err)}\n`);
       return 1;
     }
     packages.set(dirName, { dirName, metadata: meta });
@@ -207,15 +213,13 @@ async function planIncremental(ctx: SharedCtx, existingDirs: readonly string[]):
   try {
     ordered = chainOrderByMetadata(packages);
   } catch (err) {
-    process.stderr.write(
-      `migration plan: migration chain is broken — ${err instanceof Error ? err.message : String(err)}\n`
-    );
+    ctx.err(`migration plan: migration chain is broken — ${err instanceof Error ? err.message : String(err)}\n`);
     return 1;
   }
 
   const head = ordered[ordered.length - 1];
   if (head === undefined) {
-    process.stderr.write("migration plan: no valid migration packages could be read.\n");
+    ctx.err("migration plan: no valid migration packages could be read.\n");
     return 1;
   }
 
@@ -226,7 +230,7 @@ async function planIncremental(ctx: SharedCtx, existingDirs: readonly string[]):
     fromContractJson = JSON.parse(fromContractRaw);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-      process.stderr.write(
+      ctx.err(
         `migration plan: end-contract.json not found in head migration ${head.dirName}.\n` +
           "Re-emit the head migration with `node migration.ts`, or regenerate the chain.\n"
       );
@@ -237,7 +241,7 @@ async function planIncremental(ctx: SharedCtx, existingDirs: readonly string[]):
 
   const headEndStorageHash = readStorageHash(fromContractJson);
   if (headEndStorageHash === null) {
-    process.stderr.write(
+    ctx.err(
       `migration plan: head migration ${head.dirName}/end-contract.json is missing storage.storageHash.\n` +
         "Re-emit the head migration before generating the next package.\n"
     );
@@ -245,7 +249,7 @@ async function planIncremental(ctx: SharedCtx, existingDirs: readonly string[]):
   }
 
   if (head.metadata.to !== headEndStorageHash) {
-    process.stderr.write(
+    ctx.err(
       `migration plan: head migration ${head.dirName} is inconsistent.\n` +
         `  migration.json to:        ${head.metadata.to}\n` +
         `  end-contract storageHash: ${headEndStorageHash}\n` +
@@ -261,7 +265,7 @@ async function planIncremental(ctx: SharedCtx, existingDirs: readonly string[]):
     contractJson = JSON.parse(contractRaw);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-      process.stderr.write(
+      ctx.err(
         `migration plan: contract.json not found at ${ctx.contractPath}.\n` +
           "Run `prisma-next contract emit` first to generate the contract file.\n"
       );
@@ -284,7 +288,7 @@ async function planIncremental(ctx: SharedCtx, existingDirs: readonly string[]):
   });
 
   if (planResult.kind === "failure") {
-    process.stderr.write(
+    ctx.err(
       "migration plan: migration planning failed:\n" +
         planResult.conflicts.map((c) => `  ${c.summary}`).join("\n") +
         "\n"
@@ -298,7 +302,7 @@ async function planIncremental(ctx: SharedCtx, existingDirs: readonly string[]):
   const toHash = plan.destination.storageHash;
 
   if (fromHash === toHash) {
-    process.stdout.write("migration plan: contract is unchanged since the last migration — nothing to do.\n");
+    ctx.out("migration plan: contract is unchanged since the last migration — nothing to do.\n");
     return 0;
   }
 
@@ -353,7 +357,7 @@ async function writeMigrationPackage(ctx: SharedCtx, input: WritePackageInput): 
     await copyFile(contractDtsPath, join(packageDir, "end-contract.d.ts"));
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
-    process.stderr.write(
+    ctx.err(
       `Warning: contract.d.ts not found at ${contractDtsPath}.\n` +
         "The next `migration plan` will fail without it.\n" +
         "Run `prisma-next contract emit` first, then re-run this command.\n\n"
@@ -375,7 +379,7 @@ async function writeMigrationPackage(ctx: SharedCtx, input: WritePackageInput): 
       `automatically — just make sure it also imports the new migration package (migrations/${input.dirName}).\n`;
   }
 
-  process.stdout.write(
+  ctx.out(
     `${input.logVerb} at ${ctx.dirLabel}${input.dirName}\n` +
       `  from: ${input.fromLabel}\n` +
       `  to:   ${input.toHash}\n` +

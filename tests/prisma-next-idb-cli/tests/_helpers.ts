@@ -14,7 +14,7 @@
  *   (e.g. `migration plan`, which calls the migration planner).
  * - `getMigrationDirs(cwd)` — return sorted directory names under
  *   `<cwd>/migrations/app/`.
- * - `writeMinimalIdbConfig(cwd, opts?)` — write a `prisma-next.config.ts`
+ * - `writeMinimalIdbConfig(cwd, opts?)` — write a `prisma.config.ts`
  *   with minimal stub descriptors (no real family/target/adapter package
  *   imports needed — `@prisma-next/config`'s `validateConfig` only checks
  *   shape) so the CLI's config-driven path resolution has something to
@@ -23,7 +23,7 @@
  *   `contractOutput`/`migrationsDir`/`familyId` to test config-driven
  *   resolution itself.
  * - `setupTmpProject()` — mkdtemp + minimal directory scaffolding + a
- *   default `prisma-next.config.ts`; returns the project cwd.
+ *   default `prisma.config.ts`; returns the project cwd.
  */
 
 import { mkdir, mkdtemp, readdir, writeFile } from "node:fs/promises";
@@ -47,8 +47,20 @@ export interface CliResult {
   readonly exitCode: number;
 }
 
+/**
+ * Forces human-readable output for any real invocation. The engine defaults
+ * to `--format json` when stdout isn't a TTY (true for every `execa`-spawned
+ * child here) — every test below asserts against human-readable prose, so
+ * `--format human` is appended whenever a subcommand is present. The
+ * zero-args case (`cli([])`, "print help") bypasses format detection
+ * entirely and is already human-readable without it — appending the flag
+ * there gets misparsed as an attempted (unknown) subcommand, since the
+ * engine expects a command path in position 0 unless there are truly no
+ * arguments at all.
+ */
 export async function cli(args: readonly string[], opts: { cwd: string }): Promise<CliResult> {
-  const result = await execa("node", [CLI_BIN, ...args], {
+  const fullArgs = args.length === 0 ? args : [...args, "--format", "human"];
+  const result = await execa("node", [CLI_BIN, ...fullArgs], {
     cwd: opts.cwd,
     reject: false,
   });
@@ -66,40 +78,50 @@ export interface MinimalIdbConfigOptions {
   readonly migrationsDir?: string;
   /** Default: `"idb"`. Set to something else to exercise the family-mismatch guard. */
   readonly familyId?: string;
-  /** Default: `"prisma-next.config.ts"`. */
+  /** Default: `"prisma.config.ts"`. */
   readonly fileName?: string;
 }
 
 /**
- * Writes a `prisma-next.config.ts` with minimal stub descriptors — enough
- * to satisfy `@prisma-next/config`'s `validateConfig` structural checks
- * (`kind`/`id`/`familyId`/`version`/`create`, cross-matching `familyId`s)
- * without importing real `@prisma-next-idb/family-idb/control` etc. The
- * CLI only ever reads `config.family.familyId`, `config.contract.output`,
- * and `config.migrations.dir` from a loaded config — `contract.source` is
- * never invoked by these commands (only `prisma-next contract emit` calls
- * it), so a dummy `load` is fine.
+ * Writes a `prisma.config.ts` (the rc.4+ unified filename) with minimal stub
+ * descriptors nested under `definePrismaConfig({ orm: {...} })` — enough to
+ * satisfy `@prisma/orm-framework/config/config-validation`'s
+ * `collectConfigIssues` structural checks (`kind`/`id`/`familyId`/`version`/
+ * `create`, cross-matching `familyId`s — the same checker the old
+ * `@prisma-next/config`'s `validateConfig` was, moved packages) without
+ * importing real `@prisma-next-idb/family-idb/control` etc. The CLI only
+ * ever reads `config.contract.output` and `config.migrations.dir` from the
+ * loaded `orm` section — `contract.source` is never invoked by these
+ * commands (only `contract emit` calls it), so a dummy `load` is fine.
  */
 export async function writeMinimalIdbConfig(cwd: string, opts: MinimalIdbConfigOptions = {}): Promise<void> {
   const familyId = opts.familyId ?? "idb";
   const contractOutput = opts.contractOutput ?? "src/lib/prisma/contract.json";
   const migrationsDir = opts.migrationsDir ?? "migrations";
-  const fileName = opts.fileName ?? "prisma-next.config.ts";
+  const fileName = opts.fileName ?? "prisma.config.ts";
   const id = JSON.stringify(familyId);
+  // Inlines what `definePrismaConfig` does (`{ ...config, $prismaConfig: 1 }`,
+  // confirmed against `@prisma/cli-engine`'s own implementation) rather than
+  // importing it — these fixtures live in a bare `mkdtemp(tmpdir())` project
+  // with no node_modules of its own, so an import from a real package would
+  // never resolve.
   const source = `
 const family = { kind: "family", id: ${id}, familyId: ${id}, version: "0.0.0", emission: {}, create: () => ({}) };
 const target = { kind: "target", id: ${id}, familyId: ${id}, version: "0.0.0", targetId: ${id}, create: () => ({}) };
 const adapter = { kind: "adapter", id: ${id}, familyId: ${id}, version: "0.0.0", targetId: ${id}, create: () => ({}) };
 
 export default {
-  family,
-  target,
-  adapter,
-  contract: {
-    source: { load: async () => ({ ok: true, value: {} }) },
-    output: ${JSON.stringify(contractOutput)},
+  $prismaConfig: 1,
+  orm: {
+    family,
+    target,
+    adapter,
+    contract: {
+      source: { load: async () => ({ ok: true, value: {} }) },
+      output: ${JSON.stringify(contractOutput)},
+    },
+    migrations: { dir: ${JSON.stringify(migrationsDir)} },
   },
-  migrations: { dir: ${JSON.stringify(migrationsDir)} },
 };
 `;
   await writeFile(join(cwd, fileName), source, "utf-8");

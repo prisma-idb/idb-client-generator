@@ -130,18 +130,34 @@ not a double one. Verified against `tests/prisma-next-idb-cli`'s substring
 assertions (`stderr).toMatch(/chain broken/i)` etc.) — this pattern
 still surfaces the original text as the primary error message.
 
-### 0.5 Exit code 2 (`migration plan`'s "name required") collides with the engine's reserved range
+### 0.5 Exit-code convention flips from the old bin's — verified against the CLI Style Guide, then empirically
 
-`CommandDefinition.exitCodes` documents "codes 4–99" as the space available
-for a command's own documented exit codes; 2 and 3 are reserved by the
-engine itself (prompt-cannot-be-operated / prompt-cancelled). `migrationPlan`
-today returns exit code `2` when `--name` is required but omitted
-(incremental mode). This phase **remaps that case to exit code `4`**
-(declared via `exitCodes: { 4: "..." }` on the command definition) —
-`tests/prisma-next-idb-cli/tests/migration-pipeline.test.ts`'s one assertion
-on this (`expect(noName.exitCode).toBe(2)`) is updated to `.toBe(4)`. The
-semantic meaning (name required) is unchanged; only the numeric code moves,
-to stop colliding with the engine's own reserved range.
+Initially assumed (wrongly) that a `notOk(...)` result settles at exit `1`,
+by analogy with the old commander bin's ad hoc convention (0 success, 1
+generic failure, 2 "--name required"). `vendor/prisma/docs/CLI Style
+Guide.md` states the actual, deliberate convention plainly (§"Exit Codes"):
+**"a structured failure exits `2` (precondition)... Only an internal bug or
+uncaught error exits `1`... a user-declined prompt exits `3`."** Verified
+empirically against the built shell too (`node dist/bin/prisma-next-idb.mjs
+migration plan` with no prior migrations and `--name` omitted in incremental
+mode → `notOk(...)` → **exit 2**, not 1; an unrecognized subcommand — an
+engine-level dispatch failure, nothing our code touches — also exits 2,
+confirming this is the engine's general "reported failure" code, not
+something specific to prompts).
+
+Since `defineIdbCommand`'s wrapper (§0.3) converts every thrown error into
+`notOk(...)`, **every failure path across all 3 commands settles at exit
+`2`** — not the mix of exit `1`/`2` the old commander bin produced. This is
+a real, intentional convention change (adopting the engine's documented
+classification rather than fighting it), not a bug to route around.
+`tests/prisma-next-idb-cli`'s exit-code assertions are updated accordingly:
+every `.toBe(1)` on an ordinary reported failure (missing contract, broken
+chain, non-IDB op, etc. — `contract-space.test.ts` ×3, `config-resolution.test.ts`
+×2, `preflight.test.ts` ×4) becomes `.toBe(2)`.
+`migration-pipeline.test.ts`'s existing `expect(noName.exitCode).toBe(2)`
+for "`--name` required" needs **no change at all** — it already matches the
+new convention, by coincidence with the old bin's own choice for that one
+case.
 
 ### 0.6 rc.5 bump — verified safe for this hop specifically, not safe in general
 
@@ -263,8 +279,61 @@ packages. Only the file name and the envelope wrapper change.
 `_helpers.ts`'s `CLI_BIN` path is unchanged (`dist/bin/prisma-next-idb.mjs`)
 — same bin, same build output location, just built from the new shell now.
 
-`migration-pipeline.test.ts`'s one exit-code assertion updated per §0.5
-(`toBe(2)` → `toBe(4)`).
+`migration-pipeline.test.ts`'s `--name`-required assertion needed **no
+change** — see §0.5's correction (it was already `toBe(2)`, which already
+matches the engine's convention).
+
+### 2.1 Two more empirically-discovered behaviors that reshaped the rewrite
+
+- **The engine defaults to `--format json` whenever stdout isn't a TTY**
+  (true for every `execa`-spawned child) — confirmed by running the built
+  shell directly, both with and without `--format human`. Every test in the
+  suite asserts against human-readable prose, so `_helpers.ts`'s `cli()`
+  helper now appends `--format human` to any **non-empty** args array.
+  The zero-args ("no subcommand → print help") case is left alone: it
+  bypasses format detection entirely and is already human-readable, and
+  appending the flag there gets misparsed as an attempted (unknown)
+  subcommand — the engine expects a command-path token in position 0
+  unless there are truly zero arguments.
+- **Human-mode output routing is stream-specific, and command-log output
+  is NOT where the CLI Style Guide's stdout/stderr split for `--help` would
+  suggest.** Confirmed empirically (isolated stdout/stderr capture against
+  the built binary, not assumed from the Style Guide's prose): explicit
+  `--help` is DATA and lands on **stdout** (`exitCode` 0), exactly as
+  documented. But our 3 commands' own log output (`Presentations.human`'s
+  `drawing` block) and every structured failure both land on **stderr** —
+  `human` blocks are documented as "rendered to stderr" in
+  `@prisma/cli-engine`'s own `Presentations` doc comment, and our command
+  handlers put 100% of the collected sink output into `human`, none into
+  `stdout` (there is no separate machine-pipeable data channel for these
+  commands). Every existing assertion that read `stdout` for a command's
+  own progress/summary text (contract-space's "N migrations", preflight's
+  "ok"/"FAILED" lines, migration plan's "Generated baseline migration",
+  etc.) was rewritten to read `stderr` instead — this is the single largest
+  mechanical change across the 5 test files, not a scattered one-off.
+
+### 2.2 A real bug the port surfaced: the sink lost partial-line joins
+
+`createCollectingSink`'s first cut split each `out()`/`err()` call into
+lines independently. `preflight.ts` writes `out("  ${dirName} … ")` (no
+trailing newline) and later, in a **separate** call, `out("ok\n")` — under
+independent per-call splitting these become two separate collected lines
+(`"  0001_baseline … "` then `"ok"`) instead of one (`"0001_baseline … ok"`),
+which is exactly what a real stream would produce and exactly what
+`preflight.test.ts`'s assertions expect. Fixed by giving the sink a proper
+running buffer (append text, split on `\n`, keep the trailing partial
+segment pending for the next write) — the same semantics
+`process.stdout.write` itself has. Caught by running the rewritten
+`cli-tests` suite, not by a design review; a second, related fix was needed
+alongside it: `notOk(...)` on a nonzero exit was building the
+`CliStructuredError`'s `summary` from only the `err()`-only text
+(`errText()`), silently dropping every `out()`-only progress line a failing
+run had already produced (preflight's "ok"/"FAILED" per-package lines
+before the final failure). Renamed to `fullText()` — joins the sink's
+_entire_ collected log, both channels, in write order — so a failure's
+error message still carries the context that led up to it, matching what
+the old commander bin's direct `process.stdout`/`stderr` writes produced
+for free.
 
 ## 3. Validation
 
@@ -272,13 +341,29 @@ packages. Only the file name and the envelope wrapper change.
 @prisma-next-idb/target-idb build` before every `cli-tests` run (build-
   staleness trap — `cli-tests` spawns the **built** binary, per `PLAN_8.0`
   §8.4).
-- `pnpm --filter @prisma-next-idb/family-idb test` — the 3 core functions'
-  805 lines of existing unit tests, unchanged behavior expected (sinks
-  default to `process.stdout`/`process.stderr`).
-- `pnpm --filter @prisma-next-idb/cli-tests test` — target: 32/32 (up from
-  9/32 baseline).
-- `pnpm check`/`pnpm lint` across Tier 1 — no new failures beyond the
-  pre-existing, already-documented Phase 8.10 PSL issue.
+- `pnpm --filter @prisma-next-idb/family-idb test` — 201/201, the 3 core
+  functions' ~805 lines of pre-existing unit tests included, unchanged
+  behavior (sinks default to `process.stdout`/`process.stderr`).
+- `pnpm --filter @prisma-next-idb/cli-tests test` — **31/31**, up from the
+  documented 9/31 baseline (all 5 test files, every exit-code/stream
+  assertion rewritten per §2.1).
+- `pnpm --filter @prisma-next-idb/family-idb check` — clean except the
+  pre-existing, already-documented Phase 8.10 PSL issue (present before
+  this phase too, unrelated to it).
+- `pnpm --filter @prisma-next-idb/family-idb lint` — prettier + eslint
+  clean (source only; `dist/` is pre-existing prettier-ignored-elsewhere
+  noise, not a regression).
+- Full Tier-1 sweep, all green: `target-idb` 84, `adapter-idb` 29,
+  `driver-idb` 59, `runtime-idb` 27, `client-idb` 219, `sync-extension-idb`
+  56, `sync-server` 29, `family-idb` 201. `sync-server-sql`'s real-Postgres
+  suite stays 23/23 (unaffected — this phase touches no config/emission
+  wiring for that package).
+- Manually exercised all 3 commands end-to-end against a scratch project
+  (`migration plan` greenfield + incremental, `migration contract-space`,
+  `migration preflight`, both success and the `--name`-required failure
+  path) in both `--format human` and default (json) modes before writing
+  any test assertions — this is what surfaced §2.1's two stream-routing
+  facts and §2.2's buffering bug, ahead of the full suite run.
 
 ## 4. Handed to Phase 8.6.1 (chain regeneration, split out per the user's decision)
 

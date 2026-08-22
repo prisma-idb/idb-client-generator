@@ -7,6 +7,7 @@ export default defineConfig({
     "src/exports/contract-ts.ts",
     "src/exports/contract-psl.ts",
     "src/exports/config-types.ts",
+    "src/exports/cli.ts",
     "src/bin/prisma-next-idb.ts",
   ],
   format: ["esm"],
