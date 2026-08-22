@@ -8,6 +8,7 @@
  * both pure.
  */
 
+import { VERIFY_CODE_TARGET_MISMATCH } from "@prisma/orm-framework/components/control";
 import { describe, expect, it } from "vitest";
 import { createIdbFamilyInstance } from "../src/core/control-instance";
 import { createRawIdbContract } from "./_raw-contract";
@@ -78,7 +79,7 @@ describe("createIdbFamilyInstance", () => {
     expect(result.ok).toBe(false);
     // Target-mismatch must win over the IDB refusal so configs that point
     // at the wrong target see the structural error first.
-    expect(result.code).toBe("PN-RUN-3003");
+    expect(result.code).toBe(VERIFY_CODE_TARGET_MISMATCH);
   });
 
   it("sign returns structured refusal", async () => {

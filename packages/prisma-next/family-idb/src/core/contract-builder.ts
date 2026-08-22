@@ -469,7 +469,7 @@ export function defineContract(input: DefineContractInput, options?: DefineContr
     domain,
     storage,
     capabilities,
-    extensionPacks: {},
+    extensions: {},
     meta: {},
     profileHash,
   };
