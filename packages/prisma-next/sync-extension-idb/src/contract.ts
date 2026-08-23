@@ -24,7 +24,6 @@ export const syncContract = defineContract({
       },
       indexes: {
         byCreatedAt: { keyPath: "createdAt", unique: false },
-        bySynced: { keyPath: "synced", unique: false },
       },
     },
     VersionMeta: {

@@ -1,5 +1,5 @@
-import { defineConfig } from "@prisma-next-idb/family-idb/config-types";
-import { typescriptContract } from "@prisma-next-idb/family-idb/config-types";
+import { definePrismaConfig } from "@prisma/cli-engine";
+import { defineConfig as ormConfig, typescriptContract } from "@prisma-next-idb/family-idb/config-types";
 import idbFamily from "@prisma-next-idb/family-idb/control";
 import idbTarget from "@prisma-next-idb/target-idb/control";
 import idbAdapter from "@prisma-next-idb/adapter-idb/control";
@@ -8,11 +8,12 @@ import { syncContract } from "./src/contract";
 
 /**
  * Prisma Next config for the sync extension's contract space (ADR 212
- * contract-space package layout — `prisma-next.config.ts` at the package
- * root, per the convention every extension package follows).
+ * contract-space package layout — `prisma.config.ts` at the package root,
+ * per the convention every extension package follows; rc.5 unified naming,
+ * see PLAN_8.6.1).
  *
- * This wires the **framework-generic** CLI (`prisma-next contract emit`)
- * so `src/contract.json` + `src/contract.d.ts` are real emitted artifacts
+ * This wires the **framework-generic** CLI (`prisma contract emit`) so
+ * `src/contract.json` + `src/contract.d.ts` are real emitted artifacts
  * instead of a live TS object imported directly — matching the ADR 212
  * package layout `src/exports/control.ts` JSON-imports from.
  *
@@ -26,18 +27,20 @@ import { syncContract } from "./src/contract";
  * are refusal-only for IDB (no live IndexedDB on the Node side) — this
  * config exists for `contract emit`, not for applying migrations.
  */
-export default defineConfig({
-  family: idbFamily,
-  target: idbTarget,
-  adapter: idbAdapter,
-  driver: idbDriver,
-  db: {
-    // Not used by IDB — the framework requires the field but `idbDriver`
-    // ignores it.
-    connection: ":memory:",
-  },
-  contract: typescriptContract(syncContract, "src/contract.json"),
-  migrations: {
-    dir: "migrations",
-  },
+export default definePrismaConfig({
+  orm: ormConfig({
+    family: idbFamily,
+    target: idbTarget,
+    adapter: idbAdapter,
+    driver: idbDriver,
+    db: {
+      // Not used by IDB — the framework requires the field but `idbDriver`
+      // ignores it.
+      connection: ":memory:",
+    },
+    contract: typescriptContract(syncContract, "src/contract.json"),
+    migrations: {
+      dir: "migrations",
+    },
+  }),
 });

@@ -9,9 +9,6 @@
       "indexes": {
         "byCreatedAt": {
           "keyPath": "createdAt"
-        },
-        "bySynced": {
-          "keyPath": "synced"
         }
       },
       "keyPath": "id"
@@ -26,17 +23,6 @@
     "indexName": "byCreatedAt",
     "def": {
       "keyPath": "createdAt"
-    }
-  },
-  {
-    "kind": "createIndex",
-    "id": "index._idb_sync_outbox.bySynced.create",
-    "label": "Create index \"bySynced\" on \"_idb_sync_outbox\"",
-    "operationClass": "additive",
-    "storeName": "_idb_sync_outbox",
-    "indexName": "bySynced",
-    "def": {
-      "keyPath": "synced"
     }
   },
   {

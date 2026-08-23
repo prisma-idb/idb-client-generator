@@ -5,18 +5,14 @@ export default class M extends Migration {
   override describe() {
     return {
       from: null,
-      to: "7fde36649c356a3b6962006d44bb08e84372aa86bb23671252eab9b4cf45e798",
+      to: "c2c485fabf1d79f78fdaf74a1c4dd94fe4e3981493233534e003c613f643945d",
     };
   }
 
   override get operations() {
     return [
-      createObjectStoreOp("_idb_sync_outbox", {
-        keyPath: "id",
-        indexes: { byCreatedAt: { keyPath: "createdAt" }, bySynced: { keyPath: "synced" } },
-      }),
+      createObjectStoreOp("_idb_sync_outbox", { keyPath: "id", indexes: { byCreatedAt: { keyPath: "createdAt" } } }),
       createIndexOp("_idb_sync_outbox", "byCreatedAt", { keyPath: "createdAt" }),
-      createIndexOp("_idb_sync_outbox", "bySynced", { keyPath: "synced" }),
       createObjectStoreOp("_idb_sync_version_meta", { keyPath: "id" }),
     ];
   }
