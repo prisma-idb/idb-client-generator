@@ -231,9 +231,15 @@ export async function autoMigrate(input: {
       policy,
     });
     totalDestructiveDropped += destructiveDropped;
-    if (pendingOps.length > 0) {
-      pendingPerSpace.push({ spaceId: space.spaceId, ops: pendingOps, storageHash: targetHash });
-    }
+    // Push whenever the marker is behind `targetHash` — even if every package
+    // walked had zero ops (a hash-only "bridge" migration, e.g. re-emitting
+    // the contract under a new hashing algorithm with no structural change).
+    // Gating on `pendingOps.length > 0` here would skip the marker write
+    // below for that space, and since nothing ever changes on a later
+    // retry either, the marker gets stuck at the old hash forever — the
+    // space never converges to `targetHash`, even though there was never
+    // any actual work to do.
+    pendingPerSpace.push({ spaceId: space.spaceId, ops: pendingOps, storageHash: targetHash });
   }
 
   // Refuse if any space had destructive ops dropped under refuse policy.
