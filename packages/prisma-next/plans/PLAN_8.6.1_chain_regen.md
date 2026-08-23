@@ -184,23 +184,52 @@ null, 2)` output doesn't exactly match Prettier's JSON formatting, and
 these files aren't `.prettierignore`d (unlike `dist/`), so `pnpm lint`
 would otherwise flag every one of them.
 
-## 4. New finding: kanban's regenerated `contract.d.ts` doesn't type-check — vendor `.d.ts`-generation defect, PSL-path-specific, not root-caused
+## 4. Resolved: kanban's regenerated `contract.d.ts` didn't type-check — missing direct dependency, not a vendor defect
 
-`pnpm check` is red for `apps/prisma-next-idb-kanban-example` after this
-phase, with the same shape of error at every consumption site:
+**Update: root-caused and fixed after the initial writeup below shipped this
+as a known-issue.** The actual cause was mundane: kanban's `package.json`
+never declared `@prisma/orm-framework` as a direct dependency — only
+`@prisma/orm-toolchain` (added earlier in this same phase, see §3, for an
+unrelated "cannot find module" error at runtime). Both `apps/prisma-next-usage`
+and `sync-extension-idb` _do_ declare `@prisma/orm-framework` directly.
 
-```
-Property 'storage' is missing in type 'Contract' but required in type 'Contract<IdbStorage>'.
-```
+Under pnpm's isolated `node_modules`, a package only resolves bare
+specifiers to dependencies it (transitively) declares itself — not to
+whatever a sibling workspace package happens to depend on, even in the same
+monorepo. `contract.d.ts` is emitted directly into kanban's own `src/`, not
+into a library package with its own resolvable dependency tree, so its
+`import type { Contract as ContractType, ... } from "@prisma/orm-framework/contract/types"`
+had nothing to resolve against and silently degraded to `any` (no `TS2307`
+surfaced because the failure happens inside a type-only import consumed by
+other type positions, not a runtime import). Once `ContractType` is `any`,
+`Omit<ContractType<{...}>, "roots" | "domain">` — the piece that's supposed
+to contribute the `storage` property — collapses to `any` too, and the
+surrounding intersection type never gets a `storage` key. Hence: "Property
+'`storage`' is missing in type '`Contract`'."
 
-(`db.ts`, `sync.ts`, `kanban.svelte.ts`, `contract-space.generated.ts`,
-`+page.svelte` — every file that imports the emitted `Contract` type.)
-`contract.json` (the runtime data `contract emit` produces) is fine — this
-is purely a `.d.ts` typing defect, confirmed by the CLI's own emission
-succeeding and `contract emit`'s reported `storageHash` matching across
-repeated runs.
+**Fix:** added `"@prisma/orm-framework": "8.0.0-rc.5"` to kanban's
+`dependencies`, alongside the existing `orm-toolchain` entry, then
+`pnpm install`. `pnpm check` for kanban now reports exactly the two
+pre-existing, out-of-scope Postgres-side (Tier 2) errors in `sync.ts`
+("Property 'extensions' is missing" against the _old_, frozen
+`@prisma-next/contract@0.16.0` type) — confirmed present identically on
+`main` (same locked dependency hash, same untouched generated file), so
+unrelated to this phase.
 
-**Ruled out, with evidence, not assumption:**
+**Why the original investigation didn't find this:** the three ruled-out
+hypotheses below were reasonable but the comparison baseline was wrong. The
+"not a plain module-resolution failure" check _did_ reproduce a genuine
+"Cannot find module" for the exact same specifier — that was the actual
+signal — but it was dismissed because `apps/prisma-next-usage`'s emitted
+`.d.ts` "uses the identical import specifier and type-checks completely
+cleanly." That comparison never checked _why_ usage resolved fine: its
+`package.json` already had `orm-framework` as a direct dependency, kanban's
+didn't. Same specifier, same monorepo, different declared dependencies —
+enough to change the outcome under pnpm's per-package isolation.
+
+The original ruled-out list is kept below for the record; the first two
+findings still stand (neither was ever the cause), only the third's
+conclusion was wrong:
 
 - **Not the `@internal/contract/types` vs `@prisma/orm-framework/contract/types`
   import path.** The very first emission genuinely wrote `@internal/contract/types`
@@ -218,43 +247,13 @@ repeated runs.
   contract has one (from `@default`/`@updatedAt` schema annotations); the
   other two packages' don't. Stubbing kanban's emitted `execution` field to
   `any` (eliminating its ~40-line literal type) made zero difference.
-- **Not a plain module-resolution failure degrading to `any` under
-  `skipLibCheck`.** A minimal reproduction (`Omit<ContractType<{stores,
-namespaces, storageHash}>, "roots"|"domain"> & {...}`, the exact pattern
-  `contract.d.ts` uses) placed in a real `.ts` file under `src/` (so
-  `skipLibCheck` doesn't mask it) genuinely fails with "Cannot find module"
-  for `@prisma/orm-framework/contract/types` — yet `apps/prisma-next-usage`'s
-  emitted `.d.ts` uses the **identical import specifier** and type-checks
-  completely cleanly. Same package, same specifier, same monorepo — so
-  resolution itself isn't reliably the discriminator either, and chasing the
-  module-resolution angle further didn't converge.
-
-**Not root-caused further** — continuing risked disproportionate time
-against a vendor code path we don't own (the PSL contract `.d.ts` emitter
-lives entirely in `@prisma/orm-toolchain`/`@prisma/orm-framework`; `family-idb`'s
-own PSL source code, `contract-psl.ts`/`psl-provider.ts`, has zero
-`@internal/*` references and doesn't touch `.d.ts` generation at all — this
-is not a `family-idb` bug). What's confirmed: this is real, reproducible,
-specific to the PSL contract-source path (kanban is the only PSL-sourced
-package of the 3; both TS-first packages — `apps/prisma-next-usage`,
-`sync-extension-idb` — emit clean, fully-typing `.d.ts` files via the same
-CLI command and the same import specifier), and it is a **new** finding —
-kanban's `contract.d.ts` was last regenerated before this port (frozen since
-`50cd7533`), so this is the first time the PSL path has round-tripped
-through the rc.5 emitter at all.
-
-**Decision (user's call, asked directly): ship as a named known-issue**,
-same treatment as the existing Phase 8.10 PSL scalar-authoring entry in
-`PLAN_8.0`'s phase table. `pnpm check` stays red for
-`apps/prisma-next-idb-kanban-example` specifically — CI's `typecheck` job
-(which runs `pnpm check` repo-wide via turbo) will fail on this branch until
-someone picks this up. Whoever does: start by cloning `@prisma/orm-toolchain`'s
-PSL contract `.d.ts`-emission source (not just its npm dist) and diffing its
-output structurally against the TS-first path's emitter for the same
-`Omit<Contract<TStorage>, ...> & {...}` composition — the discriminator is
-something about a **PSL-sourced** contract specifically, not import paths,
-not the `execution` block, and not `skipLibCheck` masking, all three of
-which were checked and ruled out here.
+- ~~**Not a plain module-resolution failure degrading to `any` under
+  `skipLibCheck`.**~~ **This was actually it.** The minimal reproduction did
+  fail with "Cannot find module" for `@prisma/orm-framework/contract/types" —
+correctly. The mistake was concluding it wasn't the discriminator because
+`apps/prisma-next-usage`resolved the same specifier cleanly, without
+checking that usage's`package.json`declares`@prisma/orm-framework`
+  directly and kanban's didn't.
 
 ## 5. Two more known, pre-existing gaps surfaced but not fixed here
 
@@ -301,16 +300,21 @@ No flag registered for --space`. The command hardcodes `<migrationsDir>/app/`
   real Chromium) — **101/101**, including the reconstructed two-step
   `migration.spec.ts` (the one test that actually exercises §1's fix against
   a real browser IndexedDB, not just the `client-idb` unit-test fixture).
-- `apps/prisma-next-idb-kanban-example`: `pnpm check` **red** — §4's named,
-  not-fixed issue. `pnpm test` (Playwright) — 11/12 in the full parallel
-  run; the one failure (`sync-cross-device.spec.ts`'s "board rename... sync
-  to another device") passes cleanly in isolation with `--retries=2`,
-  confirming a pre-existing timing flake under parallel workers, not a
-  regression from this phase's changes (nothing in the diff touches sync
-  timing or cross-device push/pull logic). No Postgres/docker was set up for
-  this run — the IDB-side paths under test don't need it, and CI's own
-  kanban e2e job is gated on the same `paths-changed` filter as before,
-  unaffected by this phase.
+- `apps/prisma-next-idb-kanban-example`: `pnpm check` — after §4's fix
+  (`@prisma/orm-framework` added as a direct dependency), the IDB-side
+  errors are gone; the only 2 remaining errors are the pre-existing,
+  out-of-scope Postgres-side (Tier 2) `sync.ts` gap against the frozen
+  `@prisma-next/contract@0.16.0` type, confirmed present identically on
+  `main` (same locked dependency, same untouched generated file) —
+  unrelated to this phase. `pnpm test` (Playwright) — 11/12 in the full
+  parallel run; the one failure (`sync-cross-device.spec.ts`'s "board
+  rename... sync to another device") passes cleanly in isolation with
+  `--retries=2`, confirming a pre-existing timing flake under parallel
+  workers, not a regression from this phase's changes (nothing in the diff
+  touches sync timing or cross-device push/pull logic). No Postgres/docker
+  was set up for this run — the IDB-side paths under test don't need it,
+  and CI's own kanban e2e job is gated on the same `paths-changed` filter as
+  before, unaffected by this phase.
 - Manually exercised the built `prisma-next-idb` CLI directly against a
   scratch project (not just through package scripts) — `--help` tree at
   every level, `--format human` vs default JSON (confirmed the engine's

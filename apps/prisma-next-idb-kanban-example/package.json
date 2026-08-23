@@ -44,6 +44,7 @@
     "@prisma-next/sql-relational-core": "^0.16.0",
     "@prisma-next/sql-runtime": "^0.16.0",
     "@prisma-next/target-postgres": "^0.16.0",
+    "@prisma/orm-framework": "8.0.0-rc.5",
     "@prisma/orm-toolchain": "8.0.0-rc.5",
     "better-auth": "^1.6.26",
     "pg": "^8.22.0"
