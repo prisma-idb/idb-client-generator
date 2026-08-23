@@ -18,15 +18,4 @@ export const idbAdapterDescriptorMeta = {
       compoundKeys: false,
     },
   },
-  scalarTypeDescriptors: new Map([
-    ["String", "idb/string@1"],
-    ["Int", "idb/int32@1"],
-    ["Float", "idb/double@1"],
-    ["Boolean", "idb/bool@1"],
-    ["DateTime", "idb/date@1"],
-    ["BigInt", "idb/bigint@1"],
-    ["Decimal", "idb/decimal@1"],
-    ["Json", "idb/json@1"],
-    ["Bytes", "idb/bytes@1"],
-  ]),
 } satisfies AdapterDescriptor<"idb", "idb">;

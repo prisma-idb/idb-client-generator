@@ -20,7 +20,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Contract } from "@prisma/orm-framework/contract/types";
 import { buildSymbolTable } from "@prisma/orm-framework/psl-parser";
 import { parse } from "@prisma/orm-framework/psl-parser/syntax";
-import { interpretPslDocumentToIdbContract, SCALAR_TO_CODEC_ID } from "../src/core/psl-interpreter";
+import { interpretPslDocumentToIdbContract } from "../src/core/psl-interpreter";
 import { idbEmission } from "../src/core/emission";
 import { migrationPlan } from "../src/core/migration-plan";
 import { generateContractSpace } from "../src/core/contract-space-codegen";
@@ -77,7 +77,6 @@ function emitContract(schema: string, sourceId = "schema.prisma"): ContractArtif
   const { table } = buildSymbolTable({
     document,
     sourceFile,
-    scalarTypes: Object.keys(SCALAR_TO_CODEC_ID),
     pslBlockDescriptors: {},
   });
   const result = interpretPslDocumentToIdbContract(table, sourceId);
