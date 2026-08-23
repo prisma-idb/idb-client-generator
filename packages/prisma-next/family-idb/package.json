@@ -1,6 +1,6 @@
 {
   "name": "@prisma-next-idb/family-idb",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Prisma Next IDB family — control-plane descriptor and family instance (CLI/config integration)",
   "license": "MIT",
   "files": ["dist"],

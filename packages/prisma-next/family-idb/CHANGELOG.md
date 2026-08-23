@@ -1,5 +1,29 @@
 # @prisma-next-idb/family-idb
 
+## 0.6.0
+
+### Minor Changes
+
+- [#215](https://github.com/prisma-idb/idb-client-generator/pull/215) [`a536222`](https://github.com/prisma-idb/idb-client-generator/commit/a536222379c2d16ddd66c75ae0c0e4e948ea67a0) Thanks [@WhyAsh5114](https://github.com/WhyAsh5114)! - `migration plan` now writes each distinct contract exactly once per migrations root, in a content-addressed store at `migrations/snapshots/<storageHash>/contract.{json,d.ts}` (ADR 240), instead of a `start-contract.*`/`end-contract.*` copy inside every migration package directory. Writes are write-if-absent (contract emission is already deterministic) and go through a temp-dir-then-rename so an interrupted write can never leave a partial store entry visible under its real hash. `snapshots` is now a reserved space id — `migration plan` refuses it, and the existing-package directory scan for extension spaces (which share `migrationsDir` directly, with no `app/` subdirectory) no longer mistakes the shared store for a migration package.
+
+  **Breaking:** any tooling reading a migration package's `end-contract.json`/`end-contract.d.ts` directly needs to resolve `migrations/snapshots/<head migration's "to" hash>/contract.json` instead. `migration plan`'s head-consistency check is also simpler now: since the file's address _is_ the hash, the only failure mode left is a missing store entry, which now fails with its own explicit error message.
+
+### Patch Changes
+
+- [#215](https://github.com/prisma-idb/idb-client-generator/pull/215) [`a536222`](https://github.com/prisma-idb/idb-client-generator/commit/a536222379c2d16ddd66c75ae0c0e4e948ea67a0) Thanks [@WhyAsh5114](https://github.com/WhyAsh5114)! - `prisma-next-idb`'s CLI is rebuilt on `@prisma/cli-engine`'s command-definition primitives instead of a hand-rolled argument parser and output writer. The command surface is unchanged (`migration plan`, `migration contract-space`, `migration preflight`, same flags, same `--json` mode), but every command now goes through the same sink-collection and error-presentation path the engine gives every other ORM family's CLI, instead of writing to `process.stdout`/`process.stderr` directly.
+
+- [#215](https://github.com/prisma-idb/idb-client-generator/pull/215) [`a536222`](https://github.com/prisma-idb/idb-client-generator/commit/a536222379c2d16ddd66c75ae0c0e4e948ea67a0) Thanks [@WhyAsh5114](https://github.com/WhyAsh5114)! - Fixes two gaps found in review of the `@prisma/cli-engine` CLI shell:
+
+  - `migration contract-space --out <path>` now resolves a relative path against the command's own `cwd`, matching `--contract`/`--migrations-dir` — previously it was passed straight to `writeFile` unresolved, which happened to work only because the shipped binary always has `cwd === process.cwd()`.
+  - A contract-snapshot store entry that was written before its source `contract.d.ts` existed (see the existing warning) now gets `contract.d.ts` backfilled on the next `migration plan` for the same hash, instead of staying permanently `contract.json`-only.
+
+- [#215](https://github.com/prisma-idb/idb-client-generator/pull/215) [`a536222`](https://github.com/prisma-idb/idb-client-generator/commit/a536222379c2d16ddd66c75ae0c0e4e948ea67a0) Thanks [@WhyAsh5114](https://github.com/WhyAsh5114)! - Moves every package off the archived `@prisma-next/*`-scoped fork onto the packages it merged into upstream: `@prisma/orm-framework`, `@prisma/orm-postgres`, `@prisma/orm-toolchain`, and `@prisma/cli-engine`, all pinned to `8.0.0-rc.5`. This is a mechanical import-path rewrite with no behavior change on its own — the migration content-hash format (bare hex, no `sha256:` prefix) already shipped in an earlier release and is unaffected.
+
+  Config files that consuming apps author now follow the upstream-unified `prisma.config.ts` / `prisma.config.postgres.ts` naming (replacing `prisma-next.config.ts`), matching the same `@prisma/cli-engine` envelope every other ORM family uses.
+
+- Updated dependencies [[`a536222`](https://github.com/prisma-idb/idb-client-generator/commit/a536222379c2d16ddd66c75ae0c0e4e948ea67a0)]:
+  - @prisma-next-idb/target-idb@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes
