@@ -2,8 +2,7 @@
  * Verifies the browser-safe `computeMigrationHash` (WebCrypto) agrees with a
  * real migration.json's stored `migrationHash`, computed by the Node-side
  * `@prisma/orm-toolchain/migration-tools/hash` at authoring time. This is the
- * only check that would catch the two implementations silently diverging —
- * see PLAN_8.2_content_hash_migration_tree.md.
+ * only check that would catch the two implementations silently diverging.
  */
 import { describe, expect, it } from "vitest";
 import type { MigrationPackage } from "@prisma/orm-framework/components/control";

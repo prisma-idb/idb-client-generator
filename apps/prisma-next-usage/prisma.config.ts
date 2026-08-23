@@ -7,8 +7,8 @@ import idbDriver from "@prisma-next-idb/driver-idb/control";
 import { contract } from "./src/lib/prisma/contract.server";
 
 /**
- * Prisma Next config for the IDB usage app (rc.5, `prisma.config.ts`
- * unified naming — see PLAN_8.6.1).
+ * Prisma Next config for the IDB usage app, rc.5, unified `prisma.config.ts`
+ * naming.
  *
  * IndexedDB is a browser API, so the CLI control plane is **refusal-only**:
  *
@@ -19,9 +19,8 @@ import { contract } from "./src/lib/prisma/contract.server";
  * pnpm migration:preflight         # Validates the chain against fake-indexeddb
  * ```
  *
- * These map straight onto the `prisma-next-idb` bin (Phase 8.6's
- * `@prisma/cli-engine` shell) — see the scripts of the same name in this
- * package's `package.json`.
+ * These map straight onto the `prisma-next-idb` bin (a thin `@prisma/cli-engine`
+ * shell) — see the scripts of the same name in this package's `package.json`.
  *
  * Migrations actually apply in the browser via `createAutoMigratingIdbClient`
  * (see `src/lib/prisma/db.ts`). The CLI's `db verify`/`db init`/`db update`

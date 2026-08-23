@@ -4,8 +4,7 @@ import type { Presentations } from "@prisma/cli-engine";
  * Collects a wrapped core function's `out`/`err` sink writes so a command
  * handler can present them through the engine instead of writing to the
  * real `process.stdout`/`process.stderr` directly (which would corrupt
- * `--json` mode and be invisible to `createTestCli`'s in-memory harness —
- * see `PLAN_8.6` §0.4).
+ * `--json` mode and be invisible to `createTestCli`'s in-memory harness).
  */
 export interface CollectingSink {
   readonly out: (line: string) => void;

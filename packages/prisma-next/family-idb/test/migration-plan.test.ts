@@ -8,8 +8,8 @@
  *   warning); non-empty target dir → incremental, requiring --name.
  * - Baseline-mode file layout, migration.json, ops.json, migration.ts,
  *   the shared contract-snapshot store (`migrations/snapshots/<hash>/`,
- *   ADR 240, Phase 8.9) — same assertions the old generate-baseline suite
- *   had, updated for the store layout.
+ *   ADR 240) — same assertions the old generate-baseline suite had,
+ *   updated for the store layout.
  * - Incremental-mode chain linking, delta-only ops, head consistency checks
  *   — same assertions the old generate-migration suite had.
  * - spaceId (extension-space, ADR 212) behavior for both modes.

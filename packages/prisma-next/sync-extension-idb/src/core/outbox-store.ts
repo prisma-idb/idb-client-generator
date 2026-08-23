@@ -27,7 +27,7 @@ const VERSION_META = "_idb_sync_version_meta";
  * https://github.com/w3c/IndexedDB/issues/76), so a `bySynced` index would
  * throw a `DataError` on any range query against it (`IDBKeyRange.only(false)`)
  * and silently omit records on write. The contract no longer declares that
- * index (PLAN_8.6.1 dropped it during the rc.5 chain regeneration).
+ * index.
  */
 export async function getNextBatch<TContract extends IdbContract>(
   client: IdbClient<TContract>,

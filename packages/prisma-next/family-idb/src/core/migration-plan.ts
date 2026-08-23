@@ -373,17 +373,20 @@ async function writeMigrationPackage(ctx: SharedCtx, input: WritePackageInput): 
 
 /**
  * Writes a contract snapshot into the shared content-addressed store at
- * `<migrationsDir>/snapshots/<hash>/` (ADR 240). Write-if-absent: our
- * contract emission is deterministic (the hash is derived from these same
- * bytes), so an existing entry for `hash` is trusted as-is without a byte
- * comparison. Writes to a temp directory first, then renames into place,
- * so a concurrent or interrupted write can't leave a partial entry visible
- * under its real hash.
+ * `<migrationsDir>/snapshots/<hash>/` (ADR 240). Write-if-absent on
+ * `contract.json`: our contract emission is deterministic (the hash is
+ * derived from these same bytes), so an existing `contract.json` for `hash`
+ * is trusted as-is without a byte comparison. A first write goes to a temp
+ * directory then renames into place, so a concurrent or interrupted write
+ * can't leave a partial entry visible under its real hash.
  *
  * Both `contract.json` and `contract.d.ts` are written for layout parity
- * with the Postgres side's real, vendor-CLI-produced store (Phase 8.8) —
- * nothing in this package reads the `.d.ts` back today; only
- * `contract.json` is a read dependency for the next `migration plan`.
+ * with the Postgres side's real, vendor-CLI-produced store — nothing in
+ * this package reads the `.d.ts` back today; only `contract.json` is a read
+ * dependency for the next `migration plan`. If an earlier run left an entry
+ * with only `contract.json` (the source `.d.ts` didn't exist yet at the
+ * time), a later call for the same hash backfills `contract.d.ts` in place
+ * instead of leaving the entry permanently partial.
  */
 async function writeContractSnapshot(
   migrationsDir: string,
@@ -396,8 +399,22 @@ async function writeContractSnapshot(
   const entryDir = join(snapshotsDir, hash);
 
   try {
-    await readdir(entryDir);
-    return; // Already present — write-if-absent.
+    await readFile(join(entryDir, "contract.json"), "utf-8");
+    // contract.json (the read dependency) is already present — write-if-absent.
+    // Still backfill contract.d.ts if an earlier run skipped it (source .d.ts
+    // didn't exist yet at the time), so the entry doesn't stay permanently
+    // partial once a `contract emit` produces one.
+    try {
+      await readFile(join(entryDir, "contract.d.ts"), "utf-8");
+    } catch (dtsCheckErr) {
+      if ((dtsCheckErr as NodeJS.ErrnoException).code !== "ENOENT") throw dtsCheckErr;
+      try {
+        await copyFile(contractDtsPath, join(entryDir, "contract.d.ts"));
+      } catch (dtsErr) {
+        if ((dtsErr as NodeJS.ErrnoException).code !== "ENOENT") throw dtsErr;
+      }
+    }
+    return;
   } catch (err_) {
     if ((err_ as NodeJS.ErrnoException).code !== "ENOENT") throw err_;
   }

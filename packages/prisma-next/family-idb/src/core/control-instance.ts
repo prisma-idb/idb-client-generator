@@ -34,8 +34,8 @@ function refusalSummary(action: "verified" | "signed"): string {
     `IndexedDB cannot be ${action} from the CLI. ` +
     "IndexedDB only exists in the browser; the CLI runs in Node.js, so there " +
     "is no live database for it to inspect or update. Author migrations with " +
-    "`prisma-next migration new` / `migration plan`, validate the chain with " +
-    "`prisma-next-idb preflight`, and let `createAutoMigratingIdbClient` apply " +
+    "`prisma-next-idb migration plan`, validate the chain with " +
+    "`prisma-next-idb migration preflight`, and let `createAutoMigratingIdbClient` apply " +
     "them the next time the app opens in a browser."
   );
 }

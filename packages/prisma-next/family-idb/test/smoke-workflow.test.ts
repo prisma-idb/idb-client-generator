@@ -266,7 +266,7 @@ describe("end-to-end workflow smoke test", () => {
     expect(baselineTs).toContain('"@prisma-next-idb/target-idb/migration"');
     expect(baselineTs).toContain('createObjectStoreOp("user"');
 
-    // Package dir no longer carries its own contract copy (ADR 240, Phase 8.9)
+    // Package dir no longer carries its own contract copy (ADR 240)
     expect(existsSync(join(pkgPath(cwd, baselineDir), "end-contract.json"))).toBe(false);
 
     // snapshots/<hash>/contract.json: identical copy of the V1 contract.json
@@ -355,7 +355,7 @@ describe("end-to-end workflow smoke test", () => {
     expect(migrationTs).toContain('createObjectStoreOp("todo"');
     expect(migrationTs).not.toContain("from: null");
 
-    // Package dir no longer carries its own contract copy (ADR 240, Phase 8.9)
+    // Package dir no longer carries its own contract copy (ADR 240)
     expect(existsSync(join(pkgPath(cwd, migrationDir), "end-contract.json"))).toBe(false);
 
     // snapshots/<hash>/contract.json: is the V2 contract

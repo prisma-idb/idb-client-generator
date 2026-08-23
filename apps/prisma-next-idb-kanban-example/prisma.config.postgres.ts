@@ -9,8 +9,7 @@ import { writeSqlSchemaWithSync } from "@prisma-next-idb/sync-server/schema";
  * The kanban app's real server — SQL family, Postgres target, via
  * `@prisma/orm-postgres`'s batteries-included config (family-sql +
  * target-postgres + adapter-postgres + driver-postgres wired in already).
- * rc.5, `prisma.config.ts` unified naming + cli-engine envelope — see
- * PLAN_8.8_postgres_port.md.
+ * rc.5, unified `prisma.config.ts` naming, `@prisma/cli-engine` envelope.
  *
  * One schema, not two: `src/lib/prisma/schema.prisma` is the only
  * hand-authored source for User/Board/Todo/AuditLog — the same file

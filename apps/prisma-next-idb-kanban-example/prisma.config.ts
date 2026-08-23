@@ -7,19 +7,18 @@ import idbAdapter from "@prisma-next-idb/adapter-idb/control";
 import idbDriver from "@prisma-next-idb/driver-idb/control";
 
 /**
- * IDB side of this dual-stack example (rc.5, `prisma.config.ts` unified
- * naming — see PLAN_8.6.1). The Postgres side (`prisma.config.postgres.ts`)
- * is Tier 2, ported to the same rc.5 stack in PLAN_8.8.
+ * IDB side of this dual-stack example, rc.5, unified `prisma.config.ts`
+ * naming. The Postgres side (`prisma.config.postgres.ts`) is on the same
+ * rc.5 stack.
  *
  * This app is the browser client, so its own emitted contract is the
  * projected one — server-only members (`@idb.exclude`/`@@idb.exclude`,
  * e.g. `User.passwordHash`, `AuditLog`) never reach the bundle. See ADR
- * 012 and `prisma-next.config.postgres.ts` (the real server, which parses
+ * 012 and `prisma.config.postgres.ts` (the real server, which parses
  * this same schema.prisma through the SQL family instead).
  *
- * Emit with: `pnpm contract:emit` (now the real `prisma` binary, not the
- * dead `prisma-next` one). Plan/bundle/preflight migrations with
- * `prisma-next-idb migration ...` (Phase 8.6's shell), unchanged.
+ * Emit with: `pnpm contract:emit` (the `prisma` binary). Plan/bundle/
+ * preflight migrations with `prisma-next-idb migration ...`.
  */
 export default definePrismaConfig({
   orm: ormConfig({

@@ -8,8 +8,9 @@ import { chainOrderByMetadata, type ChainablePackage } from "./chain-order";
  *
  * The CLI (`prisma-next-idb migration contract-space`) resolves all three
  * paths before calling this function — from explicit flags, or otherwise
- * from `prisma-next.config.ts` (`contract.output`, `migrations.dir`) via
- * `resolveCliPaths`. Direct callers (tests) must supply them explicitly.
+ * from `prisma.config.ts` (`contract.output`, `migrations.dir`) via
+ * `requireContractPath`/`resolveMigrationsDir` (`cli/migration/paths.ts`).
+ * Direct callers (tests) must supply them explicitly.
  */
 export interface GenerateContractSpaceOptions {
   readonly migrationsDir: string;

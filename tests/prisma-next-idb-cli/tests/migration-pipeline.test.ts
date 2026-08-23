@@ -161,7 +161,7 @@ describe("migration pipeline e2e", () => {
     };
     expect(meta.from).toBeNull();
     expect(meta.to).toBe(V1_STORAGE_HASH);
-    // Bare hex, no `sha256:` prefix — Phase 8.2 stripped it (rc.4+ hash convention).
+    // Bare hex, no `sha256:` prefix (rc.4+ hash convention).
     expect(meta.migrationHash).toMatch(/^[0-9a-f]{64,}$/);
 
     const ops = JSON.parse(await readFile(join(cwd, "migrations", "app", dirs[0], "ops.json"), "utf-8")) as Array<{

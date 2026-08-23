@@ -111,6 +111,21 @@ describe("prisma-next-idb — config-driven path resolution", () => {
     const out = await readFile(join(cwd, "src", "contract-space.generated.ts"), "utf-8");
     expect(out).toContain("THIS FILE IS AUTO-GENERATED");
   });
+
+  it("an explicit relative --out writes to a not-yet-existing nested directory", async () => {
+    const cwd = await setupTmpProject("cfg-contract-space-explicit-out");
+    await writeMinimalIdbConfig(cwd, { contractOutput: "src/contract.json", migrationsDir: "migrations" });
+    await writeContractAt(cwd, "src/contract.json");
+
+    const { exitCode } = await cli(["migration", "plan"], { cwd });
+    expect(exitCode).toBe(0);
+
+    const spaceResult = await cli(["migration", "contract-space", "--out", "generated/space.ts"], { cwd });
+    expect(spaceResult.exitCode).toBe(0);
+
+    const out = await readFile(join(cwd, "generated", "space.ts"), "utf-8");
+    expect(out).toContain("THIS FILE IS AUTO-GENERATED");
+  });
 });
 
 async function getMigrationDirsAt(cwd: string, migrationsDir: string): Promise<string[]> {

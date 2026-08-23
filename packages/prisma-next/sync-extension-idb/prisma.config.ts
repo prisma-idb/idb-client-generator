@@ -9,8 +9,7 @@ import { syncContract } from "./src/contract";
 /**
  * Prisma Next config for the sync extension's contract space (ADR 212
  * contract-space package layout — `prisma.config.ts` at the package root,
- * per the convention every extension package follows; rc.5 unified naming,
- * see PLAN_8.6.1).
+ * per the convention every extension package follows; rc.5 unified naming).
  *
  * This wires the **framework-generic** CLI (`prisma contract emit`) so
  * `src/contract.json` + `src/contract.d.ts` are real emitted artifacts

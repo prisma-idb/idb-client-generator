@@ -1,4 +1,4 @@
-import { dirname, join } from "pathe";
+import { dirname, join, resolve } from "pathe";
 import { flag } from "@prisma/cli-engine";
 import { CliStructuredError, notOk, ok } from "@prisma/cli-engine/protocol";
 import { createCollectingSink, presentationsFromSink } from "../collecting-sink";
@@ -34,7 +34,9 @@ export const migrationContractSpaceCommand = defineIdbCommand({
     const contractPath = requireContractPath(ctx.config, ctx.cwd, args.flags.contract);
     const migrationsDir = resolveMigrationsDir(ctx.config, ctx.cwd, args.flags.migrationsDir);
     const outPath =
-      args.flags.out !== undefined ? args.flags.out : join(dirname(contractPath), "contract-space.generated.ts");
+      args.flags.out !== undefined
+        ? resolve(ctx.cwd, args.flags.out)
+        : join(dirname(contractPath), "contract-space.generated.ts");
 
     const { generateContractSpace } = await import("../../core/contract-space-codegen");
     const sink = createCollectingSink();

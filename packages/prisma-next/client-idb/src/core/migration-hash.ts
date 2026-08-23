@@ -24,7 +24,7 @@ async function sha256Hex(input: string): Promise<string> {
  * and the same nested SHA-256/hex scheme — strip `migrationHash` from the
  * metadata, hash the canonicalized metadata and ops separately, then hash
  * the canonicalized pair of those two hashes, as bare lowercase hex (no
- * `sha256:` prefix, dropped repo-wide at rc.4 — see PLAN_8.2). Reusing the
+ * `sha256:` prefix — dropped repo-wide at rc.4). Reusing the
  * identical canonicalization + algorithm guarantees the result matches the
  * `migrationHash` the CLI recorded, so the integrity check stays meaningful.
  *

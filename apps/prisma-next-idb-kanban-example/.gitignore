@@ -24,7 +24,7 @@ vite.config.ts.timestamp-*
 # Playwright
 test-results
 
-# Regenerated every prisma-next.config.postgres.ts load — see its header.
+# Regenerated every prisma.config.postgres.ts load — see its header.
 src/lib/prisma/schema.postgres.generated.prisma
 src/lib/prisma/schema.postgres.generated.json
 src/lib/prisma/schema.postgres.generated.d.ts

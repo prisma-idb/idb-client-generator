@@ -87,11 +87,6 @@ export interface IdbRuntime {
 /**
  * Build a real {@link RuntimeMiddlewareContext} from the contract
  * so middleware can inspect contract data (plan meta hashes, model
- * names, storage layout).
- */
-/**
- * Build a real {@link RuntimeMiddlewareContext} from the contract
- * so middleware can inspect contract data (plan meta hashes, model
  * names, storage layout) and compute content hashes for cache keys.
  *
  * `contentHash` mirrors the vendor SQL/Mongo runtimes: it

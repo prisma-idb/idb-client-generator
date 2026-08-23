@@ -1,5 +1,5 @@
 /**
- * Tests for `prisma-next-idb preflight`.
+ * Tests for `prisma-next-idb migration preflight`.
  *
  * Each test sets up a fixture migrations directory in a tmpdir, runs
  * {@link runPreflight}, and asserts the exit code + side effects.

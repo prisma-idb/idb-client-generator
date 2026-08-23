@@ -10,11 +10,10 @@ import { writeSqlSchemaWithSync } from "@prisma-next-idb/sync-server/schema";
  * integration suite (test/sql-sync-adapter.test.ts) runs against, in place
  * of the in-memory ORM fake this package used to carry. `writeSqlSchemaWithSync`
  * appends the synthetic sync `Changelog` model to test/fixtures/schema.prisma,
- * the same way a real consuming app's prisma-next.config.postgres.ts does
+ * the same way a real consuming app's prisma.config.postgres.ts does
  * (see apps/prisma-next-idb-kanban-example's, which this mirrors — though
- * that file is Tier 2/frozen-scope and out of scope for this port, see
- * PLAN_8.5). The generated file is gitignored — fully derived, regenerated
- * on every load.
+ * that file is a separate, frozen-scope app and out of scope here). The
+ * generated file is gitignored — fully derived, regenerated on every load.
  *
  * `definePrismaConfig` (the rc.4-era `@prisma/cli-engine` envelope, not the
  * deprecated `defineConfig` alias some vendor examples still use) nests the

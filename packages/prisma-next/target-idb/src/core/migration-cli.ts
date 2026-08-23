@@ -21,9 +21,9 @@ type IdbMigrationConstructor = new () => IdbMigration;
  *
  * IDB migrations are pure data — no SQL string compilation, no adapter-driven
  * materialization — so this shim deliberately skips config loading and
- * `ControlStack` assembly. That keeps the shim free of the workspace-internal
- * `@prisma-next/cli` package (which is what vendor's `MigrationCLI.run`
- * depends on).
+ * `ControlStack` assembly. That keeps the shim free of the workspace-internal,
+ * never-published `@internal/cli` package (which is what vendor's
+ * `MigrationCLI.run` depends on, and what builds the public `prisma` binary).
  */
 export class MigrationCLI {
   static async run(importMetaUrl: string, MigrationClass: IdbMigrationConstructor): Promise<number> {
