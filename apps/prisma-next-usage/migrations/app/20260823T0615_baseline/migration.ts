@@ -5,19 +5,22 @@ export default class M extends Migration {
   override describe() {
     return {
       from: null,
-      to: "6e7f133567af57688f9750c1c8281785032b1d999366ab78ea34f6fe6064d5a6",
+      to: "122c98a5111c07549f24a259e93c2db8bcdd68bf1ee5310718c618ddd9fe8a0d",
     };
   }
 
   override get operations() {
     return [
       createObjectStoreOp("_prisma_next_marker", { keyPath: "space" }),
-      createObjectStoreOp("posts", { keyPath: "id" }),
-      createIndexOp("posts", "byAuthorId", { keyPath: "authorId", unique: false }),
+      createObjectStoreOp("posts", { keyPath: "id", indexes: { byAuthorId: { keyPath: "authorId" } } }),
+      createIndexOp("posts", "byAuthorId", { keyPath: "authorId" }),
       createObjectStoreOp("random_store", { keyPath: "id" }),
-      createObjectStoreOp("users", { keyPath: "id" }),
+      createObjectStoreOp("users", {
+        keyPath: "id",
+        indexes: { byEmail: { keyPath: "email", unique: true }, byScore: { keyPath: "score" } },
+      }),
       createIndexOp("users", "byEmail", { keyPath: "email", unique: true }),
-      createIndexOp("users", "byScore", { keyPath: "score", unique: false }),
+      createIndexOp("users", "byScore", { keyPath: "score" }),
     ];
   }
 }

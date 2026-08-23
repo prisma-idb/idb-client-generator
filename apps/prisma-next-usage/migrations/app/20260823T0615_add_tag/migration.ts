@@ -4,15 +4,15 @@ import { Migration, MigrationCLI, createIndexOp, createObjectStoreOp } from "@pr
 export default class M extends Migration {
   override describe() {
     return {
-      from: "6e7f133567af57688f9750c1c8281785032b1d999366ab78ea34f6fe6064d5a6",
-      to: "e8f91dccffdb18ae207ff36b9238a31e7ff38bf0b54079f0a3b0de97b81dda21",
+      from: "122c98a5111c07549f24a259e93c2db8bcdd68bf1ee5310718c618ddd9fe8a0d",
+      to: "fc8ba5682814d9f05d17d2e547a2e1f6d261bd40be8b43ae981e5880717c57ee",
     };
   }
 
   override get operations() {
     return [
-      createObjectStoreOp("tags", { keyPath: "id" }),
-      createIndexOp("tags", "byPostId", { keyPath: "postId", unique: false }),
+      createObjectStoreOp("tags", { keyPath: "id", indexes: { byPostId: { keyPath: "postId" } } }),
+      createIndexOp("tags", "byPostId", { keyPath: "postId" }),
     ];
   }
 }
