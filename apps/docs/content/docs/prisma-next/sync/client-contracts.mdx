@@ -33,12 +33,16 @@ model Session {
 On the browser side, your IDB config strips them via `prismaIdbContract(path, { projection: "client" })`:
 
 ```ts
-// prisma-next.config.ts (browser)
+// prisma.config.ts (browser)
+import { definePrismaConfig } from "@prisma/cli-engine";
+import { defineConfig as ormConfig } from "@prisma-next-idb/family-idb/config-types";
 import { prismaIdbContract } from "@prisma-next-idb/family-idb/contract-psl";
 
-export default defineConfig({
-  // ...
-  contract: prismaIdbContract("schema.prisma", { projection: "client" }),
+export default definePrismaConfig({
+  orm: ormConfig({
+    // ...
+    contract: prismaIdbContract("schema.prisma", { projection: "client" }),
+  }),
 });
 ```
 
@@ -51,24 +55,27 @@ If your server also happens to run on the IDB family, pointing it at the same sc
 Instead, `@prisma-next-idb/sync-server/schema` exports `writeSqlSchemaWithSync`, which reads the _same_ `schema.prisma`, strips the `@idb.exclude`/`@@idb.exclude` markers as plain text, appends a SQL-flavored `Changelog` model, and writes a schema file the SQL family can parse:
 
 ```ts
-// prisma-next.config.postgres.ts (server)
-import { defineConfig } from "@prisma-next/postgres/config";
+// prisma.config.postgres.ts (server)
+import { definePrismaConfig } from "@prisma/cli-engine";
+import { defineConfig as ormConfig } from "@prisma/orm-postgres/config";
 import { writeSqlSchemaWithSync } from "@prisma-next-idb/sync-server/schema";
 
-export default defineConfig({
-  contract: writeSqlSchemaWithSync("schema.prisma", "schema.postgres.generated.prisma"),
-  db: { connection: process.env.DATABASE_URL },
-  migrations: { dir: "migrations-postgres" }, // a separate lineage from the IDB side's migrations/
+export default definePrismaConfig({
+  orm: ormConfig({
+    contract: writeSqlSchemaWithSync("schema.prisma", "schema.postgres.generated.prisma"),
+    db: { connection: process.env.DATABASE_URL },
+    migrations: { dir: "migrations-postgres" }, // a separate lineage from the IDB side's migrations/
+  }),
 });
 ```
 
-Emit and migrate this side with the same `prisma-next` CLI, pointed at this config:
+Emit and migrate this side with the same `prisma` CLI, pointed at this config:
 
 ```bash
-npx prisma-next contract emit --config prisma-next.config.postgres.ts
-npx prisma-next db init --config prisma-next.config.postgres.ts
-npx prisma-next migration new --config prisma-next.config.postgres.ts
-npx prisma-next db update --config prisma-next.config.postgres.ts
+npx prisma contract emit --config prisma.config.postgres.ts
+npx prisma db init --config prisma.config.postgres.ts
+npx prisma migration new --config prisma.config.postgres.ts
+npx prisma db update --config prisma.config.postgres.ts
 ```
 
 See [Server](/docs/prisma-next/sync/server#schema-the-changelog-model) for the full reasoning behind the generated `Changelog` model.

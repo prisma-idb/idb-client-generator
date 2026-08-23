@@ -14,8 +14,8 @@ Sync is optional. A schema with neither package behaves exactly as described in 
 
 <Callout title="Prerequisite">
   Sync builds on top of a plain Prisma Next IDB client — it doesn't replace [Quick
-  Start](/docs/prisma-next/getting-started). Every path below assumes a `schema.prisma`, a `prisma-next.config.ts`, and
-  a bootstrapped migration chain already exist on the browser side (even "starting fresh" with sync means starting fresh
+  Start](/docs/prisma-next/getting-started). Every path below assumes a `schema.prisma`, a `prisma.config.ts`, and a
+  bootstrapped migration chain already exist on the browser side (even "starting fresh" with sync means starting fresh
   *with sync* — do Quick Start first if you haven't touched Prisma Next IDB at all yet).
 </Callout>
 
@@ -27,13 +27,13 @@ Sync is optional. A schema with neither package behaves exactly as described in 
     step below in order: **Install**, **Mark server-only fields**, **Client setup**, **Server setup**, then **Worker**.
   </Tab>
   <Tab value="Already have a remote server">
-    You already have a `prisma-next.config.postgres.ts` (or equivalent SQL/family config) and a working server database.
-    Do **Install**, **Mark server-only fields**, and **Server setup** below — that last one changes how your existing
+    You already have a `prisma.config.postgres.ts` (or equivalent SQL/family config) and a working server database. Do
+    **Install**, **Mark server-only fields**, and **Server setup** below — that last one changes how your existing
     config emits its contract, it doesn't replace your database. Then do **Client setup** and **Worker** — set up a
     plain client per Quick Start first if the browser side doesn't exist yet, then layer sync on with those steps.
   </Tab>
   <Tab value="Already have a local IDB client">
-    You already have a `prisma-next.config.ts`, a schema, and a `getDb()` like the one in [Quick
+    You already have a `prisma.config.ts`, a schema, and a `getDb()` like the one in [Quick
     Start](/docs/prisma-next/getting-started). Do **Install** and **Mark server-only fields**, then jump to **Client
     setup** — most of it is a small diff on what you already have. Then do **Server setup** and **Worker** from scratch.
   </Tab>
@@ -85,7 +85,7 @@ Ownership flows from `Todo` → `Board` → `User`. That relation chain is what 
 **Project the client contract.** Your IDB config needs `projection: "client"` so excluded fields/models never reach the bundle:
 
 ```ts
-// prisma-next.config.ts
+// prisma.config.ts
 contract: prismaIdbContract("schema.prisma", { projection: "client" }),
 ```
 
@@ -97,7 +97,7 @@ If you already have a working client from [Quick Start](/docs/prisma-next/gettin
 **Re-emit and bootstrap (or extend) migrations**, same commands as any other schema change:
 
 ```bash
-npx prisma-next contract emit
+npx prisma contract emit
 npx prisma-next-idb migration plan   # auto-detects baseline vs. incremental
 npx prisma-next-idb migration contract-space
 npx prisma-next-idb migration preflight
@@ -143,14 +143,17 @@ Full client API — the outbox event, `withoutTracking`, version metadata — is
 **Point your server config at the shared schema through the sync helper**, not through the IDB family — a SQL/Postgres parser can't read `@idb.exclude` directly:
 
 ```ts
-// prisma-next.config.postgres.ts
-import { defineConfig } from "@prisma-next/postgres/config";
+// prisma.config.postgres.ts
+import { definePrismaConfig } from "@prisma/cli-engine";
+import { defineConfig as ormConfig } from "@prisma/orm-postgres/config";
 import { writeSqlSchemaWithSync } from "@prisma-next-idb/sync-server/schema";
 
-export default defineConfig({
-  contract: writeSqlSchemaWithSync("schema.prisma", "schema.postgres.generated.prisma"),
-  db: { connection: process.env.DATABASE_URL },
-  migrations: { dir: "migrations-postgres" }, // keep this separate from the IDB side's migrations/
+export default definePrismaConfig({
+  orm: ormConfig({
+    contract: writeSqlSchemaWithSync("schema.prisma", "schema.postgres.generated.prisma"),
+    db: { connection: process.env.DATABASE_URL },
+    migrations: { dir: "migrations-postgres" }, // keep this separate from the IDB side's migrations/
+  }),
 });
 ```
 
@@ -159,13 +162,13 @@ export default defineConfig({
 </Step>
 <Step>
 
-**Emit and migrate**, using the same `prisma-next` CLI you already use for this database, pointed at the config above:
+**Emit and migrate**, using the same `prisma` CLI you already use for this database, pointed at the config above:
 
 ```bash
-npx prisma-next contract emit --config prisma-next.config.postgres.ts
-npx prisma-next db init --config prisma-next.config.postgres.ts       # first time only
-npx prisma-next migration new --config prisma-next.config.postgres.ts
-npx prisma-next db update --config prisma-next.config.postgres.ts
+npx prisma contract emit --config prisma.config.postgres.ts
+npx prisma db init --config prisma.config.postgres.ts       # first time only
+npx prisma migration new --config prisma.config.postgres.ts
+npx prisma db update --config prisma.config.postgres.ts
 ```
 
 </Step>

@@ -9,13 +9,13 @@ icon: Rocket
 Install the runtime packages:
 
 ```bash
-npm install @prisma-next-idb/client-idb @prisma-next/migration-tools
+npm install @prisma-next-idb/client-idb @prisma/orm-toolchain
 ```
 
 Install the dev tools:
 
 ```bash
-npm install --save-dev prisma-next @prisma-next/contract \
+npm install --save-dev prisma @prisma/cli-engine @prisma/orm-framework \
   @prisma-next-idb/family-idb @prisma-next-idb/target-idb \
   @prisma-next-idb/adapter-idb @prisma-next-idb/driver-idb
 ```
@@ -43,24 +43,27 @@ model Todo {
 
 ## Configure
 
-Create `prisma-next.config.ts`:
+Create `prisma.config.ts`:
 
 ```ts
-import { defineConfig } from "@prisma-next-idb/family-idb/config-types";
+import { definePrismaConfig } from "@prisma/cli-engine";
+import { defineConfig as ormConfig } from "@prisma-next-idb/family-idb/config-types";
 import { prismaIdbContract } from "@prisma-next-idb/family-idb/contract-psl";
 import idbFamily from "@prisma-next-idb/family-idb/control";
 import idbTarget from "@prisma-next-idb/target-idb/control";
 import idbAdapter from "@prisma-next-idb/adapter-idb/control";
 import idbDriver from "@prisma-next-idb/driver-idb/control";
 
-export default defineConfig({
-  family: idbFamily,
-  target: idbTarget,
-  adapter: idbAdapter,
-  driver: idbDriver,
-  db: { connection: ":memory:" },
-  contract: prismaIdbContract("src/prisma/schema.prisma"),
-  migrations: { dir: "migrations" },
+export default definePrismaConfig({
+  orm: ormConfig({
+    family: idbFamily,
+    target: idbTarget,
+    adapter: idbAdapter,
+    driver: idbDriver,
+    db: { connection: ":memory:" },
+    contract: prismaIdbContract("src/prisma/schema.prisma"),
+    migrations: { dir: "migrations" },
+  }),
 });
 ```
 
@@ -69,15 +72,15 @@ export default defineConfig({
 Both CLIs are devDependencies, so `npx` resolves them locally. Run once on a fresh project:
 
 ```bash
-npx prisma-next contract emit
+npx prisma contract emit
 npx prisma-next-idb migration plan
 npx prisma-next-idb migration contract-space
 npx prisma-next-idb migration preflight
 ```
 
-This writes `contract.json`, `contract.d.ts`, `contract-space.generated.ts`, and the first migration package under `migrations/app/`. Commit all of them.
+This writes `contract.json`, `contract.d.ts`, `contract-space.generated.ts`, and the first migration package under `migrations/app/` (its contract snapshot lands in the shared `migrations/snapshots/<hash>/` store). Commit all of them.
 
-`prisma-next-idb` reads `--contract`/`--migrations-dir` from `prisma-next.config.ts` (`contract.output` / `migrations.dir`) — the same config `prisma-next contract emit` reads — so no flags are needed here even though this example keeps its contract under `src/prisma/` rather than the `src/lib/prisma/` most examples use. Pass `--contract`/`--migrations-dir`/`--config` explicitly only if you need to point at something other than what the config declares.
+`prisma-next-idb` reads `--contract`/`--migrations-dir` from `prisma.config.ts` (`contract.output` / `migrations.dir`) — the same config `prisma contract emit` reads — so no flags are needed here even though this example keeps its contract under `src/prisma/` rather than the `src/lib/prisma/` most examples use. Pass `--contract`/`--migrations-dir`/`--config` explicitly only if you need to point at something other than what the config declares.
 
 ## Open the client
 
