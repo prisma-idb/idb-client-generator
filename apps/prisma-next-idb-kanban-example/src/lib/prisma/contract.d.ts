@@ -10,7 +10,7 @@ import type {
   NamespaceId,
   ProfileHashBase,
   StorageHashBase,
-} from "@prisma/orm-framework/contract/types";
+} from "@prisma/orm-postgres/contract/types";
 
 export type StorageHash = StorageHashBase<"f57f9cb96b36d6251be55bf297614dd74dab0861b6f77b83991c0dca40ca59dd">;
 export type ExecutionHash = ExecutionHashBase<"1ccd214e2c572bf6e165a7da549585dba6d39694a151e2695a9109ed7899d4dd">;

@@ -1,4 +1,5 @@
-import { copyFile, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
 import type { Contract } from "@prisma/orm-framework/contract/types";
 import type { IdbMigrationPlanWithAuthoring } from "@prisma-next-idb/target-idb/migration";
 import { IdbMigrationPlanner, contractToIdbSchema, renderMigrationTs } from "@prisma-next-idb/target-idb/migration";
@@ -57,6 +58,10 @@ export async function migrationPlan(opts: MigrationPlanOptions): Promise<number>
   const out = opts.out ?? ((line: string) => process.stdout.write(line));
   const err = opts.err ?? ((line: string) => process.stderr.write(line));
   const spaceId = opts.spaceId ?? "app";
+  if (spaceId === "snapshots") {
+    err('migration plan: spaceId "snapshots" is reserved for the contract-snapshot store and cannot be used.\n');
+    return 1;
+  }
   const isAppSpace = spaceId === "app";
   const targetDir = isAppSpace ? join(opts.migrationsDir, "app") : opts.migrationsDir;
   // Relative-to-cwd display path — reflects wherever `migrationsDir` actually
@@ -73,8 +78,11 @@ export async function migrationPlan(opts: MigrationPlanOptions): Promise<number>
       // `refs/` holds the pinned head ref, not a migration package. `app/`
       // is a sibling space's directory when an extension space happens to
       // share `migrationsDir` with the app space (non-standard, but
-      // defensive here — see ADR 212).
-      .filter((e) => e.name !== "refs" && e.name !== "app")
+      // defensive here — see ADR 212). `snapshots/` is the shared
+      // content-addressed contract store (ADR 240) — an extension space's
+      // targetDir is migrationsDir itself, so the store sits as a sibling
+      // of its migration package dirs and must not be mistaken for one.
+      .filter((e) => e.name !== "refs" && e.name !== "app" && e.name !== "snapshots")
       .map((e) => e.name);
   } catch (err_) {
     if ((err_ as NodeJS.ErrnoException).code !== "ENOENT") throw err_;
@@ -223,39 +231,22 @@ async function planIncremental(ctx: SharedCtx, existingDirs: readonly string[]):
     return 1;
   }
 
-  const headEndContractPath = join(ctx.targetDir, head.dirName, "end-contract.json");
+  const headSnapshotPath = join(ctx.migrationsDir, "snapshots", head.metadata.to, "contract.json");
   let fromContractJson: unknown;
   try {
-    const fromContractRaw = await readFile(headEndContractPath, "utf-8");
+    const fromContractRaw = await readFile(headSnapshotPath, "utf-8");
     fromContractJson = JSON.parse(fromContractRaw);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
       ctx.err(
-        `migration plan: end-contract.json not found in head migration ${head.dirName}.\n` +
-          "Re-emit the head migration with `node migration.ts`, or regenerate the chain.\n"
+        `migration plan: head migration ${head.dirName} is inconsistent.\n` +
+          `  migration.json claims to: ${head.metadata.to}\n` +
+          `  but no store entry exists at ${relative(process.cwd(), headSnapshotPath)}\n` +
+          "Regenerate the chain, or restore migrations/snapshots/ from source control.\n"
       );
       return 1;
     }
     throw err;
-  }
-
-  const headEndStorageHash = readStorageHash(fromContractJson);
-  if (headEndStorageHash === null) {
-    ctx.err(
-      `migration plan: head migration ${head.dirName}/end-contract.json is missing storage.storageHash.\n` +
-        "Re-emit the head migration before generating the next package.\n"
-    );
-    return 1;
-  }
-
-  if (head.metadata.to !== headEndStorageHash) {
-    ctx.err(
-      `migration plan: head migration ${head.dirName} is inconsistent.\n` +
-        `  migration.json to:        ${head.metadata.to}\n` +
-        `  end-contract storageHash: ${headEndStorageHash}\n` +
-        "Re-emit or repair the head migration before generating the next package.\n"
-    );
-    return 1;
   }
 
   let contractRaw: string;
@@ -350,19 +341,9 @@ async function writeMigrationPackage(ctx: SharedCtx, input: WritePackageInput): 
   await writeFile(join(packageDir, "ops.json"), JSON.stringify(input.ops, null, 2), "utf-8");
   await writeFile(join(packageDir, "migration.json"), JSON.stringify(input.metadata, null, 2), "utf-8");
   await writeFile(join(packageDir, "migration.ts"), input.migrationTsContent, "utf-8");
-  await writeFile(join(packageDir, "end-contract.json"), input.contractRaw, "utf-8");
 
   const contractDtsPath = ctx.contractPath.replace(/\.json$/i, ".d.ts");
-  try {
-    await copyFile(contractDtsPath, join(packageDir, "end-contract.d.ts"));
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
-    ctx.err(
-      `Warning: contract.d.ts not found at ${contractDtsPath}.\n` +
-        "The next `migration plan` will fail without it.\n" +
-        "Run `prisma-next contract emit` first, then re-run this command.\n\n"
-    );
-  }
+  await writeContractSnapshot(ctx.migrationsDir, input.toHash, input.contractRaw, contractDtsPath, ctx.err);
 
   let extensionSpaceNote = "";
   if (!ctx.isAppSpace) {
@@ -390,10 +371,54 @@ async function writeMigrationPackage(ctx: SharedCtx, input: WritePackageInput): 
   );
 }
 
-function readStorageHash(contract: unknown): string | null {
-  if (typeof contract !== "object" || contract === null) return null;
-  const storage = (contract as { readonly storage?: unknown }).storage;
-  if (typeof storage !== "object" || storage === null) return null;
-  const hash = (storage as { readonly storageHash?: unknown }).storageHash;
-  return typeof hash === "string" && hash.length > 0 ? hash : null;
+/**
+ * Writes a contract snapshot into the shared content-addressed store at
+ * `<migrationsDir>/snapshots/<hash>/` (ADR 240). Write-if-absent: our
+ * contract emission is deterministic (the hash is derived from these same
+ * bytes), so an existing entry for `hash` is trusted as-is without a byte
+ * comparison. Writes to a temp directory first, then renames into place,
+ * so a concurrent or interrupted write can't leave a partial entry visible
+ * under its real hash.
+ *
+ * Both `contract.json` and `contract.d.ts` are written for layout parity
+ * with the Postgres side's real, vendor-CLI-produced store (Phase 8.8) —
+ * nothing in this package reads the `.d.ts` back today; only
+ * `contract.json` is a read dependency for the next `migration plan`.
+ */
+async function writeContractSnapshot(
+  migrationsDir: string,
+  hash: string,
+  contractRaw: string,
+  contractDtsPath: string,
+  err: (line: string) => void
+): Promise<void> {
+  const snapshotsDir = join(migrationsDir, "snapshots");
+  const entryDir = join(snapshotsDir, hash);
+
+  try {
+    await readdir(entryDir);
+    return; // Already present — write-if-absent.
+  } catch (err_) {
+    if ((err_ as NodeJS.ErrnoException).code !== "ENOENT") throw err_;
+  }
+
+  const tmpDir = join(snapshotsDir, `.tmp-${randomBytes(8).toString("hex")}`);
+  await mkdir(tmpDir, { recursive: true });
+  try {
+    await writeFile(join(tmpDir, "contract.json"), contractRaw, "utf-8");
+    try {
+      await copyFile(contractDtsPath, join(tmpDir, "contract.d.ts"));
+    } catch (dtsErr) {
+      if ((dtsErr as NodeJS.ErrnoException).code !== "ENOENT") throw dtsErr;
+      err(
+        `Warning: contract.d.ts not found at ${contractDtsPath}.\n` +
+          "The snapshot store entry will hold only contract.json.\n" +
+          "Run `prisma-next contract emit` first, then re-run this command.\n\n"
+      );
+    }
+    await rename(tmpDir, entryDir);
+  } catch (writeErr) {
+    await rm(tmpDir, { recursive: true, force: true });
+    throw writeErr;
+  }
 }

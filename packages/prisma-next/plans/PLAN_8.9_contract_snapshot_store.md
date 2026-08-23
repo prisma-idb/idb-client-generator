@@ -132,14 +132,19 @@ contract.json`, that comparison is structurally unreachable: the
 5. Regenerate the 3 committed IDB chains via the real
    `prisma-next-idb migration plan` CLI (not hand-edited) — same
    wipe-and-rebaseline precedent as 8.6.1.
-6. **Diff regenerated output against the currently-committed chains and
-   confirm every `migrationHash` is byte-identical.** ADR 240 asserts
-   `migrationHash` excludes the contract snapshot from its hash inputs
-   (ADR 199) — ours already does, since `computeMigrationHash` is called
-   with `baseMetadata`+`ops` only, never the contract. This diff is the
-   empirical proof that holds after this change too; if any hash moves,
-   something other than storage layout changed and that's a stop-the-line
-   signal, not something to paper over.
+6. **Diff regenerated output against the currently-committed chains.**
+   Correction to this step's original assumption: `computeMigrationHash`
+   hashes the whole stripped metadata envelope, which includes `createdAt`
+   — so `migrationHash` moves on _every_ regeneration regardless of
+   storage layout (a fresh timestamp each run), not something specific to
+   this phase. The real invariant confirmed instead: `storageHash` (`to`)
+   and `ops.json` content are byte-identical to the previously-committed
+   chain for all 3 regenerated packages — confirmed via `git diff` against
+   the pre-wipe committed files (`ops.json` identical; `storageHash`
+   values `122c98a5…`, `f57f9cb9…`, `c2c485fa…` all reproduced exactly).
+   That's the actual proof the storage-format swap changed nothing
+   semantic; a `migrationHash` diff alone is not a stop-the-line signal
+   here, since it's expected to move.
 7. Full validation: `pnpm check`/`build`/`lint`/`test:prisma-next`
    repo-wide; both Playwright suites (usage + kanban).
 

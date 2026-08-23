@@ -28,8 +28,9 @@ export interface PreflightOptions {
  *
  * **Scope vs runtime**: this command catches "the chain doesn't apply
  * cleanly" — a structural issue. It does NOT catch "the chain produces
- * the wrong schema" (that's `verifySchema` against the head's
- * `end-contract.json`, deferred to a follow-up).
+ * the wrong schema" (that's `verifySchema` against the head's contract,
+ * resolvable via `migrations/snapshots/<hash>/contract.json` since Phase
+ * 8.9 — still deferred to a follow-up).
  *
  * Exit codes: 0 on full chain success; 1 on any failure.
  */
