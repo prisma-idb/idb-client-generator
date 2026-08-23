@@ -1,4 +1,4 @@
-import type { QueryPlan } from "@prisma-next/framework-components/runtime";
+import type { QueryPlan } from "@prisma/orm-framework/components/runtime";
 import type { IdbPlanBody } from "@prisma-next-idb/driver-idb/runtime";
 import type { IdbQueryAst } from "./idb-query-ast";
 
@@ -22,7 +22,7 @@ declare const __idbQueryPlanRow: unique symbol;
  *
  * @template Row - The TypeScript row shape inferred from the lane builder.
  *   Phantom-typed: never read at runtime, but constrains the return type of
- *   `runtime.execute()`.
+ *   `runtime.query()`.
  */
 export interface IdbQueryPlan<Row = unknown> extends QueryPlan<Row> {
   /** The execution-ready IDB plan produced by the lane builder. */

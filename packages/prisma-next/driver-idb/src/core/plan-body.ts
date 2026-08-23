@@ -1,4 +1,4 @@
-import type { ExecutionPlan } from "@prisma-next/framework-components/runtime";
+import type { ExecutionPlan } from "@prisma/orm-framework/components/runtime";
 
 // ── Marker store ─────────────────────────────────────────────────────────────
 
@@ -157,7 +157,10 @@ export interface IdbUpdatePlan extends ExecutionPlan {
 /**
  * Delete one or more records by key or key range.
  *
- * Used for `delete` and `deleteMany`. The driver yields no rows.
+ * Used for `delete` and `deleteMany`. The driver walks a cursor over
+ * `key` (a single key or a range) and yields each deleted row, so callers
+ * can echo them back and `execute()` can report an accurate affected-row
+ * count — same convention as `add`/`put`/`update`.
  */
 export interface IdbDeletePlan extends ExecutionPlan {
   readonly kind: "delete";

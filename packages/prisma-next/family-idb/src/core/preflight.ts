@@ -1,13 +1,16 @@
 import { readdir, readFile } from "node:fs/promises";
 import { IDBFactory } from "fake-indexeddb";
-import type { MigrationMetadata } from "@prisma-next/migration-tools/metadata";
-import { computeMigrationHash } from "@prisma-next/migration-tools/hash";
+import type { MigrationMetadata } from "@prisma/orm-toolchain/migration-tools/metadata";
+import { computeMigrationHash } from "@prisma/orm-toolchain/migration-tools/hash";
 import { chainOrderByMetadata, type ChainablePackage } from "./chain-order";
 import { applyOneDdlOp, isIdbDdlOp, type IdbDdlOp } from "@prisma-next-idb/target-idb/migration";
 import { join } from "pathe";
 
 export interface PreflightOptions {
   readonly migrationsDir: string;
+  /** Output sinks. Default to `process.stdout`/`process.stderr`. */
+  readonly out?: (line: string) => void;
+  readonly err?: (line: string) => void;
 }
 
 /**
@@ -25,42 +28,45 @@ export interface PreflightOptions {
  *
  * **Scope vs runtime**: this command catches "the chain doesn't apply
  * cleanly" — a structural issue. It does NOT catch "the chain produces
- * the wrong schema" (that's `verifySchema` against the head's
- * `end-contract.json`, deferred to a follow-up).
+ * the wrong schema" (that's `verifySchema` against the head's contract,
+ * resolvable via `migrations/snapshots/<hash>/contract.json` since Phase
+ * 8.9 — still deferred to a follow-up).
  *
  * Exit codes: 0 on full chain success; 1 on any failure.
  */
 export async function runPreflight(opts: PreflightOptions): Promise<number> {
+  const out = opts.out ?? ((line: string) => process.stdout.write(line));
+  const err = opts.err ?? ((line: string) => process.stderr.write(line));
   const migrationsDir = opts.migrationsDir;
   const appDir = join(migrationsDir, "app");
 
   const packages = await loadPackages(appDir);
   if (packages.length === 0) {
-    process.stdout.write("No migration packages found. Nothing to preflight.\n");
+    out("No migration packages found. Nothing to preflight.\n");
     return 0;
   }
 
-  process.stdout.write(`Preflighting ${packages.length} migration(s) against fake-indexeddb…\n`);
+  out(`Preflighting ${packages.length} migration(s) against fake-indexeddb…\n`);
 
   const factory = new IDBFactory();
   const dbName = "__preflight__";
 
   let currentVersion = 0;
   for (const pkg of packages) {
-    process.stdout.write(`  ${pkg.dirName} … `);
+    out(`  ${pkg.dirName} … `);
     try {
       currentVersion += 1;
       await applyPackage({ factory, dbName, targetVersion: currentVersion, ops: pkg.ops });
-      process.stdout.write("ok\n");
-    } catch (err) {
-      process.stdout.write("FAILED\n");
-      process.stderr.write(`    ${err instanceof Error ? err.message : String(err)}\n`);
-      process.stderr.write("\nPreflight failed.\n");
+      out("ok\n");
+    } catch (applyErr) {
+      out("FAILED\n");
+      err(`    ${applyErr instanceof Error ? applyErr.message : String(applyErr)}\n`);
+      err("\nPreflight failed.\n");
       return 1;
     }
   }
 
-  process.stdout.write("\nPreflight passed: every migration in the chain applies cleanly.\n");
+  out("\nPreflight passed: every migration in the chain applies cleanly.\n");
   return 0;
 }
 

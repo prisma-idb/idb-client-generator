@@ -8,7 +8,8 @@
  * - `close()` delegates to the driver
  * - Constructor builds `RuntimeMiddlewareContext` from contract (no explicit ctx)
  * - Constructor uses the provided ctx when given
- * - `execute()` calls through the RuntimeCore chain (adapter → driver)
+ * - `query()` calls through the RuntimeCore chain (adapter → driver), rows out
+ * - `execute()` calls through the same chain but resolves `{ affectedRows }`
  *
  * Isolation strategy: all driver and adapter dependencies are mocked.
  * No real IndexedDB is involved (unlike driver-idb tests which use fake-indexeddb).
@@ -117,7 +118,7 @@ function makeMockAdapter(options: MockAdapterOptions = {}): IdbRuntimeAdapterIns
 // ── createIdbRuntime ─────────────────────────────────────────────────────────
 
 describe("createIdbRuntime", () => {
-  it("returns an IdbRuntime with execute, verifyMarker, and close", () => {
+  it("returns an IdbRuntime with query, execute, verifyMarker, and close", () => {
     const runtime = createIdbRuntime({
       adapter: makeMockAdapter(),
       driver: makeMockDriver(),
@@ -125,6 +126,7 @@ describe("createIdbRuntime", () => {
     });
 
     expect(runtime).toBeDefined();
+    expect(typeof runtime.query).toBe("function");
     expect(typeof runtime.execute).toBe("function");
     expect(typeof runtime.verifyMarker).toBe("function");
     expect(typeof runtime.close).toBe("function");
@@ -277,8 +279,8 @@ describe("lower", () => {
 
     const plan = makeQueryPlan();
 
-    // Call execute() to trigger the lower() path.
-    const iter = runtime.execute(plan);
+    // Call query() to trigger the lower() path.
+    const iter = runtime.query(plan);
     const reader = iter[Symbol.asyncIterator]();
     await reader.next();
 
@@ -310,9 +312,9 @@ describe("close", () => {
   });
 });
 
-// ── execute ───────────────────────────────────────────────────────────────────
+// ── query ────────────────────────────────────────────────────────────────────
 
-describe("execute", () => {
+describe("query", () => {
   it("calls adapter.lower() then driver.execute() and yields rows", async () => {
     const loweredPlan = { kind: "cursorScan", storeName: "User" } as unknown as IdbPlanBody;
     const lowerSpy = vi
@@ -332,7 +334,7 @@ describe("execute", () => {
     });
 
     const plan = makeQueryPlan();
-    const result = runtime.execute(plan);
+    const result = runtime.query(plan);
 
     const rows: Record<string, unknown>[] = [];
     for await (const row of result) {
@@ -359,7 +361,7 @@ describe("execute", () => {
     });
 
     const plan = makeQueryPlan();
-    const result = runtime.execute(plan, { signal: controller.signal });
+    const result = runtime.query(plan, { signal: controller.signal });
 
     // Consume the iterator
     const reader = result[Symbol.asyncIterator]();
@@ -368,7 +370,7 @@ describe("execute", () => {
     expect(lowerSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("middleware beforeExecute is called before the driver runs", async () => {
+  it("middleware beforeQuery is called before the driver runs", async () => {
     const callOrder: string[] = [];
 
     const adapter = makeMockAdapter({
@@ -386,10 +388,10 @@ describe("execute", () => {
     });
 
     const mw: IdbMiddleware = {
-      name: "before-exec-mw",
+      name: "before-query-mw",
       familyId: "idb",
-      beforeExecute: async () => {
-        callOrder.push("beforeExecute");
+      beforeQuery: async () => {
+        callOrder.push("beforeQuery");
       },
     };
 
@@ -401,15 +403,15 @@ describe("execute", () => {
     });
 
     const plan = makeQueryPlan();
-    const result = runtime.execute(plan);
+    const result = runtime.query(plan);
 
     const rows: Record<string, unknown>[] = [];
     for await (const row of result) {
       rows.push(row as Record<string, unknown>);
     }
 
-    // lower() runs first (plan lowering), then beforeExecute, then execute
-    expect(callOrder).toEqual(["lower", "beforeExecute", "execute"]);
+    // lower() runs first (plan lowering), then beforeQuery, then execute
+    expect(callOrder).toEqual(["lower", "beforeQuery", "execute"]);
     expect(rows).toHaveLength(1);
   });
 
@@ -434,7 +436,7 @@ describe("execute", () => {
     });
 
     const plan = makeQueryPlan();
-    const result = runtime.execute(plan);
+    const result = runtime.query(plan);
 
     const rows: Record<string, unknown>[] = [];
     for await (const row of result) {
@@ -446,12 +448,127 @@ describe("execute", () => {
   });
 });
 
+// ── execute (statement path) ─────────────────────────────────────────────────
+
+describe("execute", () => {
+  it("resolves { affectedRows } by draining the driver's row stream", async () => {
+    const driver = makeMockDriver({
+      execute: (_plan) => rowsIterable({ id: 1 }, { id: 2 }, { id: 3 }),
+    });
+
+    const runtime = createIdbRuntime({
+      adapter: makeMockAdapter(),
+      driver,
+      contract: TEST_CONTRACT,
+    });
+
+    const result = await runtime.execute(makeQueryPlan());
+
+    expect(result).toEqual({ affectedRows: 3 });
+  });
+
+  it("resolves { affectedRows: 0 } when the driver yields no rows", async () => {
+    const driver = makeMockDriver({
+      execute: (_plan) => rowsIterable(),
+    });
+
+    const runtime = createIdbRuntime({
+      adapter: makeMockAdapter(),
+      driver,
+      contract: TEST_CONTRACT,
+    });
+
+    const result = await runtime.execute(makeQueryPlan());
+
+    expect(result).toEqual({ affectedRows: 0 });
+  });
+
+  it("resolves { affectedRows: 1 } for a delete plan that matched a key", async () => {
+    // Mirrors driver-idb's execute/ops.ts::execDelete, which now walks a
+    // cursor over the delete plan's key/range and echoes each row it
+    // actually deletes (rather than resolving `[]` unconditionally) — so
+    // draining and counting here gives the real per-op affected count.
+    const driver = makeMockDriver({
+      execute: (_plan) => rowsIterable({ id: "user-1" }), // the deleted row, echoed
+    });
+
+    const runtime = createIdbRuntime({
+      adapter: makeMockAdapter(),
+      driver,
+      contract: TEST_CONTRACT,
+    });
+
+    const deletePlan = makeQueryPlan({
+      idbPlan: { kind: "delete", storeName: "User", key: "user-1" } as unknown as IdbPlanBody,
+    });
+    const result = await runtime.execute(deletePlan);
+
+    expect(result).toEqual({ affectedRows: 1 });
+  });
+
+  it("resolves { affectedRows: 0 } for a delete plan that matched no key", async () => {
+    const driver = makeMockDriver({
+      execute: (_plan) => rowsIterable(), // no key matched — nothing echoed
+    });
+
+    const runtime = createIdbRuntime({
+      adapter: makeMockAdapter(),
+      driver,
+      contract: TEST_CONTRACT,
+    });
+
+    const deletePlan = makeQueryPlan({
+      idbPlan: { kind: "delete", storeName: "User", key: "does-not-exist" } as unknown as IdbPlanBody,
+    });
+    const result = await runtime.execute(deletePlan);
+
+    expect(result).toEqual({ affectedRows: 0 });
+  });
+
+  it("runs the beforeExecute/afterExecute middleware chain, not beforeQuery/onRow", async () => {
+    const callOrder: string[] = [];
+
+    const driver = makeMockDriver({
+      execute: (_plan) => {
+        callOrder.push("driver");
+        return rowsIterable({ id: 1 });
+      },
+    });
+
+    const mw: IdbMiddleware = {
+      name: "before-exec-mw",
+      familyId: "idb",
+      beforeQuery: () => {
+        callOrder.push("beforeQuery"); // must NOT fire on execute()
+      },
+      beforeExecute: async () => {
+        callOrder.push("beforeExecute");
+      },
+      afterExecute: async () => {
+        callOrder.push("afterExecute");
+      },
+    };
+
+    const runtime = createIdbRuntime({
+      adapter: makeMockAdapter(),
+      driver,
+      contract: TEST_CONTRACT,
+      middleware: [mw],
+    });
+
+    const result = await runtime.execute(makeQueryPlan());
+
+    expect(callOrder).toEqual(["beforeExecute", "driver", "afterExecute"]);
+    expect(result).toEqual({ affectedRows: 1 });
+  });
+});
+
 // ── constructor middleware context ────────────────────────────────────────────
 
 describe("constructor middleware context", () => {
   it("builds RuntimeMiddlewareContext from contract when ctx is not provided", async () => {
     // We verify this indirectly: since the runtime was created without an
-    // explicit ctx, execute() works (meaning the built ctx is valid).
+    // explicit ctx, query() works (meaning the built ctx is valid).
     const runtime = createIdbRuntime({
       adapter: makeMockAdapter(),
       driver: makeMockDriver(),
@@ -459,7 +576,7 @@ describe("constructor middleware context", () => {
     });
 
     const plan = makeQueryPlan();
-    const result = runtime.execute(plan);
+    const result = runtime.query(plan);
     const rows: Record<string, unknown>[] = [];
     for await (const row of result) {
       rows.push(row as Record<string, unknown>);
@@ -488,9 +605,9 @@ describe("constructor middleware context", () => {
     // verifyMarker should still use the provided runtime contract, not ctx.contract
     await expect(runtime.verifyMarker()).resolves.toBe(false);
 
-    // execute should still work
+    // query should still work
     const plan = makeQueryPlan();
-    const result = runtime.execute(plan);
+    const result = runtime.query(plan);
     const rows: Record<string, unknown>[] = [];
     for await (const row of result) {
       rows.push(row as Record<string, unknown>);
@@ -506,13 +623,13 @@ describe("constructor middleware context", () => {
     const mw: IdbMiddleware = {
       name: "hash-capture",
       familyId: "idb",
-      beforeExecute: async (_plan, ctx) => {
+      beforeQuery: async (_plan, ctx) => {
         // Call contentHash on a known plan shape
         capturedHash = await ctx.contentHash({
           kind: "cursorScan",
           storeName: "User",
           meta: { target: "idb", storageHash: "abc123", lane: "idb" },
-        } as unknown as import("@prisma-next/framework-components/runtime").ExecutionPlan);
+        } as unknown as import("@prisma/orm-framework/components/runtime").ExecutionPlan);
       },
     };
 
@@ -524,7 +641,7 @@ describe("constructor middleware context", () => {
     });
 
     const plan = makeQueryPlan();
-    const result = runtime.execute(plan);
+    const result = runtime.query(plan);
     const rows: Record<string, unknown>[] = [];
     for await (const row of result) {
       rows.push(row as Record<string, unknown>);
@@ -541,13 +658,13 @@ describe("constructor middleware context", () => {
     const mw: IdbMiddleware = {
       name: "hash-determinism",
       familyId: "idb",
-      beforeExecute: async (_plan, ctx) => {
+      beforeQuery: async (_plan, ctx) => {
         const planShape = {
           kind: "keyGet",
           storeName: "posts",
           key: "post-1",
           meta: { target: "idb", storageHash: "def456", lane: "idb" },
-        } as unknown as import("@prisma-next/framework-components/runtime").ExecutionPlan;
+        } as unknown as import("@prisma/orm-framework/components/runtime").ExecutionPlan;
         hashes.push(await ctx.contentHash(planShape));
         hashes.push(await ctx.contentHash(planShape));
       },
@@ -560,7 +677,7 @@ describe("constructor middleware context", () => {
       middleware: [mw],
     });
 
-    const result = runtime.execute(makeQueryPlan());
+    const result = runtime.query(makeQueryPlan());
     const reader = result[Symbol.asyncIterator]();
     await reader.next();
 
@@ -574,20 +691,20 @@ describe("constructor middleware context", () => {
     const mw: IdbMiddleware = {
       name: "hash-distinct",
       familyId: "idb",
-      beforeExecute: async (_plan, ctx) => {
+      beforeQuery: async (_plan, ctx) => {
         hashes.push(
           await ctx.contentHash({
             kind: "cursorScan",
             storeName: "users",
             meta: { target: "idb", storageHash: "aaa", lane: "idb" },
-          } as import("@prisma-next/framework-components/runtime").ExecutionPlan)
+          } as import("@prisma/orm-framework/components/runtime").ExecutionPlan)
         );
         hashes.push(
           await ctx.contentHash({
             kind: "cursorScan",
             storeName: "posts",
             meta: { target: "idb", storageHash: "bbb", lane: "idb" },
-          } as import("@prisma-next/framework-components/runtime").ExecutionPlan)
+          } as import("@prisma/orm-framework/components/runtime").ExecutionPlan)
         );
       },
     };
@@ -599,7 +716,7 @@ describe("constructor middleware context", () => {
       middleware: [mw],
     });
 
-    const result = runtime.execute(makeQueryPlan());
+    const result = runtime.query(makeQueryPlan());
     const reader = result[Symbol.asyncIterator]();
     await reader.next();
 

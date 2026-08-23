@@ -21,6 +21,7 @@
     "./contract-ts": "./dist/exports/contract-ts.mjs",
     "./contract-psl": "./dist/exports/contract-psl.mjs",
     "./config-types": "./dist/exports/config-types.mjs",
+    "./cli": "./dist/exports/cli.mjs",
     "./package.json": "./package.json"
   },
   "bin": {
@@ -36,14 +37,9 @@
   },
   "dependencies": {
     "@prisma-next-idb/target-idb": "workspace:*",
-    "@prisma-next/config": "^0.16.0",
-    "@prisma-next/config-loader": "^0.16.0",
-    "@prisma-next/contract": "^0.16.0",
-    "@prisma-next/framework-components": "^0.16.0",
-    "@prisma-next/migration-tools": "^0.16.0",
-    "@prisma-next/psl-parser": "^0.16.0",
-    "@prisma-next/utils": "^0.16.0",
-    "commander": "^14.0.3",
+    "@prisma/cli-engine": "0.2.0",
+    "@prisma/orm-framework": "8.0.0-rc.5",
+    "@prisma/orm-toolchain": "8.0.0-rc.5",
     "fake-indexeddb": "^6.2.5",
     "pathe": "^2.0.3"
   },

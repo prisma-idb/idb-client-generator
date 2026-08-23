@@ -1,12 +1,12 @@
-import type { Contract } from "@prisma-next/contract/types";
+import type { Contract } from "@prisma/orm-framework/contract/types";
 import type {
   ContractSpace,
   MigrationOperationClass,
   MigrationPackage,
-} from "@prisma-next/framework-components/control";
-import { APP_SPACE_ID } from "@prisma-next/framework-components/control";
+} from "@prisma/orm-framework/components/control";
+import { APP_SPACE_ID } from "@prisma/orm-framework/components/control";
 import type { IdbExtensionSpace } from "@prisma-next-idb/family-idb/control";
-// Browser-safe (WebCrypto) hash — the framework's `@prisma-next/migration-tools/hash`
+// Browser-safe (WebCrypto) hash — the framework's `@prisma/orm-toolchain/migration-tools/hash`
 // uses `node:crypto` and throws in the browser (PLAN Issue #23 regression).
 import { computeMigrationHash } from "./migration-hash";
 // Import from `./runtime` (not `./migration`) so `MigrationCLI` → `node:fs`
@@ -231,9 +231,15 @@ export async function autoMigrate(input: {
       policy,
     });
     totalDestructiveDropped += destructiveDropped;
-    if (pendingOps.length > 0) {
-      pendingPerSpace.push({ spaceId: space.spaceId, ops: pendingOps, storageHash: targetHash });
-    }
+    // Push whenever the marker is behind `targetHash` — even if every package
+    // walked had zero ops (a hash-only "bridge" migration, e.g. re-emitting
+    // the contract under a new hashing algorithm with no structural change).
+    // Gating on `pendingOps.length > 0` here would skip the marker write
+    // below for that space, and since nothing ever changes on a later
+    // retry either, the marker gets stuck at the old hash forever — the
+    // space never converges to `targetHash`, even though there was never
+    // any actual work to do.
+    pendingPerSpace.push({ spaceId: space.spaceId, ops: pendingOps, storageHash: targetHash });
   }
 
   // Refuse if any space had destructive ops dropped under refuse policy.

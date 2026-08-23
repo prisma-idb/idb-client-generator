@@ -16,7 +16,7 @@ pnpm add @prisma-next-idb/sync-server
 
 ```ts
 import { createSyncServer } from "@prisma-next-idb/sync-server";
-import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
+import { domainModelsAtDefaultNamespace } from "@prisma/orm-framework/contract/types";
 import { postgresContract } from "./prisma/schema.postgres.generated"; // the real server contract
 import { clientContract } from "./prisma/contract"; // the browser's IDB contract
 
@@ -98,7 +98,7 @@ The old generator required a `Changelog` model + `ChangeOperation` enum hand-typ
 
 ```ts
 // prisma-next.config.postgres.ts
-import { defineConfig } from "@prisma-next/postgres/config";
+import { defineConfig } from "@prisma/orm-postgres/config";
 import { writeSqlSchemaWithSync } from "@prisma-next-idb/sync-server/schema";
 
 export default defineConfig({
@@ -128,7 +128,7 @@ Builds the ownership DAG once — throws immediately on a broken schema (a cycle
 
 ```ts
 import { createSyncServer } from "@prisma-next-idb/sync-server";
-import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
+import { domainModelsAtDefaultNamespace } from "@prisma/orm-framework/contract/types";
 
 const syncServer = createSyncServer({
   contract: postgresContract, // the real server contract — no IDB intermediary

@@ -1,10 +1,10 @@
-import { buildSymbolTable } from "@prisma-next/psl-parser";
-import { parse } from "@prisma-next/psl-parser/syntax";
-import { UNBOUND_DOMAIN_NAMESPACE_ID } from "@prisma-next/contract/types";
+import { buildSymbolTable } from "@prisma/orm-framework/psl-parser";
+import { parse } from "@prisma/orm-framework/psl-parser/syntax";
+import { UNBOUND_DOMAIN_NAMESPACE_ID } from "@prisma/orm-framework/contract/types";
 import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ContractProjection } from "../src/core/psl-interpreter";
-import { interpretPslDocumentToIdbContract, SCALAR_TO_CODEC_ID } from "../src/core/psl-interpreter";
+import { interpretPslDocumentToIdbContract } from "../src/core/psl-interpreter";
 
 let warnSpy: MockInstance<(...args: unknown[]) => void>;
 
@@ -21,7 +21,6 @@ function interpret(schema: string, projection?: ContractProjection) {
   const { table } = buildSymbolTable({
     document,
     sourceFile,
-    scalarTypes: Object.keys(SCALAR_TO_CODEC_ID),
     pslBlockDescriptors: {},
   });
   return interpretPslDocumentToIdbContract(table, "test.prisma", projection !== undefined ? { projection } : undefined);

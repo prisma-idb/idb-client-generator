@@ -15,6 +15,8 @@ allowBuilds:
   protobufjs: true
   sharp: true
   unrs-resolver: true
+  msgpackr-extract: false
+  workerd: false
 
 minimumReleaseAgeExclude:
   - undici@7.28.0
@@ -27,6 +29,11 @@ minimumReleaseAgeExclude:
   - js-yaml@4.3.1
   - dompurify@3.4.13
   - nanoid@3.3.17
+  - "@prisma/orm-family-sql@8.0.0-rc.5"
+  - "@prisma/orm-framework@8.0.0-rc.5"
+  - "@prisma/orm-postgres@8.0.0-rc.5"
+  - "@prisma/orm-target-postgres@8.0.0-rc.5"
+  - "@prisma/orm-toolchain@8.0.0-rc.5"
 
 peerDependencyRules:
   allowedVersions:

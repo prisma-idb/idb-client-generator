@@ -1,13 +1,18 @@
-import type { AsyncIterableResult } from "@prisma-next/framework-components/runtime";
+import type { AsyncIterableResult } from "@prisma/orm-framework/components/runtime";
 import type { IdbQueryPlan } from "@prisma-next-idb/adapter-idb/runtime";
 
 /**
  * Thin executor interface for the IDB ORM client.
  *
- * Any object with a compatible `execute()` method satisfies this interface,
+ * Any object with a compatible `query()` method satisfies this interface,
  * including `IdbRuntime` from `@prisma-next-idb/runtime-idb`. The separation
  * avoids a direct dependency on `runtime-idb`, keeping `client-idb` composable
  * and independently testable.
+ *
+ * Named `query` (not `execute`) to match the row-returning half of upstream's
+ * `RuntimeCore` query()/execute() split (rc.4) — `IdbRuntime.execute()` now
+ * resolves a statement-stats object, not rows, so it no longer structurally
+ * satisfies this interface.
  *
  * @example
  * ```ts
@@ -17,5 +22,5 @@ import type { IdbQueryPlan } from "@prisma-next-idb/adapter-idb/runtime";
  * ```
  */
 export interface IdbQueryExecutor {
-  execute<Row>(plan: IdbQueryPlan<Row>): AsyncIterableResult<Row>;
+  query<Row>(plan: IdbQueryPlan<Row>): AsyncIterableResult<Row>;
 }

@@ -1,6 +1,6 @@
-import { computeProfileHash, computeStorageHash } from "@prisma-next/contract/hashing";
-import type { Contract } from "@prisma-next/contract/types";
-import { UNBOUND_DOMAIN_NAMESPACE_ID } from "@prisma-next/contract/types";
+import { computeProfileHash, computeStorageHash } from "@prisma/orm-framework/contract/hashing";
+import type { Contract } from "@prisma/orm-framework/contract/types";
+import { UNBOUND_DOMAIN_NAMESPACE_ID } from "@prisma/orm-framework/contract/types";
 import type { IdbStorage } from "@prisma-next-idb/target-idb/pack";
 
 type RawStoreSpec = {
@@ -12,7 +12,7 @@ type RawStoreSpec = {
 /**
  * Build a raw 0.12.0-shape IDB contract with the given object stores and an
  * (optionally empty) model set. Replaces the removed
- * `@prisma-next/contract/testing#createContract` helper.
+ * `@prisma/orm-framework/contract/testing#createContract` helper.
  *
  * v0.12.0 (ADR 221): models live under `domain.namespaces.<ns>.models` and the
  * storage block carries a symmetric `namespaces` map; IDB uses the single
@@ -35,7 +35,7 @@ export function createRawIdbContract(
     domain: { namespaces: { [ns]: { models } } } as unknown as Contract<IdbStorage>["domain"],
     storage: { ...storageBlock, storageHash } as IdbStorage,
     capabilities,
-    extensionPacks: {},
+    extensions: {},
     meta: {},
     profileHash,
   };

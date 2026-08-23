@@ -1,5 +1,5 @@
-import type { MigrationPackage } from "@prisma-next/framework-components/control";
-import { canonicalizeJson } from "@prisma-next/framework-components/utils";
+import type { MigrationPackage } from "@prisma/orm-framework/components/control";
+import { canonicalizeJson } from "@prisma/orm-framework/components/utils";
 
 /** Hex-encode the bytes of a digest buffer. */
 function toHex(buffer: ArrayBuffer): string {
@@ -14,7 +14,7 @@ async function sha256Hex(input: string): Promise<string> {
 
 /**
  * Browser-safe re-implementation of `computeMigrationHash` from
- * `@prisma-next/migration-tools/hash`.
+ * `@prisma/orm-toolchain/migration-tools/hash`.
  *
  * The framework version hashes with Node's `node:crypto` `createHash`, which
  * does not exist in the browser — so importing it into the runtime auto-migrate
@@ -23,8 +23,9 @@ async function sha256Hex(input: string): Promise<string> {
  * **byte-identical** to the framework's: it reuses the same `canonicalizeJson`
  * and the same nested SHA-256/hex scheme — strip `migrationHash` from the
  * metadata, hash the canonicalized metadata and ops separately, then hash
- * the canonicalized pair of those two hashes, prefixed with `sha256:`. Reusing
- * the identical canonicalization + algorithm guarantees the result matches the
+ * the canonicalized pair of those two hashes, as bare lowercase hex (no
+ * `sha256:` prefix — dropped repo-wide at rc.4). Reusing the
+ * identical canonicalization + algorithm guarantees the result matches the
  * `migrationHash` the CLI recorded, so the integrity check stays meaningful.
  *
  * `crypto.subtle.digest` is async, hence the `Promise` return (the framework's
@@ -39,6 +40,5 @@ export async function computeMigrationHash(
   const stripped: Record<string, unknown> = { ...metadata };
   delete stripped["migrationHash"];
   const inner = await Promise.all([sha256Hex(canonicalizeJson(stripped)), sha256Hex(canonicalizeJson(ops))]);
-  const outer = await sha256Hex(canonicalizeJson(inner));
-  return `sha256:${outer}`;
+  return sha256Hex(canonicalizeJson(inner));
 }

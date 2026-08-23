@@ -21,7 +21,7 @@
  *   cursor-scan — full, filter, skip, take, skip+take, comparator, direction
  *   add         — create-only insert
  *   put         — overwrite
- *   delete      — existing key, non-existent key
+ *   delete      — existing key, non-existent key, key range
  *   batch       — multi-op single-tx, multi-store
  *   errors      — unknown store → IdbExecuteError.STORE_NOT_FOUND
  */
@@ -422,7 +422,7 @@ describe("delete", () => {
   });
   afterEach(() => db.close());
 
-  it("deletes an existing record and yields no rows", async () => {
+  it("deletes an existing record and echoes it", async () => {
     const plan: IdbDeletePlan = {
       meta: META,
       kind: "delete",
@@ -430,7 +430,7 @@ describe("delete", () => {
       key: "u1",
     };
     const rows = await executeIdbPlan(db, plan);
-    expect(rows).toHaveLength(0);
+    expect(rows).toEqual([ALICE]);
 
     // Verify Alice is gone.
     const getRows = await executeIdbPlan(db, {
@@ -453,7 +453,7 @@ describe("delete", () => {
     expect(rows).toHaveLength(0);
   });
 
-  it("deletes all records in a key range", async () => {
+  it("deletes all records in a key range and echoes them", async () => {
     const plan: IdbDeletePlan = {
       meta: META,
       kind: "delete",
@@ -461,7 +461,7 @@ describe("delete", () => {
       key: IDBKeyRange.bound("u1", "u2"), // deletes u1 and u2
     };
     const rows = await executeIdbPlan(db, plan);
-    expect(rows).toHaveLength(0);
+    expect(rows).toEqual([ALICE, BOB]);
 
     const allRows = await executeIdbPlan(db, { meta: META, kind: "cursor-scan", storeName: "users" });
     expect(allRows).toHaveLength(0);
@@ -568,9 +568,10 @@ describe("batch", () => {
       ],
     };
     const rows = await executeIdbPlan(db, plan);
-    // put echoes the record; delete yields nothing
-    expect(rows).toHaveLength(1);
+    // put echoes the record; delete now echoes the row it removed
+    expect(rows).toHaveLength(2);
     expect(rows[0]).toEqual(CAROL);
+    expect(rows[1]).toEqual(BOB);
 
     // Alice and Carol should remain; Bob should be gone.
     const allRows = await executeIdbPlan(db, {

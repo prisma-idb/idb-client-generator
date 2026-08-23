@@ -1,4 +1,4 @@
-import type { StorageBase } from "@prisma-next/contract/types";
+import type { StorageBase } from "@prisma/orm-framework/contract/types";
 
 /**
  * Full storage shape for an IDB contract.

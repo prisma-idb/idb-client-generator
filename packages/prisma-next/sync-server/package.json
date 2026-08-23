@@ -36,8 +36,7 @@
   },
   "dependencies": {
     "@prisma-next-idb/family-idb": "workspace:*",
-    "@prisma-next/config": "^0.16.0",
-    "@prisma-next/contract": "^0.16.0"
+    "@prisma/orm-framework": "8.0.0-rc.5"
   },
   "devDependencies": {
     "@prisma-next-idb/target-idb": "workspace:*",

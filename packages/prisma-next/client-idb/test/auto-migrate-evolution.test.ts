@@ -119,6 +119,29 @@ describe("auto-migrate across contract evolution", () => {
     await c1b.close();
   });
 
+  it("advances the marker across a zero-op bridge migration (hash-only contract re-emission)", async () => {
+    // Simulates re-emitting a contract under a new hashing algorithm with no
+    // structural change (e.g. the rc.4→rc.5 storageHash move) — the CLI's
+    // `migration plan` bridges this with a real, zero-op migration package.
+    // The marker must still advance to the new head once that package is
+    // walked, even though there's no DDL to apply.
+    const name = dbName();
+    const space1 = buildContractSpaceFixture([v1]);
+    const c1 = await createAutoMigratingIdbClient({ contractSpace: space1, dbName: name });
+    await c1.close();
+
+    const v1Rehashed: typeof v1 = {
+      ...v1,
+      storage: { ...v1.storage, storageHash: "v1-rehashed" },
+    } as unknown as typeof v1;
+    const space2 = buildContractSpaceFixture([v1, v1Rehashed]);
+    expect(space2.migrations[1]!.ops).toHaveLength(0); // confirm the bridge really is zero-op
+
+    const c2 = await createAutoMigratingIdbClient({ contractSpace: space2, dbName: name });
+    expect(await c2.verifyMarker()).toBe(true);
+    await c2.close();
+  });
+
   it("uses the factory override for both migration and runtime queries", async () => {
     const fake: { IDBFactory: new () => IDBFactory } = await import("fake-indexeddb");
     const customFactory = new fake.IDBFactory();

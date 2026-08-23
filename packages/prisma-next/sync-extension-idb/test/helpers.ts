@@ -31,7 +31,6 @@ export const POSTS_STORE: StoreSpec = {
 export const OUTBOX_STORE: StoreSpec = {
   name: "_idb_sync_outbox",
   keyPath: "id",
-  indexes: [{ name: "bySynced", keyPath: "synced" }],
 };
 export const VERSION_META_STORE: StoreSpec = { name: "_idb_sync_version_meta", keyPath: "id" };
 

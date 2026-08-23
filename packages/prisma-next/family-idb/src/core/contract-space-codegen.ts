@@ -1,5 +1,5 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
-import type { MigrationMetadata } from "@prisma-next/migration-tools/metadata";
+import type { MigrationMetadata } from "@prisma/orm-toolchain/migration-tools/metadata";
 import { dirname, join, relative } from "pathe";
 import { chainOrderByMetadata, type ChainablePackage } from "./chain-order";
 
@@ -8,13 +8,17 @@ import { chainOrderByMetadata, type ChainablePackage } from "./chain-order";
  *
  * The CLI (`prisma-next-idb migration contract-space`) resolves all three
  * paths before calling this function — from explicit flags, or otherwise
- * from `prisma-next.config.ts` (`contract.output`, `migrations.dir`) via
- * `resolveCliPaths`. Direct callers (tests) must supply them explicitly.
+ * from `prisma.config.ts` (`contract.output`, `migrations.dir`) via
+ * `requireContractPath`/`resolveMigrationsDir` (`cli/migration/paths.ts`).
+ * Direct callers (tests) must supply them explicitly.
  */
 export interface GenerateContractSpaceOptions {
   readonly migrationsDir: string;
   readonly contractPath: string;
   readonly outPath: string;
+  /** Output sinks. Default to `process.stdout`/`process.stderr`. */
+  readonly out?: (line: string) => void;
+  readonly err?: (line: string) => void;
 }
 
 interface LoadedPackage extends ChainablePackage {
@@ -41,12 +45,14 @@ interface LoadedPackage extends ChainablePackage {
  * migration package list changes). Exit code 0 on success.
  */
 export async function generateContractSpace(opts: GenerateContractSpaceOptions): Promise<number> {
+  const out = opts.out ?? ((line: string) => process.stdout.write(line));
+  const err = opts.err ?? ((line: string) => process.stderr.write(line));
   const migrationsDir = opts.migrationsDir;
   const appDir = join(migrationsDir, "app");
   const contractPath = opts.contractPath;
   const outPath = opts.outPath;
 
-  const packages = await loadPackages(appDir);
+  const packages = await loadPackages(appDir, err);
   validateChain(packages);
 
   // Warn when no packages exist — the output module will have an empty
@@ -54,7 +60,7 @@ export async function generateContractSpace(opts: GenerateContractSpaceOptions):
   // on a fresh database (walkChain throws: "no migration with from === null").
   // The user should run `prisma-next-idb migration plan` first.
   if (packages.length === 0) {
-    process.stderr.write(
+    err(
       `Warning: no migration packages found in ${relative(process.cwd(), appDir)}/.\n` +
         "The generated module will have an empty migrations list, which breaks\n" +
         "`createAutoMigratingIdbClient` on a fresh database.\n" +
@@ -73,17 +79,17 @@ export async function generateContractSpace(opts: GenerateContractSpaceOptions):
   });
   await writeFile(outPath, source, "utf-8");
 
-  process.stdout.write(`Wrote ${outPath} (${packages.length} migration${packages.length === 1 ? "" : "s"})\n`);
+  out(`Wrote ${outPath} (${packages.length} migration${packages.length === 1 ? "" : "s"})\n`);
   return 0;
 }
 
-async function loadPackages(appDir: string): Promise<LoadedPackage[]> {
+async function loadPackages(appDir: string, err: (line: string) => void): Promise<LoadedPackage[]> {
   let dirs: string[];
   try {
     dirs = (await readdir(appDir, { withFileTypes: true })).filter((d) => d.isDirectory()).map((d) => d.name);
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw err;
+  } catch (dirErr) {
+    if ((dirErr as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw dirErr;
   }
 
   // Load all packages unordered, then chain-walk to derive order. Directory
@@ -101,10 +107,8 @@ async function loadPackages(appDir: string): Promise<LoadedPackage[]> {
       // generated module JSON-imports the file at build time.
       await readFile(opsPath, "utf-8");
       unordered.set(dirName, { dirName, metadata });
-    } catch (err) {
-      process.stderr.write(
-        `Skipping ${dirName}: missing or unreadable migration.json/ops.json ` + `(${(err as Error).message})\n`
-      );
+    } catch (loadErr) {
+      err(`Skipping ${dirName}: missing or unreadable migration.json/ops.json ` + `(${(loadErr as Error).message})\n`);
     }
   }
 
@@ -141,7 +145,7 @@ function renderModule(input: RenderInput): string {
     "// Regenerate with: prisma-next-idb migration contract-space",
     "",
     `import type { Contract } from "${contractTypeSpecifier}";`,
-    'import { contractSpaceFromJson } from "@prisma-next/migration-tools/spaces";',
+    'import { contractSpaceFromJson } from "@prisma/orm-toolchain/migration-tools/spaces";',
     `import contractJson from "${contractImportPath}" with { type: "json" };`,
   ];
 

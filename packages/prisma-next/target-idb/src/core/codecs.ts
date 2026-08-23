@@ -1,5 +1,5 @@
-import { JsonValue } from "@prisma-next/contract/types";
-import type { AnyCodecDescriptor, CodecInstanceContext, CodecLookup } from "@prisma-next/framework-components/codec";
+import { JsonValue } from "@prisma/orm-framework/contract/types";
+import type { AnyCodecDescriptor, CodecInstanceContext, CodecLookup } from "@prisma/orm-framework/components/codec";
 
 /**
  * IDB codec descriptors — the registry of type→IDB mapping metadata.

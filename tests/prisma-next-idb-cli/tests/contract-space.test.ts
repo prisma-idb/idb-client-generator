@@ -3,7 +3,7 @@
  *
  * Each test scaffolds a tmpdir containing a `migrations/app/<...>` fixture
  * + a `contract.json`, spawns the built CLI binary via execa, and asserts
- * on stdout / exit code / the generated module's contents.
+ * on stderr / exit code / the generated module's contents.
  */
 
 import { existsSync } from "node:fs";
@@ -34,9 +34,9 @@ describe("prisma-next-idb migration contract-space", () => {
     const cwd = await setupTmpProject("codegen-empty");
     await writeContractJson(cwd, HASH_BASELINE);
 
-    const { stdout, exitCode } = await cli(["migration", "contract-space"], { cwd });
+    const { stderr, exitCode } = await cli(["migration", "contract-space"], { cwd });
     expect(exitCode).toBe(0);
-    expect(stdout).toContain("0 migrations");
+    expect(stderr).toContain("0 migrations");
 
     const out = await readGenerated(cwd);
     expect(out).toContain("THIS FILE IS AUTO-GENERATED");
@@ -62,9 +62,9 @@ describe("prisma-next-idb migration contract-space", () => {
       ops: [createPostsStoreOp],
     });
 
-    const { stdout, exitCode } = await cli(["migration", "contract-space"], { cwd });
+    const { stderr, exitCode } = await cli(["migration", "contract-space"], { cwd });
     expect(exitCode).toBe(0);
-    expect(stdout).toContain("2 migrations");
+    expect(stderr).toContain("2 migrations");
 
     const out = await readGenerated(cwd);
     expect(out).toContain("import mig_0001_baseline_meta");
@@ -166,7 +166,7 @@ describe("prisma-next-idb migration contract-space", () => {
     });
 
     const { stderr, exitCode } = await cli(["migration", "contract-space"], { cwd });
-    expect(exitCode).toBe(1);
+    expect(exitCode).toBe(2);
     expect(stderr).toMatch(/chain broken/i);
     expect(stderr).toContain("null"); // expected from === null (the missing baseline)
   });
@@ -198,7 +198,7 @@ describe("prisma-next-idb migration contract-space", () => {
     });
 
     const { stderr, exitCode } = await cli(["migration", "contract-space"], { cwd });
-    expect(exitCode).toBe(1);
+    expect(exitCode).toBe(2);
     expect(stderr).toMatch(/chain conflict/i);
   });
 
@@ -222,7 +222,7 @@ describe("prisma-next-idb migration contract-space", () => {
     });
 
     const { stderr, exitCode } = await cli(["migration", "contract-space"], { cwd });
-    expect(exitCode).toBe(1);
+    expect(exitCode).toBe(2);
     expect(stderr).toMatch(/orphan/i);
     expect(stderr).toContain("0002_orphan");
   });

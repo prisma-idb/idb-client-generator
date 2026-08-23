@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { ContractSourceContext } from "@prisma-next/config/config-types";
+import type { ContractSourceContext } from "@prisma/orm-framework/config/config-types";
 import type { IdbStorage } from "@prisma-next-idb/target-idb/pack";
 import { prismaIdbContract, stripIdbExcludeAttributes } from "../src/core/psl-provider";
 

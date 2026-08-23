@@ -1,4 +1,4 @@
-import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
+import { domainModelsAtDefaultNamespace } from "@prisma/orm-framework/contract/types";
 import { resolveAuthorizationPaths } from "./authorization-paths";
 import { buildOwnershipDag } from "./ownership-dag";
 import type { OwnershipDag, SyncServerContract } from "./ownership-dag";

@@ -1,4 +1,4 @@
-import type { MigrationOperationClass, MigrationPlanOperation } from "@prisma-next/framework-components/control";
+import type { MigrationOperationClass, MigrationPlanOperation } from "@prisma/orm-framework/components/control";
 import type { IdbIndexDefinition, IdbStoreDefinition } from "./idb-contract-types";
 
 // ── Marker store ─────────────────────────────────────────────────────────────

@@ -40,7 +40,7 @@ This builds the ownership DAG once, at construction — not per request — and 
 The default resolver assumes an IDB-shaped contract (`model.storage.keyPath`). A SQL contract keeps its primary key on the table definition instead, potentially as a compound array — `@prisma-next-idb/sync-server-sql` exports a ready-made resolver for that shape, `sqlGetKeyField`, which works against any SQL-family prisma-next contract (Postgres, SQLite, …), not just one engine:
 
 ```ts
-import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
+import { domainModelsAtDefaultNamespace } from "@prisma/orm-framework/contract/types";
 import type { GetKeyField } from "@prisma-next-idb/sync-server";
 
 export const sqlGetKeyField: GetKeyField = (contract, modelName) => {
@@ -120,13 +120,16 @@ This re-derives ownership from the record's _current_ relations, not from what w
 `Changelog` has to live on the server's real database — never IndexedDB, which is browser-only storage. `@prisma-next-idb/sync-server/schema` derives it from your existing `schema.prisma` instead of requiring a hand-typed model:
 
 ```ts
-// prisma-next.config.postgres.ts
-import { defineConfig } from "@prisma-next/postgres/config";
+// prisma.config.postgres.ts
+import { definePrismaConfig } from "@prisma/cli-engine";
+import { defineConfig as ormConfig } from "@prisma/orm-postgres/config";
 import { writeSqlSchemaWithSync } from "@prisma-next-idb/sync-server/schema";
 
-export default defineConfig({
-  contract: writeSqlSchemaWithSync("schema.prisma", "schema.postgres.generated.prisma"),
-  db: { connection: process.env.DATABASE_URL },
+export default definePrismaConfig({
+  orm: ormConfig({
+    contract: writeSqlSchemaWithSync("schema.prisma", "schema.postgres.generated.prisma"),
+    db: { connection: process.env.DATABASE_URL },
+  }),
 });
 ```
 
@@ -154,13 +157,13 @@ model Changelog {
 
 `prepareSqlSchemaWithSync` (pure text transform, no file I/O) and `injectChangelogModelSql` (just the `Changelog` append) are also exported individually if you need to compose this into a different schema-loading pipeline.
 
-Set up and evolve this side with the same `prisma-next` CLI you already use for the SQL family, pointed at this config with `--config`:
+Set up and evolve this side with the same `prisma` CLI you already use for the SQL family, pointed at this config with `--config`:
 
 ```bash
-npx prisma-next contract emit --config prisma-next.config.postgres.ts
-npx prisma-next db init --config prisma-next.config.postgres.ts
-npx prisma-next migration new --config prisma-next.config.postgres.ts
-npx prisma-next db update --config prisma-next.config.postgres.ts
+npx prisma contract emit --config prisma.config.postgres.ts
+npx prisma db init --config prisma.config.postgres.ts
+npx prisma migration new --config prisma.config.postgres.ts
+npx prisma db update --config prisma.config.postgres.ts
 ```
 
 Keep this migration lineage (`migrations-postgres/`, or whatever `migrations.dir` you set) separate from the IDB side's own `migrations/app/` — they're unrelated graphs (browser IndexedDB vs. the real server), and sharing one directory would make the CLI compute nonsense `from` hashes across families.
@@ -264,7 +267,7 @@ A `record: null` in a pull response — an unauthorized or deleted row — is ap
 
 ```ts
 // src/lib/server/db.ts
-import postgres from "@prisma-next/postgres/runtime";
+import postgres from "@prisma/orm-postgres/runtime";
 import type { Contract } from "./prisma/schema.postgres.generated"; // ✅ the SQL contract
 // import type { Contract } from "./prisma/contract";               // ❌ the IDB client contract
 import contractJson from "./prisma/schema.postgres.generated.json" with { type: "json" };

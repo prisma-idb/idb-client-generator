@@ -7,8 +7,9 @@
  * - Auto-detection: empty target dir → greenfield/baseline (with a stderr
  *   warning); non-empty target dir → incremental, requiring --name.
  * - Baseline-mode file layout, migration.json, ops.json, migration.ts,
- *   end-contract.json/.d.ts — same assertions the old generate-baseline
- *   suite had.
+ *   the shared contract-snapshot store (`migrations/snapshots/<hash>/`,
+ *   ADR 240) — same assertions the old generate-baseline suite had,
+ *   updated for the store layout.
  * - Incremental-mode chain linking, delta-only ops, head consistency checks
  *   — same assertions the old generate-migration suite had.
  * - spaceId (extension-space, ADR 212) behavior for both modes.
@@ -145,25 +146,26 @@ describe("migrationPlan — auto-detection", () => {
 // ── Baseline-mode file layout (mirrors the old generate-baseline suite) ──────
 
 describe("migrationPlan — baseline mode", () => {
-  it("creates all four required files in the package directory", async () => {
+  it("creates all three package files, plus a snapshot store entry keyed by the contract hash", async () => {
     await migrationPlan(defaultPaths(cwd));
 
     const pkgDir = await findOnlyPackageDir(cwd);
     expect(existsSync(join(pkgDir, "ops.json"))).toBe(true);
     expect(existsSync(join(pkgDir, "migration.json"))).toBe(true);
     expect(existsSync(join(pkgDir, "migration.ts"))).toBe(true);
-    expect(existsSync(join(pkgDir, "end-contract.json"))).toBe(true);
+    expect(existsSync(join(pkgDir, "end-contract.json"))).toBe(false);
+    expect(existsSync(snapshotDir(cwd, MINIMAL_CONTRACT.storage.storageHash))).toBe(true);
   });
 
-  it("copies contract.d.ts to end-contract.d.ts when it exists alongside contract.json", async () => {
+  it("copies contract.d.ts into the snapshot store when it exists alongside contract.json", async () => {
     const contractDtsPath = join(cwd, "src", "lib", "prisma", "contract.d.ts");
     await writeFile(contractDtsPath, "// generated contract types\nexport type StorageHash = string;\n", "utf-8");
 
     await migrationPlan(defaultPaths(cwd));
 
-    const pkgDir = await findOnlyPackageDir(cwd);
-    expect(existsSync(join(pkgDir, "end-contract.d.ts"))).toBe(true);
-    const content = await readFile(join(pkgDir, "end-contract.d.ts"), "utf-8");
+    const entryDtsPath = join(snapshotDir(cwd, MINIMAL_CONTRACT.storage.storageHash), "contract.d.ts");
+    expect(existsSync(entryDtsPath)).toBe(true);
+    const content = await readFile(entryDtsPath, "utf-8");
     expect(content).toContain("generated contract types");
   });
 
@@ -172,9 +174,9 @@ describe("migrationPlan — baseline mode", () => {
     expect(code).toBe(0);
     expect(capturedStderr).toContain("contract.d.ts not found");
 
-    const pkgDir = await findOnlyPackageDir(cwd);
-    expect(existsSync(join(pkgDir, "end-contract.d.ts"))).toBe(false);
-    expect(existsSync(join(pkgDir, "end-contract.json"))).toBe(true);
+    const entryDir = snapshotDir(cwd, MINIMAL_CONTRACT.storage.storageHash);
+    expect(existsSync(join(entryDir, "contract.d.ts"))).toBe(false);
+    expect(existsSync(join(entryDir, "contract.json"))).toBe(true);
   });
 
   it("uses a custom name slug when provided", async () => {
@@ -221,11 +223,13 @@ describe("migrationPlan — baseline mode", () => {
     expect(ts).toContain('createObjectStoreOp("users"');
   });
 
-  it("end-contract.json is identical to the source contract.json bytes", async () => {
+  it("the snapshot store's contract.json is identical to the source contract.json bytes", async () => {
     await migrationPlan(defaultPaths(cwd));
-    const pkgDir = await findOnlyPackageDir(cwd);
-    const endContract = await readFile(join(pkgDir, "end-contract.json"), "utf-8");
-    expect(endContract).toBe(MINIMAL_CONTRACT_JSON);
+    const stored = await readFile(
+      join(snapshotDir(cwd, MINIMAL_CONTRACT.storage.storageHash), "contract.json"),
+      "utf-8"
+    );
+    expect(stored).toBe(MINIMAL_CONTRACT_JSON);
   });
 
   it("returns 1 when contract.json is missing", async () => {
@@ -291,6 +295,17 @@ describe("migrationPlan — incremental mode", () => {
     expect(await listMigrationDirs(cwd)).toHaveLength(1);
   });
 
+  it("returns 1 when the head's snapshot store entry is missing", async () => {
+    expect(await migrationPlan(defaultPaths(cwd))).toBe(0);
+    await rm(snapshotDir(cwd, CONTRACT_V1.storage.storageHash), { recursive: true, force: true });
+
+    await writeContract(cwd, CONTRACT_V2);
+    const code = await migrationPlan({ ...defaultPaths(cwd), name: "add_version_meta" });
+    expect(code).toBe(1);
+    expect(capturedStderr).toContain("inconsistent");
+    expect(capturedStderr).toContain("no store entry exists");
+  });
+
   it("returns 1 when the head package is internally inconsistent", async () => {
     expect(await migrationPlan(defaultPaths(cwd))).toBe(0);
     const dirs = await listMigrationDirs(cwd);
@@ -337,7 +352,7 @@ describe("migrationPlan — spaceId (extension-space mode)", () => {
     expect(code).toBe(0);
 
     const entries = await readdir(join(cwd, "migrations"), { withFileTypes: true });
-    const dirs = entries.filter((e) => e.isDirectory() && e.name !== "refs");
+    const dirs = entries.filter((e) => e.isDirectory() && e.name !== "refs" && e.name !== "snapshots");
     expect(dirs).toHaveLength(1);
     expect(existsSync(join(cwd, "migrations", "app"))).toBe(false);
   });
@@ -383,8 +398,28 @@ describe("migrationPlan — spaceId (extension-space mode)", () => {
     expect(appEntries.filter((e) => e.isDirectory())).toHaveLength(1);
 
     const rootEntries = await readdir(join(cwd, "migrations"), { withFileTypes: true });
-    const extDirs = rootEntries.filter((e) => e.isDirectory() && e.name !== "app" && e.name !== "refs");
+    const extDirs = rootEntries.filter(
+      (e) => e.isDirectory() && e.name !== "app" && e.name !== "refs" && e.name !== "snapshots"
+    );
     expect(extDirs).toHaveLength(1);
+  });
+
+  it('rejects spaceId "snapshots" — reserved for the contract-snapshot store', async () => {
+    const code = await migrationPlan({ ...defaultPaths(cwd), spaceId: "snapshots" });
+    expect(code).toBe(1);
+    expect(capturedStderr).toContain("reserved");
+  });
+
+  it("a second incremental plan for an extension space doesn't mistake the store for a migration package", async () => {
+    await writeContract(cwd, CONTRACT_V1);
+    expect(await migrationPlan({ ...defaultPaths(cwd), spaceId: "idb-sync" })).toBe(0);
+    await writeContract(cwd, CONTRACT_V2);
+    const code = await migrationPlan({ ...defaultPaths(cwd), name: "add_version_meta", spaceId: "idb-sync" });
+    expect(code).toBe(0);
+
+    const rootEntries = await readdir(join(cwd, "migrations"), { withFileTypes: true });
+    const extDirs = rootEntries.filter((e) => e.isDirectory() && e.name !== "refs" && e.name !== "snapshots");
+    expect(extDirs).toHaveLength(2);
   });
 });
 
@@ -441,6 +476,10 @@ async function findOnlyPackageDir(base: string): Promise<string> {
   return join(base, "migrations", "app", dirs[0]!);
 }
 
+function snapshotDir(base: string, hash: string): string {
+  return join(base, "migrations", "snapshots", hash);
+}
+
 async function readMeta(base: string, dirName: string): Promise<ParsedMetadata> {
   return JSON.parse(
     await readFile(join(base, "migrations", "app", dirName, "migration.json"), "utf-8")
@@ -459,7 +498,7 @@ async function readMigrationTs(base: string, dirName: string): Promise<string> {
 async function readExtensionOps(base: string): Promise<ParsedOp[]> {
   const migrationsDir = join(base, "migrations");
   const entries = await readdir(migrationsDir, { withFileTypes: true });
-  const dirs = entries.filter((e) => e.isDirectory() && e.name !== "refs");
+  const dirs = entries.filter((e) => e.isDirectory() && e.name !== "refs" && e.name !== "snapshots");
   if (dirs.length !== 1) throw new Error(`Expected exactly 1 package dir, got ${dirs.length}`);
   return JSON.parse(await readFile(join(migrationsDir, dirs[0]!.name, "ops.json"), "utf-8")) as ParsedOp[];
 }

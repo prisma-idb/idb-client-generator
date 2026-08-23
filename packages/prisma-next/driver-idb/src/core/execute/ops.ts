@@ -247,9 +247,32 @@ function execUpdate(store: IDBObjectStore, plan: IdbUpdatePlan, onComplete: OnCo
 }
 
 function execDelete(store: IDBObjectStore, plan: IdbDeletePlan, onComplete: OnComplete, onError: OnError): void {
-  const req = store.delete(plan.key);
-  // delete yields no rows.
-  req.onsuccess = () => onComplete([]);
+  // `plan.key` may be a single key or an `IDBKeyRange` spanning several
+  // records (deleteMany). Walk a cursor over it so every matched record is
+  // captured (and its key individually deleted) before moving on — this
+  // both echoes the deleted row(s), mirroring add/put/update, and gives an
+  // accurate affected-row count for both the single-key and range cases via
+  // the same drain-and-count `runExecute()` already uses for every other op.
+  const req = store.openCursor(plan.key);
+  const collected: Row[] = [];
+
+  req.onsuccess = () => {
+    const cursor = req.result as IDBCursorWithValue | null;
+    if (cursor === null) {
+      onComplete(collected);
+      return;
+    }
+    collected.push(cursor.value as Row);
+    const delReq = cursor.delete();
+    delReq.onsuccess = () => cursor.continue();
+    delReq.onerror = () =>
+      onError(
+        new IdbExecuteError(
+          { code: "DELETE_FAILED", planKind: "delete", storeName: plan.storeName, cause: delReq.error },
+          `IDB delete failed on store "${plan.storeName}": ${String(delReq.error)}`
+        )
+      );
+  };
   req.onerror = () =>
     onError(
       new IdbExecuteError(

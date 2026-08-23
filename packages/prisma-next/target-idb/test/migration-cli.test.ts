@@ -21,8 +21,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IdbMigration } from "../src/core/idb-migration";
 import { createObjectStoreOp, type IdbDdlOp } from "../src/core/migration-factories";
 
-vi.mock("@prisma-next/migration-tools/migration", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@prisma-next/migration-tools/migration")>();
+vi.mock("@prisma/orm-toolchain/migration-tools/migration", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@prisma/orm-toolchain/migration-tools/migration")>();
   return {
     ...actual,
     isDirectEntrypoint: vi.fn(() => true),
@@ -32,7 +32,7 @@ vi.mock("@prisma-next/migration-tools/migration", async (importOriginal) => {
 // Import after the mock is registered so MigrationCLI sees the mocked
 // `isDirectEntrypoint`.
 const { MigrationCLI } = await import("../src/core/migration-cli");
-const { isDirectEntrypoint } = await import("@prisma-next/migration-tools/migration");
+const { isDirectEntrypoint } = await import("@prisma/orm-toolchain/migration-tools/migration");
 
 class BaselineMigration extends IdbMigration {
   override describe() {
@@ -106,7 +106,7 @@ describe("MigrationCLI", () => {
     };
     expect(meta.from).toBeNull();
     expect(meta.to).toBe("sha256:test-to-hash");
-    expect(meta.migrationHash).toMatch(/^sha256:/);
+    expect(meta.migrationHash).toMatch(/^[0-9a-f]{64}$/);
 
     expect(stdoutChunks.join("")).toContain("Wrote ops.json + migration.json to");
   });

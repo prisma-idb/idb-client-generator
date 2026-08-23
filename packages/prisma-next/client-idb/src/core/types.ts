@@ -1,5 +1,5 @@
-import type { Contract, ContractModelBase, ContractReferenceRelation } from "@prisma-next/contract/types";
-import { domainModelsAtDefaultNamespace } from "@prisma-next/contract/types";
+import type { Contract, ContractModelBase, ContractReferenceRelation } from "@prisma/orm-framework/contract/types";
+import { domainModelsAtDefaultNamespace } from "@prisma/orm-framework/contract/types";
 import type {
   ExtractIdbFieldInputTypes,
   ExtractIdbFieldOutputTypes,

@@ -4,8 +4,8 @@ import type {
   MigrationRunnerFailure,
   MigrationRunnerPerSpaceOptions,
   MigrationRunnerResult,
-} from "@prisma-next/framework-components/control";
-import { APP_SPACE_ID } from "@prisma-next/framework-components/control";
+} from "@prisma/orm-framework/components/control";
+import { APP_SPACE_ID } from "@prisma/orm-framework/components/control";
 
 // ── Inline Result helper ──────────────────────────────────────────────────────
 // `@prisma-next/utils` is not a direct dependency, so satisfy `NotOk<F>`
@@ -32,8 +32,9 @@ function makeNotOk(failure: MigrationRunnerFailure): MigrationRunnerResult {
  * `execute()` returns a structured refusal — IndexedDB only exists in the
  * browser, so the framework's CLI control plane (`db init`, `db update`,
  * `migration apply`) has no live database to talk to. The refusal points users
- * at `prisma-next-idb preflight` for chain validation. The browser apply path
- * goes through `openAndUpgrade()` directly via `auto-migrate.ts` in client-idb.
+ * at `prisma-next-idb migration preflight` for chain validation. The browser
+ * apply path goes through `openAndUpgrade()` directly via `auto-migrate.ts` in
+ * client-idb.
  *
  * v0.12.0 merged the former single-space `execute({plan, …})` and
  * `executeAcrossSpaces({perSpaceOptions})` into one multi-space
@@ -44,10 +45,10 @@ export class IdbMigrationRunner implements MigrationRunner<"idb", "idb"> {
   /**
    * Apply one or more per-space migration plans. IDB cannot be applied from
    * the CLI — `IndexedDB` is a browser API — so this always returns a
-   * structured refusal. Authoring stays in `prisma-next migration new` /
-   * `prisma-next migration plan`; validation lives in `prisma-next-idb
-   * preflight`; apply happens in the browser the next time the user opens the
-   * app via `createAutoMigratingIdbClient`.
+   * structured refusal. Authoring stays in `prisma-next-idb migration plan`;
+   * validation lives in `prisma-next-idb migration preflight`; apply happens
+   * in the browser the next time the user opens the app via
+   * `createAutoMigratingIdbClient`.
    */
   async execute(options: {
     readonly driver: ControlDriverInstance<"idb", "idb">;
@@ -64,7 +65,7 @@ export class IdbMigrationRunner implements MigrationRunner<"idb", "idb"> {
         "with createAutoMigratingIdbClient.",
       meta: {
         fix:
-          "Run `prisma-next-idb preflight` to validate the migration chain " +
+          "Run `prisma-next-idb migration preflight` to validate the migration chain " +
           "applies cleanly against a fake-indexeddb shadow before shipping.",
       },
       failingSpace,

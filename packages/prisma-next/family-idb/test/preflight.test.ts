@@ -1,5 +1,5 @@
 /**
- * Tests for `prisma-next-idb preflight`.
+ * Tests for `prisma-next-idb migration preflight`.
  *
  * Each test sets up a fixture migrations directory in a tmpdir, runs
  * {@link runPreflight}, and asserts the exit code + side effects.
@@ -8,7 +8,7 @@
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { computeMigrationHash } from "@prisma-next/migration-tools/hash";
+import { computeMigrationHash } from "@prisma/orm-toolchain/migration-tools/hash";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runPreflight } from "../src/core/preflight";
 

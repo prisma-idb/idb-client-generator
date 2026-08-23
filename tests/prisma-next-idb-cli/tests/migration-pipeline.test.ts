@@ -144,11 +144,11 @@ describe("migration pipeline e2e", () => {
     const cwd = await setupTmpProject("e2e-baseline-only");
     await writeRawContractJson(cwd, CONTRACT_V1_NO_POSTS);
 
-    const { stdout, exitCode } = await cli(["migration", "plan"], { cwd });
+    const { stderr, exitCode } = await cli(["migration", "plan"], { cwd });
     expect(exitCode).toBe(0);
-    expect(stdout).toContain("Generated baseline migration");
-    expect(stdout).toContain("from: null");
-    expect(stdout).toContain(V1_STORAGE_HASH);
+    expect(stderr).toContain("Generated baseline migration");
+    expect(stderr).toContain("from: null");
+    expect(stderr).toContain(V1_STORAGE_HASH);
 
     const dirs = await getMigrationDirs(cwd);
     expect(dirs).toHaveLength(1);
@@ -161,7 +161,8 @@ describe("migration pipeline e2e", () => {
     };
     expect(meta.from).toBeNull();
     expect(meta.to).toBe(V1_STORAGE_HASH);
-    expect(meta.migrationHash).toMatch(/^sha256:/);
+    // Bare hex, no `sha256:` prefix (rc.4+ hash convention).
+    expect(meta.migrationHash).toMatch(/^[0-9a-f]{64,}$/);
 
     const ops = JSON.parse(await readFile(join(cwd, "migrations", "app", dirs[0], "ops.json"), "utf-8")) as Array<{
       kind: string;
@@ -192,7 +193,7 @@ describe("migration pipeline e2e", () => {
 
     const r2 = await cli(["migration", "contract-space"], { cwd });
     expect(r2.exitCode).toBe(0);
-    expect(r2.stdout).toContain("1 migration");
+    expect(r2.stderr).toContain("1 migration");
 
     const generated1 = await readFile(join(cwd, "src", "lib", "prisma", "contract-space.generated.ts"), "utf-8");
     expect(generated1).toContain(dirs1[0]);
@@ -200,9 +201,9 @@ describe("migration pipeline e2e", () => {
 
     const r3 = await cli(["migration", "preflight"], { cwd });
     expect(r3.exitCode).toBe(0);
-    expect(r3.stdout).toContain("Preflighting 1 migration(s)");
-    expect(r3.stdout).toContain(dirs1[0] + " … ok");
-    expect(r3.stdout).toContain("Preflight passed");
+    expect(r3.stderr).toContain("Preflighting 1 migration(s)");
+    expect(r3.stderr).toContain(dirs1[0] + " … ok");
+    expect(r3.stderr).toContain("Preflight passed");
 
     // ── Phase 2: add the posts model ─────────────────────────────────────────
     // Simulates what `prisma-next migration plan` would produce after the
@@ -222,7 +223,7 @@ describe("migration pipeline e2e", () => {
 
     const r4 = await cli(["migration", "contract-space"], { cwd });
     expect(r4.exitCode).toBe(0);
-    expect(r4.stdout).toContain("2 migration");
+    expect(r4.stderr).toContain("2 migration");
 
     const generated2 = await readFile(join(cwd, "src", "lib", "prisma", "contract-space.generated.ts"), "utf-8");
     expect(generated2).toContain(dirs1[0]);
@@ -234,10 +235,10 @@ describe("migration pipeline e2e", () => {
 
     const r5 = await cli(["migration", "preflight"], { cwd });
     expect(r5.exitCode).toBe(0);
-    expect(r5.stdout).toContain("Preflighting 2 migration(s)");
-    expect(r5.stdout).toContain(dirs1[0] + " … ok");
-    expect(r5.stdout).toContain("20260604T1029_add_posts … ok");
-    expect(r5.stdout).toContain("Preflight passed");
+    expect(r5.stderr).toContain("Preflighting 2 migration(s)");
+    expect(r5.stderr).toContain(dirs1[0] + " … ok");
+    expect(r5.stderr).toContain("20260604T1029_add_posts … ok");
+    expect(r5.stderr).toContain("Preflight passed");
   });
 
   it("migration plan auto-detects incremental (not a re-baseline) when migrations/app/ already has packages", async () => {

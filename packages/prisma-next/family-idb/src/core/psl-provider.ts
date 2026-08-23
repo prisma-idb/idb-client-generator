@@ -1,13 +1,13 @@
 import { readFile } from "node:fs/promises";
-import type { ContractConfig, ContractSourceDiagnostic } from "@prisma-next/config/config-types";
-import { buildSymbolTable, rangeToPslSpan } from "@prisma-next/psl-parser";
-import { withSeedDiagnostics } from "@prisma-next/psl-parser/interpret";
-import type { ParseDiagnostic, SourceFile } from "@prisma-next/psl-parser/syntax";
-import { parse } from "@prisma-next/psl-parser/syntax";
-import { notOk } from "@prisma-next/utils/result";
+import type { ContractConfig, ContractSourceDiagnostic } from "@prisma/orm-framework/config/config-types";
+import { buildSymbolTable, rangeToPslSpan } from "@prisma/orm-framework/psl-parser";
+import { withSeedDiagnostics } from "@prisma/orm-framework/psl-parser/interpret";
+import type { ParseDiagnostic, SourceFile } from "@prisma/orm-framework/psl-parser/syntax";
+import { parse } from "@prisma/orm-framework/psl-parser/syntax";
+import { notOk } from "@prisma/orm-framework/utils/result";
 import { extname, basename } from "pathe";
 import type { ContractProjection } from "./psl-interpreter";
-import { interpretPslDocumentToIdbContract, SCALAR_TO_CODEC_ID } from "./psl-interpreter";
+import { interpretPslDocumentToIdbContract } from "./psl-interpreter";
 
 /**
  * Removes `@idb.exclude`/`@@idb.exclude` from raw PSL text — the `idb`
@@ -127,7 +127,6 @@ export function prismaIdbContract(schemaPath: string, options?: PrismaIdbContrac
         const { table, diagnostics: symbolDiagnostics } = buildSymbolTable({
           document,
           sourceFile,
-          scalarTypes: Object.keys(SCALAR_TO_CODEC_ID),
           pslBlockDescriptors: {},
         });
 

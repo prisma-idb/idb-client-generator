@@ -13,7 +13,7 @@ import { stripIdbExcludeAttributes } from "@prisma-next-idb/family-idb/contract-
  * key today (no compound keys), so there's nothing to store as JSON, and
  * — confirmed directly against a real Postgres run — this target's
  * `pg/jsonb@1` codec doesn't decode correctly in the currently-published
- * `@prisma-next/postgres` version (every other codec, including the enum,
+ * `@prisma/orm-postgres` version (every other codec, including the enum,
  * decodes fine). `String` sidesteps a real gap rather than working around
  * it blindly. If a future consumer needs a genuinely compound/JSON-shaped
  * key, this is the function to fork, not patch — it'd change
@@ -21,13 +21,13 @@ import { stripIdbExcludeAttributes } from "@prisma-next-idb/family-idb/contract-
  * fragment.
  *
  * The enum deliberately has no `@@type(...)` codec pragma — confirmed
- * empirically (a throwaway `contract emit` against `@prisma-next/postgres`)
+ * empirically (a throwaway `contract emit` against `@prisma/orm-postgres`)
  * that omitting it still resolves to `pg/text@1`, because
- * `@prisma-next/postgres/config`'s `defineConfig` already sets
+ * `@prisma/orm-postgres/config`'s `defineConfig` already sets
  * `enumInferenceCodecs: { text: PG_TEXT_CODEC_ID, ... }` — the *target*
  * supplies that default, not the schema text. Hardcoding `@@type("pg/text@1")`
  * here would have been redundant against Postgres and actively wrong
- * against a different SQL target (e.g. `@prisma-next/target-sqlite`, whose
+ * against a different SQL target (e.g. a future SQLite one, whose
  * own inference default isn't a `pg/*` codec) — this function is named
  * `*Sql`, not `*Postgres`, so it shouldn't assume one. This doesn't make it
  * Mongo-portable, to be clear — Mongo's contract-psl is a different PSL

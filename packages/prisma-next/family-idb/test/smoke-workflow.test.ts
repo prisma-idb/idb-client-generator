@@ -17,10 +17,10 @@ import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { Contract } from "@prisma-next/contract/types";
-import { buildSymbolTable } from "@prisma-next/psl-parser";
-import { parse } from "@prisma-next/psl-parser/syntax";
-import { interpretPslDocumentToIdbContract, SCALAR_TO_CODEC_ID } from "../src/core/psl-interpreter";
+import type { Contract } from "@prisma/orm-framework/contract/types";
+import { buildSymbolTable } from "@prisma/orm-framework/psl-parser";
+import { parse } from "@prisma/orm-framework/psl-parser/syntax";
+import { interpretPslDocumentToIdbContract } from "../src/core/psl-interpreter";
 import { idbEmission } from "../src/core/emission";
 import { migrationPlan } from "../src/core/migration-plan";
 import { generateContractSpace } from "../src/core/contract-space-codegen";
@@ -77,7 +77,6 @@ function emitContract(schema: string, sourceId = "schema.prisma"): ContractArtif
   const { table } = buildSymbolTable({
     document,
     sourceFile,
-    scalarTypes: Object.keys(SCALAR_TO_CODEC_ID),
     pslBlockDescriptors: {},
   });
   const result = interpretPslDocumentToIdbContract(table, sourceId);
@@ -90,7 +89,7 @@ function emitContract(schema: string, sourceId = "schema.prisma"): ContractArtif
   const storageHash = contract.storage.storageHash;
 
   // Build a realistic contract.d.ts using the idbEmission SPI so the
-  // end-contract.d.ts assertions can verify per-store type content.
+  // snapshot-store contract.d.ts assertions can verify per-store type content.
   const storageType = idbEmission.generateStorageType(contract, "StorageHash");
   const familyImports = idbEmission.getFamilyImports().join("\n");
   const typeMapsExpr = idbEmission.getTypeMapsExpression();
@@ -173,6 +172,7 @@ const migrationsDir = (base: string) => join(base, "migrations");
 const appDir = (base: string) => join(migrationsDir(base), "app");
 const pkgPath = (base: string, dir: string) => join(appDir(base), dir);
 const defaultPaths = (base: string) => ({ migrationsDir: migrationsDir(base), contractPath: contractJsonPath(base) });
+const snapshotPath = (base: string, hash: string, file: string) => join(migrationsDir(base), "snapshots", hash, file);
 
 async function listMigrationDirs(base: string): Promise<string[]> {
   const entries = await readdir(appDir(base), { withFileTypes: true });
@@ -204,7 +204,7 @@ describe("end-to-end workflow smoke test", () => {
     await writeFile(contractJsonPath(cwd), v1.contractJson, "utf-8");
     await writeFile(contractDtsPath(cwd), v1.contractDts, "utf-8");
 
-    expect(v1.storageHash).toMatch(/^sha256:/);
+    expect(v1.storageHash).toMatch(/^[0-9a-f]{64}$/);
     // V1 contract has the user store and no todo store
     expect(v1.contractDts).toContain("IdbContractWithTypeMaps");
     expect(v1.contractDts).toContain("export type Contract");
@@ -266,18 +266,21 @@ describe("end-to-end workflow smoke test", () => {
     expect(baselineTs).toContain('"@prisma-next-idb/target-idb/migration"');
     expect(baselineTs).toContain('createObjectStoreOp("user"');
 
-    // end-contract.json: identical copy of the V1 contract.json
-    const endContractJson = await readText(cwd, baselineDir, "end-contract.json");
-    expect(endContractJson).toBe(v1.contractJson);
+    // Package dir no longer carries its own contract copy (ADR 240)
+    expect(existsSync(join(pkgPath(cwd, baselineDir), "end-contract.json"))).toBe(false);
 
-    // end-contract.d.ts: copied from contract.d.ts (has Contract/Stores/IdbContractWithTypeMaps)
-    expect(existsSync(join(pkgPath(cwd, baselineDir), "end-contract.d.ts"))).toBe(true);
-    const baselineEndDts = await readText(cwd, baselineDir, "end-contract.d.ts");
-    expect(baselineEndDts).toContain("IdbContractWithTypeMaps");
-    expect(baselineEndDts).toContain("export type Contract");
-    expect(baselineEndDts).toContain("export type Stores");
-    expect(baselineEndDts).toContain("readonly user:"); // V1: user store present
-    expect(baselineEndDts).not.toContain("readonly todo:"); // V1: no todo store yet
+    // snapshots/<hash>/contract.json: identical copy of the V1 contract.json
+    const snapshotJson = await readFile(snapshotPath(cwd, v1.storageHash, "contract.json"), "utf-8");
+    expect(snapshotJson).toBe(v1.contractJson);
+
+    // snapshots/<hash>/contract.d.ts: copied from contract.d.ts (has Contract/Stores/IdbContractWithTypeMaps)
+    expect(existsSync(snapshotPath(cwd, v1.storageHash, "contract.d.ts"))).toBe(true);
+    const baselineSnapshotDts = await readFile(snapshotPath(cwd, v1.storageHash, "contract.d.ts"), "utf-8");
+    expect(baselineSnapshotDts).toContain("IdbContractWithTypeMaps");
+    expect(baselineSnapshotDts).toContain("export type Contract");
+    expect(baselineSnapshotDts).toContain("export type Stores");
+    expect(baselineSnapshotDts).toContain("readonly user:"); // V1: user store present
+    expect(baselineSnapshotDts).not.toContain("readonly todo:"); // V1: no todo store yet
 
     // ── Step 3: generate-contract-space (V1) ────────────────────────────────
 
@@ -297,7 +300,7 @@ describe("end-to-end workflow smoke test", () => {
     await writeFile(contractJsonPath(cwd), v2.contractJson, "utf-8");
     await writeFile(contractDtsPath(cwd), v2.contractDts, "utf-8");
 
-    expect(v2.storageHash).toMatch(/^sha256:/);
+    expect(v2.storageHash).toMatch(/^[0-9a-f]{64}$/);
     expect(v2.storageHash).not.toBe(v1.storageHash); // schema changed → different hash
     // V2 contract has both user and todo stores
     expect(v2.contractDts).toContain("readonly user:");
@@ -352,25 +355,32 @@ describe("end-to-end workflow smoke test", () => {
     expect(migrationTs).toContain('createObjectStoreOp("todo"');
     expect(migrationTs).not.toContain("from: null");
 
-    // end-contract.json: is the V2 contract
-    const migEndContractJson = await readText(cwd, migrationDir, "end-contract.json");
-    expect(migEndContractJson).toBe(v2.contractJson);
-    // Parse and verify the todo store is in the V2 end-contract
-    const migEndContract = JSON.parse(migEndContractJson) as {
+    // Package dir no longer carries its own contract copy (ADR 240)
+    expect(existsSync(join(pkgPath(cwd, migrationDir), "end-contract.json"))).toBe(false);
+
+    // snapshots/<hash>/contract.json: is the V2 contract
+    const migSnapshotJson = await readFile(snapshotPath(cwd, v2.storageHash, "contract.json"), "utf-8");
+    expect(migSnapshotJson).toBe(v2.contractJson);
+    // Parse and verify the todo store is in the V2 snapshot
+    const migSnapshotContract = JSON.parse(migSnapshotJson) as {
       storage: { stores: Record<string, unknown>; storageHash: string };
     };
-    expect(migEndContract.storage.storageHash).toBe(v2.storageHash);
-    expect(migEndContract.storage.stores).toHaveProperty("user");
-    expect(migEndContract.storage.stores).toHaveProperty("todo");
+    expect(migSnapshotContract.storage.storageHash).toBe(v2.storageHash);
+    expect(migSnapshotContract.storage.stores).toHaveProperty("user");
+    expect(migSnapshotContract.storage.stores).toHaveProperty("todo");
 
-    // end-contract.d.ts: V2 types — both stores present
-    expect(existsSync(join(pkgPath(cwd, migrationDir), "end-contract.d.ts"))).toBe(true);
-    const migEndDts = await readText(cwd, migrationDir, "end-contract.d.ts");
-    expect(migEndDts).toContain("IdbContractWithTypeMaps");
-    expect(migEndDts).toContain("export type Contract");
-    expect(migEndDts).toContain("export type Stores");
-    expect(migEndDts).toContain("readonly user:");
-    expect(migEndDts).toContain("readonly todo:"); // V2: todo store is now present
+    // The V1 snapshot from the baseline step is still present — the store
+    // is additive, never overwritten by a later plan.
+    expect(existsSync(snapshotPath(cwd, v1.storageHash, "contract.json"))).toBe(true);
+
+    // snapshots/<hash>/contract.d.ts: V2 types — both stores present
+    expect(existsSync(snapshotPath(cwd, v2.storageHash, "contract.d.ts"))).toBe(true);
+    const migSnapshotDts = await readFile(snapshotPath(cwd, v2.storageHash, "contract.d.ts"), "utf-8");
+    expect(migSnapshotDts).toContain("IdbContractWithTypeMaps");
+    expect(migSnapshotDts).toContain("export type Contract");
+    expect(migSnapshotDts).toContain("export type Stores");
+    expect(migSnapshotDts).toContain("readonly user:");
+    expect(migSnapshotDts).toContain("readonly todo:"); // V2: todo store is now present
 
     // ── Step 6: generate-contract-space (V2) ────────────────────────────────
 

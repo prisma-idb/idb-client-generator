@@ -29,7 +29,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@prisma-next/framework-components": "^0.16.0"
+    "@prisma/orm-framework": "8.0.0-rc.5"
   },
   "devDependencies": {
     "fake-indexeddb": "^6.2.5",

@@ -8,7 +8,7 @@
  *   a valid `ops.json` + `migration.json` pair
  */
 
-import { buildMigrationArtifacts } from "@prisma-next/migration-tools/migration";
+import { buildMigrationArtifacts } from "@prisma/orm-toolchain/migration-tools/migration";
 import { describe, expect, it } from "vitest";
 import { IdbMigration } from "../src/core/idb-migration";
 import { createIndexOp, createObjectStoreOp, type IdbDdlOp } from "../src/core/migration-factories";
@@ -72,7 +72,7 @@ describe("IdbMigration", () => {
     };
     expect(metaParsed.from).toBeNull();
     expect(metaParsed.to).toBe("sha256:test-to-hash");
-    expect(metaParsed.migrationHash).toMatch(/^sha256:/);
+    expect(metaParsed.migrationHash).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it("origin reflects describe().from when non-null", () => {

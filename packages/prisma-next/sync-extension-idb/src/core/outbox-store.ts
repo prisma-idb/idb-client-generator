@@ -22,13 +22,12 @@ const VERSION_META = "_idb_sync_version_meta";
  * Fetch the next batch of unsynced, retryable outbox events sorted by
  * `createdAt` ascending (oldest-first → FIFO ordering for push).
  *
- * Filters `synced`/`retryable` in-memory over a full store scan rather than
- * querying the `bySynced` index via `IDBKeyRange.only(false)` — `boolean` is
- * not a valid IndexedDB key type (still an open spec proposal:
- * https://github.com/w3c/IndexedDB/issues/76), so that range construction
- * throws a `DataError` in every real IndexedDB implementation. The
- * `bySynced` index itself is left in the contract (removing it is a schema
- * change requiring a migration) but is not queried by range here.
+ * Filters `synced`/`retryable` in-memory over a full store scan — `boolean`
+ * is not a valid IndexedDB key type (still an open spec proposal:
+ * https://github.com/w3c/IndexedDB/issues/76), so a `bySynced` index would
+ * throw a `DataError` on any range query against it (`IDBKeyRange.only(false)`)
+ * and silently omit records on write. The contract no longer declares that
+ * index.
  */
 export async function getNextBatch<TContract extends IdbContract>(
   client: IdbClient<TContract>,

@@ -1,4 +1,4 @@
-import type { Contract } from "@prisma-next/contract/types";
+import type { Contract } from "@prisma/orm-framework/contract/types";
 import type { IdbContract, IdbStorage } from "./types";
 import type { IdbQueryExecutor } from "./executor";
 import { type IdbStoreAccessor, IdbStoreAccessorImpl } from "./store-accessor";
@@ -36,7 +36,7 @@ export interface IdbOrmOptions<TContract extends IdbContract> {
   /**
    * The query executor.
    *
-   * Any object with a compatible `execute()` signature satisfies this —
+   * Any object with a compatible `query()` signature satisfies this —
    * most commonly an `IdbRuntime` created via `createIdbRuntime()`.
    */
   readonly executor: IdbQueryExecutor;

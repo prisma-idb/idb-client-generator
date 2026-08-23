@@ -34,12 +34,12 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@prisma-next/contract": "^0.16.0",
-    "@prisma-next/framework-components": "^0.16.0",
-    "@prisma-next/migration-tools": "^0.16.0",
+    "@prisma/orm-framework": "8.0.0-rc.5",
+    "@prisma/orm-toolchain": "8.0.0-rc.5",
     "pathe": "^2.0.3"
   },
   "devDependencies": {
+    "@prisma/cli-engine": "0.2.0",
     "@types/node": "^24.10.9",
     "fake-indexeddb": "^6.2.5",
     "tsdown": "^0.22.14",

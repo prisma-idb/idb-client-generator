@@ -1,5 +1,5 @@
-import type { Contract, ContractMarkerRecord, LedgerEntryRecord } from "@prisma-next/contract/types";
-import type { TargetBoundComponentDescriptor } from "@prisma-next/framework-components/components";
+import type { Contract, ContractMarkerRecord, LedgerEntryRecord } from "@prisma/orm-framework/contract/types";
+import type { TargetBoundComponentDescriptor } from "@prisma/orm-framework/components/components";
 import type {
   ControlDriverInstance,
   ControlFamilyInstance,
@@ -7,8 +7,8 @@ import type {
   SignDatabaseResult,
   VerifyDatabaseResult,
   VerifyDatabaseSchemaResult,
-} from "@prisma-next/framework-components/control";
-import { VERIFY_CODE_TARGET_MISMATCH } from "@prisma-next/framework-components/control";
+} from "@prisma/orm-framework/components/control";
+import { VERIFY_CODE_TARGET_MISMATCH } from "@prisma/orm-framework/components/control";
 import type { IdbSchemaIR } from "./schema-ir";
 import { verifyIdbSchema } from "./schema-verify";
 import { validateContract } from "./validate";
@@ -34,8 +34,8 @@ function refusalSummary(action: "verified" | "signed"): string {
     `IndexedDB cannot be ${action} from the CLI. ` +
     "IndexedDB only exists in the browser; the CLI runs in Node.js, so there " +
     "is no live database for it to inspect or update. Author migrations with " +
-    "`prisma-next migration new` / `migration plan`, validate the chain with " +
-    "`prisma-next-idb preflight`, and let `createAutoMigratingIdbClient` apply " +
+    "`prisma-next-idb migration plan`, validate the chain with " +
+    "`prisma-next-idb migration preflight`, and let `createAutoMigratingIdbClient` apply " +
     "them the next time the app opens in a browser."
   );
 }

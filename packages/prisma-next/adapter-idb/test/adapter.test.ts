@@ -24,7 +24,7 @@ import { IdbAdapter } from "../src/core/idb-adapter";
 import type { IdbQueryPlan } from "../src/core/idb-query-plan";
 import type { IdbLowererContext } from "../src/core/runtime-adapter-instance";
 import idbRuntimeAdapterDescriptor from "../src/exports/runtime";
-import { emptyCodecLookup } from "@prisma-next/framework-components/codec";
+import { emptyCodecLookup } from "@prisma/orm-framework/components/codec";
 import type {
   IdbBatchPlan,
   IdbCursorScanPlan,

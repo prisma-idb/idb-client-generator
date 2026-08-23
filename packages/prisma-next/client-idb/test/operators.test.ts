@@ -7,7 +7,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import "fake-indexeddb/auto";
-import { AsyncIterableResult } from "@prisma-next/framework-components/runtime";
+import { AsyncIterableResult } from "@prisma/orm-framework/components/runtime";
 import { defineContract } from "@prisma-next-idb/family-idb/contract-ts";
 import idbFamilyPack from "@prisma-next-idb/family-idb/pack";
 import idbTargetPack from "@prisma-next-idb/target-idb/pack";
@@ -37,7 +37,7 @@ const contract = defineContract({
 
 class TestExecutor implements IdbQueryExecutor {
   constructor(readonly driver: IdbRuntimeDriverInstance) {}
-  execute<Row>(plan: IdbQueryPlan<Row>): AsyncIterableResult<Row> {
+  query<Row>(plan: IdbQueryPlan<Row>): AsyncIterableResult<Row> {
     const it = this.driver.execute(plan.idbPlan);
     return new AsyncIterableResult(
       (async function* () {

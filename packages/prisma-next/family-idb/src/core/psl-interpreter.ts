@@ -1,8 +1,13 @@
-import type { ContractSourceDiagnostic, ContractSourceDiagnostics } from "@prisma-next/config/config-types";
-import { computeExecutionHash, computeProfileHash, computeStorageHash } from "@prisma-next/contract/hashing";
-import type { ApplicationDomain, Contract, ContractField, ExecutionMutationDefault } from "@prisma-next/contract/types";
-import { UNBOUND_DOMAIN_NAMESPACE_ID, crossRef } from "@prisma-next/contract/types";
-import type { FieldSymbol, ModelSymbol, SymbolTable } from "@prisma-next/psl-parser";
+import type { ContractSourceDiagnostic, ContractSourceDiagnostics } from "@prisma/orm-framework/config/config-types";
+import { computeExecutionHash, computeProfileHash, computeStorageHash } from "@prisma/orm-framework/contract/hashing";
+import type {
+  ApplicationDomain,
+  Contract,
+  ContractField,
+  ExecutionMutationDefault,
+} from "@prisma/orm-framework/contract/types";
+import { UNBOUND_DOMAIN_NAMESPACE_ID, crossRef } from "@prisma/orm-framework/contract/types";
+import type { FieldSymbol, ModelSymbol, SymbolTable } from "@prisma/orm-framework/psl-parser";
 import type {
   IdbIndexDefinition,
   IdbModelStorage,
@@ -11,8 +16,8 @@ import type {
   IdbStorage,
   IdbStoreDefinition,
 } from "@prisma-next-idb/target-idb/pack";
-import { notOk, ok } from "@prisma-next/utils/result";
-import type { Result } from "@prisma-next/utils/result";
+import { notOk, ok } from "@prisma/orm-framework/utils/result";
+import type { Result } from "@prisma/orm-framework/utils/result";
 import { validateContract } from "./validate";
 
 /** The one `temporal.*` type-constructor path IDB currently understands. */
@@ -1091,7 +1096,7 @@ export function interpretPslDocumentToIdbContract(
     domain,
     storage,
     capabilities,
-    extensionPacks: {},
+    extensions: {},
     meta: {},
     profileHash,
     ...(execution ? { execution } : {}),

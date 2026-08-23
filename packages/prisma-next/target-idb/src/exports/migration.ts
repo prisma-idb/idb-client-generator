@@ -14,7 +14,7 @@
  * } from "@prisma-next-idb/target-idb/migration";
  *
  * export default class M extends Migration {
- *   override describe() { return { from: null, to: "sha256:..." }; }
+ *   override describe() { return { from: null, to: "..." }; }
  *   override get operations() {
  *     return [createObjectStoreOp("users", { keyPath: "id" })];
  *   }

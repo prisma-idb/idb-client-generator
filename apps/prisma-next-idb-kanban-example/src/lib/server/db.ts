@@ -1,5 +1,5 @@
 import { env } from "$env/dynamic/private";
-import postgres from "@prisma-next/postgres/runtime";
+import postgres from "@prisma/orm-postgres/runtime";
 import type { Contract } from "../prisma/schema.postgres.generated.d";
 import contractJson from "../prisma/schema.postgres.generated.json" with { type: "json" };
 

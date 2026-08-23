@@ -2,10 +2,10 @@
 // These helpers are fully family-agnostic — they wrap any Contract object
 // in a ContractSourceProvider that the prisma-next CLI config loader understands.
 import { pathToFileURL } from "node:url";
-import type { ContractConfig, PrismaNextConfig } from "@prisma-next/config/config-types";
-import { defineConfig as coreDefineConfig } from "@prisma-next/config/config-types";
-import type { Contract } from "@prisma-next/contract/types";
-import { ok } from "@prisma-next/utils/result";
+import type { ContractConfig, PrismaNextConfig } from "@prisma/orm-framework/config/config-types";
+import { defineConfig as coreDefineConfig } from "@prisma/orm-framework/config/config-types";
+import type { Contract } from "@prisma/orm-framework/contract/types";
+import { ok } from "@prisma/orm-framework/utils/result";
 import { extname } from "pathe";
 
 // Re-export defineConfig so users only need @prisma-next-idb/family-idb.
