@@ -1,5 +1,16 @@
 # @prisma-next-idb/sync-server
 
+## 0.2.3
+
+### Patch Changes
+
+- [#215](https://github.com/prisma-idb/idb-client-generator/pull/215) [`a536222`](https://github.com/prisma-idb/idb-client-generator/commit/a536222379c2d16ddd66c75ae0c0e4e948ea67a0) Thanks [@WhyAsh5114](https://github.com/WhyAsh5114)! - Moves every package off the archived `@prisma-next/*`-scoped fork onto the packages it merged into upstream: `@prisma/orm-framework`, `@prisma/orm-postgres`, `@prisma/orm-toolchain`, and `@prisma/cli-engine`, all pinned to `8.0.0-rc.5`. This is a mechanical import-path rewrite with no behavior change on its own — the migration content-hash format (bare hex, no `sha256:` prefix) already shipped in an earlier release and is unaffected.
+
+  Config files that consuming apps author now follow the upstream-unified `prisma.config.ts` / `prisma.config.postgres.ts` naming (replacing `prisma-next.config.ts`), matching the same `@prisma/cli-engine` envelope every other ORM family uses.
+
+- Updated dependencies [[`a536222`](https://github.com/prisma-idb/idb-client-generator/commit/a536222379c2d16ddd66c75ae0c0e4e948ea67a0), [`a536222`](https://github.com/prisma-idb/idb-client-generator/commit/a536222379c2d16ddd66c75ae0c0e4e948ea67a0), [`a536222`](https://github.com/prisma-idb/idb-client-generator/commit/a536222379c2d16ddd66c75ae0c0e4e948ea67a0), [`a536222`](https://github.com/prisma-idb/idb-client-generator/commit/a536222379c2d16ddd66c75ae0c0e4e948ea67a0)]:
+  - @prisma-next-idb/family-idb@0.6.0
+
 ## 0.2.2
 
 ### Patch Changes

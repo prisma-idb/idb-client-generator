@@ -1,5 +1,15 @@
 # @prisma-next-idb/kanban-example
 
+## 0.0.9
+
+### Patch Changes
+
+- Updated dependencies [[`a536222`](https://github.com/prisma-idb/idb-client-generator/commit/a536222379c2d16ddd66c75ae0c0e4e948ea67a0), [`a536222`](https://github.com/prisma-idb/idb-client-generator/commit/a536222379c2d16ddd66c75ae0c0e4e948ea67a0), [`a536222`](https://github.com/prisma-idb/idb-client-generator/commit/a536222379c2d16ddd66c75ae0c0e4e948ea67a0)]:
+  - @prisma-next-idb/client-idb@0.6.0
+  - @prisma-next-idb/sync-extension-idb@0.3.1
+  - @prisma-next-idb/sync-server@0.2.3
+  - @prisma-next-idb/sync-server-sql@0.2.3
+
 ## 0.0.8
 
 ### Patch Changes
