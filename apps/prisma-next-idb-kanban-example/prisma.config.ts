@@ -8,10 +8,8 @@ import idbDriver from "@prisma-next-idb/driver-idb/control";
 
 /**
  * IDB side of this dual-stack example (rc.5, `prisma.config.ts` unified
- * naming — see PLAN_8.6.1). The Postgres side
- * (`prisma-next.config.postgres.ts`) is Tier 2, still frozen on the old
- * `@prisma-next/*@^0.16.0` stack and its own `prisma-next` bin — untouched
- * here, on purpose (see `PLAN_8.5_cli_config_unification.md` §0).
+ * naming — see PLAN_8.6.1). The Postgres side (`prisma.config.postgres.ts`)
+ * is Tier 2, ported to the same rc.5 stack in PLAN_8.8.
  *
  * This app is the browser client, so its own emitted contract is the
  * projected one — server-only members (`@idb.exclude`/`@@idb.exclude`,
