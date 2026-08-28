@@ -1,4 +1,5 @@
 import { injectChangelogModelSql, prepareSqlSchemaWithSync } from "../core/changelog-schema";
+import { sqlContractWithSync } from "../core/sql-contract";
 import { writeSqlSchemaWithSync } from "../core/write-sql-schema";
 
 /**
@@ -29,12 +30,13 @@ export { prepareSqlSchemaWithSync };
  * `generatedSchemaPath` so it can be used inline as `defineConfig`'s
  * `contract:` value.
  *
- * There's no `injectSchemaText`-style hook on the SQL family's own schema
- * loader (`@prisma/orm-family-sql`'s `prismaContract`, which
- * `@prisma/orm-postgres/config`'s `defineConfig` wraps) to plug this into
- * directly — so this still writes an intermediate file. This wrapper
- * exists so a consuming app's config doesn't have to know that; it just
- * calls one function.
+ * Needed because `@prisma/orm-postgres/config`'s `defineConfig` (and its
+ * per-target siblings) only accept a schema *path* for `contract` — they
+ * build their own `prismaContract(...)` call internally, so there's
+ * nothing to hand a `ContractConfig` to. If you're wiring the core
+ * `defineConfig` yourself instead of a target's convenience wrapper, use
+ * {@link sqlContractWithSync}, which skips this intermediate file
+ * entirely.
  *
  * @example
  * ```ts
@@ -51,3 +53,42 @@ export { prepareSqlSchemaWithSync };
  * ```
  */
 export { writeSqlSchemaWithSync };
+
+/**
+ * The file-free counterpart to {@link writeSqlSchemaWithSync}: reads the
+ * source schema once, runs it through {@link prepareSqlSchemaWithSync} in
+ * memory, and returns a `ContractConfig` directly — no generated
+ * `.prisma` file lands on disk. Use this when wiring the core
+ * `defineConfig` (`@prisma/orm-framework/config/config-types`) yourself;
+ * a target's own convenience `defineConfig` (e.g.
+ * `@prisma/orm-postgres/config`) only accepts a path for `contract`, so
+ * it can't take this return value directly.
+ *
+ * @example
+ * ```ts
+ * import { definePrismaConfig } from "@prisma/cli-engine";
+ * import { defineConfig } from "@prisma/orm-framework/config/config-types";
+ * import postgres from "@prisma/orm-postgres/target/control";
+ * import postgresAdapter from "@prisma/orm-postgres/adapter/control";
+ * import postgresDriver from "@prisma/orm-postgres/driver/control";
+ * import sql from "@prisma/orm-postgres/family/control";
+ * import postgresPackRef from "@prisma/orm-postgres/target/pack";
+ * import { postgresCreateNamespace } from "@prisma/orm-postgres/target/types";
+ * import { sqlContractWithSync } from "@prisma-next-idb/sync-server/schema";
+ *
+ * export default definePrismaConfig({
+ *   orm: defineConfig({
+ *     family: sql,
+ *     target: postgres,
+ *     adapter: postgresAdapter,
+ *     driver: postgresDriver,
+ *     contract: sqlContractWithSync("src/lib/prisma/schema.prisma", {
+ *       target: postgresPackRef,
+ *       createNamespace: postgresCreateNamespace,
+ *     }),
+ *     db: { connection: process.env.DATABASE_URL },
+ *   }),
+ * });
+ * ```
+ */
+export { sqlContractWithSync };

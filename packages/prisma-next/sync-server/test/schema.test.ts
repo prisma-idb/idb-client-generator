@@ -2,8 +2,21 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { ContractSourceContext } from "@prisma/orm-framework/config/config-types";
+import postgresPackRef from "@prisma/orm-postgres/target/pack";
+import { postgresCreateNamespace } from "@prisma/orm-postgres/target/types";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { injectChangelogModelSql, prepareSqlSchemaWithSync, writeSqlSchemaWithSync } from "../src/exports/schema";
+import {
+  injectChangelogModelSql,
+  prepareSqlSchemaWithSync,
+  sqlContractWithSync,
+  writeSqlSchemaWithSync,
+} from "../src/exports/schema";
+
+const postgresContractOptions = {
+  target: postgresPackRef,
+  createNamespace: postgresCreateNamespace,
+};
 
 let dir: string;
 
@@ -66,5 +79,40 @@ describe("writeSqlSchemaWithSync", () => {
     expect(written).toContain("model User {");
     expect(written).toContain("enum ChangeOperation {");
     expect(written).toContain("AUTO-GENERATED");
+  });
+});
+
+describe("sqlContractWithSync", () => {
+  it("derives inputs/output the same way prismaContract does, without touching disk", () => {
+    const schemaPath = join(dir, "schema.prisma");
+    const config = sqlContractWithSync(schemaPath, postgresContractOptions);
+
+    expect(config.source.format).toBe("psl");
+    expect(config.source.inputs).toEqual([schemaPath]);
+    expect(config.output).toBe(join(dir, "contract.json"));
+  });
+
+  it("respects an explicit output override", () => {
+    const schemaPath = join(dir, "schema.prisma");
+    const config = sqlContractWithSync(schemaPath, { ...postgresContractOptions, output: join(dir, "out.json") });
+
+    expect(config.output).toBe(join(dir, "out.json"));
+  });
+
+  it("surfaces a read failure as a NotOk PSL_SCHEMA_READ_FAILED diagnostic, never a thrown error", async () => {
+    const schemaPath = join(dir, "schema.prisma");
+    const missingPath = join(dir, "does-not-exist.prisma");
+    const config = sqlContractWithSync(schemaPath, postgresContractOptions);
+
+    // The read failure short-circuits before any other context field is
+    // read, so only `resolvedInputs` needs a real value here.
+    const context = { resolvedInputs: [missingPath] } as unknown as ContractSourceContext;
+    const result = await config.source.load(context);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failure.diagnostics).toHaveLength(1);
+      expect(result.failure.diagnostics[0]?.code).toBe("PSL_SCHEMA_READ_FAILED");
+    }
   });
 });
