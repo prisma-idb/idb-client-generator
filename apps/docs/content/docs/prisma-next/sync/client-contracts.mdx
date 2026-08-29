@@ -52,22 +52,39 @@ export default definePrismaConfig({
 
 If your server also happens to run on the IDB family, pointing it at the same schema without the `projection` option works. But the realistic case — and the one the [sync server setup](/docs/prisma-next/sync/server) uses — is a SQL/Postgres server. Its parser doesn't understand `@idb.exclude`/`@@idb.exclude` at all and hard-errors on the unrecognized `idb` namespace, so `prismaIdbContract` (or any IDB-family helper) isn't in the picture on that side.
 
-Instead, `@prisma-next-idb/sync-server/schema` exports `writeSqlSchemaWithSync`, which reads the _same_ `schema.prisma`, strips the `@idb.exclude`/`@@idb.exclude` markers as plain text, appends a SQL-flavored `Changelog` model, and writes a schema file the SQL family can parse:
+Instead, `@prisma-next-idb/sync-server/schema` exports `sqlContractWithSync`, which reads the _same_ `schema.prisma`, strips the `@idb.exclude`/`@@idb.exclude` markers as plain text, appends a SQL-flavored `Changelog` model, and hands the result straight to the SQL family's own parser — entirely in memory, no generated schema file:
 
 ```ts
 // prisma.config.postgres.ts (server)
 import { definePrismaConfig } from "@prisma/cli-engine";
-import { defineConfig as ormConfig } from "@prisma/orm-postgres/config";
-import { writeSqlSchemaWithSync } from "@prisma-next-idb/sync-server/schema";
+import { defineConfig } from "@prisma/orm-framework/config/config-types";
+import postgresAdapter from "@prisma/orm-postgres/adapter/control";
+import { PG_INT_CODEC_ID, PG_TEXT_CODEC_ID } from "@prisma/orm-postgres/target/codec-ids";
+import postgresDriver from "@prisma/orm-postgres/driver/control";
+import sql from "@prisma/orm-postgres/family/control";
+import postgres from "@prisma/orm-postgres/target/control";
+import postgresPackRef from "@prisma/orm-postgres/target/pack";
+import { postgresCreateNamespace } from "@prisma/orm-postgres/target/types";
+import { sqlContractWithSync } from "@prisma-next-idb/sync-server/schema";
 
 export default definePrismaConfig({
-  orm: ormConfig({
-    contract: writeSqlSchemaWithSync("schema.prisma", "schema.postgres.generated.prisma"),
+  orm: defineConfig({
+    family: sql,
+    target: postgres,
+    adapter: postgresAdapter,
+    driver: postgresDriver,
+    contract: sqlContractWithSync("schema.prisma", {
+      target: postgresPackRef,
+      createNamespace: postgresCreateNamespace,
+      enumInferenceCodecs: { text: PG_TEXT_CODEC_ID, int: PG_INT_CODEC_ID },
+    }),
     db: { connection: process.env.DATABASE_URL },
     migrations: { dir: "migrations-postgres" }, // a separate lineage from the IDB side's migrations/
   }),
 });
 ```
+
+`sqlContractWithSync` needs the core `defineConfig` (`@prisma/orm-framework/config/config-types`) wired by hand, as above, rather than `@prisma/orm-postgres/config`'s convenience wrapper — that wrapper's `contract` option only accepts a schema path, since it builds its own internal contract loader call.
 
 Emit and migrate this side with the same `prisma` CLI, pointed at this config:
 

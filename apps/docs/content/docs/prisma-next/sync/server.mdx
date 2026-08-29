@@ -122,18 +122,33 @@ This re-derives ownership from the record's _current_ relations, not from what w
 ```ts
 // prisma.config.postgres.ts
 import { definePrismaConfig } from "@prisma/cli-engine";
-import { defineConfig as ormConfig } from "@prisma/orm-postgres/config";
-import { writeSqlSchemaWithSync } from "@prisma-next-idb/sync-server/schema";
+import { defineConfig } from "@prisma/orm-framework/config/config-types";
+import postgresAdapter from "@prisma/orm-postgres/adapter/control";
+import { PG_INT_CODEC_ID, PG_TEXT_CODEC_ID } from "@prisma/orm-postgres/target/codec-ids";
+import postgresDriver from "@prisma/orm-postgres/driver/control";
+import sql from "@prisma/orm-postgres/family/control";
+import postgres from "@prisma/orm-postgres/target/control";
+import postgresPackRef from "@prisma/orm-postgres/target/pack";
+import { postgresCreateNamespace } from "@prisma/orm-postgres/target/types";
+import { sqlContractWithSync } from "@prisma-next-idb/sync-server/schema";
 
 export default definePrismaConfig({
-  orm: ormConfig({
-    contract: writeSqlSchemaWithSync("schema.prisma", "schema.postgres.generated.prisma"),
+  orm: defineConfig({
+    family: sql,
+    target: postgres,
+    adapter: postgresAdapter,
+    driver: postgresDriver,
+    contract: sqlContractWithSync("schema.prisma", {
+      target: postgresPackRef,
+      createNamespace: postgresCreateNamespace,
+      enumInferenceCodecs: { text: PG_TEXT_CODEC_ID, int: PG_INT_CODEC_ID },
+    }),
     db: { connection: process.env.DATABASE_URL },
   }),
 });
 ```
 
-`writeSqlSchemaWithSync` reads your schema, strips `@idb.exclude`/`@@idb.exclude` (meaningless to a SQL parser — it hard-errors on the unrecognized namespace otherwise), appends a SQL-flavored `Changelog` model and `ChangeOperation` enum, and writes the result to the path you give it:
+`sqlContractWithSync` reads your schema, strips `@idb.exclude`/`@@idb.exclude` (meaningless to a SQL parser — it hard-errors on the unrecognized namespace otherwise), appends a SQL-flavored `Changelog` model and `ChangeOperation` enum, and hands the result straight to the SQL family's own parser in memory — no generated `.prisma` file lands on disk. (`@prisma/orm-postgres/config`'s convenience `defineConfig` only accepts a schema path for `contract`, so this wires the core `defineConfig` directly instead.) The schema that comes out looks like this:
 
 ```prisma
 enum ChangeOperation {
@@ -155,7 +170,7 @@ model Changelog {
 }
 ```
 
-`prepareSqlSchemaWithSync` (pure text transform, no file I/O) and `injectChangelogModelSql` (just the `Changelog` append) are also exported individually if you need to compose this into a different schema-loading pipeline.
+`prepareSqlSchemaWithSync` (pure text transform, no file I/O — what `sqlContractWithSync` runs under the hood) and `injectChangelogModelSql` (just the `Changelog` append) are also exported individually if you need to compose this into a different schema-loading pipeline.
 
 Set up and evolve this side with the same `prisma` CLI you already use for the SQL family, pointed at this config with `--config`:
 

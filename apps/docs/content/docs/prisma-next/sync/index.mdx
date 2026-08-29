@@ -145,19 +145,34 @@ Full client API — the outbox event, `withoutTracking`, version metadata — is
 ```ts
 // prisma.config.postgres.ts
 import { definePrismaConfig } from "@prisma/cli-engine";
-import { defineConfig as ormConfig } from "@prisma/orm-postgres/config";
-import { writeSqlSchemaWithSync } from "@prisma-next-idb/sync-server/schema";
+import { defineConfig } from "@prisma/orm-framework/config/config-types";
+import postgresAdapter from "@prisma/orm-postgres/adapter/control";
+import { PG_INT_CODEC_ID, PG_TEXT_CODEC_ID } from "@prisma/orm-postgres/target/codec-ids";
+import postgresDriver from "@prisma/orm-postgres/driver/control";
+import sql from "@prisma/orm-postgres/family/control";
+import postgres from "@prisma/orm-postgres/target/control";
+import postgresPackRef from "@prisma/orm-postgres/target/pack";
+import { postgresCreateNamespace } from "@prisma/orm-postgres/target/types";
+import { sqlContractWithSync } from "@prisma-next-idb/sync-server/schema";
 
 export default definePrismaConfig({
-  orm: ormConfig({
-    contract: writeSqlSchemaWithSync("schema.prisma", "schema.postgres.generated.prisma"),
+  orm: defineConfig({
+    family: sql,
+    target: postgres,
+    adapter: postgresAdapter,
+    driver: postgresDriver,
+    contract: sqlContractWithSync("schema.prisma", {
+      target: postgresPackRef,
+      createNamespace: postgresCreateNamespace,
+      enumInferenceCodecs: { text: PG_TEXT_CODEC_ID, int: PG_INT_CODEC_ID },
+    }),
     db: { connection: process.env.DATABASE_URL },
     migrations: { dir: "migrations-postgres" }, // keep this separate from the IDB side's migrations/
   }),
 });
 ```
 
-`writeSqlSchemaWithSync` strips the `@idb.exclude` markers and appends a `Changelog` model for you — see [Client Contracts](/docs/prisma-next/sync/client-contracts#the-server-side-a-different-family-not-a-different-projection) for why, and [Server](/docs/prisma-next/sync/server#schema-the-changelog-model) for what it generates.
+`sqlContractWithSync` strips the `@idb.exclude` markers and appends a `Changelog` model for you, entirely in memory — no generated `.prisma` file lands on disk. It needs the core `defineConfig` wired by hand rather than `@prisma/orm-postgres/config`'s convenience wrapper, since that wrapper only accepts a schema path for `contract`; see [Client Contracts](/docs/prisma-next/sync/client-contracts#the-server-side-a-different-family-not-a-different-projection) for why the transform is needed, and [Server](/docs/prisma-next/sync/server#schema-the-changelog-model) for what it generates.
 
 </Step>
 <Step>
