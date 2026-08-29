@@ -67,13 +67,9 @@ export function injectChangelogModelSql(schema: string): string {
  * for `family-idb` (browser client) into the real server schema: strip
  * `@idb.exclude`/`@@idb.exclude` (meaningless to a real server, and the
  * SQL parser hard-errors on the unrecognized `idb` namespace otherwise —
- * see `stripIdbExcludeAttributes`), then append `Changelog`. There's no
- * `injectSchemaText`-style hook on the SQL family's own schema loader to
- * plug this into (only `family-idb`'s `prismaIdbContract` has one), so the
- * caller still has to write the result to a file and point their config at
- * that — see `writeSqlSchemaWithSync` for the version that also does that
- * file I/O — but the actual transform is one call, not hand-rolled string
- * surgery per app.
+ * see `stripIdbExcludeAttributes`), then append `Changelog`. See
+ * `sqlContractWithSync` for the version that also feeds this straight into
+ * the SQL family's own parser, in memory.
  */
 export function prepareSqlSchemaWithSync(schema: string): string {
   return injectChangelogModelSql(stripIdbExcludeAttributes(schema));

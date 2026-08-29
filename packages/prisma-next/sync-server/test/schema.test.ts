@@ -1,4 +1,3 @@
-import { readFileSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,12 +5,7 @@ import type { ContractSourceContext } from "@prisma/orm-framework/config/config-
 import postgresPackRef from "@prisma/orm-postgres/target/pack";
 import { postgresCreateNamespace } from "@prisma/orm-postgres/target/types";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import {
-  injectChangelogModelSql,
-  prepareSqlSchemaWithSync,
-  sqlContractWithSync,
-  writeSqlSchemaWithSync,
-} from "../src/exports/schema";
+import { injectChangelogModelSql, prepareSqlSchemaWithSync, sqlContractWithSync } from "../src/exports/schema";
 
 const postgresContractOptions = {
   target: postgresPackRef,
@@ -63,22 +57,6 @@ describe("prepareSqlSchemaWithSync", () => {
     expect(result).toContain("passwordHash");
     expect(result).toContain("model AuditLog");
     expect(result).toContain("enum ChangeOperation {");
-  });
-});
-
-describe("writeSqlSchemaWithSync", () => {
-  it("reads the source, prepares it, writes the result, and returns the generated path", () => {
-    const sourcePath = join(dir, "schema.prisma");
-    const generatedPath = join(dir, "schema.postgres.generated.prisma");
-    writeFileSync(sourcePath, "model User {\n  id String @id\n}\n", "utf-8");
-
-    const returned = writeSqlSchemaWithSync(sourcePath, generatedPath);
-
-    expect(returned).toBe(generatedPath);
-    const written = readFileSync(generatedPath, "utf-8");
-    expect(written).toContain("model User {");
-    expect(written).toContain("enum ChangeOperation {");
-    expect(written).toContain("AUTO-GENERATED");
   });
 });
 

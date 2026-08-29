@@ -23,8 +23,7 @@ function mapParseDiagnostics(
 }
 
 /**
- * The file-free counterpart to `writeSqlSchemaWithSync`: reads
- * `schemaPath` once, runs it through `prepareSqlSchemaWithSync`, and
+ * Reads `schemaPath` once, runs it through `prepareSqlSchemaWithSync`, and
  * hands the *text* straight to the SQL family's own parse → interpret →
  * control-policy pipeline — no generated `.prisma` file lands on disk.
  *

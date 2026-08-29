@@ -94,22 +94,42 @@ Step 2 exists because a stamped `scopeKey` is a snapshot, and ownership can move
 
 The old generator required a `Changelog` model + `ChangeOperation` enum hand-typed into your `schema.prisma`, and threw one of a dozen validation errors (wrong type, missing `@unique`, extra field, ...) if it drifted from the exact expected shape. `sync-server/schema` owns that shape instead.
 
-`Changelog` has to live wherever your server's data actually lives — a real Postgres database, in a normal deployment (never IndexedDB: it's a browser-only storage engine, so an "IDB as the server too" path never made sense as a real target, and this package doesn't offer one). `writeSqlSchemaWithSync` takes the _same_ `schema.prisma` your IDB client config already parses, strips `@idb.exclude`/`@@idb.exclude` (meaningless to a real server, and the SQL family's parser hard-errors on that unrecognized namespace otherwise), appends a SQL-flavored `Changelog` — real enum, real DB-generated `autoincrement()` id — and writes the result to a file your Postgres config points at:
+`Changelog` has to live wherever your server's data actually lives — a real Postgres database, in a normal deployment (never IndexedDB: it's a browser-only storage engine, so an "IDB as the server too" path never made sense as a real target, and this package doesn't offer one). `sqlContractWithSync` takes the _same_ `schema.prisma` your IDB client config already parses, strips `@idb.exclude`/`@@idb.exclude` (meaningless to a real server, and the SQL family's parser hard-errors on that unrecognized namespace otherwise), appends a SQL-flavored `Changelog` — real enum, real DB-generated `autoincrement()` id — and hands the result straight into the SQL family's own parse → interpret pipeline, entirely in memory:
 
 ```ts
-// prisma-next.config.postgres.ts
-import { defineConfig } from "@prisma/orm-postgres/config";
-import { writeSqlSchemaWithSync } from "@prisma-next-idb/sync-server/schema";
+// prisma.config.postgres.ts
+import { definePrismaConfig } from "@prisma/cli-engine";
+import { defineConfig } from "@prisma/orm-framework/config/config-types";
+import postgresAdapter from "@prisma/orm-postgres/adapter/control";
+import postgresDriver from "@prisma/orm-postgres/driver/control";
+import sql from "@prisma/orm-postgres/family/control";
+import { PG_INT_CODEC_ID, PG_TEXT_CODEC_ID } from "@prisma/orm-postgres/target/codec-ids";
+import postgres from "@prisma/orm-postgres/target/control";
+import postgresPackRef from "@prisma/orm-postgres/target/pack";
+import { postgresCreateNamespace } from "@prisma/orm-postgres/target/types";
+import { sqlContractWithSync } from "@prisma-next-idb/sync-server/schema";
 
-export default defineConfig({
-  contract: writeSqlSchemaWithSync("src/lib/prisma/schema.prisma", "src/lib/prisma/schema.postgres.generated.prisma"),
-  db: { connection: process.env.DATABASE_URL },
+export default definePrismaConfig({
+  orm: defineConfig({
+    family: sql,
+    target: postgres,
+    adapter: postgresAdapter,
+    driver: postgresDriver,
+    contract: sqlContractWithSync("src/lib/prisma/schema.prisma", {
+      target: postgresPackRef,
+      createNamespace: postgresCreateNamespace,
+      enumInferenceCodecs: { text: PG_TEXT_CODEC_ID, int: PG_INT_CODEC_ID },
+    }),
+    db: { connection: process.env.DATABASE_URL },
+  }),
 });
 ```
 
-There's no `injectSchemaText`-style hook on the SQL family's own schema loader to plug this into directly (`family-idb`'s `prismaIdbContract` has one; the SQL family's `prismaContract` doesn't), so this still writes an intermediate file rather than composing inline — but the transform itself is one function call, not hand-rolled string surgery per app. `createSyncServer`'s `contract` can then be this real Postgres contract directly (with a `getKeyField` override — see the API section above) — no IDB-shaped stand-in needed just to feed the DAG.
+There's no `injectSchemaText`-style hook on the SQL family's own schema loader to plug this into directly (`family-idb`'s `prismaIdbContract` has one; the SQL family's `prismaContract` doesn't — see [prisma/orm#30115](https://github.com/prisma/orm/issues/30115)), so `sqlContractWithSync` decomposes `prismaContract()` into its component parts and substitutes an in-memory `load()` instead. The one cost is that it needs the core `defineConfig` wired by hand, as above — a target's own convenience `defineConfig` (e.g. `@prisma/orm-postgres/config`) only accepts a schema _path_ for `contract`, since it builds its own internal `prismaContract(...)` call, so it can't take a `ContractConfig` directly.
 
-`prepareSqlSchemaWithSync` (pure text in, text out, no file I/O) and `injectChangelogModelSql` (just the `Changelog` append, no stripping) are also exported on their own, for building against a schema loader `writeSqlSchemaWithSync` doesn't target directly.
+`createSyncServer`'s `contract` can then be this real Postgres contract directly (with a `getKeyField` override — see the API section above) — no IDB-shaped stand-in needed just to feed the DAG.
+
+`prepareSqlSchemaWithSync` (pure text in, text out, no file I/O) and `injectChangelogModelSql` (just the `Changelog` append, no stripping) are also exported on their own, for building against a schema loader `sqlContractWithSync` doesn't target directly.
 
 ## Why "descriptions", not query results
 
@@ -161,6 +181,6 @@ const syncServer = createSyncServer({
 
 ### `@prisma-next-idb/sync-server/schema`
 
-- `writeSqlSchemaWithSync(sourceSchemaPath, generatedSchemaPath)` — reads, prepares, and writes the real server schema; returns `generatedSchemaPath` for inline use as `defineConfig`'s `contract:`.
+- `sqlContractWithSync(schemaPath, options)` — reads, prepares, and interprets the real server schema entirely in memory; returns a `ContractConfig` for the core `defineConfig`'s `contract:`. `options` is forwarded to the SQL family's own `prismaContract`.
 - `prepareSqlSchemaWithSync(schema)` — the pure text transform underneath (strip `@idb.exclude`/`@@idb.exclude` + append `Changelog`), no file I/O.
 - `injectChangelogModelSql(schema)` — just the `Changelog` append, no stripping.
