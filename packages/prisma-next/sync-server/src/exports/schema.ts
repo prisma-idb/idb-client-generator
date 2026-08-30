@@ -27,6 +27,12 @@ export { prepareSqlSchemaWithSync };
  * in memory, and returns a `ContractConfig` directly — no generated
  * `.prisma` file lands on disk.
  *
+ * On Postgres, prefer `@prisma-next-idb/sync-server/postgres`'s
+ * `defineConfig` — it wires all of this (plus the family/target/adapter/driver
+ * descriptors) behind a handful of options. Reach for this function directly
+ * only for a different SQL target, or when you need control the facade
+ * doesn't expose.
+ *
  * This needs the core `defineConfig` (`@prisma/orm-framework/config/config-types`)
  * wired by hand — a target's own convenience `defineConfig` (e.g.
  * `@prisma/orm-postgres/config`) only accepts a schema *path* for

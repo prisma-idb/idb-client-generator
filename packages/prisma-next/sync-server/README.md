@@ -94,10 +94,31 @@ Step 2 exists because a stamped `scopeKey` is a snapshot, and ownership can move
 
 The old generator required a `Changelog` model + `ChangeOperation` enum hand-typed into your `schema.prisma`, and threw one of a dozen validation errors (wrong type, missing `@unique`, extra field, ...) if it drifted from the exact expected shape. `sync-server/schema` owns that shape instead.
 
-`Changelog` has to live wherever your server's data actually lives — a real Postgres database, in a normal deployment (never IndexedDB: it's a browser-only storage engine, so an "IDB as the server too" path never made sense as a real target, and this package doesn't offer one). `sqlContractWithSync` takes the _same_ `schema.prisma` your IDB client config already parses, strips `@idb.exclude`/`@@idb.exclude` (meaningless to a real server, and the SQL family's parser hard-errors on that unrecognized namespace otherwise), appends a SQL-flavored `Changelog` — real enum, real DB-generated `autoincrement()` id — and hands the result straight into the SQL family's own parse → interpret pipeline, entirely in memory:
+`Changelog` has to live wherever your server's data actually lives — a real Postgres database, in a normal deployment (never IndexedDB: it's a browser-only storage engine, so an "IDB as the server too" path never made sense as a real target, and this package doesn't offer one). For Postgres, `@prisma-next-idb/sync-server/postgres`'s `defineConfig` takes the _same_ `schema.prisma` your IDB client config already parses and does the rest — strips `@idb.exclude`/`@@idb.exclude` (meaningless to a real server, and the SQL family's parser hard-errors on that unrecognized namespace otherwise), appends a SQL-flavored `Changelog` (real enum, real DB-generated `autoincrement()` id), and wires the SQL family/Postgres target/adapter/driver descriptors — all entirely in memory, no generated `.prisma` file lands on disk:
 
 ```ts
 // prisma.config.postgres.ts
+import { definePrismaConfig } from "@prisma/cli-engine";
+import { defineConfig } from "@prisma-next-idb/sync-server/postgres";
+
+export default definePrismaConfig({
+  orm: defineConfig({
+    schema: "src/lib/prisma/schema.prisma",
+    db: { connection: process.env.DATABASE_URL },
+  }),
+});
+```
+
+`createSyncServer`'s `contract` can then be this real Postgres contract directly (with a `getKeyField` override — see the API section above) — no IDB-shaped stand-in needed just to feed the DAG.
+
+**Upgrading from a hand-authored `Changelog`:** delete the `Changelog` model and `ChangeOperation` enum from `schema.prisma` before switching to `sqlContractWithSync`/this facade. Both are appended for you — leaving your own declarations in place produces duplicate PSL declarations, which fail contract generation.
+
+#### Other targets, or composing your own config
+
+`@prisma-next-idb/sync-server/postgres` is a thin wrapper around `sqlContractWithSync`, the lower-level, target-agnostic building block. Reach for it directly if you're on a different SQL target, need `extensions`, or otherwise need control the facade doesn't expose:
+
+```ts
+// prisma.config.postgres.ts — the manual wiring the facade above does for you
 import { definePrismaConfig } from "@prisma/cli-engine";
 import { defineConfig } from "@prisma/orm-framework/config/config-types";
 import postgresAdapter from "@prisma/orm-postgres/adapter/control";
@@ -119,15 +140,17 @@ export default definePrismaConfig({
       target: postgresPackRef,
       createNamespace: postgresCreateNamespace,
       enumInferenceCodecs: { text: PG_TEXT_CODEC_ID, int: PG_INT_CODEC_ID },
+      // Explicit: the default derives from the schema's own directory
+      // (src/lib/prisma/contract.json), which collides with the IDB side's
+      // own contract.json living in the same directory.
+      output: "src/lib/prisma/schema.postgres.generated.json",
     }),
     db: { connection: process.env.DATABASE_URL },
   }),
 });
 ```
 
-There's no `injectSchemaText`-style hook on the SQL family's own schema loader to plug this into directly (`family-idb`'s `prismaIdbContract` has one; the SQL family's `prismaContract` doesn't — see [prisma/orm#30115](https://github.com/prisma/orm/issues/30115)), so `sqlContractWithSync` decomposes `prismaContract()` into its component parts and substitutes an in-memory `load()` instead. The one cost is that it needs the core `defineConfig` wired by hand, as above — a target's own convenience `defineConfig` (e.g. `@prisma/orm-postgres/config`) only accepts a schema _path_ for `contract`, since it builds its own internal `prismaContract(...)` call, so it can't take a `ContractConfig` directly.
-
-`createSyncServer`'s `contract` can then be this real Postgres contract directly (with a `getKeyField` override — see the API section above) — no IDB-shaped stand-in needed just to feed the DAG.
+There's no `injectSchemaText`-style hook on the SQL family's own schema loader to plug this into directly (`family-idb`'s `prismaIdbContract` has one; the SQL family's `prismaContract` doesn't — see [prisma/orm#30115](https://github.com/prisma/orm/issues/30115)), so `sqlContractWithSync` decomposes `prismaContract()` into its component parts and substitutes an in-memory `load()` instead. The one cost is that it needs the core `defineConfig` wired by hand, as above — a target's own convenience `defineConfig` (e.g. `@prisma/orm-postgres/config`) only accepts a schema _path_ for `contract`, since it builds its own internal `prismaContract(...)` call, so it can't take a `ContractConfig` directly. `@prisma-next-idb/sync-server/postgres` exists precisely to hide this wiring for the common Postgres case.
 
 `prepareSqlSchemaWithSync` (pure text in, text out, no file I/O) and `injectChangelogModelSql` (just the `Changelog` append, no stripping) are also exported on their own, for building against a schema loader `sqlContractWithSync` doesn't target directly.
 
@@ -179,8 +202,12 @@ const syncServer = createSyncServer({
 - `resolveAuthorizationPaths(contract, rootModel, modelName)` — every relation-name chain from `modelName` to `rootModel`, shortest first.
 - `defaultGetKeyField` — the default IDB-shaped resolver `createSyncServer` uses when `getKeyField` is omitted, exported so a custom resolver can fall back to it for models that _are_ IDB-shaped in a mixed setup.
 
+### `@prisma-next-idb/sync-server/postgres`
+
+- `defineConfig({ schema, output?, db?, migrations? })` — the Postgres facade: wires `@prisma/orm-postgres`'s family/target/adapter/driver descriptors and `sqlContractWithSync` through the core `defineConfig` for you. `schema` is the path to the shared `schema.prisma`.
+
 ### `@prisma-next-idb/sync-server/schema`
 
-- `sqlContractWithSync(schemaPath, options)` — reads, prepares, and interprets the real server schema entirely in memory; returns a `ContractConfig` for the core `defineConfig`'s `contract:`. `options` is forwarded to the SQL family's own `prismaContract`.
+- `sqlContractWithSync(schemaPath, options)` — reads, prepares, and interprets the real server schema entirely in memory; returns a `ContractConfig` for the core `defineConfig`'s `contract:`. `options` is forwarded to the SQL family's own `prismaContract`. What `@prisma-next-idb/sync-server/postgres` uses internally — reach for this directly for a non-Postgres target or when you need control the facade doesn't expose.
 - `prepareSqlSchemaWithSync(schema)` — the pure text transform underneath (strip `@idb.exclude`/`@@idb.exclude` + append `Changelog`), no file I/O.
 - `injectChangelogModelSql(schema)` — just the `Changelog` append, no stripping.
