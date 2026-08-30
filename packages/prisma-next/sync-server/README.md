@@ -104,6 +104,10 @@ import { defineConfig } from "@prisma-next-idb/sync-server/postgres";
 export default definePrismaConfig({
   orm: defineConfig({
     schema: "src/lib/prisma/schema.prisma",
+    // Explicit: the default derives from the schema's own directory
+    // (src/lib/prisma/contract.json), which collides with the IDB side's
+    // own contract.json living in the same directory.
+    output: "src/lib/prisma/schema.postgres.generated.json",
     db: { connection: process.env.DATABASE_URL },
   }),
 });
@@ -113,7 +117,7 @@ export default definePrismaConfig({
 
 **Upgrading from a hand-authored `Changelog`:** delete the `Changelog` model and `ChangeOperation` enum from `schema.prisma` before switching to `sqlContractWithSync`/this facade. Both are appended for you — leaving your own declarations in place produces duplicate PSL declarations, which fail contract generation.
 
-#### Other targets, or composing your own config
+### Other targets, or composing your own config
 
 `@prisma-next-idb/sync-server/postgres` is a thin wrapper around `sqlContractWithSync`, the lower-level, target-agnostic building block. Reach for it directly if you're on a different SQL target, need `extensions`, or otherwise need control the facade doesn't expose:
 
