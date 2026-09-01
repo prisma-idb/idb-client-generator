@@ -74,7 +74,7 @@ model Session {
 
 Your IDB config (`prismaIdbContract(path, { projection: "client" })`) strips these before the browser ever sees them. That's the only projection flag you touch on the client side — `"full"` is just the interpreter's default (nothing stripped), not a second thing you feed to a server config.
 
-If your server is also on the IDB family, you'd point it at the same schema without the `projection` option. But the realistic case — and what the [sync](/docs/prisma-next/sync) server setup demonstrates — is a SQL/Postgres server, which can't parse `@idb.exclude` at all (its parser hard-errors on the unrecognized namespace). For that you don't touch `projection` here — see [Client Contracts](/docs/prisma-next/sync/client-contracts) for the `writeSqlSchemaWithSync` helper that handles it, and what happens to a relation that points at an excluded model.
+If your server is also on the IDB family, you'd point it at the same schema without the `projection` option. But the realistic case — and what the [sync](/docs/prisma-next/sync) server setup demonstrates — is a SQL/Postgres server, which can't parse `@idb.exclude` at all (its parser hard-errors on the unrecognized namespace). For that you don't touch `projection` here — see [Client Contracts](/docs/prisma-next/sync/client-contracts) for the `sqlContractWithSync` helper that handles it, and what happens to a relation that points at an excluded model.
 
 A few rules the interpreter enforces:
 

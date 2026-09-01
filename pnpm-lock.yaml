@@ -919,9 +919,15 @@ importers:
       '@prisma-next-idb/family-idb':
         specifier: workspace:*
         version: link:../family-idb
+      '@prisma/orm-family-sql':
+        specifier: 8.0.0-rc.5
+        version: 8.0.0-rc.5(@prisma/cli-engine@0.2.0(magicast@0.5.4))(magicast@0.5.4)(typanion@3.14.0)(typescript@6.0.3)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))
       '@prisma/orm-framework':
         specifier: 8.0.0-rc.5
         version: 8.0.0-rc.5(typescript@6.0.3)
+      '@prisma/orm-postgres':
+        specifier: 8.0.0-rc.5
+        version: 8.0.0-rc.5(@prisma/cli-engine@0.2.0(magicast@0.5.4))(magicast@0.5.4)(typanion@3.14.0)(typescript@6.0.3)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))
     devDependencies:
       '@prisma-next-idb/target-idb':
         specifier: workspace:*

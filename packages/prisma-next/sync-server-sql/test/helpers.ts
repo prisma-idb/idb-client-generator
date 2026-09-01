@@ -9,7 +9,7 @@ import { ormRootFor } from "../src/core/orm-root";
 /**
  * The real contract emitted from test/fixtures/schema.prisma (User (root)
  * <- Board (ownerId) <- Todo (boardId), plus the SQL-flavored `Changelog`
- * `writeSqlSchemaWithSync` appends) — this package's own suite runs
+ * `sqlContractWithSync` appends) — this package's own suite runs
  * against a real Postgres client built from this, not a hand-rolled fake.
  */
 export const testContract = contractJson as unknown as SyncServerContract;

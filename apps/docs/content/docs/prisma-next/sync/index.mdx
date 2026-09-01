@@ -145,19 +145,21 @@ Full client API — the outbox event, `withoutTracking`, version metadata — is
 ```ts
 // prisma.config.postgres.ts
 import { definePrismaConfig } from "@prisma/cli-engine";
-import { defineConfig as ormConfig } from "@prisma/orm-postgres/config";
-import { writeSqlSchemaWithSync } from "@prisma-next-idb/sync-server/schema";
+import { defineConfig } from "@prisma-next-idb/sync-server/postgres";
 
 export default definePrismaConfig({
-  orm: ormConfig({
-    contract: writeSqlSchemaWithSync("schema.prisma", "schema.postgres.generated.prisma"),
+  orm: defineConfig({
+    schema: "schema.prisma",
+    // Explicit: the default derives from the schema's own directory
+    // (contract.json), which collides with the IDB side's own contract.json.
+    output: "schema.postgres.generated.json",
     db: { connection: process.env.DATABASE_URL },
     migrations: { dir: "migrations-postgres" }, // keep this separate from the IDB side's migrations/
   }),
 });
 ```
 
-`writeSqlSchemaWithSync` strips the `@idb.exclude` markers and appends a `Changelog` model for you — see [Client Contracts](/docs/prisma-next/sync/client-contracts#the-server-side-a-different-family-not-a-different-projection) for why, and [Server](/docs/prisma-next/sync/server#schema-the-changelog-model) for what it generates.
+`@prisma-next-idb/sync-server/postgres`'s `defineConfig` strips the `@idb.exclude` markers and appends a `Changelog` model for you, entirely in memory — no generated `.prisma` file lands on disk — and wires the SQL family/Postgres target/adapter/driver descriptors so you don't have to. See [Client Contracts](/docs/prisma-next/sync/client-contracts#the-server-side-a-different-family-not-a-different-projection) for why the transform is needed, and [Server](/docs/prisma-next/sync/server#schema-the-changelog-model) for what it generates — including how to wire a non-Postgres target by hand.
 
 </Step>
 <Step>

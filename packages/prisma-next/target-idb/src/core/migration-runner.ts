@@ -1,28 +1,11 @@
 import type {
   ControlDriverInstance,
   MigrationRunner,
-  MigrationRunnerFailure,
   MigrationRunnerPerSpaceOptions,
   MigrationRunnerResult,
 } from "@prisma/orm-framework/components/control";
 import { APP_SPACE_ID } from "@prisma/orm-framework/components/control";
-
-// ── Inline Result helper ──────────────────────────────────────────────────────
-// `@prisma-next/utils` is not a direct dependency, so satisfy `NotOk<F>`
-// structurally via TypeScript's structural typing.
-
-function makeNotOk(failure: MigrationRunnerFailure): MigrationRunnerResult {
-  return {
-    ok: false as const,
-    failure,
-    assertOk(): never {
-      throw new Error("assertOk called on NotOk result");
-    },
-    assertNotOk() {
-      return failure;
-    },
-  };
-}
+import { notOk } from "@prisma/orm-framework/utils/result";
 
 // ── Runner ────────────────────────────────────────────────────────────────────
 
@@ -55,7 +38,7 @@ export class IdbMigrationRunner implements MigrationRunner<"idb", "idb"> {
     readonly perSpaceOptions: ReadonlyArray<MigrationRunnerPerSpaceOptions<"idb", "idb">>;
   }): Promise<MigrationRunnerResult> {
     const failingSpace = options.perSpaceOptions[0]?.space ?? APP_SPACE_ID;
-    return makeNotOk({
+    return notOk({
       code: "IDB-RUNNER-CLI-UNSUPPORTED",
       summary: "IndexedDB migrations cannot be applied from the CLI.",
       why:
